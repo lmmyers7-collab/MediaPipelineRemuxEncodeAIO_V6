@@ -103,6 +103,9 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         cancel_watcher = getattr(self.facade, "_cancel_pipeline_schedule_stop_watcher", None)
         if callable(cancel_watcher):
             cancel_watcher("local API server stopping")
+        stop_watch_folders = getattr(self.facade, "_stop_watch_folder_manager", None)
+        if callable(stop_watch_folders):
+            stop_watch_folders("local API server stopping")
         server = self._server
         if server is None:
             return
@@ -145,13 +148,19 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
             return None
         return self.resolved_provider()
 
-    def _record_command_journal(self, payload: dict[str, Any], *, request: dict[str, Any] | None = None) -> None:
+    def _record_command_journal(
+        self,
+        payload: dict[str, Any],
+        *,
+        request: dict[str, Any] | None = None,
+        strict: bool = False,
+    ) -> None:
         try:
             resolved = self._resolved()
             self.command_journal.state_db_root = resolved.state_root if resolved is not None else None
         except Exception as exc:
             self.logger.warning("Could not refresh SQLite command journal state root: %s", exc)
-        self.command_journal.record(payload, request=request)
+        self.command_journal.record(payload, request=request, strict=strict)
 
     def _validate_api_payload(self, route: str, body: dict[str, Any]) -> dict[str, Any]:
         from mediapipeline.core.validation.boundary import validate_api_payload

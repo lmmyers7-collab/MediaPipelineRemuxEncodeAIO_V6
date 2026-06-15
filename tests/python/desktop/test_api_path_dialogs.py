@@ -10,12 +10,38 @@ from pathlib import Path
 from mediapipeline.tools.paths import find_repo_root
 from unittest.mock import patch
 
-sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
+REPO_ROOT = find_repo_root(Path(__file__))
+SRC_ROOT = REPO_ROOT / "src"
+sys.path.insert(0, str(SRC_ROOT))
 
 from mediapipeline.desktop.api import path_dialogs
 
 
 class PathDialogTests(unittest.TestCase):
+    def test_core_command_modules_import_before_desktop_api_server_export(self) -> None:
+        script = (
+            "import mediapipeline.core.api.commands_process\n"
+            "import mediapipeline.core.api.commands_rename\n"
+            "import mediapipeline.core.api.commands_settings\n"
+            "from mediapipeline.desktop.api import LocalApiServer\n"
+            "print(LocalApiServer.__name__)\n"
+        )
+        env = dict(os.environ)
+        env["PYTHONPATH"] = str(SRC_ROOT)
+
+        result = subprocess.run(
+            [sys.executable, "-c", script],
+            cwd=REPO_ROOT,
+            env=env,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            check=False,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), "LocalApiServer")
+
     def test_windows_dialog_prefers_pwsh_over_windows_powershell(self) -> None:
         """PowerShell 7+ wins because only it exposes Microsoft.Win32.OpenFolderDialog
         (the modern Windows Explorer-style folder picker). Windows PowerShell 5.1

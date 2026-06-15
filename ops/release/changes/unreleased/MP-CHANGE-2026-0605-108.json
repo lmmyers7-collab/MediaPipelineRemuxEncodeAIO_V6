@@ -30,7 +30,7 @@
     "Extended tests/python/desktop/test_application_facade_local_api.py to assert Completed open actions render below the Current Output Status table legend and before the Selected File panel."
   ],
   "manual_validation": [
-    "In-app Browser verification against http://127.0.0.1:8765 -> passed; screenshot saved to C:/Users/lmmye/AppData/Local/Temp/mediapipeline-completed-actions-under-status-refreshed.png and showed Play Output under Current Output Status with Selected File below.",
+    "In-app Browser verification against http://127.0.0.1:8765 -> passed; screenshot saved to <temp>/mediapipeline-completed-actions-under-status-refreshed.png and showed Play Output under Current Output Status with Selected File below.",
     "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q -> initially failed because the new order assertion compared against the Queue Selected File heading; assertion was scoped to the Completed page section.",
     "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q -> passed; 1 test OK.",
     "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_navigation_static -q -> passed; 25 tests OK.",

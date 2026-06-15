@@ -5,6 +5,7 @@
     const byId = deps.byId || function () { return null; };
     const settingsBuilderFields = deps.settingsBuilderFields || [];
     const videoDetailSettingsBuilderFields = deps.videoDetailSettingsBuilderFields || [];
+    const qualityDetailSettingsBuilderFields = deps.qualityDetailSettingsBuilderFields || [];
     const subtitleSettingsBuilderFields = deps.subtitleSettingsBuilderFields || [];
     const audioSettingsBuilderFields = deps.audioSettingsBuilderFields || [];
     const fileSafetySettingsBuilderFields = deps.fileSafetySettingsBuilderFields || [];
@@ -175,6 +176,7 @@
       return [
         settingsBuilderFields,
         videoDetailSettingsBuilderFields,
+        qualityDetailSettingsBuilderFields,
         subtitleSettingsBuilderFields,
         audioSettingsBuilderFields,
         fileSafetySettingsBuilderFields,

@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/schedule/policy.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: schedule
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 5f30f5ed71527cb58633007f2beaf172dc1121b3fc46d63152a081462ec6a690

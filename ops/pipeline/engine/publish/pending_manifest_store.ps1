@@ -470,7 +470,7 @@ function Test-PendingManifestTrustedForDrain {
     }
 
     $state = Get-PendingManifestText -Object $Manifest -Name 'manifest_state'
-    $drainableStates = @('parked', 'parked_recovered', 'missing_payload', 'retry_copy_failed', 'retry_reveal_failed', 'retry_sidecar_file_failed', 'retry_sidecar_failed')
+    $drainableStates = @('parked', 'parked_recovered', 'missing_payload', 'retry_copy_failed', 'retry_reveal_failed', 'retry_sidecar_file_failed', 'retry_sidecar_backup_failed', 'retry_sidecar_failed')
     if ($state -notin $drainableStates) {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'DRAIN_STATE_UNSUPPORTED' -Reason "Manifest state '$state' is not drainable automatically." -Status 'invalid_manifest' -ManifestPath $manifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }

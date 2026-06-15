@@ -59,7 +59,7 @@ function Write-BackfillJsonAtomic {
 
 function Write-BackfillCheckpoint {
     param(
-        [Parameter(Mandatory)] [string]$Path,
+        [string]$Path,
         [Parameter(Mandatory)] [string]$Status,
         [Parameter(Mandatory)] [string]$ManifestPath,
         [Parameter(Mandatory)] [bool]$DryRun,
@@ -131,14 +131,17 @@ if (-not (Test-Path -LiteralPath $LocalBase)) {
     exit 2
 }
 
-$stateLayout = Initialize-MediaPipelineStateLayout -Layout (New-MediaPipelineStateLayout -LocalBase $LocalBase) -MigrateLegacy
+$stateLayout = New-MediaPipelineStateLayout -LocalBase $LocalBase
+if (-not $DryRun) {
+    $stateLayout = Initialize-MediaPipelineStateLayout -Layout $stateLayout -MigrateLegacy
+}
 $localCompleted = $stateLayout.Completed
 $manifestPath   = $stateLayout.Paths.CompletedJobsManifest
-if (-not (Test-Path -LiteralPath $localCompleted)) {
+if (-not $DryRun -and -not (Test-Path -LiteralPath $localCompleted)) {
     New-Item -ItemType Directory -Path $localCompleted -Force | Out-Null
 }
 if ([string]::IsNullOrWhiteSpace($CheckpointPath)) {
-    $CheckpointPath = Join-Path $localCompleted 'completed_manifest_backfill_progress.json'
+    $CheckpointPath = if ($DryRun) { '' } else { Join-Path $localCompleted 'completed_manifest_backfill_progress.json' }
 }
 
 Write-BackfillCheckpoint -Path $CheckpointPath -Status 'starting' -ManifestPath $manifestPath -DryRun ([bool]$DryRun)

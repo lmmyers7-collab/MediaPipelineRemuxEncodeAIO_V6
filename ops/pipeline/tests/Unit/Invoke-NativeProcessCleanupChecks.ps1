@@ -2,10 +2,11 @@
 param()
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
-    $pwsh = (Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source
-    if (-not $pwsh) { $pwsh = (Get-Command pwsh -ErrorAction SilentlyContinue).Source }
-    if (-not $pwsh) {
-        throw "Native process cleanup checks require PowerShell 7. Install pwsh or use the bundled runtime."
+    $bootstrapTestsRoot = Split-Path -Parent $PSCommandPath
+    $bootstrapPipelineRoot = Split-Path -Parent (Split-Path -Parent $bootstrapTestsRoot)
+    $pwsh = Join-Path $bootstrapPipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pwsh.exe'
+    if (-not (Test-Path -LiteralPath $pwsh -PathType Leaf)) {
+        throw "Native process cleanup checks require the promoted bundled PowerShell runtime: $pwsh"
     }
     & $pwsh -NoProfile -ExecutionPolicy Bypass -File $PSCommandPath @args
     exit $LASTEXITCODE
@@ -83,14 +84,8 @@ function Wait-ProcessExitObserved {
 $script:StopRequested = $false
 $script:StopFlag = $stopFlag
 $childPid = 0
-$childExe = Join-Path $pipelineRoot 'PowerShell-7.6.0-win-x64\pwsh.exe'
-if (-not (Test-Path -LiteralPath $childExe -PathType Leaf)) {
-    $childExe = (Get-Command pwsh.exe -ErrorAction SilentlyContinue).Source
-}
-if (-not $childExe) {
-    $childExe = (Get-Command pwsh -ErrorAction SilentlyContinue).Source
-}
-Assert-True (-not [string]::IsNullOrWhiteSpace($childExe)) 'PowerShell child runtime was not found.'
+$childExe = Join-Path $pipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pwsh.exe'
+Assert-True (Test-Path -LiteralPath $childExe -PathType Leaf) "Promoted bundled PowerShell child runtime was not found: $childExe"
 
 try {
     $result = Invoke-NativeProcess `

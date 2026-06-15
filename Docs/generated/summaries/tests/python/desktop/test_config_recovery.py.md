@@ -3,9 +3,9 @@ file: tests/python/desktop/test_config_recovery.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-13
 last_reviewed: 2026-06-04
-sha256: acf7a03f0acabb4fcc7950d8336c6113008e4bf4aa043f1edad601dc309f77e7
+sha256: 256d8e93f0cd030d2988c678325afe1d058e58a7e0cb0b0d4349369da3e63d08
 ---
 # `tests/python/desktop/test_config_recovery.py`
 

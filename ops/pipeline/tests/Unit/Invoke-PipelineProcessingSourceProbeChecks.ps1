@@ -41,6 +41,7 @@ $script:EncodeCalled = $false
 $script:ProgressWriteFailures = 0
 $script:StopRequested = $false
 $script:ValidExtensions = @('.mkv', '.mov', '.mp2')
+$script:ProbeError = 'video_stream_missing'
 
 function Write-Log {
     param([string] $Message, [string] $Level = 'INFO')
@@ -168,51 +169,107 @@ function Get-SourceMediaRouteProfile {
     param([string] $FilePath, [long] $FileSizeBytes)
     return [pscustomobject]@{
         probe_ok    = $false
-        probe_error = 'video_stream_missing'
+        probe_error = $script:ProbeError
         video_codec = 'unknown'
     }
 }
 function Resolve-InitialMediaRoutePlan {
     param($File, [bool] $IsTV, $MediaProfile, $RouteHints)
     $script:RouteSelectionCalled = $true
-    throw 'Route selection should not run for a source with no usable video stream.'
+    throw 'Route selection should not run for a failed source probe.'
 }
 function Do-Encode {
     $script:EncodeCalled = $true
-    throw 'Encode should not run for a source with no usable video stream.'
+    throw 'Encode should not run for a failed source probe.'
 }
 
-$file = [pscustomobject]@{
-    Name      = 'tdarr-1222.mp2'
-    Extension = '.mp2'
-    FullName  = 'C:\Media\tdarr-1222.mp2'
-    Length    = 1024
+function Invoke-FailedSourceProbeCase {
+    param(
+        [Parameter(Mandatory)] [string] $ProbeError,
+        [Parameter(Mandatory)] [string] $ExpectedErrorCode,
+        [Parameter(Mandatory)] [string] $ExpectedRouteReasonCode,
+        [Parameter(Mandatory)] [string] $ExpectedClassification,
+        [Parameter(Mandatory)] [bool] $ExpectedRetryable,
+        [Parameter(Mandatory)] [bool] $ExpectedQueueTerminal,
+        [Parameter(Mandatory)] [string] $SuggestedActionPattern
+    )
+
+    $script:RegisteredFailures = @()
+    $script:PipelineEvents = @()
+    $script:RouteSelectionCalled = $false
+    $script:EncodeCalled = $false
+    $script:ProbeError = $ProbeError
+
+    $file = [pscustomobject]@{
+        Name      = "$ProbeError.mkv"
+        Extension = '.mkv'
+        FullName  = "C:\Media\$ProbeError.mkv"
+        Length    = 1024
+    }
+
+    $result = Invoke-MediaPipelineProcessFile -file $file -isTV:$false -idx @{}
+
+    Assert-Equal $result.Status 'failed' "$ProbeError source should fail."
+    Assert-True (-not [bool]$result.Success) "$ProbeError source should not succeed."
+    Assert-Equal ([bool]$result.QueueTerminal) $ExpectedQueueTerminal "$ProbeError queue-terminal flag mismatch."
+    Assert-Equal ([bool]$result.Retryable) $ExpectedRetryable "$ProbeError retryable flag mismatch."
+    Assert-Equal $result.ErrorCode $ExpectedErrorCode "$ProbeError source error code mismatch."
+    Assert-Equal $result.RouteReasonCode $ExpectedRouteReasonCode "$ProbeError route reason code mismatch."
+    Assert-True (-not $script:RouteSelectionCalled) "Route selection should not run for $ProbeError."
+    Assert-True (-not $script:EncodeCalled) "Encode command should not launch for $ProbeError."
+
+    Assert-Equal @($script:RegisteredFailures).Count 1 "$ProbeError source should record one failure marker."
+    $failure = $script:RegisteredFailures[0]
+    Assert-Equal $failure.Classification $ExpectedClassification "$ProbeError source failure classification mismatch."
+    Assert-Equal $failure.Stage 'source-probe' "$ProbeError source failure stage mismatch."
+    Assert-Equal $failure.ErrorCode $ExpectedErrorCode "$ProbeError source failure marker code mismatch."
+    Assert-True ($failure.SuggestedAction -match $SuggestedActionPattern) "$ProbeError suggested action mismatch."
+
+    Assert-Equal @($script:PipelineEvents).Count 2 "$ProbeError source should emit start and completion events."
+    $event = @($script:PipelineEvents | Where-Object { $_.EventType -eq 'job_completed' })[0]
+    Assert-True ($null -ne $event) "$ProbeError source should emit a completion event."
+    Assert-Equal $event.Stage 'source-probe' "$ProbeError event stage mismatch."
+    Assert-Equal $event.Status 'failed' "$ProbeError event status mismatch."
+    Assert-Equal $event.Data.error_code $ExpectedErrorCode "$ProbeError event code mismatch."
+    Assert-Equal ([bool]$event.Data.retryable) $ExpectedRetryable "$ProbeError event retryable mismatch."
 }
 
-$result = Invoke-MediaPipelineProcessFile -file $file -isTV:$false -idx @{}
+Invoke-FailedSourceProbeCase `
+    -ProbeError 'video_stream_missing' `
+    -ExpectedErrorCode 'SOURCE_MEDIA_VIDEO_MISSING' `
+    -ExpectedRouteReasonCode 'source_video_missing' `
+    -ExpectedClassification 'permanent' `
+    -ExpectedRetryable:$false `
+    -ExpectedQueueTerminal:$true `
+    -SuggestedActionPattern 'replace the source'
 
-Assert-Equal $result.Status 'failed' 'No-video source should fail.'
-Assert-True (-not [bool]$result.Success) 'No-video source should not succeed.'
-Assert-True ([bool]$result.QueueTerminal) 'No-video source should be terminal for the queue item.'
-Assert-True (-not [bool]$result.Retryable) 'No-video source should be non-retryable.'
-Assert-Equal $result.ErrorCode 'SOURCE_MEDIA_VIDEO_MISSING' 'No-video source error code mismatch.'
-Assert-Equal $result.RouteReasonCode 'source_video_missing' 'No-video route reason code mismatch.'
-Assert-True (-not $script:RouteSelectionCalled) 'Route selection should not run for no-video source.'
-Assert-True (-not $script:EncodeCalled) 'Encode command should not launch for no-video source.'
+foreach ($probeError in @('ffprobe_failed','ffprobe_json_invalid')) {
+    Invoke-FailedSourceProbeCase `
+        -ProbeError $probeError `
+        -ExpectedErrorCode 'SOURCE_MEDIA_PROBE_FAILED' `
+        -ExpectedRouteReasonCode 'source_probe_failed' `
+        -ExpectedClassification 'transient' `
+        -ExpectedRetryable:$true `
+        -ExpectedQueueTerminal:$false `
+        -SuggestedActionPattern 'ffprobe|probe problem'
+}
 
-Assert-Equal @($script:RegisteredFailures).Count 1 'No-video source should record one failure marker.'
-$failure = $script:RegisteredFailures[0]
-Assert-Equal $failure.Classification 'permanent' 'No-video source failure should be permanent.'
-Assert-Equal $failure.Stage 'source-probe' 'No-video source failure stage mismatch.'
-Assert-Equal $failure.ErrorCode 'SOURCE_MEDIA_VIDEO_MISSING' 'No-video source failure marker code mismatch.'
-Assert-True ($failure.SuggestedAction -match 'replace the source') 'No-video suggested action should direct source replacement or repair.'
+Invoke-FailedSourceProbeCase `
+    -ProbeError 'file_missing' `
+    -ExpectedErrorCode 'SOURCE_FILE_MISSING' `
+    -ExpectedRouteReasonCode 'source_probe_file_missing' `
+    -ExpectedClassification 'operator_required' `
+    -ExpectedRetryable:$true `
+    -ExpectedQueueTerminal:$false `
+    -SuggestedActionPattern 'source path'
 
-Assert-Equal @($script:PipelineEvents).Count 2 'No-video source should emit start and completion events.'
-$event = @($script:PipelineEvents | Where-Object { $_.EventType -eq 'job_completed' })[0]
-Assert-True ($null -ne $event) 'No-video source should emit a completion event.'
-Assert-Equal $event.Stage 'source-probe' 'No-video event stage mismatch.'
-Assert-Equal $event.Status 'failed' 'No-video event status mismatch.'
-Assert-Equal $event.Data.error_code 'SOURCE_MEDIA_VIDEO_MISSING' 'No-video event code mismatch.'
-Assert-True (-not [bool]$event.Data.retryable) 'No-video event should be non-retryable.'
+Invoke-FailedSourceProbeCase `
+    -ProbeError 'file_path_empty' `
+    -ExpectedErrorCode 'SOURCE_FILE_PATH_EMPTY' `
+    -ExpectedRouteReasonCode 'source_probe_file_path_empty' `
+    -ExpectedClassification 'operator_required' `
+    -ExpectedRetryable:$true `
+    -ExpectedQueueTerminal:$false `
+    -SuggestedActionPattern 'source path'
 
 Write-Host 'Pipeline processing source-probe checks passed.'

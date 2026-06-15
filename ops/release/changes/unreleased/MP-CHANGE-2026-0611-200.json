@@ -1,0 +1,29 @@
+{
+  "id": "MP-CHANGE-2026-0611-200",
+  "title": "Add watch-folder auto-start implementation plan for Codex",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Add a planning-only implementation brief for the watch-folder / event-driven auto-start feature under docs/implementation/watch-folder-autostart/.",
+  "reason": "The operator requested a complete, verified implementation plan to hand to the Codex agent; the plan corrects stale paths from the original brief and pins every integration point to the current src/mediapipeline layout.",
+  "affected_areas": [
+    "docs",
+    "planning"
+  ],
+  "behavior_before": "No implementation brief existed for the watch-folder auto-start feature.",
+  "behavior_after": "docs/implementation/watch-folder-autostart/PLAN.md documents the full phased plan, config-key registration footprint, lifecycle wiring, test matrix, prohibitions, and operator validation list. No source, config, or runtime behavior changed.",
+  "files_touched": [
+    "docs/implementation/watch-folder-autostart/PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-200.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Verified every cited path exists in the working tree via Glob/Grep on 2026-06-11 (facade.py:114 watcher init, pipeline_facade.py:67 start_pipeline_process, server.py:102 stop hook, source_inventory.py queue scan helpers, config registry artifacts)."
+  ],
+  "rollback_plan": "Delete docs/implementation/watch-folder-autostart/PLAN.md and this change packet.",
+  "related_changes": [],
+  "notes": "Planning document only. Implementation is deferred to a future Codex session with its own docs/SESSION.md scope block (template embedded in the plan, section 14)."
+}

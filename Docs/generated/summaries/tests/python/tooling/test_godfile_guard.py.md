@@ -3,9 +3,9 @@ file: tests/python/tooling/test_godfile_guard.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: d3a74ef2647ec5f7685071a84f6a2e3b10dbcf0e4e14b9bb3396294f50c25b9d
+sha256: bf5ee69a2c58a0f96bdd09e668ddb6a4983e3bc13ff3dea0c093a242f7d704e6
 ---
 # `tests/python/tooling/test_godfile_guard.py`
 

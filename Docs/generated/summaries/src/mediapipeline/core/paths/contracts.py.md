@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/paths/contracts.py
 pipeline_stage: contracts
 token_priority: medium
-owner_domain: unknown
+owner_domain: paths
 last_modified: 2026-05-31
 last_reviewed: 2026-06-04
 sha256: 35c55f770db6e81f0a45f8b8676262b58698efa174288255735b18242dac0321

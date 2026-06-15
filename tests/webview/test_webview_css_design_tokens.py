@@ -182,6 +182,10 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".panel-customize-bar {", layout_manager)
         self.assertIn(".layout-editor-drawer {", layout_manager)
         self.assertIn(".layout-editor-panel-row {", layout_manager)
+        self.assertIn(".layout-editor-panel-row.is-drag-holding", layout_manager)
+        self.assertIn("touch-action: none;", layout_manager)
+        self.assertIn("@keyframes layout-editor-row-grab-jiggle", layout_manager)
+        self.assertIn("@media (prefers-reduced-motion: reduce)", layout_manager)
         self.assertIn(".layout-panel-preview {", layout_manager)
         self.assertIn(".layout-drag-hint {", layout_manager)
         self.assertIn(".priority-badge {", queue)
@@ -287,6 +291,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertRegex(controls, r'\.status-chip\[data-status="queued"\]\s*\{[^}]*var\(--semantic-pending-bg\)')
         self.assertRegex(controls, r'\.status-chip\[data-status="empty"\],\s*\n\.status-chip\[data-status="unavailable"\]\s*\{[^}]*var\(--semantic-disabled-bg\)')
         self.assertRegex(controls, r'\.route-chip\[data-route="encode"\].*var\(--semantic-info-bg\)')
+        self.assertRegex(controls, r'\.route-chip\[data-route="remux-fallback"\]\s*\{[^}]*linear-gradient\(90deg, var\(--semantic-info-bg\) 0 50%, var\(--semantic-success-bg\) 50% 100%\)')
         self.assertRegex(controls, r'\.route-chip\[data-route="review"\].*var\(--semantic-warning-bg\)')
         self.assertRegex(controls, r'tr\[data-status="empty"\] td,\s*\ntr\[data-status="unavailable"\] td \{ background: var\(--semantic-disabled-bg\); \}')
         self.assertIn('[data-page-panel="schedule"] tr[data-status="review"] td  { background: var(--row-warning-bg); }', controls)
@@ -446,8 +451,8 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertNotIn('document.querySelectorAll("[data-output-page-target]")', lifecycle_js)
         self.assertIn('data-completed-tab="overview"', completed_html)
         self.assertIn("output-overview-kicker", completed_html)
-        self.assertIn('<h2>Selected File</h2>', completed_html)
-        self.assertRegex(completed_html, r'<section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="evidence">\s*<div class="panel-heading">\s*<h2>Selected File</h2>')
+        self.assertIn("<h2>Why This Output Looks Different</h2>", completed_html)
+        self.assertRegex(completed_html, r'<section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="evidence">\s*<div class="panel-heading">\s*<h2>Why This Output Looks Different</h2>')
         self.assertLess(
             completed_html.index('<h2 id="completed-current-output-heading">Current Output Status</h2>'),
             completed_html.index("<h2>Output Files</h2>"),

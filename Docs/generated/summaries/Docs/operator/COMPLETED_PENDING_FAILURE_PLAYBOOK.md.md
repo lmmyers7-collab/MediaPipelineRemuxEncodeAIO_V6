@@ -3,9 +3,9 @@ file: docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-05
 last_reviewed: 2026-06-02
-sha256: 3164e72beb8d20e80d6f2d03b08d677b7f828e8814c4221857a652c8d70ac4de
+sha256: 51aa3640d0004b907f43ea4d1a0dd88f87446901740d40a2ae6fdebea99dde69
 ---
 # `docs/operator/COMPLETED_PENDING_FAILURE_PLAYBOOK.md`
 

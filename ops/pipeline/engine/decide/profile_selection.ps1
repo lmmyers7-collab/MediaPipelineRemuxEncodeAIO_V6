@@ -54,7 +54,7 @@ function ConvertTo-MediaRouteHintMap {
             }
             'size_guard_mode' {
                 $mode = ([string]$value).Trim().ToLowerInvariant()
-                if ($mode -in @('advisory','strict','off')) { $map[$key] = $mode }
+                if ($mode -in @('advisory','strict','fallback_remux','off')) { $map[$key] = $mode }
             }
             'allow_h264_remux_if_plex_compatible' {
                 if ($value -is [bool]) { $map[$key] = [bool]$value }

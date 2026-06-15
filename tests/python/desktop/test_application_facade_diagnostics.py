@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import os
 import sys
 import tempfile
 import unittest
@@ -161,6 +162,35 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
         self.assertIn("owning page", payload["triage"][0]["safe_next_action"])
         self.assertEqual(payload["counts"]["warning"], 1)
         self.assertGreaterEqual(payload["counts"]["missing"], 1)
+
+    def test_facade_diagnostics_state_summary_recent_entries_scan_full_large_directory(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.pending_push_path = root / "State" / "PendingPublish"
+            resolved.pending_push_path.mkdir(parents=True)
+            base_time = 1_700_000_000
+            for index in range(8):
+                path = resolved.pending_push_path / f"old-{index:03d}.json"
+                path.write_text("{}", encoding="utf-8")
+                os.utime(path, (base_time + index, base_time + index))
+            newest = resolved.pending_push_path / "zz-newest.json"
+            newest.write_text("{}", encoding="utf-8")
+            os.utime(newest, (base_time + 100, base_time + 100))
+
+            with (
+                patch("mediapipeline.core.diagnostics.state_summary.DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT", 5),
+                patch("mediapipeline.core.diagnostics.state_summary.DIAGNOSTICS_STATE_SUMMARY_RECENT_LIMIT", 3),
+            ):
+                payload = facade.read_diagnostics_state_summary(resolved)
+
+        rows = {row["target"]: row for row in payload["targets"]}
+        pending_entries = rows["pending_publish"]["recent_entries"]
+        self.assertEqual(pending_entries[0]["name"], "zz-newest.json")
+        self.assertEqual(len(pending_entries), 3)
+        self.assertIn("selected from the full scan", "\n".join(rows["pending_publish"]["warnings"]))
 
     def test_facade_diagnostics_state_summary_surfaces_blocked_bdpgs_ocr_paths(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

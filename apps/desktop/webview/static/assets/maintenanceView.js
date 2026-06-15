@@ -33,6 +33,8 @@
       severity: "warning",
       message: "Another maintenance command is already in progress.",
     };
+    const releaseKind = releasePackageKindForCommand(command);
+    if (releaseKind) setReleasePackageStatus(releaseKind, "warning", "Busy", result.message);
     appendCommandResult(result);
     setText(statusId, "Busy");
     if (detailId) setText(detailId, result.message);
@@ -683,7 +685,7 @@
     } else if (optionalWarnings.length || Number(payload.warning_count || 0) > 0 || warnings.length) {
       lines.push("Next step: deployment plans can still be useful, but review optional warning rows before packaging.");
     } else {
-      lines.push("Next step: maintenance health looks ready for Plan Deployment or Create Deployment.");
+      lines.push("Next step: maintenance health looks ready for Preview Deployment or Create Deployment.");
     }
     lines.push("", ...maintenanceRealMediaBoundaryLines());
     lines.push("Mutation guardrail: Create Deployment may write only deployment artifacts through the backend release builder. Backfill remains dry-run from this shell.");
@@ -766,8 +768,8 @@
         statusId: "maintenance-dry-run-history-status",
         statusText: (entries) => `${entries.length} run${entries.length === 1 ? "" : "s"}`,
         itemLabel: "maintenance command",
-        emptyHistoryText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here.",
-        emptyMatchText: "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here.",
+        emptyHistoryText: "No maintenance commands recorded yet. Run Preview Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here.",
+        emptyMatchText: "No maintenance commands recorded yet. Run Preview Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here.",
         lineFor: formatMaintenanceDryRunHistoryLine,
         header: false,
       });
@@ -782,7 +784,7 @@
     if (!entries.length) {
       setText(
         "maintenance-dry-run-history",
-        "No maintenance commands recorded yet. Run Plan Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here."
+        "No maintenance commands recorded yet. Run Preview Deployment, Create Deployment, Backfill Dry Run, or Update Atlas to see backend command results here."
       );
       renderMaintenanceDryRunConfidence(history);
       return;
@@ -815,12 +817,13 @@
     const lines = [
       "Deployment option review:",
       `- Destination: ${request.destination_root || "blank; backend should use timestamped default"}`,
-      `- Plan zip: ${request.zip_package ? "yes" : "no"}`,
-      `- Plan verify: ${request.verify ? "yes" : "no"}`,
+      `- Zip package: ${request.zip_package ? "yes; preview reports the zip plan, Create writes it" : "no"}`,
+      `- Verify package: ${request.verify ? "yes" : "no"}`,
       `- Include tests: ${request.include_tests ? "yes" : "no"}`,
       `- Include dev docs: ${request.include_dev_docs ? "yes" : "no"}`,
       `- Include optional tools: ${request.include_optional_tools ? "yes" : "no"}`,
       `- Include bundled tool docs: ${request.include_tool_docs ? "yes" : "no"}`,
+      `- Include Tauri launcher: ${request.include_tauri_preview_binary ? "yes; required for package-mode launch" : "no"}`,
       `- Keep personal config: ${request.keep_personal_config ? "yes; review before sharing package output" : "no"}`,
       `- Replace existing destination on create: ${Boolean(byId("release-build-force")?.checked) ? "yes" : "no"}`,
     ];
@@ -829,6 +832,9 @@
     }
     if (request.keep_personal_config) {
       lines.push("- Warning: keeping personal config is useful for local migration checks but risky for shareable packages.");
+    }
+    if (!request.include_tauri_preview_binary) {
+      lines.push("- Warning: Tauri launcher is disabled, so the deployment folder will need an alternate launcher path.");
     }
     if (request.include_optional_tools || request.include_tool_docs) {
       lines.push("- Note: optional payloads increase package surface; compare against release manifest before distribution.");
@@ -869,7 +875,7 @@
     } else if (latest && latest.ok === true) {
       lines.push("- Latest maintenance command completed. Review output paths, manifest/zip status, and diagnostics before relying on deployment artifacts.");
     } else {
-      lines.push("- Health looks ready for a deployment plan. Run Plan Deployment before Create Deployment unless you already know the destination/options are correct.");
+      lines.push("- Health looks ready for a deployment preview. Run Preview Deployment before Create Deployment unless you already know the destination/options are correct.");
     }
     lines.push("", ...maintenanceRealMediaBoundaryLines());
     lines.push("Mutation guardrail: Create Deployment may write a release folder/manifest/zip through the backend release builder only. Backfill remains dry-run; Maintenance must not repair files, rewrite completed manifests, or mutate media.");
@@ -945,6 +951,7 @@
       include_dev_docs: Boolean(byId("release-dry-run-dev-docs")?.checked),
       include_optional_tools: Boolean(byId("release-dry-run-optional-tools")?.checked),
       include_tool_docs: Boolean(byId("release-dry-run-tool-docs")?.checked),
+      include_tauri_preview_binary: Boolean(byId("release-dry-run-tauri-binary")?.checked),
       keep_personal_config: Boolean(byId("release-dry-run-keep-config")?.checked),
       timeout_seconds: 900,
     };
@@ -957,6 +964,80 @@
       confirm_create: true,
       timeout_seconds: 7200,
     };
+  }
+
+  function releasePackageKindForCommand(command) {
+    const value = String(command || "");
+    if (value === "maintenance.release_build") return "build";
+    if (value === "maintenance.release_dry_run") return "dry-run";
+    return "";
+  }
+
+  function setReleasePackageStatus(kind, status, value, hint) {
+    const prefix = kind === "build" ? "release-build" : "release-dry-run";
+    const chip = byId(`${prefix}-state-chip`);
+    const cleanStatus = String(status || "unknown").trim().toLowerCase() || "unknown";
+    const cleanValue = String(value || cleanStatus).trim();
+    const cleanHint = String(hint || "").trim();
+    if (chip) {
+      chip.dataset.status = cleanStatus;
+      chip.title = cleanHint || cleanValue;
+    }
+    setText(`${prefix}-state-value`, cleanValue);
+    if (cleanHint) setText(`${prefix}-state-hint`, cleanHint);
+  }
+
+  function releasePackageResultHint(result, fallback) {
+    const data = result?.data && typeof result.data === "object" ? result.data : {};
+    const pieces = [];
+    if (result?.message) pieces.push(String(result.message));
+    if (data.destination_root) pieces.push(`Destination: ${data.destination_root}`);
+    const elapsed = Number(data.elapsed_seconds || 0);
+    if (Number.isFinite(elapsed) && elapsed > 0) pieces.push(`Elapsed: ${elapsed.toFixed(1)}s`);
+    return pieces.join(" ") || fallback;
+  }
+
+  function releasePackageResultStatus(result, completeValue) {
+    const warnings = Array.isArray(result?.warnings) ? result.warnings.filter(Boolean) : [];
+    if (result?.ok) {
+      return {
+        status: warnings.length ? "warning" : "complete",
+        value: warnings.length ? `${completeValue} with warnings` : completeValue,
+        hint: releasePackageResultHint(
+          result,
+          warnings.length ? "Finished with warnings; review the details below." : "Finished; review the details below."
+        ),
+      };
+    }
+    const severity = String(result?.severity || "").trim().toLowerCase();
+    const warningState = ["warning", "review", "unknown"].includes(severity);
+    return {
+      status: warningState ? "warning" : "failed",
+      value: severity ? severity.charAt(0).toUpperCase() + severity.slice(1) : "Failed",
+      hint: releasePackageResultHint(result, "Command did not complete successfully. Review the details below."),
+    };
+  }
+
+  function renderReleasePackageInFlightProgress(targetId, label, detail, source) {
+    const bar = {
+      id: targetId.replace(/-progress-bars$/, ""),
+      label,
+      mode: "indeterminate",
+      status: "active",
+      detail,
+      source,
+      stale: false,
+    };
+    const snapshot = {
+      status: "running",
+      detail,
+      progress_bars: [bar],
+    };
+    if (typeof renderProgressBarsInto === "function") {
+      renderProgressBarsInto(targetId, [bar], snapshot, detail);
+    } else {
+      setText(targetId, `${label}: running. ${detail}`);
+    }
   }
 
   function initMaintenanceViewEvents() {
@@ -981,6 +1062,7 @@
       "release-dry-run-dev-docs",
       "release-dry-run-optional-tools",
       "release-dry-run-tool-docs",
+      "release-dry-run-tauri-binary",
       "release-dry-run-keep-config",
       "release-build-force",
     ].forEach((id) => {
@@ -995,6 +1077,8 @@
 
   function renderReleaseDryRunResult(result) {
     const data = result?.data || {};
+    const state = releasePackageResultStatus(result, "Preview done");
+    setReleasePackageStatus("dry-run", state.status, state.value, `${state.hint} Preview only; no release folder, manifest, or zip was written.`);
     renderReleasePackageProgress(result);
     const lines = [
       "Dry-run trust summary:",
@@ -1002,10 +1086,10 @@
       `Dry run: ${data.dry_run === true ? "yes" : "unknown"}`,
       `Writes manifest: ${data.manifest_created === true ? "unexpected yes" : "no"}`,
       `Changes manifest: ${data.manifest_changed === true ? "unexpected yes" : "no"}`,
-      `Writes zip: ${data.zip_created === true ? "unexpected yes" : "no"}`,
-      `Changes zip: ${data.zip_changed === true ? "unexpected yes" : "no"}`,
+      `Writes zip: ${data.zip_created === true ? "unexpected yes" : "no; preview is dry-run only"}`,
+      `Changes zip: ${data.zip_changed === true ? "unexpected yes" : "no; preview is dry-run only"}`,
       `Safe next action: ${result?.ok ? "Review planned copy counts/options, destination, and package options before Create Deployment." : "Read errors and Diagnostics before trusting release packaging."}`,
-      "Guardrail: this WebView action must remain a backend dry-run command; it must not create release folders, zips, manifests, or copy payloads.",
+      "Guardrail: Preview Deployment is a backend dry-run command; it reports zip intent but must not create release folders, zips, manifests, or copy payloads.",
       "Real-media boundary: release dry-run output does not validate FFmpeg, subtitle OCR/SRT, audio routing, output size, completed sidecars, or pending-publish behavior on media files.",
       "",
       result?.message || "Release dry run completed.",
@@ -1057,8 +1141,20 @@
     if (rejectMaintenanceDryRunWhileBusy("maintenance.release_dry_run", "release-dry-run-status", "release-dry-run-detail")) return;
     const request = collectReleaseDryRunRequest();
     setMaintenanceDryRunBusy(true);
-    setText("release-dry-run-status", "Running...");
-    setText("release-dry-run-detail", "Running release builder with -DryRun. No release folder, zip, or manifest will be written.");
+    setText("release-dry-run-status", "Planning...");
+    setReleasePackageStatus(
+      "dry-run",
+      "running",
+      "Planning",
+      "Deployment package plan is running through the backend release builder."
+    );
+    renderReleasePackageInFlightProgress(
+      "release-dry-run-progress-bars",
+      "Release package plan",
+      "Dry-run preview is still running; no release folder, manifest, or zip is being written.",
+      "maintenance.release_dry_run"
+    );
+    setText("release-dry-run-detail", "Previewing deployment through the release builder with -DryRun. No release folder, zip, or manifest will be written.");
     try {
       const result = await apiPost("/api/maintenance/release-dry-run", request);
       appendCommandResult(result);
@@ -1076,6 +1172,7 @@
         message,
       });
       setText("release-dry-run-status", "Error");
+      setReleasePackageStatus("dry-run", "failed", "Error", message);
       setText("release-dry-run-detail", message);
     } finally {
       setMaintenanceDryRunBusy(false);
@@ -1084,6 +1181,8 @@
 
   function renderReleaseBuildResult(result) {
     const data = result?.data || {};
+    const state = releasePackageResultStatus(result, "Build done");
+    setReleasePackageStatus("build", state.status, state.value, state.hint);
     renderReleasePackageProgress(result, "release-build-progress-bars");
     const lines = [
       "Deployment build summary:",
@@ -1092,6 +1191,7 @@
       `Writes release package: ${data.writes_release_package === true ? "yes" : "no"}`,
       `Manifest written: ${data.manifest_exists === true ? "yes" : "no"}`,
       `Zip written: ${data.zip_exists === true ? "yes" : "no"}`,
+      `Tauri launcher requested: ${data.options?.include_tauri_preview_binary === true ? "yes" : "no"}`,
       `Safe next action: ${result?.ok ? "Open the destination, review release_manifest.json, then run package-mode validation before distribution." : "Read errors, stderr/stdout, and Diagnostics before retrying deployment."}`,
       "Guardrail: Create Deployment is backend-owned. The WebView submits options only; it does not copy files, zip folders, write manifests, or delete destinations itself.",
       "Real-media boundary: deployment packaging does not validate FFmpeg routing, subtitle OCR/SRT, audio routing, output size, completed sidecars, or pending-publish behavior on media files.",
@@ -1127,7 +1227,19 @@
     const zipText = request.zip_package ? "and zip" : "without zip";
     if (!window.confirm(`Create deployment package at ${destination} ${zipText}?\n\nThis will write release files through the backend release builder.`)) return;
     setMaintenanceDryRunBusy(true);
-    setText("release-build-status", "Running...");
+    setText("release-build-status", "Building...");
+    setReleasePackageStatus(
+      "build",
+      "running",
+      "Building",
+      "Deployment package is being created through the backend release builder."
+    );
+    renderReleasePackageInFlightProgress(
+      "release-build-progress-bars",
+      "Deployment package build",
+      "Build is still running; controls re-enable when the backend returns.",
+      "maintenance.release_build"
+    );
     setText("release-build-detail", "Creating deployment package through the backend release builder. This may write a release folder, manifest, and optional zip.");
     try {
       const result = await apiPost("/api/maintenance/release-build", request);
@@ -1146,6 +1258,7 @@
         message,
       });
       setText("release-build-status", "Error");
+      setReleasePackageStatus("build", "failed", "Error", message);
       setText("release-build-detail", message);
     } finally {
       setMaintenanceDryRunBusy(false);
@@ -1396,7 +1509,11 @@
     renderReleaseDryRunResult,
     renderReleaseBuildResult,
     renderReleasePackageProgress,
+    renderReleasePackageInFlightProgress,
     releasePackageProgressBars,
+    releasePackageKindForCommand,
+    releasePackageResultStatus,
+    setReleasePackageStatus,
     runReleaseDryRun,
     runReleaseBuild,
     renderBackfillDryRunResult,

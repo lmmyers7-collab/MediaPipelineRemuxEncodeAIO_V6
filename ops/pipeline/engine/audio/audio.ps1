@@ -418,6 +418,15 @@ function Build-AudioArgs {
             "-v","error","-select_streams","a","-show_entries","stream=codec_type",
             "-of","default=noprint_wrappers=1:nokey=1","--",$FilePath
         ) -TimeoutSeconds 15 -Stage 'audio-presence-probe'
+        if ([int]$chk.ExitCode -ne 0 -or [bool]$chk.TimedOut -or [bool]$chk.Stopped) {
+            $message = "SOURCE_MEDIA_AUDIO_PRESENCE_PROBE_FAILED: audio presence probe failed for $FilePath (exit=$($chk.ExitCode), timed_out=$([bool]$chk.TimedOut), stopped=$([bool]$chk.Stopped))"
+            if (-not [string]::IsNullOrWhiteSpace([string]$chk.Error)) {
+                $message = "$message error=$($chk.Error)"
+            }
+            Write-Log $message "ERROR"
+            Write-AudioTrackProgress -Stage 'audio_probe' -Status 'Audio presence probe failed' -AudioAction 'probe' -Reason $message -Detail (Split-Path -Leaf $FilePath) -Failed
+            throw $message
+        }
         if ([string]::IsNullOrWhiteSpace($chk.Output)) {
             $message = "SOURCE_MEDIA_AUDIO_MISSING: no audio streams found in $FilePath"
             if (Get-EffectiveAllowNoAudio) {

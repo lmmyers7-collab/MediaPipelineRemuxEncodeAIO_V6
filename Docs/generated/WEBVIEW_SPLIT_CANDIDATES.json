@@ -31,9 +31,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 662,
-            "end": 933,
-            "line_count": 272
+            "start": 667,
+            "end": 953,
+            "line_count": 287
           },
           "functions_to_move": [
             "refreshAll",
@@ -107,7 +107,8 @@
             "/api/schedule",
             "/api/settings/workspace",
             "/api/snapshot",
-            "/api/telemetry"
+            "/api/telemetry",
+            "/api/watch-folders/status"
           ],
           "dom_ids_touched": [
             "audit-preview-priority-only",
@@ -174,7 +175,8 @@
               "/api/schedule",
               "/api/settings/workspace",
               "/api/snapshot",
-              "/api/telemetry"
+              "/api/telemetry",
+              "/api/watch-folders/status"
             ],
             "window_dependencies": [
               "window.mediaPipelineAppRefresh",
@@ -190,6 +192,7 @@
               "window.mediaPipelineNetworkView",
               "window.mediaPipelineProgressView",
               "window.mediaPipelineReportsView",
+              "window.mediaPipelineScheduleView",
               "window.mediaPipelineSettingsLibraries",
               "window.setTimeout"
             ],
@@ -209,6 +212,7 @@
               "final_library_promotion",
               "getLastMaintenance",
               "getLastSettings",
+              "message",
               "renderAllLaunchPreflights",
               "renderAuditControls",
               "renderAuditPreview",
@@ -229,6 +233,7 @@
               "renderLaunchAuditLog",
               "renderLaunchReadiness",
               "renderLaunchRealMediaProofHandoff",
+              "renderLiveRunStrip",
               "renderMetrics",
               "renderNetworkView",
               "renderPendingPublish",
@@ -239,6 +244,7 @@
               "renderSchedule",
               "renderSettings",
               "renderSettingsLibraries",
+              "renderWatchFolderStatus",
               "restoreScrollablePositions",
               "startup_progress"
             ],
@@ -263,8 +269,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 962,
-            "end": 1223,
+            "start": 982,
+            "end": 1243,
             "line_count": 262
           },
           "functions_to_move": [
@@ -393,8 +399,8 @@
           "topic": "app-core",
           "line_range": {
             "start": 87,
-            "end": 334,
-            "line_count": 248
+            "end": 339,
+            "line_count": 253
           },
           "functions_to_move": [
             "renderTauriBackendLifecycleAlert",
@@ -509,6 +515,7 @@
               "renderDiagnosticsProgress",
               "renderLaunchAuditProgress",
               "renderLaunchReadiness",
+              "renderLiveRunStrip",
               "renderPipelineEvents",
               "renderProgressBars",
               "renderProgressDetails",
@@ -535,8 +542,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 542,
-            "end": 660,
+            "start": 547,
+            "end": 665,
             "line_count": 119
           },
           "functions_to_move": [
@@ -618,6 +625,7 @@
         "applyFileSafetySettingsBuilderToPatch",
         "applyNetworkSettingsBuilderToPatch",
         "applyPendingPublishSettingsBuilderToPatch",
+        "applyQualityDetailSettingsBuilderToPatch",
         "applyQueueSettingsBuilderToPatch",
         "applyRuntimeSettingsBuilderToPatch",
         "applySubtitleSettingsBuilderToPatch",
@@ -628,6 +636,7 @@
         "collectFinalLibraryPromotionSettingsPatch",
         "collectNetworkSettingsBuilderPatch",
         "collectPendingPublishSettingsBuilderPatch",
+        "collectQualityDetailSettingsBuilderPatch",
         "collectQueueSettingsBuilderPatch",
         "collectRuntimeSettingsBuilderPatch",
         "collectSubtitleSettingsBuilderPatch",
@@ -641,6 +650,7 @@
         "markFinalLibraryPromotionSettingsBuilderDirty",
         "markNetworkSettingsBuilderDirty",
         "markPendingPublishSettingsBuilderDirty",
+        "markQualityDetailSettingsBuilderDirty",
         "markQueueSettingsBuilderDirty",
         "markRuntimeSettingsBuilderDirty",
         "markSubtitleSettingsBuilderDirty",
@@ -652,6 +662,7 @@
         "renderFinalLibraryPromotionSettingsGuidance",
         "renderNetworkSettingsBuilderGuidance",
         "renderPendingPublishSettingsBuilderGuidance",
+        "renderQualityDetailSettingsBuilderGuidance",
         "renderQueueSettingsBuilderGuidance",
         "renderRuntimeSettingsBuilderGuidance",
         "renderSettings",
@@ -702,6 +713,7 @@
         "syncFinalLibraryPromotionSettingsBuilderFromConfig",
         "syncNetworkSettingsBuilderFromConfig",
         "syncPendingPublishSettingsBuilderFromConfig",
+        "syncQualityDetailSettingsBuilderFromConfig",
         "syncQueueSettingsBuilderFromConfig",
         "syncRuntimeSettingsBuilderFromConfig",
         "syncSubtitleSettingsBuilderFromConfig",
@@ -715,13 +727,15 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1203,
-            "end": 1740,
-            "line_count": 538
+            "start": 1240,
+            "end": 1827,
+            "line_count": 588
           },
           "functions_to_move": [
             "validateCurrentSettings",
             "appendSettingsRiskSummaryLines",
+            "settingsBuilderFlushFailureMessage",
+            "recordSettingsBuilderFlushFailure",
             "flushDirtySettingsBuilders",
             "resetSettingsBuilderSyncState",
             "saveRenameCleaningFiltersFromSettingsSave",
@@ -747,6 +761,7 @@
             "applyFileSafetySettingsBuilderToPatch",
             "applyNetworkSettingsBuilderToPatch",
             "applyPendingPublishSettingsBuilderToPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
             "applyQueueSettingsBuilderToPatch",
             "applyRuntimeSettingsBuilderToPatch",
             "applySettingsBuilderToPatch",
@@ -766,19 +781,19 @@
             "maybeShowSettingsRuntimeRestartNotice",
             "networkSettingsBuilderState",
             "pendingPublishSettingsBuilderState",
+            "qualityDetailSettingsBuilderState",
             "queueSettingsBuilderState",
             "rejectSettingsCommandWhileBusy",
             "renderSettingsActiveMediaPolicyHandoff",
             "renderSettingsPatchSummary",
-            "runtimeSettingsBuilderState",
-            "selectedSettingsBackendResultKey",
-            "setSettingsCommandBusy"
+            "runtimeSettingsBuilderState"
           ],
           "globals_to_preserve": [
             "applyAudioSettingsBuilderToPatch",
             "applyFileSafetySettingsBuilderToPatch",
             "applyNetworkSettingsBuilderToPatch",
             "applyPendingPublishSettingsBuilderToPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
             "applyQueueSettingsBuilderToPatch",
             "applyRuntimeSettingsBuilderToPatch",
             "applySubtitleSettingsBuilderToPatch",
@@ -789,6 +804,7 @@
             "collectFinalLibraryPromotionSettingsPatch",
             "collectNetworkSettingsBuilderPatch",
             "collectPendingPublishSettingsBuilderPatch",
+            "collectQualityDetailSettingsBuilderPatch",
             "collectQueueSettingsBuilderPatch",
             "collectRuntimeSettingsBuilderPatch",
             "collectSubtitleSettingsBuilderPatch",
@@ -802,6 +818,7 @@
             "markFinalLibraryPromotionSettingsBuilderDirty",
             "markNetworkSettingsBuilderDirty",
             "markPendingPublishSettingsBuilderDirty",
+            "markQualityDetailSettingsBuilderDirty",
             "markQueueSettingsBuilderDirty",
             "markRuntimeSettingsBuilderDirty",
             "markSubtitleSettingsBuilderDirty",
@@ -813,6 +830,7 @@
             "renderFinalLibraryPromotionSettingsGuidance",
             "renderNetworkSettingsBuilderGuidance",
             "renderPendingPublishSettingsBuilderGuidance",
+            "renderQualityDetailSettingsBuilderGuidance",
             "renderQueueSettingsBuilderGuidance",
             "renderRuntimeSettingsBuilderGuidance",
             "renderSettings",
@@ -863,6 +881,7 @@
             "syncFinalLibraryPromotionSettingsBuilderFromConfig",
             "syncNetworkSettingsBuilderFromConfig",
             "syncPendingPublishSettingsBuilderFromConfig",
+            "syncQualityDetailSettingsBuilderFromConfig",
             "syncQueueSettingsBuilderFromConfig",
             "syncRuntimeSettingsBuilderFromConfig",
             "syncSubtitleSettingsBuilderFromConfig",
@@ -878,6 +897,7 @@
           ],
           "dom_ids_touched": [
             "settings-handbrake-active-preset",
+            "settings-patch-detail",
             "settings-patch-json",
             "settings-rename-filter-release-groups"
           ],
@@ -890,6 +910,7 @@
               "applyFileSafetySettingsBuilderToPatch",
               "applyNetworkSettingsBuilderToPatch",
               "applyPendingPublishSettingsBuilderToPatch",
+              "applyQualityDetailSettingsBuilderToPatch",
               "applyQueueSettingsBuilderToPatch",
               "applyRuntimeSettingsBuilderToPatch",
               "applySubtitleSettingsBuilderToPatch",
@@ -904,6 +925,7 @@
               "markFileSafetySettingsBuilderDirty",
               "networkSettingsBuilderState",
               "pendingPublishSettingsBuilderState",
+              "qualityDetailSettingsBuilderState",
               "queueSettingsBuilderState",
               "runtimeSettingsBuilderState",
               "settingsBuilderDirty",
@@ -934,6 +956,7 @@
             ],
             "dom_dependencies": [
               "settings-handbrake-active-preset",
+              "settings-patch-detail",
               "settings-patch-json",
               "settings-rename-filter-release-groups"
             ],
@@ -1001,8 +1024,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.policyImpact.js",
           "topic": "settings-final-library",
           "line_range": {
-            "start": 654,
-            "end": 820,
+            "start": 685,
+            "end": 851,
             "line_count": 167
           },
           "functions_to_move": [
@@ -1034,6 +1057,7 @@
             "applyFileSafetySettingsBuilderToPatch",
             "applyNetworkSettingsBuilderToPatch",
             "applyPendingPublishSettingsBuilderToPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
             "applyQueueSettingsBuilderToPatch",
             "applyRuntimeSettingsBuilderToPatch",
             "applySubtitleSettingsBuilderToPatch",
@@ -1044,6 +1068,7 @@
             "collectFinalLibraryPromotionSettingsPatch",
             "collectNetworkSettingsBuilderPatch",
             "collectPendingPublishSettingsBuilderPatch",
+            "collectQualityDetailSettingsBuilderPatch",
             "collectQueueSettingsBuilderPatch",
             "collectRuntimeSettingsBuilderPatch",
             "collectSubtitleSettingsBuilderPatch",
@@ -1057,6 +1082,7 @@
             "markFinalLibraryPromotionSettingsBuilderDirty",
             "markNetworkSettingsBuilderDirty",
             "markPendingPublishSettingsBuilderDirty",
+            "markQualityDetailSettingsBuilderDirty",
             "markQueueSettingsBuilderDirty",
             "markRuntimeSettingsBuilderDirty",
             "markSubtitleSettingsBuilderDirty",
@@ -1068,6 +1094,7 @@
             "renderFinalLibraryPromotionSettingsGuidance",
             "renderNetworkSettingsBuilderGuidance",
             "renderPendingPublishSettingsBuilderGuidance",
+            "renderQualityDetailSettingsBuilderGuidance",
             "renderQueueSettingsBuilderGuidance",
             "renderRuntimeSettingsBuilderGuidance",
             "renderSettings",
@@ -1118,6 +1145,7 @@
             "syncFinalLibraryPromotionSettingsBuilderFromConfig",
             "syncNetworkSettingsBuilderFromConfig",
             "syncPendingPublishSettingsBuilderFromConfig",
+            "syncQualityDetailSettingsBuilderFromConfig",
             "syncQueueSettingsBuilderFromConfig",
             "syncRuntimeSettingsBuilderFromConfig",
             "syncSubtitleSettingsBuilderFromConfig",
@@ -1199,8 +1227,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 348,
-            "end": 498,
+            "start": 379,
+            "end": 529,
             "line_count": 151
           },
           "functions_to_move": [
@@ -1282,6 +1310,7 @@
             "applyFileSafetySettingsBuilderToPatch",
             "applyNetworkSettingsBuilderToPatch",
             "applyPendingPublishSettingsBuilderToPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
             "applyQueueSettingsBuilderToPatch",
             "applyRuntimeSettingsBuilderToPatch",
             "applySubtitleSettingsBuilderToPatch",
@@ -1292,6 +1321,7 @@
             "collectFinalLibraryPromotionSettingsPatch",
             "collectNetworkSettingsBuilderPatch",
             "collectPendingPublishSettingsBuilderPatch",
+            "collectQualityDetailSettingsBuilderPatch",
             "collectQueueSettingsBuilderPatch",
             "collectRuntimeSettingsBuilderPatch",
             "collectSubtitleSettingsBuilderPatch",
@@ -1305,6 +1335,7 @@
             "markFinalLibraryPromotionSettingsBuilderDirty",
             "markNetworkSettingsBuilderDirty",
             "markPendingPublishSettingsBuilderDirty",
+            "markQualityDetailSettingsBuilderDirty",
             "markQueueSettingsBuilderDirty",
             "markRuntimeSettingsBuilderDirty",
             "markSubtitleSettingsBuilderDirty",
@@ -1316,6 +1347,7 @@
             "renderFinalLibraryPromotionSettingsGuidance",
             "renderNetworkSettingsBuilderGuidance",
             "renderPendingPublishSettingsBuilderGuidance",
+            "renderQualityDetailSettingsBuilderGuidance",
             "renderQueueSettingsBuilderGuidance",
             "renderRuntimeSettingsBuilderGuidance",
             "renderSettings",
@@ -1366,6 +1398,7 @@
             "syncFinalLibraryPromotionSettingsBuilderFromConfig",
             "syncNetworkSettingsBuilderFromConfig",
             "syncPendingPublishSettingsBuilderFromConfig",
+            "syncQualityDetailSettingsBuilderFromConfig",
             "syncQueueSettingsBuilderFromConfig",
             "syncRuntimeSettingsBuilderFromConfig",
             "syncSubtitleSettingsBuilderFromConfig",
@@ -1457,9 +1490,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 59,
-            "end": 174,
-            "line_count": 116
+            "start": 61,
+            "end": 177,
+            "line_count": 117
           },
           "functions_to_move": [
             "lastSettingsPatchPreviewEvidence",
@@ -1482,6 +1515,7 @@
             "networkSettingsBuilderFields",
             "queueSettingsBuilderFields",
             "videoDetailSettingsBuilderFields",
+            "qualityDetailSettingsBuilderFields",
             "runtimeSettingsBuilderFields",
             "pendingPublishSettingsBuilderFields",
             "finalLibraryPromotionSettingsBuilderFields",
@@ -1501,6 +1535,7 @@
             "applyFileSafetySettingsBuilderToPatch",
             "applyNetworkSettingsBuilderToPatch",
             "applyPendingPublishSettingsBuilderToPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
             "applyQueueSettingsBuilderToPatch",
             "applyRuntimeSettingsBuilderToPatch",
             "applySubtitleSettingsBuilderToPatch",
@@ -1511,6 +1546,7 @@
             "collectFinalLibraryPromotionSettingsPatch",
             "collectNetworkSettingsBuilderPatch",
             "collectPendingPublishSettingsBuilderPatch",
+            "collectQualityDetailSettingsBuilderPatch",
             "collectQueueSettingsBuilderPatch",
             "collectRuntimeSettingsBuilderPatch",
             "collectSubtitleSettingsBuilderPatch",
@@ -1524,6 +1560,7 @@
             "markFinalLibraryPromotionSettingsBuilderDirty",
             "markNetworkSettingsBuilderDirty",
             "markPendingPublishSettingsBuilderDirty",
+            "markQualityDetailSettingsBuilderDirty",
             "markQueueSettingsBuilderDirty",
             "markRuntimeSettingsBuilderDirty",
             "markSubtitleSettingsBuilderDirty",
@@ -1535,6 +1572,7 @@
             "renderFinalLibraryPromotionSettingsGuidance",
             "renderNetworkSettingsBuilderGuidance",
             "renderPendingPublishSettingsBuilderGuidance",
+            "renderQualityDetailSettingsBuilderGuidance",
             "renderQueueSettingsBuilderGuidance",
             "renderRuntimeSettingsBuilderGuidance",
             "renderSettings",
@@ -1585,6 +1623,7 @@
             "syncFinalLibraryPromotionSettingsBuilderFromConfig",
             "syncNetworkSettingsBuilderFromConfig",
             "syncPendingPublishSettingsBuilderFromConfig",
+            "syncQualityDetailSettingsBuilderFromConfig",
             "syncQueueSettingsBuilderFromConfig",
             "syncRuntimeSettingsBuilderFromConfig",
             "syncSubtitleSettingsBuilderFromConfig",
@@ -1636,9 +1675,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 250,
-            "end": 339,
-            "line_count": 90
+            "start": 254,
+            "end": 370,
+            "line_count": 117
           },
           "functions_to_move": [
             "handleSettingsAdvancedToggleClick",
@@ -1660,6 +1699,13 @@
             "collectVideoDetailSettingsBuilderPatch",
             "applyVideoDetailSettingsBuilderToPatch",
             "renderVideoDetailSettingsBuilderGuidance",
+            "qualityDetailSettingsBuilderModule",
+            "qualityDetailSettingsBuilder",
+            "syncQualityDetailSettingsBuilderFromConfig",
+            "markQualityDetailSettingsBuilderDirty",
+            "collectQualityDetailSettingsBuilderPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
+            "renderQualityDetailSettingsBuilderGuidance",
             "subtitleSettingsBuilderModule",
             "subtitleSettingsBuilder",
             "syncSubtitleSettingsBuilderFromConfig",
@@ -1673,6 +1719,9 @@
             "audioSettingsBuilderState",
             "formatSettingsChoiceLabel",
             "getLastSettings",
+            "qualityDetailSettingsBuilderFields",
+            "qualityDetailSettingsBuilderState",
+            "readSettingsBuilderFloat",
             "readSettingsBuilderNumber",
             "renderSettingsActiveMediaPolicyHandoff",
             "renderSettingsMediaPolicyCrossCheck",
@@ -1693,6 +1742,7 @@
             "applyFileSafetySettingsBuilderToPatch",
             "applyNetworkSettingsBuilderToPatch",
             "applyPendingPublishSettingsBuilderToPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
             "applyQueueSettingsBuilderToPatch",
             "applyRuntimeSettingsBuilderToPatch",
             "applySubtitleSettingsBuilderToPatch",
@@ -1703,6 +1753,7 @@
             "collectFinalLibraryPromotionSettingsPatch",
             "collectNetworkSettingsBuilderPatch",
             "collectPendingPublishSettingsBuilderPatch",
+            "collectQualityDetailSettingsBuilderPatch",
             "collectQueueSettingsBuilderPatch",
             "collectRuntimeSettingsBuilderPatch",
             "collectSubtitleSettingsBuilderPatch",
@@ -1716,6 +1767,7 @@
             "markFinalLibraryPromotionSettingsBuilderDirty",
             "markNetworkSettingsBuilderDirty",
             "markPendingPublishSettingsBuilderDirty",
+            "markQualityDetailSettingsBuilderDirty",
             "markQueueSettingsBuilderDirty",
             "markRuntimeSettingsBuilderDirty",
             "markSubtitleSettingsBuilderDirty",
@@ -1727,6 +1779,7 @@
             "renderFinalLibraryPromotionSettingsGuidance",
             "renderNetworkSettingsBuilderGuidance",
             "renderPendingPublishSettingsBuilderGuidance",
+            "renderQualityDetailSettingsBuilderGuidance",
             "renderQueueSettingsBuilderGuidance",
             "renderRuntimeSettingsBuilderGuidance",
             "renderSettings",
@@ -1777,6 +1830,7 @@
             "syncFinalLibraryPromotionSettingsBuilderFromConfig",
             "syncNetworkSettingsBuilderFromConfig",
             "syncPendingPublishSettingsBuilderFromConfig",
+            "syncQualityDetailSettingsBuilderFromConfig",
             "syncQueueSettingsBuilderFromConfig",
             "syncRuntimeSettingsBuilderFromConfig",
             "syncSubtitleSettingsBuilderFromConfig",
@@ -1791,6 +1845,8 @@
               "audioSettingsBuilderFields",
               "audioSettingsBuilderState",
               "formatSettingsChoiceLabel",
+              "qualityDetailSettingsBuilderFields",
+              "qualityDetailSettingsBuilderState",
               "settingsBuilderControls",
               "settingsFieldDefinition",
               "settingsSpecificImpactHints",
@@ -1802,6 +1858,7 @@
             "parent_state_writes": [],
             "outside_local_functions": [
               "getLastSettings",
+              "readSettingsBuilderFloat",
               "readSettingsBuilderNumber",
               "renderSettingsActiveMediaPolicyHandoff",
               "renderSettingsMediaPolicyCrossCheck",
@@ -1814,6 +1871,7 @@
             "api_dependencies": [],
             "window_dependencies": [
               "window.__settingsViewAudioBuilderModule",
+              "window.__settingsViewQualityBuilderModule",
               "window.__settingsViewSubtitleBuilderModule",
               "window.__settingsViewVideoBuilderModule"
             ],
@@ -1828,6 +1886,7 @@
             ],
             "movement_assessment": "needs_wrapper_or_context",
             "assessment_reasons": [
+              "depends on several parent/local helper functions",
               "reads several parent-owned top-level state values",
               "uses unresolved ordered-script globals"
             ]

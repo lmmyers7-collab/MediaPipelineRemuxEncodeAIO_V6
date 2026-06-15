@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0611-103",
+  "title": "Add worker 03 queue process status audit report",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Document the worker-03 review-only audit for queue planning, process lifecycle, launch, schedule, status-adjacent progress, and active-job logic.",
+  "reason": "The concurrent function/module audit requires each worker to publish an isolated worker report and cover Markdown writes with a change packet.",
+  "affected_areas": [
+    "review",
+    "core-queue-process-status",
+    "queue",
+    "process",
+    "schedule",
+    "status"
+  ],
+  "behavior_before": "The worker-03 queue/process/status audit report did not exist at the requested output path.",
+  "behavior_after": "The worker-03 queue/process/status audit report is present under the audit workers directory.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-03-core-queue-process-status.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-103.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    {
+      "command": "Test-Path docs/reviews/function-module-audit-2026-06-11/workers/worker-03-core-queue-process-status.md; Test-Path ops/release/changes/unreleased/MP-CHANGE-2026-0611-103.json",
+      "result": "passed",
+      "notes": "Both the worker report and change packet exist."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+      "result": "failed",
+      "notes": "Strict coverage failed because docs/implementation/encoder-breadth-av1-plan.md is changed but not listed in any unreleased change packet. The worker-03 report and MP-CHANGE-2026-0611-103 packet are intentionally not expanded to cover that unrelated file."
+    }
+  ],
+  "rollback_plan": "Delete the worker-03 review report and this change packet.",
+  "related_changes": [],
+  "notes": "Review-only documentation change. No source, runtime, media, aggregate review, generated summary, queue, settings, publish, rename, or launcher files are modified. Strict change coverage was attempted and failed only on unrelated uncovered work outside this packet."
+}

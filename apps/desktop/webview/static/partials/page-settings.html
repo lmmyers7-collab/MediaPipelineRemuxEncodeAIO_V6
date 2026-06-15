@@ -322,6 +322,19 @@
           <pre id="settings-handbrake-preview-detail" class="prose-block">The WebView does not compute copy/remux/encode routing. This panel shows saved output policy for orientation only; queue/job processing resolves final runtime decisions through the backend.</pre>
           <p class="note">Planner honesty gate: this preview is not ground truth while the legacy execution path remains authoritative. It cannot launch, save settings, encode, remux, publish, rename, drain pending publish, or touch media files.</p>
         </section>
+        <section class="panel settings-deployment-path-panel" id="settings-deployment-path-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Deployment Path</h2>
+            <strong id="settings-deployment-action-status">Ready</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="primary-button" id="settings-deployment-start-button">Start Setup</button>
+            <button type="button" class="secondary-button" id="settings-deployment-verify-button">Verify Settings</button>
+            <button type="button" class="secondary-button" id="settings-deployment-repair-button">Repair Guidance</button>
+            <button type="button" class="secondary-button" id="settings-deployment-launch-button">Open Launch</button>
+          </div>
+          <pre id="settings-deployment-action-detail" class="prose-block">Start Setup opens Guided Setup. Verify Settings runs the backend settings validator. Repair Guidance is read-only and points at Config Health plus Reload From Disk. Open Launch shows Launch readiness before any start command.</pre>
+        </section>
         <section class="panel settings-guided-setup-entry-panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Guided Setup</h2>
@@ -1124,6 +1137,65 @@
           <pre id="settings-video-guidance" class="prose-block">No video detail guidance loaded.</pre>
           <p class="note">Use this for direct-copy allowlists and fallback encode controls. Backend preview/save remains authoritative before any future run uses these values.</p>
         </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Quality Verification <span class="impact-chip" data-impact="medium" title="Quality verification — objective post-encode metric, sampling, thresholds, and review action">Medium Impact</span></h2>
+            <strong id="settings-quality-builder-status">No quality verification patch built</strong>
+          </div>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="settings-builder-quality-enable" type="checkbox"> Enable quality verification</label>
+          </div>
+          <div class="form-grid launch-form-grid">
+            <label>
+              Quality metric
+              <select id="settings-builder-quality-metric">
+                <option value="vmaf">VMAF</option>
+                <option value="ssim">SSIM</option>
+                <option value="psnr">PSNR</option>
+              </select>
+            </label>
+            <label>
+              Sample mode
+              <select id="settings-builder-quality-sample-mode">
+                <option value="sampled">Sampled windows</option>
+                <option value="full">Full file</option>
+              </select>
+            </label>
+            <label>
+              Sample seconds
+              <input id="settings-builder-quality-sample-seconds" type="number" min="2" max="60" step="1">
+            </label>
+            <label>
+              Sample count
+              <input id="settings-builder-quality-sample-count" type="number" min="1" max="10" step="1">
+            </label>
+            <label>
+              Warn threshold
+              <input id="settings-builder-quality-warn-threshold" type="number" min="0" step="0.01">
+            </label>
+            <label>
+              Fail threshold
+              <input id="settings-builder-quality-fail-threshold" type="number" min="0" step="0.01">
+            </label>
+            <label>
+              Fail action
+              <select id="settings-builder-quality-fail-action">
+                <option value="warn_only">Warn only</option>
+                <option value="block_review">Block for review</option>
+              </select>
+            </label>
+            <label>
+              Verify timeout s
+              <input id="settings-builder-quality-timeout" type="number" min="60" step="1">
+            </label>
+          </div>
+          <div class="action-row action-row-left">
+            <button type="button" id="settings-quality-apply-button" class="secondary-button">Merge Quality Verification Patch</button>
+            <button type="button" id="settings-quality-reset-button" class="secondary-button">Reset From Current</button>
+          </div>
+          <pre id="settings-quality-guidance" class="prose-block">No quality verification guidance loaded.</pre>
+          <p class="note">This only stages objective quality verification keys into Changes JSON. Backend preview/save and post-encode validation remain authoritative.</p>
+        </section>
         </div>
 
         <!-- TAB: VERIFICATION / PUBLISH CONTINUED -->
@@ -1175,6 +1247,10 @@
               <input id="settings-file-safety-stability-wait" type="number" min="0" step="1">
             </label>
             <label>
+              Watch debounce s
+              <input id="settings-file-safety-watch-debounce" type="number" min="5" step="1">
+            </label>
+            <label>
               Cleanup age h
               <input id="settings-file-safety-cleanup-age" type="number" min="0" step="1">
             </label>
@@ -1188,10 +1264,23 @@
             <input id="settings-file-safety-valid-extensions" type="text" autocomplete="off" spellcheck="false" placeholder=".mkv, .mp4, .m2ts">
           </label>
           <label class="full-field">
+            Watch folder roots
+            <input id="settings-file-safety-watch-roots" type="text" autocomplete="off" spellcheck="false" placeholder="Leave empty to derive from Library Profiles">
+          </label>
+          <label class="full-field">
+            Watch action
+            <select id="settings-file-safety-watch-action">
+              <option value="enqueue_only">Enqueue only</option>
+              <option value="enqueue_and_launch">Enqueue and launch</option>
+            </select>
+          </label>
+          <label class="full-field">
             Robocopy flags
             <input id="settings-file-safety-robocopy-flags" type="text" autocomplete="off" spellcheck="false" placeholder="/J, /R:3, /W:15, /MT:2, /NP, /NDL, /NFL">
           </label>
           <div class="option-grid option-grid-compact">
+            <label class="check-row"><input id="settings-file-safety-enable-watch" type="checkbox"> Enable watch folders</label>
+            <label class="check-row"><input id="settings-file-safety-watch-respect-schedule" type="checkbox"> Respect schedule window</label>
             <label class="check-row"><input id="settings-file-safety-deferred-publish" type="checkbox"> Deferred publish</label>
             <label class="check-row"><input id="settings-file-safety-skip-stability" type="checkbox"> Skip stability check</label>
             <label class="check-row"><input id="settings-file-safety-enable-integrity" type="checkbox"> Enable integrity check</label>
@@ -1590,7 +1679,7 @@
         <div class="settings-tab-pane" data-settings-tab="queue-runtime">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Worker Mode Settings</h2>
+            <h2>Distributed Mode Settings</h2>
             <strong>Moved</strong>
           </div>
           <div class="action-row action-row-left">

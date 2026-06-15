@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/kernel/contracts/active_job.py
 pipeline_stage: contracts
 token_priority: medium
-owner_domain: unknown
+owner_domain: kernel
 last_modified: 2026-05-07
 last_reviewed: 2026-06-04
 sha256: 05bdf4bcd2e436d8ba6fbb91f79f48781256babbe16c57557c0465fb3d9c4e66

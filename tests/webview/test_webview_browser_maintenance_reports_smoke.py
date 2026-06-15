@@ -187,12 +187,26 @@ def _browser_maintenance_reports_runner_source() -> str:
               "getCommandHistory",
               "appendCommandResult",
             ].forEach(requireFunction);
+            [
+              "setReleasePackageStatus",
+              "renderReleasePackageInFlightProgress",
+              "releasePackageResultStatus",
+            ].forEach((name) => {
+              if (typeof window.mediaPipelineMaintenanceView[name] !== "function") {
+                throw new Error("missing Maintenance namespace helper " + name);
+              }
+            });
 
             navigate("maintenance");
             await waitFor(
               () => visiblePage("maintenance") && !text("maintenance-readiness").includes("No maintenance readiness loaded."),
               "Maintenance health rendering",
             );
+            requireText("release-package-status-strip", [
+              "Plan status",
+              "Build status",
+              "Idle",
+            ]);
             requireText("maintenance-readiness", [
               "Real-media validation boundary:",
               "Mutation guardrail:",
@@ -250,12 +264,94 @@ def _browser_maintenance_reports_runner_source() -> str:
               "100%",
               "source: maintenance.release_dry_run",
             ]);
+            requireText("release-package-status-strip", [
+              "Preview done with warnings",
+              "Release dry run completed.",
+              "Destination: C:/Temp/MediaPipeline_Deployable_DryRun",
+              "Preview only; no release folder, manifest, or zip was written.",
+            ]);
             requireText("release-dry-run-detail", [
               "Dry-run trust summary:",
               "Writes manifest: no",
-              "Writes zip: no",
+              "Writes zip: no; preview is dry-run only",
               "Guardrail:",
               "Real-media boundary:",
+            ]);
+            window.mediaPipelineMaintenanceView.setReleasePackageStatus(
+              "build",
+              "running",
+              "Building",
+              "Deployment package is being created through the backend release builder.",
+            );
+            window.mediaPipelineMaintenanceView.renderReleasePackageInFlightProgress(
+              "release-build-progress-bars",
+              "Deployment package build",
+              "Build is still running; controls re-enable when the backend returns.",
+              "maintenance.release_build",
+            );
+            requireText("release-package-status-strip", [
+              "Building",
+              "Deployment package is being created through the backend release builder.",
+            ]);
+            requireText("release-build-progress-bars", [
+              "Deployment package build",
+              "active",
+              "source: maintenance.release_build",
+            ]);
+            window.mediaPipelineMaintenanceView.renderReleaseBuildResult({
+              ok: true,
+              command: "maintenance.release_build",
+              message: "Deployment build completed.",
+              warnings: [],
+              data: {
+                dry_run: false,
+                writes_release_package: true,
+                manifest_exists: true,
+                zip_exists: true,
+                destination_root: "C:/Temp/MediaPipeline_Deployable",
+                manifest_path: "C:/Temp/MediaPipeline_Deployable/release_manifest.json",
+                zip_path: "C:/Temp/MediaPipeline_Deployable.zip",
+                returncode: 0,
+                elapsed_seconds: 5.5,
+                command: "pwsh -File ops\\\\scripts\\\\release\\\\build.ps1 -Verify",
+                options: { include_tauri_preview_binary: true },
+                release_progress: {
+                  schema_version: "desktop_release_package_progress.v1",
+                  status: "complete",
+                  dry_run: false,
+                  detail: "Deployment package written and verified.",
+                  updated_at: "2026-05-17T12:01:00",
+                  progress_bars: [{
+                    id: "release_package",
+                    label: "Deployment package",
+                    mode: "stepped",
+                    percent: 100,
+                    status: "complete",
+                    detail: "Deployment package written and verified.",
+                    source: "maintenance.release_build",
+                    updated_at: "2026-05-17T12:01:00",
+                    stale: false,
+                  }],
+                },
+                stdout: "Release package created.",
+                stderr: "",
+              },
+            });
+            requireText("release-package-status-strip", [
+              "Build done",
+              "Deployment build completed.",
+              "Destination: C:/Temp/MediaPipeline_Deployable",
+            ]);
+            requireText("release-build-progress-bars", [
+              "Deployment package",
+              "100%",
+              "source: maintenance.release_build",
+            ]);
+            requireText("release-build-detail", [
+              "Deployment build summary:",
+              "Writes release package: yes",
+              "Manifest written: yes",
+              "Zip written: yes",
             ]);
             window.mediaPipelineMaintenanceView.renderBackfillDryRunResult({
               ok: true,
@@ -671,6 +767,17 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Audit rerun/redownload/high-priority candidates: 2",
             ]);
             requireText("failure-review-board", [
+              "Review State",
+              "Action needed",
+              "Failed Rows",
+              "Primary Stage",
+              "Root Cause",
+              "source_locked: 1",
+              "Operator Holds",
+              "Next Step",
+              "Inspect holds",
+            ]);
+            requireText("failure-review-board-detail", [
               "Failure review board:",
               "Operator/permanent rows: 1",
               "source_locked",

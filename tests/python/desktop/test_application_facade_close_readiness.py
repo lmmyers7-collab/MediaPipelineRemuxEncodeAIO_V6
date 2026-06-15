@@ -232,6 +232,34 @@ class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
         self.assertTrue(readiness.active_work)
         self.assertIn("final-library promotion run flp-test is running", readiness.reason)
 
+    def test_close_readiness_blocks_active_queue_source_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            service.queue_source_scan_active_block_message = (
+                lambda action: f"{action} blocked because queue source scan scan-test is running."
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            idle_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            readiness = facade.get_close_readiness(resolved, idle_snapshot)
+
+        self.assertFalse(readiness.safe_to_close)
+        self.assertTrue(readiness.active_work)
+        self.assertIn("queue source scan scan-test is running", readiness.reason)
+
     def test_close_readiness_blocks_while_schedule_stop_watcher_is_armed(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

@@ -74,6 +74,29 @@ def _write_packet(path: Path, packet: dict[str, Any]) -> None:
     )
 
 
+def _snapshot_files(paths: list[Path]) -> dict[Path, bytes | None]:
+    snapshots: dict[Path, bytes | None] = {}
+    for path in paths:
+        snapshots[path] = path.read_bytes() if path.is_file() else None
+    return snapshots
+
+
+def _restore_file_snapshots(snapshots: dict[Path, bytes | None]) -> None:
+    for path, content in snapshots.items():
+        if content is None:
+            if path.is_file():
+                path.unlink()
+            continue
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(content)
+
+
+def _remove_created_dir(path: Path, *, existed_before: bool) -> None:
+    if existed_before or not path.exists():
+        return
+    shutil.rmtree(path)
+
+
 def _dedupe_sorted(values: list[Any]) -> list[str]:
     return sorted({str(value) for value in values if str(value).strip()})
 
@@ -187,44 +210,64 @@ def _finalize(
     release_dir = RELEASED_DIR / version
     archive_dir = HISTORY_ROOT / version
     release_date = dt.date.today().isoformat()
-
-    release_dir.mkdir(parents=True, exist_ok=True)
-    VERSION_FILE.parent.mkdir(parents=True, exist_ok=True)
-    VERSION_FILE.write_text(version + "\n", encoding="utf-8")
-
-    moved_packets: list[dict[str, Any]] = []
-    for source_path, packet in packets:
-        target_path = release_dir / source_path.name
+    target_paths = [(source_path, release_dir / source_path.name) for source_path, _packet in packets]
+    for _source_path, target_path in target_paths:
         if target_path.exists():
             raise SystemExit(f"Refusing to overwrite existing packet: {_relative(target_path)}")
 
-        packet["version_target"] = version
-        if not packet.get("date_completed"):
-            packet["date_completed"] = release_date
-        _write_packet(target_path, packet)
-        source_path.unlink()
-        moved_packets.append(packet)
+    packet_snapshots = _snapshot_files([source_path for source_path, _target_path in target_paths])
+    metadata_snapshots = _snapshot_files(list(ARCHIVE_FILES))
+    release_dir_existed = release_dir.exists()
+    archive_dir_existed = archive_dir.exists()
+    moved_targets: list[Path] = []
 
-    _run_script("build_change_index.py")
-    _run_script("build_changelog.py")
-    _run_script(
-        "build_release_manifest.py",
-        "--version",
-        version,
-        "--channel",
-        channel,
-        "--source",
-        "released",
-    )
+    try:
+        release_dir.mkdir(parents=True, exist_ok=True)
+        VERSION_FILE.parent.mkdir(parents=True, exist_ok=True)
+        VERSION_FILE.write_text(version + "\n", encoding="utf-8")
 
-    archive_dir.mkdir(parents=True, exist_ok=True)
-    for source in ARCHIVE_FILES:
-        if source.exists():
-            shutil.copy2(source, archive_dir / source.name)
-    (archive_dir / "RELEASE_SUMMARY.md").write_text(
-        _summary_markdown(version, channel, release_date, moved_packets),
-        encoding="utf-8",
-    )
+        moved_packets: list[dict[str, Any]] = []
+        for source_path, packet in packets:
+            target_path = release_dir / source_path.name
+
+            finalized_packet = dict(packet)
+            finalized_packet["version_target"] = version
+            if not finalized_packet.get("date_completed"):
+                finalized_packet["date_completed"] = release_date
+            _write_packet(target_path, finalized_packet)
+            source_path.unlink()
+            moved_targets.append(target_path)
+            moved_packets.append(finalized_packet)
+
+        _run_script("build_change_index.py")
+        _run_script("build_changelog.py")
+        _run_script(
+            "build_release_manifest.py",
+            "--version",
+            version,
+            "--channel",
+            channel,
+            "--source",
+            "released",
+        )
+
+        archive_dir.mkdir(parents=True, exist_ok=True)
+        for source in ARCHIVE_FILES:
+            if source.exists():
+                shutil.copy2(source, archive_dir / source.name)
+        (archive_dir / "RELEASE_SUMMARY.md").write_text(
+            _summary_markdown(version, channel, release_date, moved_packets),
+            encoding="utf-8",
+        )
+    except Exception:
+        for target_path in moved_targets:
+            if target_path.is_file():
+                target_path.unlink()
+        _restore_file_snapshots(packet_snapshots)
+        _restore_file_snapshots(metadata_snapshots)
+        _remove_created_dir(archive_dir, existed_before=archive_dir_existed)
+        _remove_created_dir(release_dir, existed_before=release_dir_existed)
+        raise
 
 
 def _parse_args() -> argparse.Namespace:

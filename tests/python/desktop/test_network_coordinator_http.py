@@ -237,6 +237,20 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
         self.assertIn("Failed to send coordinator JSON response status=200", "\n".join(logs.output))
         self.assertIn("client may not receive response", "\n".join(logs.output))
 
+    def test_coordinator_ping_returns_auth_required_noop_response(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        sent: list[tuple[dict[str, object], int]] = []
+        handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+        CoordinatorDispatcher._http_ping(dispatcher, handler)  # type: ignore[arg-type]
+
+        self.assertEqual(len(sent), 1)
+        payload, status = sent[0]
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["schema_version"], "desktop_network_coordinator_ping.v1")
+        self.assertTrue(payload["ok"])
+        self.assertRegex(str(payload["server_time"]), r"^\d{4}-\d{2}-\d{2}T")
+
     def test_coordinator_options_response_failure_is_logged(self) -> None:
         class FakeHandler:
             def __init__(self) -> None:
@@ -293,6 +307,32 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
 
             self.assertEqual(sent, [({"error": "Invalid JSON body"}, 400)])
             self.assertIn(f"Rejected {endpoint} with invalid JSON body", "\n".join(logs.output))
+
+    def test_coordinator_rejects_coerced_done_boolean_flags_before_registry(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = SimpleNamespace(
+            _lock=threading.Lock(),
+            _jobs={},
+            complete=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("complete called")),
+            unclaim=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("unclaim called")),
+        )
+
+        for field_name in ("success", "queue_terminal", "released", "retry_on_failure"):
+            for bad_value in ("false", "true", 0, 1, None, {}):
+                sent: list[tuple[dict[str, object], int]] = []
+                handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+                payload = {"job_id": "job-1", "worker_id": "worker-1", field_name: bad_value}
+
+                with self.subTest(field_name=field_name, bad_value=bad_value):
+                    with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                        CoordinatorDispatcher._http_done(
+                            dispatcher,
+                            handler,
+                            json.dumps(payload).encode("utf-8"),
+                        )
+
+                    self.assertEqual(sent, [({"error": "Invalid JSON body"}, 400)])
+                    self.assertIn("Rejected /api/done with invalid JSON body", "\n".join(logs.output))
 
     def test_coordinator_logs_invalid_done_and_heartbeat_identifiers(self) -> None:
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
@@ -456,6 +496,44 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
         output = "\n".join(logs.output)
         self.assertIn("Sanitized /api/log invalid worker_id", output)
         self.assertIn("Sanitized /api/log invalid job_id", output)
+        self.assertIn("Truncated /api/log event field", output)
+        self.assertIn("Truncated /api/log message field", output)
+
+    def test_coordinator_http_log_sanitizes_control_characters_to_one_line(self) -> None:
+        sent: list[tuple[dict[str, object], int]] = []
+        rendered_lines: list[str] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._append_cluster_log = lambda entry: rendered_lines.append(format_cluster_log_line(entry))  # type: ignore[method-assign]
+        handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+        payload = {
+            "timestamp": "2026-06-11T10:00:00-04:00\nforged",
+            "worker_id": "worker-1",
+            "worker_name": "worker\r\nname",
+            "role": "worker\nrole",
+            "level": "warn\rINFO",
+            "event": "job\ncompleted",
+            "message": "finished\r\nforged\x00row",
+            "job_id": "job-1",
+            "source_path": "C:\\Media\\Movie\r\nforged.mkv",
+        }
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher._http_log(dispatcher, handler, json.dumps(payload).encode("utf-8"))  # type: ignore[arg-type]
+
+        self.assertEqual(sent, [({"status": "ok"}, 200)])
+        self.assertEqual(len(rendered_lines), 1)
+        line = rendered_lines[0]
+        self.assertEqual(line.count("\n"), 1)
+        self.assertTrue(line.endswith("\n"))
+        self.assertNotRegex(line[:-1], r"[\r\n\x00-\x1f\x7f]")
+        self.assertIn("worker name", line)
+        self.assertIn("worker role", line)
+        self.assertIn("WARN INFO", line)
+        self.assertIn("job completed", line)
+        self.assertIn("finished forged row", line)
+        self.assertIn("src=Movie forged.mkv", line)
+        self.assertIn("worker_ts=2026-06-11T10:00:00-04:00 forged", line)
+        output = "\n".join(logs.output)
         self.assertIn("Truncated /api/log event field", output)
         self.assertIn("Truncated /api/log message field", output)
 

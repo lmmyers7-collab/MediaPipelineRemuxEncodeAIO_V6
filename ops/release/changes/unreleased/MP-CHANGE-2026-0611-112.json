@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0611-112",
+  "title": "Add W12 Generated Unknown Audit Report",
+  "version_target": "2026.06.11.audit",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Adds the review-only worker report for the W12 docs/generated/unknown audit slice.",
+  "reason": "The concurrent function/module audit requires each worker to write only its assigned report and cover Markdown writes with a change packet.",
+  "affected_areas": [
+    "documentation",
+    "review",
+    "change_control"
+  ],
+  "behavior_before": "No lowercase worker-12 report existed for the docs/generated/unknown audit slice.",
+  "behavior_after": "The W12 worker report records coverage, generated-doc drift findings, route inventory drift, guardrail gaps, validation results, and incomplete coverage notes without changing runtime/media behavior.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-12-docs-generated-unknown.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-112.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Parsed W12 assignments from docs/reviews/function-module-audit-2026-06-11/ASSIGNMENTS.md - 153 assigned files",
+    "Verified generated summaries exist for all 153 assigned W12 files - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_api_route_inventory -q - failed with missing Tdarr Matrix routes in route inventory/matrix",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - failed with 2 missing and 62 stale summaries",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index --check - failed, PROJECT_INDEX and DEPENDENCY_GRAPH stale",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_pipeline_map --check - failed, PIPELINE_MAP stale",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_lifecycle_map --check - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_config_schema --check - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_stage_schema --check - failed with out-of-scope stage schema drift",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_risky_file_registry - failed with RISK010 for docs/generated/summaries/**",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_architecture_guardrails - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.lint_naming - passed",
+    "npm run --silent webview:check - passed",
+    "npm run --silent webview:script-order:smoke - passed",
+    "npm run --silent webview:dom-gaps:check - passed",
+    "npm run --silent webview:lint:budget:check - failed, warnings increased 649 > 644",
+    "npm run --silent webview:map:check - failed, WEBVIEW_GODFILE_SPLIT_MAP.md stale",
+    "npm run --silent webview:contract:check - failed, WEBVIEW_PUBLIC_CONTRACT_BASELINE.json stale",
+    "npm run --silent webview:slices:check - failed, WEBVIEW_SPLIT_CANDIDATES.json stale",
+    "npm run --silent webview:routes:check - failed, WEBVIEW_ROUTE_OWNERSHIP_GUARD.json stale"
+  ],
+  "rollback_plan": "Delete the W12 worker report and this change packet.",
+  "related_changes": [],
+  "notes": "Review-only documentation change. No code, runtime state, media files, launchers, generated aggregate docs, or source/scratch/output behavior were modified."
+}

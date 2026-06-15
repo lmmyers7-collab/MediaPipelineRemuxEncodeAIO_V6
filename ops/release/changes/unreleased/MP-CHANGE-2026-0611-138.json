@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0611-138",
+  "title": "FB-018 break desktop API package import cycle",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-002 by preventing the desktop API package from eagerly importing LocalApiServer while core API command modules import path dialog helpers.",
+  "reason": "Worker finding FR-002 showed importing core API command modules can recurse through mediapipeline.desktop.api.__init__, server, and command_handlers before the original command module is initialized.",
+  "affected_areas": [
+    "Local API startup",
+    "api application",
+    "desktop api package exports"
+  ],
+  "behavior_before": "A fresh process importing mediapipeline.core.api.commands_process first failed with ImportError from a partially initialized command module.",
+  "behavior_after": "The desktop API package keeps the LocalApiServer compatibility export but resolves it lazily, so path-dialog submodule imports no longer import server during core command-module initialization.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-138.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/__init__.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_path_dialogs.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-138.json",
+    "src/mediapipeline/desktop/api/__init__.py",
+    "tests/python/desktop/test_api_path_dialogs.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_api_path_dialogs.py::PathDialogTests.test_core_command_modules_import_before_desktop_api_server_export"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_api_path_dialogs -q passed, 6 tests; direct fresh-process import check passed; tests.python.desktop.test_rename_workbench.RenameBackendBrowseModeTests tests.python.desktop.test_rename_workbench.RenameBackendPathDialogScriptTests -q passed, 3 tests; tests.python.desktop.test_application_facade_core_contracts -q passed, 13 tests; tests.python.desktop.test_api_contract_payload -q passed, 18 tests. Attempted broad tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_queue_and_rename_preview_contracts -q still fails on an unrelated rename_apply_payload ok assertion.",
+    "validate_changes --require-worktree-coverage failed only for unrelated uncovered files: docs/implementation/dynamic-hdr-preservation/PLAN.md, docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Restore the eager LocalApiServer package import and remove the fresh-process import regression, then rerun targeted Local API tests.",
+  "related_changes": [
+    "FB-018",
+    "FR-002"
+  ],
+  "notes": "Packet created before code edits. Reproduced pre-fix failure with a fresh-process import of mediapipeline.core.api.commands_process before mediapipeline.desktop.api.LocalApiServer."
+}

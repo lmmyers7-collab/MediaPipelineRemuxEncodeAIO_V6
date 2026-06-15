@@ -46,6 +46,8 @@ def build_add_firewall_rule_command(port: int, netsh_path: str | None = None) ->
         "dir=in",
         "action=allow",
         "protocol=TCP",
+        "profile=private",
+        "remoteip=localsubnet",
         f"localport={int(port)}",
     ]
 

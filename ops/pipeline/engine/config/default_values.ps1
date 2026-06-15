@@ -159,14 +159,14 @@ function Get-MediaPipelineEncodeTuningFlags {
 }
 
 function Get-MediaPipelineConfigDefaultValues {
-    $videosRoot = Join-Path -Path 'C:\' -ChildPath 'Videos'
-    $incomingRoot = Join-Path -Path $videosRoot -ChildPath 'Incoming'
+    $defaultRoot = Join-Path -Path 'C:\' -ChildPath 'MediaPipeline'
+    $incomingRoot = Join-Path -Path $defaultRoot -ChildPath 'Incoming'
 
     [ordered]@{
         ConfigSchemaVersion      = Get-MediaPipelineConfigCurrentSchemaVersion
         SourceMovies               = Join-Path -Path $incomingRoot -ChildPath 'Movies'
         SourceTV                   = Join-Path -Path $incomingRoot -ChildPath 'TV'
-        Outsource                  = Join-Path -Path $videosRoot -ChildPath 'Processed'
+        Outsource                  = Join-Path -Path $defaultRoot -ChildPath 'Processed'
         LibraryProfiles            = @(
             [ordered]@{
                 id = 'movies'
@@ -174,7 +174,7 @@ function Get-MediaPipelineConfigDefaultValues {
                 enabled = $true
                 designation = 'movie'
                 source_path = Join-Path -Path $incomingRoot -ChildPath 'Movies'
-                output_path = Join-Path -Path $videosRoot -ChildPath 'Processed'
+                output_path = Join-Path -Path $defaultRoot -ChildPath 'Processed'
                 promotion_enabled = $false
                 promotion_destination = ''
                 overrides = [ordered]@{
@@ -195,7 +195,7 @@ function Get-MediaPipelineConfigDefaultValues {
                 enabled = $true
                 designation = 'tv'
                 source_path = Join-Path -Path $incomingRoot -ChildPath 'TV'
-                output_path = Join-Path -Path $videosRoot -ChildPath 'Processed'
+                output_path = Join-Path -Path $defaultRoot -ChildPath 'Processed'
                 promotion_enabled = $false
                 promotion_destination = ''
                 overrides = [ordered]@{
@@ -211,7 +211,7 @@ function Get-MediaPipelineConfigDefaultValues {
                 }
             }
         )
-        LocalBase                  = Join-Path -Path $videosRoot -ChildPath 'Scratch'
+        LocalBase                  = Join-Path -Path $defaultRoot -ChildPath 'Scratch'
         MovieRoute1080pTargetSizeGB = 8
         MovieRoute1440pTargetSizeGB = 8
         MovieRoute4KTargetSizeGB   = 8
@@ -245,6 +245,9 @@ function Get-MediaPipelineConfigDefaultValues {
         VideoPreset                = 'p7'
         VideoQuality               = 22
         OutputContainer            = 'mkv'
+        DynamicHdrPolicy           = Get-MediaPipelineDynamicHdrPolicyDefault
+        DoviToolPath               = ''
+        Hdr10PlusToolPath          = ''
         EncodeTuningPreset         = Get-MediaPipelineEncodeTuningPresetDefault
         EncodeLadder               = Get-MediaPipelineEncodeLadderDefault
         ExtraVideoFlags            = Get-MediaPipelineConfigExtraVideoFlagsDefault -Codec 'hevc_nvenc'
@@ -306,6 +309,11 @@ function Get-MediaPipelineConfigDefaultValues {
         RenameMovieRemoveTerms     = Get-MediaPipelineRenameMovieRemoveTermsDefault
         ValidExtensions            = @('.mkv','.mp4','.avi','.mov','.m4v','.ts','.m2ts')
         FileStabilityWait          = 15
+        EnableWatchFolders         = $false
+        WatchFolderRoots           = @()
+        WatchDebounceSeconds       = 30
+        WatchAction                = 'enqueue_only'
+        WatchRespectScheduleWindow = $true
         SkipStabilityCheck         = $false
         EnableIntegrityCheck       = $true
         CreateTVSubfolder          = $true
@@ -332,6 +340,15 @@ function Get-MediaPipelineConfigDefaultValues {
         OutputValidationProbeTimeoutSeconds = 60
         OutputValidationMinSizeBytes = 1024
         OutputValidationDurationToleranceSeconds = 2
+        EnableQualityVerification = $false
+        QualityMetric = Get-MediaPipelineQualityMetricDefault
+        QualitySampleMode = Get-MediaPipelineQualitySampleModeDefault
+        QualitySampleSeconds = 10
+        QualitySampleCount = 3
+        QualityWarnThreshold = 90
+        QualityFailThreshold = 75
+        QualityFailAction = Get-MediaPipelineQualityFailActionDefault
+        QualityVerifyTimeoutSeconds = 1800
         AllowSystemTools           = $false
         RobocopyTimeoutSeconds     = 14400
         TransientFailureRetryLimit  = 3
@@ -343,6 +360,11 @@ function Get-MediaPipelineConfigDefaultValues {
         SourceScanIntervalSeconds  = 300
         ProcessedIndexRefreshSeconds = 900
         ReprocessAll               = $false
+        PlannerRolloutStage        = 'legacy'
+        UsePythonPlanner           = $false
+        EnableHandBrakeSettingsUi  = $false
+        PlannerComparisonLogging   = $false
+        NewPlannerCutoverApproved  = $false
     }
 }
 

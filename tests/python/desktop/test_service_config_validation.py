@@ -261,10 +261,58 @@ class ServiceConfigValidationTests(unittest.TestCase):
 
         self.assertEqual(warning, "SourceMovies and SourceTV point to the same location.")
 
-    def test_validate_config_values_warns_when_scratch_inside_source(self) -> None:
+    def test_validate_config_values_rejects_runtime_schema_root_overlap(self) -> None:
+        cases = [
+            (
+                {"SourceMovies": r"C:\Media", "Outsource": r"C:\Media\Processed"},
+                "Outsource and SourceMovies must not be nested inside each other.",
+                "Outsource is inside SourceMovies. Keep source, output, and scratch roots separated.",
+            ),
+            (
+                {"SourceTV": r"C:\Media\TV", "Outsource": r"C:\Media\TV"},
+                "Outsource and SourceTV must not point to the same path.",
+                "SourceTV and Outsource point to the same location.",
+            ),
+            (
+                {"SourceMovies": r"C:\Media\Movies", "LocalBase": r"C:\Media\Movies\Scratch"},
+                "LocalBase and SourceMovies must not be nested inside each other.",
+                "LocalBase is inside SourceMovies. Keep source, output, and scratch roots separated.",
+            ),
+            (
+                {"SourceTV": r"C:\Media\TV", "LocalBase": r"C:\Media\TV\Scratch"},
+                "LocalBase and SourceTV must not be nested inside each other.",
+                "LocalBase is inside SourceTV. Keep source, output, and scratch roots separated.",
+            ),
+            (
+                {"Outsource": r"D:\MediaOut", "LocalBase": r"D:\MediaOut"},
+                "LocalBase and Outsource must not point to the same path.",
+                "LocalBase and Outsource are identical. That defeats scratch-vs-library separation.",
+            ),
+        ]
+        for overrides, expected_error, promoted_warning in cases:
+            with self.subTest(expected_error=expected_error):
+                values = _valid_config_values()
+                values.update(overrides)
+
+                errors, warnings = validate_config_values(
+                    values,
+                    normalized_path_key=_path_key,
+                    path_within_root=_path_within_root,
+                )
+
+                self.assertIn(expected_error, errors)
+                self.assertNotIn(promoted_warning, warnings)
+
+    def test_validate_config_values_rejects_relative_roots_as_errors(self) -> None:
         values = _valid_config_values()
-        values["SourceTV"] = r"C:\Media\TV"
-        values["LocalBase"] = r"C:\Media\TV\Scratch"
+        values.update(
+            {
+                "SourceMovies": "Movies",
+                "SourceTV": "TV",
+                "Outsource": "Out",
+                "LocalBase": "Scratch",
+            }
+        )
 
         errors, warnings = validate_config_values(
             values,
@@ -272,8 +320,24 @@ class ServiceConfigValidationTests(unittest.TestCase):
             path_within_root=_path_within_root,
         )
 
-        self.assertEqual(errors, [])
-        self.assertIn("LocalBase is inside SourceTV. Keep source, output, and scratch roots separated.", warnings)
+        self.assertIn("SourceMovies must be an absolute path.", errors)
+        self.assertIn("SourceTV must be an absolute path.", errors)
+        self.assertIn("Outsource must be an absolute path.", errors)
+        self.assertIn("LocalBase must be an absolute path.", errors)
+        self.assertFalse(any("should be an absolute path" in warning for warning in warnings))
+
+    def test_validate_config_values_keeps_source_movie_tv_overlap_as_warning_evidence(self) -> None:
+        values = _valid_config_values()
+        values["SourceTV"] = values["SourceMovies"]
+
+        errors, warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertNotIn("SourceMovies and SourceTV must not point to the same path.", errors)
+        self.assertIn("SourceMovies and SourceTV point to the same location.", warnings)
 
     def test_validate_config_values_rejects_bdpgs_ocr_enabled_without_tool_path(self) -> None:
         values = _valid_config_values()

@@ -100,8 +100,16 @@ class NetworkWorkersDto:
     session_completed: int = 0
     session_failed: int = 0
     worker_state: JsonMap = field(default_factory=dict)
+    coordinator_connectivity: JsonMap = field(default_factory=dict)
     worker_progress: JsonMap = field(default_factory=dict)
     progress_bars: list[JsonMap] = field(default_factory=list)
+    lifecycle_state: JsonMap = field(default_factory=dict)
+    runtime_status_label: str = "Unknown"
+    runtime_status_severity: str = "unknown"
+    operator_summary_lines: list[str] = field(default_factory=list)
+    token_posture: JsonMap = field(default_factory=dict)
+    running_vs_saved: JsonMap = field(default_factory=dict)
+    diagnostic_layers: JsonMap = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
     read_only: bool = True
     schema_version: str = "desktop_network_workers.v1"

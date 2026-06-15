@@ -39,11 +39,29 @@ function Test-PathComponentSupport {
         } else {
             $Path
         }
+        $reservedDeviceNames = @(
+            'CON','PRN','AUX','NUL',
+            'COM1','COM2','COM3','COM4','COM5','COM6','COM7','COM8','COM9',
+            'LPT1','LPT2','LPT3','LPT4','LPT5','LPT6','LPT7','LPT8','LPT9'
+        )
+        $invalidFileNameChars = [System.IO.Path]::GetInvalidFileNameChars()
         foreach ($segment in ($rest -split '[\\/]+')) {
             if ([string]::IsNullOrWhiteSpace($segment)) { continue }
             if ($segment.Length -gt $MaxComponentLength) {
                 $preview = if ($segment.Length -gt 80) { $segment.Substring(0, 80) + '...' } else { $segment }
                 return "path component is $($segment.Length) characters (limit $MaxComponentLength): $preview"
+            }
+            if ($segment.EndsWith(' ') -or $segment.EndsWith('.')) {
+                return "path component has a trailing dot or space: $segment"
+            }
+            foreach ($invalid in $invalidFileNameChars) {
+                if ($segment.IndexOf($invalid) -ge 0) {
+                    return "path component contains an invalid filename character: $segment"
+                }
+            }
+            $baseName = [System.IO.Path]::GetFileNameWithoutExtension($segment)
+            if ($reservedDeviceNames -contains $baseName.ToUpperInvariant()) {
+                return "path component uses a Windows reserved device name: $segment"
             }
         }
         return $null
@@ -105,7 +123,19 @@ function Test-OutputPathCapability {
             return @{ Ok = $false; Reason = "$label has no parent directory"; Path = $path }
         }
 
-        if (-not [string]::IsNullOrWhiteSpace($boundaryRoot) -and (Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue)) {
+        if (-not [string]::IsNullOrWhiteSpace($boundaryRoot)) {
+            $boundaryHelper = Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue
+            if (-not $boundaryHelper) {
+                $reason = "$label path cannot be approved because path boundary helper is unavailable."
+                return @{
+                    Ok                 = $false
+                    Reason             = $reason
+                    Path               = $path
+                    BoundaryRoot       = $boundaryRoot
+                    BoundaryReasonCode = 'BOUNDARY_HELPER_UNAVAILABLE'
+                }
+            }
+
             $boundary = Test-MediaPipelinePathBoundarySafe -Path $path -Root $boundaryRoot -AllowMissingLeaf
             if (-not [bool]$boundary.Ok) {
                 if (-not $required -and [string]$boundary.ReasonCode -eq 'ROOT_MISSING') {

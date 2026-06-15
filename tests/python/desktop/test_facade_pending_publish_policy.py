@@ -32,6 +32,7 @@ from mediapipeline.core.publish.pending_policy import (
     pending_publish_scan_exception_result,
     pending_publish_service_unavailable_result,
 )
+from mediapipeline.core.publish.pending_rows import PENDING_PUSH_MANIFEST_SCHEMA_VERSION
 from mediapipeline.core.publish.pending_policy_parts.trust_fields import build_pending_publish_row_trust_fields
 
 
@@ -64,6 +65,7 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
             "local_file": r"C:\Pending\Ready.mkv",
             "server_out": r"\\nas\Movies\Ready.mkv",
             "state": "parked",
+            "schema_version": PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
             "local_exists": True,
             "missing_sidecar_count": 0,
         }
@@ -76,7 +78,7 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         expected = {
             "operator_trust_state": "ready-looking",
             "primary_concern": "row has no blocker in the loaded pending publish scan",
-            "safe_next_action": "Use only backend-owned Publish Parked Outputs after page-level validation still agrees.",
+            "safe_next_action": "Use only backend-owned Drain Parked Outputs after page-level validation still agrees.",
             "unsafe_if_ignored": "Draining review or blocker rows can lose parked output context, overwrite the wrong destination, or strand payload/sidecar evidence.",
             "proof_summary": [
                 "diagnostic=ready / ok",
@@ -288,12 +290,13 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         self.assertEqual(result.data["schema_version"], "pending_publish_recovery_plan.v1")
         self.assertEqual(result.data["scope"], "all")
         self.assertEqual(result.data["row_count"], 2)
-        self.assertEqual(result.data["blocker_count"], 1)
+        self.assertEqual(result.data["blocker_count"], 2)
         self.assertEqual(result.data["review_count"], 0)
-        self.assertEqual(result.data["ready_count"], 1)
+        self.assertEqual(result.data["ready_count"], 0)
         self.assertTrue(result.data["dry_run_only"])
         self.assertFalse(result.data["would_mutate"])
         self.assertIn("unlock_or_repair_manifest_json", result.data["action_counts"])
+        self.assertIn("repair_or_regenerate_manifest_from_logs", result.data["action_counts"])
         self.assertTrue(all(row["dry_run_only"] for row in result.data["rows"]))
         self.assertTrue(all(row["would_mutate"] is False for row in result.data["rows"]))
         self.assertEqual(pending_publish_recovery_plan_action(rows[1]), "unlock_or_repair_manifest_json")

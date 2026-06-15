@@ -44,6 +44,16 @@ class StatusProgressHelperTests(unittest.TestCase):
         self.assertFalse(is_progress_stale({"CurrentStage": "idle", "LastUpdate": old}))
         self.assertTrue(is_progress_stale({"CurrentStage": "encode", "LastUpdate": old}, stale_after_seconds=5))
 
+    def test_active_progress_with_missing_or_bad_update_is_stale(self) -> None:
+        self.assertTrue(is_progress_stale({"CurrentStage": "encode"}, stale_after_seconds=5))
+        self.assertTrue(is_progress_stale({"CurrentStage": "encode", "LastUpdate": ""}, stale_after_seconds=5))
+        self.assertTrue(is_progress_stale({"CurrentStage": "encode", "LastUpdate": "not a date"}, stale_after_seconds=5))
+
+    def test_paused_progress_is_operator_hold_not_stale(self) -> None:
+        old = (datetime.now() - timedelta(hours=2)).isoformat(timespec="seconds")
+
+        self.assertFalse(is_progress_stale({"CurrentStage": "paused", "LastUpdate": old}, stale_after_seconds=5))
+
     def test_encode_progress_uses_default_five_second_stale_window(self) -> None:
         old = self._timestamp_seconds_ago(30)
 

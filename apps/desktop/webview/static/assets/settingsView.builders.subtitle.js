@@ -112,7 +112,7 @@
         setText("settings-subtitle-builder-status", "Invalid subtitle value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
       writeSettingsPatchJson(patch, "Subtitle builder merged subtitle policy keys into Changes JSON. Preview or Save still uses backend validation.");
       subtitleSettingsBuilderState.initialized = true;
@@ -121,6 +121,7 @@
       renderSubtitleSettingsBuilderGuidance();
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();
+      return true;
     }
 
     function settingsBdpgsOcrPathEvidence(settings = getLastSettings()) {

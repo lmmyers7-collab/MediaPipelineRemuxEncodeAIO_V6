@@ -110,6 +110,9 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "VideoPreset",
     "VideoQuality",
     "OutputContainer",
+    "DynamicHdrPolicy",
+    "DoviToolPath",
+    "Hdr10PlusToolPath",
     "EncodeTuningPreset",
     "EncodeLadder",
     "ExtraVideoFlags",
@@ -158,6 +161,11 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "RenameMovieRemoveTerms",
     "ValidExtensions",
     "FileStabilityWait",
+    "EnableWatchFolders",
+    "WatchFolderRoots",
+    "WatchDebounceSeconds",
+    "WatchAction",
+    "WatchRespectScheduleWindow",
     "SkipStabilityCheck",
     "EnableIntegrityCheck",
     "CreateTVSubfolder",
@@ -188,6 +196,15 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "OutputValidationProbeTimeoutSeconds",
     "OutputValidationMinSizeBytes",
     "OutputValidationDurationToleranceSeconds",
+    "EnableQualityVerification",
+    "QualityMetric",
+    "QualitySampleMode",
+    "QualitySampleSeconds",
+    "QualitySampleCount",
+    "QualityWarnThreshold",
+    "QualityFailThreshold",
+    "QualityFailAction",
+    "QualityVerifyTimeoutSeconds",
     "AllowSystemTools",
     "RobocopyTimeoutSeconds",
     "TransientFailureRetryLimit",
@@ -201,6 +218,11 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "MinPipelineVersion",
     "ReprocessAll",
     "ShowOverrides",
+    "PlannerRolloutStage",
+    "UsePythonPlanner",
+    "EnableHandBrakeSettingsUi",
+    "PlannerComparisonLogging",
+    "NewPlannerCutoverApproved",
 )
 
 NETWORK_CONFIG_KEYS: tuple[str, ...] = (
@@ -209,6 +231,7 @@ NETWORK_CONFIG_KEYS: tuple[str, ...] = (
     "CoordinatorBindAddress",
     "CoordinatorAlsoEncodeLocally",
     "CoordinatorHeartbeatTimeoutMins",
+    "CoordinatorMaxJobRetries",
     "CoordinatorAuthToken",
     "WorkerCoordinatorUrl",
     "WorkerName",
@@ -268,6 +291,9 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "VideoPreset",
     "VideoQuality",
     "OutputContainer",
+    "DynamicHdrPolicy",
+    "DoviToolPath",
+    "Hdr10PlusToolPath",
     "EncodeTuningPreset",
     "EncodeLadder",
     "ExtraVideoFlags",
@@ -310,6 +336,11 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "IncludeSubtitleStyles",
     "ConfigSchemaVersion",
     "ShowOverrides",
+    "PlannerRolloutStage",
+    "UsePythonPlanner",
+    "EnableHandBrakeSettingsUi",
+    "PlannerComparisonLogging",
+    "NewPlannerCutoverApproved",
     "RenameMovieFilterOptions",
     "RenameMovieFilterTerms",
     "RenameMovieRemoveTerms",
@@ -337,6 +368,15 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "OutputValidationProbeTimeoutSeconds",
     "OutputValidationMinSizeBytes",
     "OutputValidationDurationToleranceSeconds",
+    "EnableQualityVerification",
+    "QualityMetric",
+    "QualitySampleMode",
+    "QualitySampleSeconds",
+    "QualitySampleCount",
+    "QualityWarnThreshold",
+    "QualityFailThreshold",
+    "QualityFailAction",
+    "QualityVerifyTimeoutSeconds",
     "EnableIntegrityCheck",
     "RobocopyFlags",
     "PriorityMarkers",
@@ -351,6 +391,11 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "ValidExtensions",
     "CleanupRemoteStaging",
     "CleanupStaleAgeHours",
+    "EnableWatchFolders",
+    "WatchFolderRoots",
+    "WatchDebounceSeconds",
+    "WatchAction",
+    "WatchRespectScheduleWindow",
     *NETWORK_CONFIG_KEYS,
 )
 
@@ -368,6 +413,7 @@ LIST_CONFIG_KEYS: tuple[str, ...] = (
     "IncludeSubtitleStyles",
     "RemuxSafeVideoCodecs",
     "ValidExtensions",
+    "WatchFolderRoots",
     "RenameMovieRemoveTerms",
     "RobocopyFlags",
     "PriorityMarkers",
@@ -398,6 +444,7 @@ NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "AudioMaxChannels",
     "MergeThresholdMs",
     "FileStabilityWait",
+    "WatchDebounceSeconds",
     "LogRetentionDays",
     "MaxParallelEncodes",
     "FallbackCpuQuality",
@@ -414,6 +461,11 @@ NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "OutputValidationProbeTimeoutSeconds",
     "OutputValidationMinSizeBytes",
     "OutputValidationDurationToleranceSeconds",
+    "QualitySampleSeconds",
+    "QualitySampleCount",
+    "QualityWarnThreshold",
+    "QualityFailThreshold",
+    "QualityVerifyTimeoutSeconds",
     "RobocopyTimeoutSeconds",
     "TransientFailureRetryLimit",
     "IndexScanTimeoutSeconds",
@@ -424,6 +476,7 @@ NUMERIC_CONFIG_KEYS: tuple[str, ...] = (
     "ProcessedIndexRefreshSeconds",
     "CoordinatorPort",
     "CoordinatorHeartbeatTimeoutMins",
+    "CoordinatorMaxJobRetries",
     "WorkerPollIntervalSecs",
 )
 
@@ -723,6 +776,9 @@ class Config(BaseModel):
     VideoPreset: Literal["p1", "p2", "p3", "p4", "p5", "p6", "p7"] = "p7"
     VideoQuality: int = Field(default=22, ge=1, le=51)
     OutputContainer: Literal["mkv", "mp4"] = "mkv"
+    DynamicHdrPolicy: Literal["off", "warn", "preserve_or_remux", "preserve_or_review"] = "warn"
+    DoviToolPath: str = ""
+    Hdr10PlusToolPath: str = ""
     EncodeTuningPreset: Literal[
         "balanced_nvenc",
         "quality_nvenc",
@@ -812,6 +868,11 @@ class Config(BaseModel):
         default_factory=lambda: [".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".m2ts"]
     )
     FileStabilityWait: int = Field(default=15, ge=0)
+    EnableWatchFolders: bool = False
+    WatchFolderRoots: list[str] = Field(default_factory=list)
+    WatchDebounceSeconds: int = Field(default=30, ge=5)
+    WatchAction: Literal["enqueue_only", "enqueue_and_launch"] = "enqueue_only"
+    WatchRespectScheduleWindow: bool = True
     SkipStabilityCheck: bool = False
     EnableIntegrityCheck: bool = True
     CreateTVSubfolder: bool = True
@@ -874,6 +935,15 @@ class Config(BaseModel):
     OutputValidationProbeTimeoutSeconds: int = Field(default=60, ge=1)
     OutputValidationMinSizeBytes: int = Field(default=1024, ge=0)
     OutputValidationDurationToleranceSeconds: int = Field(default=2, ge=0)
+    EnableQualityVerification: bool = False
+    QualityMetric: Literal["vmaf", "ssim", "psnr"] = "vmaf"
+    QualitySampleMode: Literal["sampled", "full"] = "sampled"
+    QualitySampleSeconds: int = Field(default=10, ge=2, le=60)
+    QualitySampleCount: int = Field(default=3, ge=1, le=10)
+    QualityWarnThreshold: float = Field(default=90, ge=0)
+    QualityFailThreshold: float = Field(default=75, ge=0)
+    QualityFailAction: Literal["warn_only", "block_review"] = "warn_only"
+    QualityVerifyTimeoutSeconds: int = Field(default=1800, ge=60, le=21600)
     AllowSystemTools: bool = False
     RobocopyTimeoutSeconds: int = Field(default=14400, ge=60, le=172800)
     TransientFailureRetryLimit: int = Field(default=3, ge=1, le=100)
@@ -887,12 +957,25 @@ class Config(BaseModel):
     MinPipelineVersion: str = ""
     ReprocessAll: bool = False
     ShowOverrides: dict[str, Any] = Field(default_factory=dict)
+    PlannerRolloutStage: Literal[
+        "legacy",
+        "shadow",
+        "selected_jobs",
+        "ui_old_backend",
+        "new_planner_default",
+        "deprecation_cleanup",
+    ] = "legacy"
+    UsePythonPlanner: bool = False
+    EnableHandBrakeSettingsUi: bool = False
+    PlannerComparisonLogging: bool = False
+    NewPlannerCutoverApproved: bool = False
 
     NetworkRole: Literal["standalone", "coordinator", "worker"] = "standalone"
     CoordinatorPort: int = Field(default=7830, ge=1, le=65535)
     CoordinatorBindAddress: str = "0.0.0.0"
     CoordinatorAlsoEncodeLocally: bool = False
     CoordinatorHeartbeatTimeoutMins: int = Field(default=5, ge=1)
+    CoordinatorMaxJobRetries: int = Field(default=3, ge=1, le=100)
     CoordinatorAuthToken: str = ""
     WorkerCoordinatorUrl: str = ""
     WorkerName: str = ""
@@ -989,9 +1072,13 @@ class Config(BaseModel):
         "RoutingProfile",
         "RouteThresholdMode",
         "SizeGuardMode",
+        "QualityMetric",
+        "QualitySampleMode",
+        "QualityFailAction",
         "VideoCodec",
         "VideoPreset",
         "OutputContainer",
+        "DynamicHdrPolicy",
         "EncodeTuningPreset",
         "EncodeLadder",
         "FinalLibraryPromotionVerificationMode",
@@ -1002,6 +1089,7 @@ class Config(BaseModel):
         "CpuEncodeProcessPriority",
         "ParallelEncodeMode",
         "NetworkRole",
+        "WatchAction",
         mode="before",
     )
     @classmethod

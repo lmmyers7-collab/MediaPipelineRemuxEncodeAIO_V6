@@ -1,0 +1,32 @@
+{
+  "id": "MP-CHANGE-2026-0610-007",
+  "title": "Function-module audit fix plan",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-10",
+  "date_completed": "2026-06-10",
+  "summary": "Created coordinator-owned findings register and fix batch plan for the 2026-06-11 function-module audit worker reports.",
+  "reason": "The worker reports contained overlapping and ID-colliding findings across two report generations. A deduped intake plan is needed before any implementation fixes start.",
+  "affected_areas": [
+    "docs",
+    "review-intake"
+  ],
+  "behavior_before": "No coordinator-owned deduped batch plan existed for the 2026-06-11 function-module audit findings.",
+  "behavior_after": "The review folder has a findings register with normalized severity, owner domain, high-risk boundaries, validation ladder, and batch assignment, plus a non-concurrent fix batch plan.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0610-007.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Created deduped findings register and fix batch plan from 24 worker reports; code not changed",
+    "Docs sanity check passed: FINDINGS_REGISTER.md exists with 61 FR rows; FIX_BATCH_PLAN.md exists with 45 FB rows",
+    "Strict change coverage failed due unrelated uncovered dirty files: docs/implementation/encoder-breadth-av1-plan.md; docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md"
+  ],
+  "rollback_plan": "Revert docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md, docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md, and this change packet.",
+  "related_changes": [],
+  "notes": ""
+}

@@ -55,9 +55,10 @@ def _browser_large_table_runner_source() -> str:
             const posts = [];
             const priorityPosts = [];
             const priorityConfirmMessages = [];
+            const priorityConfirmResponses = [];
             window.confirm = (message) => {
               priorityConfirmMessages.push(String(message || ""));
-              return true;
+              return priorityConfirmResponses.length ? priorityConfirmResponses.shift() : true;
             };
             window.apiPost = async (path, body) => {
               const route = String(path || "");
@@ -230,10 +231,34 @@ def _browser_large_table_runner_source() -> str:
                 proof_summary: ["large payload queue row", "render cap smoke"],
               };
             });
+            const windowsSep = String.fromCharCode(92);
+            const excludedUncPath = [
+              windowsSep + windowsSep + "LAYNE-SERVER",
+              "Users",
+              "Layne",
+              "Videos",
+              "Encode",
+              "TV",
+              "Snow White With The Red Hair [BD][1080p][HEVC 10bit x265][Dual Audio][Tenrai-Sensei]",
+              "Season 1",
+              "Snow White With The Red Hair - S01E01 - Encounter... Changing The Color Of Fate.mkv",
+            ].join(windowsSep);
             const queuePayload = {
               ok: true,
               count: 260,
               rows: queueRows,
+              completed_collision_row_level_available: true,
+              excluded_row_count: 1,
+              excluded_rows_truncated: false,
+              excluded_rows: [{
+                row_key: "excluded-snow-white-001",
+                source_order: 1,
+                media_type: "TV",
+                reason_code: "already_processed",
+                display_name: "Snow White With The Red Hair - S01E01 - Encounter... Changing The Color Of Fate",
+                relative_path: "Snow White With The Red Hair/Season 1/Snow White With The Red Hair - S01E01 - Encounter... Changing The Color Of Fate.mkv",
+                source_path: excludedUncPath,
+              }],
               source_roots: ["C:/Source"],
               snapshot_exists: true,
               produced_at: "2026-05-14T00:00:00Z",
@@ -264,6 +289,23 @@ def _browser_large_table_runner_source() -> str:
             requireText("queue-progress-bars", ["Queue source scan", "complete", "Source candidates: 260"]);
             requireText("queue-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering the Queue table does not change backend launch scope"]);
             requireText("queue-table-legend", ["Queue rows: 250 selectable rows"]);
+            const excludedSourceCell = document.querySelector("#queue-excluded-rows tr[data-row-key='excluded-snow-white-001'] td:nth-child(5)");
+            if (!excludedSourceCell) throw new Error("Missing excluded source cell");
+            const fullExcludedPath = queuePayload.excluded_rows[0].source_path;
+            const compactExcludedPath = excludedSourceCell.textContent || "";
+            if (compactExcludedPath === fullExcludedPath || compactExcludedPath.length >= fullExcludedPath.length) {
+              throw new Error("Excluded source path was not compacted: " + compactExcludedPath);
+            }
+            const expectedUncRoot = [windowsSep + windowsSep + "LAYNE-SERVER", "Users"].join(windowsSep);
+            if (!compactExcludedPath.includes(expectedUncRoot) || !compactExcludedPath.includes("Season 1")) {
+              throw new Error("Excluded source path lost useful UNC/parent context: " + compactExcludedPath);
+            }
+            if (excludedSourceCell.title !== fullExcludedPath) {
+              throw new Error("Excluded source title did not preserve the full path");
+            }
+            if (!excludedSourceCell.classList.contains("path-cell")) {
+              throw new Error("Excluded source cell did not use path-cell styling");
+            }
             requireRenderedRows("#queue-rows tr[data-row-key]", 250);
             requireSharedTableFilter("queue-rows", "#queue-rows tr[data-row-key]", "Large Queue 240", 1);
             if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled before scroll preservation check");
@@ -328,9 +370,8 @@ def _browser_large_table_runner_source() -> str:
             click("#queue-priority-promote-movies-btn", "all loaded movie priority");
             click("#queue-priority-promote-tv-btn", "all loaded TV priority");
             await new Promise((resolve) => setTimeout(resolve, 150));
-            window.refreshAll = originalRefreshAll;
             if (priorityConfirmMessages.length !== 2) {
-              throw new Error("expected movie and TV loaded-row confirmations: " + JSON.stringify(priorityConfirmMessages));
+              throw new Error("expected movie and TV loaded-row confirmations before clear-all checks: " + JSON.stringify(priorityConfirmMessages));
             }
             for (const fragment of [
               "Loaded queue rows: 260.",
@@ -358,6 +399,38 @@ def _browser_large_table_runner_source() -> str:
               throw new Error("TV bulk post did not include all loaded TV rows: " + JSON.stringify(priorityPosts[1]));
             }
             requireText("queue-priority-status", ["Promoted " + loadedTvRows.length + " loaded TV row(s) to High."]);
+            const postsBeforeClearCancel = priorityPosts.length;
+            priorityConfirmResponses.push(false);
+            click("#queue-priority-clear-all-btn", "clear all priority cancel");
+            await new Promise((resolve) => setTimeout(resolve, 50));
+            if (priorityPosts.length !== postsBeforeClearCancel) {
+              throw new Error("cancelled Clear All should not post: " + JSON.stringify(priorityPosts));
+            }
+            requireText("queue-priority-status", ["Priority manifest clear cancelled before any backend request."]);
+            priorityConfirmResponses.push(true);
+            click("#queue-priority-clear-all-btn", "clear all priority accept");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            window.refreshAll = originalRefreshAll;
+            if (priorityConfirmMessages.length !== 4) {
+              throw new Error("expected movie, TV, and two Clear All confirmations: " + JSON.stringify(priorityConfirmMessages));
+            }
+            if (!priorityConfirmMessages[2].includes("Clear the entire queue priority manifest?")) {
+              throw new Error("cancel Clear All confirmation missing scope: " + priorityConfirmMessages[2]);
+            }
+            for (const fragment of [
+              "resets every backend priority override to Normal",
+              "including rows hidden by display filters or render caps",
+              "Backend Launch scope remains unchanged",
+              "does not touch source, scratch, output, or rename files",
+            ]) {
+              if (!priorityConfirmMessages[3].includes(fragment)) {
+                throw new Error("accepted Clear All confirmation missing " + fragment + "\\nActual:\\n" + priorityConfirmMessages[3]);
+              }
+            }
+            if (priorityPosts.length !== 3 || priorityPosts[2].body?.clear_all !== true) {
+              throw new Error("accepted Clear All should post clear_all once: " + JSON.stringify(priorityPosts));
+            }
+            requireText("queue-priority-status", ["All priority manifest entries cleared."]);
             window.renderQueue(queuePayload);
             setValue("queue-filter", "");
             window.mediaPipelineQueueView.renderQueueRows();
@@ -477,21 +550,24 @@ def _browser_large_table_runner_source() -> str:
               "Large Completed 260.mkv",
               "Output unavailable",
               "Trust state: output unavailable",
-              "Primary concern",
-              "completed row points to a missing output",
-              "Recommended next check",
-              "Inspect Completed Manifest and Pending Publish before rerun.",
+              "Why this output looks different",
+              "Output is unavailable; resolve final placement or pending-publish proof before judging size or route differences.",
               "Route",
               "Encode",
               "Size change",
               "+110%",
-              "Audio tracks",
-              "2",
-              "Subtitle tracks",
-              "5",
-              "Current table visibility",
-              "Selected row visible in table: no",
-              "Policy / route reason",
+              "Trigger / route reason",
+              "Size policy",
+              "not recorded; legacy +5% review",
+              "Runtime/log evidence",
+              "none reported",
+              "Audio/Subtitles",
+              "2 audio / 5 subtitle tracks",
+              "Evidence gaps",
+              "Output placement proof is missing or unavailable.",
+              "No backend size_policy recorded.",
+              "What to check next",
+              "Check Pending Publish and final placement proof.",
               "Paths",
               "Authority: this summary is read-only",
             ]);
@@ -764,10 +840,11 @@ class WebViewBrowserLargeTableSmoke(unittest.TestCase):
         self.assertEqual(browser_result["completedStatus"], "1 missing from expected destination / 250 shown / 259 filtered / 259 rows")
         self.assertEqual(browser_result["pendingStatus"], "250 shown / 260 filtered / 260 rows")
         command_posts = [path for path in browser_result["posts"] if path != "/api/ui-preferences"]
-        self.assertEqual(command_posts, ["/api/queue/priority", "/api/queue/priority"])
-        self.assertEqual(len(browser_result["priorityPosts"]), 2)
+        self.assertEqual(command_posts, ["/api/queue/priority", "/api/queue/priority", "/api/queue/priority"])
+        self.assertEqual(len(browser_result["priorityPosts"]), 3)
         self.assertEqual(len(browser_result["priorityPosts"][0]["body"]["items"]), 87)
         self.assertEqual(len(browser_result["priorityPosts"][1]["body"]["items"]), 87)
+        self.assertTrue(browser_result["priorityPosts"][2]["body"]["clear_all"])
         self.assertIn("Backend Launch scope remains unchanged", "\n".join(browser_result["priorityConfirmMessages"]))
 
 

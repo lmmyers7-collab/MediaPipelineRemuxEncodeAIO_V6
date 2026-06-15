@@ -138,6 +138,54 @@ if ($PSVersionTable.PSVersion.Major -lt 7) {
 $ErrorActionPreference = 'Stop'
 $ProgressPreference    = 'SilentlyContinue'
 
+function Write-MediaPipelineEarlyWorkerChildFailureResult {
+    param(
+        [string] $Reason,
+        [string] $ErrorCode = 'STARTUP_FAILURE',
+        [int] $ExitCode = 1
+    )
+
+    if (-not $WorkerChild -or [string]::IsNullOrWhiteSpace($WorkerResultPath)) {
+        return
+    }
+
+    $sourcePathText = [string]$SingleFile
+    $payload = [ordered]@{
+        SchemaVersion       = 'local_worker_result.v1'
+        Success             = $false
+        Status              = 'failed'
+        Reason              = [string]$Reason
+        ErrorCode           = [string]$ErrorCode
+        SourcePath          = $sourcePathText
+        SourceName          = [System.IO.Path]::GetFileName($sourcePathText)
+        IsTV                = $false
+        MediaKind           = ''
+        MediaKindReason     = 'startup_failure'
+        Route               = ''
+        RouteReasonCode     = ''
+        RouteReason         = ''
+        PublishState        = ''
+        PublishMode         = ''
+        OutputPath          = ''
+        OutputSizeBytes     = 0
+        WorkerSlotId        = [int]$WorkerSlotId
+        WorkerRunId         = [string]$WorkerRunId
+        WorkerClaimId       = [string]$WorkerClaimId
+        StartupExitCode     = [int]$ExitCode
+        CompletedAt         = (Get-Date).ToString('o')
+    }
+
+    try {
+        $resultParent = Split-Path -Parent $WorkerResultPath
+        if (-not [string]::IsNullOrWhiteSpace($resultParent)) {
+            New-Item -ItemType Directory -Path $resultParent -Force | Out-Null
+        }
+        ($payload | ConvertTo-Json -Depth 10) | Set-Content -LiteralPath $WorkerResultPath -Encoding UTF8 -Force
+    } catch {
+        Write-Host "WARN: failed to write early worker result to $WorkerResultPath`: $_" -ForegroundColor Yellow
+    }
+}
+
 # ==============================================================================
 # MODULE LOADING (dot-source)
 # ==============================================================================
@@ -154,7 +202,10 @@ if (-not (Test-Path -LiteralPath $moduleLoaderSlice)) {
     exit 1
 }
 . $moduleLoaderSlice
-if ($startupFatalExitCode) { exit $startupFatalExitCode }
+if ($startupFatalExitCode) {
+    Write-MediaPipelineEarlyWorkerChildFailureResult -Reason 'Startup failed while loading pipeline modules.' -ErrorCode 'STARTUP_MODULE_LOAD_FAILED' -ExitCode ([int]$startupFatalExitCode)
+    exit $startupFatalExitCode
+}
 
 # ==============================================================================
 # CONFIGURATION
@@ -178,16 +229,28 @@ $configCandidates = if ($ConfigPath) {
 }
 $configPath = $configCandidates | Where-Object { Test-Path -LiteralPath $_ } | Select-Object -First 1
 if (-not $configPath) {
-    Write-Host "ERROR: Config not found. Checked: $($configCandidates -join ', ')" -ForegroundColor Red; exit 1
+    $missingConfigReason = "Config not found. Checked: $($configCandidates -join ', ')"
+    Write-Host "ERROR: $missingConfigReason" -ForegroundColor Red
+    Write-MediaPipelineEarlyWorkerChildFailureResult -Reason $missingConfigReason -ErrorCode 'CONFIG_NOT_FOUND' -ExitCode 1
+    exit 1
 }
 $configPath = (Resolve-Path -LiteralPath $configPath).Path
-$config = Import-PowerShellDataFile -LiteralPath $configPath
+try {
+    $config = Import-PowerShellDataFile -LiteralPath $configPath
+} catch {
+    $configReadReason = "Config could not be read: $_"
+    Write-Host "ERROR: $configReadReason" -ForegroundColor Red
+    Write-MediaPipelineEarlyWorkerChildFailureResult -Reason $configReadReason -ErrorCode 'CONFIG_READ_FAILED' -ExitCode 1
+    exit 1
+}
 
 $configSchemaCheck = Test-MediaPipelineConfigSchema -Config $config
 if (-not $configSchemaCheck.Ok) {
-    foreach ($errorText in @($configSchemaCheck.Errors)) {
+    $schemaErrors = @($configSchemaCheck.Errors)
+    foreach ($errorText in $schemaErrors) {
         Write-Host "ERROR: $errorText" -ForegroundColor Red
     }
+    Write-MediaPipelineEarlyWorkerChildFailureResult -Reason ("Config schema validation failed: " + ($schemaErrors -join '; ')) -ErrorCode 'CONFIG_SCHEMA_INVALID' -ExitCode 1
     exit 1
 }
 foreach ($warningText in @($configSchemaCheck.Warnings)) {
@@ -205,7 +268,10 @@ $ProgressPreference    = 'SilentlyContinue'
 $bootSlice = Join-Path $pipelineRoot 'MediaPipeline\runtime_paths.ps1'
 if (-not (Test-Path -LiteralPath $bootSlice)) { Write-Host "FATAL: required slice not found: $bootSlice" -ForegroundColor Red; exit 1 }
 . $bootSlice
-if ($startupFatalExitCode) { exit $startupFatalExitCode }
+if ($startupFatalExitCode) {
+    Write-MediaPipelineEarlyWorkerChildFailureResult -Reason 'Worker-child startup arguments are invalid.' -ErrorCode 'WORKER_CHILD_ARGUMENTS_INVALID' -ExitCode ([int]$startupFatalExitCode)
+    exit $startupFatalExitCode
+}
 
 # ==============================================================================
 # SINGLE INSTANCE LOCK — named OS Mutex (eliminates TOCTOU race from file+PID)
@@ -279,12 +345,33 @@ $ffmpegPath   = Resolve-BundledExecutable -CommandName 'ffmpeg'   -RelativeCandi
 $ffprobePath  = Resolve-BundledExecutable -CommandName 'ffprobe'  -RelativeCandidates @('..\tools\ffmpeg\bin\ffprobe.exe', 'Tools\ffmpeg\bin\ffprobe.exe')
 $mkvmergePath = Resolve-BundledExecutable -CommandName 'mkvmerge' -RelativeCandidates @('..\tools\MKVToolNix\mkvmerge.exe', 'Tools\MKVToolNix\mkvmerge.exe')
 $mkvextractPath = Resolve-BundledExecutable -CommandName 'mkvextract' -RelativeCandidates @('..\tools\MKVToolNix\mkvextract.exe', 'Tools\MKVToolNix\mkvextract.exe')
+$doviToolResolution = Resolve-DynamicHdrToolPath `
+    -CommandName 'dovi_tool' `
+    -ConfiguredPath ([string]$script:DoviToolPath) `
+    -RelativeCandidates @('..\tools\dovi_tool\dovi_tool.exe', 'Tools\dovi_tool\dovi_tool.exe') `
+    -AllowSystemTools:([bool]$script:AllowSystemTools)
+$hdr10PlusToolResolution = Resolve-DynamicHdrToolPath `
+    -CommandName 'hdr10plus_tool' `
+    -ConfiguredPath ([string]$script:Hdr10PlusToolPath) `
+    -RelativeCandidates @('..\tools\hdr10plus_tool\hdr10plus_tool.exe', 'Tools\hdr10plus_tool\hdr10plus_tool.exe') `
+    -AllowSystemTools:([bool]$script:AllowSystemTools)
+$script:DoviToolPath = [string]$doviToolResolution.Path
+$script:Hdr10PlusToolPath = [string]$hdr10PlusToolResolution.Path
+$script:DynamicHdrToolResolution = [ordered]@{
+    dovi_tool      = $doviToolResolution
+    hdr10plus_tool = $hdr10PlusToolResolution
+}
 
 if (-not $ffmpegPath -or -not $ffprobePath) {
     Write-Host "FATAL: bundled ffmpeg/ffprobe not found in ops\\pipeline\\tools\\ffmpeg\\bin. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; & $Script:ExitCleanup; exit 1
 }
 if (-not $mkvmergePath) {
     Write-Host "FATAL: bundled mkvmerge not found in ops\\pipeline\\tools\\MKVToolNix. Set AllowSystemTools=true only for development fallback." -ForegroundColor Red; & $Script:ExitCleanup; exit 1
+}
+foreach ($dynamicHdrResolution in @($doviToolResolution, $hdr10PlusToolResolution)) {
+    if ([string]::IsNullOrWhiteSpace([string]$dynamicHdrResolution.Path)) {
+        Write-Host "INFO: $($dynamicHdrResolution.CommandName) not found; dynamic HDR preservation tooling is unavailable under DynamicHdrPolicy='$script:DynamicHdrPolicy'. Phase 1 warn/remux behavior remains active. $($dynamicHdrResolution.Reason)"
+    }
 }
 if (-not (Get-Command robocopy -ErrorAction SilentlyContinue)) {
     Write-Host "FATAL: robocopy not found" -ForegroundColor Red; & $Script:ExitCleanup; exit 1
@@ -516,32 +603,98 @@ if ($SingleFile -ne "") {
         & $Script:ExitCleanup
         exit 1
     }
-    $sfItem = Get-Item -LiteralPath $sfPath
-    # Determine media type from configured source roots first. Some queue-backed
-    # TV sources use bare episode numbers, so filename pattern matching alone can
-    # publish them with movie layout.
-    $sfMediaKind = Resolve-SingleFileMediaKind -Path $sfPath -SourceMovies $SourceMovies -SourceTV $SourceTV
-    $sfIsTV = [bool]$sfMediaKind.IsTV
-    Write-Log "SINGLE-FILE MODE: isTV=$sfIsTV | mediaKind=$($sfMediaKind.MediaKind) | reason=$($sfMediaKind.Reason) | path=$sfPath"
-    # Load the processed-output index so Already-Processed can decide whether
-    # this file has already been encoded.  Passing an integer (0) here used to
-    # crash silently inside Already-Processed when it hit `$idx.TVShows`.
-    $sfIndex = Get-ProcessedIndexCached -ForceRefresh:$true
-    $sfResult = Invoke-MediaPipelineProcessFile -file $sfItem -isTV:$sfIsTV -idx $sfIndex -QueueIndex 1 -QueueTotal 1 -PriorityInfo $null
-    Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow
-    $sfStatus = if ($sfResult -and $sfResult.PSObject.Properties['Status']) { [string]$sfResult.Status } else { 'unknown' }
-    $sfPublishState = if ($sfResult -and $sfResult.PSObject.Properties['PublishState']) { [string]$sfResult.PublishState } else { '' }
-    $sfSuffix = if ([string]::IsNullOrWhiteSpace($sfPublishState)) { '' } else { " publish=$sfPublishState" }
-    Write-Log "SINGLE-FILE MODE: complete ($sfStatus$sfSuffix). Exiting."
-    Write-MediaPipelineWorkerChildResult `
-        -SourcePath $sfPath `
-        -ProcessResult $sfResult `
-        -IsTV:$sfIsTV `
-        -MediaKind ([string]$sfMediaKind.MediaKind) `
-        -MediaKindReason ([string]$sfMediaKind.Reason)
-    & $Script:ExitCleanup
-    if ($sfResult -and [bool]$sfResult.Success) { exit 0 }
-    exit 1
+    $sfItem = $null
+    $sfMediaKind = [pscustomobject]@{
+        IsTV      = $false
+        MediaKind = ''
+        Reason    = ''
+    }
+    $sfIsTV = $false
+    $sfResult = $null
+    $sfExitCode = 1
+    try {
+        $sfItem = Get-Item -LiteralPath $sfPath
+        # Determine media type from configured source roots first. Some queue-backed
+        # TV sources use bare episode numbers, so filename pattern matching alone can
+        # publish them with movie layout.
+        $sfMediaKind = Resolve-SingleFileMediaKind -Path $sfPath -SourceMovies $SourceMovies -SourceTV $SourceTV
+        $sfIsTV = [bool]$sfMediaKind.IsTV
+        Write-Log "SINGLE-FILE MODE: isTV=$sfIsTV | mediaKind=$($sfMediaKind.MediaKind) | reason=$($sfMediaKind.Reason) | path=$sfPath"
+        # Load the processed-output index so Already-Processed can decide whether
+        # this file has already been encoded.  Passing an integer (0) here used to
+        # crash silently inside Already-Processed when it hit `$idx.TVShows`.
+        $sfIndex = Get-ProcessedIndexCached -ForceRefresh:$true
+        $sfResult = Invoke-MediaPipelineProcessFile -file $sfItem -isTV:$sfIsTV -idx $sfIndex -QueueIndex 1 -QueueTotal 1 -PriorityInfo $null
+        Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow
+        $sfStatus = if ($sfResult -and $sfResult.PSObject.Properties['Status']) { [string]$sfResult.Status } else { 'unknown' }
+        $sfPublishState = if ($sfResult -and $sfResult.PSObject.Properties['PublishState']) { [string]$sfResult.PublishState } else { '' }
+        $sfSuffix = if ([string]::IsNullOrWhiteSpace($sfPublishState)) { '' } else { " publish=$sfPublishState" }
+        Write-Log "SINGLE-FILE MODE: complete ($sfStatus$sfSuffix). Exiting."
+        Write-MediaPipelineWorkerChildResult `
+            -SourcePath $sfPath `
+            -ProcessResult $sfResult `
+            -IsTV:$sfIsTV `
+            -MediaKind ([string]$sfMediaKind.MediaKind) `
+            -MediaKindReason ([string]$sfMediaKind.Reason)
+        $sfExitCode = if ($sfResult -and [bool]$sfResult.Success) { 0 } else { 1 }
+    } catch {
+        $sfExceptionText = [string]$_
+        if ($sfExceptionText.Length -gt 1000) {
+            $sfExceptionText = $sfExceptionText.Substring(0, 1000)
+        }
+        $sfExceptionReason = "SingleFile worker-child processing terminated before writing a normal result: $sfExceptionText"
+        Write-Log "SINGLE-FILE MODE: $sfExceptionReason" 'ERROR'
+        try {
+            Set-ProgressStage -Stage 'idle' -Status 'Error' -Percent $null -SaveNow
+        } catch {
+            Write-Log "SINGLE-FILE MODE: failed to persist exception progress state: $_" 'WARN'
+        }
+        if ($sfItem) {
+            $sfResult = New-MediaPipelineProcessFileResult `
+                -File $sfItem `
+                -Status 'failed' `
+                -Success:$false `
+                -QueueTerminal:$false `
+                -Retryable:$true `
+                -Reason $sfExceptionReason `
+                -ErrorCode 'WORKER_CHILD_SINGLE_FILE_EXCEPTION' `
+                -Route ([string]$script:CurrentRoutePlan.Route) `
+                -RouteReasonCode ([string]$script:CurrentRouteReasonCode) `
+                -RouteReason ([string]$script:CurrentRouteReason)
+            $sfResultAlreadyExists = ($WorkerChild -and -not [string]::IsNullOrWhiteSpace($WorkerResultPath) -and (Test-Path -LiteralPath $WorkerResultPath -PathType Leaf))
+            if (-not $sfResultAlreadyExists) {
+                Write-MediaPipelineWorkerChildResult `
+                    -SourcePath $sfPath `
+                    -ProcessResult $sfResult `
+                    -IsTV:$sfIsTV `
+                    -MediaKind ([string]$sfMediaKind.MediaKind) `
+                    -MediaKindReason ([string]$sfMediaKind.Reason)
+            } else {
+                Write-Log "WORKER CHILD: existing SingleFile worker result preserved after exception: $WorkerResultPath" 'DEBUG'
+            }
+        }
+        $sfExitCode = 1
+    } finally {
+        $sfNeedsFallbackResult = (
+            $WorkerChild `
+            -and -not [string]::IsNullOrWhiteSpace($WorkerResultPath) `
+            -and -not (Test-Path -LiteralPath $WorkerResultPath -PathType Leaf)
+        )
+        if ($sfNeedsFallbackResult) {
+            Write-Log "WORKER CHILD: writing fallback SingleFile result after finalization reached without a worker result." 'WARN'
+            Write-MediaPipelineWorkerChildResult `
+                -SourcePath $sfPath `
+                -Status 'failed' `
+                -Success:$false `
+                -Reason 'SingleFile worker-child reached finalization without writing a worker result.' `
+                -ErrorCode 'WORKER_CHILD_RESULT_FALLBACK' `
+                -IsTV:$sfIsTV `
+                -MediaKind ([string]$sfMediaKind.MediaKind) `
+                -MediaKindReason ([string]$sfMediaKind.Reason)
+        }
+        & $Script:ExitCleanup
+    }
+    exit $sfExitCode
 }
 
 $script:StopRequested = $false

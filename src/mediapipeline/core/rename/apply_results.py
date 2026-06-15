@@ -6,7 +6,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Iterable, Mapping
 
-from mediapipeline.core.rename.path_authority import OUTSIDE_CONFIGURED_ROOTS_MESSAGE
+from mediapipeline.core.rename.path_authority import OUTSIDE_CONFIGURED_ROOTS_MESSAGE, UNSCOPED_OPERATOR_PATHS_MESSAGE
 from mediapipeline.core.rename.preview_policy import missing_rename_selection_warnings, rename_blocker_error_lines
 
 if TYPE_CHECKING:
@@ -80,6 +80,17 @@ def rename_apply_busy_result(message: str = RENAME_APPLY_BUSY_MESSAGE) -> Comman
     )
 
 
+def rename_apply_active_work_result(message: str) -> CommandResult:
+    return _command_result(
+        command=RENAME_APPLY_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=["active_work"],
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
 def rename_plan_build_exception_result(exc: Exception) -> CommandResult:
     return _command_result(
         command=RENAME_APPLY_COMMAND,
@@ -128,6 +139,26 @@ def rename_apply_outside_configured_roots_result(rows: Iterable[Mapping[str, Any
         command=RENAME_APPLY_COMMAND,
         ok=False,
         message=OUTSIDE_CONFIGURED_ROOTS_MESSAGE,
+        severity="warning",
+        warnings=warnings,
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
+def rename_apply_unscoped_operator_paths_result(rows: Iterable[Mapping[str, Any]]) -> CommandResult:
+    row_list = list(rows)
+    warnings = [UNSCOPED_OPERATOR_PATHS_MESSAGE]
+    warnings.extend(
+        f"Unscoped operator path: {Path(str(row.get('source') or '')).name} ({row.get('source') or ''})"
+        for row in row_list[:8]
+    )
+    if len(row_list) > 8:
+        warnings.append(f"...and {len(row_list) - 8} more unscoped row(s).")
+    warnings.append("Configured media roots must be resolved by the backend before rename apply can mutate files.")
+    return _command_result(
+        command=RENAME_APPLY_COMMAND,
+        ok=False,
+        message=UNSCOPED_OPERATOR_PATHS_MESSAGE,
         severity="warning",
         warnings=warnings,
         refresh_hint=RENAME_REFRESH_HINT,
@@ -221,10 +252,12 @@ __all__ = [
     "rename_apply_no_selection_result",
     "rename_apply_service_unavailable_result",
     "rename_apply_busy_result",
+    "rename_apply_active_work_result",
     "rename_plan_build_exception_result",
     "rename_apply_missing_selection_result",
     "rename_apply_blockers_result",
     "rename_apply_outside_configured_roots_result",
+    "rename_apply_unscoped_operator_paths_result",
     "rename_apply_exception_result",
     "rename_apply_progress_payload",
     "rename_apply_success_result",

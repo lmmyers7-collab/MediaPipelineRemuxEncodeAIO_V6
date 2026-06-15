@@ -25,7 +25,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 $sidecarModule = Join-Path $repoRoot 'ops\pipeline\engine\publish\sidecar.ps1'
 $publishPartialModule = Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_partial.ps1'
 $publishSidecarsModule = Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_sidecars.ps1'
+$mediaConstantsModule = Join-Path $repoRoot 'ops\pipeline\engine\shared\media_constants.ps1'
 $srtModule = Join-Path $repoRoot 'ops\pipeline\engine\subtitles\srt.ps1'
+$tx3gModule = Join-Path $repoRoot 'ops\pipeline\engine\subtitles\tx3g.ps1'
 
 function Assert-True {
     param(
@@ -56,7 +58,9 @@ function Write-Log {
 . $sidecarModule
 . $publishPartialModule
 . $publishSidecarsModule
+. $mediaConstantsModule
 . $srtModule
+. $tx3gModule
 
 $sidecarText = Get-Content -LiteralPath $sidecarModule -Raw
 Assert-True ($sidecarText -match 'function Move-SidecarTempIntoPlace') 'Sidecar overwrite fallback helper is missing.'
@@ -75,6 +79,37 @@ Assert-True ($publishSidecarsText -match 'Published\s*=\s*@\(\$published\)') 'Im
 $srtText = Get-Content -LiteralPath $srtModule -Raw
 Assert-True ($srtText -match 'function Move-SrtTempIntoPlace') 'SRT overwrite fallback helper is missing.'
 Assert-True ($srtText -match '\[System\.IO\.File\]::Move\(\$TempPath,\s*\$DestinationPath,\s*\$true\)') 'SRT fallback must use overwrite move.'
+
+$assEntry = @{
+    Stream = [pscustomobject]@{ index = 10 }
+    Lang = 'eng'
+    Title = 'English ASS'
+    RawTitle = 'English ASS'
+    Codec = 'ass'
+    SourceKind = 'embedded'
+}
+$assTrack = @{
+    StreamInfo = $assEntry
+    ConversionKind = 'ass_to_srt'
+    SourceSubtitleKind = 'ass'
+    SourceSubtitleCodec = 'ass'
+    SourceKind = 'embedded'
+}
+$assRecord = New-Tx3gSrtRecord -Entry $assEntry -Track $assTrack -Path 'movie.eng.ass.srt' -Status 'pending' -CueCount 2
+Assert-Equal $assRecord.conversion_kind 'ass_to_srt' 'TX3G sidecar record should preserve the actual conversion kind for non-TX3G SRT sidecars.'
+Assert-Equal $assRecord.source_subtitle_kind 'ass' 'TX3G sidecar record should preserve the source subtitle kind for non-TX3G SRT sidecars.'
+Assert-Equal $assRecord.source_subtitle_codec 'ass' 'TX3G sidecar record should preserve the source subtitle codec for non-TX3G SRT sidecars.'
+Assert-Equal $assRecord.source_kind 'embedded' 'TX3G sidecar record should preserve embedded-vs-sidecar provenance.'
+$legacyTx3gEntry = @{
+    Stream = [pscustomobject]@{ index = 11 }
+    Lang = 'eng'
+    Title = 'English TX3G'
+    RawTitle = 'English TX3G'
+    Codec = 'mov_text'
+}
+$legacyTx3gRecord = New-Tx3gSrtRecord -Entry $legacyTx3gEntry -Path 'movie.eng.tx3g.srt' -Status 'pending' -CueCount 1
+Assert-Equal $legacyTx3gRecord.source_subtitle_kind 'tx3g' 'Legacy TX3G sidecar records should keep tx3g source metadata without an explicit track wrapper.'
+Assert-Equal $legacyTx3gRecord.conversion_kind 'tx3g_to_srt' 'Legacy TX3G sidecar records should keep tx3g conversion metadata without an explicit track wrapper.'
 
 $root = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-sidecar-write-{0}" -f ([Guid]::NewGuid().ToString('N')))
 New-Item -ItemType Directory -Path $root -Force | Out-Null

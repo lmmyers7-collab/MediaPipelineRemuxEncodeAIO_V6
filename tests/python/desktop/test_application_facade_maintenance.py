@@ -100,6 +100,7 @@ class ApplicationFacadeMaintenanceTests(unittest.TestCase):
                     "zip_package": True,
                     "verify": True,
                     "force": True,
+                    "include_tauri_preview_binary": True,
                     "confirm_create": True,
                     "timeout_seconds": 99999,
                 },
@@ -118,6 +119,7 @@ class ApplicationFacadeMaintenanceTests(unittest.TestCase):
         self.assertEqual(confirmed.data["progress_bars"][0]["id"], "release_package")
         self.assertFalse(service.release_build_calls[-1]["dry_run"])
         self.assertTrue(service.release_build_calls[-1]["force"])
+        self.assertTrue(service.release_build_calls[-1]["include_tauri_preview_binary"])
         self.assertEqual(service.release_build_calls[-1]["timeout_seconds"], 14400)
 
     def test_dependency_atlas_command_updates_tooling_artifact_result(self) -> None:

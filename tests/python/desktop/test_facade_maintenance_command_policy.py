@@ -175,6 +175,7 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
                 "zip_package": True,
                 "verify": True,
                 "force": True,
+                "include_tauri_preview_binary": True,
             },
             timeout_seconds=7200,
         )
@@ -189,11 +190,12 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
                 "zip_path": "C:/Deploy.zip",
                 "elapsed_seconds": 1.25,
             },
-            {"zip_package": True, "verify": True, "force": True},
+            {"zip_package": True, "verify": True, "force": True, "include_tauri_preview_binary": True},
         )
 
         self.assertFalse(kwargs["dry_run"])
         self.assertTrue(kwargs["force"])
+        self.assertTrue(kwargs["include_tauri_preview_binary"])
         self.assertTrue(result.ok)
         self.assertEqual(result.command, "maintenance.release_build")
         self.assertEqual(result.message, "Deployment build complete: 12 file(s) copied; manifest written; zip written.")
@@ -201,6 +203,7 @@ class MaintenanceCommandPolicyTests(unittest.TestCase):
         self.assertTrue(result.data["manifest_exists"])
         self.assertTrue(result.data["zip_exists"])
         self.assertTrue(result.data["writes_release_package"])
+        self.assertTrue(result.data["options"]["include_tauri_preview_binary"])
         self.assertEqual(result.data["release_progress"]["schema_version"], "desktop_release_package_progress.v1")
         self.assertEqual(result.data["release_progress"]["status"], "complete")
         self.assertEqual(result.data["progress_bars"][0]["source"], "maintenance.release_build")

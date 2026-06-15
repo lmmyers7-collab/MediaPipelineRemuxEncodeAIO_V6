@@ -123,12 +123,23 @@ export function isScriptLevelDeclaration(path) {
 }
 
 export function parseScript(source, pathForErrors = "script.js") {
-  return parse(source, {
+  const ast = parse(source, {
     sourceFilename: pathForErrors,
     sourceType: "script",
     errorRecovery: true,
     plugins: ["optionalChaining", "nullishCoalescingOperator"],
   });
+  const recoverableErrors = ast.errors || [];
+  if (recoverableErrors.length) {
+    const details = recoverableErrors
+      .map((error) => {
+        const location = error.loc ? `${error.loc.line}:${error.loc.column}` : "unknown";
+        return `${location} ${error.message}`;
+      })
+      .join("; ");
+    throw new SyntaxError(`Recoverable parser error in ${pathForErrors}: ${details}`);
+  }
+  return ast;
 }
 
 export function analyzeScriptAsset(relativePath) {

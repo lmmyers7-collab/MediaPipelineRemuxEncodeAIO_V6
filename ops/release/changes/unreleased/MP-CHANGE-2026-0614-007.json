@@ -1,0 +1,71 @@
+{
+  "id": "MP-CHANGE-2026-0614-007",
+  "title": "Surface network worker per-layer status and failure reasons",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Implement A3 from the network worker hardening plan by propagating structured worker failure reasons and exposing distinct network diagnostic layer indicators.",
+  "reason": "Operators need network failures to distinguish URL reachability, auth, path access, queue freshness, claim status, and pipeline failure causes instead of seeing an ambiguous issue count or generic failed status.",
+  "affected_areas": [
+    "api",
+    "docs",
+    "network",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Network evidence and failed worker reports could collapse distinct timeout, auth, source-path, output-path, and encode failures into generic failed/issue labels.",
+  "behavior_after": "Coordinator and WebView evidence will report distinct diagnostic layer statuses and failed jobs will retain bounded reason_code and reason details.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "docs/architecture/NETWORK_WORKER_HARDENING_PLAN.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/dispatcher.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/failure_reasons.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker_done.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker_parts/results.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-007.json",
+    "src/mediapipeline/core/kernel/dto_workspaces.py",
+    "src/mediapipeline/core/network/facade.py",
+    "src/mediapipeline/desktop/network/coordinator_http_handlers.py",
+    "src/mediapipeline/desktop/network/coordinator_queue.py",
+    "src/mediapipeline/desktop/network/dispatcher.py",
+    "src/mediapipeline/desktop/network/failure_reasons.py",
+    "src/mediapipeline/desktop/network/protocol.py",
+    "src/mediapipeline/desktop/network/registry.py",
+    "src/mediapipeline/desktop/network/standalone.py",
+    "src/mediapipeline/desktop/network/use_cases/done_outcome.py",
+    "src/mediapipeline/desktop/network/worker_claims.py",
+    "src/mediapipeline/desktop/network/worker_done.py",
+    "src/mediapipeline/desktop/network/worker_parts/results.py",
+    "tests/python/desktop/test_application_facade_network.py",
+    "tests/python/desktop/test_network_inflight_registry.py",
+    "tests/python/desktop/test_network_protocol_runtime.py",
+    "tests/python/desktop/test_network_workflow.py",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_network.py diagnostic_layers assertions",
+    "tests/python/desktop/test_network_inflight_registry.py::test_inflight_registry_persists_last_failure_reason_for_worker_board",
+    "tests/python/desktop/test_network_protocol_runtime.py::test_done_request_preserves_structured_failure_reason",
+    "tests/python/desktop/test_network_protocol_runtime.py::test_failure_reason_classifier_maps_observed_network_modes",
+    "tests/python/desktop/test_network_workflow.py::test_http_done_failure_reason_propagates_to_registry_and_cluster_log",
+    "tests/webview/test_webview_browser_network_smoke.py structured failure detail assertion"
+  ],
+  "manual_validation": [
+    "Python unittest targeted network/application suite: PASS (77 tests)",
+    "change_control.validate_changes --require-worktree-coverage: FAIL only on unrelated dependency-atlas assets (core_library png/svg, desktop_watch png/svg); A3 touched files covered",
+    "npm run webview:check: PASS",
+    "npm run webview:lint -- --quiet: PASS",
+    "ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1 -AllowSkippedTests: PASS",
+    "refresh_summaries targeted A3 paths: PASS (20 written)",
+    "tests.webview.test_webview_network_read_only_boundary: PASS (12 tests)"
+  ],
+  "rollback_plan": "Revert the DoneRequest reason fields, worker failure classification, coordinator registry/evidence propagation, WebView rendering, tests, docs, and generated summaries for this packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0614-006"
+  ],
+  "notes": "Opened before source edits. Scope is A3 only from docs/architecture/NETWORK_WORKER_HARDENING_PLAN.md; no quarantine policy, retry suppression, lifecycle mutation, media policy, source/scratch/output movement, or publish/drain behavior is in scope.\nA3 complete. Strict coverage failure is unrelated to this packet: docs/generated/dependency-atlas/assets/dependency_detail_core_library.{png,svg} and dependency_detail_desktop_watch.{png,svg} were not absorbed."
+}

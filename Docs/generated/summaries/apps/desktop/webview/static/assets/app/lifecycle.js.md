@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/lifecycle.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-08
+last_modified: 2026-06-13
 last_reviewed: 2026-06-04
-sha256: cbf22a6464eb5773fbf203ed348895ba977b85d2736952a7bdc7201a42a9930b
+sha256: 6be8417bdcf8a37c95a865b839fb40ebcd06255bfb5faf6d83eca97f51801e1c
 ---
 # `apps/desktop/webview/static/assets/app/lifecycle.js`
 

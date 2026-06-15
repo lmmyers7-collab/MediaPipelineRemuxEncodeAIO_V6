@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 
 from ..config_keys import KEY_COORDINATOR_AUTH_TOKEN
-from .auth import generate_token, validate_request_auth
+from .auth import AuthValidationResult, generate_token, validate_request_auth_result
 
 _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 
@@ -47,8 +47,23 @@ class CoordinatorAuthMixin:
         path_with_query: str,
         body: bytes,
     ) -> bool:
+        return self._request_auth_result(
+            headers,
+            method=method,
+            path_with_query=path_with_query,
+            body=body,
+        ).ok
+
+    def _request_auth_result(
+        self,
+        headers: dict,
+        *,
+        method: str,
+        path_with_query: str,
+        body: bytes,
+    ) -> AuthValidationResult:
         with self._auth_nonce_lock:
-            return validate_request_auth(
+            return validate_request_auth_result(
                 headers,
                 self._auth_token,
                 method=method,

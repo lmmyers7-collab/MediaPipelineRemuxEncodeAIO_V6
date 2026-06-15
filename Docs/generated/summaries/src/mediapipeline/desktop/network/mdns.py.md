@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/mdns.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-20
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 98e6a52afd6b80ffb252fe510cac162c6bd88fe135dd38aa70b51bdc6bc00e57
+sha256: 46e774016f74937bc58e06739f29755ec36b846da260e48244f3eaed1867e30c
 ---
 # `src/mediapipeline/desktop/network/mdns.py`
 

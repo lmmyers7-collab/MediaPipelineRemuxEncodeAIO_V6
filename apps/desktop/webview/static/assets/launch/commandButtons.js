@@ -114,8 +114,7 @@
         matchKeys: ["library_root", "include_sidecars"],
       });
       if (targetGate.blocked) return targetGate;
-      const decisionGate = launchStartDecisionGate(collectPipelineStartRequest());
-      return decisionGate.blocked ? decisionGate : targetGate;
+      return targetGate;
     }
     if (id === "rerun-start-button") {
       const request = collectRerunStartRequest();
@@ -124,8 +123,7 @@
         matchKeys: ["csv_path", "stage_mode", "original_mode", "return_mode"],
       });
       if (targetGate.blocked) return targetGate;
-      const decisionGate = launchStartDecisionGate(collectPipelineStartRequest());
-      return decisionGate.blocked ? decisionGate : targetGate;
+      return targetGate;
     }
     return { blocked: false, reason: "Backend start route will re-check queue, settings, schedule, and process locks at submission time." };
   }

@@ -40,6 +40,11 @@
       setFileSafetyBuilderControl("settings-file-safety-min-free", "MinFreeSpaceGB", "number", 50);
       setFileSafetyBuilderControl("settings-file-safety-outsource-min-free", "OutsourceMinFreeSpaceGB", "number", 50);
       setFileSafetyBuilderControl("settings-file-safety-stability-wait", "FileStabilityWait", "number", 15);
+      setFileSafetyBuilderControl("settings-file-safety-enable-watch", "EnableWatchFolders", "bool", false);
+      setFileSafetyBuilderControl("settings-file-safety-watch-roots", "WatchFolderRoots", "list", []);
+      setFileSafetyBuilderControl("settings-file-safety-watch-debounce", "WatchDebounceSeconds", "number", 30);
+      setFileSafetyBuilderControl("settings-file-safety-watch-action", "WatchAction", "select", "enqueue_only");
+      setFileSafetyBuilderControl("settings-file-safety-watch-respect-schedule", "WatchRespectScheduleWindow", "bool", true);
       setFileSafetyBuilderControl("settings-file-safety-cleanup-age", "CleanupStaleAgeHours", "number", 24);
       setFileSafetyBuilderControl("settings-file-safety-output-size-multiplier", "OutputSizeMultiplier", "number_float", 0.7);
       setFileSafetyBuilderControl("settings-file-safety-valid-extensions", "ValidExtensions", "list", [".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".m2ts"]);
@@ -93,14 +98,15 @@
         setText("settings-file-safety-builder-status", "Invalid file-safety value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
-      writeSettingsPatchJson(patch, "File safety builder merged source/output/scratch, reserve, publish, and cleanup keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "File safety builder merged source/output/scratch, reserve, watch-folder, publish, and cleanup keys into Changes JSON. Preview or Save still uses backend validation.");
       fileSafetySettingsBuilderState.initialized = true;
       fileSafetySettingsBuilderState.dirty = true;
       setText("settings-file-safety-builder-status", `${Object.keys(patch).length} file-safety patch keys ready`);
       renderFileSafetySettingsBuilderGuidance();
       renderSettingsActiveMediaPolicyHandoff();
+      return true;
     }
 
     function fileSafetyChecked(id) {
@@ -168,6 +174,15 @@
           const values = parseSettingsListText(byId(id)?.value || "");
           const broad = values.filter((item) => !String(item).trim().startsWith("."));
           if (broad.length) lines.push("  Warning: every extension should start with a dot before backend preview/save.");
+        }
+        if (key === "EnableWatchFolders" && byId(id)?.checked) {
+          lines.push("  Watch folders are off by default; validate with a test folder before pointing at a real source root.");
+        }
+        if (key === "WatchAction" && settingsBuilderInputValue(id) === "enqueue_and_launch") {
+          lines.push("  Warning: enqueue_and_launch can request the existing gated once-launch path automatically.");
+        }
+        if (key === "WatchRespectScheduleWindow" && !byId(id)?.checked) {
+          lines.push("  Warning: watch-triggered launches will pass schedule_override=ignore.");
         }
         if (key === "RobocopyFlags") {
           const values = parseSettingsListText(byId(id)?.value || "");

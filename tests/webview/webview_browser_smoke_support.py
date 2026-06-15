@@ -25,6 +25,9 @@ _MEDIA_NO_MUTATION_SUFFIXES = (
     ".ass",
     ".ssa",
     ".vtt",
+    ".idx",
+    ".sub",
+    ".sup",
     ".pipeline.json",
     ".manifest.json",
     ".jsonl",
@@ -130,7 +133,7 @@ def run_node_browser_smoke(
     timeout_seconds: int,
 ) -> dict[str, object]:
     attempts: list[subprocess.CompletedProcess[str]] = []
-    max_attempts = 3
+    max_attempts = 2
     for attempt in range(max_attempts):
         try:
             result = subprocess.run(

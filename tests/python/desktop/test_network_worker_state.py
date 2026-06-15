@@ -51,7 +51,8 @@ class NetworkWorkerStateTests(unittest.TestCase):
             patch("mediapipeline.desktop.network.worker_state.save_worker_state", side_effect=OSError("disk full")),
             self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs,
         ):
-            WorkerDispatcher._save_worker_state(worker, job)  # type: ignore[arg-type]
+            with self.assertRaises(OSError):
+                WorkerDispatcher._save_worker_state(worker, job)  # type: ignore[arg-type]
 
         self.assertEqual(statuses, ["⚠ Worker crash recovery state save failed - check logs."])
         self.assertEqual(events[0]["context"], "worker-state-save-failed")

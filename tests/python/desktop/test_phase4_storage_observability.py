@@ -63,7 +63,7 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
 
         self.assertEqual(version, CURRENT_SCHEMA_VERSION)
         self.assertEqual(journal_mode, "wal")
-        self.assertEqual([row[0] for row in migrations], [1])
+        self.assertEqual([row[0] for row in migrations], [1, 2])
 
     def test_state_db_rejects_newer_schema_version(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -134,9 +134,111 @@ class Phase4StorageObservabilityTests(unittest.TestCase):
             finally:
                 conn.close()
 
+        self.assertEqual(len(rows), 3)
+        self.assertEqual([row[0] for row in rows], ["out.mkv", "out.mkv", "out.mkv"])
+        self.assertEqual([json.loads(row[1])["route"] for row in rows], ["remux", "encode", "remux"])
+
+    def test_completed_job_mirror_preserves_repeated_job_id_append_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            db = open_state_db(Path(td))
+            first = {
+                "job_id": "same-source",
+                "output_path": "first.mkv",
+                "sidecar_path": "first.pipeline.json",
+                "completed_at": "2026-05-28T00:00:00Z",
+                "route": "remux",
+            }
+            second = {
+                "job_id": "same-source",
+                "output_path": "second.mkv",
+                "sidecar_path": "second.pipeline.json",
+                "completed_at": "2026-05-28T00:01:00Z",
+                "route": "encode",
+            }
+
+            db.record_completed_job(first)
+            db.record_completed_job(second)
+
+            conn = sqlite3.connect(Path(td) / STATE_DB_FILENAME)
+            try:
+                rows = conn.execute(
+                    "SELECT job_key, output_path, payload_json FROM completed_jobs ORDER BY id"
+                ).fetchall()
+            finally:
+                conn.close()
+
         self.assertEqual(len(rows), 2)
-        self.assertEqual([row[0] for row in rows], ["out.mkv", "out.mkv"])
-        self.assertEqual([json.loads(row[1])["route"] for row in rows], ["remux", "encode"])
+        self.assertEqual([row[0] for row in rows], ["same-source", "same-source"])
+        self.assertEqual([row[1] for row in rows], ["first.mkv", "second.mkv"])
+        self.assertEqual([json.loads(row[2])["route"] for row in rows], ["remux", "encode"])
+
+    def test_state_db_migrates_completed_jobs_unique_job_key_to_append_table(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            path = root / STATE_DB_FILENAME
+            conn = sqlite3.connect(path)
+            try:
+                conn.executescript(
+                    """
+                    CREATE TABLE schema_migrations (
+                        version INTEGER PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        applied_at TEXT NOT NULL
+                    );
+                    INSERT INTO schema_migrations(version, name, applied_at)
+                    VALUES (1, 'initial_state_mirror', '2026-05-28T00:00:00+00:00');
+                    CREATE TABLE completed_jobs (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        recorded_at TEXT NOT NULL,
+                        job_key TEXT NOT NULL UNIQUE,
+                        output_path TEXT NOT NULL,
+                        sidecar_path TEXT NOT NULL,
+                        completed_at TEXT NOT NULL,
+                        payload_hash TEXT NOT NULL,
+                        payload_json TEXT NOT NULL
+                    );
+                    INSERT INTO completed_jobs(
+                        recorded_at, job_key, output_path, sidecar_path,
+                        completed_at, payload_hash, payload_json
+                    )
+                    VALUES (
+                        '2026-05-28T00:00:00+00:00',
+                        'same-source',
+                        'legacy.mkv',
+                        'legacy.pipeline.json',
+                        '2026-05-28T00:00:00Z',
+                        'legacy-hash',
+                        '{"job_id":"same-source","route":"legacy"}'
+                    );
+                    PRAGMA user_version = 1;
+                    """
+                )
+                conn.commit()
+            finally:
+                conn.close()
+
+            db = open_state_db(root)
+            db.record_completed_job(
+                {
+                    "job_id": "same-source",
+                    "output_path": "second.mkv",
+                    "sidecar_path": "second.pipeline.json",
+                    "completed_at": "2026-05-28T00:01:00Z",
+                    "route": "encode",
+                }
+            )
+
+            conn = sqlite3.connect(path)
+            try:
+                version = int(conn.execute("PRAGMA user_version").fetchone()[0])
+                rows = conn.execute("SELECT job_key, output_path, payload_json FROM completed_jobs ORDER BY id").fetchall()
+            finally:
+                conn.close()
+
+        self.assertEqual(version, CURRENT_SCHEMA_VERSION)
+        self.assertEqual([row[0] for row in rows], ["same-source", "same-source"])
+        self.assertEqual([row[1] for row in rows], ["legacy.mkv", "second.mkv"])
+        self.assertEqual([json.loads(row[2])["route"] for row in rows], ["legacy", "encode"])
 
     def test_command_journal_dual_writes_json_and_sqlite_mirror(self) -> None:
         with tempfile.TemporaryDirectory() as td:

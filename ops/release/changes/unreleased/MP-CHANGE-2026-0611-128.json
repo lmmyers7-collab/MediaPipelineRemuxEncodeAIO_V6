@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0611-128",
+  "title": "FB-017 sanitize cluster log display fields",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fixed FR-001 by normalizing CR/LF and other control characters in cluster-log display fields before formatting one physical log row.",
+  "reason": "Worker finding W01-001 showed authenticated worker-supplied log fields could inject extra physical lines into cluster.log.",
+  "affected_areas": [
+    "cluster log",
+    "diagnostics evidence",
+    "network observability"
+  ],
+  "behavior_before": "Worker-supplied timestamp, worker name, role, level, event, message, source path, and worker timestamp fields could carry CR/LF/control characters into cluster.log formatting.",
+  "behavior_after": "The /api/log sanitizer and formatter defensively replace control characters with spaces, collapse repeated spaces, and keep existing length bounds so each event renders as one physical line.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-128.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/cluster_log.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/identity.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_coordinator_helpers.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_coordinator_http.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-128.json",
+    "src/mediapipeline/desktop/network/cluster_log.py",
+    "src/mediapipeline/desktop/network/identity.py",
+    "tests/python/desktop/test_network_coordinator_helpers.py",
+    "tests/python/desktop/test_network_coordinator_http.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_coordinator_helpers.py::NetworkCoordinatorHelperTests.test_cluster_log_formatter_sanitizes_control_characters_to_one_line",
+    "tests/python/desktop/test_network_coordinator_http.py::NetworkCoordinatorHttpTests.test_coordinator_http_log_sanitizes_control_characters_to_one_line"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_network_coordinator_helpers -q passed, 15 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_network_coordinator_http -q passed, 21 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_network_protocol_runtime -q passed, 16 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_network_security -q passed, 27 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_network_workflow -q passed, 41 tests.",
+    "python -m unittest tests.python.desktop.test_network_coordinator_helpers -q passed",
+    "python -m unittest tests.python.desktop.test_network_coordinator_http -q passed",
+    "python -m unittest tests.python.desktop.test_network_protocol_runtime -q passed",
+    "python -m unittest tests.python.desktop.test_network_security -q passed",
+    "python -m unittest tests.python.desktop.test_network_workflow -q passed",
+    "validate_changes --require-worktree-coverage failed only for unrelated uncovered files: docs/implementation/dynamic-hdr-preservation/PLAN.md, docs/implementation/objective-quality-verification-plan.md, docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md, ops/pipeline/engine/failures/failure_state.ps1, ops/pipeline/engine/verify/quality.ps1, src/mediapipeline/desktop/api/server.py, src/mediapipeline/desktop/watch/__init__.py, src/mediapipeline/desktop/watch/manager.py, src/mediapipeline/desktop/watch/scanner.py."
+  ],
+  "rollback_plan": "Revert the cluster-log sanitizer/formatter changes and the two regression tests, then rerun the listed network validation commands.",
+  "related_changes": [
+    "FB-017",
+    "FR-001",
+    "W01-001"
+  ],
+  "notes": "No media, queue, publish, rename, settings, or source/output/scratch mutation behavior changed. Sanitized control characters are preserved as spaces so diagnostic text remains recognizable without allowing line injection. Strict change-control coverage for FB-017 is clean; repository-wide strict coverage still fails on unrelated uncovered dirty files: docs/implementation/dynamic-hdr-preservation/PLAN.md, docs/implementation/objective-quality-verification-plan.md, docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md, ops/pipeline/engine/failures/failure_state.ps1, ops/pipeline/engine/verify/quality.ps1, src/mediapipeline/desktop/api/server.py, src/mediapipeline/desktop/watch/__init__.py, src/mediapipeline/desktop/watch/manager.py, and src/mediapipeline/desktop/watch/scanner.py."
+}

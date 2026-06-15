@@ -205,6 +205,8 @@ class WorkerClaimMixin:
         publish_mode: str | None = None,
         route: str | None = None,
         queue_terminal: bool = False,
+        reason_code: str | None = None,
+        reason: str | None = None,
     ) -> None:
         """Report job completion to the coordinator and clean up local state."""
         self._stop_heartbeat()
@@ -223,6 +225,8 @@ class WorkerClaimMixin:
             publish_mode=publish_mode,
             route=route,
             queue_terminal=queue_terminal,
+            reason_code=reason_code,
+            reason=reason,
         ).to_dict()
         report_accepted = False
         pending_report_saved = False
@@ -258,6 +262,8 @@ class WorkerClaimMixin:
             error=error,
             publish_state=publish_state,
             queue_terminal=queue_terminal,
+            reason_code=str(payload.get("reason_code") or ""),
+            reason=str(payload.get("reason") or ""),
         )
         self._safe_log_cluster_event(event_context, **event_kwargs)
 

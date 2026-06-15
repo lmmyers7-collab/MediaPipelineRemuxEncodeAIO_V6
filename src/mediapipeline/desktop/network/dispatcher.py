@@ -78,6 +78,8 @@ class QueueDispatcher(ABC):
         publish_mode: str | None = None,
         route: str | None = None,
         queue_terminal: bool = False,
+        reason_code: str | None = None,
+        reason: str | None = None,
     ) -> None:
         """Report a job as finished (success or failure).
 

@@ -143,6 +143,9 @@ def subtitle_stream(
     kind = subtitle_kind(codec)
     text_based = kind == "text"
     image_based = kind == "image"
+    passthrough_candidate = kind in ("text", "image")
+    convert_candidate = (text_based and codec not in {"subrip", "srt"}) or image_based
+    burn_candidate = image_based
     return SourceSubtitleStream(
         stream_index=index,
         codec=codec,
@@ -153,9 +156,10 @@ def subtitle_stream(
         subtitle_kind=kind,
         image_based=image_based,
         text_based=text_based,
-        passthrough_candidate=kind in ("text", "image"),
-        convert_candidate=(text_based and codec not in {"subrip", "srt"}) or image_based,
-        burn_candidate=image_based,
+        passthrough_candidate=passthrough_candidate,
+        convert_candidate=convert_candidate,
+        burn_candidate=burn_candidate,
+        drop_candidate=not (passthrough_candidate or convert_candidate or burn_candidate),
     )
 
 

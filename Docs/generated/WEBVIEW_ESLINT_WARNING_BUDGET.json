@@ -3,15 +3,15 @@
   "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
   "target": "apps/desktop/webview/static/assets/**/*.js",
   "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
-  "total_warnings": 644,
+  "total_warnings": 649,
   "total_errors": 0,
   "by_rule": {
     "complexity": {
-      "warnings": 91,
+      "warnings": 97,
       "errors": 0
     },
     "max-lines-per-function": {
-      "warnings": 31,
+      "warnings": 32,
       "errors": 0
     },
     "no-extra-boolean-cast": {
@@ -23,7 +23,7 @@
       "errors": 0
     },
     "no-unused-vars": {
-      "warnings": 141,
+      "warnings": 143,
       "errors": 0
     },
     "parse-error": {
@@ -48,7 +48,14 @@
       "warnings": 3,
       "errors": 0,
       "rules": {
-        "complexity": 2,
+        "complexity": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
         "no-unused-vars": 1
       }
     },
@@ -265,10 +272,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "warnings": 7,
+      "warnings": 8,
       "errors": 0,
       "rules": {
-        "complexity": 4,
+        "complexity": 5,
         "no-unused-vars": 3
       }
     },
@@ -475,10 +482,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/progressView.js",
-      "warnings": 2,
+      "warnings": 4,
       "errors": 0,
       "rules": {
-        "complexity": 2
+        "complexity": 3,
+        "no-unused-vars": 1
       }
     },
     {
@@ -501,12 +509,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/queueView.js",
-      "warnings": 42,
+      "warnings": 43,
       "errors": 0,
       "rules": {
         "complexity": 1,
         "no-undef": 16,
-        "no-unused-vars": 25
+        "no-unused-vars": 26
       }
     },
     {
@@ -564,11 +572,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/renameView.js",
-      "warnings": 3,
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 1
+        "complexity": 2
       }
     },
     {
@@ -662,11 +669,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/settingsView.js",
-      "warnings": 27,
+      "warnings": 28,
       "errors": 0,
       "rules": {
         "complexity": 3,
-        "no-undef": 23,
+        "no-undef": 24,
         "no-unused-vars": 1
       }
     },

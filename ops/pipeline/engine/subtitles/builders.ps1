@@ -11,6 +11,97 @@ if (-not (Test-Path -LiteralPath $subtitleBuilderDecisionModulePath -PathType Le
 }
 . $subtitleBuilderDecisionModulePath
 
+function Get-SubtitleBuilderObjectValue {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string] $Name,
+        $Default = $null
+    )
+
+    if ($null -eq $Object) { return $Default }
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) { return $Object[$Name] }
+        return $Default
+    }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop -and $null -ne $prop.Value) { return $prop.Value }
+    return $Default
+}
+
+function Get-SubtitleBuilderObjectText {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string] $Name,
+        [string] $Default = ''
+    )
+
+    $value = Get-SubtitleBuilderObjectValue -Object $Object -Name $Name -Default $null
+    if ($null -eq $value) { return $Default }
+    $text = [string]$value
+    if ([string]::IsNullOrWhiteSpace($text)) { return $Default }
+    return $text
+}
+
+function Get-SubtitleBuilderSourceSubtitleKind {
+    param(
+        [string] $ConversionKind,
+        $Entry
+    )
+
+    switch ($ConversionKind) {
+        'ass_to_srt' { return 'ass' }
+        'tx3g_to_srt' { return 'tx3g' }
+        'bdpgs_to_srt' { return 'bdpgs' }
+        'vobsub_to_srt' { return 'vobsub' }
+    }
+
+    if ([bool](Get-SubtitleBuilderObjectValue -Object $Entry -Name 'IsTx3g' -Default $false)) { return 'tx3g' }
+    if ([bool](Get-SubtitleBuilderObjectValue -Object $Entry -Name 'IsBdpgs' -Default $false)) { return 'bdpgs' }
+    if ([bool](Get-SubtitleBuilderObjectValue -Object $Entry -Name 'IsVobSub' -Default $false)) { return 'vobsub' }
+    $codec = Get-SubtitleBuilderObjectText -Object $Entry -Name 'Codec' -Default ''
+    if (-not [string]::IsNullOrWhiteSpace($codec)) {
+        switch ($codec.ToLowerInvariant()) {
+            'mov_text' { return 'tx3g' }
+            'hdmv_pgs_subtitle' { return 'bdpgs' }
+            'dvd_subtitle' { return 'vobsub' }
+            default { return $codec.ToLowerInvariant() }
+        }
+    }
+    return 'subtitle'
+}
+
+function New-SubtitleBuilderConvertedSrtSidecarTrack {
+    param(
+        [Parameter(Mandatory)] [string] $SrtPath,
+        [Parameter(Mandatory)] $Entry,
+        $Decision,
+        [int] $CueCount = 0,
+        [bool] $OriginalPreserved = $false
+    )
+
+    $conversionKind = Get-SubtitleBuilderObjectText -Object $Decision -Name 'ConversionKind' -Default ''
+    if ([string]::IsNullOrWhiteSpace($conversionKind)) {
+        $sourceKind = Get-SubtitleBuilderSourceSubtitleKind -Entry $Entry
+        $conversionKind = "${sourceKind}_to_srt"
+    }
+    $sourceSubtitleKind = Get-SubtitleBuilderSourceSubtitleKind -ConversionKind $conversionKind -Entry $Entry
+    $sourceCodec = Get-SubtitleBuilderObjectText -Object $Entry -Name 'Codec' -Default $sourceSubtitleKind
+    $entrySourceKind = Get-SubtitleBuilderObjectText -Object $Entry -Name 'SourceKind' -Default 'embedded'
+
+    return @{
+        SrtPath = $SrtPath
+        StreamInfo = $Entry
+        CueCount = $CueCount
+        OriginalPreserved = $OriginalPreserved
+        OriginalPreserveReason = (Get-SubtitleBuilderObjectText -Object $Decision -Name 'OriginalPreserveReason' -Default '')
+        ConversionKind = $conversionKind
+        SourceSubtitleKind = $sourceSubtitleKind
+        SourceSubtitleCodec = $sourceCodec
+        SourceKind = $entrySourceKind
+        SidecarKind = 'converted_srt'
+    }
+}
+
 function Get-MkvmergeTidMap {
     param([string]$FilePath, [string]$Context = "")
     $tidMap = @{}
@@ -154,13 +245,7 @@ function Build-SubtitleTracksForMkvmerge {
         if (-not $isDefault) {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $externalTrack
         }
-        $tx3gTracks.Add(@{
-            SrtPath    = $extract.Path
-            StreamInfo = $entry
-            CueCount   = $extract.CueCount
-            OriginalPreserved = $false
-            OriginalPreserveReason = $decision.OriginalPreserveReason
-        })
+        $tx3gTracks.Add((New-SubtitleBuilderConvertedSrtSidecarTrack -SrtPath $extract.Path -Entry $entry -Decision $decision -CueCount $extract.CueCount -OriginalPreserved:$false))
     }
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertBdpgs' })) {
@@ -206,13 +291,7 @@ function Build-SubtitleTracksForMkvmerge {
         if (-not $isDefault) {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $externalTrack
         }
-        $bdpgsTracks.Add(@{
-            SrtPath    = $ocr.Path
-            StreamInfo = $entry
-            CueCount   = $ocr.CueCount
-            OriginalPreserved = ($null -ne $keptBdpgsTrack)
-            OriginalPreserveReason = $decision.OriginalPreserveReason
-        })
+        $bdpgsTracks.Add((New-SubtitleBuilderConvertedSrtSidecarTrack -SrtPath $ocr.Path -Entry $entry -Decision $decision -CueCount $ocr.CueCount -OriginalPreserved:($null -ne $keptBdpgsTrack)))
     }
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertVobSub' })) {
@@ -262,13 +341,7 @@ function Build-SubtitleTracksForMkvmerge {
         if (-not $isDefault) {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $externalTrack
         }
-        $vobSubTracks.Add(@{
-            SrtPath    = $ocr.Path
-            StreamInfo = $entry
-            CueCount   = $ocr.CueCount
-            OriginalPreserved = ($null -ne $keptVobSubTrack)
-            OriginalPreserveReason = $decision.OriginalPreserveReason
-        })
+        $vobSubTracks.Add((New-SubtitleBuilderConvertedSrtSidecarTrack -SrtPath $ocr.Path -Entry $entry -Decision $decision -CueCount $ocr.CueCount -OriginalPreserved:($null -ne $keptVobSubTrack)))
     }
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'Keep' })) {
@@ -430,6 +503,7 @@ function Build-SubtitleArgsForFFmpeg {
             Tx3gTracks  = @()
             BdpgsTracks = @()
             VobSubTracks = @()
+            ConvertedSrtSidecarTracks = @()
             BurnTrack   = $burnGraph.BurnTrack
             Failures    = @($burnGraph.Failures)
             TrackCount  = 0
@@ -499,6 +573,7 @@ function Build-SubtitleArgsForFFmpeg {
 
         # FIX: only update $defaultSet AFTER the SRT is confirmed to exist.
         $disp = Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
+        $entry.IsDefault = ($disp -eq 'default' -or $disp -eq 'default+forced')
 
         $track = @{
             MapArg  = $null       # assigned below when SRT inputs are numbered
@@ -510,13 +585,7 @@ function Build-SubtitleArgsForFFmpeg {
         }
         $allTracks.Add($track)
         if (Test-ConfiguredOutputContainerIsMp4) {
-            $tx3gTracks.Add(@{
-                SrtPath    = $srtPath
-                StreamInfo = $entry
-                CueCount   = $ass.CueCount
-                OriginalPreserved = ($null -ne $keptAssTrack)
-                OriginalPreserveReason = $decision.OriginalPreserveReason
-            })
+            $tx3gTracks.Add((New-SubtitleBuilderConvertedSrtSidecarTrack -SrtPath $srtPath -Entry $entry -Decision $decision -CueCount $ass.CueCount -OriginalPreserved:($null -ne $keptAssTrack)))
         }
         if ($disp -eq "0") {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
@@ -578,13 +647,7 @@ function Build-SubtitleArgsForFFmpeg {
         if ($disp -eq "0") {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
-        $tx3gTracks.Add(@{
-            SrtPath    = $extract.Path
-            StreamInfo = $entry
-            CueCount   = $extract.CueCount
-            OriginalPreserved = ($null -ne $keptTx3gTrack)
-            OriginalPreserveReason = $decision.OriginalPreserveReason
-        })
+        $tx3gTracks.Add((New-SubtitleBuilderConvertedSrtSidecarTrack -SrtPath $extract.Path -Entry $entry -Decision $decision -CueCount $extract.CueCount -OriginalPreserved:($null -ne $keptTx3gTrack)))
     }
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertBdpgs' })) {
@@ -638,13 +701,7 @@ function Build-SubtitleArgsForFFmpeg {
         if ($disp -eq "0") {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
-        $bdpgsTracks.Add(@{
-            SrtPath    = $ocr.Path
-            StreamInfo = $entry
-            CueCount   = $ocr.CueCount
-            OriginalPreserved = ($null -ne $keptBdpgsTrack)
-            OriginalPreserveReason = $decision.OriginalPreserveReason
-        })
+        $bdpgsTracks.Add((New-SubtitleBuilderConvertedSrtSidecarTrack -SrtPath $ocr.Path -Entry $entry -Decision $decision -CueCount $ocr.CueCount -OriginalPreserved:($null -ne $keptBdpgsTrack)))
     }
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'ConvertVobSub' })) {
@@ -700,13 +757,7 @@ function Build-SubtitleArgsForFFmpeg {
         if ($disp -eq "0") {
             Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $track
         }
-        $vobSubTracks.Add(@{
-            SrtPath    = $ocr.Path
-            StreamInfo = $entry
-            CueCount   = $ocr.CueCount
-            OriginalPreserved = ($null -ne $keptVobSubTrack)
-            OriginalPreserveReason = $decision.OriginalPreserveReason
-        })
+        $vobSubTracks.Add((New-SubtitleBuilderConvertedSrtSidecarTrack -SrtPath $ocr.Path -Entry $entry -Decision $decision -CueCount $ocr.CueCount -OriginalPreserved:($null -ne $keptVobSubTrack)))
     }
 
     foreach ($decision in @($trackDecisions | Where-Object { $_.Action -eq 'Keep' })) {
@@ -750,7 +801,7 @@ function Build-SubtitleArgsForFFmpeg {
                     @{ Expression = { if ($_.StreamInfo -and $_.StreamInfo.ContainsKey('IsSupplemental') -and [bool]$_.StreamInfo.IsSupplemental) { 1 } else { 0 } } }, `
                     @{ Expression = { if ($_.StreamInfo -and $_.StreamInfo.ContainsKey('SubtitleOrdinal')) { [int]$_.StreamInfo.SubtitleOrdinal } else { [int]::MaxValue } } }
         )
-        $selectedTx3gTracks = if ($selectedSidecar.Count -gt 0) { @($selectedSidecar[0]) } else { @() }
+        $selectedConvertedSrtSidecarTracks = if ($selectedSidecar.Count -gt 0) { @($selectedSidecar[0]) } else { @() }
         if ($sidecarCandidates.Count -gt 1) {
             Write-Log "${Context}SUB: MP4 compatibility selected one external SRT sidecar and dropped $($sidecarCandidates.Count - 1) additional converted SRT candidate(s)." "WARN"
         } else {
@@ -761,9 +812,10 @@ function Build-SubtitleArgsForFFmpeg {
             MapArgs     = @()
             VideoFilterArgs = @()
             TempFiles   = @($tempFiles)
-            Tx3gTracks  = @($selectedTx3gTracks)
+            Tx3gTracks  = @($selectedConvertedSrtSidecarTracks)
             BdpgsTracks = @()
             VobSubTracks = @()
+            ConvertedSrtSidecarTracks = @($selectedConvertedSrtSidecarTracks)
             Failures    = @($failures)
             TrackCount  = 0
             DroppedEmbeddedTrackCount = $allTracks.Count
@@ -802,6 +854,7 @@ function Build-SubtitleArgsForFFmpeg {
         Tx3gTracks  = @($tx3gTracks)
         BdpgsTracks = @($bdpgsTracks)
         VobSubTracks = @($vobSubTracks)
+        ConvertedSrtSidecarTracks = @(@($tx3gTracks) + @($bdpgsTracks) + @($vobSubTracks))
         Failures    = @($failures)
         TrackCount  = $allTracks.Count
     }

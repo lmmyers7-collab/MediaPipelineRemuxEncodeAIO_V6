@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/worker_process.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: a5575232ac5f968dcf50914248629cdbd3b9762e765fbcebf5aa63620fbf3eaf
+sha256: 1188e17f345b0f0a4e66a8b629091f0e55ae3b544ff4466e25d87303b14c4196
 ---
 # `ops/pipeline/engine/queue/worker_process.ps1`
 

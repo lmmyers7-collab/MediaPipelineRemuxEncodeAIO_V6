@@ -3,9 +3,9 @@ file: ops/scripts/dev/run.bat
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-13
 last_reviewed: 2026-06-04
-sha256: 5072718a9ee2807ec2960423c40ca3cf3412ea2597840e957b0cab95d41de5e5
+sha256: 14b71e2481150ad5e22a2af1882ad233ab34ae1c3757e9bf9779b994c9aadbdf
 ---
 # `ops/scripts/dev/run.bat`
 

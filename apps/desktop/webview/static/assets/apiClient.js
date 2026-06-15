@@ -10,14 +10,27 @@
     return headers;
   }
 
-  async function parseResponse(response) {
+  function invalidJsonError(response, path, raw, error) {
+    const route = path || response.url || "API response";
+    const status = Number.isFinite(Number(response.status)) ? `HTTP ${response.status}` : "HTTP response";
+    const preview = raw.trim().replace(/\s+/g, " ").slice(0, 500);
+    const cause = error && error.message ? `: ${error.message}` : "";
+    const suffix = preview ? `. Response starts with: ${preview}` : "";
+    const failure = new Error(`Invalid JSON from ${route} (${status})${cause}${suffix}`);
+    failure.name = "InvalidApiJsonError";
+    failure.route = route;
+    failure.status = response.status;
+    return failure;
+  }
+
+  async function parseResponse(response, path) {
     const raw = await response.text();
     let data = {};
     if (raw.trim()) {
       try {
         data = JSON.parse(raw);
       } catch (error) {
-        data = { error: raw.slice(0, 500) };
+        throw invalidJsonError(response, path, raw, error);
       }
     }
     if (!response.ok) {
@@ -57,7 +70,7 @@
       headers: apiHeaders(),
       cache: "no-store",
     }, timeoutMs);
-    return parseResponse(response);
+    return parseResponse(response, path);
   }
 
   async function apiPost(path, payload, options = {}) {
@@ -68,7 +81,7 @@
       cache: "no-store",
       body: JSON.stringify(payload || {}),
     }, timeoutMs);
-    return parseResponse(response);
+    return parseResponse(response, path);
   }
 
   /**

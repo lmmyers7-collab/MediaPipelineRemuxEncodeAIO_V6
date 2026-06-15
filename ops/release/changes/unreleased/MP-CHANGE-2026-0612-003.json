@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0612-003",
+  "title": "Completed table unused media column removal",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-12",
+  "date_completed": "2026-06-12",
+  "summary": "Remove the unused Media column from the Completed current and history tables so it no longer appears as an empty spacer between Title and Route.",
+  "reason": "The Completed table renderer left the media column blank for many daily-use rows, creating a visible spacer that consumed horizontal space without helping the operator scan output evidence.",
+  "affected_areas": [
+    "completed",
+    "webview"
+  ],
+  "behavior_before": "Completed current/history tables rendered a Media column between Title and Route, which could appear empty and behave like a spacer.",
+  "behavior_after": "Completed current/history tables move Route directly after Title and keep Evidence, Size, Publish, and Final aligned without the unused spacer column.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/table.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-003.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_completed_table_title_cell.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0612-003.json",
+    "tests/webview/test_webview_completed_table_title_cell.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_completed_table_title_cell.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke -q - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_completed_table_title_cell - passed",
+    "npm run webview:check - passed",
+    "rg stale 8-column/index assumptions - passed (no matches)"
+  ],
+  "rollback_plan": "Revert the Completed partial, table renderer, component CSS, and focused title-cell test updates to restore the prior eight-column table.",
+  "related_changes": [],
+  "notes": "WebView presentation-only change. No backend route, filesystem mutation, media policy, queue, publish/drain, rename, settings persistence, or process lifecycle behavior changes.\nRemoved unused Completed table media column and shifted renderer/CSS/test indexes.\nPowerShell smoke wrapper Test-WebViewBrowserCompletedPendingProofSmoke.ps1 was attempted first but stopped at webview_browser_smoke_common.ps1 stderr handling before showing unittest output; direct invocation of the same unittest module passed."
+}

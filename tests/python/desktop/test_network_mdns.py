@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -10,6 +11,60 @@ from unittest.mock import patch
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.network import mdns
+from mediapipeline.desktop.api import LocalApiServer
+from mediapipeline.desktop.application.facade import MediaPipelineApplicationFacade
+from mediapipeline.desktop.models import ResolvedPaths
+from tests.python.desktop.test_application_facade import DummyFacadeService
+
+
+def _resolved(root: Path, config: dict[str, object]) -> ResolvedPaths:
+    return ResolvedPaths(
+        app_root=root,
+        workspace_root=root,
+        pipeline_path=root / "pipeline.ps1",
+        config_path=root / "config.psd1",
+        audit_script_path=root / "audit.ps1",
+        rerun_script_path=root / "rerun.ps1",
+        powershell_host=str(root / "pwsh.exe"),
+        local_base=root / "LocalBase",
+        state_root=root / "LocalBase" / "State",
+        app_state_path=root / "LocalBase" / "State" / "App" / "desktop_app_state.json",
+        config_data=config,
+    )
+
+
+def _post_json(url: str, payload: dict, token: str) -> tuple[int, dict]:
+    import json
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    request = Request(
+        url,
+        data=json.dumps(payload).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    try:
+        with urlopen(request, timeout=5) as response:  # noqa: S310 - localhost test server
+            return response.status, json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        return exc.code, json.loads(exc.read().decode("utf-8"))
+
+
+def _get_json(url: str, token: str) -> tuple[int, dict]:
+    import json
+    from urllib.error import HTTPError
+    from urllib.request import Request, urlopen
+
+    request = Request(url, headers={"Authorization": f"Bearer {token}"})
+    try:
+        with urlopen(request, timeout=5) as response:  # noqa: S310 - localhost test server
+            return response.status, json.loads(response.read().decode("utf-8"))
+    except HTTPError as exc:
+        return exc.code, json.loads(exc.read().decode("utf-8"))
 
 
 class MdnsDiagnosticsTests(unittest.TestCase):
@@ -106,6 +161,82 @@ class MdnsDiagnosticsTests(unittest.TestCase):
         self.assertIn("mDNS: failed to register coordinator service.", output)
         self.assertIn("register denied", output)
 
+    def test_advertiser_start_skips_loopback_bind_address(self) -> None:
+        advertiser = mdns.CoordinatorAdvertiser.__new__(mdns.CoordinatorAdvertiser)
+        advertiser._port = 7830
+        advertiser._bind_address = "127.0.0.1"
+        advertiser._zc = None
+        advertiser._info = None
+        advertiser.skipped = False
+        advertiser.skip_reason = ""
+
+        with (
+            patch("mediapipeline.desktop.network.mdns.ServiceInfo", side_effect=AssertionError("loopback should not advertise")),
+            patch("mediapipeline.desktop.network.mdns.Zeroconf", side_effect=AssertionError("loopback should not open zeroconf")),
+            self.assertLogs("mediapipeline.desktop.network.mdns", level="INFO") as logs,
+        ):
+            self.assertFalse(advertiser.start())
+
+        self.assertTrue(advertiser.skipped)
+        self.assertIn("127.0.0.1", advertiser.skip_reason)
+        self.assertIn("not advertised via mDNS", "\n".join(logs.output))
+
+    def test_advertiser_start_uses_specific_lan_bind_address(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        class FakeServiceInfo:
+            def __init__(self, **kwargs: object) -> None:
+                captured.append(kwargs)
+
+        class FakeZeroconf:
+            def register_service(self, _info: object) -> None:
+                return None
+
+        advertiser = mdns.CoordinatorAdvertiser.__new__(mdns.CoordinatorAdvertiser)
+        advertiser._port = 7830
+        advertiser._bind_address = "192.168.1.25"
+        advertiser._zc = None
+        advertiser._info = None
+        advertiser.skipped = False
+        advertiser.skip_reason = ""
+
+        with (
+            patch("mediapipeline.desktop.network.mdns._get_local_ip", side_effect=AssertionError("specific bind should be advertised directly")),
+            patch("mediapipeline.desktop.network.mdns.ServiceInfo", FakeServiceInfo),
+            patch("mediapipeline.desktop.network.mdns.Zeroconf", FakeZeroconf),
+        ):
+            self.assertTrue(advertiser.start())
+
+        self.assertEqual(mdns.socket.inet_ntoa(captured[0]["addresses"][0]), "192.168.1.25")
+
+    def test_advertiser_start_uses_primary_ip_for_wildcard_bind_address(self) -> None:
+        captured: list[dict[str, object]] = []
+
+        class FakeServiceInfo:
+            def __init__(self, **kwargs: object) -> None:
+                captured.append(kwargs)
+
+        class FakeZeroconf:
+            def register_service(self, _info: object) -> None:
+                return None
+
+        advertiser = mdns.CoordinatorAdvertiser.__new__(mdns.CoordinatorAdvertiser)
+        advertiser._port = 7830
+        advertiser._bind_address = "0.0.0.0"
+        advertiser._zc = None
+        advertiser._info = None
+        advertiser.skipped = False
+        advertiser.skip_reason = ""
+
+        with (
+            patch("mediapipeline.desktop.network.mdns._get_local_ip", return_value="192.168.1.50"),
+            patch("mediapipeline.desktop.network.mdns.ServiceInfo", FakeServiceInfo),
+            patch("mediapipeline.desktop.network.mdns.Zeroconf", FakeZeroconf),
+        ):
+            self.assertTrue(advertiser.start())
+
+        self.assertEqual(mdns.socket.inet_ntoa(captured[0]["addresses"][0]), "192.168.1.50")
+
     def test_discovery_logs_zeroconf_close_failure(self) -> None:
         class FailingCloseZeroconf:
             def close(self) -> None:
@@ -173,6 +304,96 @@ class MdnsDiagnosticsTests(unittest.TestCase):
         self.assertIn("mDNS discovery: error resolving Broken Coordinator._mediapipeline._tcp.local.", output)
         self.assertIn("continuing scan", output)
         self.assertIn("resolve failed after 2000ms", output)
+
+
+class NetworkCoordinatorDiscoveryCommandTests(unittest.TestCase):
+    def test_worker_discovery_command_returns_selectable_mdns_urls_without_media_touch(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            resolved = _resolved(root, {"NetworkRole": "worker"})
+
+            with patch(
+                "mediapipeline.core.network.facade.discover_coordinators",
+                return_value=["http://coordinator.test:7830", "http://coordinator.test:7830", "bad-url"],
+            ) as discover:
+                result = facade.request_network_worker_discover_coordinators(
+                    resolved,
+                    {"timeout_seconds": 0.25},
+                ).to_mapping()
+
+        discover.assert_called_once_with(timeout_secs=0.25)
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["command"], "network.worker.discover_coordinators")
+        self.assertEqual(result["data"]["schema_version"], "desktop_network_coordinator_discovery.v1")
+        self.assertTrue(result["data"]["suppress_command_journal"])
+        self.assertEqual(result["data"]["effect"], "none")
+        self.assertEqual(result["data"]["count"], 1)
+        self.assertEqual(
+            result["data"]["coordinators"],
+            [
+                {
+                    "url": "http://coordinator.test:7830",
+                    "host": "coordinator.test",
+                    "port": 7830,
+                    "source": "mdns",
+                    "selectable": True,
+                }
+            ],
+        )
+        self.assertIn("source_media", result["data"]["would_not_touch"])
+        self.assertIn("bad-url", "\n".join(result.get("warnings", [])))
+
+    def test_worker_discovery_command_reports_missing_zeroconf_without_crashing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            resolved = _resolved(root, {"NetworkRole": "worker"})
+
+            with patch(
+                "mediapipeline.core.network.facade.discover_coordinators",
+                side_effect=mdns.ZeroconfUnavailable("zeroconf not installed"),
+            ):
+                result = facade.request_network_worker_discover_coordinators(resolved, {}).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["severity"], "warning")
+        self.assertEqual(result["data"]["coordinators"], [])
+        self.assertFalse(result["data"]["zeroconf_available"])
+        self.assertIn("zeroconf not installed", "\n".join(result["warnings"]))
+
+    def test_local_api_worker_discovery_route_is_unjournaled(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root, {"NetworkRole": "worker"})
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="network-discovery-token",
+                resolved_provider=lambda: resolved,
+                audit_root_provider=lambda: str(root),
+            )
+            try:
+                server.start()
+                with patch(
+                    "mediapipeline.core.network.facade.discover_coordinators",
+                    return_value=["http://coordinator.test:7830"],
+                ):
+                    status, payload = _post_json(
+                        f"{server.url}/api/network/worker/discover-coordinators",
+                        {"timeout_seconds": 0.1},
+                        token=server.token,
+                    )
+                commands_status, commands = _get_json(f"{server.url}/api/commands?limit=5", token=server.token)
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["data"]["suppress_command_journal"])
+        self.assertEqual(payload["data"]["coordinators"][0]["url"], "http://coordinator.test:7830")
+        self.assertEqual(commands_status, 200)
+        self.assertEqual(commands["entries"], [])
 
 
 if __name__ == "__main__":

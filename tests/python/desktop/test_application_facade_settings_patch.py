@@ -11,9 +11,41 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.test_service_config_validation import (
+    _path_key,
+    _path_within_root,
+    _valid_config_values,
+    validate_config_values,
+)
 
 
 class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
+    def test_settings_patch_coerces_coordinator_local_string_true_to_real_bool(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorAlsoEncodeLocally": False,
+            }
+
+            patch = facade._settings_patch_candidate(
+                resolved,
+                {"changes": {"CoordinatorAlsoEncodeLocally": "true"}},
+                command="settings.preview_patch",
+            )
+            numeric_patch = facade._settings_patch_candidate(
+                resolved,
+                {"changes": {"CoordinatorAlsoEncodeLocally": 1}},
+                command="settings.preview_patch",
+            )
+
+        self.assertIs(patch["merged"]["CoordinatorAlsoEncodeLocally"], True)
+        self.assertEqual(numeric_patch["merged"]["CoordinatorAlsoEncodeLocally"], 1)
+        self.assertIsNot(numeric_patch["merged"]["CoordinatorAlsoEncodeLocally"], True)
+
     def test_settings_patch_preview_uses_backend_config_and_redacts_sensitive_values(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -87,6 +119,68 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertIn("duplicate keys for RoutingProfile", "\n".join(preview.errors))
         self.assertFalse(saved.ok)
         self.assertEqual(service.saved_config_calls, [])
+
+    def test_settings_patch_reports_existing_ocr_blocker_on_unrelated_change(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            original_text = "@{ RoutingProfile = 'plex_direct_stream' }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+            service = DummyFacadeService(root)
+            service.validate_config_values = lambda values: validate_config_values(
+                values,
+                normalized_path_key=_path_key,
+                path_within_root=_path_within_root,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = _valid_config_values()
+            resolved.config_data["ConvertBdpgsToSrt"] = True
+            resolved.config_data["BdpgsOcrToolPath"] = " "
+
+            preview = facade.preview_settings_patch(
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}},
+            )
+            saved = facade.save_settings_patch(
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+            )
+            saved_document_text = config_path.read_text(encoding="utf-8")
+
+        self.assertFalse(preview.ok)
+        self.assertIn("ConvertBdpgsToSrt requires BdpgsOcrToolPath.", "\n".join(preview.errors))
+        self.assertIn("RoutingProfile", preview.data["changed_keys"])
+        self.assertFalse(saved.ok)
+        self.assertIn("ConvertBdpgsToSrt requires BdpgsOcrToolPath.", "\n".join(saved.errors))
+        self.assertEqual(service.saved_config_calls, [])
+        self.assertEqual(saved_document_text, original_text)
+
+    def test_settings_save_patch_rejects_relative_root_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            original_text = "@{ SourceMovies = 'C:\\Media\\Movies' }\n"
+            config_path.write_text(original_text, encoding="utf-8")
+            service = DummyFacadeService(root)
+            service.validate_config_values = lambda values: validate_config_values(
+                values,
+                normalized_path_key=_path_key,
+                path_within_root=_path_within_root,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = _valid_config_values()
+
+            saved = facade.save_settings_patch(resolved, {"changes": {"SourceMovies": "Movies"}, "confirm_save": True})
+            saved_document_text = config_path.read_text(encoding="utf-8")
+
+        self.assertFalse(saved.ok)
+        self.assertIn("SourceMovies must be an absolute path.", "\n".join(saved.errors))
+        self.assertEqual(service.saved_config_calls, [])
+        self.assertEqual(saved_document_text, original_text)
 
     def test_settings_redacted_diff_logs_psd1_serialization_fallback(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

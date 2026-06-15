@@ -1,25 +1,26 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions DisableDelayedExpansion
 
 set "SCRIPT_ROOT=%~dp0"
 for %%I in ("%SCRIPT_ROOT%..\..\..") do set "PROJECT_ROOT=%%~fI"
 set "PIPELINE_ROOT=%PROJECT_ROOT%\ops\pipeline"
 set "PIPELINE_ENTRYPOINT_ROOT=%PIPELINE_ROOT%\entrypoints"
 set "PIPELINE_CONFIG_ROOT=%PIPELINE_ROOT%\config"
-set "PIPELINE_CONFIG_PATH=%PIPELINE_CONFIG_ROOT%\MediaPipeline_config.psd1"
-if not exist "%PIPELINE_CONFIG_PATH%" set "PIPELINE_CONFIG_PATH=%PIPELINE_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1"
+set "PIPELINE_CONFIG_PATH="
+set "USER_CONFIG_ROOT="
+if defined LOCALAPPDATA set "USER_CONFIG_ROOT=%LOCALAPPDATA%\MediaPipelineRemuxEncodeAIO"
+if defined USER_CONFIG_ROOT if exist "%USER_CONFIG_ROOT%\MediaPipeline_config.psd1" set "PIPELINE_CONFIG_PATH=%USER_CONFIG_ROOT%\MediaPipeline_config.psd1"
+if not defined PIPELINE_CONFIG_PATH if defined USER_CONFIG_ROOT if exist "%USER_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1" set "PIPELINE_CONFIG_PATH=%USER_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1"
+if not defined PIPELINE_CONFIG_PATH if exist "%PIPELINE_CONFIG_ROOT%\MediaPipeline_config.psd1" set "PIPELINE_CONFIG_PATH=%PIPELINE_CONFIG_ROOT%\MediaPipeline_config.psd1"
+if not defined PIPELINE_CONFIG_PATH if exist "%PROJECT_ROOT%\apps\desktop\config\MediaPipeline_config.psd1" set "PIPELINE_CONFIG_PATH=%PROJECT_ROOT%\apps\desktop\config\MediaPipeline_config.psd1"
+if not defined PIPELINE_CONFIG_PATH if exist "%PIPELINE_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1" set "PIPELINE_CONFIG_PATH=%PIPELINE_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1"
+if not defined PIPELINE_CONFIG_PATH if exist "%PROJECT_ROOT%\apps\desktop\config\MediaPipeline_config_chatgpt.psd1" set "PIPELINE_CONFIG_PATH=%PROJECT_ROOT%\apps\desktop\config\MediaPipeline_config_chatgpt.psd1"
 
 if /i "%~1"=="/?" goto :show_help
 if /i "%~1"=="-h" goto :show_help
 if /i "%~1"=="--help" goto :show_help
-if /i "%~1"=="setup" (
-    call "%SCRIPT_ROOT%setup.bat"
-    exit /b !ERRORLEVEL!
-)
-if /i "%~1"=="validate" (
-    call "%SCRIPT_ROOT%setup.bat" validate
-    exit /b !ERRORLEVEL!
-)
+if /i "%~1"=="setup" goto :run_setup
+if /i "%~1"=="validate" goto :run_validate
 
 if not exist "%PIPELINE_ENTRYPOINT_ROOT%\MediaPipeline.ps1" (
     echo ERROR: MediaPipeline.ps1 was not found in:
@@ -28,11 +29,15 @@ if not exist "%PIPELINE_ENTRYPOINT_ROOT%\MediaPipeline.ps1" (
     exit /b 1
 )
 
-if not exist "%PIPELINE_CONFIG_PATH%" (
-    echo ERROR: No config file was found in the pipeline config folder.
+if not defined PIPELINE_CONFIG_PATH (
+    echo ERROR: No active operator config file was found.
     echo Checked:
+    if defined USER_CONFIG_ROOT echo   %USER_CONFIG_ROOT%\MediaPipeline_config.psd1
+    if defined USER_CONFIG_ROOT echo   %USER_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1 ^(legacy^)
     echo   %PIPELINE_CONFIG_ROOT%\MediaPipeline_config.psd1
-    echo   %PIPELINE_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1 (legacy)
+    echo   %PROJECT_ROOT%\apps\desktop\config\MediaPipeline_config.psd1
+    echo   %PIPELINE_CONFIG_ROOT%\MediaPipeline_config_chatgpt.psd1 ^(legacy^)
+    echo   %PROJECT_ROOT%\apps\desktop\config\MediaPipeline_config_chatgpt.psd1 ^(legacy^)
     echo.
     echo Run ops\scripts\dev\setup.bat first.
     pause
@@ -64,8 +69,8 @@ if not defined PWSH_PATH (
 
 :pwsh_resolved
 if defined PWSH_PATH (
-    echo Launching pipeline with PowerShell 7: !PWSH_PATH!
-    "!PWSH_PATH!" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ENTRYPOINT_ROOT%\MediaPipeline.ps1" -ConfigPath "%PIPELINE_CONFIG_PATH%"
+    echo Launching pipeline with PowerShell 7: %PWSH_PATH%
+    "%PWSH_PATH%" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ENTRYPOINT_ROOT%\MediaPipeline.ps1" -ConfigPath "%PIPELINE_CONFIG_PATH%"
 ) else (
     echo ERROR: PowerShell 7 was not found.
     echo Expected bundled runtime under "%PIPELINE_ROOT%\runtime\PowerShell-7.6.0-win-x64" or pwsh.exe on PATH.
@@ -73,11 +78,19 @@ if defined PWSH_PATH (
     exit /b 1
 )
 
-set "EXIT_CODE=!ERRORLEVEL!"
+set "EXIT_CODE=%ERRORLEVEL%"
 echo.
-echo MediaPipeline exited with code !EXIT_CODE!.
+echo MediaPipeline exited with code %EXIT_CODE%.
 pause
-exit /b !EXIT_CODE!
+exit /b %EXIT_CODE%
+
+:run_setup
+call "%SCRIPT_ROOT%setup.bat"
+exit /b %ERRORLEVEL%
+
+:run_validate
+call "%SCRIPT_ROOT%setup.bat" validate
+exit /b %ERRORLEVEL%
 
 :show_help
 echo MediaPipelineRemuxEncodeAIO run launcher 1.0

@@ -167,6 +167,20 @@
     return dailyDriverRow("Real-media sample proof", status, evidence, nextStep);
   }
 
+  function homeNetworkDriftPayload(networkWorkers = {}) {
+    const drift = networkWorkers?.running_vs_saved;
+    return drift && typeof drift === "object" ? drift : {};
+  }
+
+  function homeNetworkDriftFieldsText(drift = {}) {
+    const labels = Array.isArray(drift.drift_field_labels) ? drift.drift_field_labels : [];
+    const fields = Array.isArray(drift.drift_fields) ? drift.drift_fields : [];
+    const values = (labels.length ? labels : fields)
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return values.length ? values.join(", ") : "none";
+  }
+
   function dailyDriverRows(context = {}) {
     const failures = Array.isArray(context.failures) ? context.failures : [];
     const requiredFailures = failures.filter((item) => item.required);
@@ -294,11 +308,17 @@
   
     const role = String(settings?.config?.NetworkRole || "").trim().toLowerCase() || "standalone";
     const workerRows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows.length : 0;
+    const workerDrift = homeNetworkDriftPayload(networkWorkers);
+    const workerDriftStatus = String(workerDrift.status || "not_loaded").toLowerCase();
+    const workerDriftActive = workerDriftStatus === "drift";
+    const workerDriftFields = homeNetworkDriftFieldsText(workerDrift);
     rows.push(dailyDriverRow(
       "Network visibility",
-      role && role !== "standalone" ? "review" : "ready",
-      `role=${role}; persisted worker rows=${workerRows}`,
-      role && role !== "standalone"
+      workerDriftActive || (role && role !== "standalone") ? "review" : "ready",
+      `role=${role}; persisted worker rows=${workerRows}; running_vs_saved=${workerDriftStatus}; drift_fields=${workerDriftFields}`,
+      workerDriftActive
+        ? `Open Network Workers and restart worker polling so the live dispatcher uses saved settings (${workerDriftFields}).`
+        : role && role !== "standalone"
         ? "Network mode remains read-only in WebView; use backend-owned coordinator/worker lifecycle controls."
         : "Standalone mode is visible; Network page remains read-only.",
     ));
@@ -788,120 +808,6 @@
     });
   }
 
-  function homeTdarrMatrixNumber(value) {
-    const number = Number(value);
-    return Number.isFinite(number) ? number : 0;
-  }
-
-  function homeTdarrMatrixStatusModel(payload = {}, failure = null) {
-    const data = payload && typeof payload === "object" ? payload : {};
-    const run = data.run && typeof data.run === "object" ? data.run : {};
-    const sample = data.sample_summary && typeof data.sample_summary === "object" ? data.sample_summary : {};
-    const runId = String(data.latest_run_id || run.run_id || "").trim();
-    const selected = homeTdarrMatrixNumber(run.selected_count || sample.selected_count);
-    const completed = homeTdarrMatrixNumber(run.worker_result_count);
-    const percent = homeTdarrMatrixNumber(run.progress_percent);
-    const rate = homeTdarrMatrixNumber(run.completed_per_hour);
-    const eta = homeTdarrMatrixNumber(run.estimated_remaining_hours);
-    const findings = homeTdarrMatrixNumber(data.finding_count ?? run.finding_count);
-    const reportExists = Boolean(run.report_exists);
-    const status = String(run.status || "").trim().toLowerCase();
-    const active = Boolean(runId && !reportExists && (
-      ["starting", "preparing", "processing", "running", "active"].includes(status)
-      || (selected > 0 && completed < selected)
-    ));
-    if (failure) {
-      return {
-        label: "Unavailable",
-        state: "warning",
-        detail: "Matrix status read failed.",
-        runId: "",
-        selected: 0,
-        completed: 0,
-        percent: 0,
-        active: false,
-        reportExists: false,
-        lines: [
-          "Tdarr Matrix status: unavailable",
-          `Reason: ${failure.message || failure.name || "diagnostics read failed"}`,
-        ],
-      };
-    }
-    if (!runId) {
-      return {
-        label: "No run",
-        state: "empty",
-        detail: "No matrix run found.",
-        runId: "",
-        selected: 0,
-        completed: 0,
-        percent: 0,
-        active: false,
-        reportExists: false,
-        lines: [data.message || "No Tdarr Matrix sample runs were found."],
-      };
-    }
-    const progress = selected > 0
-      ? `${completed} / ${selected} (${homeProgressPercent(percent) || "0%"})`
-      : "selected samples not loaded";
-    const detail = active
-      ? progress
-      : reportExists
-        ? `${selected || 0} samples, ${findings} finding${findings === 1 ? "" : "s"}`
-        : status || "pending";
-    const label = active
-      ? status === "processing" ? "Running" : "Preparing"
-      : reportExists
-        ? "Complete"
-        : "Pending";
-    const state = active ? "running" : reportExists ? "ok" : "warning";
-    const lines = [
-      `Run: ${runId}`,
-      `Status: ${status || (reportExists ? "complete" : "pending")}`,
-      `Progress: ${progress}`,
-      rate > 0 ? `Rate: ${rate.toFixed(1)} files/hour` : "",
-      active && eta > 0 ? `ETA: ${eta.toFixed(1)} hours remaining` : "",
-      `Findings: ${findings}`,
-      `Report: ${reportExists ? "ready" : "pending"}`,
-    ].filter(Boolean);
-    return { label, state, detail, lines, runId, selected, completed, percent, rate, eta, active, reportExists };
-  }
-
-  function homeTdarrMatrixProgressBars(model = {}) {
-    if (!model.runId) return [];
-    const selected = homeTdarrMatrixNumber(model.selected);
-    const completed = homeTdarrMatrixNumber(model.completed);
-    const percent = selected > 0 ? homeTdarrMatrixNumber(model.percent) : 0;
-    const status = model.reportExists ? "complete" : model.active ? "active" : "warning";
-    const detailParts = [
-      selected > 0 ? `${completed} processed / ${selected} selected` : "selected samples not loaded",
-      model.rate > 0 ? `${homeTdarrMatrixNumber(model.rate).toFixed(1)} files/hour` : "",
-      model.active && model.eta > 0 ? `ETA ${homeTdarrMatrixNumber(model.eta).toFixed(1)}h` : "",
-    ].filter(Boolean);
-    return [{
-      id: "tdarr_matrix_samples",
-      label: "Tdarr Matrix Samples",
-      mode: selected > 0 ? "determinate" : "indeterminate",
-      status,
-      percent,
-      detail: detailParts.join(" | "),
-      source: model.runId,
-    }];
-  }
-
-  function renderHomeTdarrMatrixStatus(context = {}) {
-    const payload = context?.payload || context || {};
-    const failure = context?.failure || null;
-    const model = homeTdarrMatrixStatusModel(payload, failure);
-    setTextState("home-tdarr-matrix-status", model.label, model.state);
-    setText("home-tdarr-matrix-detail", model.detail);
-    setTextState("home-tdarr-matrix-panel-status", model.label, model.state);
-    if (typeof renderProgressBarsInto === "function") {
-      renderProgressBarsInto("home-tdarr-matrix-progress-bars", homeTdarrMatrixProgressBars(model), null, "No Tdarr Matrix progress loaded.");
-    }
-    setText("home-tdarr-matrix-summary", model.lines.join("\n") || "No Tdarr Matrix diagnostics loaded.");
-  }
-
   function homePromotionRunActive(status = {}) {
     const active = status?.active_run && typeof status.active_run === "object" ? status.active_run : {};
     const state = String(active.status || "").toLowerCase();
@@ -1150,9 +1056,6 @@
     renderHomeStorageHealth,
     renderHomeQueueSnapshot,
     renderHomeRecentCompleted,
-    homeTdarrMatrixStatusModel,
-    homeTdarrMatrixProgressBars,
-    renderHomeTdarrMatrixStatus,
     homePromotionRunActive,
     renderHomePromotionEntry
   };

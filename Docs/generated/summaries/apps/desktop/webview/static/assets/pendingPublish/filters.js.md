@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/pendingPublish/filters.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-07
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 83e4776ee8e93f215078bac7d538c5dfa7bb08ef58bb210929f3598ae51481d9
+sha256: 2b411847e9f6c429c34975a52906408383b79c80587dda266163a9a4bc5cf0c8
 ---
 # `apps/desktop/webview/static/assets/pendingPublish/filters.js`
 

@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 98 (42 read, 56 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 112 (46 read, 66 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -21,6 +21,9 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/diagnostics` | `read` | No | Recent backend events, errors, and launch-log summary |
 | `GET /api/diagnostics/tail` | `read` | No | `target` must be allowlisted; `max_bytes` is capped at 256 KB; no arbitrary path accepted |
 | `GET /api/diagnostics/state-summary` | `read` | No | Bounded inline artifact summary; no arbitrary path accepted |
+| `GET /api/diagnostics/tdarr-matrix/latest` | `read` | No | Reads latest or selected Tdarr Matrix run evidence and target keys; no file open or launch |
+| `GET /api/diagnostics/tdarr-matrix/runs` | `read` | No | Lists sentinel-marked Tdarr Matrix runs under the approved scratch run root |
+| `GET /api/diagnostics/tdarr-matrix/compare` | `read` | No | Compares existing Tdarr Matrix reports by run IDs; no file open or launch |
 | `GET /api/backend/close-readiness` | `read` | No | Backend has authority over safe-to-close; shell must not decide unilaterally |
 | `GET /api/ui-preferences` | `read` | No | Reads shared UI customization only; no settings, queue, or media mutation |
 | `GET /api/launch/preflight` | `read` | No | Backend-authored pre-launch checks; no locks reserved, no processes started |
@@ -57,6 +60,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/maintenance/progress` | `read` | No | Reads latest maintenance health-progress state; does not run probes or repair |
 | `GET /api/maintenance/change-ledger` | `read` | No | Reads structured change-control packets, changelog source status, and hygiene; no probes, codegen, packet writes, or media/state mutation |
 | `GET /api/schedule` | `read` | No | Reads persisted schedule state; does not save or edit |
+| `GET /api/watch-folders/status` | `read` | No | Reads watch-folder manager state only; does not scan on demand, launch, or mutate queue/process state |
 | `GET /api/settings/workspace` | `read` | No | Read-only, redacted settings snapshot |
 | `GET /api/libraries/route-map` | `read` | No | Backend-authored Library Route Map and decision-matrix evidence only; no save, launch, plugin execution, queue mutation, or media touch |
 | `GET /api/libraries/route-map/trace` | `read` | No | Selected-file trace from existing Queue, Completed, and Sample Validation row evidence only; no probing, launch, save, repair, drain, rename, or media mutation |
@@ -64,7 +68,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/libraries/route-map/validation` | `read` | No | Validation handoff evidence keeps Sample Validation, Completed, Pending Publish, Diagnostics, and command proof distinct; no launch, drain, accept, repair, rename, save, plugin execution, or media mutation |
 | `GET /api/settings/wizard/status` | `read` | No | Reads wizard availability and first-run recommendation state only |
 | `GET /api/settings/wizard/defaults` | `read` | No | Reads wizard defaults and tool candidates only |
-| `GET /api/network/workers` | `read` | No | Coordinator/worker persisted state; no lifecycle controls |
+| `GET /api/network/workers` | `read` | No | Coordinator/worker persisted state; lifecycle start/stop uses separate backend-owned command routes |
 | `GET /api/sample-validation` | `read` | No | Recent validation records plus backend-authored readiness, reconciliation, worksheet, sample-set, evidence-gap, pilot-runbook, saved-policy-alignment, and validation-audit evidence; query-bounded; no acceptance, repair, arbitrary media scan, or media/state mutation |
 
 ---
@@ -131,6 +135,7 @@ Opens a file or folder in the OS shell. Backend resolves the path from its own s
 | `POST /api/completed/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `output_file`, `output_folder`, `sidecar`, `source_folder` |
 | `POST /api/pending-publish/open` | `shell-open` | Frontend cannot select the path directly | Allowed targets: `local_file`, `manifest`, `destination_folder`, `source_folder` |
 | `POST /api/diagnostics/open` | `shell-open` | Frontend cannot select arbitrary files | `target` must be one of the diagnostics allowlist keys; see `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` |
+| `POST /api/diagnostics/tdarr-matrix/evidence/open` | `shell-open` | Frontend cannot submit arbitrary paths | Backend resolves `run_id` + `finding_key` + allowlisted evidence `target` under the selected Tdarr Matrix run root |
 | `POST /api/maintenance/dependency-atlas/open-folder` | `shell-open` | Frontend cannot select arbitrary files | Opens fixed backend-resolved `docs/generated/dependency-atlas/`; request payload must be empty |
 
 ### diagnostic-process (scratch test harness)
@@ -140,6 +145,7 @@ Runs a backend-owned developer diagnostic process against scratch test-library r
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/diagnostics/tdarr-matrix-audit` | `diagnostic-process` | Frontend cannot construct commands or choose paths | `action`: `report`, `smoke`, `matrix`, `full`, or `strict-report`; backend expands fixed Tdarr Matrix audit presets under `LocalBase/Scratch/TestLibraries` |
+| `POST /api/diagnostics/tdarr-matrix/rerun` | `diagnostic-process` | Frontend cannot construct commands or choose paths | `selection`: `selected` or `latest_failures`; backend maps finding keys to manifest case IDs and writes a fresh isolated TdarrMatrixRuns root |
 
 ### shell-dialog (no media mutation)
 
@@ -170,6 +176,10 @@ Returns backend-computed plans, diffs, validation results, or reload status. No 
 | `POST /api/settings/reload` | `none` | Frontend cannot reload in-memory backend state directly | Backend reloads cached state; no config written |
 | `POST /api/schedule/preview` | `none` | Frontend cannot parse or validate schedule windows independently | Backend parses schedule input and returns changed days; no app-state write |
 | `POST /api/sample-validation/preview` | `none` | Frontend cannot run sample validation logic independently | Preview warnings and evidence reconciliation only; no validation log append |
+| `POST /api/network/coordinator/start-dry-run` | `none` | Frontend cannot decide coordinator lifecycle safety | Backend reports role/config/provider/state-file preconditions and `would_not_touch` evidence only |
+| `POST /api/network/coordinator/stop-dry-run` | `none` | Frontend cannot decide coordinator stop safety | Backend reports active-work, claim, provider, and state-preservation posture only |
+| `POST /api/network/worker/start-dry-run` | `none` | Frontend cannot claim work or validate path maps independently | Backend reports coordinator URL, path-map, pending-done, provider, and no-touch posture only |
+| `POST /api/network/worker/stop-dry-run` | `none` | Frontend cannot abort work or clean scratch independently | Backend reports worker stop and pending-done posture only |
 
 ### app-state-write / ui-state-write (non-media app state)
 
@@ -237,6 +247,18 @@ Runs backend maintenance tooling. Dry runs write no ops/release/metadata/backfil
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | Frontend cannot regenerate tooling artifacts directly | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only; no media, queue, settings, manifests, pending publish, or pipeline state touched |
 | `POST /api/maintenance/release-build` | `deployment-write` | Frontend cannot create release packages directly | `confirm_create` required; backend checks active work, owns destination replacement, manifest creation, and optional zip creation |
 
+### backend-lifecycle (critical)
+
+Initiates guarded backend lifecycle operations. Network lifecycle routes are provider-guarded and confirmation-gated; they must not fall through to normal Launch, queue scanning, claim release, or media processing.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/backend/shutdown` | `backend-lifecycle` | Shell must not decide shutdown safety unilaterally | Requires safe close-readiness unless `force_active_work_shutdown` is literal JSON boolean `true`; backend controls shutdown sequence |
+| `POST /api/network/coordinator/start` | `backend-lifecycle` | Frontend cannot start coordinator runtime directly | Requires `confirm_start`; backend preconditions and provider availability must pass; no local file processing unless real lifecycle provider supports it |
+| `POST /api/network/coordinator/stop` | `backend-lifecycle` | Frontend cannot force-release active claims or delete state | Requires `confirm_stop`; preserves `coordinator_inflight.json`, `worker_state.json`, and `cluster.log` |
+| `POST /api/network/worker/start` | `backend-lifecycle` | Frontend cannot start worker queue scanning or claim work directly | Requires `confirm_start`; worker lifecycle provider claims only coordinator-assigned work one file at a time |
+| `POST /api/network/worker/stop` | `backend-lifecycle` | Frontend cannot abort worker scratch cleanup directly | Requires `confirm_stop`; preserves pending done reports and worker state; abort remains a separate explicit command |
+
 ### process-launch (high risk)
 
 Spawns backend processes. The backend owns launch locks, command journal entries, process arguments, and all process lifecycle behavior.
@@ -246,14 +268,6 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 | `POST /api/pipeline/start` | `process-launch` | Frontend cannot exec processes or bypass launch guards | `mode`: `once`, `continuous`, `validate`, or `drain_pending_pushes`; backend owns launch lock and process args |
 | `POST /api/audit/start` | `process-launch` | Frontend cannot exec audit scripts directly | Backend owns audit script invocation |
 | `POST /api/rerun/start` | `process-launch` | Frontend cannot exec rerun scripts directly | Media-safe defaults: `stage_mode: copy`, `original_mode: keep`, `return_mode: park` |
-
-### backend-lifecycle (critical)
-
-Initiates graceful backend shutdown. Issued by the Tauri shell only after close-readiness is checked.
-
-| Route | Mutation class | Frontend cannot own? | Key restriction |
-|---|---|---|---|
-| `POST /api/backend/shutdown` | `backend-lifecycle` | Shell must not decide unilaterally | Requires safe close-readiness unless `force_active_work_shutdown` is literal JSON boolean `true`; backend controls shutdown sequence |
 
 ---
 
@@ -273,7 +287,7 @@ The current source-of-truth details are in `docs/architecture/REPAIR_RECONCILE_M
 
 ## Network Lifecycle Boundary
 
-Network lifecycle controls remain design-only. `/api/contract` publishes future dry-run, cleanup/rollback, source-file, and route-exposure gates, but there are no Network start/stop/reclaim/ops/release/metadata/worker-polling POST routes. No WebView control may call one until `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
+Network lifecycle start/stop is now an active backend-owned, provider-guarded command surface. Dry-run routes have `effect=none` and must be used before confirmed commands. Confirmed routes require `confirm_start` or `confirm_stop`, command-journal evidence, provider availability, state-file preservation, and redacted config evidence. If the lifecycle provider is unavailable, commands fail closed and must not call normal Launch, scan the queue, release claims, publish, rename, delete, or touch source/scratch/output/pending-publish files.
 
 ---
 

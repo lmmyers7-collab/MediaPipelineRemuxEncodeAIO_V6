@@ -3,9 +3,9 @@ file: ops/pipeline/config/setup/ConfigFile.ps1
 pipeline_stage: setup
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-05
+last_modified: 2026-06-13
 last_reviewed: 2026-06-04
-sha256: ec5478a5871d38e01430035dfd19f2333ba37e0d04e4a3cdef63bf482f9c5e25
+sha256: 21b3875dd9d2605e7b1199365a56579d733d752e5d68c01e1ff58ec0959ac36c
 ---
 # `ops/pipeline/config/setup/ConfigFile.ps1`
 

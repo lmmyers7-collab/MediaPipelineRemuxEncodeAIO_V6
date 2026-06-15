@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_close_readiness.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 12163ff378d3639bed21223e7b7254756ac0e50928613116996918e055aa8e60
+sha256: 04e33fb042e9c7b62f0f28b8b0ed3a29606ea5d2dd22847f652ba316f8b1222a
 ---
 # `tests/python/desktop/test_application_facade_close_readiness.py`
 

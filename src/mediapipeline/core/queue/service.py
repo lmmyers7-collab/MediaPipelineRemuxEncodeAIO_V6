@@ -152,6 +152,17 @@ class QueueServiceMixin:
     ) -> dict[str, Any]:
         return preview_queue_source_inventory(read_json_artifact(queue_source_inventory_path(resolved)), row_limit=row_limit)
 
+    def queue_source_scan_active_block_message(self, action: str) -> str:
+        active = getattr(self, "_queue_source_scan_active", None)
+        if not isinstance(active, dict):
+            return ""
+        thread = active.get("thread")
+        if not isinstance(thread, threading.Thread) or not thread.is_alive():
+            return ""
+        scan_id = str(active.get("scan_id") or "").strip()
+        scan_text = f" {scan_id}" if scan_id else ""
+        return f"{action} blocked because queue source scan{scan_text} is still running."
+
     def start_queue_source_scan(self, resolved: ResolvedPaths, request: dict[str, Any]) -> dict[str, Any]:
         status_path = queue_scan_status_path(resolved)
         inventory_path = queue_source_inventory_path(resolved)
@@ -222,7 +233,7 @@ class QueueServiceMixin:
                 target=self._run_queue_source_scan_worker,
                 args=(resolved, scan_id, mode, force, scope, requested_at),
                 name=f"queue-source-scan-{scan_id}",
-                daemon=True,
+                daemon=False,
             )
             self._queue_source_scan_active = {"scan_id": scan_id, "thread": thread}
             thread.start()

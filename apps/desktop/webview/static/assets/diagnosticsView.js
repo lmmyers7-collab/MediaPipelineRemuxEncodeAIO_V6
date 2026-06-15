@@ -18,6 +18,9 @@
     runs: [],
     findings: [],
     bucketSummary: [],
+    smokePackRows: [],
+    proofPackRows: [],
+    activePack: "proof-pack",
     selectedFindingKey: "",
     selectedFindingKeys: new Set(),
   };
@@ -90,11 +93,14 @@
 
   function tdarrMatrixAuditActionLabel(action) {
     const labels = {
-      report: "Prepare Audit Report",
-      smoke: "Run 6-File Smoke",
-      matrix: "Run 30-File Matrix",
-      full: "Run 100% Matrix",
-      "strict-report": "Strict Report Gate",
+      "prepare-proof-pack": "Prepare Proof Pack",
+      report: "Prepare Proof Pack Audit Report",
+      "smoke-pack": "Smoke Pack",
+      "proof-pack": "Proof Pack",
+      "strict-report": "Strict Proof Gate",
+      "cleanup-plan": "Cleanup Full Matrix",
+      "cleanup-archive": "Archive Matrix Evidence",
+      "cleanup-delete": "Delete Verified Full Matrix",
     };
     return labels[action] || action || "Tdarr Matrix audit";
   }
@@ -391,6 +397,102 @@
     setText("tdarr-matrix-audit-bucket-status", `${rows.length} bucket(s)`);
   }
 
+  function tdarrMatrixProofRowsForActivePack() {
+    return tdarrMatrixConsoleState.activePack === "smoke-pack"
+      ? tdarrMatrixConsoleState.smokePackRows
+      : tdarrMatrixConsoleState.proofPackRows;
+  }
+
+  function tdarrMatrixProofRowSearchText(item) {
+    return [
+      item.case_key,
+      item.case_id,
+      item.pack,
+      item.diagnostic_bucket,
+      item.view,
+      item.resolution,
+      item.video_codec,
+      item.audio_codec,
+      item.container,
+      item.status,
+      item.last_passed_at,
+      item.latest_run_id,
+      item.primary_finding_code,
+    ].map((value) => String(value || "").toLowerCase()).join(" ");
+  }
+
+  function tdarrMatrixFilteredProofRows() {
+    const filter = String(byId("tdarr-matrix-audit-filter")?.value || "").trim().toLowerCase();
+    const bucket = String(byId("tdarr-matrix-audit-bucket-filter")?.value || "").trim().toLowerCase();
+    return tdarrMatrixProofRowsForActivePack().filter((item) => {
+      if (bucket && String(item.diagnostic_bucket || "").toLowerCase() !== bucket) return false;
+      if (filter && !tdarrMatrixProofRowSearchText(item).includes(filter)) return false;
+      return true;
+    });
+  }
+
+  function renderTdarrMatrixProofPackRows() {
+    const body = byId("tdarr-matrix-proof-pack-rows");
+    if (!body) return;
+    document.querySelectorAll("[data-tdarr-proof-pack-view]").forEach((button) => {
+      const active = button.dataset.tdarrProofPackView === tdarrMatrixConsoleState.activePack;
+      button.classList.toggle("is-active", active);
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+    const rows = tdarrMatrixFilteredProofRows();
+    body.replaceChildren();
+    if (!rows.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 14;
+      cell.textContent = "No Tdarr Proof Pack rows loaded.";
+      row.appendChild(cell);
+      body.appendChild(row);
+      setText("tdarr-matrix-proof-pack-status", `${tdarrMatrixConsoleState.activePack}: no rows`);
+      return;
+    }
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      row.dataset.caseKey = item.case_key || "";
+      [
+        item.case_key,
+        item.pack,
+        item.diagnostic_bucket,
+        item.view,
+        item.resolution,
+        item.video_codec,
+        item.audio_codec,
+        item.container,
+        item.status,
+        item.last_passed_at,
+        item.latest_run_id || item.last_passed_run_id,
+        item.finding_count,
+        item.primary_finding_code,
+      ].forEach((value) => appendTdarrMatrixAuditFindingCell(row, value));
+      const evidenceCell = document.createElement("td");
+      const targets = Array.isArray(item.available_evidence_targets) ? item.available_evidence_targets : [];
+      const findingKey = String(item.primary_finding_key || "");
+      const runId = String(item.latest_run_id || "");
+      if (findingKey && runId && targets.length) {
+        targets.slice(0, 4).forEach((target) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "secondary-button compact-button";
+          button.textContent = String(target).replace(/_/g, " ");
+          button.addEventListener("click", () => requestTdarrMatrixEvidenceOpen(target, findingKey, runId));
+          evidenceCell.appendChild(button);
+        });
+      } else {
+        evidenceCell.textContent = "-";
+      }
+      row.appendChild(evidenceCell);
+      body.appendChild(row);
+    });
+    const total = tdarrMatrixProofRowsForActivePack().length;
+    const shown = rows.length;
+    setText("tdarr-matrix-proof-pack-status", `${tdarrMatrixConsoleState.activePack}: ${shown} of ${total} test row(s)`);
+  }
+
   function tdarrMatrixCompareExamples(items) {
     return (Array.isArray(items) ? items : [])
       .slice(0, 3)
@@ -432,6 +534,8 @@
     tdarrMatrixConsoleState.runs = Array.isArray(data.runs) ? data.runs : [];
     tdarrMatrixConsoleState.findings = Array.isArray(data.findings) ? data.findings : [];
     tdarrMatrixConsoleState.bucketSummary = Array.isArray(data.bucket_summary) ? data.bucket_summary : [];
+    tdarrMatrixConsoleState.smokePackRows = Array.isArray(data.smoke_pack_rows) ? data.smoke_pack_rows : [];
+    tdarrMatrixConsoleState.proofPackRows = Array.isArray(data.proof_pack_rows) ? data.proof_pack_rows : [];
     tdarrMatrixConsoleState.selectedFindingKeys = new Set(
       Array.from(tdarrMatrixConsoleState.selectedFindingKeys).filter((key) => tdarrMatrixConsoleState.findings.some((item) => item.finding_key === key)),
     );
@@ -472,6 +576,7 @@
       ].filter(Boolean).join("\n"),
     );
     renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings });
+    renderTdarrMatrixProofPackRows();
     renderTdarrMatrixBucketCoverage(data);
   }
 
@@ -614,12 +719,24 @@
     document.querySelectorAll("[data-tdarr-matrix-audit-action]").forEach((button) => {
       button.addEventListener("click", () => requestTdarrMatrixAudit(button.dataset.tdarrMatrixAuditAction || ""));
     });
+    document.querySelectorAll("[data-tdarr-proof-pack-view]").forEach((button) => {
+      button.addEventListener("click", () => {
+        tdarrMatrixConsoleState.activePack = button.dataset.tdarrProofPackView || "proof-pack";
+        renderTdarrMatrixProofPackRows();
+      });
+    });
     const tdarrFilter = byId("tdarr-matrix-audit-filter");
-    if (tdarrFilter) tdarrFilter.addEventListener("input", () => renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings }));
+    if (tdarrFilter) tdarrFilter.addEventListener("input", () => {
+      renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings });
+      renderTdarrMatrixProofPackRows();
+    });
     const tdarrSeverity = byId("tdarr-matrix-audit-severity-filter");
     if (tdarrSeverity) tdarrSeverity.addEventListener("change", () => renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings }));
     const tdarrBucket = byId("tdarr-matrix-audit-bucket-filter");
-    if (tdarrBucket) tdarrBucket.addEventListener("change", () => renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings }));
+    if (tdarrBucket) tdarrBucket.addEventListener("change", () => {
+      renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings });
+      renderTdarrMatrixProofPackRows();
+    });
     const tdarrLoadLatest = byId("tdarr-matrix-audit-load-latest");
     if (tdarrLoadLatest) tdarrLoadLatest.addEventListener("click", () => requestTdarrMatrixConsole());
     const tdarrRerunSelected = byId("tdarr-matrix-audit-rerun-selected");
@@ -1585,6 +1702,9 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       setTdarrMatrixAuditStatus("Load error");
       setText("tdarr-matrix-console-summary", message);
       renderTdarrMatrixAuditFindings({ findings: [] });
+      tdarrMatrixConsoleState.smokePackRows = [];
+      tdarrMatrixConsoleState.proofPackRows = [];
+      renderTdarrMatrixProofPackRows();
       renderTdarrMatrixBucketCoverage({ bucket_summary: [] });
     }
   }
@@ -1605,14 +1725,19 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     }
   }
 
-  async function requestTdarrMatrixEvidenceOpen(target) {
-    const selected = tdarrMatrixConsoleState.findings.find((item) => item.finding_key === tdarrMatrixConsoleState.selectedFindingKey);
+  async function requestTdarrMatrixEvidenceOpen(target, findingKey = "", runId = "") {
+    const requestedKey = String(findingKey || "").trim();
+    const selected = requestedKey
+      ? tdarrMatrixConsoleState.findings.find((item) => item.finding_key === requestedKey)
+      : tdarrMatrixConsoleState.findings.find((item) => item.finding_key === tdarrMatrixConsoleState.selectedFindingKey);
     const normalized = String(target || "").trim();
-    if (!selected || !normalized) return;
+    const effectiveFindingKey = requestedKey || selected?.finding_key || "";
+    const effectiveRunId = String(runId || selected?.run_id || tdarrMatrixConsoleState.latestRunId || "").trim();
+    if (!effectiveFindingKey || !effectiveRunId || !normalized) return;
     try {
       const result = await apiPost("/api/diagnostics/tdarr-matrix/evidence/open", {
-        run_id: selected.run_id || tdarrMatrixConsoleState.latestRunId,
-        finding_key: selected.finding_key,
+        run_id: effectiveRunId,
+        finding_key: effectiveFindingKey,
         target: normalized,
       });
       appendCommandResult(result);
@@ -1635,7 +1760,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     const keys = normalized === "latest_failures" ? [] : Array.from(tdarrMatrixConsoleState.selectedFindingKeys);
     setTdarrMatrixAuditBusy(true);
     setTdarrMatrixAuditStatus("Running...");
-    setTdarrMatrixAuditDetail([normalized === "latest_failures" ? "Rerunning latest failure cases in a new Tdarr Matrix run root." : "Rerunning selected Tdarr Matrix cases in a new run root."]);
+    setTdarrMatrixAuditDetail([normalized === "latest_failures" ? "Rerunning latest failure cases in a new Tdarr Proof Pack run root." : "Rerunning selected Tdarr Proof Pack cases in a new run root."]);
     try {
       const result = await apiPost("/api/diagnostics/tdarr-matrix/rerun", {
         source_run_id: tdarrMatrixConsoleState.latestRunId,
@@ -1678,12 +1803,24 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       renderTdarrMatrixAuditFindings(result);
       return;
     }
+    if (normalized === "smoke-pack" || normalized === "proof-pack") {
+      tdarrMatrixConsoleState.activePack = normalized;
+      renderTdarrMatrixProofPackRows();
+    }
+    const payload = { action: normalized };
+    if (normalized === "cleanup-delete") {
+      const confirmed = window.confirm(
+        "Delete the verified legacy Tdarr full matrix after the backend confirms proof-pack verification and archived evidence?",
+      );
+      if (!confirmed) return;
+      payload.confirm_delete_full_matrix = true;
+    }
     setTdarrMatrixAuditBusy(true);
     setTdarrMatrixAuditStatus("Running...");
     setTdarrMatrixAuditDetail([`${tdarrMatrixAuditActionLabel(normalized)} is running through the backend command route.`]);
     renderTdarrMatrixAuditFindings({ data: { finding_count: 0, findings_preview: [] } });
     try {
-      const result = await apiPost("/api/diagnostics/tdarr-matrix-audit", { action: normalized });
+      const result = await apiPost("/api/diagnostics/tdarr-matrix-audit", payload);
       appendCommandResult(result);
       const backgroundStarted = Boolean(result?.data?.background_started);
       setTdarrMatrixAuditStatus(backgroundStarted ? "Running..." : result.ok ? "Complete" : result.severity || "Failed");

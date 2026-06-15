@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -24,12 +25,16 @@ from mediapipeline.core.queue.policy import (
 )
 from mediapipeline.core.queue.file_overrides import (
     clear_file_override_fields,
+    file_overrides_to_api_payload,
     get_file_override_entry,
+    list_override_entries,
     normalize_file_override_path,
+    read_file_overrides,
     resolve_file_override_match,
     set_file_override_entry,
     validate_file_override_payload,
 )
+from mediapipeline.core.queue.facade import _queue_rows_with_priority_manifest
 from mediapipeline.desktop.models import QueueRecord
 
 
@@ -216,6 +221,45 @@ class QueueFacadePolicyTests(unittest.TestCase):
         self.assertIsNone(missing["entry"])
         self.assertIsNone(missing["matched_path"])
         self.assertIsNone(missing["scope"])
+
+    def test_read_file_overrides_quarantines_non_object_entry_values(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            manifest_path = root / "State" / "file_overrides.json"
+            bad_source = root / "Movies" / "Broken.mkv"
+            good_source = root / "Movies" / "Valid.mkv"
+            bad_key = normalize_file_override_path(bad_source)
+            good_key = normalize_file_override_path(good_source)
+            manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            manifest_path.write_text(
+                json.dumps(
+                    {
+                        "version": 1,
+                        "entries": {
+                            bad_key: "malformed entry",
+                            "null-entry": None,
+                            "list-entry": [{"audio": {"maxChannels": 2}}],
+                            good_key: {"audio": {"maxChannels": 2}, "set_at": "2026-06-11T00:00:00+00:00"},
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            manifest = read_file_overrides(manifest_path)
+            bad_match = resolve_file_override_match(manifest, bad_source)
+            good_match = resolve_file_override_match(manifest, good_source)
+            api_payload = file_overrides_to_api_payload(manifest, manifest_path)
+
+        self.assertEqual(set(manifest["entries"]), {good_key})
+        self.assertIsNone(bad_match["entry"])
+        self.assertEqual(good_match["entry"], {"audio": {"maxChannels": 2}})
+        self.assertEqual(
+            list_override_entries(manifest),
+            [{"path": good_key, "audio": {"maxChannels": 2}, "set_at": "2026-06-11T00:00:00+00:00"}],
+        )
+        self.assertEqual(api_payload["entry_count"], 1)
+        self.assertEqual(api_payload["entries"][good_key]["audio"], {"maxChannels": 2})
 
     def test_clear_file_override_fields_removes_only_requested_nested_keys(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -563,6 +607,32 @@ class QueueFacadePolicyTests(unittest.TestCase):
         self.assertEqual(rows[0]["override_layers_pending"], ["show", "folder", "file"])
         self.assertNotIn("runtime_effective_settings", rows[0])
         self.assertNotIn("FolderOverride", rows[0]["library_effective_settings"])
+
+    def test_queue_preview_manifest_normal_suppresses_filesystem_priority_phase(self) -> None:
+        source = "C:/Media/Movies/! Movie.mkv"
+        rows = _queue_rows_with_priority_manifest(
+            [
+                {
+                    "source_path": source,
+                    "media_kind": "movie",
+                    "is_priority": True,
+                }
+            ],
+            priority_manifest={
+                "version": 1,
+                "entries": {
+                    source.replace("\\", "/").lower(): {
+                        "level": "normal",
+                        "reason": "operator normalized marker",
+                        "position": 5,
+                    }
+                },
+            },
+        )
+
+        self.assertEqual(rows[0]["manifest_priority_level"], "normal")
+        self.assertTrue(rows[0]["manifest_priority_explicit"])
+        self.assertEqual(rows[0]["phase"], "movie")
 
     def test_queue_completion_gate_keeps_promotion_evidence_without_final_runtime_claim(self) -> None:
         def factory(_raw: dict[str, object]) -> object:

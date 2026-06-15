@@ -59,7 +59,7 @@ class PipelinePlannerTests(unittest.TestCase):
         self.assertNotIn("ffmpeg", preview)
         self.assertEqual(plan.runtime_fallbacks[0].fallback_id, "remux-codec-recheck")
 
-    def test_encode_plan_includes_dimensions_filters_audio_subtitles_and_container(self) -> None:
+    def test_encode_plan_includes_dimensions_filters_audio_external_srt_posture_and_container(self) -> None:
         source = load_source("tv_h264_1080p_12mbps_mkv.json")
         decision = build_processing_decision(
             source,
@@ -81,7 +81,8 @@ class PipelinePlannerTests(unittest.TestCase):
         self.assertEqual(plan.route_summary, "ENCODE")
         self.assertIn("encode_video", operations)
         self.assertIn("transcode_audio", operations)
-        self.assertIn("convert_subtitle", operations)
+        self.assertIn("drop_subtitle", operations)
+        self.assertNotIn("convert_subtitle", operations)
         self.assertNotIn("burn_subtitle", operations)
         self.assertIn("mux_container", operations)
         self.assertEqual(video_step.details["codec"], "hevc_nvenc")

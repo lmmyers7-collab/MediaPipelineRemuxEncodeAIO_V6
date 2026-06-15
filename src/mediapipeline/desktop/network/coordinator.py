@@ -15,7 +15,8 @@ Architecture
 * A daemon *stale-reaper* thread runs every 60 s and reclaims jobs whose
   heartbeat has expired, returning them to the available queue.
 * mDNS advertisement via :mod:`network.mdns` (Phase 3 — requires zeroconf).
-* Per-worker encode config overrides via ``WorkerConfigOverrides`` (Phase 3).
+* ``WorkerConfigOverrides`` remains loadable for compatibility but is ignored
+  by backend encode snapshot policy until a real override authority is defined.
 * Retry policy: files already in the failure log get ``retry_on_failure=False``
   so workers won't re-queue them on failure (Phase 3).
 

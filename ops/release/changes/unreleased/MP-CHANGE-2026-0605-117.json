@@ -31,7 +31,7 @@
   "tests_added": [],
   "manual_validation": [
     "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui -q -> passed; 38 tests OK.",
-    "Browser-backed route slider visual smoke via the repository CDP harness -> passed; typing 1188 synchronized the 1080p input, hidden boundary, slider percentage, top range, and card badge; dragging the 4K thumb moved the lower boundary to 1703 with synchronized range/card badges; overflow=0, thumbOverflow=0, overlap=false. Screenshot captured at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-route-height-slider.png.",
+    "Browser-backed route slider visual smoke via the repository CDP harness -> passed; typing 1188 synchronized the 1080p input, hidden boundary, slider percentage, top range, and card badge; dragging the 4K thumb moved the lower boundary to 1703 with synchronized range/card badges; overflow=0, thumbOverflow=0, overlap=false. Screenshot captured at <temp>\\mediapipeline-route-height-slider.png.",
     "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 -> passed; 1 test OK.",
     "Refreshed generated summaries for the slider-restyle files and packet.",
     "Strict change coverage rerun -> failed due unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing required field date_completed. This packet's files were not listed as uncovered."

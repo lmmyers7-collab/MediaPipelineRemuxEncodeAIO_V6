@@ -7,13 +7,29 @@ same backend-owned PSD1 validation, backup, serialization, and reload flow.
 
 from __future__ import annotations
 
+import subprocess
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
+from uuid import uuid4
 
+from mediapipeline.core.config.identity import (
+    MIN_OPERATOR_CONFIG_KEY_COUNT,
+    REQUIRED_OPERATOR_ROOT_KEYS,
+    config_looks_like_template,
+    config_template_candidates,
+)
 from mediapipeline.core.config.library_profiles import (
     library_profiles_from_config,
     library_profiles_from_wizard_payload,
     normalize_library_profile_config_values,
+)
+from mediapipeline.core.config.settings_patch_policy import (
+    settings_save_busy_result,
+    settings_save_exception_result,
+    settings_save_service_unavailable_result,
+    settings_save_success_result,
+    settings_save_validation_error_result,
 )
 from mediapipeline.core.kernel.config_keys import (
     KEY_ALLOW_NO_AUDIO,
@@ -144,10 +160,13 @@ def preview_settings_wizard(facade: object, resolved: ResolvedPaths, request: ob
     raw_wizard = settings_wizard_payload_from_request(request)
     validation = validate_wizard_payload(raw_wizard)
     wizard = _wizard_mapping(raw_wizard)
-    base_config = dict(resolved.config_data or {})
-    patch_request = {"changes": wizard_changes(wizard, base_config)}
-    preview = facade.preview_settings_patch(resolved, patch_request)
+    base_config = _wizard_base_config(facade, resolved)
+    preview_resolved = _resolved_with_wizard_base(resolved, base_config)
+    patch_request = _wizard_patch_request(wizard, base_config)
+    preview = facade.preview_settings_patch(preview_resolved, patch_request)
     data = dict(preview.data)
+    data["errors"] = list(preview.errors)
+    data["warnings"] = list(preview.warnings)
     data["wizard"] = _wizard_preview_payload(wizard, validation, data, writes_config=False, base_config=base_config)
     ok = bool(preview.ok) and validation["ok"]
     return CommandResult(
@@ -205,9 +224,17 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: objec
             refresh_hint=WIZARD_REFRESH_HINT,
             data={"wizard": _wizard_preview_payload(wizard, validation, {}, writes_config=False, base_config=dict(resolved.config_data or {}))},
         )
-    base_config = dict(resolved.config_data or {})
-    saved = facade.save_settings_patch(resolved, {"changes": wizard_changes(wizard, base_config), "confirm_save": True})
+    base_config = _wizard_base_config(facade, resolved)
+    if _is_missing_initial_config(resolved):
+        saved = _save_initial_settings_wizard(facade, resolved, wizard, base_config)
+    else:
+        saved = facade.save_settings_patch(
+            resolved,
+            {**_wizard_patch_request(wizard, base_config), "confirm_save": True},
+        )
     data = dict(saved.data)
+    data["errors"] = list(saved.errors)
+    data["warnings"] = list(saved.warnings)
     completion = mark_settings_wizard_completed(getattr(facade, "service", None)) if saved.ok else {"wizard_completed": False}
     data["wizard"] = _wizard_preview_payload(wizard, validation, data, writes_config=bool(saved.ok), base_config=base_config)
     data["wizard_completion"] = completion
@@ -237,6 +264,7 @@ def validate_wizard_payload(wizard: object) -> dict[str, Any]:
             "path_validation": path_validation,
             "worker_validation": worker_validation,
         }
+    wizard = _wizard_mapping(wizard)
     path_validation = validate_wizard_paths(wizard)
     worker_validation = validate_worker_settings(wizard.get("workers", {}))
     errors = [*path_validation["errors"], *worker_validation["errors"]]
@@ -289,10 +317,19 @@ def validate_wizard_paths(wizard: object) -> dict[str, Any]:
             "warnings": [],
             "rows": [],
         }
+    wizard = _wizard_mapping(wizard)
 
     def check(label: str, raw_path: Any, *, must_exist: bool, target: str = "") -> None:
-        text = str(raw_path or "").strip()
-        row = {"label": label, "path": text, "exists": False, "is_dir": False, "status": "blocked", "target": target}
+        text = _path_text(raw_path)
+        row = {
+            "label": label,
+            "path": text,
+            "exists": False,
+            "is_dir": False,
+            "status": "blocked",
+            "target": target,
+            "will_create": False,
+        }
         if not text:
             errors.append(f"{label} path is required.")
         else:
@@ -306,7 +343,9 @@ def validate_wizard_paths(wizard: object) -> dict[str, Any]:
             elif path.exists() and not path.is_dir():
                 errors.append(f"{label} path is not a folder: {text}")
             elif not must_exist and not path.exists():
-                warnings.append(f"{label} folder does not exist yet: {text}")
+                row["status"] = "will_create"
+                row["will_create"] = True
+                warnings.append(f"{label} folder does not exist yet and will be created during first-run save: {text}")
             else:
                 row["status"] = "ready"
         rows.append(row)
@@ -335,10 +374,29 @@ def validate_wizard_paths(wizard: object) -> dict[str, Any]:
     scratch = wizard.get("scratch", {}) if isinstance(wizard.get("scratch"), dict) else {}
     check("Final output", output.get("root"), must_exist=False, target="#wizard-output-root")
     check("Scratch / LocalBase", scratch.get("path"), must_exist=False, target="#wizard-scratch-path")
-    source_paths = {str(row.get("source_path") or "").strip().casefold() for _, row in enabled_libraries}
-    scratch_path = str(scratch.get("path") or "").strip().casefold()
-    if scratch_path and scratch_path in source_paths:
+    source_paths: dict[str, str] = {}
+    for _index, row in enabled_libraries:
+        source_key = _path_identity_key(row.get("source_path"))
+        if source_key:
+            source_paths[source_key] = str(row.get("name") or "source")
+
+    def block_if_source(label: str, raw_path: Any) -> None:
+        path_key = _path_identity_key(raw_path)
+        if path_key and path_key in source_paths:
+            errors.append(f"{label} cannot be the same folder as enabled source library {source_paths[path_key]}.")
+
+    scratch_key = _path_identity_key(scratch.get("path"))
+    if scratch_key and scratch_key in source_paths:
         errors.append("Scratch / LocalBase cannot be the same folder as an enabled source library.")
+    block_if_source("Final output root", output.get("root"))
+    for _index, library in enabled_libraries:
+        if library.get("output_path"):
+            block_if_source(f"Library {library.get('name') or 'output'} output", library.get("output_path"))
+        if library.get("promotion_enabled", False):
+            block_if_source(
+                f"Library {library.get('name') or 'promotion'} promotion destination",
+                library.get("promotion_destination"),
+            )
     return {
         "schema_version": "desktop_settings_wizard_path_validation.v1",
         "ok": not errors,
@@ -399,24 +457,54 @@ def validate_ffmpeg_tools(resolved: ResolvedPaths, request: dict[str, Any]) -> d
 
 
 def probe_ffmpeg_hardware(resolved: ResolvedPaths, request: dict[str, Any]) -> dict[str, Any]:
-    _ = (resolved, request)
+    wizard = _wizard_from_request(request)
+    tools = wizard.get("tools", {}) if isinstance(wizard.get("tools"), dict) else {}
+    ffmpeg = _tool_status(tools.get("ffmpeg_path") or _tool_defaults(resolved, {})["ffmpeg_path"])
+    warnings = [
+        "Hardware probe enumerates configured FFmpeg encoder names only; it does not run a real encode. "
+        "Keep CPU fallback enabled until normal queue evidence confirms throughput."
+    ]
+    errors = [f"FFmpeg: {error}" for error in ffmpeg["errors"]]
+    detected_encoders: list[str] = []
+    if not errors:
+        try:
+            result = _run_ffmpeg_encoder_listing(ffmpeg["path"])
+        except subprocess.TimeoutExpired:
+            errors.append("FFmpeg encoder probe timed out after 10 seconds.")
+        except OSError as exc:
+            errors.append(f"FFmpeg encoder probe failed to start: {exc}")
+        else:
+            output = "\n".join([str(getattr(result, "stdout", "") or ""), str(getattr(result, "stderr", "") or "")])
+            if int(getattr(result, "returncode", 1) or 0) != 0:
+                errors.append(f"FFmpeg encoder probe exited with code {getattr(result, 'returncode', 1)}.")
+            detected_encoders = _parse_ffmpeg_encoder_names(output)
+    nvenc_encoders = [name for name in detected_encoders if name.endswith("_nvenc")]
+    cpu_fallback_encoders = [
+        name
+        for name in detected_encoders
+        if name in {"libx264", "libx265", "libsvtav1", "libaom-av1", "mpeg4"}
+    ]
+    if not errors and not nvenc_encoders:
+        warnings.append("No NVENC encoder was listed by configured FFmpeg.")
+    if not errors and not cpu_fallback_encoders:
+        warnings.append("No common CPU fallback encoder was listed by configured FFmpeg.")
     return {
         "schema_version": "desktop_settings_wizard_hardware_probe.v1",
-        "ok": True,
-        "detected_encoders": [],
-        "nvenc_encoders": [],
-        "cpu_fallback_encoders": [],
-        "warnings": ["Hardware probe is conservative in this build; run a real-media pilot before trusting NVENC throughput."],
-        "errors": [],
+        "ok": not errors,
+        "ffmpeg": ffmpeg,
+        "detected_encoders": detected_encoders,
+        "nvenc_encoders": nvenc_encoders,
+        "cpu_fallback_encoders": cpu_fallback_encoders,
+        "warnings": warnings,
+        "errors": errors,
     }
 
 
 def tool_candidates(resolved: ResolvedPaths) -> dict[str, list[dict[str, Any]]]:
-    pipeline_root = Path(getattr(resolved, "pipeline_root", getattr(resolved, "workspace_root", ".")))
-    bundle_bin = pipeline_root / "Tools" / "ffmpeg" / "bin"
+    candidate_roots = _tool_candidate_roots(resolved)
     return {
-        "ffmpeg": [_candidate(bundle_bin / "ffmpeg.exe", "portable_bundle")],
-        "ffprobe": [_candidate(bundle_bin / "ffprobe.exe", "portable_bundle")],
+        "ffmpeg": [_candidate(root / "ffmpeg.exe", "portable_bundle") for root in candidate_roots],
+        "ffprobe": [_candidate(root / "ffprobe.exe", "portable_bundle") for root in candidate_roots],
     }
 
 
@@ -437,6 +525,7 @@ def mark_settings_wizard_completed(service: object | None) -> dict[str, Any]:
 
 
 def wizard_changes(wizard: dict[str, Any], base_config: dict[str, Any] | None = None) -> dict[str, Any]:
+    wizard = _wizard_mapping(wizard)
     output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
     scratch = wizard.get("scratch", {}) if isinstance(wizard.get("scratch"), dict) else {}
     hardware = wizard.get("hardware", {}) if isinstance(wizard.get("hardware"), dict) else {}
@@ -445,10 +534,11 @@ def wizard_changes(wizard: dict[str, Any], base_config: dict[str, Any] | None = 
     workers = wizard.get("workers", {}) if isinstance(wizard.get("workers"), dict) else {}
     safety = wizard.get("safety", {}) if isinstance(wizard.get("safety"), dict) else {}
     libraries = _enabled_wizard_libraries(wizard)
+    outsource_root = str(output.get("root") or "")
     changes: dict[str, Any] = {
         KEY_SOURCE_MOVIES: _first_library_path(libraries, "source_movies", "movie"),
         KEY_SOURCE_TV: _first_library_path(libraries, "source_tv", "tv"),
-        KEY_OUTSOURCE: str(output.get("root") or ""),
+        KEY_OUTSOURCE: outsource_root,
         KEY_LOCAL_BASE: str(scratch.get("path") or ""),
         KEY_OUTPUT_CONTAINER: str(wizard.get("output_container") or "mkv"),
         KEY_DEFERRED_PUBLISH: str(output.get("publish_mode") or "staged_pending") == "staged_pending",
@@ -477,6 +567,8 @@ def wizard_changes(wizard: dict[str, Any], base_config: dict[str, Any] | None = 
     if any(profile.get("enabled", True) and profile.get("promotion_enabled") for profile in library_profiles):
         changes[KEY_FINAL_LIBRARY_PROMOTION_ENABLED] = True
     changes = normalize_library_profile_config_values(changes, require_profiles=True)
+    if outsource_root:
+        changes[KEY_OUTSOURCE] = outsource_root
     return {key: value for key, value in changes.items() if value not in ("", None)}
 
 
@@ -490,7 +582,39 @@ def _wizard_from_request(request: object) -> dict[str, Any]:
 
 
 def _wizard_mapping(wizard: object) -> dict[str, Any]:
-    return dict(wizard) if isinstance(wizard, dict) else {}
+    return _normalize_wizard_path_inputs(dict(wizard)) if isinstance(wizard, dict) else {}
+
+
+def _normalize_wizard_path_inputs(wizard: dict[str, Any]) -> dict[str, Any]:
+    normalized = dict(wizard)
+    for section_name, keys in (
+        ("output", ("root",)),
+        ("scratch", ("path",)),
+        ("tools", ("ffmpeg_path", "ffprobe_path")),
+    ):
+        section = normalized.get(section_name)
+        if not isinstance(section, dict):
+            continue
+        section_copy = dict(section)
+        for key in keys:
+            if key in section_copy:
+                section_copy[key] = _path_text(section_copy.get(key))
+        normalized[section_name] = section_copy
+
+    raw_libraries = normalized.get("libraries")
+    if isinstance(raw_libraries, list):
+        libraries: list[Any] = []
+        for row in raw_libraries:
+            if not isinstance(row, dict):
+                libraries.append(row)
+                continue
+            row_copy = dict(row)
+            for key in ("source_path", "output_path", "promotion_destination"):
+                if key in row_copy:
+                    row_copy[key] = _path_text(row_copy.get(key))
+            libraries.append(row_copy)
+        normalized["libraries"] = libraries
+    return normalized
 
 
 def _enabled_wizard_libraries(wizard: dict[str, Any]) -> list[dict[str, Any]]:
@@ -498,6 +622,227 @@ def _enabled_wizard_libraries(wizard: dict[str, Any]) -> list[dict[str, Any]]:
     if raw_libraries in (None, "") or not isinstance(raw_libraries, list):
         return []
     return [row for row in raw_libraries if isinstance(row, dict) and row.get("enabled", True)]
+
+
+def _wizard_runtime_directory_targets(wizard: dict[str, Any]) -> list[tuple[str, Path]]:
+    wizard = _wizard_mapping(wizard)
+    targets: list[tuple[str, Path]] = []
+    seen: set[str] = set()
+
+    def add(label: str, raw_path: Any) -> None:
+        text = _path_text(raw_path)
+        key = _path_identity_key(text)
+        if not text or not key or key in seen:
+            return
+        seen.add(key)
+        targets.append((label, Path(text)))
+
+    output = wizard.get("output", {}) if isinstance(wizard.get("output"), dict) else {}
+    scratch = wizard.get("scratch", {}) if isinstance(wizard.get("scratch"), dict) else {}
+    add("Final output", output.get("root"))
+    for library in _enabled_wizard_libraries(wizard):
+        name = str(library.get("name") or "output")
+        add(f"Library {name} output", library.get("output_path") or output.get("root"))
+        if library.get("promotion_enabled", False):
+            add(f"Library {name} promotion", library.get("promotion_destination"))
+    add("Scratch / LocalBase", scratch.get("path"))
+    return targets
+
+
+def _ensure_wizard_runtime_directories(wizard: dict[str, Any]) -> tuple[list[str], list[str]]:
+    errors: list[str] = []
+    warnings: list[str] = []
+    for label, path in _wizard_runtime_directory_targets(wizard):
+        if not path.is_absolute():
+            errors.append(f"{label} folder path must be absolute before creation: {path}")
+            continue
+        if path.exists() and not path.is_dir():
+            errors.append(f"{label} path is not a folder: {path}")
+            continue
+        if not path.exists():
+            try:
+                path.mkdir(parents=True, exist_ok=True)
+            except OSError as exc:
+                errors.append(f"{label} folder could not be created: {path} ({exc})")
+                continue
+            warnings.append(f"Created {label} folder: {path}")
+        if not path.is_dir():
+            errors.append(f"{label} path is not a folder after creation: {path}")
+            continue
+        probe_error = _directory_write_probe_error(path)
+        if probe_error:
+            errors.append(f"{label} folder is not writable: {path} ({probe_error})")
+    return _unique_strings(errors), _unique_strings(warnings)
+
+
+def _directory_write_probe_error(path: Path) -> str:
+    probe_path = path / f".mediapipeline_wizard_write_probe_{uuid4().hex}.tmp"
+    write_error = ""
+    cleanup_error = ""
+    try:
+        probe_path.write_text("write probe\n", encoding="utf-8")
+    except OSError as exc:
+        write_error = str(exc)
+    finally:
+        if probe_path.exists():
+            try:
+                probe_path.unlink()
+            except OSError as exc:
+                cleanup_error = str(exc)
+    return write_error or cleanup_error
+
+
+def _wizard_patch_request(wizard: dict[str, Any], base_config: dict[str, Any] | None = None) -> dict[str, Any]:
+    return {
+        "changes": wizard_changes(wizard, base_config),
+        "preserve_outsource_root": True,
+    }
+
+
+def _is_missing_initial_config(resolved: ResolvedPaths) -> bool:
+    config_path = Path(getattr(resolved, "config_path", ""))
+    return not dict(getattr(resolved, "config_data", {}) or {}) and not config_path.is_file()
+
+
+def _wizard_base_config(facade: object, resolved: ResolvedPaths) -> dict[str, Any]:
+    active_config = dict(getattr(resolved, "config_data", {}) or {})
+    if active_config:
+        return active_config
+    if not _is_missing_initial_config(resolved):
+        return active_config
+    return _load_first_run_template_config(facade, resolved)
+
+
+def _load_first_run_template_config(facade: object, resolved: ResolvedPaths) -> dict[str, Any]:
+    service = getattr(facade, "service", None)
+    loader = getattr(service, "load_config_data", None)
+    if not callable(loader):
+        return {}
+    for candidate in config_template_candidates(Path(resolved.app_root), Path(resolved.workspace_root)):
+        if not candidate.is_file():
+            continue
+        try:
+            data = dict(loader(candidate, resolved.powershell_host) or {})
+        except Exception:
+            continue
+        if data:
+            return data
+    return {}
+
+
+def _resolved_with_wizard_base(resolved: ResolvedPaths, base_config: dict[str, Any]) -> ResolvedPaths:
+    if not base_config or dict(getattr(resolved, "config_data", {}) or {}):
+        return resolved
+    return replace(resolved, config_data=dict(base_config), config_identity={})
+
+
+def _first_run_candidate_errors(candidate: dict[str, Any]) -> list[str]:
+    errors: list[str] = []
+    missing_required = [key for key in REQUIRED_OPERATOR_ROOT_KEYS if not str(candidate.get(key) or "").strip()]
+    if missing_required:
+        errors.append(f"Required operator root key(s) missing: {', '.join(missing_required)}.")
+    if len(candidate) < MIN_OPERATOR_CONFIG_KEY_COUNT:
+        errors.append(
+            f"Initial Settings Wizard config key count {len(candidate)} is below the operator threshold {MIN_OPERATOR_CONFIG_KEY_COUNT}."
+        )
+    if config_looks_like_template(candidate):
+        errors.append("Initial Settings Wizard config still matches the deployment template/default paths.")
+    return errors
+
+
+def _save_initial_settings_wizard(
+    facade: object,
+    resolved: ResolvedPaths,
+    wizard: dict[str, Any],
+    base_config: dict[str, Any],
+) -> CommandResult:
+    from mediapipeline.desktop.application.dto_commands import CommandResult
+
+    if not base_config:
+        message = "Settings Wizard first-run save could not load the bundled config template."
+        return CommandResult(
+            command="settings.save_patch",
+            ok=False,
+            message=message,
+            severity="error",
+            errors=[message],
+            refresh_hint=WIZARD_REFRESH_HINT,
+            data={"writes_config": False, "config_path": str(resolved.config_path)},
+        )
+    if Path(resolved.config_path).exists():
+        message = f"Settings Wizard first-run save refused to overwrite existing config: {resolved.config_path}"
+        return CommandResult(
+            command="settings.save_patch",
+            ok=False,
+            message=message,
+            severity="error",
+            errors=[message],
+            refresh_hint=WIZARD_REFRESH_HINT,
+            data={"writes_config": False, "config_path": str(resolved.config_path)},
+        )
+
+    candidate_builder = getattr(facade, "_settings_patch_candidate", None)
+    service = getattr(facade, "service", None)
+    serializer = getattr(service, "serialize_psd1_document", None)
+    saver = getattr(service, "save_config_document", None)
+    if not callable(candidate_builder) or not callable(serializer) or not callable(saver):
+        return settings_save_service_unavailable_result()
+
+    acquire_lock = getattr(facade, "_acquire_settings_save_lock", None)
+    release_lock = getattr(facade, "_release_settings_save_lock", None)
+    lock: object | None = None
+    warnings: list[str] = []
+    try:
+        if callable(acquire_lock):
+            lock, block_message = acquire_lock()
+            if block_message:
+                return settings_save_busy_result(block_message)
+        if Path(resolved.config_path).exists():
+            message = f"Settings Wizard first-run save refused to overwrite existing config: {resolved.config_path}"
+            return CommandResult(
+                command="settings.save_patch",
+                ok=False,
+                message=message,
+                severity="error",
+                errors=[message],
+                refresh_hint=WIZARD_REFRESH_HINT,
+                data={"writes_config": False, "config_path": str(resolved.config_path)},
+            )
+
+        candidate_resolved = _resolved_with_wizard_base(resolved, base_config)
+        patch = candidate_builder(
+            candidate_resolved,
+            _wizard_patch_request(wizard, base_config),
+            command="settings.wizard.save",
+        )
+        if patch["fatal_result"] is not None:
+            return patch["fatal_result"]
+        errors = list(patch["errors"])
+        warnings = list(patch["warnings"])
+        errors.extend(_first_run_candidate_errors(dict(patch["merged"])))
+        errors = _unique_strings(errors)
+        if errors:
+            return settings_save_validation_error_result(errors, warnings)
+        directory_errors, directory_warnings = _ensure_wizard_runtime_directories(wizard)
+        errors = _unique_strings([*errors, *directory_errors])
+        warnings = _unique_strings([*warnings, *directory_warnings])
+        if errors:
+            return settings_save_validation_error_result(errors, warnings)
+
+        document_text = str(serializer(patch["merged"]))
+        result = saver(
+            resolved.config_path,
+            document_text,
+            False,
+            config_values=dict(patch["merged"]),
+            powershell_host=resolved.powershell_host,
+        )
+    except Exception as exc:
+        return settings_save_exception_result(exc, warnings)
+    finally:
+        if callable(release_lock):
+            release_lock(lock)
+    return settings_save_success_result(result, patch, warnings)
 
 
 def _wizard_preview_payload(wizard: dict[str, Any], validation: dict[str, Any], preview_data: dict[str, Any], *, writes_config: bool, base_config: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -516,13 +861,25 @@ def _wizard_preview_payload(wizard: dict[str, Any], validation: dict[str, Any], 
         )
         if enabled
     ]
-    review_status = "blocked" if validation["errors"] else "warning" if validation["warnings"] else "ready"
+    preview_errors = [str(item) for item in preview_data.get("errors", []) if str(item).strip()]
+    preview_warnings = [str(item) for item in preview_data.get("warnings", []) if str(item).strip()]
+    review_status = (
+        "blocked"
+        if validation["errors"] or preview_errors
+        else "warning"
+        if validation["warnings"] or preview_warnings
+        else "ready"
+    )
     categories = [
         {"category": "Start", "status": "ready", "detail": f"Mode {wizard.get('mode') or 'first_run'}; container {wizard.get('output_container') or 'mkv'}."},
         {"category": "Paths", "status": "blocked" if path_validation["errors"] else "warning" if path_validation["warnings"] else "ready", "detail": f"{len(path_validation['rows'])} path(s) checked."},
         {"category": "Toolchain", "status": "blocked" if worker_validation["errors"] else "warning" if worker_validation["warnings"] else "ready", "detail": f"Worker mode {worker_validation['parallel_encode_mode']}; tool and encoder checks use bounded wizard routes."},
         {"category": "Policy", "status": "warning" if active_risks else "ready", "detail": f"Active risk option(s): {', '.join(active_risks) if active_risks else 'none'}."},
-        {"category": "Review & Save", "status": review_status, "detail": f"{len(changes)} setting key(s) generated."},
+        {
+            "category": "Review & Save",
+            "status": review_status,
+            "detail": f"{len(changes)} setting key(s) generated; {len(preview_errors)} backend blocker(s).",
+        },
     ]
     return {
         "schema_version": WIZARD_SCHEMA_VERSION,
@@ -534,9 +891,20 @@ def _wizard_preview_payload(wizard: dict[str, Any], validation: dict[str, Any], 
         "summary": {"categories": categories},
         "path_validation": validation["path_validation"],
         "worker_validation": validation["worker_validation"],
-        "errors": validation["errors"],
-        "warnings": validation["warnings"],
+        "errors": validation["errors"] + preview_errors,
+        "warnings": validation["warnings"] + preview_warnings,
     }
+
+
+def _unique_strings(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        unique.append(value)
+    return unique
 
 
 def _read_app_state(service: object) -> dict[str, Any]:
@@ -584,7 +952,33 @@ def _tool_defaults(resolved: ResolvedPaths, config: dict[str, Any]) -> dict[str,
     candidates = tool_candidates(resolved)
     ffmpeg = next((row["path"] for row in candidates["ffmpeg"] if row["exists"]), "")
     ffprobe = next((row["path"] for row in candidates["ffprobe"] if row["exists"]), "")
-    return {"ffmpeg_path": str(config.get("FFmpegPath") or ffmpeg), "ffprobe_path": str(config.get("FFprobePath") or ffprobe)}
+    return {"ffmpeg_path": _path_text(config.get("FFmpegPath") or ffmpeg), "ffprobe_path": _path_text(config.get("FFprobePath") or ffprobe)}
+
+
+def _tool_candidate_roots(resolved: ResolvedPaths) -> list[Path]:
+    roots: list[Path] = []
+
+    pipeline_path = getattr(resolved, "pipeline_path", None)
+    if pipeline_path:
+        pipeline_root = Path(pipeline_path).parent
+        if pipeline_root.name.casefold() == "entrypoints":
+            pipeline_root = pipeline_root.parent
+        roots.append(pipeline_root / "tools" / "ffmpeg" / "bin")
+        roots.append(pipeline_root / "Tools" / "ffmpeg" / "bin")
+
+    workspace_root = Path(getattr(resolved, "workspace_root", "."))
+    roots.append(workspace_root / "ops" / "pipeline" / "tools" / "ffmpeg" / "bin")
+    roots.append(workspace_root / "Tools" / "ffmpeg" / "bin")
+
+    unique: list[Path] = []
+    seen: set[str] = set()
+    for root in roots:
+        key = str(root).casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        unique.append(root)
+    return unique
 
 
 def _candidate(path: Path, source: str) -> dict[str, Any]:
@@ -592,7 +986,7 @@ def _candidate(path: Path, source: str) -> dict[str, Any]:
 
 
 def _tool_status(raw_path: Any) -> dict[str, Any]:
-    path_text = str(raw_path or "").strip()
+    path_text = _path_text(raw_path)
     if not path_text:
         return {"path": "", "ok": False, "exists": False, "version": "", "errors": ["tool path is not configured"]}
     path = Path(path_text)
@@ -605,6 +999,36 @@ def _tool_status(raw_path: Any) -> dict[str, Any]:
     else:
         errors = ["tool path not found"]
     return {"path": str(path), "ok": exists and is_file, "exists": exists, "version": "", "errors": errors}
+
+
+def _run_ffmpeg_encoder_listing(ffmpeg_path: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [ffmpeg_path, "-hide_banner", "-encoders"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=10,
+        check=False,
+    )
+
+
+def _parse_ffmpeg_encoder_names(output: str) -> list[str]:
+    names: list[str] = []
+    seen: set[str] = set()
+    for raw_line in str(output or "").splitlines():
+        line = raw_line.strip()
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        flags, name = parts[0], parts[1]
+        if not flags or flags[0] != "V" or "." not in flags:
+            continue
+        if name in seen:
+            continue
+        seen.add(name)
+        names.append(name)
+    return names
 
 
 def _language_list(value: Any) -> list[str]:
@@ -633,6 +1057,23 @@ def _int_value(value: Any, fallback: int) -> int:
         return int(value)
     except (TypeError, ValueError):
         return fallback
+
+
+def _path_text(raw_path: Any) -> str:
+    text = str(raw_path or "").strip()
+    if len(text) >= 2 and text[0] == text[-1] and text[0] in {"'", '"'}:
+        return text[1:-1].strip()
+    return text
+
+
+def _path_identity_key(raw_path: Any) -> str:
+    text = _path_text(raw_path)
+    if not text:
+        return ""
+    normalized = str(Path(text)).replace("/", "\\")
+    while len(normalized) > 3 and normalized.endswith("\\"):
+        normalized = normalized[:-1]
+    return normalized.casefold()
 
 
 def _encode_tuning_for_strategy(strategy: str) -> str:

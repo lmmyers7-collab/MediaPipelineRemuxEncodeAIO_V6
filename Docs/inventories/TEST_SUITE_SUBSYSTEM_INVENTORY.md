@@ -417,7 +417,7 @@ Tests for coordinator/worker state, persistence, auth, source policy, mDNS, loca
 | `test_network_local_ip.py` | Local IP selection helpers |
 | `test_network_mdns.py` | mDNS registration/discovery helpers |
 | `test_application_facade_network.py` | Application-facade read-only Network worker-state metadata, progress bars, backend-authored heartbeat age, state-file evidence, and lifecycle-control absence |
-| `test_webview_network_read_only_boundary.py` | Rendered Workers page read-only boundary, diagnostics-open-only buttons, design-only lifecycle contract display reference, and route-effect checks |
+| `test_webview_network_read_only_boundary.py` | Rendered Workers page network boundary, diagnostics buttons, backend-owned lifecycle buttons, disabled future controls, lifecycle contract display reference, and route-effect checks |
 
 Targeted command:
 
@@ -561,7 +561,7 @@ Static and scaffold tests for Tauri shell setup and WebView JS assets.
 | `test_webview_inventory_docs.py` | Rendered DOM ID inventory drift, WebView global export inventory/manifest drift, and `window.mediaPipeline*` namespace object JSDoc boundary coverage |
 | `test_webview_navigation_static.py` | WebView rendered HTML/JS asset structure, nav links, DOM ID uniqueness |
 | `test_webview_frontend_mutation_boundary.py` | WebView `apiPost` call ownership, documented POST route usage, shell-open selector payloads, confirmation payloads, centralized fetch, no direct frontend filesystem/process/Tauri APIs except the event-only `tauriLifecycleBridge.js`, lifecycle bridge read-only assertions, frontend media-policy risk helpers labelled advisory-only, and repair/reconcile command-route exposure blocked while `/api/contract` remains design-only with dry-run/rollback/source-policy/exposure fields |
-| `test_webview_network_read_only_boundary.py` | Rendered WebView Workers page read-only boundary, diagnostics-open-only buttons, no lifecycle controls, design-only lifecycle contract display reference, and `/api/network/workers` as the only network route |
+| `test_webview_network_read_only_boundary.py` | Rendered WebView Workers page network boundary, diagnostics buttons, backend-owned lifecycle controls, disabled future controls, lifecycle contract display reference, and `/api/network/workers` plus Network lifecycle routes |
 
 Targeted command:
 

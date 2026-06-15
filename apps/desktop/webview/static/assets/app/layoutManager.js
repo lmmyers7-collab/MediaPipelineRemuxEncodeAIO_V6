@@ -18,6 +18,10 @@
 
   let _layoutDrawerDragSource = null;
 
+  let _layoutDrawerPointerDrag = null;
+
+  let _layoutDrawerPointerDragCleanup = null;
+
   let _layoutResetAllArmed = false;
 
   let _layoutResetAllForced = false;
@@ -109,9 +113,14 @@
     return h?.textContent?.trim() || "Panel";
   }
 
+  function _layoutPanelIsEditorExcluded(panel) {
+    return Boolean(panel?.hasAttribute?.("data-layout-editor-exclude"));
+  }
+
   function _layoutPanelsInContainer(container) {
     if (!container) return [];
-    return Array.from(container.querySelectorAll(":scope > section.panel[data-panel-key]"));
+    return Array.from(container.querySelectorAll(":scope > section.panel[data-panel-key]"))
+      .filter((panel) => !_layoutPanelIsEditorExcluded(panel));
   }
 
   function _layoutSetStatus(message) {
@@ -253,12 +262,12 @@
   function _layoutSiblingPanels(panel) {
     const container = panel?.parentElement;
     if (!container) return [];
-    return Array.from(container.querySelectorAll(":scope > section.panel[data-panel-key]"));
+    return _layoutPanelsInContainer(container);
   }
 
   function _syncPanelMoveButtons(container) {
     if (!container) return;
-    const panels = Array.from(container.querySelectorAll(":scope > section.panel[data-panel-key]"));
+    const panels = _layoutPanelsInContainer(container);
     panels.forEach((panel, index) => {
       const up = panel.querySelector(".pcb-btn-move-up");
       const down = panel.querySelector(".pcb-btn-move-down");
@@ -443,6 +452,41 @@
     return true;
   }
 
+  function _layoutPanelForDrawerRow(row) {
+    const panelKey = row?.dataset?.layoutEditorPanelKey || "";
+    const containerKey = row?.dataset?.layoutEditorContainerKey || "";
+    const container = _layoutContainerByKey(containerKey);
+    if (!panelKey || !container) return null;
+    return _layoutPanelsInContainer(container).find((panel) => (
+      (panel.dataset.panelKey || "") === panelKey
+    )) || null;
+  }
+
+  function _layoutDrawerPointerClient(event) {
+    return {
+      x: Number.isFinite(event?.clientX) ? Math.max(0, Math.min(window.innerWidth - 1, event.clientX)) : 0,
+      y: Number.isFinite(event?.clientY) ? Math.max(0, Math.min(window.innerHeight - 1, event.clientY)) : 0,
+    };
+  }
+
+  function _layoutDrawerRowFromPoint(event) {
+    const point = _layoutDrawerPointerClient(event);
+    const hit = document.elementFromPoint?.(point.x, point.y);
+    return hit?.closest?.(".layout-editor-panel-row[data-layout-editor-panel-key]")
+      || event?.target?.closest?.(".layout-editor-panel-row[data-layout-editor-panel-key]")
+      || null;
+  }
+
+  function _layoutDrawerDropStateForRow(row, event) {
+    if (!row) return { qualifies: false, after: false };
+    const rect = row.getBoundingClientRect();
+    const clientY = Number.isFinite(event?.clientY) ? event.clientY : rect.top;
+    return {
+      qualifies: rect.height > 0,
+      after: clientY > rect.top + rect.height / 2,
+    };
+  }
+
   function _layoutDrawerContainers(page) {
     return _layoutManagedContainers(page)
       .filter((container) => _layoutPanelsInContainer(container).length > 0);
@@ -465,6 +509,23 @@
 
   function _layoutDrawerIsOpen() {
     return document.body.classList.contains("layout-editor-open");
+  }
+
+  function _setLayoutDrawerAccessibility(open) {
+    const drawer = byId("layout-editor-drawer");
+    if (!drawer) return;
+    if (open) {
+      drawer.hidden = false;
+      drawer.inert = false;
+      drawer.removeAttribute("inert");
+      drawer.setAttribute("aria-hidden", "false");
+      return;
+    }
+    if (drawer.contains(document.activeElement)) byId("customize-layout-btn")?.focus();
+    drawer.inert = true;
+    drawer.setAttribute("inert", "");
+    drawer.setAttribute("aria-hidden", "true");
+    drawer.hidden = true;
   }
 
   function _layoutClickTabButton(page, datasetKey, value) {
@@ -640,10 +701,135 @@
     location.reload();
   }
 
-  function _layoutClearDrawerDropState() {
-    document.querySelectorAll(".layout-editor-panel-row.is-dragging, .layout-editor-panel-row.is-drop-target").forEach((row) => {
-      row.classList.remove("is-dragging", "is-drop-target", "is-drop-after");
+  function _layoutClearDrawerDropState(except = null) {
+    document.querySelectorAll(".layout-editor-panel-row.is-drop-target").forEach((row) => {
+      if (except && row === except) return;
+      row.classList.remove("is-drop-target", "is-drop-after");
     });
+  }
+
+  function _layoutClearDrawerDragState() {
+    document.querySelectorAll(".layout-editor-panel-row.is-dragging, .layout-editor-panel-row.is-drag-holding").forEach((row) => {
+      row.classList.remove("is-dragging", "is-drag-holding");
+    });
+  }
+
+  function _layoutResetDrawerPointerDragState() {
+    _layoutDrawerDragSource = null;
+    _layoutClearDrawerDropState();
+    _layoutClearDrawerDragState();
+    _layoutDrawerPointerDrag = null;
+    if (_layoutDrawerPointerDragCleanup) {
+      const cleanup = _layoutDrawerPointerDragCleanup;
+      _layoutDrawerPointerDragCleanup = null;
+      cleanup();
+    }
+  }
+
+  function _layoutUpdateDrawerPointerDrag(event) {
+    const drag = _layoutDrawerPointerDrag;
+    if (!drag) return;
+    const clientX = Number.isFinite(event?.clientX) ? event.clientX : drag.startX;
+    const clientY = Number.isFinite(event?.clientY) ? event.clientY : drag.startY;
+    const dx = Math.abs(clientX - drag.startX);
+    const dy = Math.abs(clientY - drag.startY);
+    if (!drag.started && dx + dy >= 4) {
+      drag.started = true;
+      drag.sourceRow.classList.add("is-dragging");
+    }
+
+    const row = _layoutDrawerRowFromPoint(event);
+    if (
+      !row
+      || row === drag.sourceRow
+      || row.dataset.layoutEditorContainerKey !== drag.containerKey
+    ) {
+      drag.dropRow = null;
+      drag.dropAfter = false;
+      _layoutClearDrawerDropState();
+      return;
+    }
+
+    const dropState = _layoutDrawerDropStateForRow(row, event);
+    if (!dropState.qualifies) {
+      drag.dropRow = null;
+      drag.dropAfter = false;
+      _layoutClearDrawerDropState();
+      return;
+    }
+
+    drag.dropRow = row;
+    drag.dropAfter = dropState.after;
+    _layoutClearDrawerDropState(row);
+    row.classList.add("is-drop-target");
+    row.classList.toggle("is-drop-after", dropState.after);
+  }
+
+  function _layoutFinishDrawerPointerDrag(event) {
+    const drag = _layoutDrawerPointerDrag;
+    if (!drag) return;
+    _layoutUpdateDrawerPointerDrag(event);
+    const targetPanel = drag.dropRow ? _layoutPanelForDrawerRow(drag.dropRow) : null;
+    let moved = false;
+    if (targetPanel && _layoutMovePanelRelative(drag.panel, targetPanel, drag.dropAfter)) {
+      _layoutDrawerSelectedContainerKey = drag.containerKey;
+      _layoutDrawerSelectedPanelKey = drag.panel.dataset.panelKey || "";
+      _layoutSetStatus(`${_layoutPanelTitle(drag.panel)} moved within ${_layoutContainerLabel(drag.container)}.`);
+      moved = true;
+    }
+    _layoutResetDrawerPointerDragState();
+    if (moved) _layoutRenderDrawer({ preserveStatus: true });
+  }
+
+  function _onLayoutDrawerGripPointerDown(event) {
+    if (!_layoutDrawerIsOpen()) return;
+    if (event.button !== undefined && event.button !== 0) return;
+    const grip = event.currentTarget;
+    const row = grip?.closest?.(".layout-editor-panel-row[data-layout-editor-panel-key]");
+    const panel = _layoutPanelForDrawerRow(row);
+    const containerKey = row?.dataset?.layoutEditorContainerKey || "";
+    const container = _layoutContainerByKey(containerKey);
+    if (!row || !panel || !container) return;
+
+    if (_layoutDrawerPointerDrag) _layoutResetDrawerPointerDragState();
+    event.preventDefault();
+    event.stopPropagation();
+
+    _layoutDrawerDragSource = { panel, containerKey };
+    row.classList.add("is-drag-holding");
+    _layoutDrawerPointerDrag = {
+      sourceRow: row,
+      panel,
+      container,
+      containerKey,
+      startX: Number.isFinite(event.clientX) ? event.clientX : 0,
+      startY: Number.isFinite(event.clientY) ? event.clientY : 0,
+      started: false,
+      dropRow: null,
+      dropAfter: false,
+    };
+
+    try { grip.setPointerCapture?.(event.pointerId); } catch (_) {}
+    const pointerId = event.pointerId;
+    const move = (moveEvent) => _layoutUpdateDrawerPointerDrag(moveEvent);
+    const release = (releaseEvent) => _layoutFinishDrawerPointerDrag(releaseEvent);
+    const cancel = () => _layoutResetDrawerPointerDragState();
+    const keyCancel = (keyEvent) => {
+      if (keyEvent.key === "Escape") cancel();
+    };
+    _layoutDrawerPointerDragCleanup = () => {
+      try { grip.releasePointerCapture?.(pointerId); } catch (_) {}
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", release);
+      document.removeEventListener("pointercancel", cancel);
+      document.removeEventListener("keydown", keyCancel);
+      window.removeEventListener("blur", cancel);
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", release);
+    document.addEventListener("pointercancel", cancel);
+    document.addEventListener("keydown", keyCancel);
+    window.addEventListener("blur", cancel);
   }
 
   function _layoutCreateDrawerButton(label, className, onClick, disabled = false) {
@@ -770,6 +956,7 @@
         );
   
         row.append(grip, name, actions);
+        grip.addEventListener("pointerdown", _onLayoutDrawerGripPointerDown);
         row.addEventListener("click", (event) => {
           if (event.target?.closest?.("button")) return;
           _layoutSelectPanel(panel);
@@ -815,6 +1002,7 @@
         row.addEventListener("dragend", () => {
           _layoutDrawerDragSource = null;
           _layoutClearDrawerDropState();
+          _layoutClearDrawerDragState();
         });
         list.appendChild(row);
       });
@@ -929,7 +1117,7 @@
   function _savePanelOrder(container) {
     if (!container) return;
     const containerKey = _layoutContainerKey(container);
-    const panels = Array.from(container.querySelectorAll(":scope > section.panel[data-panel-key]"));
+    const panels = _layoutPanelsInContainer(container);
     const state = _loadLayout();
     state[`__order__${containerKey}`] = panels.map((p) => p.dataset.panelKey || "");
     _saveLayout(state);
@@ -1205,11 +1393,13 @@
     Array.from(container.querySelectorAll(":scope > div[data-advanced]")).forEach((wrapper) => {
       Array.from(wrapper.querySelectorAll(":scope > section.panel")).forEach((p) => {
         p.dataset.advancedDefault = "true";
+        if (_layoutPanelIsEditorExcluded(p)) p.setAttribute("data-advanced", "");
         wrapper.parentNode.insertBefore(p, wrapper);
       });
       if (wrapper.children.length === 0) wrapper.remove();
     });
     Array.from(container.querySelectorAll(":scope > section.panel[data-advanced]")).forEach((p) => {
+      if (_layoutPanelIsEditorExcluded(p)) return;
       p.dataset.advancedDefault = "true";
       p.removeAttribute("data-advanced");
     });
@@ -1276,7 +1466,8 @@
     // This prevents silent localStorage corruption without requiring any HTML changes.
     const _keySeen = new Map();
   
-    const panels = Array.from(container.querySelectorAll(":scope > section.panel"));
+    const panels = Array.from(container.querySelectorAll(":scope > section.panel"))
+      .filter((panel) => !_layoutPanelIsEditorExcluded(panel));
     panels.forEach((panel) => {
       let key = _panelKey(containerKey, panel);
       const seen = (_keySeen.get(key) || 0) + 1;
@@ -1381,8 +1572,7 @@
     const resetBtn = byId("reset-layout-btn");
     function enterCustomize() {
       document.body.classList.add("layout-editor-open");
-      const drawer = byId("layout-editor-drawer");
-      if (drawer) drawer.setAttribute("aria-hidden", "false");
+      _setLayoutDrawerAccessibility(true);
       if (customizeBtn) {
         customizeBtn.setAttribute("aria-pressed", "true");
         customizeBtn.dataset.state = "on";
@@ -1399,8 +1589,7 @@
     }
     function exitCustomize() {
       document.body.classList.remove("layout-editor-open");
-      const drawer = byId("layout-editor-drawer");
-      if (drawer) drawer.setAttribute("aria-hidden", "true");
+      _setLayoutDrawerAccessibility(false);
       if (customizeBtn) {
         customizeBtn.setAttribute("aria-pressed", "false");
         customizeBtn.dataset.state = "off";
@@ -1436,14 +1625,25 @@
     const resetSubtab = byId("layout-editor-reset-subtab");
     if (resetSubtab) {
       resetSubtab.addEventListener("click", () => {
+        if (!_layoutDrawerIsOpen()) return;
         const container = _layoutContainerByKey(_layoutDrawerSelectedContainerKey) || _layoutDefaultSelectedContainer(_layoutActivePage());
         _layoutResetContainer(container);
       });
     }
     const resetPage = byId("layout-editor-reset-page");
-    if (resetPage) resetPage.addEventListener("click", _layoutResetVisiblePage);
+    if (resetPage) {
+      resetPage.addEventListener("click", () => {
+        if (!_layoutDrawerIsOpen()) return;
+        _layoutResetVisiblePage();
+      });
+    }
     const resetAll = byId("layout-editor-reset-all");
-    if (resetAll) resetAll.addEventListener("click", () => _layoutRequestResetAll(resetAll));
+    if (resetAll) {
+      resetAll.addEventListener("click", () => {
+        if (!_layoutDrawerIsOpen()) return;
+        _layoutRequestResetAll(resetAll);
+      });
+    }
   }
 
   /**

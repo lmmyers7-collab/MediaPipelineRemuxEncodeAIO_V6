@@ -181,6 +181,47 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(history_status, 200)
         self.assertEqual(history["entries"], [])
 
+    def test_rename_clean_filename_preview_rejects_invalid_query_json_without_command_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            server = LocalApiServer(facade, token="rename-token")
+            try:
+                server.start()
+                rejected: list[tuple[int, dict]] = []
+                for key, value in (
+                    ("movie_filter_options", "NaN"),
+                    ("movie_filter_options", "Infinity"),
+                    ("movie_filter_terms", '{"release_groups":'),
+                ):
+                    query = "&".join(
+                        f"{query_key}={quote(query_value, safe='')}"
+                        for query_key, query_value in {
+                            "filename": "Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir.mkv",
+                            key: value,
+                        }.items()
+                    )
+                    rejected.append(
+                        self._get_json(
+                            f"{server.url}/api/rename/clean-filename-preview?{query}",
+                            token="rename-token",
+                        )
+                    )
+                history_status, history = self._get_json(f"{server.url}/api/commands?limit=5", token="rename-token")
+            finally:
+                server.stop()
+
+        for status, payload in rejected:
+            self.assertEqual(status, 400)
+            self.assertEqual(payload["path"], "/api/rename/clean-filename-preview")
+            self.assertIn("invalid query parameter", payload["error"])
+        self.assertIn("non-finite JSON value is not allowed", rejected[0][1]["error"])
+        self.assertIn("non-finite JSON value is not allowed", rejected[1][1]["error"])
+        self.assertIn("movie_filter_terms", rejected[2][1]["error"])
+        self.assertEqual(history_status, 200)
+        self.assertEqual(history["entries"], [])
+
     def test_rename_filter_settings_persist_and_feed_saved_preview_policy(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -511,6 +552,42 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(commands_status, 200)
         self.assertEqual(commands["entries"], [])
 
+    def test_local_api_network_lifecycle_dry_run_does_not_write_command_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+            }
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+            )
+            try:
+                server.start()
+                status, payload = self._post_json(
+                    f"{server.url}/api/network/coordinator/start-dry-run",
+                    {"reason": "operator check"},
+                    token="test-token",
+                )
+                commands_status, commands = self._get_json(f"{server.url}/api/commands?limit=10", token="test-token")
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        self.assertTrue(payload["data"]["dry_run_only"])
+        self.assertEqual(payload["data"]["effect"], "none")
+        self.assertTrue(payload["data"]["suppress_command_journal"])
+        self.assertEqual(commands_status, 200)
+        self.assertEqual(commands["entries"], [])
+
     def test_local_api_settings_reload_failure_is_logged(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -762,11 +839,12 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("/api/launch/preflight", contract["auth"]["token_routes"])
         self.assertIn("/api/commands", contract["auth"]["token_routes"])
         self.assertIn("/api/network/workers", contract["auth"]["token_routes"])
+        self.assertIn("/api/network/worker/test-connection", contract["auth"]["token_routes"])
         self.assertIn("/api/audit-controls", contract["auth"]["token_routes"])
         self.assertIn("/api/audit/export-rerun-csv", contract["auth"]["token_routes"])
-        self.assertEqual(contract["network_lifecycle_summary"]["status"], "design_only_no_lifecycle_routes")
-        self.assertFalse(contract["network_lifecycle_summary"]["mutation_enabled"])
-        self.assertFalse(contract["network_lifecycle_summary"]["frontend_allowed"])
+        self.assertEqual(contract["network_lifecycle_summary"]["status"], "backend_lifecycle_routes_available_provider_guarded")
+        self.assertTrue(contract["network_lifecycle_summary"]["mutation_enabled"])
+        self.assertTrue(contract["network_lifecycle_summary"]["frontend_allowed"])
         network_lifecycle_commands = {item["candidate_command"] for item in contract["network_lifecycle_contracts"]}
         self.assertIn("network.coordinator.start", network_lifecycle_commands)
         self.assertIn("network.coordinator.stop", network_lifecycle_commands)
@@ -821,6 +899,36 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(paths_by_effect["/api/schedule/preview"], "none")
         self.assertEqual(paths_by_effect["/api/schedule/save"], "app-state-write")
         self.assertEqual(paths_by_effect["/api/network/workers"], "none")
+        self.assertEqual(paths_by_effect["/api/network/worker/test-connection"], "none")
+        lifecycle_routes = {
+            route["path"]: route
+            for route in contract["routes"]
+            if str(route["path"]).startswith("/api/network/")
+            and route.get("network_lifecycle")
+        }
+        self.assertEqual(
+            sorted(lifecycle_routes),
+            [
+                "/api/network/coordinator/start",
+                "/api/network/coordinator/start-dry-run",
+                "/api/network/coordinator/stop",
+                "/api/network/coordinator/stop-dry-run",
+                "/api/network/worker/start",
+                "/api/network/worker/start-dry-run",
+                "/api/network/worker/stop",
+                "/api/network/worker/stop-dry-run",
+            ],
+        )
+        for path, route in lifecycle_routes.items():
+            with self.subTest(path=path):
+                is_dry_run = path.endswith("-dry-run")
+                self.assertEqual(route["owner"], "Network")
+                self.assertTrue(route["frontend_exposed"])
+                self.assertEqual(route["requires_confirmation"], not is_dry_run)
+                self.assertEqual(route["journaled"], not is_dry_run)
+                self.assertEqual(route["network_lifecycle"]["role"], "worker" if "/worker/" in path else "coordinator")
+                self.assertEqual(route["network_lifecycle"]["action"], "stop" if "/stop" in path else "start")
+                self.assertEqual(route["network_lifecycle"]["dry_run"], is_dry_run)
         self.assertEqual(paths_by_effect["/api/diagnostics/open"], "shell-open")
         self.assertEqual(paths_by_effect["/api/diagnostics/tdarr-matrix-audit"], "diagnostic-process")
         self.assertEqual(paths_by_effect["/api/settings/browse-path"], "shell-dialog")
@@ -2430,10 +2538,16 @@ class LocalApiServerTests(unittest.TestCase):
                 encoding="utf-8",
             )
             resolved = _resolved(root)
+            resolved.source_movies = root / "Movies"
+            resolved.source_tv = root / "TV"
             resolved.config_data = {
                 "RoutingProfile": "plex_direct_stream",
                 "SizeGuardMode": "advisory",
+                "NetworkRole": "standalone",
                 "ApiToken": "secret-token",
+                "SourceMovies": str(root / "Movies"),
+                "SourceTV": str(root / "TV"),
+                "Outsource": str(root / "Outsource"),
             }
             resolved.queue_snapshot_path = snapshot_path
             pending_root = root / "PendingServerPush"
@@ -2563,6 +2677,11 @@ class LocalApiServerTests(unittest.TestCase):
                 )
             (root / "RunLogs").mkdir()
             service = DummyWorkflowFacadeService(root)
+            service.cleanup_stale_launch_guards = lambda _resolved_arg: []  # type: ignore[method-assign]
+            service.find_related_pipeline_processes = lambda _resolved_arg, job_kinds=None: []  # type: ignore[method-assign]
+            service.active_job_close_block_messages = lambda _resolved_arg, job_kinds=None: []  # type: ignore[method-assign]
+            service.read_progress = lambda _resolved_arg: {}  # type: ignore[method-assign]
+            service.read_audit_progress = lambda _resolved_arg: {}  # type: ignore[method-assign]
             service.backfill_completed_manifest = lambda resolved, **_kwargs: (  # type: ignore[method-assign]
                 True,
                 "\n".join(
@@ -2928,7 +3047,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(rename_apply_status, 200)
         self.assertEqual(rename_apply_payload["schema_version"], "desktop_command_result.v1")
         self.assertEqual(rename_apply_payload["command"], "rename.apply")
-        self.assertTrue(rename_apply_payload["ok"])
+        self.assertTrue(rename_apply_payload["ok"], rename_apply_payload)
         Path(str(rename_apply_payload["data"]["undo_manifest"])).unlink(missing_ok=True)
         self.assertEqual(validate_status, 200)
         self.assertEqual(validate_payload["schema_version"], "desktop_command_result.v1")
@@ -3041,14 +3160,62 @@ class LocalApiServerTests(unittest.TestCase):
 
         self.assertEqual(missing_status, 200)
         self.assertEqual(false_status, 200)
-        self.assertEqual(string_false_status, 200)
-        for result in (missing, false, string_false):
+        self.assertEqual(string_false_status, 400)
+        for result in (missing, false):
             self.assertEqual(result["schema_version"], "desktop_command_result.v1")
             self.assertEqual(result["command"], "rename.apply")
             self.assertFalse(result["ok"])
             self.assertEqual(result["severity"], "warning")
             self.assertIn("confirmation", result["message"].lower())
             self.assertIn("confirm_apply must be true.", result["warnings"])
+        self.assertIn("invalid API command payload", string_false["error"])
+        self.assertIn("confirm_apply", string_false["error"])
+        self.assertTrue(media_still_exists)
+        self.assertFalse(destination_exists)
+
+    def test_local_api_rename_apply_blocks_active_work_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            media = root / "Serial Experiments Lain E01 Weird.mkv"
+            media.write_text("media", encoding="utf-8")
+            service = DummyWorkflowFacadeService(root)
+            resolved = _resolved(root)
+            service.cleanup_stale_launch_guards = lambda _resolved_arg: []  # type: ignore[method-assign]
+            service.find_related_pipeline_processes = lambda _resolved_arg, job_kinds=None: []  # type: ignore[method-assign]
+            service.active_job_close_block_messages = (  # type: ignore[method-assign]
+                lambda _resolved_arg, job_kinds=None: ["ActiveJobs record launch.json reports pipeline work as active."]
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            server = LocalApiServer(facade, token="rename-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                status, result = self._post_json(
+                    f"{server.url}/api/rename/apply",
+                    {
+                        "paths": [str(media)],
+                        "mode": "tv",
+                        "show_name": "Serial Experiments Lain",
+                        "season": "S01",
+                        "start_episode": "E01",
+                        "selected_sources": [str(media)],
+                        "use_pipeline_naming_preview": False,
+                        "confirm_apply": True,
+                    },
+                    token="rename-token",
+                )
+            finally:
+                server.stop()
+            destination = root / "Serial Experiments Lain - S01E01 - Weird.mkv"
+            media_still_exists = media.exists()
+            destination_exists = destination.exists()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(result["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(result["command"], "rename.apply")
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["severity"], "error")
+        self.assertEqual(result["errors"], ["active_work"])
+        self.assertIn("ActiveJobs still reports active work", result["message"])
         self.assertTrue(media_still_exists)
         self.assertFalse(destination_exists)
 
@@ -3136,9 +3303,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(rejected_status, 200)
         self.assertFalse(rejected["ok"])
         self.assertIn("outside configured media roots", rejected["message"])
-        self.assertEqual(string_rejected_status, 200)
-        self.assertFalse(string_rejected["ok"])
-        self.assertIn("outside configured media roots", string_rejected["message"])
+        self.assertEqual(string_rejected_status, 400)
+        self.assertIn("allow_outside_configured_roots", string_rejected["error"])
         self.assertEqual(allowed_status, 200)
         self.assertTrue(allowed["ok"])
         self.assertTrue(destination_exists)
@@ -4077,11 +4243,11 @@ class LocalApiServerTests(unittest.TestCase):
         )
         self.assertLess(
             completed_page_html.index('data-open-target-row-actions="completed"'),
-            completed_page_html.index("<h2>Selected File</h2>"),
+            completed_page_html.index("<h2>Why This Output Looks Different</h2>"),
         )
         self.assertLess(
             completed_page_html.index('id="completed-open-status"'),
-            completed_page_html.index("<h2>Selected File</h2>"),
+            completed_page_html.index("<h2>Why This Output Looks Different</h2>"),
         )
         self.assertIn('targetDataset: "openCompleted"', js)
         self.assertIn("Play Output", js)
@@ -4160,7 +4326,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("report-progress-summary", html)
         self.assertIn("report-path-rows", html)
         self.assertIn("report-root-rows", html)
-        self.assertIn("report-warnings", html)
+        self.assertIn("report-warning-status", html)
+        self.assertIn("report-warning-rows", html)
         self.assertIn("failure-filter", html)
         self.assertIn("failure-source-markers", html)
         self.assertIn("failure-rows", html)
@@ -4168,6 +4335,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("failure-summary", html)
         self.assertIn("failure-review-status", html)
         self.assertIn("failure-review-board", html)
+        self.assertIn("failure-review-board-detail", html)
         self.assertIn("failure-detail", html)
         self.assertIn("failure-clear-status", html)
         self.assertIn("failure-clear-summary", html)
@@ -4177,7 +4345,9 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("failure-clear-visible-button", html)
         self.assertIn("failure-preview-all-clear-button", html)
         self.assertIn("failure-clear-all-button", html)
-        self.assertIn("Clear Errors", html)
+        self.assertIn("Clear Selected", html)
+        self.assertIn("Clear Visible", html)
+        self.assertIn("Clear All", html)
         self.assertIn("audit-preview-filter", html)
         self.assertIn("audit-preview-priority-only", html)
         self.assertIn("audit-preview-rows", html)
@@ -4197,6 +4367,18 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("network-role", html)
         self.assertIn("network-readiness-status", html)
         self.assertIn("network-readiness-summary", html)
+        self.assertIn('data-network-tab="coordinator"', html)
+        self.assertIn('data-network-tab="worker"', html)
+        self.assertIn('data-network-tab-panel="coordinator"', html)
+        self.assertIn('data-network-tab-panel="worker"', html)
+        self.assertIn("network-coordinator-overview-status", html)
+        self.assertIn("network-coordinator-overview-summary", html)
+        self.assertIn("network-coordinator-active-rows", html)
+        self.assertIn("network-coordinator-queue-rows", html)
+        self.assertIn("network-worker-overview-status", html)
+        self.assertIn("network-worker-overview-summary", html)
+        self.assertIn("network-worker-claim-rows", html)
+        self.assertIn("network-worker-remote-queue-summary", html)
         self.assertIn("network-lifecycle-status", html)
         self.assertIn("network-lifecycle-summary", html)
         self.assertIn("network-lifecycle-rows", html)
@@ -4223,12 +4405,15 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("network-worker-detail", html)
         self.assertIn("network-worker-status-filter", html)
         self.assertIn("network-worker-filter", html)
-        self.assertIn("Worker Mode Settings", html)
+        self.assertIn("Distributed Mode Settings", html)
         self.assertIn("settings-network-role", html)
         self.assertIn("settings-network-coordinator-port", html)
         self.assertIn("settings-network-worker-url", html)
         self.assertIn("settings-network-path-map", html)
         self.assertIn("settings-network-apply-button", html)
+        self.assertIn("network-role-setup-dialog", html)
+        self.assertIn("network-role-coordinator-setup-button", html)
+        self.assertIn("network-role-worker-setup-button", html)
         self.assertIn("network-settings-preview-button", html)
         self.assertIn("network-settings-save-button", html)
         self.assertIn("network-settings-patch-handoff", html)
@@ -4254,9 +4439,16 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("maintenance-dry-run-confidence", html)
         self.assertIn("release-dry-run-button", html)
         self.assertIn("release-build-button", html)
+        self.assertIn("Preview Deployment", html)
+        self.assertIn("Zip package", html)
+        self.assertIn("Verify package", html)
+        self.assertIn("Preview Deployment runs the release builder with DryRun", html)
         self.assertIn("release-build-force", html)
         self.assertIn("release-build-detail", html)
         self.assertIn("release-build-progress-bars", html)
+        self.assertIn("release-package-status-strip", html)
+        self.assertIn("release-dry-run-state-value", html)
+        self.assertIn("release-build-state-value", html)
         self.assertIn("release-dry-run-detail", html)
         self.assertIn("release-dry-run-progress-bars", html)
         self.assertIn("release-dry-run-optional-tools", html)
@@ -4358,7 +4550,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Rename Movie Cleaning Filters", html)
         self.assertIn('data-rename-movie-filter="video_source"', html)
         self.assertIn("rename-workbench", html)
-        self.assertIn("Rename Files", html)
+        self.assertIn("Choose Files", html)
         self.assertIn("rename-stage-files-heading", html)
         self.assertIn("rename-file-source-status", html)
         self.assertIn("rename-file-source-summary", html)
@@ -4799,7 +4991,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("timeoutValue(options.timeoutMs, 0)", api_client_js)
         self.assertIn("const raw = await response.text()", api_client_js)
         self.assertIn("JSON.parse(raw)", api_client_js)
-        self.assertIn("raw.slice(0, 500)", api_client_js)
+        self.assertIn('raw.trim().replace(/\\s+/g, " ").slice(0, 500)', api_client_js)
         self.assertIn("data.error || data.message || `HTTP ${response.status}`", api_client_js)
         self.assertNotIn("await response.json()", api_client_js)
         self.assertIn("window.mediaPipelineDom", dom_helpers_js)
@@ -5181,7 +5373,8 @@ class LocalApiServerTests(unittest.TestCase):
             "<h2>Collision Risk</h2>",
             "<h2>Backend-Excluded Source Files</h2>",
         ]
-        queue_panel_positions = [html.index(marker) for marker in queue_panel_order]
+        queue_page_html = html[html.index('data-page-panel="queue"') :]
+        queue_panel_positions = [queue_page_html.index(marker) for marker in queue_panel_order]
         self.assertEqual(queue_panel_positions, sorted(queue_panel_positions))
         self.assertIn("Row-level excluded-file detail: unavailable", queue_view_js)
         self.assertIn("function renderQueueDetail", queue_view_js)
@@ -5525,7 +5718,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Suggested open targets:", pending_publish_view_js)
         self.assertIn("Real-media validation checklist:", pending_publish_view_js)
         self.assertIn("Real-media sample trace: Pending Publish", pending_publish_view_js)
-        self.assertIn("What remains unproven: final publish completion until Publish Parked Outputs succeeds", pending_publish_view_js)
+        self.assertIn("What remains unproven: final publish completion until Drain Parked Outputs succeeds", pending_publish_view_js)
         self.assertIn("Mutation guardrail: this checklist", pending_publish_view_js)
         self.assertIn("Selected pending-row review checklist:", pending_publish_view_js)
         self.assertIn("Selected pending-row quick signal:", pending_publish_view_js)
@@ -5542,7 +5735,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("move, delete, drain, repair, or rewrite pending payloads", pending_publish_view_js)
         self.assertIn("appendDiagnosticsBridgeGroupedButtons(container, actions", pending_publish_diagnostics_js)
         self.assertIn("Safe next action: do not drain; inspect row targets, Pending Publish diagnostics, Last Stderr, and Run Logs first.", pending_publish_view_js)
-        self.assertIn("Safe next action: row looks ready, but use only the backend-owned Publish Parked Outputs command to move files.", pending_publish_view_js)
+        self.assertIn("Safe next action: row looks ready, but use only the backend-owned Drain Parked Outputs command to move files.", pending_publish_view_js)
         self.assertIn("Health blockers:", pending_publish_view_js)
         self.assertIn("Drain recommendation:", pending_publish_view_js)
         self.assertIn("Operator guidance:", pending_publish_view_js)
@@ -5613,14 +5806,14 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderPendingDrainActionConfidence", pending_publish_confidence_js)
         self.assertIn("entry.evidenceClass", pending_publish_confidence_js)
         self.assertIn("Pending Publish drain action confidence:", pending_publish_confidence_js)
-        self.assertIn("This is the final read-only operator handoff before Publish Parked Outputs.", pending_publish_confidence_js)
-        self.assertIn("Backend Publish Parked Outputs remains the only authority that can validate and move parked files.", pending_publish_confidence_js)
+        self.assertIn("This is the final read-only operator handoff before Drain Parked Outputs.", pending_publish_confidence_js)
+        self.assertIn("Backend Drain Parked Outputs remains the only authority that can validate and move parked files.", pending_publish_confidence_js)
         self.assertIn("Build a selected-row or all-rows dry-run plan before risky drains.", pending_publish_confidence_js)
         self.assertIn("Mutation guardrail: this panel cannot drain, repair, rewrite, move, delete, publish, or bypass backend validation.", pending_publish_confidence_js)
         self.assertIn("function pendingCurrentFilterScope", pending_publish_drain_js)
         self.assertIn("Display filter / drain scope", pending_publish_confidence_js)
         self.assertIn("Backend drain scope remains all loaded parked rows", pending_publish_confidence_js)
-        self.assertIn("Publish Parked Outputs does not drain only the visible table subset.", pending_publish_confidence_js)
+        self.assertIn("Drain Parked Outputs does not drain only the visible table subset.", pending_publish_confidence_js)
         self.assertIn("pending-backend-scope-status", html)
         self.assertIn("pending-backend-scope-summary", html)
         self.assertIn("pending-backend-scope-rows", html)
@@ -5628,12 +5821,12 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function pendingBackendDrainScopeRows", pending_publish_drain_js)
         self.assertIn("Backend drain scope preview:", pending_publish_drain_js)
         self.assertIn("Pending filters, selected row keys, and rendered table caps are not submitted as publish scope.", pending_publish_drain_js)
-        self.assertIn("Selecting a row cannot make Publish Parked Outputs drain only that row.", pending_publish_drain_js)
+        self.assertIn("Selecting a row cannot make Drain Parked Outputs drain only that row.", pending_publish_drain_js)
         self.assertIn("function renderPendingDrainDecisionChecklist", pending_publish_confidence_js)
         self.assertIn("function pendingDrainDecisionRows", pending_publish_confidence_js)
         self.assertIn("function pendingDrainDecisionStatusState", pending_publish_confidence_js)
         self.assertIn("Pending Publish drain decision checklist:", pending_publish_confidence_js)
-        self.assertIn("Daily-use handoff: Pending Publish evidence decides whether it is sensible to press Publish Parked Outputs", pending_publish_confidence_js)
+        self.assertIn("Daily-use handoff: Pending Publish evidence decides whether it is sensible to press Drain Parked Outputs", pending_publish_confidence_js)
         self.assertIn("Scope boundary: Pending filters, selected rows, recovery dry-runs", pending_publish_confidence_js)
         self.assertIn("drain only after current parked rows, recovery dry-run, latest drain evidence, Completed/output proof, and diagnostics order agree.", pending_publish_confidence_js)
         self.assertIn("Mutation guardrail: this checklist cannot drain, repair, rewrite, move, delete, publish, accept outputs, write manifests, or bypass backend validation.", pending_publish_confidence_js)
@@ -5657,7 +5850,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn('<h2>Pending Publish Drain</h2>', html)
         self.assertIn("function pendingDrainGuardState", pending_publish_confidence_js)
         self.assertIn("function renderPendingDrainGuard", pending_publish_confidence_js)
-        self.assertIn("Publish Parked Outputs blocked by WebView evidence", pending_publish_confidence_js)
+        self.assertIn("Drain Parked Outputs blocked by WebView evidence", pending_publish_confidence_js)
         self.assertIn("Pending table filter:", pending_publish_confidence_js)
         self.assertIn("local filters do not narrow publish scope", pending_publish_confidence_js)
         self.assertIn("The backend will still perform authoritative validation before moving files. Continue?", pending_publish_confidence_js)
@@ -5731,7 +5924,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("RenameMovieFilterOptions: collectRenameMovieFilterOptions()", rename_view_js)
         self.assertIn("RenameMovieFilterTerms: collectRenameMovieFilterTerms()", rename_view_js)
         self.assertIn("RenameMovieRemoveTerms: parseRenameFilterTerms", rename_view_js)
-        self.assertIn('post("/api/settings/save-patch", { changes, confirm_save: true })', rename_view_js)
+        self.assertIn("stageRenameCleaningFilterPatch(changes)", rename_view_js)
+        self.assertIn("no backend save route was called", rename_view_js)
         self.assertIn("function collectRenameMovieFilterTerms", rename_view_js)
         self.assertIn("movie_filter_terms_text: collectRenameMovieFilterTermsText()", rename_view_js)
         self.assertIn('RENAME_MOVIE_FILTER_CATALOG_ROUTE = "/api/rename/movie-cleaning-filters"', rename_view_js)
@@ -5743,9 +5937,9 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("RENAME_CLEANING_FILTER_STORAGE_KEY", rename_view_js)
         self.assertIn("function saveRenameCleaningFiltersFromSettingsSave()", settings_view_js)
         self.assertIn("renameView.saveRenameCleaningFilterDraft", settings_view_js)
-        self.assertIn("Rename cleaning filter draft was retained in browser storage.", settings_view_js)
+        self.assertIn("Rename filter draft retained in this browser; use Stage Rename Filter Patch", settings_view_js)
         self.assertNotIn("settings-rename-use-editable-cleaning-filters", html)
-        self.assertIn("Saved filters write backend PSD1 settings", html)
+        self.assertIn("Stage Rename Filter Patch", html)
         self.assertIn("settings-rename-filter-video-source", html)
         self.assertIn("settings-rename-filter-release-groups", html)
         self.assertIn("settings-rename-preview-button", html)
@@ -5780,7 +5974,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("backend rename.apply remains the only filesystem mutation path", rename_view_js)
         self.assertIn("rename-apply-readiness-rows", html)
         self.assertIn("rename-apply-readiness-status", html)
-        self.assertIn("Apply Renames", html)
+        self.assertIn("Preview before apply", html)
         self.assertIn("function renameApplyResultLines", rename_view_js)
         self.assertIn("function renderRenameApplyResult", rename_view_js)
         self.assertIn("rename-apply-progress-bars", html)
@@ -5828,7 +6022,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function applyRenameSelectedOverride", rename_view_js)
         self.assertIn("function clearRenameSelectedOverride", rename_view_js)
         self.assertIn("function selectRenameRow", rename_view_js)
-        self.assertIn("const visibleResult = { ...result, request }", rename_view_js)
+        self.assertIn("visibleResult = { ...result, request }", rename_view_js)
         self.assertIn("let renamePreviewRequestId = 0", rename_view_js)
         self.assertIn("let renamePreviewInFlight = false", rename_view_js)
         self.assertIn("let renameBrowseInFlight = false", rename_view_js)
@@ -5838,8 +6032,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function syncRenameCommandButtons", rename_view_js)
         self.assertIn('"rename-preview-button"', rename_view_js)
         self.assertIn('"rename-preview-top-button"', rename_view_js)
-        self.assertIn("Wait for the active rename preview to finish", rename_view_js)
-        self.assertIn("Another rename apply command is already in progress.", rename_view_js)
+        self.assertIn("if (renamePreviewInFlight || renameApplyInFlight)", rename_view_js)
+        self.assertIn("setRenameApplyBusy(true)", rename_view_js)
         self.assertIn("renamePreviewInFlight || renameBrowseInFlight || renameApplyInFlight", rename_view_js)
         self.assertIn("requestId !== activeRenamePreviewRequestId", rename_view_js)
         self.assertIn("/api/rename/apply", rename_view_js)
@@ -5881,7 +6075,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Flagged rows:", pending_publish_view_js)
         self.assertIn("drain, repair, rewrite, move, delete, and publish actions remain backend-owned", pending_publish_view_js)
         self.assertIn("Cross-page workflow: Pending Publish", pending_publish_view_js)
-        self.assertIn("Publish Parked Outputs remains backend-owned", pending_publish_view_js)
+        self.assertIn("Drain Parked Outputs remains backend-owned", pending_publish_view_js)
         self.assertIn("appendDiagnosticsBridgeButton(container, actions", pending_publish_diagnostics_js)
         self.assertIn("Diagnostics bridge: Review in Diagnostics switches", pending_publish_diagnostics_js)
         self.assertIn("window.mediaPipelineSettingsOverview", settings_overview_js)
@@ -5985,7 +6179,10 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Source deletion must remain an explicit opt-in safety decision.", settings_metadata_js)
         self.assertIn("Source deletion is off. Normal processing should copy to scratch and preserve sources.", settings_metadata_js)
         self.assertIn("PATH fallback is enabled. Runs may silently use system FFmpeg", settings_metadata_js)
-        self.assertIn("Per-worker overrides are configured.", settings_metadata_js)
+        self.assertIn(
+            "Per-worker overrides are configured, but backend policy currently ignores them for worker encode snapshots.",
+            settings_metadata_js,
+        )
         self.assertIn("Robocopy transfer flags affect retry behavior", settings_metadata_js)
         self.assertIn("Plex direct/stream", settings_metadata_js)
         self.assertIn("Queue / reprocess", settings_metadata_js)
@@ -6059,8 +6256,9 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("NetworkRole", settings_view_network_builder_js)
         self.assertIn("CoordinatorPort", settings_view_network_builder_js)
         self.assertIn("WorkerSourcePathMap", settings_view_network_builder_js)
-        self.assertIn("Auth-token guardrail", settings_view_network_builder_js)
-        self.assertIn("Start/stop coordinator and worker runtime remains backend-owned", settings_view_network_builder_js)
+        self.assertIn("Secret guardrail", settings_view_network_builder_js)
+        self.assertIn("openNetworkRoleSetup", settings_view_network_builder_js)
+        self.assertIn("Coordinator/worker runtime command controls remain backend-owned", settings_view_network_builder_js)
         self.assertIn("Validate path rewrites on the worker", settings_view_network_builder_js)
         self.assertIn("queueSettingsBuilderFields", settings_view_js)
         self.assertIn("collectQueueSettingsBuilderPatch", settings_view_js)
@@ -6091,7 +6289,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("__settingsViewPendingPublishBuilderModule", settings_view_pending_builder_js)
         self.assertIn("DeferredPublish", settings_view_pending_builder_js)
         self.assertIn("CleanupRemoteStaging", settings_view_pending_builder_js)
-        self.assertIn("Publish Parked Outputs", settings_view_pending_builder_js)
+        self.assertIn("Drain Parked Outputs", settings_view_pending_builder_js)
         self.assertIn("direct publish plus skipped stability checks", settings_view_pending_builder_js)
         self.assertIn("high robocopy thread counts can saturate pending-publish drains", settings_view_pending_builder_js)
         self.assertIn("subtitleSettingsBuilderFields", settings_view_js)
@@ -6234,8 +6432,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function networkLifecycleRows", network_view_js)
         self.assertIn("function renderNetworkLifecycleHandoff", network_view_js)
         self.assertIn("Network lifecycle handoff:", network_view_js)
-        self.assertIn("Decision rule: WebView Network can be trusted for read-only evidence only", network_view_js)
-        self.assertIn("Required before future lifecycle controls", network_view_js)
+        self.assertIn("Decision rule: trust only backend-owned Network evidence and lifecycle routes", network_view_js)
+        self.assertIn("Confirmed lifecycle commands remain confirmation-gated and provider-guarded", network_view_js)
         self.assertIn("function networkEvidenceRows", network_view_js)
         self.assertIn("function renderNetworkEvidenceChecklist", network_view_js)
         self.assertIn("function networkEvidenceSummaryLines", network_view_js)
@@ -6244,13 +6442,20 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderNetworkWorkerProgress", network_view_js)
         self.assertIn("network-worker-progress-bars", network_view_js)
         self.assertIn("Mutation guardrail: this panel does not start/stop workers", network_view_js)
+        self.assertIn("function activateNetworkTab", network_view_js)
+        self.assertIn("mediapipeline-network-tab", network_view_js)
+        self.assertIn("function networkCoordinatorOverviewModel", network_view_js)
+        self.assertIn("function networkWorkerOverviewModel", network_view_js)
+        self.assertIn("function renderNetworkRoleDashboards", network_view_js)
+        self.assertIn("Remote coordinator queue: Phase 2", network_view_js)
+        self.assertIn("unknown/backend evidence missing", network_view_js)
         self.assertIn("function renderNetworkStateFiles", network_view_js)
         self.assertIn("function networkStateFileSummaryLines", network_view_js)
         self.assertIn("Network runtime state file evidence:", network_view_js)
         self.assertIn("Read order: Cluster log -> Coordinator in-flight registry -> Local worker state", network_view_js)
         self.assertIn("network-state-files-rows", network_view_js)
         self.assertIn("live dispatcher lifecycle rows remain backend-owned", network_view_js)
-        self.assertIn("This checklist cannot start, stop, abort, reclaim, release", network_view_js)
+        self.assertIn("This checklist cannot abort, reclaim, release", network_view_js)
         self.assertNotIn("not exposed through the local WebView API yet", network_view_js)
         self.assertIn("function renderNetworkWorkers", network_view_js)
         self.assertIn("function renderNetworkWorkerRows", network_view_js)
@@ -6278,6 +6483,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("network-api-summary", network_view_js)
         self.assertIn("/api/network/workers", js)
         self.assertIn("networkWorkers: values[\"network workers\"]", js)
+        self.assertIn("queue: values.queue || {}", js)
         self.assertIn("function createDiagnosticsActiveJobsModule", diagnostics_view_active_jobs_js)
         self.assertIn("window.__diagnosticsActiveJobsModule", diagnostics_view_active_jobs_js)
         self.assertIn("function createDiagnosticsLogModule", diagnostics_view_log_js)
@@ -6506,6 +6712,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderFailureDetail", reports_view_js)
         self.assertIn("function renderFailureReviewBoard", reports_view_js)
         self.assertIn("function failureReviewBoardLines", reports_view_js)
+        self.assertIn("function failureReviewBoardTiles", reports_view_js)
+        self.assertIn("review-tile", reports_view_js)
         self.assertIn("Failure review board:", reports_view_js)
         self.assertIn("function failureEmptyStateMessage", reports_view_js)
         self.assertIn("No failure rows found for the selected source.", reports_view_js)
@@ -6625,6 +6833,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("completed-manifest backfill dry-run output does not prove media processing", maintenance_view_js)
         self.assertIn("Maintenance dry-run confidence:", maintenance_view_js)
         self.assertIn("Deployment option review:", maintenance_view_js)
+        self.assertIn("Preview only; no release folder, manifest, or zip was written.", maintenance_view_js)
+        self.assertIn("preview reports the zip plan, Create writes it", maintenance_view_js)
         self.assertIn("Create Deployment may write a release folder/manifest/zip", maintenance_view_js)
         self.assertIn("Backfill remains dry-run", maintenance_view_js)
         self.assertIn("diagnosticsBridgeRowTrustLines", maintenance_view_js)
@@ -6646,10 +6856,16 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function runReleaseBuild", maintenance_view_js)
         self.assertIn("function renderReleaseBuildResult", maintenance_view_js)
         self.assertIn("function renderReleasePackageProgress", maintenance_view_js)
+        self.assertIn("function renderReleasePackageInFlightProgress", maintenance_view_js)
+        self.assertIn("function setReleasePackageStatus", maintenance_view_js)
+        self.assertIn("function releasePackageResultStatus", maintenance_view_js)
         self.assertIn("function releasePackageProgressBars", maintenance_view_js)
         self.assertIn('targetId = "release-dry-run-progress-bars"', maintenance_view_js)
         self.assertIn("renderProgressBarsInto(targetId", maintenance_view_js)
         self.assertIn('renderReleasePackageProgress(result, "release-build-progress-bars")', maintenance_view_js)
+        self.assertIn('"Planning"', maintenance_view_js)
+        self.assertIn('"Building"', maintenance_view_js)
+        self.assertIn('"Build done"', maintenance_view_js)
         self.assertIn("function runBackfillDryRun", maintenance_view_js)
         self.assertIn("function renderBackfillProgress", maintenance_view_js)
         self.assertIn("function backfillProgressBars", maintenance_view_js)
@@ -6991,7 +7207,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Contract safety review:", contract_view_js)
         self.assertIn("Decision rule: blocked rows must be fixed before trusting new WebView controls", contract_view_js)
         self.assertIn("Network lifecycle boundary", contract_view_js)
-        self.assertIn("Implement backend dry-run lifecycle checks and command journaling before adding Network lifecycle routes", contract_view_js)
+        self.assertIn("Use backend dry-run lifecycle checks first; confirmed Network lifecycle routes remain provider-guarded", contract_view_js)
         self.assertIn("Repair/reconcile boundary", contract_view_js)
         self.assertIn("Implement backend dry-run diffs and atomic journals before adding any repair/reconcile command routes", contract_view_js)
         self.assertIn("Dry-run contract fields", contract_view_js)
@@ -7047,7 +7263,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("settings: values.settings || getLastSettings()", js)
         self.assertIn("startupProgressLines", js)
         self.assertIn("bootstrap.startupProgress", js)
-        self.assertIn('apiGet("/api/health")', js)
+        self.assertIn('refreshGet("/api/health", refreshOptions)', js)
         self.assertIn("values.health?.startup_progress", js)
         self.assertIn('tr[data-status="changed"]', css_components)
         self.assertIn('tr[data-status="unknown"]', css_components)
@@ -7199,7 +7415,9 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("completed-history-investigation-filter", html)
         self.assertIn("completed-selected-status", html)
         self.assertIn("completed-selected-summary", html)
+        self.assertIn("completed-raw-detail", html)
         self.assertIn('id="completed-selected-summary" class="completed-selected-summary"', html)
+        self.assertIn("Raw selected-row detail", html)
         self.assertIn("function completedTableRowStatus", completed_view_review_js)
         self.assertIn("function completedHasSmallHealthySizeDelta", completed_view_review_js)
         self.assertIn("function completedMatchesInvestigationFilter", completed_view_review_js)
@@ -7209,9 +7427,13 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function completedSelectedSummaryNodes", completed_view_review_js)
         self.assertIn("summaryNode.replaceChildren", completed_view_review_js)
         self.assertIn("completed-selected-decision-strip", completed_view_review_js)
-        self.assertIn("Primary concern", completed_view_review_js)
-        self.assertIn("Recommended next check", completed_view_review_js)
-        self.assertIn("Policy / route reason", completed_view_review_js)
+        self.assertIn("function completedSelectedDiagnosisLine", completed_view_review_js)
+        self.assertIn("function completedSelectedEvidenceGaps", completed_view_review_js)
+        self.assertIn("function completedSelectedNextChecks", completed_view_review_js)
+        self.assertIn("Why this output looks different", completed_view_review_js)
+        self.assertIn("Trigger / route reason", completed_view_review_js)
+        self.assertIn("Runtime/log evidence", completed_view_review_js)
+        self.assertIn("What to check next", completed_view_review_js)
         self.assertIn("window.mediaPipelineDom?.selectedRowAtAGlanceLines", completed_view_review_js)
         self.assertIn("selectedRowDetailDrawerLines", completed_view_selection_js)
         self.assertIn("Completed selected-row detail", completed_view_selection_js)
@@ -7333,7 +7555,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderRefreshInProgress(options = {})", app_refresh_js)
         self.assertIn("refreshAll({ queueRefresh: true })", queue_view_js)
         self.assertIn("refreshAll({ automatic: true })", js)
-        self.assertIn("window.setInterval(() => refreshAll({ automatic: true }), 4000)", js)
+        self.assertIn("const AUTOMATIC_REFRESH_INTERVAL_MS = 15000", js)
+        self.assertIn("window.setInterval(() => refreshAll({ automatic: true }), AUTOMATIC_REFRESH_INTERVAL_MS)", js)
         self.assertIn("lastRefreshDurationMs", js)
         self.assertIn(".activity-meta", css_layout)
         self.assertIn("text-overflow: ellipsis", css_split_assets)

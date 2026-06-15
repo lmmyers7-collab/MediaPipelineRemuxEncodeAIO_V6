@@ -96,7 +96,6 @@
                 <tr>
                   <th scope="col">Completed</th>
                   <th scope="col">Title</th>
-                  <th scope="col">Media</th>
                   <th scope="col">Route</th>
                   <th scope="col">Evidence</th>
                   <th scope="col" class="num"><span data-completed-size-column-label>Size</span></th>
@@ -105,7 +104,7 @@
                 </tr>
               </thead>
               <tbody id="completed-rows">
-                <tr><td colspan="8">No completed jobs loaded.</td></tr>
+                <tr><td colspan="7">No completed jobs loaded.</td></tr>
               </tbody>
             </table>
             <div class="empty-state" data-empty-state="hidden" style="display:none">
@@ -167,13 +166,16 @@
 
         <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Selected File</h2>
+            <h2>Why This Output Looks Different</h2>
             <strong id="completed-selected-status">No selection</strong>
           </div>
           <div id="completed-selected-summary" class="completed-selected-summary" role="region" aria-label="Selected completed output summary">
-            <p class="completed-selected-empty">Select a completed row to see trust, output health, route/size proof, safe next step, filter visibility, and backend authority.</p>
+            <p class="completed-selected-empty">Select a completed row to see the key route, size, runtime, and output-health signals before opening raw detail.</p>
           </div>
-          <pre id="completed-detail" class="prose-block">No completed row selected.</pre>
+          <details id="completed-raw-detail" class="completed-raw-detail">
+            <summary>Raw selected-row detail</summary>
+            <pre id="completed-detail" class="prose-block">No completed row selected.</pre>
+          </details>
         </section>
 
         <section class="panel settings-tab-pane output-overview-section output-overview-section-history" data-completed-tab="history" data-panel-type="interactive" aria-labelledby="completed-history-summary-heading">
@@ -227,7 +229,6 @@
                 <tr>
                   <th scope="col">Completed</th>
                   <th scope="col">Title</th>
-                  <th scope="col">Media</th>
                   <th scope="col">Route</th>
                   <th scope="col">Evidence</th>
                   <th scope="col" class="num"><span data-completed-size-column-label>Size</span></th>
@@ -236,7 +237,7 @@
                 </tr>
               </thead>
               <tbody id="completed-history-rows">
-                <tr><td colspan="8">No completed history loaded.</td></tr>
+                <tr><td colspan="7">No completed history loaded.</td></tr>
               </tbody>
             </table>
             <div class="empty-state" data-empty-state="hidden" style="display:none">

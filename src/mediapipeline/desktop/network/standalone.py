@@ -68,6 +68,8 @@ class StandaloneDispatcher(QueueDispatcher):
         publish_mode: str | None = None,
         route: str | None = None,
         queue_terminal: bool = False,
+        reason_code: str | None = None,
+        reason: str | None = None,
     ) -> None:
         """Delegate to the app's existing completion handler.
 

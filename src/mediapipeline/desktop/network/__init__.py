@@ -7,8 +7,8 @@ Public API
 ----------
 ``get_dispatcher(app)``
     Factory that reads ``NetworkRole`` from the resolved config and returns
-    the appropriate ``QueueDispatcher`` implementation.  Unknown or missing
-    roles fall back to ``StandaloneDispatcher``.
+    the appropriate ``QueueDispatcher`` implementation. Unknown or missing
+    roles fail closed instead of falling back to local work.
 
 ``QueueDispatcher``, ``ClaimedJob``
     Re-exported for callers that need type annotations without importing
@@ -25,7 +25,8 @@ from __future__ import annotations
 import logging
 from typing import TYPE_CHECKING
 
-from ..config_keys import KEY_NETWORK_ROLE
+from mediapipeline.core.processes.pipeline_policy import configured_network_role
+
 from .dispatcher import ClaimedJob, QueueDispatcher
 from .standalone import StandaloneDispatcher
 
@@ -41,10 +42,10 @@ def get_dispatcher(app: "MediaPipelineApp") -> QueueDispatcher:
     """Return the correct ``QueueDispatcher`` for the configured network role.
 
     Role dispatch:
-    - ``"standalone"`` (default) → ``StandaloneDispatcher`` (current behaviour)
+    - ``"standalone"``           → ``StandaloneDispatcher`` (current behaviour)
     - ``"coordinator"``          → ``CoordinatorDispatcher`` (Phase 1)
     - ``"worker"``               → ``WorkerDispatcher`` (Phase 2)
-    - any unknown value          → ``StandaloneDispatcher`` with a warning
+    - any unknown/missing value  → ``ValueError`` so normal local work is blocked
 
     The factory always returns a working dispatcher so the app never crashes
     due to a misconfigured ``NetworkRole``.  ``ValueError`` from a worker
@@ -52,7 +53,7 @@ def get_dispatcher(app: "MediaPipelineApp") -> QueueDispatcher:
     """
     resolved = getattr(app, "resolved", None)
     config   = getattr(resolved, "config_data", {}) if resolved else {}
-    role     = str(config.get(KEY_NETWORK_ROLE, "standalone")).strip().lower()
+    role     = configured_network_role(config)
 
     if role == "standalone":
         return StandaloneDispatcher(app)
@@ -65,5 +66,5 @@ def get_dispatcher(app: "MediaPipelineApp") -> QueueDispatcher:
         from .worker import WorkerDispatcher
         return WorkerDispatcher(app)
 
-    _log.warning("Unknown NetworkRole %r — falling back to standalone.", role)
-    return StandaloneDispatcher(app)
+    _log.warning("Unknown or missing NetworkRole %r; refusing to create a local dispatcher.", role)
+    raise ValueError("NetworkRole must be standalone, coordinator, or worker before creating a network dispatcher.")

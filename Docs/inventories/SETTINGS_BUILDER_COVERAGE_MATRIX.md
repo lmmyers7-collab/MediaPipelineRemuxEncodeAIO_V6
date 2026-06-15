@@ -2,10 +2,10 @@
 
 Maps every known `CONFIG_FIELD_DEFINITIONS` key to its WebView settings builder coverage, as of the current state. This is a read-only audit document. It does not implement builder changes.
 
-Total backend metadata keys: 134 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
-Covered by structured WebView builder arrays: 122.
+Total backend metadata keys: 156 (from `CONFIG_FIELD_DEFINITIONS` and the config contract).
+Covered by structured WebView builder arrays: 136.
 Handled by the dedicated Library Profiles editor: 1 (`LibraryProfiles`).
-Known advanced/direct-config metadata without a routine structured builder: 9.
+Known advanced/direct-config metadata without a routine structured builder: 17.
 Intentionally hidden auth secrets: 2.
 
 ---
@@ -16,7 +16,8 @@ Intentionally hidden auth secrets: 2.
 |---|---|---|
 | Routing / Size | `RoutingProfile`, `RouteThresholdMode`, `SizeGuardMode`, `EncodeTuningPreset`, `EncodeLadder`, `VideoCodec`, `OutputContainer`, `MaxEncodeGrowthPercent`, `CompatibilityEncodeGrowthPercent`, `MovieRoute1080pTargetSizeGB`, `MovieRoute1440pTargetSizeGB`, `MovieRoute4KTargetSizeGB`, `TVRoute1080pTargetSizeGB`, `TVRoute1440pTargetSizeGB`, `TVRoute4KTargetSizeGB`, `Route1080pUpperHeightTolerancePercent`, `Route1080pMaxVideoBitrateMbps`, `Route1440pLowerHeightTolerancePercent`, `Route1440pUpperHeightTolerancePercent`, `Route1440pMaxVideoBitrateMbps`, `Route4KLowerHeightTolerancePercent`, `Route4KMaxVideoBitrateMbps` | High-level route, per-height target, resolution-selected bitrate, and size policy |
 | Video Detail | `VideoPreset`, `VideoQuality`, `AllowH264RemuxIfPlexCompatible`, `H264RemuxMaxBitrateMbps`, `H264RemuxMaxHeight`, `RemuxSafeVideoCodecs`, `FallbackCpuQuality`, `CpuEncodePreset`, `CpuEncodeProcessPriority`, `CpuEncodeMaxThreads`, `ExtraVideoFlags` | NVENC/CPU encoder precision and copy policy |
-| File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, integrity, deferred publish |
+| Quality Verification | `EnableQualityVerification`, `QualityMetric`, `QualitySampleMode`, `QualitySampleSeconds`, `QualitySampleCount`, `QualityWarnThreshold`, `QualityFailThreshold`, `QualityFailAction`, `QualityVerifyTimeoutSeconds` | Post-encode objective metric, sampling window, warning/failure thresholds, review action, and verification timeout |
+| File Safety / Publish | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `MinFreeSpaceGB`, `OutsourceMinFreeSpaceGB`, `FileStabilityWait`, `WatchDebounceSeconds`, `WatchFolderRoots`, `WatchAction`, `EnableWatchFolders`, `WatchRespectScheduleWindow`, `CleanupStaleAgeHours`, `OutputSizeMultiplier`, `ValidExtensions`, `RobocopyFlags`, `DeferredPublish`, `AggressiveEpisodeParsing`, `SkipStabilityCheck`, `EnableIntegrityCheck`, `CreateTVSubfolder`, `CleanupRemoteStaging` | Source/output/scratch paths, stability, watch-folder intake, integrity, deferred publish |
 | Pending Publish / Recovery | `DeferredPublish`, `CleanupRemoteStaging`, `TransientFailureRetryLimit`, `CleanupStaleAgeHours`, `RobocopyTimeoutSeconds`, `RobocopyFlags`, `OutsourceMinFreeSpaceGB`, `OutputSizeMultiplier`, `EnableIntegrityCheck`, `SkipStabilityCheck` | Drain behavior and recovery tuning |
 | Audio | `AudioPassthroughProfile`, `CompatibleAudioCodecs`, `PreferredDefaultAudioLanguages`, `AudioTranscodeCodec`, `AudioTranscodeBitrate`, `AudioTranscodeAutoBitrateByChannels`, `AudioDownmixMode`, `AudioMaxChannels`, `AllowNoAudio` | Passthrough, transcode, channel, language policy |
 | Subtitle | `SubKeepLanguages`, `Tx3gExtractLanguages`, `BdpgsExtractLanguages`, `MergeThresholdMs`, `SubtitleExtractTimeoutSeconds`, `SubtitleProbeTimeoutSeconds`, `BdpgsOcrTimeoutSeconds`, `BdpgsOcrToolPath`, `BdpgsOcrTessdataPath`, `SubSDHTitleKeywords`, `SubSupplementalKeywords`, `ExcludeSubtitleStyles`, `IncludeSubtitleStyles`, `ConvertTx3gToSrt`, `DropTx3gAfterConversion`, `CreateExternalTx3gSrtSidecars`, `Tx3gPreserveExistingSrt`, `Tx3gTreatForcedAsSeparate`, `TreatTx3gSignsSongsAsForced`, `ConvertBdpgsToSrt`, `DropBdpgsAfterConversion`, `TreatBdpgsSignsSongsAsForced`, `DropAssAfterConversion`, `RemoveKaraoke`, `StripFormatting`, `MergeAdjacent`, `KeepSignsAndSongs`, `TreatAssSignsSongsAsForced` | TX3G, BDPGS OCR, ASS/SSA drop/convert/preserve, SDH/supplemental keyword classification inputs |
@@ -37,6 +38,14 @@ These keys are valid backend metadata and config-contract keys, but they do not 
 | `ParallelEncodeMode` | Runtime / parallelism | Coupled to `MaxParallelEncodes` and local worker-slot validation |
 | `MixPriorityPhase` | Queue planning | Advanced queue phase behavior; inspect Queue preview after changes |
 | `QueueOrderingStrategy` | Queue planning | Backend queue sort preset; inspect Queue preview after changes |
+| `FinalLibraryPromotionEnabled` | Final library promotion | Manual promotion workflow enable flag; review Completed/Output promotion workflow before use |
+| `FinalLibraryPromotionRules` | Final library promotion | Source-to-final-library mapping; wrong roots can promote to the wrong final destination |
+| `FinalLibraryPromotionVerificationMode` | Final library promotion | Promotion verification strictness; cautious hashes, fast checks size/existence |
+| `FinalLibraryPromotionCleanupAfterVerified` | Final library promotion | Removes verified publish-output files after promotion; review cleanup boundary first |
+| `FinalLibraryPromotionOverwriteExisting` | Final library promotion | Allows staged replacement of existing final files; high-impact publish behavior |
+| `RenameMovieFilterOptions` | Rename planning | Movie rename cleaning options; inspect Rename preview before applying |
+| `RenameMovieFilterTerms` | Rename planning | Movie rename term filters; inspect Rename preview before applying |
+| `RenameMovieRemoveTerms` | Rename planning | Movie rename removal terms; inspect Rename preview before applying |
 | `OutputValidationProbeTimeoutSeconds` | Output validation | Advanced completed-output validation threshold |
 | `OutputValidationMinSizeBytes` | Output validation | Advanced completed-output acceptance threshold |
 | `OutputValidationDurationToleranceSeconds` | Output validation | Advanced completed-output duration tolerance |

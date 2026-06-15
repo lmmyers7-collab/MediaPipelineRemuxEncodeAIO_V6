@@ -44,8 +44,8 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertFalse(payload["repair_reconcile_summary"]["frontend_allowed"])
         self.assertEqual(payload["repair_reconcile_summary"]["contract_count"], len(REPAIR_RECONCILE_CONTRACTS))
         self.assertEqual(payload["network_lifecycle_summary"]["schema_version"], "desktop_network_lifecycle_contracts.v1")
-        self.assertFalse(payload["network_lifecycle_summary"]["mutation_enabled"])
-        self.assertFalse(payload["network_lifecycle_summary"]["frontend_allowed"])
+        self.assertTrue(payload["network_lifecycle_summary"]["mutation_enabled"])
+        self.assertTrue(payload["network_lifecycle_summary"]["frontend_allowed"])
         self.assertEqual(payload["network_lifecycle_summary"]["contract_count"], len(NETWORK_LIFECYCLE_CONTRACTS))
         self.assertEqual(payload["notes"], LOCAL_API_CONTRACT_NOTES)
 
@@ -54,7 +54,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
 
         payload = local_api_contract_payload(app_version="v5-test", host="localhost", routes=routes)
         payload["routes"][0]["path"] = "/changed"
-        payload["network_lifecycle_contracts"][0]["mutation_enabled"] = True
+        payload["network_lifecycle_contracts"][0]["mutation_enabled"] = False
         payload["network_lifecycle_contracts"][0]["dry_run_contract"]["required_result_fields"].append("changed")
         payload["network_lifecycle_contracts"][0]["source_file_policy"]["source_delete"] = "changed"
         payload["repair_reconcile_contracts"][0]["mutation_enabled"] = True
@@ -63,7 +63,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         payload["notes"].append("changed")
 
         self.assertEqual(routes[0]["path"], "/api/health")
-        self.assertFalse(NETWORK_LIFECYCLE_CONTRACTS[0]["mutation_enabled"])
+        self.assertTrue(NETWORK_LIFECYCLE_CONTRACTS[0]["mutation_enabled"])
         self.assertNotIn("changed", NETWORK_LIFECYCLE_CONTRACTS[0]["dry_run_contract"]["required_result_fields"])
         self.assertEqual(NETWORK_LIFECYCLE_CONTRACTS[0]["source_file_policy"]["source_delete"], "forbidden")
         self.assertFalse(REPAIR_RECONCILE_CONTRACTS[0]["mutation_enabled"])
@@ -89,6 +89,29 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("allow_extra_args", query_keys)
         self.assertIn("single_file", query_keys)
         self.assertEqual(routes["/api/launch/preflight"]["effect"], "none")
+
+    def test_completed_contract_advertises_query_fields(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/completed"].needs_query)
+        self.assertEqual(
+            routes["/api/completed"]["query_keys"],
+            ["limit", "force_refresh", "proof", "pending_proof_limit"],
+        )
+        self.assertEqual(routes["/api/completed"]["effect"], "none")
+
+    def test_file_overrides_effective_contract_discloses_read_only_probe_dependency(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        effective = routes["/api/queue/file-overrides/effective"]
+
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/queue/file-overrides/effective"].needs_query)
+        self.assertEqual(effective["effect"], "none")
+        self.assertEqual(effective["query_keys"], ["path"])
+        self.assertIn("bounded read-only probe stage", effective["read_dependencies"])
+        self.assertIn("file_overrides.json", effective["purpose"])
+        self.assertIn("without changing queue policy", effective["purpose"])
+        self.assertIn("media files", effective["purpose"])
 
     def test_tdarr_matrix_console_contracts_are_backend_keyed(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
@@ -130,7 +153,20 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(set(routes["/api/diagnostics/open"]["allowed_targets"]), set(DIAGNOSTICS_OPEN_TARGETS))
         self.assertEqual(
             routes["/api/diagnostics/tdarr-matrix-audit"]["allowed_actions"],
-            ["report", "smoke", "matrix", "full", "strict-report"],
+            [
+                "prepare-proof-pack",
+                "report",
+                "smoke-pack",
+                "proof-pack",
+                "strict-report",
+                "cleanup-plan",
+                "cleanup-archive",
+                "cleanup-delete",
+            ],
+        )
+        self.assertEqual(
+            routes["/api/diagnostics/tdarr-matrix-audit"]["request_keys"],
+            ["action", "confirm_delete_full_matrix"],
         )
         self.assertEqual(routes["/api/maintenance/dependency-atlas/open-folder"]["allowed_targets"], ["dependency_atlas_folder"])
 
@@ -220,7 +256,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 self.assertIn("configured source roots", purpose)
                 self.assertIn("LibraryProfiles source roots", purpose)
 
-    def test_network_lifecycle_contracts_are_design_only_and_backend_owned(self) -> None:
+    def test_network_lifecycle_contracts_are_route_available_and_backend_owned(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
 
         candidate_commands = {contract["candidate_command"] for contract in payload["network_lifecycle_contracts"]}
@@ -229,13 +265,72 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("network.worker.polling_lifecycle", candidate_commands)
         for contract in payload["network_lifecycle_contracts"]:
             with self.subTest(contract=contract["key"]):
-                self.assertEqual(contract["current_status"], "design_only_no_route")
-                self.assertFalse(contract["mutation_enabled"])
-                self.assertFalse(contract["frontend_allowed"])
+                self.assertEqual(contract["current_status"], "backend_route_available_provider_guarded")
+                self.assertTrue(contract["mutation_enabled"])
+                self.assertTrue(contract["frontend_allowed"])
                 self.assertTrue(contract["required_preconditions"])
                 self.assertTrue(contract["required_evidence"])
                 self.assertTrue(contract["rollback_requirements"])
                 self.assertTrue(contract["must_not"])
+
+    def test_network_lifecycle_routes_advertise_dry_run_and_confirmed_controls(self) -> None:
+        payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
+        routes = {route["path"]: route for route in payload["routes"]}
+        expected = {
+            "/api/network/coordinator/start-dry-run": "none",
+            "/api/network/coordinator/stop-dry-run": "none",
+            "/api/network/worker/start-dry-run": "none",
+            "/api/network/worker/stop-dry-run": "none",
+            "/api/network/coordinator/start": "backend-lifecycle",
+            "/api/network/coordinator/stop": "backend-lifecycle",
+            "/api/network/worker/start": "backend-lifecycle",
+            "/api/network/worker/stop": "backend-lifecycle",
+        }
+
+        for route, effect in expected.items():
+            with self.subTest(route=route):
+                self.assertIn(route, routes)
+                self.assertEqual(routes[route]["method"], "POST")
+                self.assertEqual(routes[route]["effect"], effect)
+                self.assertEqual(routes[route]["owner"], "Network")
+                self.assertTrue(routes[route]["frontend_exposed"])
+                self.assertEqual(routes[route]["requires_confirmation"], effect != "none")
+                self.assertEqual(routes[route]["journaled"], effect != "none")
+                self.assertEqual(routes[route]["response_schema"], "desktop_command_result.v1")
+                if effect == "none":
+                    self.assertEqual(routes[route]["data_schema"], "desktop_network_lifecycle_dry_run.v1")
+                else:
+                    self.assertEqual(routes[route]["data_schema"], "desktop_network_lifecycle_result.v1")
+                lifecycle = routes[route]["network_lifecycle"]
+                expected_role = "worker" if "/worker/" in route else "coordinator"
+                expected_action = "stop" if "/stop" in route else "start"
+                self.assertEqual(lifecycle["role"], expected_role)
+                self.assertEqual(lifecycle["action"], expected_action)
+                self.assertEqual(lifecycle["dry_run"], route.endswith("-dry-run"))
+
+        test_connection = routes["/api/network/worker/test-connection"]
+        self.assertEqual(test_connection["method"], "POST")
+        self.assertEqual(test_connection["effect"], "none")
+        self.assertEqual(test_connection["owner"], "Network")
+        self.assertTrue(test_connection["frontend_exposed"])
+        self.assertFalse(test_connection["requires_confirmation"])
+        self.assertFalse(test_connection["journaled"])
+        self.assertEqual(test_connection["request_keys"], ["timeout_seconds"])
+        self.assertEqual(test_connection["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(test_connection["data_schema"], "desktop_network_worker_test_connection.v1")
+        self.assertNotIn("network_lifecycle", test_connection)
+
+        discovery = routes["/api/network/worker/discover-coordinators"]
+        self.assertEqual(discovery["method"], "POST")
+        self.assertEqual(discovery["effect"], "none")
+        self.assertEqual(discovery["owner"], "Network")
+        self.assertTrue(discovery["frontend_exposed"])
+        self.assertFalse(discovery["requires_confirmation"])
+        self.assertFalse(discovery["journaled"])
+        self.assertEqual(discovery["request_keys"], ["timeout_seconds"])
+        self.assertEqual(discovery["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(discovery["data_schema"], "desktop_network_coordinator_discovery.v1")
+        self.assertNotIn("network_lifecycle", discovery)
 
     def test_network_lifecycle_contracts_define_dry_run_rollback_and_exposure_gates(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -252,6 +347,9 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 self.assertIn("dry_run_only", dry_run["required_result_fields"])
                 self.assertIn("precondition_results", dry_run["required_result_fields"])
                 self.assertIn("would_not_touch", dry_run["required_result_fields"])
+                self.assertIn("dry_run_writes", dry_run["required_result_fields"])
+                self.assertIn("confirmed_route_would_write", dry_run["required_result_fields"])
+                self.assertNotIn("would_write_state", dry_run["required_result_fields"])
                 self.assertTrue(any("source media" in line for line in dry_run["must_report"]))
 
                 self.assertTrue(rollback["required_for_mutation_route"])
@@ -398,6 +496,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "queue-state-write",
             "read-only-preview",
             "report-file-write",
+            "secret-transfer",
             "shell-dialog",
             "shell-open",
             "tooling-artifact-write",

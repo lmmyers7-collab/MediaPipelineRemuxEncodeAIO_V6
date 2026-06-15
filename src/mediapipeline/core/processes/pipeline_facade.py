@@ -9,6 +9,8 @@ from mediapipeline.desktop.application.schedule_stop_watcher import schedule_sto
 from mediapipeline.desktop.models import ResolvedPaths
 
 from mediapipeline.core.processes.pipeline_policy import (
+    configured_network_role,
+    coordinator_also_encode_locally_enabled,
     is_supported_pipeline_start_mode,
     normalize_pipeline_extra_args,
     normalize_pipeline_start_mode,
@@ -18,10 +20,12 @@ from mediapipeline.core.processes.pipeline_policy import (
     pipeline_start_config_blocked_result,
     pipeline_start_exception_result,
     pipeline_start_extra_args_error_result,
+    pipeline_start_network_mode_blocked_result,
     pipeline_start_schedule_gate_result,
     pipeline_start_sleep_error_result,
     pipeline_start_success_result,
     pipeline_start_unsupported_mode_result,
+    network_role_blocks_normal_launch,
 )
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
 from mediapipeline.core.processes.schedule_policy import normalize_schedule_override
@@ -70,6 +74,13 @@ class PipelineLaunchFacadeMixin:
             return pipeline_start_config_blocked_result(
                 config_operation_block_message(config_identity, "Pipeline start"),
                 config_operation_block_data(config_identity),
+            )
+        config = dict(resolved.config_data or {})
+        network_role = configured_network_role(config)
+        if network_role_blocks_normal_launch(network_role):
+            return pipeline_start_network_mode_blocked_result(
+                network_role,
+                coordinator_also_encode_locally=coordinator_also_encode_locally_enabled(config),
             )
         mode = normalize_pipeline_start_mode(request.get("mode"))
         if not is_supported_pipeline_start_mode(mode):

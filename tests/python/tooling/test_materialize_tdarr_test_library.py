@@ -20,6 +20,7 @@ TEMPLATE_TEXT = """@{
     FinalLibraryPromotionCleanupAfterVerified = $true
     FinalLibraryPromotionOverwriteExisting = $true
     OutputContainer = 'mp4'
+    DynamicHdrPolicy = 'off'
     EncodeLadder = 'movie_archive'
     ValidExtensions = @('.mkv', '.mp4')
 }
@@ -185,6 +186,7 @@ class TdarrMatrixMaterializerTests(unittest.TestCase):
             self.assertIn("designation = 'movie'", config_text)
             self.assertIn("designation = 'tv'", config_text)
             self.assertIn("OutputContainer = 'mkv'", config_text)
+            self.assertIn("DynamicHdrPolicy = 'warn'", config_text)
             self.assertIn("EncodeLadder = 'auto'", config_text)
             self.assertIn("'.wmv'", config_text)
             self.assertIn("'.mp2'", config_text)
@@ -246,6 +248,75 @@ class TdarrMatrixMaterializerTests(unittest.TestCase):
             materialized = [p.name for p in (library_root / "source").rglob("*") if p.is_file()]
             self.assertTrue(materialized)
             self.assertFalse(any("2160" in name for name in materialized))
+
+    def test_materialize_rejects_absolute_inventory_path_before_creating_library(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inventory_root = root / "LocalBase" / "TestFixtures" / "TdarrSamples"
+            inventory_root.mkdir(parents=True)
+            external = root / "external-media" / "production.mkv"
+            external.parent.mkdir(parents=True)
+            external.write_bytes(b"production")
+            inventory_path = inventory_root / "inventory.csv"
+
+            for mode in ("hardlink", "copy"):
+                with self.subTest(mode=mode):
+                    write_inventory(
+                        inventory_path,
+                        [
+                            sample(
+                                name=external.name,
+                                local_path=str(external),
+                            )
+                        ],
+                    )
+                    library_root = root / "LocalBase" / "Scratch" / "TestLibraries" / f"TdarrMatrix-{mode}"
+
+                    with self.assertRaisesRegex(ValueError, "local_path"):
+                        tdarr_matrix.materialize(
+                            inventory_path=inventory_path,
+                            library_root=library_root,
+                            repo_root=root,
+                            mode=mode,
+                            views=("movies",),
+                            rebuild=False,
+                            write_config_file=False,
+                        )
+
+                    self.assertFalse(library_root.exists())
+
+    def test_materialize_rejects_traversal_inventory_path_before_creating_library(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            inventory_root = root / "LocalBase" / "TestFixtures" / "TdarrSamples"
+            inventory_root.mkdir(parents=True)
+            external = inventory_root.parent / "external-media" / "production.mkv"
+            external.parent.mkdir(parents=True)
+            external.write_bytes(b"production")
+            inventory_path = inventory_root / "inventory.csv"
+            write_inventory(
+                inventory_path,
+                [
+                    sample(
+                        name=external.name,
+                        local_path="../external-media/production.mkv",
+                    )
+                ],
+            )
+            library_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix-traversal"
+
+            with self.assertRaisesRegex(ValueError, "local_path"):
+                tdarr_matrix.materialize(
+                    inventory_path=inventory_path,
+                    library_root=library_root,
+                    repo_root=root,
+                    mode="hardlink",
+                    views=("movies",),
+                    rebuild=False,
+                    write_config_file=False,
+                )
+
+            self.assertFalse(library_root.exists())
 
     def test_rebuild_requires_sentinel_under_scratch_test_libraries(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

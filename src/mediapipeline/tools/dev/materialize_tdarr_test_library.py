@@ -10,7 +10,7 @@ import re
 import shutil
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Iterable
 
 from mediapipeline.tools.paths import find_repo_root
@@ -76,6 +76,24 @@ def resolve_repo_path(value: str | Path, *, repo_root: Path) -> Path:
     if not path.is_absolute():
         path = repo_root / path
     return path.resolve()
+
+
+def resolve_inventory_local_path(value: str, *, inventory_root: Path) -> Path:
+    text = str(value or "").replace("\\", "/").strip()
+    if not text:
+        raise ValueError("local_path must be a non-empty inventory-relative path")
+    windows_path = PureWindowsPath(text)
+    if PurePosixPath(text).is_absolute() or windows_path.is_absolute() or windows_path.drive:
+        raise ValueError(f"local_path must be inventory-relative, not absolute or drive-qualified: {text}")
+    if ".." in PurePosixPath(text).parts:
+        raise ValueError(f"local_path must not contain parent traversal: {text}")
+    inventory_root = inventory_root.resolve(strict=False)
+    source_path = (inventory_root / text).resolve(strict=False)
+    try:
+        source_path.relative_to(inventory_root)
+    except ValueError as exc:
+        raise ValueError(f"local_path resolves outside inventory root {inventory_root}: {text}") from exc
+    return source_path
 
 
 def ps_quote(value: str | Path) -> str:
@@ -243,7 +261,7 @@ def materialized_rows(
 ) -> list[MaterializedRow]:
     rows: list[MaterializedRow] = []
     for index, sample in enumerate(samples, start=1):
-        source_path = resolve_repo_path(sample.local_path, repo_root=inventory_root)
+        source_path = resolve_inventory_local_path(sample.local_path, inventory_root=inventory_root)
         if not source_path.exists():
             raise FileNotFoundError(f"Source sample is missing: {source_path}")
         if "movies" in views:
@@ -385,6 +403,7 @@ def render_config(template_path: Path, library_root: Path) -> str:
         "FinalLibraryPromotionCleanupAfterVerified": ps_bool(False),
         "FinalLibraryPromotionOverwriteExisting": ps_bool(False),
         "OutputContainer": ps_quote("mkv"),
+        "DynamicHdrPolicy": ps_quote("warn"),
         "EncodeLadder": ps_quote("auto"),
         "ValidExtensions": ps_array(VALID_EXTENSIONS),
     }
@@ -473,10 +492,10 @@ def materialize(
     template_path = resolve_repo_path(template_path, repo_root=repo_root)
     inventory_root = inventory_path.parent
 
-    prepare_library_root(library_root, repo_root=repo_root, rebuild=rebuild)
     all_samples = load_inventory(inventory_path)
     samples, quarantined = partition_quarantined_samples(all_samples)
     rows = materialized_rows(samples, inventory_root=inventory_root, library_root=library_root, views=views)
+    prepare_library_root(library_root, repo_root=repo_root, rebuild=rebuild)
 
     for path in (
         library_root / "output" / "Movies",

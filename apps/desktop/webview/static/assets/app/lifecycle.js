@@ -458,9 +458,10 @@
     customize.className = "secondary-button";
     customize.textContent = "Customize";
     customize.addEventListener("click", () => {
-      if (!document.body.classList.contains("layout-customize-mode")) {
+      if (!document.body.classList.contains("layout-editor-open")) {
         byId("customize-layout-btn")?.click();
       } else {
+        if (typeof _layoutRenderDrawer === "function") _layoutRenderDrawer({ preserveStatus: true });
         updatePagePanelEmptyStates();
       }
     });
@@ -650,8 +651,8 @@
       ["#rename-clear-paths-button", "Clears staged Rename paths and preview rows. It does not touch source files."],
       ["#settings-network-apply-button", "Stages standalone/coordinator/worker settings into the shared Settings patch JSON. It does not start or stop workers."],
       ["#settings-network-reset-button", "Reloads the Network Workers tab mode controls from current saved backend settings."],
-      ["#network-settings-preview-button", "Previews staged Worker Mode Settings through the backend settings route. It does not save the PSD1."],
-      ["#network-settings-save-button", "Saves staged Worker Mode Settings through backend validation and config backup. It does not start or stop workers."],
+      ["#network-settings-preview-button", "Previews staged Distributed Mode Settings through the backend settings route. It does not save the PSD1."],
+      ["#network-settings-save-button", "Saves staged Distributed Mode Settings through backend validation and config backup. It does not start or stop workers."],
       ["#settings-library-add-button", "Adds a new editable library profile tab. It does not scan, move, publish, promote, or delete media files."],
       ["#settings-library-delete-button", "Deletes the selected custom library profile from the staged editor only. Save Library Profile is required before config changes persist."],
       ["#settings-library-defaults-button", "Clears all Editor, Video/Media, Subtitle, and Audio overrides for the selected library."],
@@ -1106,8 +1107,10 @@
     const page = activeKeyboardPage();
     const panel = activeKeyboardPanel();
     const target = byId(KEYBOARD_DETAIL_IDS[page] || "") || panel?.querySelector('pre[id$="-detail"]');
-    if (page === "completed" && target?.id === "completed-detail" && !shortcutElementVisible(target)) {
+    if (page === "completed" && target?.id === "completed-detail") {
       activateCompletedTab("overview");
+      const rawDetail = target.closest("details");
+      if (rawDetail && !rawDetail.open) rawDetail.open = true;
     }
     if (!target || !shortcutElementVisible(target)) return false;
     if (!target.hasAttribute("tabindex")) target.setAttribute("tabindex", "-1");

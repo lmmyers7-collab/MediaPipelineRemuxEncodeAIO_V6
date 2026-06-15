@@ -1,6 +1,8 @@
 import importlib.util
 import sys
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -89,3 +91,17 @@ def test_paths_mode_flags_buzzword_file(tmp_path):
         assert rc == 1
     finally:
         target.unlink(missing_ok=True)
+
+
+def test_git_diff_candidates_uses_three_dot_merge_base_range():
+    calls = []
+
+    def fake_run(args, **_kwargs):
+        calls.append(args)
+        return SimpleNamespace(stdout="A\tdocs/example.md\n")
+
+    with patch.object(module.subprocess, "run", side_effect=fake_run):
+        candidates = module.git_diff_candidates("origin/main")
+
+    assert calls[0] == ["git", "diff", "--name-status", "--diff-filter=ACMR", "origin/main...HEAD"]
+    assert candidates[0].path == "docs/example.md"

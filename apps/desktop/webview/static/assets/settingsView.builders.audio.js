@@ -94,7 +94,7 @@
         setText("settings-audio-builder-status", "Invalid audio value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
       writeSettingsPatchJson(patch, "Audio builder merged audio policy keys into Changes JSON. Preview or Save still uses backend validation.");
       audioSettingsBuilderState.initialized = true;
@@ -103,6 +103,7 @@
       renderAudioSettingsBuilderGuidance();
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();
+      return true;
     }
 
     function renderAudioSettingsBuilderGuidance() {

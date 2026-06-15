@@ -2,10 +2,10 @@
 file: ops/pipeline/entrypoints/MediaPipeline/remux.ps1
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-06-07
+owner_domain: process
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 57d2da222e86e190e440635fafc52f825191fa7c7a65af2ba5154a51bcd9abc3
+sha256: e6001e9738c52067724aca93e8a1c990c3d414044876388d78c6412502af81db
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/remux.ps1`
 

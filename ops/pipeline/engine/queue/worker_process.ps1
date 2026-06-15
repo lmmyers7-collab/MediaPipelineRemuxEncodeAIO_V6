@@ -48,6 +48,7 @@ function Start-MediaPipelineLocalWorkerChild {
         claim_id       = [string]$Claim.claim_id
         source_path    = [string]$Claim.source_path
         owner_run_id   = [string]$OwnerRunId
+        result_path    = [string]$SlotLayout.ResultFile
         created_at     = Get-MediaPipelineLocalWorkerTimestamp
     }
     Write-MediaPipelineJsonAtomic -Path $SlotLayout.MetadataFile -InputObject $metadata -Depth 5 | Out-Null
@@ -96,4 +97,3 @@ function Stop-MediaPipelineLocalWorkerProcess {
         }
     }
 }
-

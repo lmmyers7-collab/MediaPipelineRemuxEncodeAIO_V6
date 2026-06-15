@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.builders.video.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-05
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: adbd3bf9b96e24bcbc8a1cafa20507484ef95709f7c7b85e6c7bda62a6de1ff6
+sha256: 653f06f5e850eb41722f2c59958bb093d15216b458b7a1f33b9118c9dc982f24
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.video.js`
 

@@ -76,6 +76,44 @@ class BrowserSmokeSupportTests(unittest.TestCase):
             with self.assertRaises(AssertionError):
                 support.assert_media_no_mutation(self, snapshot)
 
+    def test_media_no_mutation_assertion_watches_image_subtitle_sidecars(self) -> None:
+        for suffix in (".idx", ".sub", ".sup"):
+            with self.subTest(suffix=suffix, mutation="modify"):
+                with tempfile.TemporaryDirectory() as raw_root:
+                    root = Path(raw_root)
+                    sidecar = root / "Source" / f"Sample{suffix}"
+                    sidecar.parent.mkdir(parents=True, exist_ok=True)
+                    sidecar.write_bytes(b"subtitle")
+                    snapshot = support.capture_media_no_mutation_snapshot(root)
+
+                    self.assertIn(str(sidecar), snapshot)
+                    sidecar.write_bytes(b"changed")
+                    with self.assertRaises(AssertionError):
+                        support.assert_media_no_mutation(self, snapshot)
+
+            with self.subTest(suffix=suffix, mutation="delete"):
+                with tempfile.TemporaryDirectory() as raw_root:
+                    root = Path(raw_root)
+                    sidecar = root / "Source" / f"Sample{suffix}"
+                    sidecar.parent.mkdir(parents=True, exist_ok=True)
+                    sidecar.write_bytes(b"subtitle")
+                    snapshot = support.capture_media_no_mutation_snapshot(root)
+
+                    sidecar.unlink()
+                    with self.assertRaises(AssertionError):
+                        support.assert_media_no_mutation(self, snapshot)
+
+            with self.subTest(suffix=suffix, mutation="create"):
+                with tempfile.TemporaryDirectory() as raw_root:
+                    root = Path(raw_root)
+                    source_dir = root / "Source"
+                    source_dir.mkdir(parents=True, exist_ok=True)
+                    snapshot = support.capture_media_no_mutation_snapshot(root)
+
+                    (source_dir / f"Sample{suffix}").write_bytes(b"subtitle")
+                    with self.assertRaises(AssertionError):
+                        support.assert_media_no_mutation(self, snapshot)
+
     def test_fixture_backed_browser_smokes_assert_media_no_mutation(self) -> None:
         tests_dir = find_repo_root(Path(__file__)) / "tests" / "webview"
         missing = []
@@ -154,23 +192,46 @@ class BrowserSmokeSupportTests(unittest.TestCase):
         self.assertEqual(len(calls), 2)
         sleep.assert_called_once_with(0.5)
 
-    def test_retries_twice_after_transient_cdp_startup_failures(self) -> None:
+    def test_stops_after_single_retry_for_repeated_transient_cdp_startup_failures(self) -> None:
         calls: list[list[str]] = []
 
         def fake_run(args: list[str], **_: object) -> subprocess.CompletedProcess[str]:
             calls.append(args)
-            if len(calls) < 3:
+            return subprocess.CompletedProcess(
+                args,
+                1,
+                stdout="",
+                stderr="CDP websocket error while opening ws://127.0.0.1/devtools/page/test\n",
+            )
+
+        with patch.object(support.subprocess, "run", side_effect=fake_run), patch.object(support.time, "sleep") as sleep:
+            with self.assertRaisesRegex(AssertionError, "Retried 1 time"):
+                support.run_node_browser_smoke(
+                    "browser support repeated cdp retry",
+                    node="node",
+                    runner_path=Path("runner.cjs"),
+                    payload_path=Path("payload.json"),
+                    timeout_seconds=5,
+                )
+
+        self.assertEqual(len(calls), 2)
+        sleep.assert_called_once_with(0.5)
+
+    def test_retries_exactly_once_after_transient_cdp_startup_failure(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(args: list[str], **_: object) -> subprocess.CompletedProcess[str]:
+            calls.append(args)
+            if len(calls) == 1:
                 return subprocess.CompletedProcess(
                     args,
                     1,
                     stdout="",
                     stderr="CDP websocket error while opening ws://127.0.0.1/devtools/page/test\n",
                 )
-            return subprocess.CompletedProcess(args, 0, stdout='{"ok": true, "attempt": 3}\n', stderr="")
+            return subprocess.CompletedProcess(args, 0, stdout='{"ok": true, "attempt": 2}\n', stderr="")
 
-        with patch.object(support.subprocess, "run", side_effect=fake_run), patch.object(
-            support.time, "sleep"
-        ) as sleep:
+        with patch.object(support.subprocess, "run", side_effect=fake_run), patch.object(support.time, "sleep") as sleep:
             result = support.run_node_browser_smoke(
                 "browser support repeated cdp retry",
                 node="node",
@@ -179,9 +240,9 @@ class BrowserSmokeSupportTests(unittest.TestCase):
                 timeout_seconds=5,
             )
 
-        self.assertEqual(result, {"ok": True, "attempt": 3})
-        self.assertEqual(len(calls), 3)
-        self.assertEqual(sleep.call_count, 2)
+        self.assertEqual(result, {"ok": True, "attempt": 2})
+        self.assertEqual(len(calls), 2)
+        sleep.assert_called_once_with(0.5)
 
 
 if __name__ == "__main__":

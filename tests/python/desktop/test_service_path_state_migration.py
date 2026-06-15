@@ -75,14 +75,12 @@ class ServicePathStateMigrationTests(unittest.TestCase):
             preferred = root / "LocalBase" / "State" / "App" / APP_STATE_NAME
             logger = DummyLogger()
 
-            with patch(
-                "mediapipeline.core.storage.state_migration.shutil.copy2",
-                side_effect=OSError("locked"),
-            ):
+            with patch("mediapipeline.core.storage.state_migration.os.replace", side_effect=OSError("locked")):
                 selected = migrate_app_state_path(app_root, preferred, logger)
 
             self.assertEqual(selected, legacy)
             self.assertFalse(preferred.exists())
+            self.assertEqual(list(preferred.parent.glob(f".{preferred.name}.*.tmp")), [])
             self.assertEqual(logger.warnings, ["App state migration failed: locked"])
 
     def test_migrate_app_state_path_for_service_sets_service_app_state_path(self) -> None:

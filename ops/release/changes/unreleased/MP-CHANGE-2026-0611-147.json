@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0611-147",
+  "title": "FB-028 replay early Tauri lifecycle events",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-028 by preserving and replaying the latest Tauri backend lifecycle event after the WebView app listener is registered.",
+  "reason": "Worker findings showed backend lifecycle events emitted during async WebView startup could be dispatched before app.js registered its event listener.",
+  "affected_areas": [
+    "Desktop shell lifecycle",
+    "WebView Tauri lifecycle"
+  ],
+  "behavior_before": "A Tauri backend lifecycle event dispatched before app.js attached the WebView listener was lost.",
+  "behavior_after": "The Tauri lifecycle bridge retains the latest event and app.js replays it immediately after listener registration.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/tauriLifecycleBridge.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/tauriLifecycleBridge.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-147.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_tauri_lifecycle_bridge.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-147.json",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_tauri_lifecycle_bridge.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_tauri_lifecycle_bridge.TauriLifecycleBridgeReplayTests.test_replays_event_dispatched_before_app_listener_registration"
+  ],
+  "manual_validation": [
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.webview.test_webview_browser_lifecycle_smoke -q passed.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.webview.test_webview_tauri_lifecycle_bridge tests.webview.test_webview_frontend_mutation_boundary -q passed.",
+    "node --check passed for apps/desktop/webview/static/assets/tauriLifecycleBridge.js and apps/desktop/webview/static/assets/app.js.",
+    "npm run webview:check passed."
+  ],
+  "rollback_plan": "Restore direct dispatch-only lifecycle bridge behavior and remove the app.js replay call, then rerun WebView lifecycle validation.",
+  "related_changes": [
+    "FB-028",
+    "FR-028",
+    "W07-004"
+  ],
+  "notes": "Tauri lifecycle boundary only; no backend mutation or filesystem mutation policy changes."
+}

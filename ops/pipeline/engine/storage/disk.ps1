@@ -317,6 +317,68 @@ function Resolve-RobocopyPath {
     return $robocopyPath
 }
 
+function Get-MediaPipelineCopyScriptVariableText {
+    param([string]$Name)
+
+    $variable = Get-Variable -Name $Name -Scope Script -ErrorAction SilentlyContinue
+    if ($variable -and -not [string]::IsNullOrWhiteSpace([string]$variable.Value)) {
+        return [string]$variable.Value
+    }
+    return ''
+}
+
+function Get-MediaPipelineCopyDestinationRootCandidates {
+    $roots = [System.Collections.Generic.List[object]]::new()
+    $seen = @{}
+    $addRoot = {
+        param([string]$Label, [string]$Root)
+        if ([string]::IsNullOrWhiteSpace($Root)) { return }
+        $rootText = Normalize-MediaPipelinePathForBoundary $Root
+        if ([string]::IsNullOrWhiteSpace($rootText)) { return }
+        $key = $rootText.ToLowerInvariant()
+        if ($seen.ContainsKey($key)) { return }
+        $seen[$key] = $true
+        $roots.Add([pscustomobject]@{ Label = $Label; Root = $Root; NormalizedRoot = $rootText }) | Out-Null
+    }
+
+    foreach ($name in @('processingDir', 'LocalEncoded', 'LocalPendingPush', 'LocalRemuxTemp', 'LocalBase')) {
+        & $addRoot $name (Get-MediaPipelineCopyScriptVariableText -Name $name)
+    }
+
+    if (Get-Command -Name Get-MediaPipelineLibraryProfiles -ErrorAction SilentlyContinue) {
+        foreach ($profile in @(Get-MediaPipelineLibraryProfiles)) {
+            if (-not $profile) { continue }
+            $outputRoot = if (Get-Command -Name Get-MediaPipelineProfileProperty -ErrorAction SilentlyContinue) {
+                [string](Get-MediaPipelineProfileProperty -Profile $profile -Name 'output_path' -Default '')
+            } elseif ($profile.PSObject.Properties['output_path']) {
+                [string]$profile.output_path
+            } else {
+                ''
+            }
+            & $addRoot 'LibraryProfiles.output_path' $outputRoot
+        }
+    }
+
+    & $addRoot 'Outsource' (Get-MediaPipelineCopyScriptVariableText -Name 'Outsource')
+
+    return @($roots)
+}
+
+function Resolve-MediaPipelineCopyDestinationRoot {
+    param([string]$Destination)
+
+    if ([string]::IsNullOrWhiteSpace($Destination)) { return $null }
+    $matches = @()
+    foreach ($candidate in @(Get-MediaPipelineCopyDestinationRootCandidates)) {
+        if (-not $candidate -or [string]::IsNullOrWhiteSpace([string]$candidate.Root)) { continue }
+        if (Test-MediaPipelinePathIsEqualOrChild -Path $Destination -Root ([string]$candidate.Root)) {
+            $matches += $candidate
+        }
+    }
+    if (@($matches).Count -le 0) { return $null }
+    return @($matches | Sort-Object @{ Expression = { ([string]$_.NormalizedRoot).Length }; Descending = $true } | Select-Object -First 1)[0]
+}
+
 function Copy-FileRobocopy {
     param([string]$Source, [string]$Destination, [int]$MaxRetries = 3)
     $script:LastCopyFileRobocopyResult = [pscustomobject]@{
@@ -349,7 +411,6 @@ function Copy-FileRobocopy {
         return $false
     }
 
-    if (-not (Test-Path -LiteralPath $dstDir)) { [System.IO.Directory]::CreateDirectory($dstDir) | Out-Null }
     $sourceBoundary = Test-MediaPipelinePathBoundarySafe -Path $Source -Root $srcDir
     if (-not $sourceBoundary.Ok) {
         $reason = "Copy source path failed boundary guard ($($sourceBoundary.ReasonCode)): $Source"
@@ -358,7 +419,15 @@ function Copy-FileRobocopy {
         $script:LastCopyFileRobocopyResult.Reason = $reason
         return $false
     }
-    $destinationBoundary = Test-MediaPipelinePathBoundarySafe -Path $Destination -Root $dstDir -AllowMissingLeaf
+    $destinationRoot = Resolve-MediaPipelineCopyDestinationRoot -Destination $Destination
+    if (-not $destinationRoot) {
+        $reason = "Copy destination path is outside configured copy roots: $Destination"
+        Write-Log $reason "ERROR"
+        $script:LastCopyFileRobocopyResult.ReasonCode = 'COPY_DESTINATION_ROOT_UNTRUSTED'
+        $script:LastCopyFileRobocopyResult.Reason = $reason
+        return $false
+    }
+    $destinationBoundary = Test-MediaPipelinePathBoundarySafe -Path $Destination -Root ([string]$destinationRoot.Root) -AllowMissingLeaf
     if (-not $destinationBoundary.Ok) {
         $reason = "Copy destination path failed boundary guard ($($destinationBoundary.ReasonCode)): $Destination"
         Write-Log $reason "ERROR"
@@ -366,6 +435,15 @@ function Copy-FileRobocopy {
         $script:LastCopyFileRobocopyResult.Reason = $reason
         return $false
     }
+    $stagingBoundary = Test-MediaPipelinePathBoundarySafe -Path $stagingRoot -Root ([string]$destinationRoot.Root) -AllowMissingLeaf
+    if (-not $stagingBoundary.Ok) {
+        $reason = "Copy staging path failed boundary guard ($($stagingBoundary.ReasonCode)): $stagingRoot"
+        Write-Log $reason "ERROR"
+        $script:LastCopyFileRobocopyResult.ReasonCode = 'COPY_STAGING_PATH_UNSAFE'
+        $script:LastCopyFileRobocopyResult.Reason = $reason
+        return $false
+    }
+    if (-not (Test-Path -LiteralPath $dstDir)) { [System.IO.Directory]::CreateDirectory($dstDir) | Out-Null }
     if (-not (Test-Path -LiteralPath $stagingRoot)) { [System.IO.Directory]::CreateDirectory($stagingRoot) | Out-Null }
     $cleanupStagingRoot = {
         try {

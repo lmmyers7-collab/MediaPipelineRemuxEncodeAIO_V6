@@ -1318,10 +1318,101 @@
   }
 
   function reportFormatCounts(counts, limit = 6) {
-    const entries = Object.entries(counts || {})
+    const entries = reportSortedCountEntries(counts, limit);
+    return entries.length ? entries.map(([key, value]) => `${key}: ${value}`).join(", ") : "none";
+  }
+
+  function reportSortedCountEntries(counts, limit = 6) {
+    return Object.entries(counts || {})
       .sort((left, right) => Number(right[1] || 0) - Number(left[1] || 0) || String(left[0]).localeCompare(String(right[0])))
       .slice(0, limit);
-    return entries.length ? entries.map(([key, value]) => `${key}: ${value}`).join(", ") : "none";
+  }
+
+  function reportHumanLabel(value, fallback = "None") {
+    const text = String(value || "").trim();
+    if (!text) return fallback;
+    const spaced = text.replace(/[_-]+/g, " ").replace(/\s+/g, " ").trim();
+    if (spaced.length <= 4 && spaced === spaced.toUpperCase()) return spaced;
+    return spaced.toLowerCase().replace(/\b[a-z]/g, (letter) => letter.toUpperCase());
+  }
+
+  function reportCompactCountPairs(counts, limit = 3, fallback = "None") {
+    const entries = reportSortedCountEntries(counts, limit);
+    if (!entries.length) return fallback;
+    return entries.map(([key, value]) => `${reportHumanLabel(key)} ${value}`).join(" / ");
+  }
+
+  function failureRootCauseLabel(errorCode) {
+    const code = String(errorCode || "").trim();
+    const upper = code.toUpperCase();
+    if (!code) return "No error code";
+    if (upper.includes("OCR_TOOL_MISSING")) return "OCR tool missing";
+    if (upper.includes("TOOL_MISSING")) return "Tool missing";
+    if (upper.includes("SUBTITLE")) return "Subtitle review";
+    if (upper.includes("AUDIO")) return "Audio review";
+    if (upper.includes("PUBLISH")) return "Publish review";
+    if (upper.includes("QUEUE")) return "Queue review";
+    if (upper.includes("SOURCE")) return "Source review";
+    return reportHumanLabel(code, "Unknown error");
+  }
+
+  function failureRootCauseTone(errorCode) {
+    const upper = String(errorCode || "").toUpperCase();
+    if (!upper) return "muted";
+    if (upper.includes("TOOL_MISSING") || upper.includes("BLOCK") || upper.includes("LOCK")) return "warning";
+    if (upper.includes("PERMANENT") || upper.includes("FATAL")) return "danger";
+    return "info";
+  }
+
+  function failureReviewNextStep({ failures, loaded, operatorRows, transientRows, rows, rootCauseCode }) {
+    const upperCause = String(rootCauseCode || "").toUpperCase();
+    if (failures.error) {
+      return {
+        value: "Open Diagnostics",
+        detail: "Inspect Failure Reports and Run Logs before rerun.",
+        tone: "danger",
+      };
+    }
+    if (!loaded) {
+      return {
+        value: "Refresh Reports",
+        detail: "Load the failure preview before triage.",
+        tone: "muted",
+      };
+    }
+    if (operatorRows.length) {
+      return {
+        value: "Inspect holds",
+        detail: "Resolve operator/permanent rows before retry.",
+        tone: "warning",
+      };
+    }
+    if (upperCause.includes("OCR_TOOL_MISSING")) {
+      return {
+        value: "Fix OCR path",
+        detail: transientRows.length ? "Then run Retry review." : "Then refresh failure evidence.",
+        tone: "warning",
+      };
+    }
+    if (transientRows.length) {
+      return {
+        value: "Compare logs",
+        detail: "Check Run Logs and queue state before retry.",
+        tone: "info",
+      };
+    }
+    if (rows.length) {
+      return {
+        value: "Select row",
+        detail: "Confirm classification and owner handoff.",
+        tone: "info",
+      };
+    }
+    return {
+      value: "No failure rows",
+      detail: "Use Audit or Diagnostics if a failure was expected.",
+      tone: "success",
+    };
   }
 
   function failureReviewStatus() {
@@ -1397,9 +1488,132 @@
     return lines;
   }
 
+  function failureReviewBoardTiles() {
+    const failures = lastFailurePreviewPayload || {};
+    const rows = Array.isArray(lastFailureRows) ? lastFailureRows : [];
+    const loaded = reportPreviewLoaded(failures, rows);
+    const operatorRows = rows.filter((row) => ["operator_required", "permanent"].includes(String(row.classification || "").toLowerCase()));
+    const transientRows = rows.filter((row) => String(row.classification || "").toLowerCase() === "transient");
+    const retryState = failureRetryStatePayload(failures);
+    const rowCount = reportNumber(failures.count || rows.length);
+    const stageCounts = reportCountBy(rows, "stage");
+    const stageEntries = reportSortedCountEntries(stageCounts, 1);
+    const errorCounts = reportCountBy(rows, "error_code");
+    const errorEntries = reportSortedCountEntries(errorCounts, 2);
+    const mediaCounts = reportCountBy(rows, "media_type");
+    const rootCauseCode = errorEntries[0]?.[0] || "";
+    const retryableCount = reportNumber(retryState.retryable_count || transientRows.length);
+    const blockedCount = reportNumber(retryState.blocked_count);
+    const warningCount = reportNumber(retryState.warning_count);
+    const nextStep = failureReviewNextStep({ failures, loaded, operatorRows, transientRows, rows, rootCauseCode });
+    let reviewState = failureReviewStatus();
+    let reviewTone = "muted";
+    let reviewDetail = loaded ? `${transientRows.length} transient / ${operatorRows.length} operator-permanent` : "No failure preview has loaded.";
+    if (failures.error) {
+      reviewTone = "danger";
+      reviewDetail = "Failure preview is unavailable.";
+    } else if (operatorRows.length) {
+      reviewTone = "warning";
+      reviewState = "Action needed";
+    } else if (transientRows.length) {
+      reviewTone = "info";
+      reviewState = "Retryable";
+    } else if (loaded && !rows.length) {
+      reviewTone = "success";
+      reviewState = "Clear";
+      reviewDetail = "No failure rows in the preview.";
+    } else if (loaded) {
+      reviewTone = "info";
+    }
+    const rootCauseDetail = errorEntries.length
+      ? errorEntries.map(([key, value]) => `${key}: ${value}`).join(" / ")
+      : "No error-code evidence.";
+    const stageDetail = stageEntries.length
+      ? reportCountLabel(stageEntries[0][1], "failure")
+      : "No stage evidence.";
+    const retryDetail = [
+      reportCountLabel(transientRows.length, "transient row"),
+      blockedCount ? reportCountLabel(blockedCount, "blocked row") : "",
+      warningCount ? reportCountLabel(warningCount, "warning") : "",
+    ].filter(Boolean).join(" / ") || "No retry candidates.";
+    return [
+      {
+        label: "Review State",
+        value: reviewState,
+        detail: reviewDetail,
+        tone: reviewTone,
+      },
+      {
+        label: "Failed Rows",
+        value: String(rowCount),
+        detail: rows.length ? "All loaded failure rows." : "No loaded failure rows.",
+        tone: rowCount ? "danger" : "success",
+      },
+      {
+        label: "Primary Stage",
+        value: stageEntries.length ? reportHumanLabel(stageEntries[0][0], "Unknown stage") : "No stage",
+        detail: stageDetail,
+        tone: stageEntries.length ? "info" : "muted",
+      },
+      {
+        label: "Retry Candidates",
+        value: String(retryableCount),
+        detail: retryDetail,
+        tone: retryableCount ? "info" : "muted",
+      },
+      {
+        label: "Root Cause",
+        value: failureRootCauseLabel(rootCauseCode),
+        detail: rootCauseDetail,
+        tone: failureRootCauseTone(rootCauseCode),
+        wide: true,
+      },
+      {
+        label: "Media Impact",
+        value: reportCompactCountPairs(mediaCounts, 2, "None"),
+        detail: reportCountLabel(rowCount, "total file"),
+        tone: rowCount ? "info" : "muted",
+      },
+      {
+        label: "Operator Holds",
+        value: String(operatorRows.length),
+        detail: "Permanent/manual rows.",
+        tone: operatorRows.length ? "warning" : "success",
+      },
+      {
+        label: "Next Step",
+        value: nextStep.value,
+        detail: nextStep.detail,
+        tone: nextStep.tone,
+        wide: true,
+      },
+    ];
+  }
+
+  function failureReviewTileNode(tile) {
+    const section = document.createElement("section");
+    section.className = `review-tile${tile.wide ? " review-tile-wide" : ""}`;
+    section.dataset.tone = tile.tone || "muted";
+    const label = document.createElement("span");
+    label.className = "review-tile-label";
+    label.textContent = tile.label || "";
+    const value = document.createElement("strong");
+    value.className = "review-tile-value";
+    value.textContent = tile.value || "";
+    const detail = document.createElement("span");
+    detail.className = "review-tile-detail";
+    detail.textContent = tile.detail || "";
+    section.replaceChildren(label, value, detail);
+    return section;
+  }
+
   function renderFailureReviewBoard() {
     setText("failure-review-status", failureReviewStatus());
-    setText("failure-review-board", failureReviewBoardLines().join("\n"));
+    const board = byId("failure-review-board");
+    if (board) {
+      board.replaceChildren(...failureReviewBoardTiles().map(failureReviewTileNode));
+    }
+    setText("failure-review-board-detail", failureReviewBoardLines().join("\n"));
   }
 
   function auditReviewStatus() {
@@ -2215,6 +2429,7 @@
     renderFailureClearResult,
     failureReviewStatus,
     failureReviewBoardLines,
+    failureReviewBoardTiles,
     failureDiagnosticsActionsForRow,
     failureEmptyStateMessage,
     selectFailureRow,

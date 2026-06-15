@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0611-142",
+  "title": "FB-032 align setup help launcher examples",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-041 by updating setup entrypoint comment-help examples to use the canonical promoted launcher path.",
+  "reason": "Worker finding W10-004 showed Setup-MediaPipeline.ps1 comment help demonstrated direct script-local invocation instead of the canonical ops/scripts/dev setup launcher.",
+  "affected_areas": [
+    "launcher guidance",
+    "operator help"
+  ],
+  "behavior_before": "PowerShell comment help showed .\\Setup-MediaPipeline.ps1 examples.",
+  "behavior_after": "PowerShell comment help shows repository-root .\\ops\\scripts\\dev\\setup.bat examples.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/entrypoints/Setup-MediaPipeline.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-142.json.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/pipeline/entrypoints/Setup-MediaPipeline.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-142.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PowerShell parser check passed for ops/pipeline/entrypoints/Setup-MediaPipeline.ps1.",
+    "Static help-text assertion passed: no direct .\\Setup-MediaPipeline.ps1 example line remains and a canonical .\\ops\\scripts\\dev\\setup.bat example is present.",
+    "Static setup help launcher assertion passed; PowerShell parser check passed for ops/pipeline/entrypoints/Setup-MediaPipeline.ps1."
+  ],
+  "rollback_plan": "Restore the prior comment-help examples and rerun the static help-text check.",
+  "related_changes": [
+    "FB-032",
+    "FR-041",
+    "W10-004"
+  ],
+  "notes": "Packet created before edits. Comment-help only; no setup behavior changes."
+}

@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from .diagnostics import diagnostic_preview as _worker_diagnostic_preview
+from .library_roots import accessible_library_ids_from_config
 from .protocol import HeartbeatRequest, coerce_progress_percent
 from .poll_policy import resolve_worker_wait_seconds
 from .worker_parts.reporting import claim_failure_status_message
@@ -19,6 +20,24 @@ _HEARTBEAT_INTERVAL = 30
 
 
 class WorkerLoopMixin:
+    def _accessible_library_ids(self) -> list[str]:
+        """Return currently reachable worker library IDs for coordinator dispatch."""
+        try:
+            worker_config = getattr(self, "_worker_config", None)
+            if callable(worker_config):
+                config = worker_config()
+            else:
+                app = getattr(self, "app", None)
+                resolved = getattr(app, "resolved", None)
+                config = getattr(resolved, "config_data", {}) if resolved is not None else {}
+            return accessible_library_ids_from_config(config)
+        except Exception as exc:
+            _log.warning(
+                "Worker library capability probe failed; reporting no accessible libraries: %s",
+                _worker_diagnostic_preview(exc),
+            )
+            return []
+
     def wakeup(self) -> None:
         """Wake the poll loop immediately instead of waiting for the next interval.
 
@@ -89,14 +108,17 @@ class WorkerLoopMixin:
             if not self._flush_pending_done_report():
                 self._wait_interruptible()
                 continue
+            self._maybe_refresh_library_auto_map()
 
             resp: dict[str, Any] | None = None
             try:
+                accessible_library_ids = self._accessible_library_ids()
                 resp = self._http_get(
                     "/api/claim",
                     {
                         "worker_id":   self._worker_id,
                         "worker_name": self._worker_name,
+                        "accessible_library_ids": ",".join(accessible_library_ids),
                     },
                 )
                 claim = parse_claim_response_payload(resp)
@@ -129,6 +151,11 @@ class WorkerLoopMixin:
                 )
                 self._notify_status(status_message)
                 if log_auth_event:
+                    auth_message = (
+                        "Coordinator returned 401 - coordinator/worker clock skew exceeds five minutes."
+                        if "clock_skew" in err_str
+                        else "Coordinator returned 401 - token mismatch."
+                    )
                     # Auth error is loud — fire one cluster log so the
                     # operator sees it on the coordinator immediately.
                     # (Will only land if the token is at least valid enough
@@ -136,7 +163,7 @@ class WorkerLoopMixin:
                     self._safe_log_cluster_event(
                         "claim-unauthorized",
                         level="ERROR", event="claim_unauthorized",
-                        message="Coordinator returned 401 — token mismatch.",
+                        message=auth_message,
                     )
                 self._wait_interruptible()
                 continue
@@ -156,11 +183,11 @@ class WorkerLoopMixin:
                 )
                 continue
 
-            # Apply source path map: rewrite coordinator paths to local ones if
-            # this worker has WorkerSourcePathMap configured.  No-op when unset.
+            # Prefer additive library-relative claim fields when present, then
+            # fall back to C1/manual prefix maps and finally the raw source path.
             original_path = claim.source_path
             try:
-                mapped_path = self._apply_path_map(original_path)
+                mapped_path, resolution_mode = self.resolve_claim_source_path(claim)
             except Exception as exc:
                 _log.error("Source path map failed for claimed job %s: %s", claim.job_id, exc)
                 self._safe_log_cluster_event(
@@ -175,14 +202,26 @@ class WorkerLoopMixin:
                 self._wait_interruptible()
                 continue
             if mapped_path != original_path:
-                _log.info(
-                    "Path map rewrote %s → %s",
-                    original_path, mapped_path,
-                )
+                log_event = "path_remapped"
+                log_context = "path-remapped"
+                if resolution_mode == "library_relative":
+                    _log.info(
+                        "Library-relative claim resolved %s/%s -> %s",
+                        claim.library_id,
+                        claim.relative_path,
+                        mapped_path,
+                    )
+                    log_event = "claim_library_resolved"
+                    log_context = "claim-library-resolved"
+                else:
+                    _log.info(
+                        "Path map rewrote %s → %s",
+                        original_path, mapped_path,
+                    )
                 self._safe_log_cluster_event(
-                    "path-remapped",
+                    log_context,
                     level="DEBUG",
-                    event="path_remapped",
+                    event=log_event,
                     message=f"{original_path} → {mapped_path}",
                     job_id=claim.job_id,
                     source_path=mapped_path,
@@ -259,6 +298,7 @@ class WorkerLoopMixin:
                         worker_id        = self._worker_id,
                         progress_percent = progress,
                         current_stage    = stage,
+                        accessible_library_ids = self._accessible_library_ids(),
                     ).to_dict(),
                 )
                 if resp.get("status") == "reclaimed":
@@ -308,8 +348,8 @@ class WorkerLoopMixin:
                 _log.warning("Worker heartbeat thread did not stop within 5 seconds; continuing cleanup.")
         self._heartbeat_thread = None
 
-    def shutdown(self) -> None:
-        """Stop all background threads.  Release any active job back to the queue."""
+    def shutdown(self, *, release_active_job: bool = True) -> None:
+        """Stop background threads and optionally release an active job."""
         _log.info("WorkerDispatcher shutting down.")
         self._safe_log_cluster_event(
             "worker-stopped",
@@ -323,7 +363,14 @@ class WorkerLoopMixin:
         with self._active_job_lock:
             job = self._active_job
         if job is not None:
-            self.release(job)
+            if release_active_job:
+                self.release(job)
+            else:
+                _log.warning(
+                    "WorkerDispatcher shutdown left active job %s claimed because the pipeline process is still running.",
+                    getattr(job, "job_id", "")[:8],
+                )
+                self._stop_heartbeat()
         else:
             # Still need to stop the heartbeat if it's running independently.
             self._stop_heartbeat()

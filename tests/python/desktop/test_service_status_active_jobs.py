@@ -274,6 +274,27 @@ class StatusActiveJobsHelperTests(unittest.TestCase):
         self.assertEqual(payload["rows"][0]["status_state"], "warning")
         self.assertEqual(payload["progress_bars"][0]["status"], "warning")
 
+    def test_worker_progress_payload_treats_bad_active_update_as_warning(self) -> None:
+        payload = worker_progress_payload(
+            None,
+            {
+                "ProgressVersion": 2,
+                "Status": "Processing",
+                "LastUpdate": "not a date",
+                "CurrentStage": "encode",
+                "CurrentStagePercent": 42.5,
+                "CurrentFileDisplay": "Movie.mkv",
+            },
+            "ffmpeg running\n",
+            now=datetime.fromisoformat("2026-05-08T12:02:03-04:00"),
+        )
+
+        self.assertEqual(payload["status"], "warning")
+        self.assertEqual(payload["warning_count"], 1)
+        self.assertTrue(payload["rows"][0]["stale"])
+        self.assertEqual(payload["rows"][0]["status_state"], "warning")
+        self.assertEqual(payload["progress_bars"][0]["status"], "warning")
+
     def test_worker_progress_payload_does_not_fake_rows_when_no_runtime_evidence_exists(self) -> None:
         payload = worker_progress_payload(None, None, "")
 

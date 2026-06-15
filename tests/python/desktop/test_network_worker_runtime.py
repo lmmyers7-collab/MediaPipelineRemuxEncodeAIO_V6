@@ -28,6 +28,7 @@ from mediapipeline.desktop.network.firewall import (
     add_firewall_rule,
     build_add_firewall_rule_command,
     check_firewall_port,
+    format_command,
     parse_matching_firewall_rule_names,
 )
 from mediapipeline.desktop.network.http_json import http_get_json, http_post_json
@@ -82,6 +83,15 @@ from mediapipeline.desktop.network.worker_record import make_queue_record
 
 
 class NetworkWorkerRuntimeTests(unittest.TestCase):
+    def test_firewall_add_rule_command_limits_profile_and_remote_scope(self) -> None:
+        command = build_add_firewall_rule_command(7830, netsh_path="netsh")
+        manual_command = format_command(command)
+
+        self.assertIn("profile=private", command)
+        self.assertIn("remoteip=localsubnet", command)
+        self.assertIn("profile=private", manual_command)
+        self.assertIn("remoteip=localsubnet", manual_command)
+
     def test_network_diagnostic_preview_bounds_text(self) -> None:
         long_error = "network failure " + ("x" * 500) + "tail-marker"
 
@@ -461,6 +471,49 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
         self.assertTrue(worker._poll_stop.is_set())
         self.assertIn("Failed to emit claim-unauthorized cluster event", "\n".join(logs.output))
 
+    def test_flush_pending_done_report_holds_claims_when_worker_state_is_corrupt(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "worker_state.json"
+            state_path.write_text("{not json", encoding="utf-8")
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = state_path
+            worker._worker_id = "worker-1"
+            worker._notify_status = statuses.append  # type: ignore[method-assign]
+            worker._http_post = lambda *_args, **_kwargs: self.fail("corrupt worker_state should not post done")  # type: ignore[method-assign]
+
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                flushed = WorkerDispatcher._flush_pending_done_report(worker)
+
+        self.assertFalse(flushed)
+        self.assertEqual(statuses, ["⚠ Worker state unreadable; holding new claims until worker_state.json is repaired or cleared."])
+        self.assertIn("worker_state.json is unreadable; holding new claims", "\n".join(logs.output))
+
+    def test_worker_poll_loop_does_not_claim_when_worker_state_is_corrupt(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "worker_state.json"
+            state_path.write_text("{not json", encoding="utf-8")
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._poll_interval = 30
+            worker._poll_stop = threading.Event()
+            worker._wakeup = threading.Event()
+            worker._active_job_lock = threading.Lock()
+            worker._active_job = None
+            worker._worker_id = "worker-1"
+            worker._worker_name = "Worker"
+            worker._base_url = "http://127.0.0.1:7830"
+            worker._state_path = state_path
+            worker._notify_status = statuses.append  # type: ignore[method-assign]
+            worker._http_get = lambda *_args, **_kwargs: self.fail("corrupt worker_state should hold before claim")  # type: ignore[method-assign]
+            worker._wait_interruptible = lambda _seconds=None: worker._poll_stop.set()  # type: ignore[method-assign]
+
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                WorkerDispatcher._poll_loop(worker)
+
+        self.assertEqual(statuses, ["⚠ Worker state unreadable; holding new claims until worker_state.json is repaired or cleared."])
+        self.assertIn("worker_state.json is unreadable; holding new claims", "\n".join(logs.output))
+
     def test_worker_poll_does_not_treat_error_body_401_text_as_auth_failure(self) -> None:
         statuses: list[str] = []
         events: list[dict[str, object]] = []
@@ -686,6 +739,87 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
         self.assertEqual(statuses, ["⚠ Claimed job handoff failed: handoff failed"])
         self.assertIsNone(worker._active_job)
         self.assertIn("Worker failed after claiming job job-1; releasing claim.", "\n".join(logs.output))
+
+    def test_worker_claim_request_reports_accessible_library_ids(self) -> None:
+        class StopAfterOneLoop:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def is_set(self) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            movies = root / "Movies"
+            tv = root / "TV"
+            movies.mkdir()
+            params_seen: list[dict[str, str]] = []
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker.app = SimpleNamespace(
+                resolved=SimpleNamespace(
+                    config_data={
+                        "SourceMovies": str(movies),
+                        "SourceTV": str(tv),
+                        "Outsource": str(root / "Out"),
+                    }
+                )
+            )
+            worker._poll_interval = 1.0
+            worker._poll_stop = StopAfterOneLoop()
+            worker._wakeup = SimpleNamespace(wait=lambda _seconds: False, clear=lambda: None)
+            worker._active_job_lock = threading.Lock()
+            worker._active_job = None
+            worker._worker_id = "worker-1"
+            worker._worker_name = "Worker"
+            worker._flush_pending_done_report = lambda: True  # type: ignore[method-assign]
+            worker._maybe_refresh_library_auto_map = lambda: None  # type: ignore[method-assign]
+            worker._http_get = lambda _path, params: params_seen.append(dict(params)) or ClaimResponse.empty().to_dict()  # type: ignore[method-assign]
+            worker._notify_status = statuses.append  # type: ignore[method-assign]
+
+            WorkerDispatcher._poll_loop(worker)
+
+        self.assertEqual(params_seen[0]["worker_id"], "worker-1")
+        self.assertEqual(params_seen[0]["accessible_library_ids"], "movies")
+        self.assertEqual(len(statuses), 1)
+
+    def test_worker_heartbeat_reports_accessible_library_ids(self) -> None:
+        class StopAfterOneHeartbeat:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def wait(self, _seconds: float) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            movies = root / "Movies"
+            movies.mkdir()
+            posts: list[tuple[str, dict[str, object]]] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker.app = SimpleNamespace(
+                resolved=SimpleNamespace(
+                    config_data={
+                        "SourceMovies": str(movies),
+                        "SourceTV": str(root / "TV"),
+                        "Outsource": str(root / "Out"),
+                    }
+                ),
+                snapshot=None,
+            )
+            worker._worker_id = "worker-1"
+            worker._heartbeat_stop = StopAfterOneHeartbeat()
+            worker._http_post = lambda path, payload: posts.append((path, payload)) or {"status": "ok"}  # type: ignore[method-assign]
+            worker._last_heartbeat_failure_text = ""
+            worker._notify_status = lambda _message: None  # type: ignore[method-assign]
+            job = SimpleNamespace(job_id="job-1", record=SimpleNamespace(source_path=str(movies / "movie.mkv")))
+
+            WorkerDispatcher._heartbeat_loop(worker, job)
+
+        self.assertEqual(posts[0][0], "/api/heartbeat")
+        self.assertEqual(posts[0][1]["accessible_library_ids"], ["movies"])
 
     def test_worker_claim_handoff_failure_diagnostic_is_bounded(self) -> None:
         class StopAfterOneLoop:

@@ -56,8 +56,8 @@ $script:Tx3gTreatForcedAsSeparate = Get-ConfigBool 'Tx3gTreatForcedAsSeparate' $
 $script:ConvertBdpgsToSrt = Get-ConfigBool 'ConvertBdpgsToSrt' $false
 $script:DropBdpgsAfterConversion = Get-ConfigBool 'DropBdpgsAfterConversion' $false
 $script:TreatBdpgsSignsSongsAsForced = Get-ConfigBool 'TreatBdpgsSignsSongsAsForced' $false
-$script:BdpgsOcrToolPath = if ($config.ContainsKey('BdpgsOcrToolPath')) { [string]$config['BdpgsOcrToolPath'] } else { '' }
-$script:BdpgsOcrTessdataPath = if ($config.ContainsKey('BdpgsOcrTessdataPath')) { [string]$config['BdpgsOcrTessdataPath'] } else { '' }
+$script:BdpgsOcrToolPath = if ($config.ContainsKey('BdpgsOcrToolPath')) { [string]$config['BdpgsOcrToolPath'] } else { 'tools\PgsToSrt\PgsToSrt.exe' }
+$script:BdpgsOcrTessdataPath = if ($config.ContainsKey('BdpgsOcrTessdataPath')) { [string]$config['BdpgsOcrTessdataPath'] } else { 'tools\PgsToSrt\tessdata' }
 $script:ConvertVobSubToSrt = Get-ConfigBool 'ConvertVobSubToSrt' $false
 $script:DropVobSubAfterConversion = Get-ConfigBool 'DropVobSubAfterConversion' $false
 $script:TreatVobSubSignsSongsAsForced = Get-ConfigBool 'TreatVobSubSignsSongsAsForced' $false
@@ -66,6 +66,8 @@ $script:TreatAssSignsSongsAsForced = Get-ConfigBool 'TreatAssSignsSongsAsForced'
 $script:TreatTx3gSignsSongsAsForced = Get-ConfigBool 'TreatTx3gSignsSongsAsForced' $false
 $script:AggressiveEpisodeParsing = Get-ConfigBool 'AggressiveEpisodeParsing' $false
 $script:AllowSystemTools = Get-ConfigBool 'AllowSystemTools' $false
+$script:DoviToolPath = if ($config.ContainsKey('DoviToolPath')) { [string]$config['DoviToolPath'] } else { '' }
+$script:Hdr10PlusToolPath = if ($config.ContainsKey('Hdr10PlusToolPath')) { [string]$config['Hdr10PlusToolPath'] } else { '' }
 $script:MergeThresholdMs  = Get-ConfigInt  'MergeThresholdMs'  150 0 5000
 $script:LogRetentionDays  = Get-ConfigInt  'LogRetentionDays'  7   1 365
 $script:FFmpegEncodeTimeoutSeconds = Get-ConfigInt 'FFmpegEncodeTimeoutSeconds' 21600 300 172800
@@ -84,6 +86,27 @@ $script:SubtitleExtractTimeoutSeconds = Get-ConfigInt 'SubtitleExtractTimeoutSec
 $script:SubtitleProbeTimeoutSeconds   = Get-ConfigInt 'SubtitleProbeTimeoutSeconds' 30 5 600
 $script:BdpgsOcrTimeoutSeconds        = Get-ConfigInt 'BdpgsOcrTimeoutSeconds' 1800 60 14400
 $script:VobSubOcrTimeoutSeconds       = Get-ConfigInt 'VobSubOcrTimeoutSeconds' 1800 60 14400
+$script:EnableQualityVerification    = Get-ConfigBool 'EnableQualityVerification' $false
+$script:QualityMetric = if ($config.ContainsKey('QualityMetric')) {
+    Resolve-MediaPipelineQualityMetric -Metric ([string]$config['QualityMetric'])
+} else {
+    Get-MediaPipelineQualityMetricDefault
+}
+$script:QualitySampleMode = if ($config.ContainsKey('QualitySampleMode')) {
+    Resolve-MediaPipelineQualitySampleMode -Mode ([string]$config['QualitySampleMode'])
+} else {
+    Get-MediaPipelineQualitySampleModeDefault
+}
+$script:QualitySampleSeconds          = Get-ConfigInt 'QualitySampleSeconds' 10 2 60
+$script:QualitySampleCount            = Get-ConfigInt 'QualitySampleCount' 3 1 10
+$script:QualityWarnThreshold          = Get-ConfigDouble 'QualityWarnThreshold' 90 0 ([double]::MaxValue)
+$script:QualityFailThreshold          = Get-ConfigDouble 'QualityFailThreshold' 75 0 ([double]::MaxValue)
+$script:QualityFailAction = if ($config.ContainsKey('QualityFailAction')) {
+    Resolve-MediaPipelineQualityFailAction -Action ([string]$config['QualityFailAction'])
+} else {
+    Get-MediaPipelineQualityFailActionDefault
+}
+$script:QualityVerifyTimeoutSeconds   = Get-ConfigInt 'QualityVerifyTimeoutSeconds' 1800 60 21600
 $script:SourceScanIntervalSeconds    = Get-ConfigInt 'SourceScanIntervalSeconds' 300 0 86400
 $script:ProcessedIndexRefreshSeconds = Get-ConfigInt 'ProcessedIndexRefreshSeconds' 900 0 86400
 $script:RobocopyTimeoutSeconds       = Get-ConfigInt 'RobocopyTimeoutSeconds' 14400 60 172800
@@ -283,6 +306,11 @@ $script:SizeGuardMode = if ($config.ContainsKey('SizeGuardMode')) {
 } else {
     Get-MediaPipelineSizeGuardModeDefault
 }
+$script:DynamicHdrPolicy = if ($config.ContainsKey('DynamicHdrPolicy')) {
+    Resolve-MediaPipelineDynamicHdrPolicy -Policy ([string]$config['DynamicHdrPolicy'])
+} else {
+    Get-MediaPipelineDynamicHdrPolicyDefault
+}
 $removedRoutingFallbackConfigKeys = @(
     'EncodeThresholdGB',
     'TVEncodeThresholdGB',
@@ -330,6 +358,7 @@ $script:H264RemuxMaxHeight = Get-ConfigInt 'H264RemuxMaxHeight' 1080 1 4320
 $script:MaxEncodeGrowthPercent = Get-ConfigDouble 'MaxEncodeGrowthPercent' 5 0 1000
 $script:CompatibilityEncodeGrowthPercent = Get-ConfigDouble 'CompatibilityEncodeGrowthPercent' 15 0 1000
 $script:CurrentSizePolicyResult = $null
+$script:LastQualityVerification = $null
 $script:ExtraVideoFlags = @(
     Get-MediaPipelineEncodeTuningFlags `
         -Preset $script:EncodeTuningPreset `

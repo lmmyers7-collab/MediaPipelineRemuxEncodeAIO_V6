@@ -14,6 +14,7 @@ Phase 3: full implementation.
 """
 from __future__ import annotations
 
+import ipaddress
 import logging
 import socket
 import threading
@@ -64,6 +65,29 @@ def _require_zeroconf() -> None:
 # Coordinator advertiser
 # ---------------------------------------------------------------------------
 
+def _advertised_ip_for_bind_address(bind_address: str) -> str | None:
+    bind = str(bind_address or "").strip()
+    if not bind or bind in {"0.0.0.0", "::"}:
+        return _get_local_ip()
+    if bind.startswith("[") and bind.endswith("]"):
+        bind = bind[1:-1]
+    try:
+        parsed = ipaddress.ip_address(bind)
+    except ValueError:
+        try:
+            resolved = socket.gethostbyname(bind)
+            parsed = ipaddress.ip_address(resolved)
+        except (OSError, ValueError):
+            _log.warning("mDNS: could not resolve CoordinatorBindAddress %r for advertisement.", bind_address)
+            return None
+    if parsed.is_loopback:
+        return None
+    if parsed.version != 4:
+        _log.warning("mDNS: skipping non-IPv4 CoordinatorBindAddress %r for advertisement.", bind_address)
+        return None
+    return str(parsed)
+
+
 class CoordinatorAdvertiser:
     """Advertises a MediaPipeline coordinator on the local network via mDNS.
 
@@ -80,17 +104,25 @@ class CoordinatorAdvertiser:
             pass  # runs until the with block exits
     """
 
-    def __init__(self, port: int) -> None:
+    def __init__(self, port: int, bind_address: str = "0.0.0.0") -> None:
         _require_zeroconf()
         self._port   = port
+        self._bind_address = bind_address
         self._zc: "Zeroconf | None"          = None
         self._info: "ServiceInfo | None"     = None
+        self.skipped = False
+        self.skip_reason = ""
 
     def start(self) -> bool:
         """Register the mDNS service.  Safe to call from any thread."""
         try:
             hostname    = socket.gethostname()
-            local_ip    = _get_local_ip()
+            local_ip    = _advertised_ip_for_bind_address(getattr(self, "_bind_address", "0.0.0.0"))
+            if not local_ip:
+                self.skipped = True
+                self.skip_reason = f"CoordinatorBindAddress {getattr(self, '_bind_address', '')!r} is not advertised via mDNS."
+                _log.info("mDNS: %s", self.skip_reason)
+                return False
             service_name = f"{_INSTANCE_NAME}.{MDNS_SERVICE_TYPE}"
             self._info   = ServiceInfo(
                 type_    = MDNS_SERVICE_TYPE,

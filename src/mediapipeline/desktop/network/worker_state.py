@@ -183,9 +183,16 @@ class WorkerStateMixin:
             return True
         try:
             state = load_worker_state(state_path)
-        except Exception:
-            # Unreadable state is crash recovery's concern, not a claim gate.
-            return True
+        except Exception as exc:
+            preview = _worker_diagnostic_preview(exc)
+            _worker_log.warning(
+                "worker_state.json is unreadable; holding new claims until the state file is recovered or cleared: %s",
+                preview,
+            )
+            notify_status = getattr(self, "_notify_status", None)
+            if callable(notify_status):
+                notify_status("⚠ Worker state unreadable; holding new claims until worker_state.json is repaired or cleared.")
+            return False
         pending = state.get("pending_done_report")
         if not (isinstance(pending, dict) and str(pending.get("job_id", "") or "").strip()):
             return True

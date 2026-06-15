@@ -61,7 +61,40 @@ def _browser_layout_manager_runner_source() -> str:
               const drawer = document.getElementById("layout-editor-drawer");
               if (!drawer) throw new Error("missing layout editor drawer");
               if (drawer.getAttribute("aria-hidden") !== "false") throw new Error("layout editor drawer is still aria-hidden");
+              if (drawer.hidden) throw new Error("layout editor drawer remained hidden after open");
+              if (drawer.inert) throw new Error("layout editor drawer remained inert after open");
               if (document.body.classList.contains("layout-customize-mode")) throw new Error("legacy inline customize mode should not activate");
+            }
+            function closeDrawerAndRequireInert() {
+              const drawer = document.getElementById("layout-editor-drawer");
+              if (!drawer) throw new Error("missing layout editor drawer");
+              click("layout-editor-done");
+              if (document.body.classList.contains("layout-editor-open")) throw new Error("layout editor drawer did not close");
+              if (drawer.getAttribute("aria-hidden") !== "true") throw new Error("closed layout editor drawer should be aria-hidden");
+              if (!drawer.hidden) throw new Error("closed layout editor drawer should be hidden");
+              if (!drawer.inert) throw new Error("closed layout editor drawer should be inert");
+              const done = document.getElementById("layout-editor-done");
+              done.focus();
+              if (document.activeElement === done) throw new Error("closed layout editor drawer accepted focus");
+            }
+            function assertEmptyStateCustomizeOpenOnly() {
+              window.showPage("queue");
+              openDrawer();
+              const page = document.querySelector('[data-page-panel="queue"]');
+              if (!page) throw new Error("missing queue page for empty-state customize check");
+              const panels = Array.from(page.querySelectorAll(":scope > section.panel[data-panel-key]"));
+              panels.forEach((panel) => panel.setAttribute("data-panel-hidden", ""));
+              window.updatePagePanelEmptyStates();
+              const empty = page.querySelector('[data-page-empty-state="panel-visibility"]');
+              if (!empty || !empty.classList.contains("is-visible")) throw new Error("queue empty-state did not become visible");
+              const customize = Array.from(empty.querySelectorAll("button")).find((button) => text(button) === "Customize");
+              if (!customize) throw new Error("missing empty-state Customize button");
+              customize.click();
+              if (!document.body.classList.contains("layout-editor-open")) throw new Error("empty-state Customize closed an already-open drawer");
+              const drawer = document.getElementById("layout-editor-drawer");
+              if (drawer.getAttribute("aria-hidden") !== "false" || drawer.hidden || drawer.inert) throw new Error("empty-state Customize left drawer inaccessible");
+              panels.forEach((panel) => panel.removeAttribute("data-panel-hidden"));
+              window.updatePagePanelEmptyStates();
             }
             function drawerRows() {
               return Array.from(document.querySelectorAll("#layout-editor-tree .layout-editor-panel-row[data-layout-editor-panel-key]"));
@@ -71,6 +104,80 @@ def _browser_layout_manager_runner_source() -> str:
             }
             function panelForDrawerRow(row) {
               return document.querySelector('section.panel[data-panel-key="' + row.dataset.layoutEditorPanelKey + '"]');
+            }
+            function sharedPreferenceSnapshot() {
+              const snapshot = {};
+              for (let index = 0; index < localStorage.length; index += 1) {
+                const key = localStorage.key(index);
+                if (/^mediapipeline[-.][A-Za-z0-9_.:-]{1,160}$/.test(String(key || ""))) {
+                  snapshot[key] = String(localStorage.getItem(key));
+                }
+              }
+              return snapshot;
+            }
+            function storedLayoutState() {
+              return JSON.parse(localStorage.getItem("mediapipeline-layout-v1") || "{}");
+            }
+            async function restoreUiPreferencesLikeTauriRefresh() {
+              if (typeof restoreSharedUiPreferences !== "function") throw new Error("restoreSharedUiPreferences is not global");
+              await restoreSharedUiPreferences({ applyRuntime: true, seedWebview: false });
+            }
+            async function withStaleUiPreferences(stalePreferences, action) {
+              const originalApiGet = window.apiGet;
+              const originalApiPost = window.apiPost;
+              let postedPreferences = null;
+              window.apiGet = async function apiGetWithStaleUiPreferences(path, options) {
+                if (path === "/api/ui-preferences") return { storage: stalePreferences };
+                return originalApiGet(path, options);
+              };
+              window.apiPost = async function apiPostCapturingUiPreferences(path, payload, options) {
+                if (path === "/api/ui-preferences") {
+                  postedPreferences = payload?.storage || {};
+                  return { ok: true, storage: postedPreferences };
+                }
+                return originalApiPost(path, payload, options);
+              };
+              try {
+                await action(() => postedPreferences);
+              } finally {
+                window.apiGet = originalApiGet;
+                window.apiPost = originalApiPost;
+              }
+            }
+            async function requireStaleRemoteRefreshDoesNotRevertSharedPreference() {
+              const key = "mediapipeline-launch-tab";
+              const stalePreferences = sharedPreferenceSnapshot();
+              stalePreferences[key] = "pipeline";
+              await withStaleUiPreferences(stalePreferences, async (postedPreferences) => {
+                localStorage.setItem(key, "history");
+                await restoreUiPreferencesLikeTauriRefresh();
+                if (localStorage.getItem(key) !== "history") {
+                  throw new Error("stale remote UI preferences reverted a pending shared preference write");
+                }
+                if ((postedPreferences() || {})[key] !== "history") {
+                  throw new Error("pending shared preference write was not flushed before remote refresh");
+                }
+              });
+            }
+            async function requireStaleRemoteRefreshDoesNotRevertLayoutToggle(panel) {
+              const panelKey = panel.dataset.panelKey || "";
+              if (!panelKey) throw new Error("missing panel key for stale-refresh regression");
+              const staleLayout = storedLayoutState();
+              staleLayout[panelKey] = { ...(staleLayout[panelKey] || {}), advanced: false };
+              const stalePreferences = sharedPreferenceSnapshot();
+              stalePreferences["mediapipeline-layout-v1"] = JSON.stringify(staleLayout);
+              await withStaleUiPreferences(stalePreferences, async (postedPreferences) => {
+                requireDrawerPanel("queue", "Queue Summary").querySelectorAll(".layout-editor-toggle-button")[1].click();
+                if (!panel.hasAttribute("data-panel-advanced")) throw new Error("drawer Advanced toggle did not gate Queue Summary");
+                await restoreUiPreferencesLikeTauriRefresh();
+                if (!panel.hasAttribute("data-panel-advanced")) {
+                  throw new Error("stale remote UI preferences reverted a pending layout editor Advanced click");
+                }
+                const savedLayout = JSON.parse((postedPreferences() || {})["mediapipeline-layout-v1"] || "{}");
+                if (savedLayout[panelKey]?.advanced !== true) {
+                  throw new Error("pending layout editor Advanced click was not flushed before remote refresh");
+                }
+              });
             }
             function drawerRowByHeading(heading) {
               return drawerRows().find((row) => drawerRowText(row) === heading);
@@ -92,6 +199,23 @@ def _browser_layout_manager_runner_source() -> str:
               const genericSummaryCount = found.filter((label) => label === "Summary").length;
               if (genericSummaryCount > 1) {
                 throw new Error("layout drawer has duplicate generic Summary groups for " + page + ": " + found.join(" | "));
+              }
+            }
+            function requireDrawerHeadings(page, expected, omitted) {
+              window.showPage(page);
+              openDrawer();
+              const found = drawerRows().map(drawerRowText);
+              const missing = expected.filter((heading) => !found.includes(heading));
+              const extras = found.filter((heading) => !expected.includes(heading));
+              const unexpected = omitted.filter((heading) => found.includes(heading));
+              if (missing.length || extras.length || unexpected.length) {
+                throw new Error(
+                  "layout drawer headings mismatch for " + page
+                  + "\\nMissing: " + missing.join(" | ")
+                  + "\\nExtras: " + extras.join(" | ")
+                  + "\\nUnexpected omitted: " + unexpected.join(" | ")
+                  + "\\nFound: " + found.join(" | ")
+                );
               }
             }
             function requireManagedPanel(page, heading) {
@@ -128,31 +252,61 @@ def _browser_layout_manager_runner_source() -> str:
             }
             function dragDrawerRow(sourceRow, targetRow) {
               const grip = sourceRow.querySelector(".layout-editor-panel-grip");
+              const sourceRect = sourceRow.getBoundingClientRect();
               const targetRect = targetRow.getBoundingClientRect();
-              const dataTransfer = new DataTransfer();
-              grip.dispatchEvent(new DragEvent("dragstart", { bubbles: true, cancelable: true, dataTransfer }));
-              targetRow.dispatchEvent(new DragEvent("dragover", {
+              const pointerId = 17;
+              const startX = sourceRect.left + sourceRect.width / 2;
+              const startY = sourceRect.top + sourceRect.height / 2;
+              const targetX = targetRect.left + targetRect.width / 2;
+              const targetY = targetRect.top + 1;
+              grip.dispatchEvent(new PointerEvent("pointerdown", {
                 bubbles: true,
                 cancelable: true,
-                clientY: targetRect.top + 1,
-                dataTransfer,
+                pointerId,
+                pointerType: "mouse",
+                button: 0,
+                buttons: 1,
+                clientX: startX,
+                clientY: startY,
               }));
+              if (!sourceRow.classList.contains("is-drag-holding")) throw new Error("drawer source row did not enter held drag state");
+              targetRow.dispatchEvent(new PointerEvent("pointermove", {
+                bubbles: true,
+                cancelable: true,
+                pointerId,
+                pointerType: "mouse",
+                buttons: 1,
+                clientX: targetX,
+                clientY: targetY,
+              }));
+              if (!sourceRow.classList.contains("is-dragging")) throw new Error("drawer source row did not enter active drag state");
               if (!targetRow.classList.contains("is-drop-target")) throw new Error("drawer drop target did not highlight");
-              targetRow.dispatchEvent(new DragEvent("drop", {
+              targetRow.dispatchEvent(new PointerEvent("pointerup", {
                 bubbles: true,
                 cancelable: true,
-                clientY: targetRect.top + 1,
-                dataTransfer,
+                pointerId,
+                pointerType: "mouse",
+                button: 0,
+                buttons: 0,
+                clientX: targetX,
+                clientY: targetY,
               }));
+              if (document.querySelector(".layout-editor-panel-row.is-drag-holding, .layout-editor-panel-row.is-dragging, .layout-editor-panel-row.is-drop-target")) {
+                throw new Error("drawer pointer drag state did not clear after drop");
+              }
             }
             openDrawer();
+            closeDrawerAndRequireInert();
+            openDrawer();
+            assertEmptyStateCustomizeOpenOnly();
+            await requireStaleRemoteRefreshDoesNotRevertSharedPreference();
             const required = {
               queue: ["Queue Decision", "Attention Required", "Queue Rows", "Backend Launch Scope Boundary", "Queue-to-Launch Handoff", "Queue Readiness Checklist"],
               completed: ["Output Trust Decision", "Output Files", "Current Output Status", "Completed History Summary", "File And Size Proof", "Publish And Pending Proof", "Integrity Check", "Diagnostics Links"],
               settings: ["Staged Changes", "Active Policy", "Save Status", "Launch Impact", "Save Result"],
               diagnostics: ["Recovery Steps", "Read Order", "Impact Summary", "Related Evidence", "Contract Review"],
-              launch: ["Readiness", "Settings Check", "Pipeline Controller", "Start Evidence", "Start Summary", "Command Review"],
-              reports: ["Error Details", "Clear Errors", "Audit Entries"],
+              launch: ["Readiness", "Settings Check", "Pipeline Processor", "Start Evidence", "Start Decision Summary", "Command Review"],
+              reports: ["Failure Review Board", "Marker Cleanup", "Audit Entries"],
             };
             const keys = {};
             for (const [page, headings] of Object.entries(required)) {
@@ -171,15 +325,63 @@ def _browser_layout_manager_runner_source() -> str:
             openDrawer();
             const completedPanes = Array.from(document.querySelectorAll('[data-page-panel="completed"] .settings-tab-pane[data-completed-tab]'));
             const completedPaneKeys = completedPanes.map((pane) => pane.dataset.completedTab).sort().join("|");
-            if (completedPaneKeys !== "advanced|history|overview") throw new Error("Completed tab panes were not merged to one container per tab: " + completedPaneKeys);
+            if (completedPaneKeys !== "evidence|history|overview") throw new Error("Completed tab panes were not merged to one container per tab: " + completedPaneKeys);
             if (document.querySelector('[data-page-panel="completed"] section.panel.settings-tab-pane')) throw new Error("Completed tab panes should be containers, not draggable panels");
-            requireDrawerGroups("launch", ["Readiness", "Pipeline", "Audit", "CSV Rerun", "History"]);
-            requireDrawerGroups("reports", ["Failures", "Audit", "Files"]);
+            requireDrawerGroups("launch", ["Pipeline Processor", "Audit", "CSV Rerun", "History", "Readiness"]);
+            requireDrawerGroups("reports", ["Failures", "Audit", "Locations"]);
+            requireDrawerHeadings(
+              "pending",
+              [
+                "Pending Publish Guard Evidence",
+                "Pending Publish Drain",
+                "Drain Status",
+                "Risk Summary",
+                "Pending Publish Checklist",
+                "Flagged Items",
+                "Recovery Preview",
+                "Pending Rows",
+                "Selected Item",
+                "Diagnostics Links",
+              ],
+              [
+                "Pending Publish Action Center",
+                "Live Run",
+                "Pending Refresh",
+                "Pending Items",
+                "Parked Files",
+                "Next Step",
+                "Drain Evidence",
+                "Drain Confidence",
+                "Drain Scope",
+                "Drain Checklist",
+                "Drain Comparison",
+                "Post-Drain Review",
+                "Recent Events",
+                "Last Drain",
+              ],
+            );
+            const keyedExcludedPendingPanels = Array.from(document.querySelectorAll('[data-page-panel="pending"] > section.panel[data-layout-editor-exclude][data-panel-key]'));
+            if (keyedExcludedPendingPanels.length) {
+              throw new Error("Pending Publish excluded panels still received layout keys: " + keyedExcludedPendingPanels.map(headingText).join(" | "));
+            }
+            const pendingPanels = Array.from(document.querySelectorAll('[data-page-panel="pending"] > section.panel'));
+            [
+              "Drain Evidence",
+              "Drain Confidence",
+              "Drain Scope",
+              "Drain Comparison",
+              "Post-Drain Review",
+              "Last Drain",
+            ].forEach((heading) => {
+              const panel = pendingPanels.find((candidate) => headingText(candidate) === heading);
+              if (!panel) throw new Error("missing excluded advanced Pending Publish panel: " + heading);
+              if (!panel.hasAttribute("data-advanced")) throw new Error("excluded Pending Publish advanced panel lost data-advanced gate: " + heading);
+            });
             const nestedCompletedPanels = Array.from(document.querySelectorAll('[data-page-panel="completed"] section.panel[data-panel-key] section.panel[data-panel-key]'));
             if (nestedCompletedPanels.length) throw new Error("Completed layout still has nested managed panels: " + nestedCompletedPanels.map(headingText).join(" | "));
             const overviewPane = document.querySelector('[data-page-panel="completed"] .settings-tab-pane[data-completed-tab="overview"]');
             const overviewHeadings = panelOrderIn(overviewPane);
-            ["Output Files", "Final Library Promotion", "Selected File", "Current Output Status"].forEach((heading) => {
+            ["Output Files", "Final Library Promotion", "Why This Output Looks Different", "Current Output Status"].forEach((heading) => {
               if (!overviewHeadings.includes(heading)) throw new Error("Completed Overview missing movable sibling panel " + heading + "; found " + overviewHeadings.join(" | "));
             });
             window.showPage("queue");
@@ -202,8 +404,7 @@ def _browser_layout_manager_runner_source() -> str:
             if (!text(document.getElementById("layout-editor-status")).includes("hidden")) throw new Error("drawer status did not explain hidden panel");
             requireDrawerPanel("queue", "Queue Summary").querySelectorAll(".layout-editor-toggle-button")[0].click();
             if (queueSummaryPanel.hasAttribute("data-panel-hidden")) throw new Error("drawer Hidden toggle did not restore Queue Summary");
-            requireDrawerPanel("queue", "Queue Summary").querySelectorAll(".layout-editor-toggle-button")[1].click();
-            if (!queueSummaryPanel.hasAttribute("data-panel-advanced")) throw new Error("drawer Advanced toggle did not gate Queue Summary");
+            await requireStaleRemoteRefreshDoesNotRevertLayoutToggle(queueSummaryPanel);
             requireDrawerPanel("queue", "Queue Summary").querySelectorAll(".layout-editor-toggle-button")[1].click();
             if (queueSummaryPanel.hasAttribute("data-panel-advanced")) throw new Error("drawer Advanced toggle did not restore Queue Summary");
             window.showPage("completed");

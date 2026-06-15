@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/kernel/contracts/base.py
 pipeline_stage: contracts
 token_priority: medium
-owner_domain: unknown
+owner_domain: kernel
 last_modified: 2026-05-06
 last_reviewed: 2026-06-04
 sha256: 29ee3831601ccf7f6e843fa0509bcee4e8df04048d42deb6748cc73cca6df5a3

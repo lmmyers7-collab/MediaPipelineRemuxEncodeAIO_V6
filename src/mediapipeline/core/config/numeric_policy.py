@@ -7,6 +7,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_CLEANUP_SCAN_TIMEOUT_SECONDS,
     KEY_CLEANUP_STALE_AGE_HOURS,
     KEY_COMPATIBILITY_ENCODE_GROWTH_PERCENT,
+    KEY_COORDINATOR_MAX_JOB_RETRIES,
     KEY_CPU_ENCODE_MAX_THREADS,
     KEY_AUDIO_MAX_CHANNELS,
     KEY_FALLBACK_CPU_QUALITY,
@@ -159,6 +160,7 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
     validate_int(values, errors, KEY_BDPGS_OCR_TIMEOUT_SECONDS, "BdpgsOcrTimeoutSeconds", minimum=60, maximum=14400)
     validate_int(values, errors, KEY_VOBSUB_OCR_TIMEOUT_SECONDS, "VobSubOcrTimeoutSeconds", minimum=60, maximum=14400)
     validate_int(values, errors, KEY_TRANSIENT_FAILURE_RETRY_LIMIT, "TransientFailureRetryLimit", minimum=1, maximum=100)
+    validate_int(values, errors, KEY_COORDINATOR_MAX_JOB_RETRIES, "CoordinatorMaxJobRetries", minimum=1, maximum=100)
     validate_int(values, errors, KEY_SOURCE_SCAN_INTERVAL_SECONDS, "SourceScanIntervalSeconds", minimum=0)
     validate_int(values, errors, KEY_PROCESSED_INDEX_REFRESH_SECONDS, "ProcessedIndexRefreshSeconds", minimum=0)
     validate_int(values, errors, KEY_ROBOCOPY_TIMEOUT_SECONDS, "RobocopyTimeoutSeconds", minimum=60, maximum=172800)

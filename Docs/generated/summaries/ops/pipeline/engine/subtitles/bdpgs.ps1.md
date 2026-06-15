@@ -3,9 +3,9 @@ file: ops/pipeline/engine/subtitles/bdpgs.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: fea115429bd1a842d29f2f1abf342b4fa929095122ca7673a8a943c1a213346d
+sha256: 1608e659a177dd4af6deabde2d6b02ca9ec2e68107ebd70a87981d8d9e7cdf10
 ---
 # `ops/pipeline/engine/subtitles/bdpgs.ps1`
 

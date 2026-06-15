@@ -6,7 +6,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from mediapipeline.core.queue.file_overrides import read_file_overrides
-from mediapipeline.core.queue.priority_manifest import get_manifest_entry, get_manifest_level, read_priority_manifest
+from mediapipeline.core.queue.priority_manifest import (
+    get_manifest_entry,
+    get_manifest_level,
+    has_manifest_priority_entry,
+    read_priority_manifest,
+)
 from mediapipeline.core.queue.policy import (
     INVALID_QUEUE_SNAPSHOT_WARNING,
     NO_QUEUE_SNAPSHOT_WARNING,
@@ -59,13 +64,13 @@ def _queue_manifest_media_kind(row: dict[str, object]) -> str:
     return "movie"
 
 
-def _queue_phase_for_manifest_level(row: dict[str, object], level: str) -> str:
+def _queue_phase_for_manifest_level(row: dict[str, object], level: str, *, manifest_explicit: bool = False) -> str:
     media_kind = _queue_manifest_media_kind(row)
     if level == "hold":
         return "hold"
     if level == "low":
         return "low"
-    if level == "high" or _queue_manifest_bool(row.get("is_priority")):
+    if level == "high" or (_queue_manifest_bool(row.get("is_priority")) and not manifest_explicit):
         return "priority_tv" if media_kind == "tv" else "priority_movie"
     return "tv" if media_kind == "tv" else "movie"
 
@@ -89,12 +94,14 @@ def _queue_rows_with_priority_manifest(
             rows.append(raw_row)
             continue
         level = get_manifest_level(priority_manifest, source_path)
+        manifest_explicit = has_manifest_priority_entry(priority_manifest, source_path)
         entry = get_manifest_entry(priority_manifest, source_path) or {}
         row = dict(raw_row)
         row["manifest_priority_level"] = level
+        row["manifest_priority_explicit"] = manifest_explicit
         if "position" in entry:
             row["manual_order_position"] = entry.get("position")
-        row["phase"] = _queue_phase_for_manifest_level(row, level)
+        row["phase"] = _queue_phase_for_manifest_level(row, level, manifest_explicit=manifest_explicit)
         rows.append(row)
     return rows
 
@@ -103,7 +110,8 @@ def _queue_priority_count_for_rows(rows: list[dict[str, object]]) -> int:
     count = 0
     for row in rows:
         level = str(row.get("manifest_priority_level") or "normal").strip().casefold()
-        if level == "high" or (_queue_manifest_bool(row.get("is_priority")) and level == "normal"):
+        manifest_explicit = _queue_manifest_bool(row.get("manifest_priority_explicit"))
+        if level == "high" or (_queue_manifest_bool(row.get("is_priority")) and level == "normal" and not manifest_explicit):
             count += 1
     return count
 

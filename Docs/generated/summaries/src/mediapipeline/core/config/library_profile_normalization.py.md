@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/library_profile_normalization.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-06-09
 last_reviewed: 2026-06-04
-sha256: 58b367079497bf32b76b08e6b953cc3ca63531fca3fb332645fb118eda0aa31a
+sha256: cb9559844a0d2751f86ddf1ce68644f684a5529fc6421cea5812fa8babfb8a2b
 ---
 # `src/mediapipeline/core/config/library_profile_normalization.py`
 

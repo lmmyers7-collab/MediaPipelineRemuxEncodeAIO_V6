@@ -146,8 +146,10 @@ function Write-JsonLineAppend {
     $line = $Payload | ConvertTo-Json -Depth $Depth -Compress
     $acquired = $false
     try {
-        if ($UseLogLock -and $logLock) {
+        if ($UseLogLock) {
+            if (-not $logLock) { return $false }
             $acquired = $logLock.WaitOne(2000)
+            if (-not $acquired) { return $false }
         }
         [System.IO.File]::AppendAllText(
             $Path,

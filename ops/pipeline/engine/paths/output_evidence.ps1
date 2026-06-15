@@ -238,7 +238,8 @@ function New-MediaPipelinePublishEvidence {
 function New-MediaPipelineVerificationEvidence {
     param(
         $SizeGuardEvidence = $null,
-        $PublishEvidence = $null
+        $PublishEvidence = $null,
+        $QualityEvidence = $null
     )
 
     $checks = New-Object System.Collections.Generic.List[string]
@@ -254,6 +255,16 @@ function New-MediaPipelineVerificationEvidence {
         [void]$checks.Add('publish_result')
         if ([bool]$PublishEvidence['blocked']) { [void]$blockingFailures.Add('publish_failed_or_blocked') }
         if ([bool]$PublishEvidence['deferred']) { [void]$warnings.Add('publish_deferred_pending_drain') }
+    }
+    if ($null -ne $QualityEvidence -and [bool]$QualityEvidence['attempted']) {
+        [void]$checks.Add('quality_verification')
+        $qualityOutcome = [string]$QualityEvidence['outcome']
+        if ($qualityOutcome -eq 'warn' -or ($qualityOutcome -eq 'fail' -and -not [bool]$QualityEvidence['block_publish'])) {
+            [void]$warnings.Add('quality_warning')
+        }
+        if ([bool]$QualityEvidence['block_publish']) {
+            [void]$blockingFailures.Add('quality_below_floor')
+        }
     }
     $result = if ($blockingFailures.Count -gt 0) {
         'failed'
@@ -274,6 +285,7 @@ function New-MediaPipelineVerificationEvidence {
         blocking_failures = @($blockingFailures)
         size_guard_ref    = if ($null -ne $SizeGuardEvidence) { [string]$SizeGuardEvidence['schema'] } else { '' }
         publish_ref       = if ($null -ne $PublishEvidence) { [string]$PublishEvidence['schema'] } else { '' }
+        quality_ref       = if ($null -ne $QualityEvidence) { [string]$QualityEvidence['schema'] } else { '' }
         note              = 'Diagnostic summary only; verification, size guard, publish, and drain logic remain owned by existing runtime code.'
     }
 }

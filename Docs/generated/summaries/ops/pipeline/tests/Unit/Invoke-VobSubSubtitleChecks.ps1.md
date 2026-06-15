@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 045ff7c36532ddc4229df2769d936a63fa5a91bd784751a041d74a8429011706
+sha256: 3eb9c838d500c455ba626420e373f61591a31ee09a2c8764bb299b96d93f2383
 ---
 # `ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1`
 

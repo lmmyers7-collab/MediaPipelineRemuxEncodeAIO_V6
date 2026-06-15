@@ -30,5 +30,5 @@
   ],
   "rollback_plan": "Revert apps/desktop/tauri/Launch-MediaPipelineRemuxEncodeAIO-TauriPreview.ps1 to its previous Python resolution behavior, remove the ignored runtime dependency installs if necessary, and restore the previous desktop shortcut metadata. Then rerun start-tauri-preview.bat -CheckOnly to confirm the prior failure mode is restored.",
   "related_changes": [],
-  "notes": "Installed pydantic>=2,<3 and psutil>=5.9,<8 into ignored bundled Python runtimes under apps/desktop/runtime/Python and ops/pipeline/runtime/Python so local shortcut launch can import mediapipeline.desktop.local_api_main.\nUpdated C:/Users/lmmye/OneDrive/Desktop/MediaPipeline V6.lnk outside the repository: TargetPath remains ops/scripts/dev/start-tauri-preview.bat, WorkingDirectory is now the repo root, and IconLocation now uses apps/desktop/tauri/src-tauri/icons/launcher-logo.ico."
+  "notes": "Installed pydantic>=2,<3 and psutil>=5.9,<8 into ignored bundled Python runtimes under apps/desktop/runtime/Python and ops/pipeline/runtime/Python so local shortcut launch can import mediapipeline.desktop.local_api_main.\nUpdated <desktop>/MediaPipeline V6.lnk outside the repository: TargetPath remains ops/scripts/dev/start-tauri-preview.bat, WorkingDirectory is now the repo root, and IconLocation now uses apps/desktop/tauri/src-tauri/icons/launcher-logo.ico."
 }

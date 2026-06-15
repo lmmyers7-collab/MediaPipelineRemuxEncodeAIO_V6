@@ -7,6 +7,7 @@ from ..metadata_network import (
     KEY_COORDINATOR_AUTH_TOKEN,
     KEY_COORDINATOR_BIND_ADDRESS,
     KEY_COORDINATOR_HEARTBEAT_TIMEOUT_MINS,
+    KEY_COORDINATOR_MAX_JOB_RETRIES,
     KEY_COORDINATOR_PORT,
     KEY_NETWORK_ROLE,
     KEY_WORKER_AUTH_TOKEN,
@@ -70,6 +71,15 @@ NETWORK_CONFIG_FIELD_DEFINITIONS = (
         "kind": "int",
         "default": 5,
         "help": "Minutes without a heartbeat before a claimed job is considered stale and re-queued for another worker (default 5).",
+    },
+    {
+        "page": "Network",
+        "section": "Coordinator",
+        "key": KEY_COORDINATOR_MAX_JOB_RETRIES,
+        "label": "Max Same-Reason Retries",
+        "kind": "int",
+        "default": 3,
+        "help": "Consecutive same-reason failures for one worker/source before the coordinator stops handing that source back to that worker (default 3).",
     },
     {
         "page": "Network",

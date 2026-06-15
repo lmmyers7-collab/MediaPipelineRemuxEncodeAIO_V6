@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0612-900",
+  "title": "Completed library filter media-kind fallback",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-12",
+  "date_completed": "2026-06-12",
+  "summary": "Update the Completed Current Output Status library filter to fall back to media kind/type when completed rows do not include library profile metadata.",
+  "reason": "Operators can have current Movie or TV outputs whose completed rows lack library_id/library_name/library_designation, causing the filter to show only All libraries and Unknown library.",
+  "affected_areas": [
+    "completed",
+    "webview"
+  ],
+  "behavior_before": "Completed rows without library profile metadata appeared under Unknown library even when they carried Movie or TV media kind/type evidence.",
+  "behavior_after": "Completed rows still prefer explicit library profile identity, but fall back to normalized Movie or TV labels before using Unknown library.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completed/filters.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/filters.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-900.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_completed_library_filter.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0612-900.json",
+    "tests/webview/test_webview_completed_library_filter.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_completed_library_filter.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_completed_library_filter -q - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_row_detail_smoke.WebViewRowDetailSmoke - blocked by unrelated queueView fake-DOM insertAdjacentElement gap before Completed assertions",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1 - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the Completed filter helper and focused Completed library-filter smoke test to restore the previous Unknown library fallback behavior.",
+  "related_changes": [],
+  "notes": "WebView display/filtering-only change. No backend route, filesystem mutation, media policy, queue, publish/drain, rename, or settings behavior changes.\nStrict change-control coverage passed for the dirty worktree."
+}

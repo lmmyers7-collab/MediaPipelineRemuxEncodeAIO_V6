@@ -3,9 +3,9 @@ file: ops/pipeline/engine/policy/folder_policy.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: policy
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: feaf635c4b09ff590f747532eb097e9906f841ce62bd7b34c055e9694731da26
+sha256: 03829f1aa51b1dedd4c13ae47ecf264c69ac16ba2f552b5cc7425bc2de86af9e
 ---
 # `ops/pipeline/engine/policy/folder_policy.ps1`
 

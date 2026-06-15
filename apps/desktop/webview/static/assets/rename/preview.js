@@ -72,7 +72,7 @@
         return [
           "No rename preview rows loaded.",
           "Next step: add one file path per line and run Preview.",
-          "Mutation guardrail: this board is read-only; Apply Checked / Selected still uses the backend selected_sources command.",
+          "Mutation guardrail: this board is read-only; Apply uses checked rows, or all applicable safe preview rows when none are checked, through the backend selected_sources command.",
         ];
       }
       const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
@@ -88,7 +88,7 @@
       const firstTarget = rows[0]?.target_name || rows[0]?.destination || "";
       const lastTarget = rows[rows.length - 1]?.target_name || rows[rows.length - 1]?.destination || "";
       const lines = [
-        "Preview-wide review board. This is read-only; Apply Checked / Selected still calls the backend rename.apply command.",
+        "Preview-wide review board. This is read-only; Apply uses checked rows, or all applicable safe preview rows when none are checked, through the backend rename.apply command.",
         `Template: ${renameTemplateLabel(preview, preview?.active_template || request.template_preset || "")}`,
         `Rows/status: ${counts.total || rows.length} total; ready ${counts.ready || 0}, match ${counts.match || 0}, warning ${counts.warning || 0}, blocked ${counts.blocked || 0}`,
         `Confidence mix: ${renameFormatCounts(confidenceCounts)}`,
@@ -163,7 +163,7 @@
         `Mode: ${request.mode === "movie" ? "Movie" : "TV"}`,
         `Input paths: ${request.paths.length}; preview rows: ${rows.length}`,
         `Rendered preview rows: ${renameRenderedRowsCount(rows)} of ${rows.length}`,
-        `Apply scope: checked rows are sent as selected_sources; if none are checked, Apply uses only the selected detail row.`,
+        `Apply scope: checked rows are sent as selected_sources; if none are checked, Apply sends all applicable safe preview rows.`,
         `Sidecars: ${request.rename_sidecars ? "rename sidecar preview enabled" : "sidecar rename preview disabled"}`,
         `Pipeline naming preview: ${request.use_pipeline_naming_preview ? "preferred when backend can provide it" : "disabled"}`,
         `Global force pipeline name: ${request.force_pipeline_name ? "enabled" : "disabled"}`,
@@ -294,7 +294,7 @@
       if ((confidenceCounts.low || 0) || (confidenceCounts.unknown || 0) || (confidenceCounts.medium || 0)) {
         lines.push("Confidence note: one or more rows are below high confidence. Inspect row detail before applying to avoid bad Plex naming or wrong TV numbering.");
       }
-      lines.push("Mutation guardrail: this handoff is read-only. Apply Checked / Selected still rebuilds the plan and mutates files only through backend rename.apply selected_sources.");
+      lines.push("Mutation guardrail: this handoff is read-only. Apply uses checked rows, or all applicable safe preview rows when none are checked, and mutates files only through backend rename.apply selected_sources.");
       return lines;
     }
 

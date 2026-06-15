@@ -30,6 +30,25 @@ function Get-FingerprintPath {
     return "$ScratchPath.srcinfo"
 }
 
+function Test-ScratchSafeLeafName {
+    param([string]$SafeName)
+
+    $name = ([string]$SafeName).Trim()
+    if ([string]::IsNullOrWhiteSpace($name)) { return $false }
+    if ($name -eq '.' -or $name -eq '..') { return $false }
+    if ($name.IndexOfAny([char[]]@('\', '/')) -ge 0) { return $false }
+    try {
+        if ([System.IO.Path]::IsPathRooted($name)) { return $false }
+        if ([System.IO.Path]::GetFileName($name) -ne $name) { return $false }
+        foreach ($invalid in [System.IO.Path]::GetInvalidFileNameChars()) {
+            if ($name.IndexOf($invalid) -ge 0) { return $false }
+        }
+    } catch {
+        return $false
+    }
+    return $true
+}
+
 function Get-ScratchInputPath {
     param($SourceFile, [string]$SafeName)
     $identity = Get-SourceIdentityKey $SourceFile
@@ -38,6 +57,50 @@ function Get-ScratchInputPath {
     }
     $scratchDir = Join-Path $script:processingDir ("src_" + $identity.Substring(0, [math]::Min(16, $identity.Length)))
     return (Join-Path $scratchDir $SafeName)
+}
+
+function Write-ScratchCleanupBoundaryLog {
+    param([string]$Message, [string]$Level = 'WARN')
+
+    if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) {
+        Write-Log $Message $Level
+    }
+}
+
+function Test-ScratchContainerCleanupBoundary {
+    param([string]$ContainerPath)
+
+    if ([string]::IsNullOrWhiteSpace($ContainerPath) -or [string]::IsNullOrWhiteSpace([string]$script:processingDir)) {
+        return $false
+    }
+    if (-not (Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue)) {
+        Write-ScratchCleanupBoundaryLog 'Scratch container cleanup skipped: path boundary helper is unavailable.' 'ERROR'
+        return $false
+    }
+
+    $localBaseVariable = Get-Variable -Name 'LocalBase' -Scope Script -ErrorAction SilentlyContinue
+    $localBase = if ($localBaseVariable -and -not [string]::IsNullOrWhiteSpace([string]$localBaseVariable.Value)) {
+        [string]$localBaseVariable.Value
+    } else {
+        ''
+    }
+    if ([string]::IsNullOrWhiteSpace($localBase)) {
+        Write-ScratchCleanupBoundaryLog 'Scratch container cleanup skipped: LocalBase is not set.' 'ERROR'
+        return $false
+    }
+
+    $processingBoundary = Test-MediaPipelinePathBoundarySafe -Path ([string]$script:processingDir) -Root $localBase
+    if (-not $processingBoundary.Ok) {
+        Write-ScratchCleanupBoundaryLog "Scratch container cleanup skipped: processingDir failed LocalBase boundary guard ($($processingBoundary.ReasonCode)): $($script:processingDir)" 'ERROR'
+        return $false
+    }
+
+    $containerBoundary = Test-MediaPipelinePathBoundarySafe -Path $ContainerPath -Root ([string]$script:processingDir)
+    if (-not $containerBoundary.Ok) {
+        Write-ScratchCleanupBoundaryLog "Scratch container cleanup skipped: container failed processingDir boundary guard ($($containerBoundary.ReasonCode)): $ContainerPath" 'ERROR'
+        return $false
+    }
+    return $true
 }
 
 function Remove-EmptyScratchContainer {
@@ -50,6 +113,7 @@ function Remove-EmptyScratchContainer {
         $parentFull = [System.IO.Path]::GetFullPath($parent).TrimEnd('\','/')
         if ($parentFull -eq $processingFull) { return }
         if (-not (Split-Path $parentFull -Leaf).StartsWith('src_')) { return }
+        if (-not (Test-ScratchContainerCleanupBoundary -ContainerPath $parentFull)) { return }
         if ((Get-ChildItem -LiteralPath $parentFull -Force -ErrorAction SilentlyContinue | Select-Object -First 1) -eq $null) {
             Remove-Item -LiteralPath $parentFull -Force -ErrorAction SilentlyContinue
         }
@@ -106,7 +170,44 @@ function Remove-ScratchFingerprint {
 
 function Ensure-ScratchCopy {
     param($SourceFile, [string]$SafeName)
+    if (-not (Test-ScratchSafeLeafName -SafeName $SafeName)) {
+        Write-Log "Unsafe scratch safe name rejected: $SafeName" "ERROR"
+        return $null
+    }
+
     $localIn = Get-ScratchInputPath $SourceFile $SafeName
+    $scratchDir = Split-Path $localIn -Parent
+    if ([string]::IsNullOrWhiteSpace($scratchDir)) {
+        Write-Log "Scratch input path has no parent: $localIn" "ERROR"
+        return $null
+    }
+    if (-not (Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue)) {
+        Write-Log "Scratch copy rejected: path boundary helper is unavailable." "ERROR"
+        return $null
+    }
+    if ([string]::IsNullOrWhiteSpace([string]$script:processingDir)) {
+        Write-Log "Scratch copy rejected: processingDir is not set." "ERROR"
+        return $null
+    }
+    $containerBoundary = Test-MediaPipelinePathBoundarySafe -Path $scratchDir -Root ([string]$script:processingDir) -AllowMissingLeaf
+    if (-not [bool]$containerBoundary.Ok) {
+        Write-Log "Scratch copy rejected: scratch container failed processingDir boundary guard ($($containerBoundary.ReasonCode)): $scratchDir" "ERROR"
+        return $null
+    }
+    try {
+        if (-not (Test-Path -LiteralPath $scratchDir -PathType Container -ErrorAction SilentlyContinue)) {
+            New-Item -ItemType Directory -Path $scratchDir -Force -ErrorAction Stop | Out-Null
+        }
+    } catch {
+        Write-Log "Scratch copy rejected: could not create scratch container $scratchDir : $_" "ERROR"
+        return $null
+    }
+    $inputBoundary = Test-MediaPipelinePathBoundarySafe -Path $localIn -Root $scratchDir -AllowMissingLeaf
+    if (-not [bool]$inputBoundary.Ok) {
+        Write-Log "Scratch copy rejected: scratch input failed container boundary guard ($($inputBoundary.ReasonCode)): $localIn" "ERROR"
+        return $null
+    }
+
     if (Test-Path -LiteralPath $localIn) {
         # FIX#1: verify the existing scratch was made FROM THIS source file.
         # Different sources with the same sanitised name would otherwise

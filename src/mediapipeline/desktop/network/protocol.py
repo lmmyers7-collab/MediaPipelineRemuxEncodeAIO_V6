@@ -15,6 +15,11 @@ import math
 from dataclasses import dataclass, field
 from typing import Any
 
+from .failure_reasons import bounded_failure_reason, normalize_failure_reason_code
+
+
+PING_RESPONSE_SCHEMA_VERSION = "desktop_network_coordinator_ping.v1"
+
 
 def coerce_finite_float(value: Any, field_name: str, *, minimum: float | None = None) -> float:
     """Coerce a wire value to a finite float with optional lower bound."""
@@ -32,6 +37,64 @@ def coerce_nonnegative_int(value: Any, field_name: str) -> int:
     if result < 0:
         raise ValueError(f"{field_name} must be >= 0")
     return result
+
+
+def coerce_optional_bool(d: dict[str, Any], field_name: str, *, default: bool) -> bool:
+    """Read an optional wire boolean without accepting truthy/falsy coercions."""
+    if field_name not in d:
+        return default
+    value = d[field_name]
+    if type(value) is not bool:
+        raise ValueError(f"{field_name} must be a boolean")
+    return value
+
+
+def coerce_library_id_list(value: Any) -> list[str]:
+    """Return a bounded, deduped list of library IDs from wire data."""
+    if value is None:
+        return []
+    if isinstance(value, str):
+        raw_items = value.split(",")
+    elif isinstance(value, (list, tuple, set)):
+        raw_items = value
+    else:
+        raw_items = [value]
+
+    result: list[str] = []
+    seen: set[str] = set()
+    for raw in raw_items:
+        if isinstance(raw, (dict, list, tuple, set)):
+            continue
+        text = str(raw or "").strip()
+        if not text:
+            continue
+        text = text[:96]
+        key = text.casefold()
+        if key in seen:
+            continue
+        seen.add(key)
+        result.append(text)
+    return result
+
+
+# ---------------------------------------------------------------------------
+# /api/ping
+# ---------------------------------------------------------------------------
+
+@dataclass
+class PingResponse:
+    """Response body for auth-required ``GET /api/ping``."""
+
+    ok: bool = True
+    server_time: str = ""
+    schema_version: str = PING_RESPONSE_SCHEMA_VERSION
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "schema_version": self.schema_version,
+            "ok": self.ok,
+            "server_time": self.server_time,
+        }
 
 
 # ---------------------------------------------------------------------------
@@ -54,6 +117,8 @@ class ClaimResponse:
     status:             str   = "empty"       # "ok" | "empty"
     job_id:             str   = ""
     source_path:        str   = ""
+    library_id:         str   = ""
+    relative_path:      str   = ""
     priority:           bool  = False
     estimated_size_gb:  float = 0.0
     encode_config:      dict  = field(default_factory=dict)
@@ -71,6 +136,8 @@ class ClaimResponse:
             "status":              self.status,
             "job_id":              self.job_id,
             "source_path":         self.source_path,
+            "library_id":          self.library_id,
+            "relative_path":       self.relative_path,
             "priority":            self.priority,
             "estimated_size_gb":   self.estimated_size_gb,
             "encode_config":       self.encode_config,
@@ -84,6 +151,8 @@ class ClaimResponse:
             status=str(d.get("status", "empty")),
             job_id=str(d.get("job_id", "")),
             source_path=str(d.get("source_path", "")),
+            library_id=str(d.get("library_id", "")),
+            relative_path=str(d.get("relative_path", "")),
             priority=bool(d.get("priority", False)),
             estimated_size_gb=coerce_finite_float(d.get("estimated_size_gb", 0.0), "estimated_size_gb", minimum=0.0),
             encode_config=dict(d.get("encode_config", {})),
@@ -112,6 +181,8 @@ class DoneRequest:
     output_size_bytes: int   = 0
     error_message:     str   = ""
     completion_status: str   = ""
+    reason_code:       str   = ""
+    reason:            str   = ""
     publish_state:     str   = ""
     publish_mode:      str   = ""
     route:             str   = ""
@@ -133,6 +204,8 @@ class DoneRequest:
             "output_size_bytes": self.output_size_bytes,
             "error_message":     self.error_message,
             "completion_status": self.completion_status,
+            "reason_code":       self.reason_code,
+            "reason":            self.reason,
             "publish_state":     self.publish_state,
             "publish_mode":      self.publish_mode,
             "route":             self.route,
@@ -146,18 +219,20 @@ class DoneRequest:
         return cls(
             job_id=str(d.get("job_id", "")),
             worker_id=str(d.get("worker_id", "")),
-            success=bool(d.get("success", False)),
+            success=coerce_optional_bool(d, "success", default=False),
             output_path=str(d.get("output_path", "")),
             elapsed_seconds=coerce_finite_float(d.get("elapsed_seconds", 0.0), "elapsed_seconds", minimum=0.0),
             output_size_bytes=coerce_nonnegative_int(d.get("output_size_bytes", 0), "output_size_bytes"),
             error_message=str(d.get("error_message", "")),
             completion_status=str(d.get("completion_status", "")),
+            reason_code=normalize_failure_reason_code(d.get("reason_code", "")),
+            reason=bounded_failure_reason(d.get("reason", "")),
             publish_state=str(d.get("publish_state", "")),
             publish_mode=str(d.get("publish_mode", "")),
             route=str(d.get("route", "")),
-            queue_terminal=bool(d.get("queue_terminal", False)),
-            released=bool(d.get("released", False)),
-            retry_on_failure=bool(d.get("retry_on_failure", True)),
+            queue_terminal=coerce_optional_bool(d, "queue_terminal", default=False),
+            released=coerce_optional_bool(d, "released", default=False),
+            retry_on_failure=coerce_optional_bool(d, "retry_on_failure", default=True),
         )
 
 
@@ -183,6 +258,7 @@ class HeartbeatRequest:
     current_stage:    str   = ""
     fps:              float = 0.0
     eta_seconds:      int   = 0
+    accessible_library_ids: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -192,6 +268,7 @@ class HeartbeatRequest:
             "current_stage":    self.current_stage,
             "fps":              self.fps,
             "eta_seconds":      self.eta_seconds,
+            "accessible_library_ids": coerce_library_id_list(self.accessible_library_ids),
         }
 
     @classmethod
@@ -203,6 +280,7 @@ class HeartbeatRequest:
             current_stage=str(d.get("current_stage", "")),
             fps=coerce_finite_float(d.get("fps", 0.0), "fps", minimum=0.0),
             eta_seconds=coerce_nonnegative_int(d.get("eta_seconds", 0), "eta_seconds"),
+            accessible_library_ids=coerce_library_id_list(d.get("accessible_library_ids", [])),
         )
 
 
@@ -238,6 +316,16 @@ class WorkerEntry:
     files_completed:    int   = 0
     total_gb_encoded:   float = 0.0      # sum of estimated_size_gb for success
     avg_speed_gbh:      float = 0.0      # total_gb / total_encode_hours
+    last_failure_reason_code: str = ""
+    last_failure_reason:      str = ""
+    last_failure_job_id:      str = ""
+    last_failure_source_path: str = ""
+    last_failure_at:          str = ""
+    failure_streak_reason_code: str = ""
+    failure_streak_count:       int = 0
+    worker_misconfigured_reason_code: str = ""
+    worker_misconfigured_at:          str = ""
+    accessible_library_ids: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -252,6 +340,16 @@ class WorkerEntry:
             "files_completed":   self.files_completed,
             "total_gb_encoded":  self.total_gb_encoded,
             "avg_speed_gbh":     self.avg_speed_gbh,
+            "last_failure_reason_code": self.last_failure_reason_code,
+            "last_failure_reason":      self.last_failure_reason,
+            "last_failure_job_id":      self.last_failure_job_id,
+            "last_failure_source_path": self.last_failure_source_path,
+            "last_failure_at":          self.last_failure_at,
+            "failure_streak_reason_code": self.failure_streak_reason_code,
+            "failure_streak_count":       self.failure_streak_count,
+            "worker_misconfigured_reason_code": self.worker_misconfigured_reason_code,
+            "worker_misconfigured_at":          self.worker_misconfigured_at,
+            "accessible_library_ids": coerce_library_id_list(self.accessible_library_ids),
         }
 
 

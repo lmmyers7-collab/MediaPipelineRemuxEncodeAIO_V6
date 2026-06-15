@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/maintenance/commands_facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: maintenance
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: b1313525cd88887102510b8236fbac22d90cd89d208037095d752b686bb2e513

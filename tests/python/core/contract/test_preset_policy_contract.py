@@ -184,6 +184,7 @@ class PresetPolicyContractTests(unittest.TestCase):
         self.assertEqual(preset.container.format, "mp4")
         self.assertEqual(preset.video.target_selection, "plex_compat")
         self.assertEqual(preset.advanced.legacy_passthrough["FutureLegacyKey"], {"preserve": True})
+        self.assertEqual(effective.preferred_default_audio_languages, ["eng"])
         self.assertEqual(effective, direct_effective)
 
     def test_v2_config_validates_and_feeds_decision_engine(self) -> None:
@@ -209,8 +210,13 @@ class PresetPolicyContractTests(unittest.TestCase):
         decision = build_processing_decision(load_source("multi_audio_tracks.json"), effective)
 
         self.assertEqual(effective.output_container, "mp4")
+        self.assertEqual(effective.mp4_audio_copy_codecs, ["eac3"])
+        self.assertEqual(effective.mp4_subtitle_copy_codecs, [])
         self.assertEqual(decision.effective_settings.output_container, "mp4")
-        self.assertEqual(decision.stream_actions.audio[0].action, "transcode")
+        self.assertEqual(
+            {item.stream_index: item.action for item in decision.stream_actions.audio},
+            {1: "drop", 2: "copy", 3: "drop"},
+        )
         self.assertEqual(decision.route_summary, "REMUX")
 
     def test_v2_output_size_check_can_request_block_publish(self) -> None:

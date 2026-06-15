@@ -12,6 +12,23 @@ def _rename_movie_filter_options_default() -> dict[str, bool]:
     return {key: True for key in RENAME_MOVIE_FILTER_OPTION_KEYS}
 
 
+QUALITY_METRIC_DESCRIPTIONS = {
+    "vmaf": "Perceptual similarity score using the bundled ffmpeg libvmaf filter.",
+    "ssim": "Structural similarity score parsed from ffmpeg stderr. Use thresholds in 0-1 units.",
+    "psnr": "Peak signal-to-noise ratio parsed from ffmpeg stderr. Use thresholds in dB.",
+}
+
+QUALITY_SAMPLE_MODE_DESCRIPTIONS = {
+    "sampled": "Measure evenly spaced windows across the encode.",
+    "full": "Measure the full encoded output against the scratch source.",
+}
+
+QUALITY_FAIL_ACTION_DESCRIPTIONS = {
+    "warn_only": "Record warnings but never block publish based on quality score.",
+    "block_review": "Reject measured below-floor encodes before publish and route the source to operator review.",
+}
+
+
 ADVANCED_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Advanced",
@@ -30,6 +47,59 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
         "kind": "json",
         "default": {},
         "help": "Advanced direct-config mapping of show-name patterns to per-show routing, video, audio, and subtitle overrides. Treat edits as media-policy work and verify with backend Preview Patch.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "PlannerRolloutStage",
+        "label": "Planner Rollout Stage",
+        "kind": "combo",
+        "choices": (
+            "legacy",
+            "shadow",
+            "selected_jobs",
+            "ui_old_backend",
+            "new_planner_default",
+            "deprecation_cleanup",
+        ),
+        "default": "legacy",
+        "help": "Backend planner rollout stage. Legacy keeps PowerShell execution authoritative; shadow enables Python preview comparison only.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "UsePythonPlanner",
+        "label": "Use Python Planner",
+        "kind": "bool",
+        "default": False,
+        "help": "Requests the Python planner for controlled rollout stages. Execution remains legacy unless the cutover stage is also approved.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "EnableHandBrakeSettingsUi",
+        "label": "Enable New Planner UI",
+        "kind": "bool",
+        "default": False,
+        "help": "Shows the new planner/settings UI surface while backend execution authority stays controlled by the rollout stage.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "PlannerComparisonLogging",
+        "label": "Planner Comparison Logging",
+        "kind": "bool",
+        "default": False,
+        "help": "Records legacy-versus-Python planner comparison evidence during dry-run preview and shadow rollout.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "NewPlannerCutoverApproved",
+        "label": "Approve Python Planner Cutover",
+        "kind": "bool",
+        "default": False,
+        "help": "Explicit operator approval required before the Python planner can own execution in a cutover stage.",
     },
     {
         "page": "Advanced",
@@ -271,6 +341,93 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
         "kind": "int",
         "default": 2,
         "help": "Allowed duration mismatch between source and output validation probes.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "EnableQualityVerification",
+        "label": "Enable Quality Verification",
+        "kind": "bool",
+        "default": False,
+        "help": "After lossy encodes, measure objective similarity against the scratch source before publish. Remux paths do not run quality verification.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualityMetric",
+        "label": "Quality Metric",
+        "kind": "combo",
+        "choices": ("vmaf", "ssim", "psnr"),
+        "choice_help": QUALITY_METRIC_DESCRIPTIONS,
+        "default": "vmaf",
+        "help": "Metric used by ffmpeg after lossy encodes. VMAF uses the bundled libvmaf filter without an external model file.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualitySampleMode",
+        "label": "Sample Mode",
+        "kind": "combo",
+        "choices": ("sampled", "full"),
+        "choice_help": QUALITY_SAMPLE_MODE_DESCRIPTIONS,
+        "default": "sampled",
+        "help": "Sampled mode measures multiple windows and full mode measures the entire output. Long full-file VMAF runs can be expensive.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualitySampleSeconds",
+        "label": "Sample Seconds",
+        "kind": "int",
+        "default": 10,
+        "help": "Seconds measured per sampled quality window. Clamped by the backend to 2-60 seconds.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualitySampleCount",
+        "label": "Sample Count",
+        "kind": "int",
+        "default": 3,
+        "help": "Number of sampled quality windows. Clamped by the backend to 1-10 windows.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualityWarnThreshold",
+        "label": "Warn Threshold",
+        "kind": "float",
+        "default": 90,
+        "help": "Interpreted in the selected metric's units. Defaults assume VMAF (0-100). For SSIM use 0-1 (e.g. warn 0.95 / fail 0.90); for PSNR use dB (e.g. warn 38 / fail 32). 0 disables the tier.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualityFailThreshold",
+        "label": "Fail Threshold",
+        "kind": "float",
+        "default": 75,
+        "help": "Interpreted in the selected metric's units. Defaults assume VMAF (0-100). For SSIM use 0-1 (e.g. warn 0.95 / fail 0.90); for PSNR use dB (e.g. warn 38 / fail 32). 0 disables the tier.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualityFailAction",
+        "label": "Fail Action",
+        "kind": "combo",
+        "choices": ("warn_only", "block_review"),
+        "choice_help": QUALITY_FAIL_ACTION_DESCRIPTIONS,
+        "default": "warn_only",
+        "help": "block_review rejects the encode before publish and routes the source to operator review.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Quality Verification",
+        "key": "QualityVerifyTimeoutSeconds",
+        "label": "Verify Timeout (s)",
+        "kind": "int",
+        "default": 1800,
+        "help": "Per-ffmpeg quality verification timeout. Tool errors, parse errors, and timeouts fail open and do not block publish.",
     },
     {
         "page": "Advanced",

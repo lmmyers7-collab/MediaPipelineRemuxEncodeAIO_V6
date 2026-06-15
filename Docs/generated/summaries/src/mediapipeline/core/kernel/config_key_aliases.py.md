@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/kernel/config_key_aliases.py
 pipeline_stage: config
 token_priority: medium
-owner_domain: unknown
+owner_domain: kernel
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 2a878a72d846ae9da4ea0df589d2dab6df9bd4f8e2b58f08be1010521b17f5c8

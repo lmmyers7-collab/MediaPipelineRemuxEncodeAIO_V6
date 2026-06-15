@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/schedule/facade.py
 pipeline_stage: orchestration
 token_priority: medium
-owner_domain: unknown
+owner_domain: schedule
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: b5dd6cce87d93bd07eb57e8cca353592e74d077b7e5d9ec6ccc4635dc07707f7

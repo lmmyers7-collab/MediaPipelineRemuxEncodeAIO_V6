@@ -125,6 +125,7 @@ class RiskyFileRegistryTests(unittest.TestCase):
                 "src/mediapipeline/core/rename/apply.py",
                 "ops/pipeline/engine/config/config_schema.ps1",
                 "src/mediapipeline/tools/dev/check_dependency_boundaries.py",
+                "docs/generated/summaries/src/mediapipeline/core/config/validation.py.md",
             ],
             registry,
         )
@@ -134,6 +135,19 @@ class RiskyFileRegistryTests(unittest.TestCase):
         self.assertIn("rename_apply", matched_ids)
         self.assertIn("settings_and_config", matched_ids)
         self.assertIn("ai_guardrails_and_generated_context", matched_ids)
+
+    def test_current_registry_generated_summary_glob_matches_files(self) -> None:
+        registry = registry_check.load_registry()
+
+        findings = registry_check.validate_registry(
+            registry,
+            known_paths={"docs/generated/summaries/src/mediapipeline/core/config/validation.py.md"},
+        )
+
+        self.assertNotIn(
+            ("RISK010", "ai_guardrails_and_generated_context"),
+            {(finding.rule_id, finding.path) for finding in findings},
+        )
 
 
 if __name__ == "__main__":

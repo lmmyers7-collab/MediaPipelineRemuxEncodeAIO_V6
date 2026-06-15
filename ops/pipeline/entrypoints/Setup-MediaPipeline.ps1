@@ -3,9 +3,10 @@
 Rapid-deployment setup and validation wizard for the patched MediaPipeline bundle.
 
 .DESCRIPTION
-Creates or updates MediaPipeline_config.psd1 next to the patched
-pipeline files, validates the deployment surface, and keeps advanced keys from
-an existing config intact.
+Creates or updates the active MediaPipeline_config.psd1, validates the
+deployment surface, and keeps advanced keys from an existing config intact.
+By default this uses the same durable per-user config location as the Local API
+when %LOCALAPPDATA% is available, falling back to the bundle-local config path.
 
 Designed for first-time setup on a new PC and for later re-validation after a
 machine move, dependency change, or manual config edit.
@@ -45,17 +46,17 @@ Optional path for a text validation report. When omitted, no report file is writ
 Prints the current default config template and exits.
 
 .EXAMPLE
-.\Setup-MediaPipeline.ps1
+.\ops\scripts\dev\setup.bat
 
-Runs the interactive setup wizard.
+Runs the interactive setup wizard from the repository root.
 
 .EXAMPLE
-.\Setup-MediaPipeline.ps1 -ValidateOnly
+.\ops\scripts\dev\setup.bat -ValidateOnly
 
 Validates the existing config and environment only.
 
 .EXAMPLE
-.\Setup-MediaPipeline.ps1 `
+.\ops\scripts\dev\setup.bat `
     -SourceMovies 'D:\Incoming\Movies' `
     -SourceTV 'D:\Incoming\TV' `
     -Outsource '\\NAS\Plex\Library' `
@@ -110,6 +111,60 @@ function Normalize-UserPath {
     }
 }
 
+function Get-SetupConfigCandidatePaths {
+    param(
+        [Parameter(Mandatory = $true)][string]$ConfigDir,
+        [Parameter(Mandatory = $true)][string]$RepoRoot
+    )
+
+    $candidates = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace($env:LOCALAPPDATA)) {
+        $userConfigDir = Join-Path $env:LOCALAPPDATA 'MediaPipelineRemuxEncodeAIO'
+        [void]$candidates.Add((Join-Path $userConfigDir 'MediaPipeline_config.psd1'))
+        [void]$candidates.Add((Join-Path $userConfigDir 'MediaPipeline_config_chatgpt.psd1'))
+    }
+
+    [void]$candidates.Add((Join-Path $ConfigDir 'MediaPipeline_config.psd1'))
+
+    $desktopConfigDir = Join-Path $RepoRoot 'apps\desktop\config'
+    [void]$candidates.Add((Join-Path $desktopConfigDir 'MediaPipeline_config.psd1'))
+
+    [void]$candidates.Add((Join-Path $ConfigDir 'MediaPipeline_config_chatgpt.psd1'))
+    [void]$candidates.Add((Join-Path $desktopConfigDir 'MediaPipeline_config_chatgpt.psd1'))
+
+    $unique = [System.Collections.Generic.List[string]]::new()
+    foreach ($candidate in $candidates) {
+        if ([string]::IsNullOrWhiteSpace($candidate)) { continue }
+        $normalized = Normalize-UserPath -Path $candidate -BasePath $RepoRoot
+        $alreadySeen = $false
+        foreach ($item in $unique) {
+            if ([string]::Equals($item, $normalized, [System.StringComparison]::OrdinalIgnoreCase)) {
+                $alreadySeen = $true
+                break
+            }
+        }
+        if (-not $alreadySeen) {
+            [void]$unique.Add($normalized)
+        }
+    }
+    return @($unique)
+}
+
+function Resolve-SetupDefaultConfigPath {
+    param(
+        [Parameter(Mandatory = $true)][string]$ConfigDir,
+        [Parameter(Mandatory = $true)][string]$RepoRoot
+    )
+
+    $candidates = @(Get-SetupConfigCandidatePaths -ConfigDir $ConfigDir -RepoRoot $RepoRoot)
+    foreach ($candidate in $candidates) {
+        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
+            return $candidate
+        }
+    }
+    return $candidates[0]
+}
+
 $script:InvariantCulture = [System.Globalization.CultureInfo]::InvariantCulture
 $script:ScriptDir = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $script:PipelineRoot = Split-Path -Parent $script:ScriptDir
@@ -118,16 +173,7 @@ $script:ConfigDir = Join-Path $script:PipelineRoot 'config'
 $script:ConfigPath = if ($ConfigPath) {
     Normalize-UserPath -Path $ConfigPath -BasePath $script:ScriptDir
 } else {
-    # Write the current convention name. If the operator has an existing
-    # legacy `_chatgpt` config alongside, preserve it by reusing that
-    # path so we don't end up with two configs.
-    $newName = Join-Path $script:ConfigDir 'MediaPipeline_config.psd1'
-    $legacyName = Join-Path $script:ConfigDir 'MediaPipeline_config_chatgpt.psd1'
-    if ((Test-Path -LiteralPath $legacyName) -and -not (Test-Path -LiteralPath $newName)) {
-        $legacyName
-    } else {
-        $newName
-    }
+    Resolve-SetupDefaultConfigPath -ConfigDir $script:ConfigDir -RepoRoot $script:RepoRoot
 }
 $script:PipelinePath = Join-Path $script:ScriptDir 'MediaPipeline.ps1'
 $script:SubtitlePath = Join-Path $script:RepoRoot 'src\mediapipeline\pipeline\ass_to_srt_cli.py'
@@ -160,7 +206,8 @@ foreach ($setupSlice in $script:SetupSlices) {
 
 function Invoke-Main {
 Write-Header 'MediaPipelineRemuxEncodeAIO Deployment'
-    Write-Info 'This setup script writes MediaPipeline_config.psd1 next to the patched pipeline files (legacy MediaPipeline_config_chatgpt.psd1 reused if present).'
+    Write-Info 'This setup script writes the active operator config using the same per-user-first location order as the Local API.'
+    Write-Info "Selected config path: $script:ConfigPath"
 
     if ($ListDefaults) {
         Write-Header 'Default Config'
@@ -177,6 +224,10 @@ Write-Header 'MediaPipelineRemuxEncodeAIO Deployment'
     if ($ValidateOnly) {
         if (-not (Test-Path -LiteralPath $script:ConfigPath)) {
             Write-Fail "Config file not found: $script:ConfigPath"
+            Write-Info 'Checked config candidates:'
+            foreach ($candidate in @(Get-SetupConfigCandidatePaths -ConfigDir $script:ConfigDir -RepoRoot $script:RepoRoot)) {
+                Write-Info "  $candidate"
+            }
             Write-Info "Run ops\scripts\dev\setup.bat from the repository root to create it."
             return 1
         }
@@ -210,7 +261,7 @@ Write-Header 'MediaPipelineRemuxEncodeAIO Deployment'
         if ($ReportPath) {
             Write-ValidationReport -Path $ReportPath -Result $previewResult -Config $config
         }
-        return 0
+        return $(if ($previewResult.Ok) { 0 } else { 1 })
     }
 
     $backupPath = Invoke-ConfigBackup -Path $script:ConfigPath -Keep 5

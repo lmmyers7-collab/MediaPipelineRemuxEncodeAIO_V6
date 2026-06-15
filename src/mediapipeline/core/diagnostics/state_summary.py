@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+import heapq
 import json
 from json import JSONDecodeError
 from pathlib import Path
@@ -565,18 +566,17 @@ def _directory_summary(path: Path, label: str) -> dict[str, Any]:
     facts: list[str] = []
     warnings: list[str] = []
     errors: list[str] = []
-    entries: list[dict[str, Any]] = []
     file_count = 0
     directory_count = 0
     scanned = 0
-    truncated = False
+    large_directory = False
+    recent_heap: list[tuple[float, int, dict[str, Any]]] = []
     try:
         iterator = path.iterdir()
         for child in iterator:
             scanned += 1
             if scanned > DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT:
-                truncated = True
-                break
+                large_directory = True
             try:
                 child_stat = child.stat()
             except OSError as exc:
@@ -587,14 +587,15 @@ def _directory_summary(path: Path, label: str) -> dict[str, Any]:
                 directory_count += 1
             else:
                 file_count += 1
-            entries.append(
-                {
-                    "name": child.name,
-                    "kind": "directory" if is_dir else "file",
-                    "size_bytes": None if is_dir else int(child_stat.st_size),
-                    "modified_at": _format_mtime(child_stat.st_mtime),
-                }
-            )
+            row = {
+                "name": child.name,
+                "kind": "directory" if is_dir else "file",
+                "size_bytes": None if is_dir else int(child_stat.st_size),
+                "modified_at": _format_mtime(child_stat.st_mtime),
+            }
+            heapq.heappush(recent_heap, (float(child_stat.st_mtime), scanned, row))
+            if len(recent_heap) > DIAGNOSTICS_STATE_SUMMARY_RECENT_LIMIT:
+                heapq.heappop(recent_heap)
     except OSError as exc:
         return {
             "kind": "directory",
@@ -604,16 +605,16 @@ def _directory_summary(path: Path, label: str) -> dict[str, Any]:
             "warnings": [],
             "errors": [f"Could not list {label}: {exc}"],
         }
-    entries.sort(key=lambda row: str(row.get("modified_at") or ""), reverse=True)
+    entries = [row for _mtime, _index, row in sorted(recent_heap, reverse=True)]
     facts.extend(
         [
             f"Files scanned: {file_count}",
             f"Directories scanned: {directory_count}",
         ]
     )
-    if truncated:
+    if large_directory:
         warnings.append(
-            f"{label} contains more than {DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT} entries; recent-entry list is truncated."
+            f"{label} contains more than {DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT} entries; recent-entry list was selected from the full scan."
         )
     status = "warning" if warnings else "ok"
     return {

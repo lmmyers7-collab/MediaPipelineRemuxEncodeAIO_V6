@@ -45,7 +45,7 @@
 <title>external_desktop_application&#45;&gt;mediapipeline_desktop_config_keys</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M169.98,-186.15C187.29,-181.48 206.33,-176.19 223.71,-171 270.82,-156.93 323.99,-139.39 361.99,-126.56"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="362.45,-128.8 367.87,-124.57 360.99,-124.49 362.45,-128.8"/>
-<text xml:space="preserve" text-anchor="middle" x="253.96" y="-165.67" font-family="Segoe UI" font-size="9.00" fill="#475569">4</text>
+<text xml:space="preserve" text-anchor="middle" x="253.96" y="-165.67" font-family="Segoe UI" font-size="9.00" fill="#475569">5</text>
 </g>
 <!-- external_desktop_network -->
 <g id="node4" class="node">

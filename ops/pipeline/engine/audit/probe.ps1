@@ -83,11 +83,56 @@ function Get-ProbeCachePath {
     return (Join-Path $bucket ($hash + '.json'))
 }
 
+function Write-ProbeCacheBoundaryLog {
+    param([string]$Message, [string]$Level = 'WARN')
+
+    if (Get-Command -Name Write-AuditLog -ErrorAction SilentlyContinue) {
+        Write-AuditLog $Message $Level
+    }
+}
+
+function Test-ProbeCacheCleanupBoundary {
+    if ([string]::IsNullOrWhiteSpace([string]$script:ProbeCacheRoot)) { return $false }
+    if (-not (Get-Command -Name Test-MediaPipelinePathBoundarySafe -ErrorAction SilentlyContinue)) {
+        Write-ProbeCacheBoundaryLog 'Probe cache cleanup skipped: path boundary helper is unavailable.' 'ERROR'
+        return $false
+    }
+
+    $cacheRoot = [string]$script:ProbeCacheRoot
+    $reportRoot = if (-not [string]::IsNullOrWhiteSpace([string]$script:ReportRootResolved)) {
+        [string]$script:ReportRootResolved
+    } else {
+        Split-Path -Parent $cacheRoot
+    }
+    if ([string]::IsNullOrWhiteSpace($reportRoot)) {
+        Write-ProbeCacheBoundaryLog "Probe cache cleanup skipped: report root could not be resolved for '$cacheRoot'." 'ERROR'
+        return $false
+    }
+    if (-not [string]::Equals((Split-Path -Leaf $cacheRoot), 'ProbeCache', [System.StringComparison]::OrdinalIgnoreCase)) {
+        Write-ProbeCacheBoundaryLog "Probe cache cleanup skipped: cache root leaf is not ProbeCache: $cacheRoot" 'ERROR'
+        return $false
+    }
+
+    $boundary = Test-MediaPipelinePathBoundarySafe -Path $cacheRoot -Root $reportRoot
+    if (-not $boundary.Ok) {
+        Write-ProbeCacheBoundaryLog "Probe cache cleanup skipped: cache root failed boundary guard ($($boundary.ReasonCode)): $cacheRoot" 'ERROR'
+        return $false
+    }
+    return $true
+}
+
 function Clear-ProbeCache {
     if (-not $script:ProbeCacheRoot -or -not (Test-Path -LiteralPath $script:ProbeCacheRoot)) { return }
+    if (-not (Test-ProbeCacheCleanupBoundary)) { return }
 
-    Get-ChildItem -LiteralPath $script:ProbeCacheRoot -Force -ErrorAction SilentlyContinue |
-        Remove-Item -Force -Recurse -ErrorAction SilentlyContinue
+    foreach ($item in @(Get-ChildItem -LiteralPath $script:ProbeCacheRoot -Force -ErrorAction SilentlyContinue)) {
+        $itemBoundary = Test-MediaPipelinePathBoundarySafe -Path ([string]$item.FullName) -Root ([string]$script:ProbeCacheRoot)
+        if (-not $itemBoundary.Ok) {
+            Write-ProbeCacheBoundaryLog "Probe cache cleanup skipped unsafe child ($($itemBoundary.ReasonCode)): $($item.FullName)" 'ERROR'
+            continue
+        }
+        Remove-Item -LiteralPath $item.FullName -Force -Recurse -ErrorAction SilentlyContinue
+    }
 }
 
 function Get-ProbeCacheEntry {

@@ -1,18 +1,18 @@
 # Command Ownership Matrix
 
-Date: 2026-06-07
+Date: 2026-06-13
 
 Documents every POST command route in the Local API: command type, backend
 contract group, primary frontend owner, mutation class, and key restrictions.
 Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `app/api/commands.py`, and the WebView `apiPost` call inventory.
 
-Total command routes: 58 POST routes across 10 contract groups.
+Total command routes: 70 POST routes across 11 contract groups.
 
-Network lifecycle and repair/reconcile mutation controls remain design-only.
-`/api/contract` publishes future contract gates for those areas, but no Network
-start/stop/reclaim/ops/release/metadata/worker-polling POST route and no repair/reconcile
-POST route is authorized until the matching architecture contract is satisfied.
+Network lifecycle start/stop now has backend-owned dry-run and confirmed POST
+routes. Confirmed coordinator/worker lifecycle routes are confirmation-gated,
+command-journaled, and provider-guarded. Repair/reconcile mutation controls
+remain design-only.
 
 ---
 
@@ -30,6 +30,7 @@ POST route is authorized until the matching architecture contract is satisfied.
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
 | `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences |
 | `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/start, backend/shutdown |
+| `LOCAL_API_NETWORK_COMMAND_ROUTE_CONTRACT` | network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/coordinator/join-blob, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators, network/worker/join-cluster, network/coordinator/start, network/coordinator/stop, network/worker/start, network/worker/stop |
 
 ---
 
@@ -182,6 +183,27 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 Audit controls are backend-owned report helpers. They cannot apply priority,
 write file overrides, launch rerun work, save settings, or touch media files.
 
+### Network Lifecycle
+
+| Route | Owner page | Owner JS | Mutation class | Key restriction |
+|---|---|---|---|---|
+| `POST /api/network/coordinator/start-dry-run` | Network | `networkView.js` | `none` | Reports coordinator start preconditions, state-file posture, active-work posture, and `would_not_touch` evidence only |
+| `POST /api/network/coordinator/stop-dry-run` | Network | `networkView.js` | `none` | Reports coordinator stop preconditions and state preservation posture only |
+| `POST /api/network/coordinator/join-blob` | Network | `networkView.js` | `secret-transfer` | Requires `confirm_create`; returns an unjournaled setup blob containing coordinator URL, worker auth token, and advertised libraries; optional token rotation also requires `confirm_rotate` |
+| `POST /api/network/worker/start-dry-run` | Network | `networkView.js` | `none` | Reports worker coordinator URL, path-map, pending-done, provider, and no-touch posture only |
+| `POST /api/network/worker/stop-dry-run` | Network | `networkView.js` | `none` | Reports worker stop and pending-done posture only |
+| `POST /api/network/worker/test-connection` | Network | `networkView.js` | `none` | Runs read-only L1 TCP reachability, L2 signed `/api/ping` auth, and L3 configured source/output path access checks; does not claim work, start/stop lifecycle, scan queue, save settings, publish, drain, or touch media files |
+| `POST /api/network/worker/discover-coordinators` | Network | `networkView.js` | `none` | Runs read-only mDNS coordinator discovery and returns selectable coordinator URLs for worker setup; selecting a row only stages `WorkerCoordinatorUrl` in the Settings patch until the operator previews/saves |
+| `POST /api/network/worker/join-cluster` | Network | `networkView.js` | `config-write` | Requires `confirm_import`; imports a join blob through backend settings save, seeds library-ID-derived WorkerSourcePathMap entries when possible, then runs read-only worker test-connection; request/response are unjournaled because the blob contains a secret |
+| `POST /api/network/coordinator/start` | Network | `networkView.js` | `backend-lifecycle` | Requires `confirm_start`; starts only the real coordinator lifecycle provider after backend preconditions pass |
+| `POST /api/network/coordinator/stop` | Network | `networkView.js` | `backend-lifecycle` | Requires `confirm_stop`; preserves coordinator/worker state files and does not silently release active claims |
+| `POST /api/network/worker/start` | Network | `networkView.js` | `backend-lifecycle` | Requires `confirm_start`; starts only worker polling for coordinator-assigned single-file claims, not normal Launch or local queue scanning |
+| `POST /api/network/worker/stop` | Network | `networkView.js` | `backend-lifecycle` | Requires `confirm_stop`; preserves pending done reports and worker state; abort remains separate |
+
+Confirmed Network lifecycle routes fail closed when the real lifecycle provider is
+unavailable. They must not scan the full queue, launch normal processing, release
+claims silently, or mutate source/scratch/output/pending-publish files.
+
 ### Process And Backend Lifecycle
 
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
@@ -199,7 +221,7 @@ write file overrides, launch rerun work, save settings, or touch media files.
 
 | Class | Count | Routes |
 |---|---:|---|
-| `none` | 13 | pending-publish/recovery-plan, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview |
+| `none` | 19 | pending-publish/recovery-plan, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview, network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators |
 | `read-only-preview` | 4 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/folder-preview, subtitle-qa/preview |
 | `shell-open` | 6 | queue/open, completed/open, pending-publish/open, diagnostics/open, diagnostics/tdarr-matrix/evidence/open, maintenance/dependency-atlas/open-folder |
 | `shell-dialog` | 3 | rename/browse, settings/browse-path, pipeline/browse-file |
@@ -212,7 +234,8 @@ write file overrides, launch rerun work, save settings, or touch media files.
 | `metrics-state-write` | 1 | metrics/sources |
 | `metrics-backfill-state-write` | 1 | metrics/backfill |
 | `app-state-write` | 1 | schedule/save |
-| `config-write` | 2 | settings/save-patch, settings/wizard/save |
+| `config-write` | 3 | settings/save-patch, settings/wizard/save, network/worker/join-cluster |
+| `secret-transfer` | 1 | network/coordinator/join-blob |
 | `filesystem-mutation` | 2 | rename/apply, final-library-promotion/promote-queue |
 | `control-state-write` | 2 | final-library-promotion/pause, final-library-promotion/resume |
 | `control-flag-write` | 1 | pipeline/control |
@@ -221,7 +244,7 @@ write file overrides, launch rerun work, save settings, or touch media files.
 | `tooling-artifact-write` | 1 | maintenance/dependency-atlas |
 | `deployment-write` | 1 | maintenance/release-build |
 | `process-launch` | 3 | pipeline/start, audit/start, rerun/start |
-| `backend-lifecycle` | 1 | backend/shutdown |
+| `backend-lifecycle` | 5 | backend/shutdown, network/coordinator/start, network/coordinator/stop, network/worker/start, network/worker/stop |
 
 ---
 
@@ -241,8 +264,11 @@ deployment artifacts:
 - `pipeline/start` with non-drain modes
 - `audit/start`
 - `rerun/start`
+- `network/coordinator/start`, `network/coordinator/stop`, `network/worker/start`, `network/worker/stop`
 - `settings/save-patch`
 - `settings/wizard/save`
+- `network/coordinator/join-blob`
+- `network/worker/join-cluster`
 - `maintenance/release-build`
 
 **Medium** - writes bounded backend state or control signals:
@@ -274,9 +300,12 @@ operator evidence only:
 - `settings/pipeline-plan-preview`
 - `pending-publish/recovery-plan`
 - `subtitle-qa/preview`
+- network lifecycle dry-run routes
+- `network/worker/test-connection`
+- `network/worker/discover-coordinators`
 - ops/release/metadata/backfill dry-run routes
 
-Network-page Worker Mode Settings preview/save is config-only through the existing Settings routes above. It is not a Network lifecycle command surface and does not authorize coordinator/worker start, stop, retry, reclaim, release, abort, or worker-polling controls.
+Network-page Worker Mode Settings preview/save is config-only through the existing Settings routes above. Coordinator/worker start and stop use the Network Lifecycle routes above. Coordinator mDNS discovery and worker test-connection are read-only setup checks; coordinator join blob creation and worker join import are secret-handling setup commands. The unjournaled setup commands still cannot claim work, launch processing, publish, drain, or touch media files. Retry, reclaim, release, abort, and worker quarantine controls remain disabled until their backend routes exist.
 
 ---
 

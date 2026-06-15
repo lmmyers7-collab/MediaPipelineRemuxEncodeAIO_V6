@@ -1,0 +1,69 @@
+{
+  "id": "MP-CHANGE-2026-0613-014",
+  "title": "Fix packaged Tauri backend import root and stale advisory tests",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "Fixed packaged Tauri shell backend startup by deriving the apps/desktop root without a literal tauri\\.. segment, so the shell builds PYTHONPATH from the package root src folder. Also made debug-only WebView helpers release-clean, refreshed the Tauri required-route contract, normalized effective audio language aliases, and updated stale advisory tests to the current MP4 compatibility policy.",
+  "reason": "Fresh-package package-mode validation failed because the Tauri shell passed apps\\desktop\\tauri\\.. as the desktop root. project_root_from_desktop_root then derived apps\\desktop as the project root, so Python could not import mediapipeline.desktop.local_api_main from the package root src folder.",
+  "affected_areas": [
+    "desktop-backend-startup",
+    "media-policy-contract",
+    "release-package",
+    "tauri-shell",
+    "tests"
+  ],
+  "behavior_before": "A portable package built with -IncludeTauriPreviewBinary passed package hygiene checks but the packaged Tauri launch/close smoke failed before showing a window with ModuleNotFoundError: No module named 'mediapipeline'.",
+  "behavior_after": "The packaged Tauri executable resolves apps/desktop directly from an executable located under apps/desktop/tauri, derives the package root correctly, sets PYTHONPATH to package-root/src, starts the backend, opens a visible shell window, and closes the shell/backend through the packaged launch smoke.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs",
+    "apps/desktop/tauri/src-tauri/src/debug_webview.rs",
+    "apps/desktop/tauri/src-tauri/src/dialogs.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/debug_webview.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/dialogs.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0613-014.json.md",
+    "docs/generated/summaries/src/mediapipeline/contracts/decision_policy.py.md",
+    "docs/generated/summaries/tests/python/core/contract/test_preset_policy_contract.py.md",
+    "docs/generated/summaries/tests/python/core/orchestration/test_pipeline_planner.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-014.json",
+    "src/mediapipeline/contracts/decision_policy.py",
+    "tests/python/core/contract/test_preset_policy_contract.py",
+    "tests/python/core/orchestration/test_pipeline_planner.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "Added Rust regression coverage for packaged apps/desktop/tauri executable root candidates deriving package-root PYTHONPATH."
+  ],
+  "manual_validation": [
+    "Final package build passed: ops\\scripts\\release\\build.ps1 -DestinationRoot <temp>\\mediapipeline-package-validation-final-20260613-115828 -Verify -IncludeTauriPreviewBinary. Final packaged Tauri launch/close smoke passed with shell PID 40432, visible window PID 40432, backend PID 66408.",
+    "Focused validation passed after final scoped edits: desktop Tauri scaffold unittest 88 tests OK; core preset/planner unittest 21 tests OK; cargo fmt, cargo test 38 tests, cargo build --release, and Test-TauriShell-Build.ps1 all passed.",
+    "Generated summaries, project index/dependency graph, and feature file map refreshed after packaged Tauri root-resolution fix.",
+    "Package build passed: ops\\\\scripts\\\\release\\\\build.ps1 -DestinationRoot <temp>\\\\mediapipeline-package-validation-final2-20260613-122455 -Verify -IncludeTauriPreviewBinary; package self-test hard gates passed with advisory stale packet summary before final packet refresh and package-mode project-index delta for omitted .github.",
+    "Packaged Tauri launch/close smoke passed against <temp>\\\\mediapipeline-package-validation-final2-20260613-122455: shell PID 73720, visible window PID 73720, backend PID 70336.",
+    "Targeted desktop Tauri scaffold unittest passed: 88 tests. Targeted core preset/planner unittest passed: 21 tests.",
+    "apps\\desktop\\tauri\\Test-TauriShell-Build.ps1 passed: JavaScript syntax check, cargo check, and Rust lib tests (38 passed).",
+    "apps\\desktop\\tauri\\Test-TauriShell-Launch.ps1 -Mode Packaged against <temp>\\mediapipeline-package-validation-fixed-20260613-115141 - passed after closing pre-existing debug shell process 66948; detected shell PID 66444, visible window PID 66444, backend PID 52596",
+    "cargo build --release --manifest-path apps\\desktop\\tauri\\src-tauri\\Cargo.toml - passed without warnings after debug helper cleanup",
+    "cargo fmt --manifest-path apps\\desktop\\tauri\\src-tauri\\Cargo.toml",
+    "cargo test --manifest-path apps\\desktop\\tauri\\src-tauri\\Cargo.toml - passed, 38 tests",
+    "cargo test --manifest-path apps\\desktop\\tauri\\src-tauri\\Cargo.toml passed (38 tests); cargo build --release --manifest-path apps\\desktop\\tauri\\src-tauri\\Cargo.toml passed without warnings; fixed package-mode Tauri launch smoke passed against <temp>\\mediapipeline-package-validation-fixed-20260613-115141",
+    "ops\\scripts\\release\\build.ps1 -DestinationRoot <temp>\\mediapipeline-package-validation-fixed-20260613-115141 -Verify -IncludeTauriPreviewBinary - passed with package-mode advisory summary/index freshness warnings before summaries were refreshed",
+    "ops\\scripts\\release\\test.ps1 passed after packet path redaction; hard gates passed with known advisory desktop/core Python unit failures.",
+    "refresh_summaries --paths for Tauri, decision policy, core/desktop tests, and change packet passed: 6 written, 3 unchanged."
+  ],
+  "rollback_plan": "Revert the dialogs.rs desktop-root candidate change, the lib.rs regression tests, the backend route contract additions, the debug_webview.rs cfg cleanup, the EffectiveDecisionPolicy language-alias normalization, and the stale advisory test updates; then rebuild the Tauri release executable before packaging.",
+  "related_changes": [
+    "MP-CHANGE-2026-0613-013"
+  ],
+  "notes": "A prior package-mode launch attempt against <temp>\\mediapipeline-package-validation-20260613-114147 reproduced the backend import failure. The first fixed-package launch attempt was blocked by an unrelated already-running source-tree debug Tauri process."
+}

@@ -203,7 +203,7 @@ function Show-Closing {
         [string]$BackupPath = $null,
         [string]$ReportPathValue = $null
     )
-    $projectRoot = Split-Path -Parent $script:ScriptDir
+    $projectRoot = $script:RepoRoot
     $setupLauncher = Join-Path $projectRoot 'ops\scripts\dev\setup.bat'
     $runLauncher = Join-Path $projectRoot 'ops\scripts\dev\run.bat'
 

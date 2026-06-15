@@ -83,6 +83,7 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
     def test_changed_key_risk_item_classifies_medium_risk_settings(self) -> None:
         self.assertEqual(changed_key_risk_item("SizeGuardMode", "strict")["code"], "strict_size_guard")
         self.assertEqual(changed_key_risk_item("SizeGuardMode", "fallback_remux")["code"], "fallback_remux_size_guard")
+        self.assertEqual(changed_key_risk_item("QualityFailAction", "block_review")["code"], "quality_block_review_enabled")
         self.assertEqual(changed_key_risk_item("DropAssAfterConversion", True)["code"], "drops_original_subtitle")
         self.assertEqual(changed_key_risk_item("LocalBase", r"D:\scratch")["code"], "path_root_changed")
         self.assertEqual(changed_key_risk_item("EnableIntegrityCheck", False)["code"], "integrity_check_disabled")
@@ -136,6 +137,19 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
         self.assertIn("partial_download_extension_allowed", codes)
         self.assertIn("high_robocopy_thread_count", codes)
         self.assertNotIn("path_root_changed", codes)
+
+    def test_quality_metric_threshold_mismatch_is_high_risk(self) -> None:
+        summary = build_current_settings_risk_summary(
+            {
+                "QualityMetric": "ssim",
+                "QualityWarnThreshold": 90,
+                "QualityFailThreshold": 75,
+            }
+        )
+
+        codes = {item["code"] for item in summary["items"]}
+        self.assertEqual(summary["highest_severity"], "high")
+        self.assertIn("quality_threshold_metric_mismatch", codes)
 
     def test_build_launch_settings_risk_handoff_matches_existing_launch_rows(self) -> None:
         config = {

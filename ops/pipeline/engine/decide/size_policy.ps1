@@ -49,6 +49,8 @@ function Resolve-MediaRouteResolutionBitrateSelection {
     param(
         [int] $VideoHeight = 0,
         [bool] $IsTV = $false,
+        [double] $MovieRouteMaxVideoBitrateMbps = 35.0,
+        [double] $TVRouteMaxVideoBitrateMbps = 18.0,
         [double] $Route1080pUpperHeightTolerancePercent = 11.111111,
         [double] $Route1080pMaxVideoBitrateMbps = 20.0,
         [double] $Route1440pLowerHeightTolerancePercent = 16.597222,
@@ -71,10 +73,13 @@ function Resolve-MediaRouteResolutionBitrateSelection {
     if ($Route1080pMaxVideoBitrateMbps -le 0) { $Route1080pMaxVideoBitrateMbps = 20.0 }
     if ($Route1440pMaxVideoBitrateMbps -le 0) { $Route1440pMaxVideoBitrateMbps = 35.0 }
     if ($Route4KMaxVideoBitrateMbps -le 0) { $Route4KMaxVideoBitrateMbps = 35.0 }
+    if ($MovieRouteMaxVideoBitrateMbps -le 0) { $MovieRouteMaxVideoBitrateMbps = 35.0 }
+    if ($TVRouteMaxVideoBitrateMbps -le 0) { $TVRouteMaxVideoBitrateMbps = 18.0 }
 
     if ($VideoHeight -le 0) {
+        $unknownHeightCapMbps = if ($IsTV) { [double]$TVRouteMaxVideoBitrateMbps } else { [double]$MovieRouteMaxVideoBitrateMbps }
         return [pscustomobject]([ordered]@{
-            CapMbps                  = [double]$Route1080pMaxVideoBitrateMbps
+            CapMbps                  = [double]$unknownHeightCapMbps
             Source                   = 'unknown_height_1080p_bucket'
             Bucket                   = '1080p'
             Height                   = [int]$VideoHeight

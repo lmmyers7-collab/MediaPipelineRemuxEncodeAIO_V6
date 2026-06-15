@@ -24,10 +24,13 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\path_helpers.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\path_capability.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\paths\library_profiles.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_partial.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_result.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_manifest_store.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_transactions.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_push.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_publish_index.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_completion.ps1')
 
 $script:ProductVersion = 'v5-test-product'
 $script:PipelineVersion = 'v5-test'
@@ -327,6 +330,34 @@ Invoke-WithTempRoot {
 Invoke-WithTempRoot {
     param($Root)
     Set-TestPipelineRoots -Root $Root
+    $localOut = Join-Path $script:LocalEncoded 'WrapperSize.mkv'
+    $serverOut = Join-Path $script:Outsource 'WrapperSize.mkv'
+    $sourcePath = Join-Path $script:SourceMovies 'WrapperSize.mkv'
+    [System.IO.File]::WriteAllText($localOut, 'media-size-proof')
+    [System.IO.File]::WriteAllText($sourcePath, 'source')
+
+    $parkResult = Invoke-ParkPendingPush `
+        -LocalOut $localOut `
+        -ServerOut $serverOut `
+        -Route 'encode' `
+        -SourceIdentity 'source-v1' `
+        -SourceIdentityV2 'source-v2' `
+        -SourcePath $sourcePath `
+        -SourceSize 6 `
+        -SourceMTimeUtc '2026-05-19T00:00:00Z' `
+        -PublishTransactionId 'tx-size-proof' `
+        -PublishMode 'deferred' `
+        -MediaType 'movie'
+
+    Assert-True ([bool]$parkResult.Ok) 'Invoke-ParkPendingPush should return the successful park transaction.'
+    Assert-Equal ([long]$parkResult.OutputSize) 16L 'Park wrapper did not return the parked media size proof.'
+    $manifest = Read-PendingManifestFile -Path ([string]$parkResult.ManifestPath)
+    Assert-Equal ([long]$manifest.output_size) 16L 'Pending manifest output_size should match the wrapper transaction size proof.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
     $manifestPath = Join-Path $script:LocalPendingPush 'missing-payload.manifest.json'
     $missingLocal = Join-Path $script:LocalPendingPush 'missing.mkv'
     $serverOut = Join-Path $script:Outsource 'missing.mkv'
@@ -395,6 +426,25 @@ Invoke-WithTempRoot {
     Assert-Equal ([string]$context.QueuePhase) 'pending_push' 'Pending drain progress context lost pending_push queue phase.'
     Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Display-name progress test mutated the parked payload.'
     Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Display-name progress test published output.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'sidecar-backup-retry.mkv'
+    $serverOut = Join-Path $script:Outsource 'sidecar-backup-retry.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut -State 'retry_sidecar_backup_failed'
+    $manifestPath = Join-Path $script:LocalPendingPush 'sidecar-backup-retry.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+
+    Assert-True ([bool]$trust.Ok) "retry_sidecar_backup_failed manifest should be drainable: $($trust.Reason)"
+    Assert-Equal ([string]$trust.ReasonCode) 'OK' 'Backup-failed retry state should not be rejected as DRAIN_STATE_UNSUPPORTED.'
+    Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Trust check should not mutate the parked payload.'
+    Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Trust check should not delete the manifest.'
+    Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Trust check should not publish output.'
 }
 
 Invoke-WithTempRoot {
@@ -606,6 +656,31 @@ Invoke-WithTempRoot {
 Invoke-WithTempRoot {
     param($Root)
     Set-TestPipelineRoots -Root $Root
+    $serverOut = Join-Path $script:Outsource 'sidecar-backup-failure.mkv'
+    $serverDir = Split-Path -Parent $serverOut
+    [System.IO.Directory]::CreateDirectory($serverDir) | Out-Null
+    $sidecarPath = Get-SidecarPath $serverOut
+    [System.IO.File]::WriteAllText($sidecarPath, 'existing-proof')
+
+    function Copy-Item {
+        throw 'simulated sidecar backup failure'
+    }
+    try {
+        $backup = Backup-PublishSidecarForReveal -OutputPath $serverOut -PublishTransactionId 'tx-backup-fail' -Context 'test: '
+    } finally {
+        Remove-Item Function:\Copy-Item -ErrorAction SilentlyContinue
+    }
+
+    Assert-True ([bool]$backup.HadExistingSidecar) 'Backup result should record that an existing sidecar was present.'
+    Assert-True (-not [bool]$backup.BackupOk) 'Backup result should fail closed when the existing sidecar cannot be copied.'
+    Assert-True (-not (Test-PublishSidecarBackupReadyForReveal -Backup $backup)) 'Backup readiness should reject reveal after existing-sidecar backup failure.'
+    Restore-PublishSidecarAfterRevealFailure -OutputPath $serverOut -Backup $backup -Context 'test: '
+    Assert-Equal ([System.IO.File]::ReadAllText($sidecarPath)) 'existing-proof' 'Restore after backup failure must not delete the existing final sidecar proof.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
     $serverDir = $script:Outsource
     $localSidecar = Join-Path $script:LocalPendingPush 'parked.srt'
     $serverSidecar = Join-Path $serverDir 'movie.eng.srt'
@@ -654,8 +729,15 @@ $publishCompletionHelperText = Get-Content -LiteralPath (Join-Path $repoRoot 'op
 Assert-MatchText $publishCompletionHelperText 'function New-PendingParkArguments' 'Publish completion pending-park argument builder is missing.'
 Assert-MatchText $publishCompletionHelperText 'function Get-PublishCopyFailureClassification' 'Publish completion pure copy-failure classifier is missing.'
 Assert-MatchText $publishCompletionHelperText 'PublishMode = \$PublishMode' 'Pending-park argument builder no longer preserves the supplied publish mode.'
+Assert-MatchText $publishCompletionText 'function Get-PendingParkResultOutputSize' 'Publish completion should read output size from the successful park result.'
+Assert-True (-not $publishCompletionText.Contains('$localSize = (Get-Item -LiteralPath $Paths.LocalOut')) 'Publish completion must not read LocalOut size after the park transaction moves it.'
+Assert-MatchText $publishCompletionText 'Test-PublishSidecarBackupReadyForReveal[\s\S]+Existing final sidecar backup failed before final media reveal' 'Publish completion must fail closed when an existing final sidecar cannot be backed up.'
+Assert-MatchText $publishCompletionText 'Get-PendingParkResultOutputSize -ParkResult \$parkResult' 'Pending publish result size should come from the park transaction proof.'
 Assert-MatchText $publishCompletionText 'New-PendingParkArguments[\s\S]+-PublishMode \$\(if \(\$copyFailureIsOutputSpace\) \{ ''output-space-deferred'' \}' 'Publish completion no longer marks output-space copy failures as output-space-deferred before parking.'
 Assert-MatchText $publishCompletionText 'New-PipelinePublishResult[\s\S]+-PublishState ''pending_publish''[\s\S]+-PublishMode ''output-space-deferred''[\s\S]+-ParkedForOutputSpace:\$true' 'Low-space deferred publish no longer returns pending_publish success after safe parking.'
 Assert-MatchText $publishCompletionText 'Clear-SourceFailureState \$SourceFile[\s\S]+output-space deferred publish' 'Low-space deferred publish no longer clears source failure state only after successful parking.'
+
+$pendingDrainText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_drain_transaction.ps1') -Raw
+Assert-MatchText $pendingDrainText 'Test-PublishSidecarBackupReadyForReveal[\s\S]+retry_sidecar_backup_failed' 'Pending drain must fail closed when an existing final sidecar cannot be backed up.'
 
 Write-Host 'OK: pending publish safety checks passed.'

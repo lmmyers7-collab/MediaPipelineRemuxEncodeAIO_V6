@@ -2,7 +2,7 @@
 file: src/mediapipeline/desktop/application/sample_validation/readiness.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: application
+owner_domain: sample_validation
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: cf0f1c578ff76bde3df13e5ac69ef9657c778c1cda0d1877f266ea30508f7578

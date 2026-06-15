@@ -1,6 +1,7 @@
 (() => {
   const TAURI_BACKEND_LIFECYCLE_EVENT = "mediapipeline://backend-lifecycle";
   const WEBVIEW_BACKEND_LIFECYCLE_EVENT = "mediapipeline:backend-lifecycle";
+  let latestBackendLifecycleDetail = null;
 
   function tauriEventApi() {
     const tauri = window.__TAURI__;
@@ -9,17 +10,37 @@
       : null;
   }
 
+  function backendLifecycleDetail(event) {
+    return {
+      source: TAURI_BACKEND_LIFECYCLE_EVENT,
+      payload: event && typeof event === "object" ? event.payload : null,
+    };
+  }
+
+  function dispatchBackendLifecycleEvent(detail) {
+    latestBackendLifecycleDetail = detail;
+    window.dispatchEvent(new CustomEvent(WEBVIEW_BACKEND_LIFECYCLE_EVENT, { detail }));
+  }
+
+  function replayLatestBackendLifecycleEvent() {
+    if (!latestBackendLifecycleDetail) return false;
+    window.dispatchEvent(new CustomEvent(WEBVIEW_BACKEND_LIFECYCLE_EVENT, {
+      detail: latestBackendLifecycleDetail,
+    }));
+    return true;
+  }
+
+  window.mediaPipelineTauriLifecycleBridge = Object.freeze({
+    eventName: WEBVIEW_BACKEND_LIFECYCLE_EVENT,
+    replayLatestBackendLifecycleEvent,
+  });
+
   async function startTauriLifecycleBridge() {
     const eventApi = tauriEventApi();
     if (!eventApi) return;
     try {
       const unlisten = await eventApi.listen(TAURI_BACKEND_LIFECYCLE_EVENT, (event) => {
-        window.dispatchEvent(new CustomEvent(WEBVIEW_BACKEND_LIFECYCLE_EVENT, {
-          detail: {
-            source: TAURI_BACKEND_LIFECYCLE_EVENT,
-            payload: event && typeof event === "object" ? event.payload : null,
-          },
-        }));
+        dispatchBackendLifecycleEvent(backendLifecycleDetail(event));
       });
       window.addEventListener("beforeunload", () => {
         if (typeof unlisten === "function") unlisten();

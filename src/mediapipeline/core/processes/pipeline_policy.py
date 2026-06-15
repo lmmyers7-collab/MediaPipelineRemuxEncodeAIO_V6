@@ -16,6 +16,11 @@ PIPELINE_START_MODES = frozenset({"continuous", "once", "validate", "drain_pendi
 PIPELINE_START_MODE_ERROR = "Mode must be continuous, once, validate, or drain_pending_pushes."
 PIPELINE_SLEEP_SECONDS_ERROR = "Sleep seconds must be a whole number."
 PIPELINE_EXTRA_ARGS_ERROR = "Extra pipeline arguments are not accepted by the Local API pipeline.start command."
+PIPELINE_NETWORK_MODE_BLOCK_ERROR = (
+    "Normal Launch is disabled while NetworkRole is coordinator or worker, or when NetworkRole is invalid. "
+    "Use Network/Workers controls or switch NetworkRole back to standalone."
+)
+NETWORK_ROLES = frozenset({"standalone", "coordinator", "worker"})
 
 
 def _command_result(**kwargs: Any) -> "CommandResult":
@@ -62,6 +67,36 @@ def normalize_pipeline_extra_args(value: Any) -> str:
 def pipeline_extra_args_error(extra_args: str, allow_extra_args: bool) -> str | None:
     if extra_args and not allow_extra_args:
         return PIPELINE_EXTRA_ARGS_ERROR
+    return None
+
+
+def normalize_network_role(value: Any) -> str:
+    role = str(value or "").strip().casefold()
+    return role
+
+
+def configured_network_role(config: Mapping[str, Any] | None) -> str:
+    if not isinstance(config, Mapping) or "NetworkRole" not in config:
+        return ""
+    return normalize_network_role(config.get("NetworkRole"))
+
+
+def network_role_is_valid(role: str) -> bool:
+    return normalize_network_role(role) in NETWORK_ROLES
+
+
+def network_role_blocks_normal_launch(role: str) -> bool:
+    return normalize_network_role(role) != "standalone"
+
+
+def coordinator_also_encode_locally_enabled(config: Mapping[str, Any] | None) -> bool:
+    return (config or {}).get("CoordinatorAlsoEncodeLocally") is True
+
+
+def pipeline_start_network_role_error(config: Mapping[str, Any] | None) -> str | None:
+    role = configured_network_role(config)
+    if network_role_blocks_normal_launch(role):
+        return PIPELINE_NETWORK_MODE_BLOCK_ERROR
     return None
 
 
@@ -115,6 +150,45 @@ def pipeline_start_extra_args_error_result() -> "CommandResult":
         message="Extra pipeline arguments are disabled for the local API start command.",
         severity="error",
         errors=[PIPELINE_EXTRA_ARGS_ERROR],
+    )
+
+
+def pipeline_start_network_mode_label(role: str, *, coordinator_also_encode_locally: bool = False) -> str:
+    if role == "coordinator":
+        return "Coordinator + local worker" if coordinator_also_encode_locally else "Coordinator only"
+    if role == "worker":
+        return "Worker only"
+    if role == "standalone":
+        return "Standalone"
+    return f"Invalid NetworkRole ({role or 'empty'})"
+
+
+def pipeline_start_network_mode_blocked_result(
+    role: str,
+    *,
+    coordinator_also_encode_locally: bool = False,
+) -> "CommandResult":
+    mode_label = (
+        pipeline_start_network_mode_label(
+            role,
+            coordinator_also_encode_locally=coordinator_also_encode_locally,
+        )
+    )
+    return _command_result(
+        command=PIPELINE_START_COMMAND,
+        ok=False,
+        message=PIPELINE_NETWORK_MODE_BLOCK_ERROR,
+        severity="error",
+        errors=[PIPELINE_NETWORK_MODE_BLOCK_ERROR],
+        refresh_hint="network",
+        data={
+            "schema_version": "desktop_pipeline_network_launch_block.v1",
+            "network_role": role,
+            "network_role_valid": network_role_is_valid(role),
+            "network_mode_label": mode_label,
+            "start_route_allowed": False,
+            "safe_next_action": "Open Network/Workers to start distributed work, or save NetworkRole=standalone before using Launch.",
+        },
     )
 
 
@@ -196,16 +270,26 @@ __all__ = [
     "PIPELINE_START_MODE_ERROR",
     "PIPELINE_SLEEP_SECONDS_ERROR",
     "PIPELINE_EXTRA_ARGS_ERROR",
+    "PIPELINE_NETWORK_MODE_BLOCK_ERROR",
+    "NETWORK_ROLES",
+    "coordinator_also_encode_locally_enabled",
+    "configured_network_role",
     "normalize_pipeline_start_mode",
     "is_supported_pipeline_start_mode",
     "parse_pipeline_sleep_seconds",
     "normalize_pipeline_extra_args",
     "pipeline_extra_args_error",
+    "normalize_network_role",
+    "network_role_is_valid",
+    "network_role_blocks_normal_launch",
+    "pipeline_start_network_role_error",
+    "pipeline_start_network_mode_label",
     "pipeline_start_success_message",
     "pipeline_start_success_data",
     "pipeline_start_unsupported_mode_result",
     "pipeline_start_sleep_error_result",
     "pipeline_start_extra_args_error_result",
+    "pipeline_start_network_mode_blocked_result",
     "pipeline_start_schedule_gate_result",
     "pipeline_start_active_work_result",
     "pipeline_start_config_blocked_result",

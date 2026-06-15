@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-05
+Date: 2026-06-11
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1458. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1594. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -309,6 +309,9 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | ID | Element | Purpose |
 |---|---|---|
 | `schedule-editor-status` | `<span>` | Schedule editor status |
+| `schedule-watch-folder-status` | `<strong>` | Watch-folder manager status badge |
+| `schedule-watch-folder-summary` | `<pre>` | Read-only watch-folder manager summary |
+| `schedule-watch-folder-recent` | `<pre>` | Recent stable watch-folder detections |
 
 ---
 
@@ -348,6 +351,24 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `settings-subtitle-bdpgs-ocr-tessdata-path` | `<input>` | Subtitle builder staged BDPGS tessdata path |
 | `settings-subtitle-sdh-keywords` | `<input>` | Subtitle builder staged SDH title keyword list |
 | `settings-subtitle-supplemental-keywords` | `<input>` | Subtitle builder staged supplemental title keyword list |
+| `settings-file-safety-enable-watch` | `<input>` | File Safety builder watch-folder enable toggle |
+| `settings-file-safety-watch-action` | `<select>` | File Safety builder watch-folder action mode |
+| `settings-file-safety-watch-debounce` | `<input>` | File Safety builder watch-folder debounce seconds |
+| `settings-file-safety-watch-respect-schedule` | `<input>` | File Safety builder watch-folder schedule-respect toggle |
+| `settings-file-safety-watch-roots` | `<input>` | File Safety builder explicit watch root list |
+| `settings-quality-builder-status` | `<strong>` | Quality Verification builder status badge |
+| `settings-builder-quality-enable` | `<input>` | Quality Verification builder enable toggle |
+| `settings-builder-quality-metric` | `<select>` | Quality Verification builder metric selector |
+| `settings-builder-quality-sample-mode` | `<select>` | Quality Verification builder sample mode selector |
+| `settings-builder-quality-sample-seconds` | `<input>` | Quality Verification builder per-window sample seconds |
+| `settings-builder-quality-sample-count` | `<input>` | Quality Verification builder sample window count |
+| `settings-builder-quality-warn-threshold` | `<input>` | Quality Verification builder warning threshold |
+| `settings-builder-quality-fail-threshold` | `<input>` | Quality Verification builder failure threshold |
+| `settings-builder-quality-fail-action` | `<select>` | Quality Verification builder fail action selector |
+| `settings-builder-quality-timeout` | `<input>` | Quality Verification builder FFmpeg verification timeout |
+| `settings-quality-apply-button` | `<button>` | Merge Quality Verification Patch |
+| `settings-quality-reset-button` | `<button>` | Reset Quality Verification builder from current settings |
+| `settings-quality-guidance` | `<pre>` | Quality Verification builder guidance and staged-value summary |
 
 ---
 
@@ -568,11 +589,11 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 ---
 
-## Machine-Generated Full DOM ID Manifest — 2026-06-04
+## Machine-Generated Full DOM ID Manifest - 2026-06-11
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1458
+Count: 1594
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -691,6 +712,7 @@ completed-integrity
 completed-integrity-status
 completed-inventory-progress-bars
 completed-investigation-filter
+completed-library-filter
 completed-missing-count
 completed-open-history
 completed-open-status
@@ -737,6 +759,10 @@ completed-status
 completed-status-filter
 completed-summary
 completed-table-legend
+completed-trust-decision-chips
+completed-trust-decision-heading
+completed-trust-decision-status
+completed-trust-decision-summary
 completed-validation
 completed-validation-status
 completed-workflow
@@ -747,6 +773,8 @@ control-readiness
 control-readiness-status
 control-status
 cpu-chart
+cpu-chart-meta
+cpu-utility-note
 cpu-value
 cross-page-conflict-legend
 cross-page-conflict-rows
@@ -769,8 +797,8 @@ daily-driver-rows
 daily-driver-status
 daily-driver-summary
 dependency-atlas-button
-dependency-atlas-open-folder-button
 dependency-atlas-detail
+dependency-atlas-open-folder-button
 dependency-atlas-progress-bars
 dependency-atlas-status
 diagnostics-close-readiness
@@ -804,11 +832,11 @@ diagnostics-first-response-legend
 diagnostics-first-response-rows
 diagnostics-first-response-status
 diagnostics-first-response-summary
-diagnostics-force-reset-button
-diagnostics-force-reset-status
 diagnostics-investigation-actions
 diagnostics-investigation-status
 diagnostics-investigation-trail
+diagnostics-live-run-status
+diagnostics-live-run-strip
 diagnostics-log-actions
 diagnostics-log-detail
 diagnostics-log-filter
@@ -855,6 +883,7 @@ diagnostics-triage-status
 diagnostics-triage-summary
 evidence-toggle
 failed-count
+failed-label
 failure-clear-all-button
 failure-clear-selected-button
 failure-clear-status
@@ -902,11 +931,13 @@ fo-inherited-settings-status
 fo-overlay
 fo-processing-route-help
 fo-processing-route-section
+fo-route-encode-advisory
+fo-route-override-controls
+fo-route-override-disclosure-status
+fo-route-override-toggle
 fo-route-preview-status
 fo-route-profile
 fo-route-profile-inherited
-fo-route-risk-confirm
-fo-route-risk-confirmation
 fo-route-threshold-mode
 fo-route-threshold-mode-inherited
 fo-series-apply
@@ -952,6 +983,7 @@ fo-video-encode-ladder-inherited
 fo-video-encode-preset
 fo-video-encode-preset-inherited
 gpu-chart
+gpu-chart-meta
 gpu-detail-status
 gpu-note
 gpu-rows
@@ -963,6 +995,9 @@ home-control-readiness-status
 home-external-dependencies-status
 home-external-dependencies-summary
 home-failed-count
+home-failed-label
+home-live-run-status
+home-live-run-strip
 home-next-queue-list
 home-next-queue-status
 home-output-storage-detail
@@ -980,6 +1015,11 @@ home-scratch-storage-detail
 home-scratch-storage-status
 home-settings-trust-status
 home-settings-trust-summary
+home-tdarr-matrix-detail
+home-tdarr-matrix-panel-status
+home-tdarr-matrix-progress-bars
+home-tdarr-matrix-status
+home-tdarr-matrix-summary
 launch-backend-preflight-detail
 launch-backend-preflight-legend
 launch-backend-preflight-refresh-button
@@ -998,6 +1038,8 @@ launch-evidence-section
 launch-evidence-toggle
 launch-history
 launch-history-status
+launch-live-run-status
+launch-live-run-strip
 launch-logs
 launch-pilot-readiness-detail
 launch-pilot-readiness-legend
@@ -1053,6 +1095,24 @@ layout-editor-reset-page
 layout-editor-reset-subtab
 layout-editor-status
 layout-editor-tree
+library-route-compare-left
+library-route-compare-right
+library-route-compare-rows
+library-route-compare-title
+library-route-decision-rows
+library-route-decision-title
+library-route-map-graph
+library-route-map-profile-select
+library-route-map-status
+library-route-navigation-rows
+library-route-navigation-title
+library-route-node-rows
+library-route-node-title
+library-route-trace-rows
+library-route-trace-selector
+library-route-trace-title
+library-route-validation-rows
+library-route-validation-title
 log-tail
 maintenance-change-ledger-detail
 maintenance-change-ledger-detail-status
@@ -1092,8 +1152,12 @@ maintenance-toolchain-status
 maintenance-total-count
 maintenance-warning-count
 maintenance-warnings
+metrics-attention-rows
+metrics-attention-status
 metrics-backfill-button
 metrics-backfill-detail
+metrics-coverage-rows
+metrics-coverage-status
 metrics-data-produced
 metrics-encode-count
 metrics-evidence-status
@@ -1107,6 +1171,8 @@ metrics-pending-status
 metrics-production-bars
 metrics-production-detail
 metrics-production-status
+metrics-reason-group-rows
+metrics-reason-group-status
 metrics-remux-count
 metrics-route-bars
 metrics-route-detail
@@ -1123,21 +1189,27 @@ metrics-storage-breakdown-rows
 metrics-storage-saved
 metrics-storage-status
 metrics-summary
+metrics-throughput-detail
+metrics-throughput-rows
+metrics-throughput-status
 metrics-top-growth-rows
 metrics-top-growth-status
 metrics-top-savings-rows
 metrics-top-savings-status
 metrics-total-jobs
 metrics-worker-active
+metrics-worker-average-gbh
 metrics-worker-bars
 metrics-worker-coordinator
 metrics-worker-count
 metrics-worker-encoded-gb
+metrics-worker-posture
 metrics-worker-role
 metrics-worker-rows
 metrics-worker-session-completed
 metrics-worker-session-failed
 metrics-worker-status
+metrics-worker-warnings
 network-api-status
 network-api-summary
 network-coordinator-target
@@ -1146,17 +1218,22 @@ network-evidence-legend
 network-evidence-rows
 network-evidence-status
 network-evidence-summary
+network-lifecycle-boundary-status
+network-lifecycle-boundary-summary
 network-lifecycle-detail
 network-lifecycle-legend
 network-lifecycle-rows
 network-lifecycle-status
 network-lifecycle-summary
 network-local-api
+network-mode-model
 network-open-history
 network-open-history-status
 network-readiness-status
 network-readiness-summary
 network-role
+network-route-summary
+network-route-summary-status
 network-settings-control-status
 network-settings-patch-handoff
 network-settings-preview-button
@@ -1199,6 +1276,7 @@ pending-drain-confidence-status
 pending-drain-confidence-summary
 pending-drain-correlation
 pending-drain-correlation-status
+pending-drain-decision-chips
 pending-drain-decision-detail
 pending-drain-decision-legend
 pending-drain-decision-rows
@@ -1210,6 +1288,8 @@ pending-drain-events-status
 pending-drain-guard-status
 pending-drain-guard-summary
 pending-drain-history
+pending-drain-overview
+pending-drain-progress-bars
 pending-drain-status
 pending-drain-summary
 pending-drain-summary-status
@@ -1226,6 +1306,8 @@ pending-filter-summary
 pending-health-count
 pending-inventory-progress-bars
 pending-investigation-filter
+pending-live-run-status
+pending-live-run-strip
 pending-open-history
 pending-open-status
 pending-payload-count
@@ -1262,6 +1344,10 @@ pending-validation
 pending-validation-status
 pending-workflow
 pending-workflow-status
+pipeline-compact-gate-detail
+pipeline-compact-gate-refresh-button
+pipeline-compact-gate-status
+pipeline-compact-gate-strip
 pipeline-controller-backend-detail
 pipeline-controller-backend-status
 pipeline-controller-control-summary
@@ -1271,6 +1357,12 @@ pipeline-controller-pipeline-state
 pipeline-controller-stage-summary
 pipeline-event-rows
 pipeline-events-status
+pipeline-gate-active
+pipeline-gate-backend
+pipeline-gate-last
+pipeline-gate-queue
+pipeline-gate-schedule
+pipeline-gate-settings
 pipeline-launch-detail
 pipeline-launch-preflight
 pipeline-launch-status
@@ -1281,6 +1373,7 @@ pipeline-single-file-browse-status
 pipeline-single-file-clear-button
 pipeline-sparkline
 pipeline-start-button
+pipeline-start-disabled-reason
 pipeline-start-mode
 pipeline-start-schedule-override
 pipeline-start-show-config
@@ -1303,6 +1396,8 @@ publish-reconciliation-refresh-button
 publish-reconciliation-rows
 publish-reconciliation-status
 publish-reconciliation-summary
+queue-attention-status
+queue-attention-summary
 queue-backend-scope-legend
 queue-backend-scope-rows
 queue-backend-scope-status
@@ -1313,6 +1408,8 @@ queue-clear-filters-button
 queue-collision
 queue-collision-status
 queue-count
+queue-decision-status
+queue-decision-summary
 queue-detail
 queue-diagnostics-actions
 queue-diagnostics-guidance
@@ -1331,6 +1428,8 @@ queue-launch-decision-legend
 queue-launch-decision-rows
 queue-launch-decision-status
 queue-launch-decision-summary
+queue-loading-screen
+queue-loading-status
 queue-manual-move-bottom-btn
 queue-manual-move-down-btn
 queue-manual-move-top-btn
@@ -1374,6 +1473,7 @@ queue-validation-status
 queue-workflow
 queue-workflow-status
 ram-chart
+ram-chart-meta
 ram-value
 recent-errors
 recent-events
@@ -1420,6 +1520,7 @@ rename-confirm-cancel-button
 rename-confirm-count
 rename-confirm-dialog
 rename-confirm-list
+rename-confirm-mutation-warning
 rename-confirm-title
 rename-confirm-warning
 rename-detail
@@ -1468,6 +1569,9 @@ report-audit-export-detail
 report-audit-export-rerun-csv-button
 report-audit-export-status
 report-audit-ignore-selected-button
+report-audit-launch-detail
+report-audit-launch-preflight
+report-audit-launch-status
 report-audit-score-fallback-issue
 report-audit-score-high-issue
 report-audit-score-medium-issue
@@ -1481,10 +1585,15 @@ report-audit-score-redownload-bucket
 report-audit-score-rerun-bonus
 report-audit-score-rerun-bucket
 report-audit-score-review-bucket
+report-audit-start-button
+report-audit-start-include-sidecars
+report-audit-start-library-root
+report-audit-start-show-console
 report-failure-json-state
 report-investigation-checklist
 report-investigation-status
 report-open-history
+report-open-history-disclosure
 report-open-history-status
 report-path-rows
 report-path-status
@@ -1495,9 +1604,18 @@ report-progress-summary
 report-root-rows
 report-root-status
 report-triage
+report-triage-action-owner
+report-triage-audit-count
+report-triage-band-detail
+report-triage-band-status
+report-triage-failure-count
+report-triage-next-action
+report-triage-report-state
 report-triage-status
+report-triage-warning-count
 report-warning-count
-report-warnings
+report-warning-rows
+report-warning-status
 rerun-launch-detail
 rerun-launch-preflight
 rerun-launch-status
@@ -1590,11 +1708,13 @@ schedule-day-status
 schedule-editor-allow-all-button
 schedule-editor-clear-button
 schedule-editor-enabled
+schedule-editor-impact
 schedule-editor-load-current-button
 schedule-editor-preview-button
 schedule-editor-result
 schedule-editor-rows
 schedule-editor-save-button
+schedule-editor-save-state
 schedule-editor-status
 schedule-enabled-state
 schedule-guidance
@@ -1604,12 +1724,14 @@ schedule-status
 schedule-summary
 schedule-timing
 schedule-timing-status
+schedule-watch-folder-recent
+schedule-watch-folder-status
+schedule-watch-folder-summary
 schedule-window-end
 settings-active-media-policy-legend
 settings-active-media-policy-rows
 settings-active-media-policy-status
 settings-active-media-policy-summary
-settings-advanced-routing-summary
 settings-audio-allow-no-audio
 settings-audio-apply-button
 settings-audio-auto-bitrate
@@ -1641,7 +1763,6 @@ settings-boundary-1440p-end
 settings-boundary-1440p-start
 settings-boundary-4k-start
 settings-boundary-4k-start-readout
-settings-builder-1080p-bucket-height
 settings-builder-1080p-route-bitrate
 settings-builder-1080p-upper-tolerance
 settings-builder-1080p-upper-tolerance-readout
@@ -1650,7 +1771,6 @@ settings-builder-1440p-lower-tolerance-readout
 settings-builder-1440p-route-bitrate
 settings-builder-1440p-upper-tolerance
 settings-builder-1440p-upper-tolerance-readout
-settings-builder-4k-bucket-height
 settings-builder-4k-lower-tolerance
 settings-builder-4k-lower-tolerance-readout
 settings-builder-4k-route-bitrate
@@ -1663,9 +1783,16 @@ settings-builder-max-growth
 settings-builder-movie-1080p-target
 settings-builder-movie-1440p-target
 settings-builder-movie-4k-target
-settings-builder-movie-route-bitrate
-settings-builder-movie-threshold
 settings-builder-output-container
+settings-builder-quality-enable
+settings-builder-quality-fail-action
+settings-builder-quality-fail-threshold
+settings-builder-quality-metric
+settings-builder-quality-sample-count
+settings-builder-quality-sample-mode
+settings-builder-quality-sample-seconds
+settings-builder-quality-timeout
+settings-builder-quality-warn-threshold
 settings-builder-reset-button
 settings-builder-route-threshold-mode
 settings-builder-routing-profile
@@ -1675,20 +1802,18 @@ settings-builder-status
 settings-builder-tv-1080p-target
 settings-builder-tv-1440p-target
 settings-builder-tv-4k-target
-settings-builder-tv-route-bitrate
-settings-builder-tv-threshold
 settings-builder-video-codec
 settings-command-history
 settings-command-history-status
-settings-container-size-bitrate
 settings-container-size-container
-settings-container-size-guard
 settings-count
 settings-effective-policy-detail
 settings-effective-policy-legend
 settings-effective-policy-rows
 settings-effective-policy-status
 settings-effective-policy-summary
+settings-encode-ladder-help
+settings-encode-tuning-help
 settings-file-safety-aggressive-episode
 settings-file-safety-apply-button
 settings-file-safety-builder-status
@@ -1697,6 +1822,7 @@ settings-file-safety-cleanup-remote
 settings-file-safety-create-tv-subfolder
 settings-file-safety-deferred-publish
 settings-file-safety-enable-integrity
+settings-file-safety-enable-watch
 settings-file-safety-guidance
 settings-file-safety-local-base
 settings-file-safety-local-base-browse
@@ -1714,19 +1840,11 @@ settings-file-safety-source-tv
 settings-file-safety-source-tv-browse
 settings-file-safety-stability-wait
 settings-file-safety-valid-extensions
+settings-file-safety-watch-action
+settings-file-safety-watch-debounce
+settings-file-safety-watch-respect-schedule
+settings-file-safety-watch-roots
 settings-filter
-settings-final-library-add-rule-button
-settings-final-library-cleanup
-settings-final-library-enabled
-settings-final-library-guidance
-settings-final-library-overwrite
-settings-final-library-preview-button
-settings-final-library-reset-button
-settings-final-library-rule-count
-settings-final-library-rules-rows
-settings-final-library-save-button
-settings-final-library-status
-settings-final-library-verification-mode
 settings-handbrake-active-preset
 settings-handbrake-decision
 settings-handbrake-output-container
@@ -1753,9 +1871,9 @@ settings-library-delete-button
 settings-library-editor-status
 settings-library-preview-button
 settings-library-profile-list
+settings-library-profile-nav
 settings-library-reset-button
 settings-library-save-button
-settings-library-tab-bar
 settings-library-warning-summary
 settings-media-policy-legend
 settings-media-policy-rows
@@ -1806,6 +1924,10 @@ settings-policy-delta-status
 settings-policy-delta-summary
 settings-preview-patch-button
 settings-profiles
+settings-quality-apply-button
+settings-quality-builder-status
+settings-quality-guidance
+settings-quality-reset-button
 settings-queue-apply-button
 settings-queue-builder-status
 settings-queue-guidance
@@ -1840,7 +1962,13 @@ settings-rename-preview-input
 settings-rename-preview-output
 settings-rename-preview-status
 settings-rename-remove-terms
+settings-route-boundary-1080p-end-input
+settings-route-boundary-4k-start-input
+settings-route-card-range-1080p
+settings-route-card-range-1440p
+settings-route-card-range-4k
 settings-route-consequence-summary
+settings-route-height-slider
 settings-route-trigger-summary
 settings-routing-output-container-readout
 settings-routing-video-codec-readout
@@ -1994,6 +2122,34 @@ settings-wizard-validation-summary
 settings-wizard-workers-result
 state-pill
 status-summary
+tdarr-matrix-audit-bucket-filter
+tdarr-matrix-audit-bucket-rows
+tdarr-matrix-audit-bucket-status
+tdarr-matrix-audit-detail
+tdarr-matrix-audit-evidence-actions
+tdarr-matrix-audit-evidence-status
+tdarr-matrix-audit-filter
+tdarr-matrix-audit-finding-detail
+tdarr-matrix-audit-findings-rows
+tdarr-matrix-audit-findings-status
+tdarr-matrix-audit-load-latest
+tdarr-matrix-audit-rerun-failures
+tdarr-matrix-audit-rerun-selected
+tdarr-matrix-audit-severity-filter
+tdarr-matrix-audit-status
+tdarr-matrix-compare-left
+tdarr-matrix-compare-refresh
+tdarr-matrix-compare-right
+tdarr-matrix-console-summary
+tdarr-matrix-run-compare-rows
+tdarr-matrix-run-compare-status
+telemetry-kpi-cpu-value
+telemetry-kpi-encoder-value
+telemetry-kpi-gpu-status
+telemetry-kpi-ram-value
+telemetry-operator-next-step
+telemetry-operator-state
+telemetry-operator-state-label
 telemetry-readiness-status
 telemetry-readiness-summary
 theme-toggle
@@ -2037,4 +2193,3 @@ wizard-video-quality
 wizard-video-strategy
 ```
 <!-- END GENERATED DOM ID MANIFEST -->
-

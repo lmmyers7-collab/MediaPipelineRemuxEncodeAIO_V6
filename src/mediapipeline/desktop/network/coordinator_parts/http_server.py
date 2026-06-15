@@ -12,6 +12,7 @@ import json
 import logging
 from typing import TYPE_CHECKING, Any
 
+from ..auth import AUTH_FAILURE_CLOCK_SKEW
 from ..coordinator_http import MAX_COORDINATOR_BODY_BYTES, parse_query_params, validate_content_length
 
 if TYPE_CHECKING:
@@ -23,7 +24,7 @@ _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 # coordinator/worker version skew before attempting incompatible RPCs.
 # Bump on any wire-format change (new required fields, renamed endpoints,
 # changed response shapes). Workers may treat a missing field as 0.
-_COORDINATOR_PROTOCOL_VERSION = 1
+_COORDINATOR_PROTOCOL_VERSION = 2
 
 
 def _coordinator_health_heartbeat_timeout_mins(disp: "CoordinatorDispatcher") -> float:
@@ -91,12 +92,31 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
             raise
 
     def _check_auth(self, *, method: str, path_with_query: str, body: bytes = b"") -> bool:
-        return self._disp._validate_request_auth(
+        auth_result = getattr(self._disp, "_request_auth_result", None)
+        if callable(auth_result):
+            result = auth_result(
+                dict(self.headers),
+                method=method,
+                path_with_query=path_with_query,
+                body=body,
+            )
+            self._auth_failure_reason = str(getattr(result, "reason", "") or "auth_failed")  # type: ignore[attr-defined]
+            return bool(getattr(result, "ok", False))
+        ok = self._disp._validate_request_auth(
             dict(self.headers),
             method=method,
             path_with_query=path_with_query,
             body=body,
         )
+        self._auth_failure_reason = "" if ok else "auth_failed"  # type: ignore[attr-defined]
+        return ok
+
+    def _unauthorized_payload(self) -> dict[str, Any]:
+        reason = str(getattr(self, "_auth_failure_reason", "") or "auth_failed")
+        payload: dict[str, Any] = {"error": "unauthorized", "reason": reason}
+        if reason == AUTH_FAILURE_CLOCK_SKEW:
+            payload["safe_next_action"] = "Synchronize coordinator and worker clocks, then retry."
+        return payload
 
     def _parse_query_params(self) -> dict[str, str]:
         return parse_query_params(self.path)
@@ -189,11 +209,15 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
             return
 
         if not self._check_auth(method="GET", path_with_query=path_with_query):
-            self._send_json({"error": "unauthorized"}, 401)
+            self._send_json(self._unauthorized_payload(), 401)
             return
 
         if path == "/api/claim":
             self._disp._http_claim(self, params)
+        elif path == "/api/libraries":
+            self._disp._http_libraries(self, params)
+        elif path == "/api/ping":
+            self._disp._http_ping(self)
         elif path == "/api/workers":
             self._disp._http_workers(self, params)
         else:
@@ -209,7 +233,7 @@ class _CoordHandler(http.server.BaseHTTPRequestHandler):
         if body is None:
             return
         if not self._check_auth(method="POST", path_with_query=path_with_query, body=body):
-            self._send_json({"error": "unauthorized"}, 401)
+            self._send_json(self._unauthorized_payload(), 401)
             return
         if path == "/api/done":
             self._disp._http_done(self, body)

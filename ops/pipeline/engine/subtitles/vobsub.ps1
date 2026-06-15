@@ -96,7 +96,7 @@ function Resolve-VobSubOcrLanguage {
 
     $normalized = Get-NormalizedSubtitleLanguage $Language
     $map = @{
-        'eng' = 'eng'; 'en' = 'eng'; 'und' = 'eng'; '' = 'eng'
+        'eng' = 'eng'; 'en' = 'eng'
         'jpn' = 'jpn'; 'ja' = 'jpn'
         'spa' = 'spa'; 'es' = 'spa'
         'fre' = 'fra'; 'fra' = 'fra'; 'fr' = 'fra'
@@ -668,6 +668,11 @@ function Convert-VobSubToSrt {
         }
 
         $ocrLanguage = Resolve-VobSubOcrLanguage -Language $StreamInfo.Lang
+        if ([string]::IsNullOrWhiteSpace([string]$ocrLanguage) -or [string]::Equals([string]$ocrLanguage, 'und', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $reason = "VobSub OCR language is unknown for stream $StreamIndex; refusing to default image-subtitle OCR to English."
+            Write-SubtitleTrackProgress -Kind 'vobsub' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'VobSub OCR setup failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
+            return [pscustomobject]@{ Ok = $false; Path = $null; CueCount = 0; Reason = $reason; Failure = (New-VobSubFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_VOBSUB_OCR_LANGUAGE_UNKNOWN') }
+        }
         $toolKind = Get-VobSubOcrToolKind -Tool $tool
         if ($toolKind -eq 'seconv') {
             $reason = 'Subtitle Edit seconv does not support VobSub OCR yet; configure VobSubOcrToolPath to SubtitleEdit.exe 4.x for headless VobSub OCR.'

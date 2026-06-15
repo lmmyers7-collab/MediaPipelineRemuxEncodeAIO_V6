@@ -14,16 +14,20 @@ import time
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
-from pathlib import Path
+from pathlib import Path, PurePosixPath, PureWindowsPath
 from typing import Any, Iterable, Mapping, Sequence
 
 from mediapipeline.tools.dev import materialize_tdarr_test_library as tdarr_matrix
 from mediapipeline.tools.paths import find_repo_root
+from mediapipeline.core.diagnostics.tdarr_matrix_proof import (
+    tdarr_proof_pack_root,
+    tdarr_proof_runs_root,
+)
 
 
 REPO_ROOT = find_repo_root(Path(__file__))
-DEFAULT_LIBRARY_ROOT = tdarr_matrix.DEFAULT_LIBRARY_ROOT
-DEFAULT_RUNS_ROOT = REPO_ROOT / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns"
+DEFAULT_LIBRARY_ROOT = tdarr_proof_pack_root(REPO_ROOT)
+DEFAULT_RUNS_ROOT = tdarr_proof_runs_root(REPO_ROOT)
 DEFAULT_PIPELINE_ENTRYPOINT = REPO_ROOT / "ops" / "pipeline" / "entrypoints" / "MediaPipeline.ps1"
 DEFAULT_TEMPLATE = tdarr_matrix.DEFAULT_TEMPLATE
 CONFIG_NAME = tdarr_matrix.CONFIG_NAME
@@ -32,6 +36,7 @@ AUDIT_RUN_SENTINEL = ".tdarr-matrix-audit-run.json"
 AUDIT_DIR_NAME = "audit"
 DEFAULT_SAMPLES_PER_BUCKET = 5
 DEFAULT_SAMPLE_TIMEOUT_SECONDS = 1800
+DEFAULT_PREPARE_TIMEOUT_SECONDS = 1800
 DEFAULT_FIXTURE_PROBE_TIMEOUT_SECONDS = 30
 BUCKET_ORDER = (
     "audio-only",
@@ -89,6 +94,11 @@ CONTAINMENT_SCAN_SUBDIRS = (
 )
 AUDIO_ONLY_TOKENS = {"audio", "audio-only", "audioonly", "sound"}
 NO_VIDEO_CODEC_TOKENS = {"", "none", "no-video", "novideo", "audio", "audio-only", "unknown"}
+CONFIG_MISSING_KEY_PATTERN = re.compile(r"Config missing key:\s*([A-Za-z0-9_.-]+)", re.IGNORECASE)
+WORKER_CHILD_GUARD_ERROR_CODES = {
+    "WORKER_CHILD_SINGLE_FILE_EXCEPTION",
+    "WORKER_CHILD_RESULT_FALLBACK",
+}
 
 
 def utc_now() -> str:
@@ -112,6 +122,26 @@ def is_under(path: str | Path, root: str | Path) -> bool:
         return True
     except ValueError:
         return False
+
+
+def safe_manifest_relative_path(value: object, *, field_name: str) -> str:
+    text = str(value or "").replace("\\", "/").strip()
+    if not text:
+        raise ValueError(f"{field_name} must be a non-empty relative path")
+    windows_path = PureWindowsPath(text)
+    if PurePosixPath(text).is_absolute() or windows_path.is_absolute() or windows_path.drive:
+        raise ValueError(f"{field_name} must be a relative path: {text}")
+    if ".." in PurePosixPath(text).parts:
+        raise ValueError(f"{field_name} must not contain parent traversal: {text}")
+    return text
+
+
+def contained_manifest_child(root: Path, value: object, *, field_name: str) -> tuple[str, Path]:
+    relative_path = safe_manifest_relative_path(value, field_name=field_name)
+    child = root / relative_path
+    if not is_under(child, root):
+        raise ValueError(f"{field_name} resolves outside {root}: {relative_path}")
+    return relative_path, child
 
 
 def int_value(value: object, default: int = 0) -> int:
@@ -144,6 +174,7 @@ class ManifestRow:
     view: str
     case_id: str
     diagnostic_bucket: str
+    library_root: Path
     generated_path: str
     generated_abs: Path
     source_path: Path
@@ -164,9 +195,13 @@ class ManifestRow:
 
     @classmethod
     def from_record(cls, record: Mapping[str, object], *, library_root: Path) -> "ManifestRow":
-        generated_path = str(record.get("generated_path") or "").replace("\\", "/")
+        library_root = library_root.resolve(strict=False)
+        generated_path, generated_abs = contained_manifest_child(
+            library_root,
+            record.get("generated_path"),
+            field_name="generated_path",
+        )
         source_path = Path(str(record.get("source_path") or ""))
-        generated_abs = library_root / generated_path
         copied = {field: str(record.get(field) or "") for field in MANIFEST_FIELDNAMES}
         copied["generated_path"] = generated_path
         return cls(
@@ -174,6 +209,7 @@ class ManifestRow:
             view=copied["view"].strip().casefold(),
             case_id=copied["case_id"],
             diagnostic_bucket=copied["diagnostic_bucket"],
+            library_root=library_root,
             generated_path=generated_path,
             generated_abs=generated_abs,
             source_path=source_path,
@@ -477,6 +513,9 @@ def probe_fixture_row(
 
 def fixture_probe_evidence(row: ManifestRow, result: FixtureProbeResult) -> dict[str, Any]:
     return {
+        "classification": "fixture_metadata_no_usable_video",
+        "expected_negative": True,
+        "strict_gate_effect": "warning_only",
         "manifest_medium": row.medium,
         "manifest_container": row.container,
         "manifest_video_codec": row.video_codec,
@@ -493,7 +532,10 @@ def fixture_probe_mismatch_finding(row: ManifestRow, result: FixtureProbeResult)
         row,
         severity="warning",
         code="fixture_probe_mismatch",
-        message="Tdarr fixture manifest says this case is video, but ffprobe found no usable video stream.",
+        message=(
+            "Tdarr fixture manifest says this case is video, but ffprobe found no usable "
+            "video stream; treating it as an expected-negative fixture inventory mismatch."
+        ),
         evidence=fixture_probe_evidence(row, result),
     )
 
@@ -605,11 +647,14 @@ def select_case_key_rows(rows: Sequence[ManifestRow], case_keys: Sequence[str]) 
 
 
 def assert_allowed_run_root(run_root: Path, *, repo_root: Path) -> None:
-    allowed_root = (repo_root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns").resolve()
-    try:
-        run_root.resolve().relative_to(allowed_root)
-    except ValueError as exc:
-        raise ValueError(f"Audit run root must be under {allowed_root}") from exc
+    allowed_roots = (
+        (repo_root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns").resolve(),
+        tdarr_proof_runs_root(repo_root).resolve(),
+    )
+    if any(is_under(run_root, allowed_root) for allowed_root in allowed_roots):
+        return
+    rendered = ", ".join(str(root) for root in allowed_roots)
+    raise ValueError(f"Audit run root must be under one of: {rendered}")
 
 
 def prepare_run_root(run_root: Path, *, repo_root: Path = REPO_ROOT, rebuild: bool = False) -> None:
@@ -625,6 +670,45 @@ def prepare_run_root(run_root: Path, *, repo_root: Path = REPO_ROOT, rebuild: bo
     run_root.mkdir(parents=True, exist_ok=True)
 
 
+def allowed_materialize_source_roots(row: ManifestRow, *, repo_root: Path) -> tuple[Path, ...]:
+    return (
+        row.library_root,
+        repo_root / "LocalBase" / "TestFixtures" / "TdarrSamples",
+    )
+
+
+def resolve_materialize_source(row: ManifestRow, *, repo_root: Path) -> Path:
+    source_path = row.source_path
+    if not source_path.is_absolute():
+        source_path = repo_root / source_path
+    source_path = source_path.resolve(strict=False)
+    allowed_roots = allowed_materialize_source_roots(row, repo_root=repo_root)
+    if not any(is_under(source_path, allowed_root) for allowed_root in allowed_roots):
+        rendered_roots = ", ".join(str(root.resolve(strict=False)) for root in allowed_roots)
+        raise ValueError(f"source_path must resolve under an approved fixture/materialized-library root ({rendered_roots}): {source_path}")
+    if not source_path.exists():
+        raise FileNotFoundError(f"Source sample is missing: {source_path}")
+    return source_path
+
+
+def plan_run_materialization(
+    rows: Sequence[ManifestRow],
+    *,
+    run_root: Path,
+    repo_root: Path,
+) -> list[tuple[ManifestRow, Path, Path]]:
+    planned: list[tuple[ManifestRow, Path, Path]] = []
+    for row in rows:
+        _generated_path, destination = contained_manifest_child(
+            run_root,
+            row.generated_path,
+            field_name="generated_path",
+        )
+        source_path = resolve_materialize_source(row, repo_root=repo_root)
+        planned.append((row, destination, source_path))
+    return planned
+
+
 def materialize_run_subset(
     *,
     rows: Sequence[ManifestRow],
@@ -635,6 +719,7 @@ def materialize_run_subset(
 ) -> dict[str, Any]:
     run_root = resolve_path(run_root, repo_root=repo_root)
     template_path = resolve_path(template_path, repo_root=repo_root)
+    planned_links = plan_run_materialization(rows, run_root=run_root, repo_root=repo_root)
     prepare_run_root(run_root, repo_root=repo_root, rebuild=rebuild)
     for path in (
         run_root / "source" / "Movies",
@@ -646,14 +731,11 @@ def materialize_run_subset(
         run_root / "manifests",
     ):
         path.mkdir(parents=True, exist_ok=True)
-    for row in rows:
-        destination = run_root / row.generated_path
+    for _row, destination, source_path in planned_links:
         destination.parent.mkdir(parents=True, exist_ok=True)
         if destination.exists():
             raise FileExistsError(f"Generated target already exists: {destination}")
-        if not row.source_path.exists():
-            raise FileNotFoundError(f"Source sample is missing: {row.source_path}")
-        os.link(row.source_path, destination)
+        os.link(source_path, destination)
     write_materialized_manifest(run_root, rows, link_mode="hardlink")
     config_path = run_root / "config" / CONFIG_NAME
     config_path.write_text(tdarr_matrix.render_config(template_path, run_root), encoding="utf-8", newline="\n")
@@ -885,7 +967,7 @@ def prepare_pipeline_evidence(
     powershell: str,
     entrypoint: Path,
     cwd: Path = REPO_ROOT,
-    timeout_seconds: int = 600,
+    timeout_seconds: int = DEFAULT_PREPARE_TIMEOUT_SECONDS,
 ) -> tuple[Path, Path, list[Finding]]:
     audit_dir = default_audit_dir(library_root)
     command_dir = audit_dir / "commands"
@@ -1127,6 +1209,39 @@ def load_worker_result(path: Path) -> dict[str, Any] | None:
     return payload if isinstance(payload, dict) else None
 
 
+def read_evidence_excerpt(path: Path, *, limit: int = 4000) -> str:
+    try:
+        return path.read_text(encoding="utf-8-sig", errors="replace")[:limit]
+    except OSError:
+        return ""
+
+
+def process_outcome_log_excerpt(outcome: ProcessOutcome, *, limit: int = 4000) -> str:
+    stdout = read_evidence_excerpt(outcome.stdout_path, limit=limit)
+    stderr = read_evidence_excerpt(outcome.stderr_path, limit=limit)
+    return f"{stdout}\n{stderr}"[:limit]
+
+
+def startup_config_failure_finding(row: ManifestRow, *, result_path: Path, outcome: ProcessOutcome) -> Finding | None:
+    excerpt = process_outcome_log_excerpt(outcome)
+    match = CONFIG_MISSING_KEY_PATTERN.search(excerpt)
+    if not match:
+        return None
+    missing_key = match.group(1)
+    return finding_for_row(
+        row,
+        severity="error",
+        code="worker_startup_config_invalid",
+        message=f"SingleFile exited before writing a worker result because config is missing required key: {missing_key}.",
+        evidence=outcome.to_dict()
+        | {
+            "worker_result_path": str(result_path),
+            "missing_config_key": missing_key,
+            "log_excerpt": excerpt,
+        },
+    )
+
+
 def failure_artifact_count(library_root: Path) -> int:
     failure_root = library_root / "scratch" / "State" / "Failures"
     if not failure_root.exists():
@@ -1149,6 +1264,10 @@ def audit_worker_result(row: ManifestRow, *, result_path: Path, outcome: Process
         )
         return findings
     if not payload:
+        startup_finding = startup_config_failure_finding(row, result_path=result_path, outcome=outcome)
+        if startup_finding:
+            findings.append(startup_finding)
+            return findings
         findings.append(
             finding_for_row(
                 row,
@@ -1189,6 +1308,20 @@ def audit_worker_result(row: ManifestRow, *, result_path: Path, outcome: Process
                 code="already_processed_skip",
                 message="Sample was skipped as already processed.",
                 evidence={"worker_result": payload},
+            )
+        )
+        return findings
+    if error_code.strip().upper() in WORKER_CHILD_GUARD_ERROR_CODES:
+        findings.append(
+            finding_for_row(
+                row,
+                severity="warning",
+                code="classified_processing_failure",
+                message="SingleFile worker-child guard produced structured failure evidence.",
+                evidence={
+                    "worker_result": payload,
+                    "worker_result_classification": "worker_child_result_guard",
+                },
             )
         )
         return findings
@@ -1281,6 +1414,37 @@ def run_sample_processing(
                     evidence=hash_record,
                 )
             )
+        findings.extend(audit_worker_result(row, result_path=worker_result_path, outcome=outcome, library_root=library_root))
+    return findings
+
+
+def audit_existing_worker_evidence(
+    rows: Sequence[ManifestRow],
+    *,
+    library_root: Path,
+    audit_dir: Path,
+) -> list[Finding]:
+    files_dir = audit_dir / "files"
+    if not files_dir.exists():
+        return []
+    findings: list[Finding] = []
+    for row in rows:
+        item_dir = files_dir / safe_slug(f"{row.case_id}-{row.view}")
+        if not item_dir.exists():
+            continue
+        stdout_path = item_dir / "stdout.log"
+        stderr_path = item_dir / "stderr.log"
+        worker_result_path = item_dir / "worker_result.json"
+        if not stdout_path.exists() and not stderr_path.exists() and not worker_result_path.exists():
+            continue
+        outcome = ProcessOutcome(
+            command=[],
+            returncode=None,
+            timed_out=False,
+            duration_seconds=0.0,
+            stdout_path=stdout_path,
+            stderr_path=stderr_path,
+        )
         findings.extend(audit_worker_result(row, result_path=worker_result_path, outcome=outcome, library_root=library_root))
     return findings
 
@@ -1415,6 +1579,7 @@ def audit_existing_library(
     if rows and hash_sources:
         findings.extend(audit_source_hashes(rows))
     if rows:
+        findings.extend(audit_existing_worker_evidence(rows, library_root=library_root, audit_dir=audit_dir))
         _, fixture_probe_findings = audit_fixture_video_probes(rows, ffprobe=ffprobe, timeout_seconds=fixture_probe_timeout_seconds)
         findings.extend(fixture_probe_findings)
         findings.extend(audit_bucket_classification(rows))
@@ -1573,7 +1738,7 @@ def add_common_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--library-root", default=str(DEFAULT_LIBRARY_ROOT))
     parser.add_argument("--powershell", default=resolve_default_powershell())
     parser.add_argument("--entrypoint", default=str(DEFAULT_PIPELINE_ENTRYPOINT))
-    parser.add_argument("--prepare-timeout-seconds", type=int, default=600)
+    parser.add_argument("--prepare-timeout-seconds", type=int, default=DEFAULT_PREPARE_TIMEOUT_SECONDS)
     parser.add_argument("--ffprobe", default="ffprobe")
     parser.add_argument("--fixture-probe-timeout-seconds", type=int, default=DEFAULT_FIXTURE_PROBE_TIMEOUT_SECONDS)
     parser.add_argument("--report-only", action="store_true", help="Write findings but exit zero unless inputs crash the tool.")

@@ -47,6 +47,7 @@ $engineModulePaths = @{
     'ConfigKeys.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\config\config_keys.ps1'
     'ConfigSchema.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\config\config_schema.ps1'
     'Disk.ps1'                   = Join-Path $repoRootForModules 'ops\pipeline\engine\storage\disk.ps1'
+    'DynamicHdr.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\process\dynamic_hdr.ps1'
     'EncodePolicy.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\decide\encode_policy.ps1'
     'ExecutableResolution.ps1'   = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\executable_resolution.ps1'
     'FailureCodes.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\failure_codes.ps1'
@@ -76,6 +77,7 @@ $engineModulePaths = @{
     'Publish.Result.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\publish_result.ps1'
     'Publish.Sidecars.ps1'       = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\publish_sidecars.ps1'
     'PublishCompletion.ps1'      = Join-Path $repoRootForModules 'ops\pipeline\engine\publish\publish_completion.ps1'
+    'QualityVerify.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\verify\quality.ps1'
     'QueuePlan.ps1'              = Join-Path $repoRootForModules 'ops\pipeline\engine\queue\queue_plan.ps1'
     'Routing.ps1'                = Join-Path $repoRootForModules 'ops\pipeline\engine\decide\routing.ps1'
     'ScratchCopy.ps1'            = Join-Path $repoRootForModules 'ops\pipeline\engine\storage\scratch_copy.ps1'
@@ -89,7 +91,7 @@ $engineModulePaths = @{
 }
 # Documented topological load order. Must name exactly the modules in
 # $engineModulePaths above; the contract check below fails fast on any drift.
-$engineModuleLoadOrder = @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'FileProcessor.ps1', 'WorkerResult.ps1', 'PipelineEngine.ps1')
+$engineModuleLoadOrder = @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'QualityVerify.ps1', 'DynamicHdr.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'FileProcessor.ps1', 'WorkerResult.ps1', 'PipelineEngine.ps1')
 $modulesMissingFromManifest = @($engineModuleLoadOrder | Where-Object { -not $engineModulePaths.ContainsKey($_) })
 $modulesMissingFromLoadOrder = @($engineModulePaths.Keys | Where-Object { $engineModuleLoadOrder -notcontains $_ })
 if ($modulesMissingFromManifest.Count -gt 0 -or

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import subprocess
 import sys
 from dataclasses import asdict, dataclass
@@ -200,18 +201,55 @@ def normalize_path(path: str) -> str:
     return normalized.strip("/")
 
 
+def _filesystem_ls_files() -> list[str]:
+    """Enumerate files by walking the filesystem when git metadata is unavailable.
+
+    Used when ``REPO_ROOT`` is not a git work tree (for example a shipped release
+    package, where the release self-test runs this check but no ``.git`` exists).
+    Directories matching ``SKIP_REFERENCE_PREFIXES`` are pruned so generated,
+    vendored, and runtime trees are not traversed, matching the reference scan.
+    """
+    skip_prefixes = tuple(prefix.rstrip("/") for prefix in SKIP_REFERENCE_PREFIXES)
+    paths: list[str] = []
+    for dirpath, dirnames, filenames in os.walk(REPO_ROOT):
+        rel_dir = normalize_path(os.path.relpath(dirpath, REPO_ROOT))
+        if rel_dir == ".":
+            rel_dir = ""
+        kept_dirs = []
+        for name in dirnames:
+            child = normalize_path(f"{rel_dir}/{name}" if rel_dir else name)
+            if any(child == prefix or child.startswith(prefix + "/") for prefix in skip_prefixes):
+                continue
+            kept_dirs.append(name)
+        dirnames[:] = kept_dirs
+        for name in filenames:
+            paths.append(normalize_path(f"{rel_dir}/{name}" if rel_dir else name))
+    return paths
+
+
 def _git_ls_files(*, include_untracked: bool = False) -> list[str]:
     args = ["git", "ls-files"]
     if include_untracked:
         args.extend(["-co", "--exclude-standard"])
-    result = subprocess.run(
-        args,
-        cwd=REPO_ROOT,
-        check=True,
-        text=True,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-    )
+    try:
+        result = subprocess.run(
+            args,
+            cwd=REPO_ROOT,
+            check=True,
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+    except FileNotFoundError:
+        # git is not installed; fall back to a filesystem scan so the check still runs.
+        return _filesystem_ls_files()
+    except subprocess.CalledProcessError as exc:
+        # Exit 128 means REPO_ROOT is not a git work tree (for example a shipped
+        # release package). Fall back to a filesystem scan rather than crashing the
+        # release self-test; re-raise any other git failure.
+        if exc.returncode == 128:
+            return _filesystem_ls_files()
+        raise
     return [normalize_path(line) for line in result.stdout.splitlines() if line.strip()]
 
 

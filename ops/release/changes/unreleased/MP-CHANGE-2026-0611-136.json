@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0611-136",
+  "title": "FB-029 isolate Audit and Rerun launch button gates",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-030 by preventing Audit and CSV Rerun launch buttons from reusing Pipeline Processor start-decision gating.",
+  "reason": "Worker findings W08-001/W08-004 showed Audit and CSV Rerun controls built their own request for backend preflight matching but then evaluated blocked readiness through collectPipelineStartRequest().",
+  "affected_areas": [
+    "backend-owned command boundary",
+    "queue launch guidance",
+    "webview launch"
+  ],
+  "behavior_before": "Audit and CSV Rerun button disabled state could be controlled by stale or unrelated Pipeline Processor form state after their own backend preflight target was ready.",
+  "behavior_after": "Audit and CSV Rerun buttons return their own backend-preflight target gate; Pipeline Start and Pending Drain continue to use pipeline start-decision gating.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/commandButtons.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/commandButtons.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-136.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-136.json",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_launch_command_buttons_smoke.py::WebViewLaunchCommandButtonsSmoke.test_audit_and_rerun_gates_ignore_pipeline_only_start_decision_blockers"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke -q passed.",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_frontend_mutation_boundary -q passed, 21 tests.",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q passed.",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q passed; tests.webview.test_webview_browser_launch_queue_readiness_smoke -q passed; tests.webview.test_webview_frontend_mutation_boundary -q passed, 21 tests.",
+    "validate_changes --require-worktree-coverage failed only for unrelated uncovered files: docs/implementation/dynamic-hdr-preservation/PLAN.md, docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Restore Audit/Rerun launchButtonGate branches to use launchStartDecisionGate(collectPipelineStartRequest()), remove the focused static smoke, and rerun the listed WebView tests.",
+  "related_changes": [
+    "FB-029",
+    "FR-030",
+    "W08-001",
+    "W08-004"
+  ],
+  "notes": "Packet was created after the narrow code/test edit rather than before it; coverage is complete and this note records the sequencing miss. Strict change-control coverage for FB-029 is clean; repository-wide strict coverage still fails on unrelated uncovered dirty files: docs/implementation/dynamic-hdr-preservation/PLAN.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+}

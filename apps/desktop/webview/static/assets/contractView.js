@@ -275,20 +275,20 @@
       {
         key: "network-lifecycle-boundary",
         surface: "Network lifecycle boundary",
-        posture: networkLifecycleMutationEnabled.length || missingNetworkLifecycleProof.length ? "Blocked" : networkLifecycleContracts.length ? "Guarded review" : "Ready",
+        posture: missingNetworkLifecycleProof.length ? "Blocked" : networkLifecycleContracts.length ? "Guarded review" : "Ready",
         evidence: `design contracts=${networkLifecycleContracts.length}; mutation enabled=${networkLifecycleMutationEnabled.length}; missing proof fields=${missingNetworkLifecycleProof.length}`,
-        safeNextStep: networkLifecycleMutationEnabled.length
-          ? "Remove WebView Network lifecycle exposure until backend dry-run, process cleanup, state reconciliation, and journal contracts exist."
+        safeNextStep: missingNetworkLifecycleProof.length
+          ? "Fix missing Network lifecycle proof fields before trusting lifecycle controls."
           : networkLifecycleContracts.length
-            ? "Implement backend dry-run lifecycle checks and command journaling before adding Network lifecycle routes."
-            : "No Network lifecycle design contracts are published by the backend yet.",
+            ? "Use backend dry-run lifecycle checks first; confirmed Network lifecycle routes remain provider-guarded and confirmation-gated."
+            : "No Network lifecycle contracts are published by the backend yet.",
         detail: [
           "Network lifecycle boundary:",
           `Contracts: ${networkLifecycleContracts.map((contract) => contract.candidate_command || contract.key || "unknown").join(", ") || "none"}`,
           `Mutation-enabled contracts: ${networkLifecycleMutationEnabled.map((contract) => contract.candidate_command || contract.key || "unknown").join(", ") || "none"}`,
           `Missing proof contracts: ${missingNetworkLifecycleProof.map((contract) => contract.candidate_command || contract.key || "unknown").join(", ") || "none"}`,
           "Required contract fields: candidate_command, current_status, required_preconditions, required_evidence, dry_run_contract, rollback_contract, source_file_policy, route_exposure_gates, rollback_requirements, must_not.",
-          "Guardrail: WebView may display these contracts, but Network lifecycle commands are not allowed until the backend owns dry-run proof, process cleanup, state reconciliation, and command-journal evidence.",
+          "Guardrail: WebView may call only the published backend-owned Network lifecycle routes. Dry-runs must be used first, and confirmed commands remain confirmation-gated and provider-guarded.",
           ...networkLifecycleContracts.flatMap((contract) => [
             "",
             `${contract.surface || contract.key || "Network lifecycle contract"}:`,

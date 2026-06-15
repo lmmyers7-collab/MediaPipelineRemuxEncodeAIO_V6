@@ -17,6 +17,23 @@ function Get-MediaPipelineOutputContainerNames {
     return @('mkv','mp4')
 }
 
+function Get-MediaPipelineDynamicHdrPolicyNames {
+    return @('off','warn','preserve_or_remux','preserve_or_review')
+}
+
+function Get-MediaPipelineDynamicHdrPolicyDefault {
+    return 'warn'
+}
+
+function Resolve-MediaPipelineDynamicHdrPolicy {
+    param([string] $Policy)
+
+    $normalized = if ($Policy) { $Policy.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($normalized)) { return Get-MediaPipelineDynamicHdrPolicyDefault }
+    if ($normalized -in (Get-MediaPipelineDynamicHdrPolicyNames)) { return $normalized }
+    return Get-MediaPipelineDynamicHdrPolicyDefault
+}
+
 function Get-MediaPipelineEncodeTuningPresetNames {
     return @(
         'balanced_nvenc',
@@ -121,6 +138,30 @@ function Get-MediaPipelineSizeGuardModeNames {
 
 function Get-MediaPipelineSizeGuardModeDefault {
     return 'advisory'
+}
+
+function Get-MediaPipelineQualityMetricNames {
+    return @('vmaf','ssim','psnr')
+}
+
+function Get-MediaPipelineQualityMetricDefault {
+    return 'vmaf'
+}
+
+function Get-MediaPipelineQualitySampleModeNames {
+    return @('sampled','full')
+}
+
+function Get-MediaPipelineQualitySampleModeDefault {
+    return 'sampled'
+}
+
+function Get-MediaPipelineQualityFailActionNames {
+    return @('warn_only','block_review')
+}
+
+function Get-MediaPipelineQualityFailActionDefault {
+    return 'warn_only'
 }
 
 function Get-MediaPipelineFinalLibraryPromotionVerificationModeNames {
@@ -234,6 +275,45 @@ function Resolve-MediaPipelineSizeGuardMode {
         return $normalized
     }
     return Get-MediaPipelineSizeGuardModeDefault
+}
+
+function Resolve-MediaPipelineQualityMetric {
+    param([string] $Metric)
+
+    $normalized = if ($Metric) { $Metric.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return Get-MediaPipelineQualityMetricDefault
+    }
+    if ($normalized -in (Get-MediaPipelineQualityMetricNames)) {
+        return $normalized
+    }
+    return Get-MediaPipelineQualityMetricDefault
+}
+
+function Resolve-MediaPipelineQualitySampleMode {
+    param([string] $Mode)
+
+    $normalized = if ($Mode) { $Mode.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return Get-MediaPipelineQualitySampleModeDefault
+    }
+    if ($normalized -in (Get-MediaPipelineQualitySampleModeNames)) {
+        return $normalized
+    }
+    return Get-MediaPipelineQualitySampleModeDefault
+}
+
+function Resolve-MediaPipelineQualityFailAction {
+    param([string] $Action)
+
+    $normalized = if ($Action) { $Action.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return Get-MediaPipelineQualityFailActionDefault
+    }
+    if ($normalized -in (Get-MediaPipelineQualityFailActionNames)) {
+        return $normalized
+    }
+    return Get-MediaPipelineQualityFailActionDefault
 }
 
 function Get-MediaPipelineParallelEncodeModeNames {

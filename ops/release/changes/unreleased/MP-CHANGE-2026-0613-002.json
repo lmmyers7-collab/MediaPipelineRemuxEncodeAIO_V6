@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0613-002",
+  "title": "Clarify deployment preview zip wording",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "The Maintenance Deployment Package labels now make clear that preview planning does not write a zip.",
+  "reason": "The Plan zip label implied that Plan Deployment would create a zip, even though the backend command is intentionally dry-run only.",
+  "affected_areas": [
+    "maintenance",
+    "release-packaging",
+    "webview"
+  ],
+  "behavior_before": "The checkbox said Plan zip and the dry-run panel did not foreground that zip output is only previewed until Create Deployment runs.",
+  "behavior_after": "The panel uses Preview Deployment, Zip package, and Verify package wording, and dry-run status/details explicitly say preview does not write the zip.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/maintenanceView.js",
+    "apps/desktop/webview/static/partials/page-maintenance.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/maintenanceView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-maintenance.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0613-002.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-002.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "manual_validation": [
+    "bundled python -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke.WebViewBrowserMaintenanceReportsSmoke.test_real_browser_renders_maintenance_reports_and_clear_error_payloads - passed",
+    "node --check apps/desktop/webview/static/assets/maintenanceView.js - passed",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserMaintenanceReportsSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the Deployment Package label/detail copy changes and matching WebView smoke assertions.",
+  "related_changes": [
+    "MP-CHANGE-2026-0613-001"
+  ],
+  "notes": "Clarify that deployment preview does not write zip output.\nRenamed dry-run controls to Preview Deployment, Zip package, and Verify package; dry-run details now say no zip is written."
+}

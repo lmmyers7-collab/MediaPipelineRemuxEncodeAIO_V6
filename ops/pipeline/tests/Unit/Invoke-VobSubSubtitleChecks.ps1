@@ -196,6 +196,8 @@ try {
     Assert-True (Test-IsVobSubSubtitleStream ([pscustomobject]@{ codec_name = 'unknown'; codec_tag_string = 'S_VOBSUB' })) 'S_VOBSUB tag should be detected as VobSub.'
     Assert-True (-not (Test-IsVobSubSubtitleStream ([pscustomobject]@{ codec_name = 'hdmv_pgs_subtitle' }))) 'BDPGS should not be detected as VobSub.'
     Assert-Equal (Resolve-VobSubOcrLanguage 'en') 'eng' 'VobSub OCR language mapping for en failed.'
+    Assert-Equal (Resolve-VobSubOcrLanguage 'und') 'und' 'VobSub OCR must not silently default undetermined language to English.'
+    Assert-Equal (Resolve-VobSubOcrLanguage '') 'und' 'VobSub OCR must not silently default blank language to English.'
 
     $multiLanguageIdx = Join-Path $root 'LangOnly.idx'
     Set-Content -LiteralPath $multiLanguageIdx -Value @('langidx: 1', 'id: en, index: 0', 'id: ja, index: 1') -Encoding ASCII
@@ -242,6 +244,14 @@ try {
     Assert-Equal $converted.CueCount 1 'Fake Subtitle Edit VobSub conversion should report one cue.'
     Assert-True ((Test-Path -LiteralPath $out -PathType Leaf) -and ((Get-Content -LiteralPath $out -Raw) -match 'Hello VobSub')) 'Fake Subtitle Edit VobSub conversion did not write expected SRT.'
     Assert-True (@($script:LastVobSubOcrArguments) -contains '/ocrdb:eng') 'Subtitle Edit VobSub OCR should pass the resolved Tesseract language via /ocrdb.'
+
+    $unknownLanguageEntry = $entry.Clone()
+    $unknownLanguageEntry.Lang = 'und'
+    $script:LastVobSubOcrArguments = @()
+    $unknownLanguage = Convert-VobSubToSrt -SourceFile $media -StreamIndex -1 -StreamInfo $unknownLanguageEntry -DestinationPath (Join-Path $root 'Movie.unknown-language.vobsub.srt')
+    Assert-True (-not [bool]$unknownLanguage.Ok) 'VobSub conversion should fail before OCR when the OCR language is unknown.'
+    Assert-Equal $unknownLanguage.Failure.ErrorCode 'SUBTITLE_VOBSUB_OCR_LANGUAGE_UNKNOWN' 'Unknown VobSub OCR language should use a distinct failure code.'
+    Assert-Equal @($script:LastVobSubOcrArguments).Count 0 'Unknown VobSub OCR language should not invoke the OCR tool.'
 
     $missingLanguageEntry = $entry.Clone()
     $missingLanguageEntry.Lang = 'jpn'

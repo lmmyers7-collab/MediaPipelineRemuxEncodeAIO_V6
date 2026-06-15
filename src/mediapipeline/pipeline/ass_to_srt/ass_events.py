@@ -5,6 +5,43 @@ from mediapipeline.pipeline.ass_to_srt.text import clean_text, render_ass_text_f
 from mediapipeline.pipeline.ass_to_srt.timing import ms_to_srt
 
 
+_ENCODING_PRIORITY = {
+    "utf-8": 300,
+    "utf-8-sig": 300,
+    "cp932": 220,
+    "shift_jis": 210,
+    "euc_jp": 200,
+    "cp1252": 40,
+    "iso-8859-1": 10,
+    "latin-1": 10,
+}
+_PERMISSIVE_SINGLE_BYTE_ENCODINGS = {"cp1252", "iso-8859-1", "latin-1"}
+_MOJIBAKE_MARKERS = set(
+    "\ufffd"
+    "\u00c2\u00c3\u00e2"
+    "\u0080\u0099"
+    "\u201a\u201e\u0192\u2020\u2021\u02c6\u2030\u0160\u2039\u0152"
+    "\u017d\u2018\u2019\u201c\u201d\u2022\u2013\u2014\u02dc\u2122\u0161"
+    "\u203a\u0153\u017e\u0178"
+)
+
+
+def _encoding_priority(encoding: str) -> int:
+    return _ENCODING_PRIORITY.get(encoding.lower(), 100)
+
+
+def _mojibake_count_for_text(text: str) -> int:
+    return sum(1 for char in text if char in _MOJIBAKE_MARKERS)
+
+
+def _fallback_decode_requires_review(encoding: str, mojibake_count: int, total_chars: int) -> bool:
+    if encoding.lower() not in _PERMISSIVE_SINGLE_BYTE_ENCODINGS:
+        return False
+    if mojibake_count <= 0:
+        return False
+    return mojibake_count >= max(3, total_chars // 10)
+
+
 def _ass_dialogue_stats(subs: Any) -> tuple[int, int, int, int]:
     dialogue_count = 0
     text_count = 0
@@ -20,6 +57,17 @@ def _ass_dialogue_stats(subs: Any) -> tuple[int, int, int, int]:
             total_chars += len(text)
             replacement_count += text.count("\ufffd")
     return dialogue_count, text_count, replacement_count, total_chars
+
+
+def _ass_dialogue_mojibake_count(subs: Any) -> int:
+    mojibake_count = 0
+    for line in subs:
+        if getattr(line, "type", "") != "Dialogue":
+            continue
+        text = (getattr(line, "text", "") or getattr(line, "plaintext", "") or "").strip()
+        if text:
+            mojibake_count += _mojibake_count_for_text(text)
+    return mojibake_count
 
 
 def load_ass_with_best_encoding(
@@ -42,28 +90,40 @@ def load_ass_with_best_encoding(
             diagnostics.append({"encoding": enc, "ok": False, "error": str(exc)})
             continue
         dialogue_count, text_count, replacement_count, total_chars = _ass_dialogue_stats(subs)
+        mojibake_count = _ass_dialogue_mojibake_count(subs)
+        encoding_priority = _encoding_priority(enc)
+        review_required = _fallback_decode_requires_review(enc, mojibake_count, total_chars)
         diagnostic = {
             "encoding": enc,
             "ok": True,
             "dialogue_count": dialogue_count,
             "text_count": text_count,
             "replacement_count": replacement_count,
+            "mojibake_count": mojibake_count,
             "total_chars": total_chars,
+            "encoding_priority": encoding_priority,
+            "review_required": review_required,
         }
         diagnostics.append(diagnostic)
         score = (
             1 if text_count > 0 else 0,
+            -replacement_count,
+            -mojibake_count,
+            encoding_priority,
             text_count,
             dialogue_count,
             total_chars,
-            -replacement_count,
             -order,
         )
         candidates.append((score, subs, enc, diagnostic))
 
     if not candidates:
         return None, "", diagnostics, last_err
-    _, subs, enc, _ = max(candidates, key=lambda item: item[0])
+    _, subs, enc, diagnostic = max(candidates, key=lambda item: item[0])
+    if diagnostic["review_required"]:
+        return None, "", diagnostics, UnicodeError(
+            f"ASS decode with {enc} has high-risk mojibake indicators; review required"
+        )
     return subs, enc, diagnostics, last_err
 
 

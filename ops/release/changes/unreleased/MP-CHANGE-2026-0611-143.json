@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0611-143",
+  "title": "FB-044 FB-045 refresh guardrail inventory globs",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-060 and FR-061 by aligning guardrail registry globs with promoted source roots and file-matching generated-summary paths.",
+  "reason": "Worker findings showed the god-file guardrail still listed removed roots and the risky file registry used a generated-summary directory glob that matched no files under validation.",
+  "affected_areas": [
+    "generated context guardrails",
+    "tooling guardrails"
+  ],
+  "behavior_before": "God-file policy included removed app/DesktopApp/Pipeline roots and omitted src/mediapipeline; risky file registry used docs/generated/summaries/**.",
+  "behavior_after": "God-file policy covers src/mediapipeline plus promoted ops roots, and risky file registry uses a generated-summary file glob.",
+  "files_touched": [
+    "docs/generated/summaries/docs/inventories/GOD_FILE_GUARDRAIL.v1.json.md",
+    "docs/generated/summaries/docs/inventories/RISKY_FILE_REGISTRY.v1.json.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-143.json.md",
+    "docs/generated/summaries/tests/python/tooling/test_godfile_guard.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_risky_file_registry.py.md",
+    "docs/inventories/GOD_FILE_GUARDRAIL.v1.json",
+    "docs/inventories/RISKY_FILE_REGISTRY.v1.json",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-143.json",
+    "tests/python/tooling/test_godfile_guard.py",
+    "tests/python/tooling/test_risky_file_registry.py"
+  ],
+  "tests_added": [
+    "tests.python.tooling.test_godfile_guard",
+    "tests.python.tooling.test_risky_file_registry"
+  ],
+  "manual_validation": [
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.tooling.test_godfile_guard tests.python.tooling.test_risky_file_registry -q passed, 17 tests.",
+    "python -m mediapipeline.tools.dev.check_godfiles --paths src/mediapipeline/core/config/validation.py ops/pipeline/entrypoints/Setup-MediaPipeline.ps1 ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 passed.",
+    "python -m mediapipeline.tools.dev.check_risky_file_registry passed.",
+    "test_godfile_guard and test_risky_file_registry passed; check_godfiles explicit promoted roots passed; check_risky_file_registry passed."
+  ],
+  "rollback_plan": "Restore the prior registry glob entries and rerun the focused guardrail tests.",
+  "related_changes": [
+    "FB-044",
+    "FB-045",
+    "FR-060",
+    "FR-061",
+    "W12-005",
+    "W12-006"
+  ],
+  "notes": "Combined because both findings are isolated guardrail inventory glob maintenance."
+}

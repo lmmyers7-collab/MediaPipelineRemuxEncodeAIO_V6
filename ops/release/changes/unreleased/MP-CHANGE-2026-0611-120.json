@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0611-120",
+  "title": "FB-007 align fallback_remux media policy contracts",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Align fallback_remux size-guard support across folder policy, route hints, and generated stage schema.",
+  "reason": "Worker finding FR-014 identified that fallback_remux is supported by the size policy and Python contract model but is dropped by folder policy, route-hint normalization, and the generated stage schema.",
+  "affected_areas": [
+    "contracts",
+    "media_policy",
+    "schemas",
+    "tests"
+  ],
+  "behavior_before": "Folder policy and route hints silently discarded fallback_remux size_guard_mode values, and stages.v1.schema.json omitted fallback_remux even though DecidePayload accepted it.",
+  "behavior_after": "Folder policy and route-hint normalization preserve fallback_remux size_guard_mode values. stages.v1.schema.json is regenerated from the Python stage contract model and includes fallback_remux in DecidePayload.size_guard_mode.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/decide/profile_selection.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/policy/folder_policy.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-120.json.md",
+    "docs/generated/summaries/src/mediapipeline/contracts/schemas/stages.v1.schema.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_stage_contracts.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/pipeline/engine/decide/profile_selection.ps1",
+    "ops/pipeline/engine/policy/folder_policy.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-120.json",
+    "src/mediapipeline/contracts/schemas/stages.v1.schema.json",
+    "tests/python/desktop/test_stage_contracts.py"
+  ],
+  "tests_added": [
+    "PowerShell regressions for folder policy and route-hint fallback_remux propagation plus Python stage schema enum assertion"
+  ],
+  "manual_validation": [
+    "Bundled Python: mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed only for unrelated uncovered dirty files docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md.",
+    "PYTHONPATH=src python -m mediapipeline.tools.dev.generate_stage_schema --check passed.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_stage_contracts -q passed, 5 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_stage_contracts.StageContractTests.test_generated_stage_schema_is_current_and_references_all_models -q passed.",
+    "PowerShell: ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 passed.",
+    "PowerShell: ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1 passed.",
+    "PowerShell: ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1 passed."
+  ],
+  "rollback_plan": "Revert the fallback_remux allowlist/schema/test updates, then rerun the focused media-route and stage-contract validation commands.",
+  "related_changes": [
+    "FB-007",
+    "FR-014"
+  ],
+  "notes": "This media-policy boundary change requires representative real-media validation before shipping beyond the focused unit/schema gates.\nRepresentative real-media validation was not run in this environment and remains required before shipping media-policy behavior."
+}

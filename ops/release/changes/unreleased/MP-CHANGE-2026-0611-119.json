@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0611-119",
+  "title": "FB-016 guard TDarr materializer inventory paths",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Harden TDarr Matrix library materialization against unsafe inventory local_path values.",
+  "reason": "Worker finding FR-053 identified that the Tdarr Matrix materializer accepted absolute and traversal inventory paths, then hardlinked arbitrary external media into generated test libraries.",
+  "affected_areas": [
+    "dev_tooling",
+    "source_safety",
+    "test_library",
+    "tests"
+  ],
+  "behavior_before": "Inventory local_path values were resolved with the generic repo-path resolver, so absolute paths were accepted and parent traversal could escape the inventory root before hardlink or copy materialization.",
+  "behavior_after": "Inventory local_path values must be non-empty, inventory-relative, drive-free, and traversal-free. The resolved sample path must remain under the inventory root before the generated library root is prepared or any hardlink/copy occurs.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-119.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/materialize_tdarr_test_library.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_materialize_tdarr_test_library.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-119.json",
+    "src/mediapipeline/tools/dev/materialize_tdarr_test_library.py",
+    "tests/python/tooling/test_materialize_tdarr_test_library.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_materialize_tdarr_test_library.py containment regressions for absolute and traversal inventory local_path values in hardlink/copy modes"
+  ],
+  "manual_validation": [
+    "Bundled Python: mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed only for unrelated uncovered dirty files docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_service_tdarr_matrix_audit -q passed, 19 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.tooling.test_materialize_tdarr_test_library -q passed, 8 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.tooling.test_tdarr_matrix_audit -q passed, 21 tests."
+  ],
+  "rollback_plan": "Revert the TDarr materializer inventory path validation and related test/doc updates, then rerun the focused TDarr materializer and audit tooling tests.",
+  "related_changes": [
+    "FB-016",
+    "FR-053"
+  ],
+  "notes": ""
+}

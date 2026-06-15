@@ -142,6 +142,8 @@
   border: 1px solid var(--grey-700);
   border-radius: var(--radius-sm);
   background: var(--grey-850, var(--grey-800));
+  transform-origin: center;
+  transition: background 120ms ease, border-color 120ms ease, box-shadow 120ms ease, transform 120ms ease;
 }
 
 .layout-editor-panel-row.is-selected {
@@ -149,8 +151,13 @@
   box-shadow: var(--focus-ring);
 }
 
+.layout-editor-panel-row.is-drag-holding,
 .layout-editor-panel-row.is-dragging {
   border-color: var(--semantic-selected-border);
+  box-shadow: 0 0 0 2px var(--semantic-selected-border), var(--shadow-2);
+  cursor: grabbing;
+  transform: scale(0.985) rotate(-0.25deg);
+  animation: layout-editor-row-grab-jiggle 520ms ease-in-out infinite;
 }
 
 .layout-editor-panel-row.is-drop-target {
@@ -179,9 +186,12 @@
 .layout-editor-panel-grip {
   width: 30px;
   cursor: grab;
+  touch-action: none;
 }
 
-.layout-editor-panel-grip:active {
+.layout-editor-panel-grip:active,
+.layout-editor-panel-row.is-drag-holding .layout-editor-panel-grip,
+.layout-editor-panel-row.is-dragging .layout-editor-panel-grip {
   cursor: grabbing;
 }
 
@@ -451,9 +461,23 @@
   to { box-shadow: 0 0 0 4px var(--semantic-focus-outline), var(--shadow-2); }
 }
 
+@keyframes layout-editor-row-grab-jiggle {
+  0% { transform: scale(0.985) rotate(-0.25deg) translateX(0); }
+  45% { transform: scale(0.975) rotate(0.25deg) translateX(1px); }
+  100% { transform: scale(0.985) rotate(-0.15deg) translateX(-1px); }
+}
+
 @keyframes panel-layout-moved {
   from { box-shadow: 0 0 0 3px var(--semantic-focus-outline), var(--shadow-2); transform: translateY(-2px); }
   to { box-shadow: none; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layout-editor-panel-row.is-drag-holding,
+  .layout-editor-panel-row.is-dragging {
+    animation: none;
+    transform: scale(0.985);
+  }
 }
 
 /* ── Light-mode adjust for the customize bar ── */

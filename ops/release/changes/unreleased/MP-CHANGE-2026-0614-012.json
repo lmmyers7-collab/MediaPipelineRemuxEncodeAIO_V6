@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0614-012",
+  "title": "Add row editor for worker source path maps",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Implement C3 from the network worker hardening plan by replacing raw WorkerSourcePathMap JSON entry with a row-based WebView editor that serializes to the same backend setting.",
+  "reason": "Operators should be able to configure coordinator-to-worker path prefixes without hand-writing escaped JSON.",
+  "affected_areas": [
+    "docs",
+    "network",
+    "settings",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Network settings UI exposed WorkerSourcePathMap as raw JSON text, requiring escaped Windows and UNC prefixes.",
+  "behavior_after": "The Network settings UI will expose From/To prefix rows, serialize rows to WorkerSourcePathMap JSON, and provide a row-level path resolution/accessibility test surface.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.network.js",
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/architecture/NETWORK_WORKER_HARDENING_PLAN.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.network.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0614-012.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_network_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_settings_builder_flush_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-012.json",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_browser_settings_builder_flush_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_browser_settings_builder_flush_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "manual_validation": [
+    ".\\\\ops\\\\scripts\\\\smoke\\\\Test-WebViewBrowserNetworkSmoke.ps1 -AllowSkippedTests (PASS: 1 browser test)",
+    "In-app Browser backend-served Network setup dialog sanity check (PASS: row editor visible, one row serialized to WorkerSourcePathMap JSON, status=1 row)",
+    "PYTHONPATH=src .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.webview.test_webview_browser_settings_builder_flush_smoke (PASS: 1 browser test)",
+    "PYTHONPATH=src .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.webview.test_webview_network_read_only_boundary tests.python.desktop.test_application_facade_local_api (PASS: 54 tests)",
+    "change_control.validate_changes --require-worktree-coverage (FAIL: only unrelated dependency-atlas assets uncovered: dependency_detail_core_library.{png,svg}, dependency_detail_desktop_watch.{png,svg})",
+    "npm run webview:check (PASS)",
+    "npm run webview:lint -- --quiet (PASS)"
+  ],
+  "rollback_plan": "Revert the WebView row editor, tests, docs, generated summaries, and this change packet. The backend WorkerSourcePathMap schema remains unchanged.",
+  "related_changes": [
+    "MP-CHANGE-2026-0614-006",
+    "MP-CHANGE-2026-0614-010",
+    "MP-CHANGE-2026-0614-011"
+  ],
+  "notes": "Opened before C3 UI edits. Scope is WebView/settings serialization only; no source, scratch, publish, drain, FFmpeg, audio, or subtitle behavior changes.\nC3 complete: row editor serializes to existing WorkerSourcePathMap JSON and uses existing worker test-connection preflight for path-layer evidence.\nC3 complete. Strict worktree coverage is blocked only by unrelated pre-existing dependency-atlas asset changes."
+}

@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0614-002",
+  "title": "Add Network coordinator and worker at-a-glance dashboards",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Add role-tabbed Coordinator and Worker dashboard summaries to the existing WebView Network page using already-loaded queue and network worker evidence.",
+  "reason": "The Network page had detailed lifecycle, settings, and persisted-state panels, but did not give the operator a fast answer for which files are active, what is queued, and what the local worker is doing.",
+  "affected_areas": [
+    "network",
+    "queue",
+    "webview"
+  ],
+  "behavior_before": "Network workers, lifecycle, and settings evidence were visible, but active claimed work and queue/on-deck state were split across detailed text/table panels.",
+  "behavior_after": "The Network page leads with Coordinator and Worker at-a-glance tabs that summarize active claimed files, queue/on-deck files, local worker claim state, pending done reports, lifecycle route posture, and state-file evidence without adding new backend mutation authority.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_network_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-002.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/networkView.js - passed",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1 - passed",
+    "temporary local API on 127.0.0.1:7861 served the WebView; in-app Browser verified Network page defaulted to Worker for saved NetworkRole=worker, Coordinator/Worker tabs switched correctly, overview panels rendered live queue/worker evidence, and browser console warnings/errors were empty; temporary API was stopped after verification",
+    "unittest tests.webview.test_webview_network_read_only_boundary tests.webview.test_webview_browser_network_smoke tests.python.desktop.test_application_facade_network with PYTHONPATH=src - passed (14 tests)",
+    "unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype with PYTHONPATH=src - passed",
+    "pytest target command could not run because apps/desktop/runtime/Python/python.exe has no pytest module installed",
+    "mediapipeline.tools.dev.refresh_summaries - passed twice; first run wrote 7 summaries and final run wrote 1 networkView summary",
+    "validate_changes --require-worktree-coverage - failed only for unrelated uncovered files: docs/generated/dependency-atlas/assets/dependency_detail_core_library.png, docs/generated/dependency-atlas/assets/dependency_detail_core_library.svg, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.png, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.svg, src/mediapipeline/core/network/facade.py"
+  ],
+  "rollback_plan": "Remove the Network Coordinator/Worker tab markup, model/render helpers, queue payload wiring, CSS, and test updates; restore the prior Network page panel order expectations.",
+  "related_changes": [],
+  "notes": "Phase 1 is frontend-only and composes existing /api/queue and /api/network/workers read payloads. It does not add Local API routes, queue mutation, lifecycle mutation, media policy, FFmpeg/subtitle/audio behavior, publish/drain behavior, source/scratch/output movement, or cleanup behavior.\nThe worktree had extensive pre-existing dirty files before this UI change; coverage validation should distinguish this packet from unrelated uncovered edits. A later coverage rerun also reported src/mediapipeline/core/network/facade.py as uncovered; that backend connectivity diff is unrelated to this frontend dashboard packet."
+}

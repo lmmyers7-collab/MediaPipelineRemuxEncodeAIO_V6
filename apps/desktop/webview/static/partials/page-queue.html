@@ -46,8 +46,13 @@
             </div>
           </div>
           <p class="note">Scan Sources asks the backend to inventory configured source roots, then curate the authoritative queue snapshot. Display filters, selected rows, and visible table limits do not change backend launch scope.</p>
-          <pre id="queue-filter-summary" class="prose-block">Queue filter inactive. No rows loaded.</pre>
-          <pre id="queue-source-inventory" class="prose-block">Source inventory not loaded. Click Scan Sources to request backend inventory and queue curation.</pre>
+          <pre id="queue-filter-summary" class="prose-block" hidden aria-hidden="true">Queue filter inactive. No rows loaded.</pre>
+          <div id="queue-source-inventory" class="queue-source-inventory" aria-live="polite">
+            <section class="queue-source-tile queue-source-message-tile" data-tone="muted">
+              <strong class="queue-source-tile-value">Source inventory not loaded</strong>
+              <span class="queue-source-tile-detail">Click Scan Sources to request backend inventory and queue curation.</span>
+            </section>
+          </div>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">

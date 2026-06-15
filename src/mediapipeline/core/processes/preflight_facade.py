@@ -12,12 +12,18 @@ from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.processes.audit_policy import AUDIT_LIBRARY_ROOT_ERROR, resolve_audit_library_root
 from mediapipeline.core.processes.pipeline_policy import (
     PIPELINE_EXTRA_ARGS_ERROR,
+    PIPELINE_NETWORK_MODE_BLOCK_ERROR,
     PIPELINE_SLEEP_SECONDS_ERROR,
+    configured_network_role,
+    coordinator_also_encode_locally_enabled,
     is_supported_pipeline_start_mode,
+    normalize_network_role,
     normalize_pipeline_extra_args,
     normalize_pipeline_start_mode,
     parse_pipeline_sleep_seconds,
     pipeline_extra_args_error,
+    pipeline_start_network_mode_label,
+    network_role_is_valid,
 )
 from mediapipeline.core.processes.rerun_policy import (
     CSV_RERUN_MODE_ERROR,
@@ -175,6 +181,30 @@ def _preflight_operator_readiness(
 
 def _service_callable(service: object, name: str) -> bool:
     return callable(getattr(service, name, None))
+
+
+def _network_role_preflight_check(config: dict[str, Any]) -> dict[str, Any]:
+    role = configured_network_role(config)
+    coordinator_also_encode_locally = coordinator_also_encode_locally_enabled(config)
+    mode_label = pipeline_start_network_mode_label(
+        role,
+        coordinator_also_encode_locally=coordinator_also_encode_locally,
+    )
+    valid = network_role_is_valid(role)
+    allowed = role == "standalone" and valid
+    action = (
+        "Use Network/Workers controls for distributed work, or save NetworkRole=standalone before using Launch."
+        if valid
+        else "Fix NetworkRole to standalone, coordinator, or worker before using Launch."
+    )
+    return _preflight_check(
+        "network_role",
+        "Network mode",
+        "ready" if allowed else "blocked",
+        f"mode={mode_label}; NetworkRole={role or '(missing/empty)'}; valid={'yes' if valid else 'no'}",
+        action,
+        detail=[] if allowed else [PIPELINE_NETWORK_MODE_BLOCK_ERROR],
+    )
 
 
 class ProcessFacadeMixin:
@@ -341,6 +371,12 @@ class ProcessFacadeMixin:
         resolved: ResolvedPaths,
         request: dict[str, Any],
     ) -> tuple[list[dict[str, Any]], dict[str, Any], str]:
+        config = dict(resolved.config_data or {})
+        network_role = configured_network_role(config)
+        network_mode_label = pipeline_start_network_mode_label(
+            network_role,
+            coordinator_also_encode_locally=coordinator_also_encode_locally_enabled(config),
+        )
         mode = normalize_pipeline_start_mode(request.get("mode"))
         sleep_seconds, sleep_error = parse_pipeline_sleep_seconds(request.get("sleep_seconds"))
         extra_args = normalize_pipeline_extra_args(request.get("extra_args"))
@@ -355,8 +391,11 @@ class ProcessFacadeMixin:
             "schedule_override": str(request.get("schedule_override") or "").strip(),
             "extra_args_present": bool(extra_args),
             "allow_extra_args": False,
+            "network_role": network_role,
+            "network_mode_label": network_mode_label,
         }
         checks: list[dict[str, Any]] = [
+            _network_role_preflight_check(config),
             _preflight_check(
                 "mode",
                 "Pipeline mode",

@@ -19,6 +19,8 @@ function New-SubtitleFilterEntry {
         IsDefault          = $Policy.IsDefault
         SourceIsDefault    = $Policy.SourceIsDefault
         IsForced           = $Policy.IsForced
+        LanguagePolicyMatched = $Policy.LanguagePolicyMatched
+        RetainReason       = $Policy.RetainReason
         IsSdh              = $Policy.IsSdh
         IsSupplemental     = $Policy.IsSupplemental
         SupplementalForced = $Policy.SupplementalForced

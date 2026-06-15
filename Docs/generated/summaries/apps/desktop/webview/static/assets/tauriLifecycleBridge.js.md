@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/tauriLifecycleBridge.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-19
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 75e49599984a35534d7a9969f2475fdb19b05bc656ec21c5e17cf290e075ba94
+sha256: 666d57bed9132f5451d09fe4bd43910d7fb0115456cde687b90c579fe8ace5d5
 ---
 # `apps/desktop/webview/static/assets/tauriLifecycleBridge.js`
 

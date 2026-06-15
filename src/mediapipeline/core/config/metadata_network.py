@@ -8,6 +8,7 @@ KEY_COORDINATOR_PORT = "CoordinatorPort"
 KEY_COORDINATOR_BIND_ADDRESS = "CoordinatorBindAddress"
 KEY_COORDINATOR_ALSO_ENCODE_LOCALLY = "CoordinatorAlsoEncodeLocally"
 KEY_COORDINATOR_HEARTBEAT_TIMEOUT_MINS = "CoordinatorHeartbeatTimeoutMins"
+KEY_COORDINATOR_MAX_JOB_RETRIES = "CoordinatorMaxJobRetries"
 KEY_COORDINATOR_AUTH_TOKEN = "CoordinatorAuthToken"
 KEY_WORKER_COORDINATOR_URL = "WorkerCoordinatorUrl"
 KEY_WORKER_NAME = "WorkerName"
@@ -37,6 +38,9 @@ NETWORK_CONFIG_DEFAULTS: dict[str, object] = {
     # Minutes without a heartbeat before a claimed job is considered stale
     # and re-queued for another worker.
     KEY_COORDINATOR_HEARTBEAT_TIMEOUT_MINS: 5,
+    # Consecutive same-reason failures for one worker/source before the
+    # coordinator stops handing that source back to that worker.
+    KEY_COORDINATOR_MAX_JOB_RETRIES: 3,
     # Shared bearer token. Empty string means auto-generated on first
     # coordinator-mode start and persisted to app state.
     KEY_COORDINATOR_AUTH_TOKEN: "",

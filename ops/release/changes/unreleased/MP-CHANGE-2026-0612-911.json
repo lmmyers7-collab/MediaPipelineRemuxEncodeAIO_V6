@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0612-911",
+  "title": "Layout Editor drawer handle drag",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-12",
+  "date_completed": "2026-06-12",
+  "summary": "Add pointer-driven drag/reorder behavior to the Layout Editor drawer grip with held-row visual feedback and focused smoke coverage.",
+  "reason": "The drawer's visible move handle implied direct drag placement, but the existing native drag path did not reliably behave that way or show a held-state cue.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Layout Editor drawer rows exposed a grip and native draggable rows, but grabbing the grip did not provide a reliable pointer-drag interaction or shrink/jiggle held-state feedback.",
+  "behavior_after": "Layout Editor drawer grip pointerdown starts a scoped pointer drag within the same drawer group, highlights drop targets, saves order through existing layout persistence, and shows restrained held-row feedback with reduced-motion fallback.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/layoutManager.js",
+    "apps/desktop/webview/static/assets/styles.layout-manager.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/layoutManager.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.layout-manager.css.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-911.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_layout_manager_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_css_design_tokens.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0612-911.json",
+    "tests/webview/test_webview_browser_layout_manager_smoke.py",
+    "tests/webview/test_webview_css_design_tokens.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_layout_manager_smoke.py",
+    "tests/webview/test_webview_css_design_tokens.py"
+  ],
+  "manual_validation": [
+    ".\\\\ops\\\\scripts\\\\smoke\\\\Test-WebViewBrowserLayoutManagerSmoke.ps1 - passed",
+    "PYTHONPATH=src bundled python browser layout-manager unittest - passed",
+    "PYTHONPATH=src bundled python full css+layout unittest command - failed before feature assertions only on pre-existing styles.components.css raw rgba token violations",
+    "PYTHONPATH=src bundled python targeted CSS ownership test - passed",
+    "node --check apps/desktop/webview/static/assets/app/layoutManager.js - passed",
+    "npm run webview:check - passed",
+    "refresh_summaries --paths layout manager drawer drag files - passed",
+    "validate_changes - passed, 253 packet(s) valid",
+    "validate_changes --require-worktree-coverage - passed, 253 packet(s) valid"
+  ],
+  "rollback_plan": "Revert the drawer pointer-drag helpers, held-row CSS/keyframes, focused test assertions, refreshed summaries for these files, and this change packet.",
+  "related_changes": [],
+  "notes": "Adds pointer-based drag handling and restrained held-state feedback for Layout Editor drawer rows.\nStrict worktree coverage passed after adding refreshed summaries; the broader CSS token suite still reports unrelated raw colors in styles.components.css lines 329 and 346."
+}

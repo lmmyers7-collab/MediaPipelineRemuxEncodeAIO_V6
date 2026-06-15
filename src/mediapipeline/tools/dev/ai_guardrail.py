@@ -54,6 +54,7 @@ def build_check_plan(mode: Mode) -> list[CommandCheck]:
         CommandCheck("summary-freshness", _python_module("mediapipeline.tools.dev.refresh_summaries", "--check")),
         CommandCheck("project-index", _python_module("mediapipeline.tools.dev.generate_project_index", "--check")),
         CommandCheck("pipeline-map", _python_module("mediapipeline.tools.dev.generate_pipeline_map", "--check")),
+        CommandCheck("feature-file-map", _python_module("mediapipeline.tools.dev.generate_feature_file_map", "--check")),
         CommandCheck("lifecycle-map", _python_module("mediapipeline.tools.dev.generate_lifecycle_map", "--check")),
         CommandCheck("config-schema", _python_module("mediapipeline.tools.dev.generate_config_schema", "--check")),
         CommandCheck("stage-schema", _python_module("mediapipeline.tools.dev.generate_stage_schema", "--check")),

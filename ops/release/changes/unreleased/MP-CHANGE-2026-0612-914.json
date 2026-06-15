@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0612-914",
+  "title": "Fix ASS MP4 sidecar language selection",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "Corrected MP4 compatibility sidecar selection for converted ASS-to-SRT tracks by marking ASS candidates with converted default disposition evidence before sorting converted SRT sidecar candidates.",
+  "reason": "A source-default non-English ASS track could outrank a converted preferred-language ASS SRT sidecar because ASS conversion left StreamInfo.IsDefault at the source disposition while the other subtitle conversion paths normalized it after conversion.",
+  "affected_areas": [
+    "subtitles"
+  ],
+  "behavior_before": "In MP4 compatibility mode, converted ASS sidecar candidates were sorted using source default disposition, so a non-English source-default ASS track could be selected as the only external SRT sidecar over an English preferred-language ASS conversion.",
+  "behavior_after": "Converted ASS sidecar candidates update IsDefault from the converted SRT disposition, so the preferred-language ASS SRT wins over source-default non-English ASS. MKV ASS original-track preservation remains unchanged.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/subtitles/builders.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-914.json.md",
+    "ops/pipeline/engine/subtitles/builders.ps1",
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0612-914.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1"
+  ],
+  "manual_validation": [
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\\\ops\\\\pipeline\\\\tests\\\\Unit\\\\Invoke-SubtitleBuilderDecisionChecks.ps1 - passed",
+    "refresh_summaries --paths ops/pipeline/engine/subtitles/builders.ps1 ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0612-914.json - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert the ASS IsDefault assignment in ops/pipeline/engine/subtitles/builders.ps1 and the focused regression assertions in ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1, then rerun the focused subtitle builder unit suite and real-media subtitle validation before release.",
+  "related_changes": [],
+  "notes": "Investigating ASS-to-SRT regression: MP4 converted SRT sidecar selection must use converted default disposition, not source subtitle default disposition.\nFixed ASS MP4 sidecar selection by marking converted ASS SRT candidates with converted default disposition evidence before candidate sorting.\nRefreshed summaries for touched subtitle builder, focused PowerShell test, and change packet.\nReal-media subtitle validation still required before treating this high-risk media-policy path as operator-validated."
+}

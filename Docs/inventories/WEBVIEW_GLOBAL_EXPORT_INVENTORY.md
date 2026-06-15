@@ -2,19 +2,19 @@
 
 Date: 2026-06-05
 
-Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 70 JS files.
+Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 72 JS files.
 
 ---
 
 ## Summary
 
-- **70 JS files** total in `assets/`
-- **32 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
-- **64 files** also export flat functions directly onto `window`
-- **38 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`, `tauriLifecycleBridge.js`
-- **Flat export total:** 801
+- **72 JS files** total in `assets/`
+- **34 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
+- **65 files** also export flat functions directly onto `window`
+- **38 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
+- **Flat export total:** 827
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
-- **All 32 primary namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note.
+- **All 33 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
 
 ---
 
@@ -26,7 +26,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `commandHistory.js` | mediaPipelineCommandHistory | 14 | Generated from current `window.* =` assignments |
 | `completedView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
 | `completedView.evidence.js` | - | 1 | Generated from current `window.* =` assignments |
-| `completedView.js` | mediaPipelineCompletedView | 126 | Generated from current `window.* =` assignments |
+| `completedView.js` | mediaPipelineCompletedView | 129 | Generated from current `window.* =` assignments |
 | `completedView.proof.js` | - | 1 | Generated from current `window.* =` assignments |
 | `completedView.review.js` | - | 1 | Generated from current `window.* =` assignments |
 | `contractView.js` | mediaPipelineContractView | 1 | Generated from current `window.* =` assignments |
@@ -43,26 +43,27 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `diagnosticsTailView.js` | mediaPipelineDiagnosticsTailView | 7 | Generated from current `window.* =` assignments |
 | `diagnosticsView.activejobs.js` | - | 1 | Generated from current `window.* =` assignments |
 | `diagnosticsView.investigation.js` | - | 1 | Generated from current `window.* =` assignments |
-| `diagnosticsView.js` | mediaPipelineDiagnosticsView | 74 | Generated from current `window.* =` assignments |
+| `diagnosticsView.js` | mediaPipelineDiagnosticsView | 83 | Generated from current `window.* =` assignments |
 | `diagnosticsView.log.js` | - | 1 | Generated from current `window.* =` assignments |
-| `domHelpers.js` | mediaPipelineDom | 16 | Generated from current `window.* =` assignments |
+| `domHelpers.js` | mediaPipelineDom | 17 | Generated from current `window.* =` assignments |
 | `formatters.js` | mediaPipelineFormatters | 8 | Generated from current `window.* =` assignments |
 | `launchHistoryView.js` | mediaPipelineLaunchHistoryView | 9 | Generated from current `window.* =` assignments |
 | `launchReadinessView.js` | mediaPipelineLaunchReadinessView | 7 | Generated from current `window.* =` assignments |
-| `launchView.js` | mediaPipelineLaunchView | 83 | Generated from current `window.* =` assignments |
+| `launchView.js` | mediaPipelineLaunchView | 86 | Generated from current `window.* =` assignments |
 | `launchView.preflight.js` | - | 1 | Generated from current `window.* =` assignments |
 | `launchView.realmedia.js` | - | 1 | Generated from current `window.* =` assignments |
 | `launchView.risk.js` | - | 1 | Generated from current `window.* =` assignments |
 | `launchView.scope.js` | - | 1 | Generated from current `window.* =` assignments |
+| `librariesRouteMap.js` | mediaPipelineLibraryRouteMap | 0 | Generated from current `window.* =` assignments |
 | `maintenanceView.js` | mediaPipelineMaintenanceView | 7 | Generated from current `window.* =` assignments |
 | `metricsView.js` | mediaPipelineMetricsView | 0 | Generated from current `window.* =` assignments |
 | `networkView.js` | mediaPipelineNetworkView | 2 | Generated from current `window.* =` assignments |
 | `pendingPublishView.confidence.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.drain.js` | - | 1 | Generated from current `window.* =` assignments |
-| `pendingPublishView.js` | mediaPipelinePendingPublishView | 89 | Generated from current `window.* =` assignments |
+| `pendingPublishView.js` | mediaPipelinePendingPublishView | 92 | Generated from current `window.* =` assignments |
 | `pendingPublishView.recovery.js` | - | 1 | Generated from current `window.* =` assignments |
-| `progressView.js` | mediaPipelineProgressView | 7 | Generated from current `window.* =` assignments |
+| `progressView.js` | mediaPipelineProgressView | 8 | Generated from current `window.* =` assignments |
 | `queueView.detail.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.js` | mediaPipelineQueueView | 82 | Generated from current `window.* =` assignments |
 | `queueView.launch.js` | - | 1 | Generated from current `window.* =` assignments |
@@ -81,15 +82,16 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `settingsView.builders.file_safety.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.network.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.pending.js` | - | 1 | Generated from current `window.* =` assignments |
+| `settingsView.builders.quality.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.queue.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.runtime.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.subtitle.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.builders.video.js` | - | 1 | Generated from current `window.* =` assignments |
-| `settingsView.js` | mediaPipelineSettingsView | 92 | Generated from current `window.* =` assignments |
+| `settingsView.js` | mediaPipelineSettingsView | 97 | Generated from current `window.* =` assignments |
 | `settingsView.rawTriage.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsView.safetyLocks.js` | - | 1 | Generated from current `window.* =` assignments |
 | `settingsWizard.js` | mediaPipelineSettingsWizard | 0 | Generated from current `window.* =` assignments |
-| `tauriLifecycleBridge.js` | - | 0 | Generated from current `window.* =` assignments |
+| `tauriLifecycleBridge.js` | `mediaPipelineTauriLifecycleBridge` | 0 | Generated from current `window.* =` assignments |
 | `telemetryView.js` | mediaPipelineTelemetryView | 0 | Generated from current `window.* =` assignments |
 
 ---
@@ -122,7 +124,7 @@ Several modules call other modules' flat exports via `typeof window.X === "funct
 
 ## Namespace Object Naming Convention
 
-All 32 namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
+All 33 namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
 - `window.mediaPipelineApi` — infrastructure
 - `window.mediaPipelineDom` — infrastructure
 - `window.mediaPipelineFormatters` — infrastructure
@@ -146,9 +148,9 @@ This is an object-boundary rule, not a mandate to add JSDoc to every internal he
 
 | Criterion | Status |
 |---|---|
-| All 70 JS files inventoried | Pass |
-| Namespace objects identified per file | Pass - 32 namespace-owning files; 38 no-namespace files listed in Summary |
-| Namespace object JSDoc boundary present | Pass - 32/32 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
+| All 72 JS files inventoried | Pass |
+| Namespace objects identified per file | Pass - 33 namespace-owning files; 39 no-namespace files listed in Summary |
+| Namespace object JSDoc boundary present | Pass - 33/33 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
 | Cross-module consumption documented | Pass |
 | Backend-injected globals identified | Pass — 1 (MEDIA_PIPELINE_BOOTSTRAP) |
 | No anonymous or generic window.* globals found | Pass |
@@ -231,7 +233,7 @@ Risk: Low — documentation only.
 
 Generated from `apps/desktop/webview/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
-Flat export total: 801
+Flat export total: 827
 
 <!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->
 ### apiClient.js
@@ -306,7 +308,7 @@ __completedViewEvidenceModule
 
 Namespace objects: mediaPipelineCompletedView
 
-Flat exports (126):
+Flat exports (129):
 ```text
 renderCompleted
 resetCompletedFilters
@@ -426,6 +428,9 @@ requestCompletedDiagnosticsAction
 completedFormatCounts
 completedFreshnessLine
 completedManifestIsAged
+completedOutputPlacement
+completedPlacementCounts
+renderCompletedTrustDecision
 selectCompletedRow
 getSelectedCompletedRow
 getLastCompletedPayload
@@ -661,9 +666,10 @@ __diagnosticsInvestigationModule
 
 Namespace objects: mediaPipelineDiagnosticsView
 
-Flat exports (74):
+Flat exports (83):
 ```text
 renderDiagnostics
+requestTdarrMatrixAudit
 diagnosticsTextLines
 diagnosticsSeverityForLine
 diagnosticsMalformedStateLines
@@ -732,6 +738,14 @@ setDiagnosticsTailStatus
 setDiagnosticsTailBusy
 renderDiagnosticsTail
 requestDiagnosticsTail
+renderTdarrMatrixAuditFindings
+renderTdarrMatrixBucketCoverage
+renderTdarrMatrixRunComparison
+renderTdarrMatrixConsole
+requestTdarrMatrixConsole
+requestTdarrMatrixEvidenceOpen
+requestTdarrMatrixRerun
+requestTdarrMatrixRunComparison
 initDiagnosticsViewEvents
 requestDiagnosticsOpen
 isDiagnosticsOpenCommand
@@ -752,7 +766,7 @@ __diagnosticsLogModule
 
 Namespace objects: mediaPipelineDom
 
-Flat exports (16):
+Flat exports (17):
 ```text
 byId
 setText
@@ -770,6 +784,7 @@ tableStatusFilterLabel
 tableStatusMatchesFilter
 filterRowsByStatus
 filterRowsByInvestigation
+enhanceDataTables
 ```
 
 ### formatters.js
@@ -824,7 +839,7 @@ getLastLaunchReadinessPayload
 
 Namespace objects: mediaPipelineLaunchView
 
-Flat exports (83):
+Flat exports (86):
 ```text
 requestPipelineControl
 isPipelineControlCommand
@@ -870,6 +885,9 @@ launchStartDecisionRows
 launchStartDecisionStatus
 launchStartDecisionSummaryLines
 launchStartDecisionDetailLines
+launchCompactGateRows
+launchCompactGateOverallStatus
+renderLaunchCompactGate
 launchRealMediaProofRows
 launchRealMediaProofStatus
 launchRealMediaProofSummaryLines
@@ -947,6 +965,14 @@ Flat exports (1):
 __launchViewScopeModule
 ```
 
+### librariesRouteMap.js
+
+Namespace objects: mediaPipelineLibraryRouteMap
+
+Flat exports (0):
+```text
+```
+
 ### maintenanceView.js
 
 Namespace objects: mediaPipelineMaintenanceView
@@ -968,7 +994,6 @@ Namespace objects: mediaPipelineMetricsView
 
 Flat exports (0):
 ```text
-
 ```
 
 ### networkView.js
@@ -1012,13 +1037,14 @@ __pendingPublishDrainModule
 
 Namespace objects: mediaPipelinePendingPublishView
 
-Flat exports (89):
+Flat exports (92):
 ```text
 renderPendingPublish
 renderPendingFileInventory
 renderPendingDetail
 getLastPendingPublishPayload
 renderPendingDrainEvidence
+renderPendingDrainProgress
 renderPendingDrainEvents
 renderPendingDrainSummary
 renderPendingDrainCorrelation
@@ -1068,6 +1094,8 @@ pendingPostDrainTrustPostureStatus
 pendingDrainGuardState
 pendingDrainGuardLines
 renderPendingDrainGuard
+pendingDrainOverviewState
+renderPendingDrainOverview
 pendingFormatCounts
 pendingListText
 pendingSelectedOpenTargetLines
@@ -1118,7 +1146,7 @@ __pendingPublishRecoveryModule
 
 Namespace objects: mediaPipelineProgressView
 
-Flat exports (7):
+Flat exports (8):
 ```text
 renderProgressBarsInto
 renderProgressBars
@@ -1127,6 +1155,7 @@ renderProgressDetails
 renderPipelineEvents
 renderProgressEvidence
 renderHomeActiveWork
+renderLiveRunStrip
 ```
 
 ### queueView.detail.js
@@ -1359,7 +1388,6 @@ Namespace objects: mediaPipelineSettingsLibraries
 
 Flat exports (0):
 ```text
-
 ```
 
 ### settingsMetadata.js
@@ -1368,7 +1396,6 @@ Namespace objects: mediaPipelineSettingsMetadata
 
 Flat exports (0):
 ```text
-
 ```
 
 ### settingsOverview.js
@@ -1420,6 +1447,15 @@ Flat exports (1):
 __settingsViewPendingPublishBuilderModule
 ```
 
+### settingsView.builders.quality.js
+
+Namespace objects: none
+
+Flat exports (1):
+```text
+__settingsViewQualityBuilderModule
+```
+
 ### settingsView.builders.queue.js
 
 Namespace objects: none
@@ -1460,7 +1496,7 @@ __settingsViewVideoBuilderModule
 
 Namespace objects: mediaPipelineSettingsView
 
-Flat exports (92):
+Flat exports (97):
 ```text
 configValue
 buildSettingsOverviewRows
@@ -1501,6 +1537,11 @@ applyVideoDetailSettingsBuilderToPatch
 renderVideoDetailSettingsBuilderGuidance
 markVideoDetailSettingsBuilderDirty
 syncFileSafetySettingsBuilderFromConfig
+syncQualityDetailSettingsBuilderFromConfig
+collectQualityDetailSettingsBuilderPatch
+applyQualityDetailSettingsBuilderToPatch
+renderQualityDetailSettingsBuilderGuidance
+markQualityDetailSettingsBuilderDirty
 collectFileSafetySettingsBuilderPatch
 applyFileSafetySettingsBuilderToPatch
 renderFileSafetySettingsBuilderGuidance
@@ -1580,16 +1621,14 @@ Namespace objects: mediaPipelineSettingsWizard
 
 Flat exports (0):
 ```text
-
 ```
 
 ### tauriLifecycleBridge.js
 
-Namespace objects: none
+Namespace objects: mediaPipelineTauriLifecycleBridge
 
 Flat exports (0):
 ```text
-
 ```
 
 ### telemetryView.js
@@ -1598,6 +1637,5 @@ Namespace objects: mediaPipelineTelemetryView
 
 Flat exports (0):
 ```text
-
 ```
 <!-- END GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->

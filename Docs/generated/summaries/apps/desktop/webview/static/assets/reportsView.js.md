@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/reportsView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-07
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 8bc5d9b8dab4009d14fcbe615c50a1edc440e1006938587590e2404f97a3a9f4
+sha256: 64ddd82363844bdb0d8d3abd4524b17c0962e6a19cfc2eaec76718e3cde9fffc
 ---
 # `apps/desktop/webview/static/assets/reportsView.js`
 

@@ -3,15 +3,15 @@ file: tests/python/desktop/test_network_protocol_runtime.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-14
 last_reviewed: 2026-06-04
-sha256: d798220542c647dc07292000bafb5645bd2873427510e8f3c097d6e82db3a334
+sha256: bea3c2065f9a6d4736fc0961aa89c7b24c5f931a8744055e0cea17725a1e6186
 ---
 # `tests/python/desktop/test_network_protocol_runtime.py`
 
 **Purpose:** (no module docstring)
 
 **Classes:** `NetworkProtocolRuntimeTests`
-**In-repo imports:** `mediapipeline.desktop.network.auth`, `mediapipeline.desktop.network.cluster_log`, `mediapipeline.desktop.network.coordinator`, `mediapipeline.desktop.network.coordinator_http`, `mediapipeline.desktop.network.coordinator_policy`, `mediapipeline.desktop.network.coordinator_url`, `mediapipeline.desktop.network.diagnostics`, `mediapipeline.desktop.network.encode_config_snapshot`, `mediapipeline.desktop.network.failure_policy`, `mediapipeline.desktop.network.firewall`, `mediapipeline.desktop.network.http_json`, `mediapipeline.desktop.network.identity`, `mediapipeline.desktop.network.path_map`, `mediapipeline.desktop.network.poll_policy`, `mediapipeline.desktop.network.probe`
+**In-repo imports:** `mediapipeline.desktop.network.auth`, `mediapipeline.desktop.network.cluster_log`, `mediapipeline.desktop.network.coordinator`, `mediapipeline.desktop.network.coordinator_http`, `mediapipeline.desktop.network.coordinator_policy`, `mediapipeline.desktop.network.coordinator_url`, `mediapipeline.desktop.network.diagnostics`, `mediapipeline.desktop.network.encode_config_snapshot`, `mediapipeline.desktop.network.failure_policy`, `mediapipeline.desktop.network.failure_reasons`, `mediapipeline.desktop.network.firewall`, `mediapipeline.desktop.network.http_json`, `mediapipeline.desktop.network.identity`, `mediapipeline.desktop.network.path_map`, `mediapipeline.desktop.network.poll_policy`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_network_protocol_runtime.py`._

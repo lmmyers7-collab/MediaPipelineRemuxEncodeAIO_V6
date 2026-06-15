@@ -3,9 +3,9 @@ file: ops/pipeline/engine/queue/snapshot_rows.ps1
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 322a3cb82d238e42df85b753967c553b6d695aac51d0baba95b99aa219b16f88
+sha256: 99bccd7a976b8ee67da95a3ec8e329a3450723dd3ee163c185a2e895df6cbbbe
 ---
 # `ops/pipeline/engine/queue/snapshot_rows.ps1`
 

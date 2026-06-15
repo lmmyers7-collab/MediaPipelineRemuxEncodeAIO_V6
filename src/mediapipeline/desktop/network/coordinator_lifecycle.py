@@ -5,6 +5,8 @@ import logging
 import threading
 from pathlib import Path
 
+from mediapipeline.core.network.url_policy import redact_network_secret_text
+
 from .coordinator_parts.http_server import _CoordHandler, _CoordServer
 from .protocol import WorkerEntry
 
@@ -67,9 +69,15 @@ class CoordinatorLifecycleMixin:
         """
         try:
             from .mdns import CoordinatorAdvertiser, ZeroconfUnavailable  # noqa: PLC0415
-            adv = CoordinatorAdvertiser(port=self._coord_port())
+            adv = CoordinatorAdvertiser(port=self._coord_port(), bind_address=self._coord_bind_address())
             if adv.start():
                 self._mdns = adv
+            elif bool(getattr(adv, "skipped", False)):
+                self._mdns = None
+                _log.info(
+                    "Coordinator mDNS advertisement skipped; workers can enter the coordinator URL manually: %s",
+                    getattr(adv, "skip_reason", ""),
+                )
             else:
                 self._mdns = None
                 _log.warning(
@@ -137,15 +145,16 @@ class CoordinatorLifecycleMixin:
                     try:
                         self._registry.save(self._inflight_state_path())
                     except Exception as exc:
+                        safe_exc = redact_network_secret_text(exc)
                         _log.warning(
                             "Coordinator in-flight registry save failed during stale-job reaper: %s",
-                            exc,
+                            safe_exc,
                         )
                         self._safe_log_cluster_event(
                             "inflight-save-failed",
                             level="WARN",
                             event="inflight_save_failed",
-                            message=f"Failed to save in-flight registry during stale-job reaper: {exc}",
+                            message=f"Failed to save in-flight registry during stale-job reaper: {safe_exc}",
                             role="coordinator",
                         )
             except Exception:
@@ -198,12 +207,13 @@ class CoordinatorLifecycleMixin:
         try:
             self._registry.save(self._inflight_state_path())
         except Exception as exc:
-            _log.warning("Coordinator in-flight registry save failed during shutdown: %s", exc)
+            safe_exc = redact_network_secret_text(exc)
+            _log.warning("Coordinator in-flight registry save failed during shutdown: %s", safe_exc)
             self._safe_log_cluster_event(
                 "inflight-save-failed",
                 level="WARN",
                 event="inflight_save_failed",
-                message=f"Failed to save in-flight registry during coordinator shutdown: {exc}",
+                message=f"Failed to save in-flight registry during coordinator shutdown: {safe_exc}",
                 role="coordinator",
             )
         _log.info("CoordinatorDispatcher shut down.")

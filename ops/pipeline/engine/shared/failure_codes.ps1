@@ -67,6 +67,8 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'ENCODE_CPU_INSUFFICIENT_SPACE',
         'ENCODE_DURATION_MISMATCH',
         'ENCODE_OUTPUT_MISSING',
+        'ENCODE_QUALITY_BELOW_FLOOR',
+        'ENCODE_QUALITY_REVIEW',
         'ENCODE_SIZE_GUARD_EXCEEDED',
         'ENCODE_UNEXPECTED_EXCEPTION',
         'FILE_PATH_EMPTY',
@@ -112,6 +114,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SOURCE_MEDIA_AUDIO_METADATA_PROBE_FAILED',
         'SOURCE_MEDIA_AUDIO_MISSING',
         'SOURCE_MEDIA_AUDIO_OVERRIDE_STRIPPED',
+        'SOURCE_MEDIA_AUDIO_PRESENCE_PROBE_FAILED',
         'SOURCE_MEDIA_DURATION_MISSING',
         'SOURCE_MEDIA_INTEGRITY_EXCEPTION',
         'SOURCE_MEDIA_PROBE_FAILED',
@@ -132,6 +135,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SUBTITLE_BDPGS_OCR_EMPTY',
         'SUBTITLE_BDPGS_OCR_EXCEPTION',
         'SUBTITLE_BDPGS_OCR_FAILED',
+        'SUBTITLE_BDPGS_OCR_LANGUAGE_UNKNOWN',
         'SUBTITLE_BDPGS_OCR_TOOL_MISSING',
         'SUBTITLE_BDPGS_SUP_EMPTY',
         'SUBTITLE_BDPGS_SUP_EXTRACT_EXCEPTION',
@@ -159,6 +163,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'SUBTITLE_VOBSUB_EXTRACT_UNSUPPORTED_CONTAINER',
         'SUBTITLE_VOBSUB_OCR_EMPTY',
         'SUBTITLE_VOBSUB_OCR_FAILED',
+        'SUBTITLE_VOBSUB_OCR_LANGUAGE_UNKNOWN',
         'SUBTITLE_VOBSUB_OCR_TOOL_MISSING',
         'SUBTITLE_VOBSUB_OCR_TOOL_UNSUPPORTED',
         'SUBTITLE_VOBSUB_PAIR_MISSING',
@@ -264,7 +269,7 @@ function Get-MediaPipelineCodeRetryable {
     )
 
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
-    if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^BAD_EXTENSION$|^OPERATOR_REQUIRED$|^PERMANENT_FAILURE$|^TV_PARSE_UNRELIABLE$|^SOURCE_TV_PARSE_FAILED$|^OUTPUT_PATH_UNSUPPORTED$|^FILE_PATH_EMPTY$|^FILE_ZERO_BYTES$|^SOURCE_FILE_PATH_EMPTY$|^SOURCE_FILE_ZERO_BYTES$') {
+    if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^BAD_EXTENSION$|^OPERATOR_REQUIRED$|^PERMANENT_FAILURE$|^TV_PARSE_UNRELIABLE$|^SOURCE_TV_PARSE_FAILED$|^OUTPUT_PATH_UNSUPPORTED$|^FILE_PATH_EMPTY$|^FILE_ZERO_BYTES$|^SOURCE_FILE_PATH_EMPTY$|^SOURCE_FILE_ZERO_BYTES$|QUALITY_BELOW_FLOOR') {
         return $false
     }
     if ($codeText -match 'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|AUDIO_MISSING|VIDEO_MISSING|AUDIO_OVERRIDE_STRIPPED|INTEGRITY_FAILED|ACCESS_DENIED') {
@@ -312,7 +317,7 @@ function Get-MediaPipelineCodeWhenFires {
         'SUBTITLE' { return 'Subtitle probing, extraction, conversion, OCR, validation, or sidecar publish failed.' }
         'PUBLISH|PENDING|SIDECAR' { return 'Publishing, deferred publish parking, drain, manifest, or sidecar work failed.' }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' { return 'The source media could not be probed, decoded, or validated as healthy media.' }
-        'DURATION_MISMATCH|OUTPUT_MISSING|SIZE_GUARD' { return 'Post-processing verification rejected the generated output.' }
+        'DURATION_MISMATCH|OUTPUT_MISSING|SIZE_GUARD|QUALITY_BELOW_FLOOR|QUALITY_REVIEW' { return 'Post-processing verification rejected the generated output.' }
         '^REMUX_|^MKVMERGE_' { return 'Remux or mkvmerge processing failed before an output could be accepted.' }
         '^ENCODE_' { return 'Encode processing failed before an output could be accepted.' }
         default {
@@ -337,14 +342,14 @@ function Get-MediaPipelineCodeOperatorAction {
         'LOW_SPACE|SPACE_UNKNOWN|DISK_FULL|INSUFFICIENT_SPACE' {
             return 'Free disk space, verify the destination path, then rerun or drain only after parked artifacts are accounted for.'
         }
-        'SUBTITLE_BDPGS_OCR_TOOL_MISSING|SUBTITLE_BDPGS_TESSDATA_MISSING' {
-            return 'Fix the BDPGS OCR tool/tessdata setting or disable BDPGS OCR before retrying the source.'
+        'SUBTITLE_BDPGS_OCR_TOOL_MISSING|SUBTITLE_BDPGS_TESSDATA_MISSING|SUBTITLE_BDPGS_OCR_LANGUAGE_UNKNOWN' {
+            return 'Fix the BDPGS OCR tool/tessdata/language setting or disable BDPGS OCR before retrying the source.'
         }
         'SUBTITLE_VOBSUB_SIDECAR_PRESERVE_UNSUPPORTED' {
             return 'Enable VobSub OCR, keep the output format/path able to preserve the original VobSub, or handle the external IDX/SUB sidecar manually before retrying.'
         }
-        'SUBTITLE_VOBSUB_OCR_TOOL_MISSING|SUBTITLE_VOBSUB_OCR_TOOL_UNSUPPORTED|SUBTITLE_VOBSUB_TESSERACT_MISSING|SUBTITLE_VOBSUB_TESSDATA_MISSING|SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING' {
-            return 'Fix the VobSub OCR/extraction tool settings, ensure bundled Tesseract is available, or disable VobSub OCR before retrying the source.'
+        'SUBTITLE_VOBSUB_OCR_TOOL_MISSING|SUBTITLE_VOBSUB_OCR_TOOL_UNSUPPORTED|SUBTITLE_VOBSUB_TESSERACT_MISSING|SUBTITLE_VOBSUB_TESSDATA_MISSING|SUBTITLE_VOBSUB_OCR_LANGUAGE_UNKNOWN|SUBTITLE_VOBSUB_EXTRACT_TOOL_MISSING' {
+            return 'Fix the VobSub OCR/extraction tool and language settings, ensure bundled Tesseract is available, or disable VobSub OCR before retrying the source.'
         }
         'AUDIO_MISSING|AUDIO_OVERRIDE_STRIPPED|AUDIO_INVALID' {
             return 'Review source audio streams and per-file audio overrides before retrying or accepting no-audio output.'
@@ -357,6 +362,9 @@ function Get-MediaPipelineCodeOperatorAction {
         }
         'PUBLISH|PENDING|SIDECAR' {
             return 'Inspect pending publish manifests, parked media plus sidecars, share availability, and drain summaries before retry or cleanup.'
+        }
+        'QUALITY_BELOW_FLOOR|QUALITY_REVIEW' {
+            return 'Compare the recorded quality score and metric against the configured thresholds; review the encode settings or thresholds before re-encoding or accepting the output.'
         }
         default {
             if ($Retryable) {

@@ -51,7 +51,7 @@ def _publish_copy_progress_is_stale(progress: dict[str, Any], *, stale_after_sec
     ]
     parseable = [raw for raw in timestamps if parse_progress_datetime(raw) is not None]
     if not parseable:
-        return False
+        return True
     return all(datetime_is_stale(raw, stale_after_seconds) for raw in parseable)
 
 
@@ -59,7 +59,7 @@ def is_progress_stale(progress: dict[str, Any] | None, *, stale_after_seconds: f
     if not progress:
         return False
     stage = str(progress.get("CurrentStage", "") or "").strip().lower()
-    if stage in {"", "idle", "sleeping", "stopped", "completed"}:
+    if stage in {"", "idle", "sleeping", "paused", "stopped", "completed"}:
         return False
     if _is_publish_copy_progress(progress):
         return _publish_copy_progress_is_stale(
@@ -67,6 +67,8 @@ def is_progress_stale(progress: dict[str, Any] | None, *, stale_after_seconds: f
             stale_after_seconds=PUBLISH_COPY_PROGRESS_STALE_AFTER_SECONDS,
         )
     raw = str(progress.get("LastUpdate", "") or "").strip()
+    if parse_progress_datetime(raw) is None:
+        return True
     return datetime_is_stale(raw, stale_after_seconds)
 
 

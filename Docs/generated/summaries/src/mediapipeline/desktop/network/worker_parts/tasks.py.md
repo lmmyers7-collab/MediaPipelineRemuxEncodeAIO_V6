@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/worker_parts/tasks.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-30
+last_modified: 2026-06-14
 last_reviewed: 2026-06-04
-sha256: 13e992ebf42adad2e3254391a5dd97182443489a1a1fae8653448a3069a8ef86
+sha256: 5c08b642233cb4c5814b3ca897db37188c333cbd7d3e4059693dcb45774d5e86
 ---
 # `src/mediapipeline/desktop/network/worker_parts/tasks.py`
 

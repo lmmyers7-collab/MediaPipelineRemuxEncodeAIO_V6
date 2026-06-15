@@ -148,6 +148,21 @@ function Test-MediaPipelineConfigNumberRange {
     }
 }
 
+function Test-MediaPipelineConfigPathIsFullyQualified {
+    param([AllowNull()] [string] $Path)
+
+    $text = ([string]$Path).Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) { return $false }
+    try {
+        return [System.IO.Path]::IsPathFullyQualified($text)
+    } catch {
+        if ($text -match '^[A-Za-z]:[\\/]' -or $text -match '^\\\\[^\\\/]+[\\\/][^\\\/]+') {
+            return $true
+        }
+        return $false
+    }
+}
+
 function Test-MediaPipelineConfigPathShape {
     param(
         [Parameter(Mandatory)] $Config,
@@ -162,6 +177,10 @@ function Test-MediaPipelineConfigPathShape {
         $raw = [string](Get-MediaPipelineConfigValue -Config $Config -Key $key)
         if ([string]::IsNullOrWhiteSpace($raw)) {
             $Errors.Add("$key cannot be empty.")
+            continue
+        }
+        if (-not (Test-MediaPipelineConfigPathIsFullyQualified -Path $raw)) {
+            $Errors.Add("$key must be an absolute path.")
             continue
         }
         $normalized[$key] = Normalize-MediaPipelineConfigPathForCompare -Path $raw
@@ -323,6 +342,7 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Key = 'VideoCodec'; Label = 'VideoCodec'; Allowed = @(Get-MediaPipelineVideoCodecNames) },
         @{ Key = 'VideoPreset'; Label = 'VideoPreset'; Allowed = @(Get-MediaPipelineVideoPresetNames) },
         @{ Key = 'OutputContainer'; Label = 'OutputContainer'; Allowed = @(Get-MediaPipelineOutputContainerNames) },
+        @{ Key = 'DynamicHdrPolicy'; Label = 'DynamicHdrPolicy'; Allowed = @(Get-MediaPipelineDynamicHdrPolicyNames); AllowBlank = $true },
         @{ Key = 'FinalLibraryPromotionVerificationMode'; Label = 'FinalLibraryPromotionVerificationMode'; Allowed = @(Get-MediaPipelineFinalLibraryPromotionVerificationModeNames); AllowBlank = $true },
         @{ Key = 'CpuEncodePreset'; Label = 'CpuEncodePreset'; Allowed = @(Get-MediaPipelineCpuEncodePresetNames); AllowBlank = $true },
         @{ Key = 'CpuEncodeProcessPriority'; Label = 'CpuEncodeProcessPriority'; Allowed = @(Get-MediaPipelineCpuEncodeProcessPriorityNames); AllowBlank = $true },

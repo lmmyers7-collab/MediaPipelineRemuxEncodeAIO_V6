@@ -2,10 +2,10 @@
 file: src/mediapipeline/core/maintenance/release.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-06-04
+owner_domain: maintenance
+last_modified: 2026-06-09
 last_reviewed: 2026-06-04
-sha256: 37a4cc1148415eb597e1fa2be816411726cb895f661b3b4a1bd254c84699888e
+sha256: c4102dd6a8dc9f5ea7159ec22e91aa2c5c375391d9eed11e110cb586f74694dd
 ---
 # `src/mediapipeline/core/maintenance/release.py`
 

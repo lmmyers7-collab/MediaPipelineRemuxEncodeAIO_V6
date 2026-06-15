@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/worker_state.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 0df6c7d1da7b5613feea1b3e7144ac8602367906f4684f1a408f7c2e8b08c26a
+sha256: fd6074d39d829bf0b020f2ea2aa421aaeae641b48817b44e1a6739486ebd38e7
 ---
 # `src/mediapipeline/desktop/network/worker_state.py`
 

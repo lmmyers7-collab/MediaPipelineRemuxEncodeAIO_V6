@@ -11,6 +11,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.config.path_warnings import (
     config_path_overlap_warning,
+    config_root_path_errors,
     config_root_path_warnings,
 )
 
@@ -39,10 +40,27 @@ class ServiceConfigPathWarningTests(unittest.TestCase):
 
         self.assertEqual(warning, "SourceMovies and SourceTV point to the same location.")
 
-    def test_config_root_path_warnings_reports_relative_and_nested_paths(self) -> None:
-        warnings = config_root_path_warnings(
+    def test_config_root_path_errors_reports_relative_roots(self) -> None:
+        errors = config_root_path_errors(
             {
                 "SourceMovies": "Movies",
+                "SourceTV": "TV",
+                "Outsource": "Out",
+                "LocalBase": "Scratch",
+            },
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("SourceMovies must be an absolute path.", errors)
+        self.assertIn("SourceTV must be an absolute path.", errors)
+        self.assertIn("Outsource must be an absolute path.", errors)
+        self.assertIn("LocalBase must be an absolute path.", errors)
+
+    def test_config_root_path_warnings_reports_nested_paths(self) -> None:
+        warnings = config_root_path_warnings(
+            {
+                "SourceMovies": r"C:\Media\Movies",
                 "SourceTV": r"C:\Media\TV",
                 "Outsource": r"D:\Out",
                 "LocalBase": r"C:\Media\TV\Scratch",
@@ -51,7 +69,6 @@ class ServiceConfigPathWarningTests(unittest.TestCase):
             path_within_root=_path_within_root,
         )
 
-        self.assertIn("SourceMovies should be an absolute path.", warnings)
         self.assertIn("LocalBase is inside SourceTV. Keep source, output, and scratch roots separated.", warnings)
 
     def test_config_root_path_warnings_deduplicates_equal_roots(self) -> None:
@@ -82,7 +99,7 @@ class ServiceConfigPathWarningTests(unittest.TestCase):
             path_within_root=_path_within_root,
         )
 
-        self.assertNotIn("SourceMovies should be an absolute path.", warnings)
+        self.assertNotIn("SourceMovies must be an absolute path.", warnings)
 
 
 if __name__ == "__main__":

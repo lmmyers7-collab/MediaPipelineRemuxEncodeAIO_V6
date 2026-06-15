@@ -4,6 +4,7 @@ import json
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal, get_args, get_origin
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -111,6 +112,20 @@ class StageContractTests(unittest.TestCase):
     def test_stage_request_rejects_payload_for_wrong_stage(self) -> None:
         with self.assertRaises(ValidationError):
             StageRequest.model_validate({"stage": "probe", "payload": VALID_PAYLOADS[StageName.decide]})
+
+    def test_mutation_capable_payloads_use_shared_intent_or_disabled_ingest_exception(self) -> None:
+        exceptions: list[StageName] = []
+        for stage, contract in STAGE_REGISTRY.items():
+            if not contract.mutation_capable:
+                continue
+            intent = contract.payload_model.model_fields.get("intent")
+            values = set(get_args(intent.annotation)) if intent and get_origin(intent.annotation) is Literal else set()
+            if {"dry_run", "execute"}.issubset(values):
+                continue
+            exceptions.append(stage)
+
+        self.assertEqual(exceptions, [StageName.ingest])
+        self.assertFalse(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
 
     def test_stage_result_requires_structured_error_on_failure(self) -> None:
         now = datetime.now(timezone.utc).isoformat()

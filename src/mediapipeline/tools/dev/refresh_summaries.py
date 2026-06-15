@@ -33,6 +33,10 @@ from datetime import date, datetime
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
+from mediapipeline.tools.dev.release_package_scope import (
+    is_release_excluded_path,
+    release_excluded_prefixes,
+)
 from typing import Iterable
 
 REPO_ROOT = find_repo_root(Path(__file__))
@@ -67,6 +71,7 @@ ROOT_SOURCE_FILES = {
 
 VOLATILE_GENERATED_SUMMARY_FILES = {
     "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
     "docs/generated/PROJECT_INDEX.md",
 }
 
@@ -92,8 +97,19 @@ OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"src/mediapipeline/core/api"), "api"),
     (re.compile(r"src/mediapipeline/core/audit"), "audit"),
     (re.compile(r"ops/pipeline/entrypoints/Audit-MediaLibrary"), "audit"),
+    (re.compile(r"ops/pipeline/entrypoints/MediaPipeline/"), "process"),
     (re.compile(r"ops/pipeline/config/setup"), "scripts"),
     (re.compile(r"src/mediapipeline/pipeline/ass_to_srt(?:_cli\.py|/)"), "subtitles"),
+    (re.compile(r"src/mediapipeline/core/kernel"), "kernel"),
+    (re.compile(r"src/mediapipeline/core/maintenance"), "maintenance"),
+    (re.compile(r"src/mediapipeline/core/folder_policy"), "folder_policy"),
+    (re.compile(r"src/mediapipeline/core/paths"), "paths"),
+    (re.compile(r"src/mediapipeline/core/schedule"), "schedule"),
+    (re.compile(r"src/mediapipeline/core/files"), "files"),
+    (re.compile(r"src/mediapipeline/core/shared"), "shared"),
+    (re.compile(r"src/mediapipeline/core/sample_validation"), "sample_validation"),
+    (re.compile(r"src/mediapipeline/core/validation"), "validation"),
+    (re.compile(r"src/mediapipeline/core/metrics"), "metrics"),
     (re.compile(r"src/mediapipeline/core/orchestration"), "orchestration"),
     (re.compile(r"src/mediapipeline/core/processes"), "process"),
     (re.compile(r"src/mediapipeline/core/ingest"), "ingest"),
@@ -121,7 +137,9 @@ OWNER_DOMAIN_HINTS: list[tuple[re.Pattern[str], str]] = [
     (re.compile(r"src/mediapipeline/contracts"), "contracts"),
     (re.compile(r"ops/pipeline/engine/(\w+)/"), r"\1"),
     (re.compile(r"src/mediapipeline/desktop/api/"), "api"),
+    (re.compile(r"src/mediapipeline/desktop/application/sample_validation"), "sample_validation"),
     (re.compile(r"src/mediapipeline/desktop/application/"), "application"),
+    (re.compile(r"src/mediapipeline/desktop/watch/"), "watch"),
     (re.compile(r"src/mediapipeline/desktop/network/"), "network"),
     (re.compile(r"src/mediapipeline/desktop/contracts/"), "contracts"),
     (re.compile(r"apps/desktop/webview/static/"), "webview"),
@@ -327,6 +345,7 @@ def summary_recorded_file(summary_path: Path) -> str | None:
 
 def orphan_summaries(sources: Iterable[Path] | None = None) -> list[OrphanSummary]:
     source_paths = list(iter_known_source_files() if sources is None else sources)
+    excluded_prefixes = release_excluded_prefixes(REPO_ROOT)
     expected: dict[str, Path] = {}
     for source in source_paths:
         try:
@@ -359,6 +378,10 @@ def orphan_summaries(sources: Iterable[Path] | None = None) -> list[OrphanSummar
             )
             continue
         normalized_recorded = recorded_path.as_posix()
+        if is_release_excluded_path(normalized_recorded, excluded_prefixes):
+            # Source intentionally omitted from this release package (e.g. tests);
+            # its shipped summary is expected, not an orphan.
+            continue
         if is_excluded_source_path(normalized_recorded):
             findings.append(
                 OrphanSummary(

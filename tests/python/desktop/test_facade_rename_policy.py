@@ -149,7 +149,7 @@ class RenameFacadePolicyTests(unittest.TestCase):
             "final_name_overrides": {"C:/Media/Show E01.mkv": None},
             "rename_sidecars": False,
             "force_pipeline_name": True,
-            "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": "yes"},
+            "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": True},
             "powershell_host": "  C:/PowerShell/pwsh.exe  ",
             "use_pipeline_naming_preview": True,
             "template_preset": "movie_standard",
@@ -175,6 +175,24 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertEqual(kwargs["powershell_host"], "  C:/PowerShell/pwsh.exe  ")
         self.assertTrue(kwargs["use_pipeline_naming_preview"])
         self.assertEqual(kwargs["template_preset"], "movie_standard")
+
+    def test_request_parsing_rejects_non_bool_rename_mutation_flags(self) -> None:
+        base = {"paths": ["C:/Media/Show E01.mkv"]}
+        cases = [
+            {"rename_sidecars": "false"},
+            {"rename_sidecars": 0},
+            {"force_pipeline_name": "false"},
+            {"force_pipeline_name": 1},
+            {"use_pipeline_naming_preview": "false"},
+            {"use_pipeline_naming_preview": 0},
+            {"force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": "false"}},
+            {"force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": 1}},
+        ]
+
+        for override in cases:
+            with self.subTest(override=override):
+                with self.assertRaises(ValueError):
+                    rename_plan_kwargs_from_request({**base, **override})
 
     def test_dict_helpers_ignore_non_dict_values(self) -> None:
         self.assertEqual(dict_bool(None), {})

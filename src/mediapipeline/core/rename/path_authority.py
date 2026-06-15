@@ -12,6 +12,7 @@ OUTSIDE_CONFIGURED_ROOTS_MESSAGE = "Rename apply includes path(s) outside config
 OUTSIDE_CONFIGURED_ROOTS_WARNING = (
     "Path is outside configured SourceMovies, SourceTV, or Outsource roots; standalone rename requires explicit outside-root confirmation."
 )
+UNSCOPED_OPERATOR_PATHS_MESSAGE = "Rename apply includes path(s) without configured media-root authority."
 
 
 def rename_request_paths(request: Mapping[str, Any]) -> list[Path]:
@@ -101,6 +102,10 @@ def rename_plan_outside_configured_roots(rows: Iterable[Mapping[str, Any]]) -> l
     return [row for row in rows if str(row.get("path_authority") or "") == "outside_configured_roots"]
 
 
+def rename_plan_unscoped_operator_paths(rows: Iterable[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
+    return [row for row in rows if str(row.get("path_authority") or "") == "unscoped_operator_path"]
+
+
 def rename_request_allows_outside_configured_roots(request: Mapping[str, Any]) -> bool:
     return request.get("allow_outside_configured_roots") is True
 
@@ -130,6 +135,7 @@ def rename_configured_media_roots_from_resolved(resolved: object) -> list[str]:
 __all__ = [
     "OUTSIDE_CONFIGURED_ROOTS_MESSAGE",
     "OUTSIDE_CONFIGURED_ROOTS_WARNING",
+    "UNSCOPED_OPERATOR_PATHS_MESSAGE",
     "rename_request_paths",
     "rename_configured_media_roots_from_request",
     "rename_undo_manifest_root_from_request",
@@ -137,6 +143,7 @@ __all__ = [
     "rename_authority_fields_for_source",
     "annotate_rename_plan_path_authority",
     "rename_plan_outside_configured_roots",
+    "rename_plan_unscoped_operator_paths",
     "rename_request_allows_outside_configured_roots",
     "rename_configured_media_roots_from_resolved",
 ]

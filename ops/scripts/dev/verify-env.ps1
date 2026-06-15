@@ -1,5 +1,8 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$AllowMissingConfig,
+    [switch]$ReleasePackageVerification
+)
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
@@ -409,6 +412,12 @@ if (Test-Path -LiteralPath $pipelineConfig) {
     }
 } else {
     Write-Warn "Config not found yet: $pipelineConfig"
+    if ($AllowMissingConfig) {
+        Write-Warn 'Missing config is allowed for this clean-package verification mode. Run setup before launching the app.'
+    } else {
+        Write-Fail 'No active operator config exists yet. Run setup before treating this deployment as app-ready.'
+        $failed = $true
+    }
     Write-Host "Next step: run .\ops\scripts\dev\setup.bat" -ForegroundColor DarkGray
 }
 
@@ -470,6 +479,8 @@ if ($networkRole -eq 'standalone') {
     Write-Warn "NetworkRole is '$networkRole'. Network coordinator/worker mode is not part of the standalone release gate."
     if ($zeroconfAvailable) {
         Write-Ok 'zeroconf is available for experimental network discovery.'
+    } elseif ($ReleasePackageVerification) {
+        Write-Warn "zeroconf is missing, but NetworkRole is '$networkRole'. This is advisory for standalone release package verification; install zeroconf before testing network discovery."
     } else {
         Write-Fail "zeroconf is missing, but NetworkRole is '$networkRole'. Install it before testing network discovery."
         $failed = $true
@@ -491,5 +502,5 @@ if ($failed) {
 
 Write-Ok 'Release environment looks ready.'
 if (-not (Test-Path -LiteralPath $pipelineConfig)) {
-    Write-Warn 'Config is still missing, so the pipeline itself is not fully ready until setup is run.'
+    Write-Warn 'Clean package layout verified with no config. The pipeline itself is not fully ready until setup is run.'
 }

@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/maintenance/release_result.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: maintenance
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 337b053e71a85a6972a3816ae7c6d66b6ba17c17aae81833494ebc23dd2c965f

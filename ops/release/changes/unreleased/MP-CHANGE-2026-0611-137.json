@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0611-137",
+  "title": "FB-037 confine dependency atlas stale cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-050 by preventing dependency atlas cleanup from deleting unrelated repository-root artifacts that match stale atlas glob names.",
+  "reason": "Worker finding W11-003 showed generate_dependency_atlas.clean_outputs used broad root-level glob deletion without an ownership/content check.",
+  "affected_areas": [
+    "dev tooling",
+    "filesystem cleanup"
+  ],
+  "behavior_before": "Dependency atlas cleanup removed any repository-root file matching broad names such as *python_dependencies.png or *dependency_domains.svg.",
+  "behavior_after": "Dependency atlas cleanup removes only legacy atlas artifacts that are exact legacy names or carry an atlas-generated marker, leaving unrelated matching root files in place.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-137.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/dev/generate_dependency_atlas.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_dependency_atlas.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-137.json",
+    "src/mediapipeline/tools/dev/generate_dependency_atlas.py",
+    "tests/python/tooling/test_dependency_atlas.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_dependency_atlas.py::DependencyAtlasCleanupTests.test_clean_outputs_preserves_unowned_matching_root_files"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src python -m unittest tests.python.tooling.test_dependency_atlas -q passed.",
+    "validate_changes --require-worktree-coverage failed only for unrelated uncovered files: docs/implementation/dynamic-hdr-preservation/PLAN.md, docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Revert the cleanup ownership checks and focused tooling regression test, then rerun the dependency atlas tooling tests.",
+  "related_changes": [
+    "FB-037",
+    "FR-050",
+    "W11-003"
+  ],
+  "notes": "Packet created before code edits."
+}

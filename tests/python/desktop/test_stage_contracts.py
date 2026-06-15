@@ -5,6 +5,7 @@ import sys
 import unittest
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Literal, get_args, get_origin
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -133,6 +134,20 @@ class StageContractTests(unittest.TestCase):
                 },
             )
 
+    def test_mutation_capable_payloads_use_shared_intent_or_disabled_ingest_exception(self) -> None:
+        exceptions: list[StageName] = []
+        for stage, contract in STAGE_REGISTRY.items():
+            if not contract.mutation_capable:
+                continue
+            intent = contract.payload_model.model_fields.get("intent")
+            values = set(get_args(intent.annotation)) if intent and get_origin(intent.annotation) is Literal else set()
+            if {"dry_run", "execute"}.issubset(values):
+                continue
+            exceptions.append(stage)
+
+        self.assertEqual(exceptions, [StageName.ingest])
+        self.assertFalse(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
+
     def test_stage_result_requires_data_or_structured_error(self) -> None:
         now = datetime.now(timezone.utc)
         ok = StageResult.model_validate(
@@ -177,7 +192,9 @@ class StageContractTests(unittest.TestCase):
         schema_path = find_repo_root(Path(__file__)) / "src" / "mediapipeline" / "contracts" / "schemas" / "stages.v1.schema.json"
         schema = json.loads(schema_path.read_text(encoding="utf-8"))
         generated = StageContractSchema.model_json_schema()
+        size_guard_enum = schema["$defs"]["DecidePayload"]["properties"]["size_guard_mode"]["enum"]
 
+        self.assertIn("fallback_remux", size_guard_enum)
         self.assertEqual(schema["$defs"], generated["$defs"])
         for contract in STAGE_REGISTRY.values():
             self.assertIn(contract.payload_model.__name__, schema["$defs"])

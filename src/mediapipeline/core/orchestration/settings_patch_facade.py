@@ -205,7 +205,26 @@ class SettingsPatchFacadeMixin:
             return settings_save_exception_result(exc, warnings)
         finally:
             self._release_settings_save_lock(lock)
-        return settings_save_success_result(result, patch, warnings)
+
+        hot_apply_results: list[dict[str, Any]] = []
+        hot_apply = getattr(self, "_hot_apply_running_worker_settings", None)
+        if callable(hot_apply):
+            try:
+                hot_apply_results = list(
+                    hot_apply(
+                        changed_keys=list(changed_keys),
+                        merged_config=dict(patch["merged"]),
+                        warnings=warnings,
+                    )
+                    or []
+                )
+            except Exception as exc:
+                warnings.append(f"Running worker hot-apply check failed after settings save: {exc}")
+
+        command_result = settings_save_success_result(result, patch, warnings)
+        if hot_apply_results:
+            command_result.data["network_worker_hot_apply"] = hot_apply_results
+        return command_result
 
     def _acquire_settings_save_lock(self) -> tuple[object | None, str]:
         lock = getattr(self, "_settings_save_lock", None)
@@ -240,7 +259,6 @@ class SettingsPatchFacadeMixin:
 __all__ = [
     "SettingsPatchFacadeMixin",
 ]
-
 
 
 

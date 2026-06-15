@@ -11,7 +11,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.core.rename.policy import OUTSIDE_CONFIGURED_ROOTS_WARNING
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService
+from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeRenameTests(unittest.TestCase):
@@ -61,6 +61,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
             request = {
                 "paths": [str(first), str(second)],
+                "_configured_media_roots": [str(root)],
                 "mode": "tv",
                 "show_name": "Serial Experiments Lain",
                 "season": "S01",
@@ -204,6 +205,37 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             self.assertFalse(media.exists())
             Path(str(allowed.data["undo_manifest"])).unlink(missing_ok=True)
 
+    def test_rename_apply_blocks_unscoped_operator_paths_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            media = root / "StandaloneFolder" / "Example Movie 2024 1080p BluRay.mkv"
+            media.parent.mkdir()
+            media.write_text("media", encoding="utf-8")
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            request = {
+                "paths": [str(media)],
+                "mode": "movie",
+                "movie_title": "Example Movie",
+                "movie_year": "2024",
+                "selected_sources": [str(media)],
+                "confirm_apply": True,
+                "use_pipeline_naming_preview": False,
+            }
+
+            rejected = facade.apply_rename_selection(dict(request))
+            outside_confirmation_rejected = facade.apply_rename_selection(
+                {**request, "allow_outside_configured_roots": True}
+            )
+
+            renamed = media.parent / "Example Movie (2024).mkv"
+            self.assertFalse(rejected.ok)
+            self.assertEqual(rejected.command, "rename.apply")
+            self.assertIn("without configured media-root authority", rejected.message)
+            self.assertFalse(outside_confirmation_rejected.ok)
+            self.assertIn("without configured media-root authority", outside_confirmation_rejected.message)
+            self.assertTrue(media.exists())
+            self.assertFalse(renamed.exists())
+
     def test_rename_apply_accepts_multiple_selected_sources(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -218,6 +250,7 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             applied = facade.apply_rename_selection(
                 {
                     "paths": [str(first), str(second), str(third)],
+                    "_configured_media_roots": [str(root)],
                     "mode": "tv",
                     "show_name": "Serial Experiments Lain",
                     "season": "S01",
@@ -273,3 +306,51 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
         self.assertEqual(result.severity, "warning")
         self.assertIn("another rename apply command is already in progress", result.message)
         self.assertEqual(plan_calls, [])
+
+    def test_rename_apply_blocks_active_work_before_building_plan(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source = root / "Serial Experiments Lain E01 Weird.mkv"
+            source.write_text("media", encoding="utf-8")
+            service = DummyWorkflowFacadeService(root)
+            resolved = _resolved(root)
+            plan_calls: list[dict[str, object]] = []
+            apply_calls: list[object] = []
+
+            service.cleanup_stale_launch_guards = lambda _resolved_paths: []  # type: ignore[method-assign]
+            service.find_related_pipeline_processes = lambda _resolved_paths, job_kinds=None: []  # type: ignore[method-assign]
+            service.active_job_close_block_messages = (  # type: ignore[method-assign]
+                lambda _resolved_paths, job_kinds=None: ["ActiveJobs record launch.json reports pipeline work as active."]
+            )
+
+            def fake_plan(*args: object, **kwargs: object) -> list[dict[str, object]]:
+                plan_calls.append({"args": args, "kwargs": kwargs})
+                return []
+
+            def fake_apply(*args: object, **kwargs: object) -> dict[str, object]:
+                apply_calls.append({"args": args, "kwargs": kwargs})
+                return {"renamed": 0, "rows": []}
+
+            service.plan_rename_paths = fake_plan  # type: ignore[method-assign]
+            service.apply_rename_path_plan = fake_apply  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service)
+
+            result = facade.apply_rename_selection(
+                {
+                    "paths": [str(source)],
+                    "_configured_media_roots": [str(root)],
+                    "selected_sources": [str(source)],
+                    "confirm_apply": True,
+                },
+                resolved=resolved,
+            )
+            source_still_exists = source.exists()
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.command, "rename.apply")
+        self.assertEqual(result.severity, "error")
+        self.assertEqual(result.errors, ["active_work"])
+        self.assertIn("ActiveJobs still reports active work", result.message)
+        self.assertEqual(plan_calls, [])
+        self.assertEqual(apply_calls, [])
+        self.assertTrue(source_still_exists)

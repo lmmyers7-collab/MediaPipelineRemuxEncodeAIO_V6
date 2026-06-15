@@ -1,0 +1,33 @@
+{
+  "id": "MP-CHANGE-2026-0611-160",
+  "title": "Cover the worker 08 WebView pages audit report with a change packet",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Adds change-control coverage for the existing worker-08 review-only WebView pages audit report, which was written without a packet and was failing strict worktree coverage.",
+  "reason": "Every other function/module audit worker report has its own docs packet (for example MP-CHANGE-2026-0611-001 for worker-01). The worker-08 report was left uncovered, so mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed for every session sharing this worktree.",
+  "affected_areas": [
+    "review",
+    "webview-pages"
+  ],
+  "behavior_before": "docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md existed in the worktree but was not listed in files_touched of any unreleased change packet, so strict coverage validation failed.",
+  "behavior_after": "The worker-08 WebView pages audit report is covered by this packet and strict coverage validation no longer flags it.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-160.json.md",
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-160.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Test-Path docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md -> True; first line '# Worker Review: worker-08-webview-pages'.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> worker-08-webview-pages.md no longer listed as uncovered."
+  ],
+  "rollback_plan": "Delete this change packet; the worker-08 report itself belongs to the audit session that authored it.",
+  "related_changes": [
+    "MP-CHANGE-2026-0611-001"
+  ],
+  "notes": "Coverage-only packet created during the objective-quality-verification review session (MP-CHANGE-2026-0611-202 review follow-up). The report content was authored by the function/module audit worker-08 session and is not modified here."
+}

@@ -7,11 +7,34 @@ param(
     [int]$RunTimeoutSeconds = 1200,
     [int]$CloseTimeoutSeconds = 30,
     [string]$WindowTitle = 'MediaPipelineRemuxEncodeAIO',
-    [string]$ActiveJobsDir = 'E:\Videos\Scratch\State\ActiveJobs'
+    [AllowEmptyString()]
+    [string]$ActiveJobsDir = ''
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
+
+function Assert-ExplicitPgRuntimeEvidencePath {
+    param(
+        [AllowEmptyString()]
+        [string]$Path,
+        [Parameter(Mandatory)][string]$ParameterName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw "Parameter -$ParameterName is required. Pass an explicit isolated runtime evidence path for this PG run."
+    }
+    if (-not [System.IO.Path]::IsPathFullyQualified($Path)) {
+        throw "Parameter -$ParameterName must be a fully qualified path: $Path"
+    }
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $legacyRoot = [System.IO.Path]::GetFullPath('E:\Videos\Scratch\State')
+    if ($fullPath.StartsWith($legacyRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Parameter -$ParameterName must not use the legacy machine-specific runtime state root E:\Videos\Scratch\State. Pass a temp LocalBase\State path for this PG run."
+    }
+    return $fullPath
+}
 
 function Resolve-ToolPath {
     param([Parameter(Mandatory)][string]$Name)
@@ -278,6 +301,7 @@ $resolvedSource = [System.IO.Path]::GetFullPath($SourceFile)
 if (-not (Test-Path -LiteralPath $resolvedSource -PathType Leaf)) {
     throw "Source file does not exist: $resolvedSource"
 }
+$ActiveJobsDir = Assert-ExplicitPgRuntimeEvidencePath -Path $ActiveJobsDir -ParameterName 'ActiveJobsDir'
 
 $scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $shellRoot = [System.IO.Path]::GetFullPath($scriptRoot)

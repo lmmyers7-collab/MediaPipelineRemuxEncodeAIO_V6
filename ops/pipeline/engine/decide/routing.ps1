@@ -20,6 +20,8 @@ function Resolve-MediaRouteBySize {
         [double] $TVRoute1080pTargetSizeGB = 0.0,
         [double] $TVRoute1440pTargetSizeGB = 0.0,
         [double] $TVRoute4KTargetSizeGB = 0.0,
+        [double] $MovieRouteMaxVideoBitrateMbps = 35.0,
+        [double] $TVRouteMaxVideoBitrateMbps = 18.0,
         [double] $DurationSeconds = 0,
         [string] $VideoCodec = '',
         [int] $VideoHeight = 0,
@@ -90,6 +92,8 @@ function Resolve-MediaRouteBySize {
         Resolve-MediaRouteResolutionBitrateSelection `
             -VideoHeight $VideoHeight `
             -IsTV:$IsTV `
+            -MovieRouteMaxVideoBitrateMbps $MovieRouteMaxVideoBitrateMbps `
+            -TVRouteMaxVideoBitrateMbps $TVRouteMaxVideoBitrateMbps `
             -Route1080pUpperHeightTolerancePercent $Route1080pUpperHeightTolerancePercent `
             -Route1080pMaxVideoBitrateMbps $Route1080pMaxVideoBitrateMbps `
             -Route1440pLowerHeightTolerancePercent $Route1440pLowerHeightTolerancePercent `

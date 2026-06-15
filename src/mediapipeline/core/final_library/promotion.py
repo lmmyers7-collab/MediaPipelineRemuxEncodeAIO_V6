@@ -342,6 +342,38 @@ def _pending_path_keys(pending_payload: Mapping[str, Any] | None) -> set[str]:
     return keys
 
 
+def _required_pipeline_sidecar_path(record: CompletedJobRecord) -> Path:
+    sidecar_path = record.sidecar_path
+    if str(sidecar_path or "").strip():
+        return Path(sidecar_path)
+    return record.output_path.with_suffix(".pipeline.json")
+
+
+def _required_pipeline_sidecar_path_from_item(item: Mapping[str, Any], output_path: Path) -> Path:
+    sidecar_text = str(
+        item.get("required_pipeline_sidecar_path")
+        or item.get("pipeline_sidecar_path")
+        or item.get("sidecar_path")
+        or ""
+    ).strip()
+    if sidecar_text:
+        return Path(sidecar_text)
+    return output_path.with_suffix(".pipeline.json")
+
+
+def _promotion_sidecar_paths(output_path: Path, required_pipeline_sidecar: Path) -> list[Path]:
+    seen: set[str] = set()
+    sidecars: list[Path] = []
+    output_key = normalized_path_key(output_path)
+    for sidecar in [required_pipeline_sidecar, *companion_sidecars(output_path)]:
+        key = normalized_path_key(sidecar)
+        if not key or key == output_key or key in seen:
+            continue
+        seen.add(key)
+        sidecars.append(sidecar)
+    return sidecars
+
+
 def build_promotion_item_rows(
     resolved: ResolvedPaths,
     records: Iterable[CompletedJobRecord],
@@ -362,6 +394,8 @@ def build_promotion_item_rows(
         row_key = completed_record_key(record)
         output_path = record.output_path
         source_path = record.source_path_text
+        required_sidecar = _required_pipeline_sidecar_path(record)
+        required_sidecar_exists = required_sidecar.exists()
         evidence = evidence_items.get(row_key, {})
         promoted_fields = row_promoted_fields(evidence)
         row = {
@@ -377,6 +411,9 @@ def build_promotion_item_rows(
             "media_type": record.media_type,
             "output_file": record.output_file,
             "publish_state": record.publish_state,
+            "sidecar_path": str(record.sidecar_path),
+            "required_pipeline_sidecar_path": str(required_sidecar),
+            "required_pipeline_sidecar_exists": required_sidecar_exists,
         }
 
         status = "ready"
@@ -423,6 +460,10 @@ def build_promotion_item_rows(
                 if not library_profile.promotion_destination.exists():
                     status = "destination_offline"
                     row["destination_offline"] = True
+                elif not required_sidecar_exists:
+                    status = "missing_required_sidecar"
+                    row["required_pipeline_sidecar_missing"] = True
+                    row["missing_sidecars"] = [str(required_sidecar)]
                 else:
                     row["ready_for_promotion"] = True
             else:
@@ -440,6 +481,10 @@ def build_promotion_item_rows(
                     if not rule.destination_root.exists():
                         status = "destination_offline"
                         row["destination_offline"] = True
+                    elif not required_sidecar_exists:
+                        status = "missing_required_sidecar"
+                        row["required_pipeline_sidecar_missing"] = True
+                        row["missing_sidecars"] = [str(required_sidecar)]
                     else:
                         row["ready_for_promotion"] = True
 
@@ -515,6 +560,7 @@ def promotion_status_payload(
 def promote_item(item: Mapping[str, Any], settings: PromotionSettingsSnapshot) -> dict[str, Any]:
     started_at = utc_now_text()
     output_path = Path(str(item.get("publish_output_path") or item.get("output_path") or ""))
+    required_pipeline_sidecar = _required_pipeline_sidecar_path_from_item(item, output_path)
     item_publish_root = str(item.get("library_output_root") or "").strip()
     publish_root = Path(item_publish_root) if item_publish_root else settings.publish_root
     destination_path_text = str(item.get("final_library_destination_path") or "").strip()
@@ -526,6 +572,7 @@ def promote_item(item: Mapping[str, Any], settings: PromotionSettingsSnapshot) -
         "started_at": started_at,
         "source_path": str(item.get("source_path") or ""),
         "publish_output_path": str(output_path),
+        "required_pipeline_sidecar_path": str(required_pipeline_sidecar),
         "destination_path": str(destination_path or ""),
         "verification_mode": settings.verification_mode,
         "copied_files": [],
@@ -553,13 +600,18 @@ def promote_item(item: Mapping[str, Any], settings: PromotionSettingsSnapshot) -
         evidence["failures"].append("Final destination root is not resolved.")
         evidence["completed_at"] = utc_now_text()
         return evidence
+    if not required_pipeline_sidecar.exists():
+        evidence["missing_sidecars"].append(str(required_pipeline_sidecar))
+        evidence["failures"].append("Required pipeline sidecar is missing.")
+        evidence["completed_at"] = utc_now_text()
+        return evidence
 
     destination_root = Path(destination_root_text)
     copy_plan = plan_promotion_file_targets(
         output_path,
         publish_root,
         destination_root,
-        companion_sidecars(output_path),
+        _promotion_sidecar_paths(output_path, required_pipeline_sidecar),
     )
     evidence["copy_plan"] = copy_plan.to_mapping()
     if not copy_plan.ok:

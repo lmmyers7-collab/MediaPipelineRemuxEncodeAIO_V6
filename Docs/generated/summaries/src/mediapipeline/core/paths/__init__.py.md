@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/paths/__init__.py
 pipeline_stage: n/a
 token_priority: low
-owner_domain: unknown
+owner_domain: paths
 last_modified: 2026-05-31
 last_reviewed: 2026-06-04
 sha256: edbc731afacd4acd348bc69e8b52b99c54c73657eefe12c7df3ff193697267a0

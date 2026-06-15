@@ -19,8 +19,10 @@ from mediapipeline.core.completed.policy import (
     completed_preview_fields,
     completed_preview_from_records,
     completed_preview_rows,
+    completed_quality_fields,
     completed_record_key,
     completed_record_to_row,
+    completed_row_quality_line,
     completed_row_trust_fields,
     format_bytes_compact,
 )
@@ -37,6 +39,7 @@ def _record(
     output_size: int = 2048,
     output_exists: bool = True,
     size_policy: dict[str, object] | None = None,
+    quality_verification: dict[str, object] | None = None,
     library_metadata: dict[str, object] | None = None,
 ) -> CompletedJobRecord:
     payload = {
@@ -59,6 +62,8 @@ def _record(
     }
     if size_policy is not None:
         payload["size_policy"] = size_policy
+    if quality_verification is not None:
+        payload["quality_verification"] = quality_verification
     if library_metadata is not None:
         payload.update(library_metadata)
     return CompletedJobRecord(
@@ -259,6 +264,133 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         self.assertEqual(row["audio_decision_count"], 1)
         self.assertEqual(row["subtitle_decision_count"], 1)
         self.assertEqual(row["subtitle_decision_preview"], ["s:? eng ass -> convertass"])
+
+    def test_completed_quality_fields_are_defensive(self) -> None:
+        unavailable = completed_quality_fields({})
+        self.assertFalse(unavailable["quality_available"])
+        self.assertEqual(unavailable["quality_metric"], "")
+        self.assertIsNone(unavailable["quality_score"])
+        self.assertEqual(unavailable["quality_outcome"], "")
+        self.assertIsNone(unavailable["quality_min_window_score"])
+        self.assertEqual(unavailable["quality_sample_mode"], "")
+        self.assertIsNone(unavailable["quality_warn_threshold"])
+        self.assertIsNone(unavailable["quality_fail_threshold"])
+        self.assertFalse(unavailable["quality_blocked"])
+
+        malformed = completed_quality_fields({"quality_verification": "bad"})
+        self.assertFalse(malformed["quality_available"])
+
+        parsed = completed_quality_fields(
+            {
+                "quality_verification": {
+                    "metric": " vmaf ",
+                    "score": "87.4",
+                    "outcome": " warn ",
+                    "min_window_score": "83.2",
+                    "sample_mode": "sampled",
+                    "warn_threshold": "90",
+                    "fail_threshold": "75",
+                    "fail_action": "warn_only",
+                }
+            }
+        )
+        self.assertTrue(parsed["quality_available"])
+        self.assertEqual(parsed["quality_metric"], "vmaf")
+        self.assertEqual(parsed["quality_score"], 87.4)
+        self.assertEqual(parsed["quality_outcome"], "warn")
+        self.assertEqual(parsed["quality_min_window_score"], 83.2)
+        self.assertEqual(parsed["quality_sample_mode"], "sampled")
+        self.assertEqual(parsed["quality_warn_threshold"], 90.0)
+        self.assertEqual(parsed["quality_fail_threshold"], 75.0)
+        self.assertFalse(parsed["quality_blocked"])
+
+        blocked = completed_quality_fields(
+            {
+                "quality_verification": {
+                    "metric": "vmaf",
+                    "score": 70,
+                    "outcome": "fail",
+                    "fail_action": "block_review",
+                }
+            }
+        )
+        self.assertTrue(blocked["quality_blocked"])
+
+    def test_quality_pass_warn_and_fail_rows_surface_flags_and_guidance(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            output = root / "Outsource" / "Movies" / "Quality (2024)" / "Quality (2024).mkv"
+            output.parent.mkdir(parents=True)
+            output.write_bytes(b"x" * 2048)
+            sidecar = output.with_suffix(".pipeline.json")
+            sidecar.write_text("{}", encoding="utf-8")
+
+            def row_for(outcome: str, score: float, *, fail_action: str = "warn_only") -> dict[str, object]:
+                return completed_record_to_row(
+                    _record(
+                        source=str(root / "Source" / f"Quality {outcome}.mkv"),
+                        output=str(output),
+                        sidecar=str(sidecar),
+                        output_size=2048,
+                        quality_verification={
+                            "metric": "vmaf",
+                            "score": score,
+                            "outcome": outcome,
+                            "min_window_score": score - 1,
+                            "sample_mode": "sampled",
+                            "warn_threshold": 90,
+                            "fail_threshold": 75,
+                            "fail_action": fail_action,
+                        },
+                    )
+                )
+
+            pass_row = row_for("pass", 95)
+            warn_row = row_for("warn", 87.4)
+            fail_row = row_for("fail", 70)
+
+        self.assertTrue(pass_row["quality_available"])
+        self.assertEqual(pass_row["quality_metric"], "vmaf")
+        self.assertEqual(pass_row["quality_score"], 95.0)
+        self.assertIn("quality_within_threshold", pass_row["review_flags"])
+        self.assertEqual(pass_row["operator_trust_state"], "consistent-looking")
+        self.assertIn(
+            "Quality: vmaf 95 (warn < 90; fail < 75); outcome=pass",
+            pass_row["route_evidence_lines"],
+        )
+        self.assertEqual(
+            completed_row_quality_line(warn_row),
+            "Quality: vmaf 87.4 (warn < 90; fail < 75); outcome=warn",
+        )
+        self.assertIn("quality_review", warn_row["review_flags"])
+        self.assertEqual(warn_row["operator_status"], "Quality review")
+        self.assertIn("warn threshold", warn_row["operator_guidance"])
+        self.assertIn("quality_below_floor", fail_row["review_flags"])
+        self.assertEqual(fail_row["operator_status"], "Quality below floor")
+        self.assertEqual(fail_row["operator_severity"], "warning")
+        self.assertIn("configured quality floor", fail_row["operator_guidance"])
+
+    def test_quality_below_floor_reaches_completed_trust_review(self) -> None:
+        row = {
+            "review_flags": ["encoded", "quality_below_floor"],
+            "consistency_issues": [],
+            "runtime_outcome_status": "",
+            "output_exists": True,
+            "output_health": "ok",
+            "sidecar_exists": True,
+            "size_policy_exceeded": False,
+            "size_growth_over_5": False,
+            "size_policy_available": True,
+            "operator_status": "Quality below floor",
+            "consistency_status": "Consistent",
+            "size_delta_label": "-50.0%",
+            "output_path": "C:/Outsource/Movies/Movie (2024).mkv",
+        }
+
+        trust = build_completed_row_trust_fields(row)
+
+        self.assertEqual(trust["operator_trust_state"], "review-before-rerun-or-cleanup")
+        self.assertIn("quality_below_floor", trust["primary_concern"])
 
     def test_preview_rows_filter_non_records_and_fields_count_routes(self) -> None:
         encode = _record(route="encode", output_size=2048, output_exists=True)

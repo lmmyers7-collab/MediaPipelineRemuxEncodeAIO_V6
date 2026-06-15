@@ -3,9 +3,9 @@ file: docs/inventories/GOD_FILE_GUARDRAIL.v1.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-02
-sha256: d8a769c71d41e33e46cb434ab4aaeefef372d6a390430046ebd8290868219fd9
+sha256: 762680acc0fbac3d79526e7213c3580bdd7ef7908fe5d65e5e531bfb5a5572b0
 ---
 # `docs/inventories/GOD_FILE_GUARDRAIL.v1.json`
 

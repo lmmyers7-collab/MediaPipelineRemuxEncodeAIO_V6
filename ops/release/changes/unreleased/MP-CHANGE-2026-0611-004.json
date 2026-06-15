@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0611-004",
+  "title": "Add worker 04 publish completed pending rename audit report",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Adds the worker-04 review-only function/module audit report for publish, completed, pending publish, and rename coverage.",
+  "reason": "The concurrent exhaustive audit request requires a persistent worker report for the assigned W04 slice without modifying implementation or runtime/media state.",
+  "affected_areas": [
+    "documentation",
+    "review_audit",
+    "publish",
+    "completed",
+    "pending_publish",
+    "rename"
+  ],
+  "behavior_before": "No lowercase worker-04 report existed at the requested output path.",
+  "behavior_after": "The requested worker report records verified source-review coverage, findings, test gaps, and boundary risks for the W04 slice.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-04-publish-completed-pending-rename.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-004.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, docs/reviews/function-module-audit-2026-06-11/ASSIGNMENTS.md, and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md.",
+    "Checked generated summaries for all 66 assigned W04 files before opening source.",
+    "Reviewed assigned W04 publish/completed/pending/rename source files without modifying implementation, runtime, media, queue, pending-publish, completed, or rename state.",
+    "No implementation tests, smokes, release builds, runtime/media commands, pending drains, rename applies, or real-media validation were run; review-only documentation change."
+  ],
+  "rollback_plan": "Remove the worker-04 report and this change packet. No implementation, media, runtime, queue, settings, publish, rename, or launcher state was changed.",
+  "related_changes": [
+    "MP-CHANGE-2026-0610-002"
+  ],
+  "notes": "Review-only worker report. Existing aggregate docs/reviews content and several unreleased change packets were already untracked before this worker pass.",
+  "operator_validation_required": []
+}

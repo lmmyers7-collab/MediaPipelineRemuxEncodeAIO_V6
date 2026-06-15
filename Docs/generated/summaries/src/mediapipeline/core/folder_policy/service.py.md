@@ -2,10 +2,10 @@
 file: src/mediapipeline/core/folder_policy/service.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-06-04
+owner_domain: folder_policy
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 6a3e80a796550d4ad67e0c8d9889eb25e2711171e9801a338a83f5052a2dd82e
+sha256: 1b7f94d47987947d893298501516cc9976c025ce6820bb0dbb97883e1106288c
 ---
 # `src/mediapipeline/core/folder_policy/service.py`
 

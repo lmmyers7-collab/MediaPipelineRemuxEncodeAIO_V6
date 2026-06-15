@@ -18,6 +18,7 @@ from mediapipeline.core.maintenance.release_facade import MaintenanceReleaseFaca
 from mediapipeline.core.library.facade import LibraryRouteMapFacadeMixin
 from mediapipeline.core.metrics.facade import MetricsFacadeMixin
 from mediapipeline.core.network.facade import NetworkFacadeMixin
+from mediapipeline.core.network.lifecycle_facade import NetworkLifecycleFacadeMixin
 from mediapipeline.core.publish.pending_facade import PendingPublishFacadeMixin
 from mediapipeline.core.publish.reconciliation_facade import PublishReconciliationFacadeMixin
 from mediapipeline.core.processes.preflight_facade import ProcessFacadeMixin
@@ -39,8 +40,11 @@ from mediapipeline.core.config.settings_wizard_facade import SettingsWizardFacad
 from mediapipeline.core.orchestration.settings_patch_facade import SettingsPatchFacadeMixin
 from mediapipeline.core.status.facade import StatusFacadeMixin
 from mediapipeline.core.subtitles.facade import SubtitleQaFacadeMixin
+from mediapipeline.core.queue.source_inventory import queue_inventory_source_roots
 from mediapipeline.core.application.utilities import FacadeUtilityMixin
 from .schedule_stop_watcher import ScheduleStopWatcherManager
+from ..watch import WatchContext, WatchFolderManager, watch_folder_state_mapping
+from .network_lifecycle_provider import NetworkLifecycleProviderMixin
 
 
 class MediaPipelineApplicationFacade(
@@ -62,6 +66,8 @@ class MediaPipelineApplicationFacade(
     LibraryRouteMapFacadeMixin,
     MetricsFacadeMixin,
     NetworkFacadeMixin,
+    NetworkLifecycleProviderMixin,
+    NetworkLifecycleFacadeMixin,
     QueueFacadeMixin,
     SubtitleQaFacadeMixin,
     FailureFacadeMixin,
@@ -111,7 +117,52 @@ class MediaPipelineApplicationFacade(
         self._sample_validation_lock = threading.Lock()
         self._schedule_save_lock = threading.Lock()
         self._metrics_state_lock = threading.Lock()
+        self._network_lifecycle_lock = threading.RLock()
+        self._network_lifecycle_state = {}
+        self._network_dispatcher_runtime = {}
         self._schedule_stop_watcher = ScheduleStopWatcherManager()
+        self._watch_folder_manager = WatchFolderManager()
+
+    def _start_watch_folder_manager(self, *, resolved_provider, resolved_reload=None) -> dict:
+        latest_resolved = {"value": None}
+
+        def current_resolved():
+            resolved = latest_resolved.get("value")
+            if resolved is not None:
+                return resolved
+            return resolved_provider()
+
+        def load_settings():
+            resolved = resolved_reload() if callable(resolved_reload) else resolved_provider()
+            latest_resolved["value"] = resolved
+            return dict(getattr(resolved, "config_data", {}) or {})
+
+        def default_watch_roots() -> list[str]:
+            return [str(root.path) for root in queue_inventory_source_roots(current_resolved())]
+
+        def start_pipeline(request: dict) -> object:
+            return self.start_pipeline_process(current_resolved(), request)
+
+        def log(message: str) -> None:
+            logger = getattr(self.service, "logger", None)
+            if logger is not None and hasattr(logger, "info"):
+                logger.info("%s", message)
+
+        self._watch_folder_manager.start(
+            WatchContext(
+                load_settings=load_settings,
+                default_watch_roots=default_watch_roots,
+                start_pipeline=start_pipeline,
+                log=log,
+            )
+        )
+        return self.get_watch_folder_state()
+
+    def _stop_watch_folder_manager(self, reason: str) -> None:
+        self._watch_folder_manager.stop(reason)
+
+    def get_watch_folder_state(self) -> dict:
+        return watch_folder_state_mapping(self._watch_folder_manager)
 
 __all__ = [
     "MediaPipelineApplicationFacade",

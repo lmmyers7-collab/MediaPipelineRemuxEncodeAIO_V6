@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/kernel/dto_base.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: kernel
 last_modified: 2026-06-01
 last_reviewed: 2026-06-04
 sha256: 6e869b3f9a720bd512594bf46b2e98d7e82d1907e280a62a3da562f7c0f18969

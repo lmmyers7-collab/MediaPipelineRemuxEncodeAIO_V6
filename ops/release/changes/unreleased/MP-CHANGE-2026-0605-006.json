@@ -25,7 +25,7 @@
   "tests_added": [],
   "manual_validation": [
     "Final strict coverage: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed due unrelated worktree state: MP-CHANGE-2026-0604-053 missing high/critical notes or rollback detail, MP-CHANGE-2026-0605-007 has invalid type 'fix', and 289 other changed files are not covered by any packet. This packet's files were not listed as uncovered.",
-    "Headless Chrome visual metrics against http://127.0.0.1:39835 Settings > Routing -> passed; table 1094px wide, no horizontal overflow at 1440px viewport, target fields share row, range badges inline-flex, tabular numeric readouts active; screenshot captured at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-settings-route-target-after.png.",
+    "Headless Chrome visual metrics against http://127.0.0.1:39835 Settings > Routing -> passed; table 1094px wide, no horizontal overflow at 1440px viewport, target fields share row, range badges inline-flex, tabular numeric readouts active; screenshot captured at <temp>\\mediapipeline-settings-route-target-after.png.",
     "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui -q -> passed; 38 tests OK after final CSS adjustment.",
     "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1 -> passed; browser-served Settings/Launch smoke OK and did not post Save Patch."
   ],

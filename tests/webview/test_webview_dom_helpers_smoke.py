@@ -41,6 +41,8 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
         let focusCalls = 0;
         let focusPreventScrollCalls = 0;
         let selectedByKeyboard = false;
+        let hiddenRowSelectedByKeyboard = false;
+        let visibleRowSelectedAfterHidden = false;
         let forwardedClickEvent = null;
         let forwardedKeyboardEvent = null;
         let queryAllNodes = [];
@@ -179,9 +181,12 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
             dataset: {{}},
             classList: new FakeClassList(),
             attributes: {{}},
+            hidden: false,
+            style: {{ display: "", visibility: "" }},
             tabIndex: -1,
             parent: tbody,
             setAttribute(key, value) {{ this.attributes[key] = String(value); }},
+            getAttribute(key) {{ return Object.prototype.hasOwnProperty.call(this.attributes, key) ? this.attributes[key] : null; }},
             addEventListener(key, fn) {{ listeners[key] = fn; }},
             closest(selector) {{ return selector === "tbody" ? this.parent : null; }},
             focus(options) {{
@@ -274,7 +279,8 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
 
         const first = rowFactory("first", tbody);
         const second = rowFactory("second", tbody);
-        tbody.rows.push(first, second);
+        const third = rowFactory("third", tbody);
+        tbody.rows.push(first, second, third);
 
         context.window.makeRowSelectable(first, () => {{}}, {{ selected: true }});
         while (rafCallbacks.length) rafCallbacks.shift()();
@@ -296,6 +302,26 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
         if (focusCalls !== 1 || focusPreventScrollCalls !== 1 || !selectedByKeyboard) {{
           throw new Error("keyboard row movement should still focus and select the next row");
         }}
+
+        second.hidden = true;
+        context.window.makeRowSelectable(second, () => {{ hiddenRowSelectedByKeyboard = true; }}, {{ selected: false }});
+        context.window.makeRowSelectable(third, () => {{ visibleRowSelectedAfterHidden = true; }}, {{ selected: false }});
+        function assertSecondRowSkipped(label) {{
+          hiddenRowSelectedByKeyboard = false;
+          visibleRowSelectedAfterHidden = false;
+          first.keydown("ArrowDown");
+          if (hiddenRowSelectedByKeyboard || !visibleRowSelectedAfterHidden) {{
+            throw new Error("keyboard row movement should skip " + label + " rows");
+          }}
+        }}
+        assertSecondRowSkipped("hidden");
+        second.hidden = false;
+        second.style.display = "none";
+        assertSecondRowSkipped("display:none");
+        second.style.display = "";
+        second.setAttribute("aria-hidden", "true");
+        assertSecondRowSkipped("aria-hidden");
+        second.setAttribute("aria-hidden", "false");
 
         context.window.makeRowSelectable(second, (event) => {{ forwardedClickEvent = event; }}, {{ selected: false }});
         second.click({{ ctrlKey: true, shiftKey: true }});
@@ -466,7 +492,8 @@ class WebViewDomHelpersSmoke(unittest.TestCase):
 
         self.assertTrue(result["ok"])
         self.assertEqual(result["scrollCalls"], 1)
-        self.assertEqual(result["focusCalls"], 1)
+        self.assertEqual(result["focusCalls"], 4)
+        self.assertEqual(result["focusPreventScrollCalls"], 4)
         self.assertTrue(result["selectedByKeyboard"])
         self.assertEqual(result["calloutScrollTop"], 48)
         self.assertEqual(result["stableWrapTop"], 90)

@@ -3,6 +3,17 @@
 
 . (Join-Path $PSScriptRoot 'publish_completion\context_builders.ps1')
 
+function Get-PendingParkResultOutputSize {
+    param($ParkResult)
+
+    try {
+        if ($ParkResult -and $ParkResult.PSObject.Properties['OutputSize'] -and $null -ne $ParkResult.OutputSize) {
+            return [long]$ParkResult.OutputSize
+        }
+    } catch {}
+    return 0L
+}
+
 function Complete-PipelineOutputPublish {
     param(
         [Parameter(Mandatory)] $SourceFile,
@@ -36,14 +47,14 @@ function Complete-PipelineOutputPublish {
     if ($script:DeferredPublish) {
         Set-ProgressStage -Stage 'push' -Status $script:pipelineStatus -Route $ProgressRoute -PushState 'deferred' -Percent 100 -SaveNow
         $parkArgs = New-PendingParkArguments -EvidenceContext $publishEvidence -SourceFile $SourceFile -Paths $Paths -Route $Route -PublishMode 'deferred'
-        if (-not (Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context)) {
+        $parkResult = Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context
+        if (-not $parkResult) {
             Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-deferred-publish" -Reason 'Deferred publish is enabled but the completed local output and subtitle sidecars could not be parked' -Classification 'transient' -ArtifactPath $Paths.LocalOut -SuggestedAction 'Inspect scratch-disk write permissions or PendingServerPush availability.'
             return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'deferred' -OutputPath $Paths.LocalOut -Reason 'Deferred publish park failed'
         }
         Clear-SourceFailureState $SourceFile
         Write-Log "$logPrefix deferred publish: parked $(Split-Path $Paths.ServerOut -Leaf) in PendingServerPush for later upload"
-        $localSize = (Get-Item -LiteralPath $Paths.LocalOut -ErrorAction SilentlyContinue).Length
-        return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes ([long]$localSize)
+        return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes (Get-PendingParkResultOutputSize -ParkResult $parkResult)
     }
 
     $tx3gPublishPlan = New-Tx3gSrtSidecarPublishPlan -Tx3gTracks @($Tx3gTracks) -MediaOutputPath $Paths.ServerOut -Context $Context
@@ -96,7 +107,8 @@ function Complete-PipelineOutputPublish {
             Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-push" -Reason 'Server push failed; local output parked for retry' -Classification 'transient' -ArtifactPath $Paths.LocalOut -SuggestedAction 'Inspect share connectivity or free space; the verified local output is parked in PendingServerPush for the next retry.'
         }
         $parkArgs = New-PendingParkArguments -EvidenceContext $publishEvidence -SourceFile $SourceFile -Paths $Paths -Route $Route -PublishMode $(if ($copyFailureIsOutputSpace) { 'output-space-deferred' } else { 'retry' })
-        if (-not (Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context)) {
+        $parkResult = Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context
+        if (-not $parkResult) {
             Write-Log "${logPrefix}: could not park the verified local output and tx3g sidecars after push failure; leaving output in place at $($Paths.LocalOut)" "ERROR"
             if ($copyFailureIsOutputSpace) {
                 $reason = if ([string]::IsNullOrWhiteSpace($copyFailureReason)) {
@@ -125,8 +137,7 @@ function Complete-PipelineOutputPublish {
         if ($copyFailureIsOutputSpace) {
             Clear-SourceFailureState $SourceFile
             Write-Log "$logPrefix output-space deferred publish: parked $(Split-Path $Paths.ServerOut -Leaf) in PendingServerPush; not counted as a processing failure"
-            $localSize = (Get-Item -LiteralPath $Paths.LocalOut -ErrorAction SilentlyContinue).Length
-            return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'output-space-deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes ([long]$localSize) -ParkedForOutputSpace:$true
+            return New-PipelinePublishResult -Ok:$true -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'pending_publish' -PublishMode 'output-space-deferred' -OutputPath $Paths.ServerOut -OutputSizeBytes (Get-PendingParkResultOutputSize -ParkResult $parkResult) -ParkedForOutputSpace:$true
         }
         return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'retry' -OutputPath $Paths.LocalOut -Reason 'Server push failed; output parked for retry'
     }
@@ -203,6 +214,8 @@ function Complete-PipelineOutputPublish {
     }
     if ($libraryProfileEvidence) { $sidecarExtra['library_profile'] = $libraryProfileEvidence }
     if ($folderPolicyMetadata) { $sidecarExtra['folder_policy'] = $folderPolicyMetadata }
+    if ($script:CurrentDynamicHdrEvidence) { $sidecarExtra['dynamic_hdr'] = $script:CurrentDynamicHdrEvidence }
+    if ($script:LastQualityVerification) { $sidecarExtra['quality_verification'] = $script:LastQualityVerification }
     if (Get-Command -Name Add-MediaRoutePlanMetadataToMap -ErrorAction SilentlyContinue) {
         Add-MediaRoutePlanMetadataToMap -Map $sidecarExtra -Metadata $routePlanMetadata | Out-Null
     } elseif ($routePlanMetadata) {
@@ -210,6 +223,18 @@ function Complete-PipelineOutputPublish {
     }
 
     $publishSidecarBackup = Backup-PublishSidecarForReveal -OutputPath $Paths.ServerOut -PublishTransactionId $publishTxn -Context $Context
+    if (-not (Test-PublishSidecarBackupReadyForReveal -Backup $publishSidecarBackup)) {
+        Write-Log "${logPrefix}: existing publish sidecar could not be backed up before final media reveal — removing server partial and parking local copy for retry" "ERROR"
+        Set-ProgressStage -Stage 'sidecar' -Status $script:pipelineStatus -Route $ProgressRoute -SidecarState 'failed' -Percent $null -SaveNow
+        Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage "$stageName-sidecar-backup" -Reason 'Existing final sidecar could not be backed up before final media reveal' -Classification 'transient' -SuggestedAction 'Inspect share permissions or locks on the existing pipeline sidecar; final server media was not revealed and the local output is being parked for retry.'
+        $parkArgs = New-PendingParkArguments -EvidenceContext $publishEvidence -SourceFile $SourceFile -Paths $Paths -Route $Route -PublishMode 'retry'
+        if (-not (Invoke-ParkPendingPushWithTx3gSidecars -SourceFile $SourceFile -ScratchPath $ScratchPath -Tx3gTracks @($Tx3gTracks) -BdpgsTracks @($BdpgsTracks) -VobSubTracks @($VobSubTracks) -MediaOutputPath $Paths.ServerOut -ParkArgs $parkArgs -Context $Context)) {
+            Write-Log "${logPrefix}: could not park the verified local output after sidecar backup failure; leaving it in place at $($Paths.LocalOut)" "ERROR"
+        }
+        Undo-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published) -Context $Context
+        Remove-PublishPartialMedia -Path $serverPartialOut
+        return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'retry' -OutputPath $Paths.LocalOut -Reason 'Existing final sidecar backup failed before final media reveal'
+    }
     Set-ProgressStage -Stage 'sidecar' -Status $script:pipelineStatus -Route $ProgressRoute -SidecarState 'writing' -Percent $null -SaveNow
     if (Get-Command -Name Write-SubtitleSidecarProgress -ErrorAction SilentlyContinue) {
         Write-SubtitleSidecarProgress -Status 'Writing pipeline sidecar subtitle evidence' -Detail (Split-Path -Leaf (Get-SidecarPath $Paths.ServerOut))
@@ -226,7 +251,7 @@ function Complete-PipelineOutputPublish {
             Write-Log "${logPrefix}: could not park the verified local output after sidecar failure; leaving it in place at $($Paths.LocalOut)" "ERROR"
         }
         Undo-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published) -Context $Context
-        Restore-PublishSidecarAfterRevealFailure -OutputPath $Paths.ServerOut -BackupPath $publishSidecarBackup -Context $Context
+        Restore-PublishSidecarAfterRevealFailure -OutputPath $Paths.ServerOut -Backup $publishSidecarBackup -Context $Context
         Remove-PublishPartialMedia -Path $serverPartialOut
         return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'retry' -OutputPath $Paths.LocalOut -Reason 'Sidecar write failed before final media reveal'
     }
@@ -244,7 +269,7 @@ function Complete-PipelineOutputPublish {
             Write-Log "${logPrefix}: could not park the verified local output after publish reveal failure; leaving it in place at $($Paths.LocalOut)" "ERROR"
         }
         Undo-PublishedSidecarFiles -PublishedSidecars @($tx3gSidecars.Published) -Context $Context
-        Restore-PublishSidecarAfterRevealFailure -OutputPath $Paths.ServerOut -BackupPath $publishSidecarBackup -Context $Context
+        Restore-PublishSidecarAfterRevealFailure -OutputPath $Paths.ServerOut -Backup $publishSidecarBackup -Context $Context
         Remove-PublishPartialMedia -Path $serverPartialOut
         return New-PipelinePublishResult -Ok:$false -DeleteLocalOutput:$false -KeepScratchInput:$false -PublishState 'failed' -PublishMode 'retry' -OutputPath $Paths.LocalOut -Reason 'Final media reveal failed'
     }

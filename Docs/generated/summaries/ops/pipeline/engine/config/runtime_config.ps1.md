@@ -3,9 +3,9 @@ file: ops/pipeline/engine/config/runtime_config.ps1
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-05
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 92831890291776ef4eb72d89d1907b3464d48865a0f407f76986c96567f4fa40
+sha256: 502827f1b065f763bf39e0a0dc145b9e1c9e7600883f7df353726dc2dcd19b15
 ---
 # `ops/pipeline/engine/config/runtime_config.ps1`
 

@@ -141,7 +141,7 @@ def git_staged_candidates() -> list[ChangedPath]:
 
 def git_diff_candidates(base_ref: str) -> list[ChangedPath]:
     result = subprocess.run(
-        ["git", "diff", "--name-status", "--diff-filter=ACR", base_ref, "HEAD"],
+        ["git", "diff", "--name-status", "--diff-filter=ACR", f"{base_ref}...HEAD"],
         cwd=REPO_ROOT,
         check=True,
         text=True,

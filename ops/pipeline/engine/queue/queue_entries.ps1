@@ -136,7 +136,8 @@ function New-MediaQueueItem {
         [string] $LibraryOutputRoot = '',
         [hashtable] $Metadata = @{},
         # Manifest-derived priority level: "high" | "normal" | "low" | "hold"
-        [string] $ManifestPriority = 'normal'
+        [string] $ManifestPriority = 'normal',
+        [bool] $ManifestPriorityExplicit = $false
     )
 
     if ($null -eq $PriorityInfo) {
@@ -170,7 +171,7 @@ function New-MediaQueueItem {
 
     # Effective priority: manifest wins over filesystem marker when set.
     # FS marker alone → "high" (backward compat). No marker, no manifest → "normal".
-    $effectiveLevel = if ($ManifestPriority -ne 'normal') {
+    $effectiveLevel = if ($ManifestPriorityExplicit) {
         $ManifestPriority
     } elseif ([bool]$PriorityInfo.IsPriority) {
         'high'
@@ -191,6 +192,7 @@ function New-MediaQueueItem {
         IsPriority             = [bool]$PriorityInfo.IsPriority
         PriorityOrderTicks     = $priorityTicks
         ManifestPriority       = $ManifestPriority
+        ManifestPriorityExplicit = [bool]$ManifestPriorityExplicit
         EffectivePriorityLevel = $effectiveLevel
         IsHold                 = ($effectiveLevel -eq 'hold')
         IsLowPriority          = ($effectiveLevel -eq 'low')
@@ -228,6 +230,7 @@ function ConvertTo-MediaQueueItemRecord {
         is_tv                   = [bool]$QueueItem.IsTV
         is_priority             = [bool]$QueueItem.IsPriority
         manifest_priority_level = [string]$QueueItem.EffectivePriorityLevel
+        manifest_priority_explicit = [bool]$QueueItem.ManifestPriorityExplicit
         queue_index             = [int]$QueueItem.QueueIndex
         queue_total             = [int]$QueueItem.QueueTotal
         sort_name               = [string]$QueueItem.SortName
@@ -262,6 +265,7 @@ function Get-QueuedEntries {
         if ($null -eq $file) { continue }
         $priorityInfo = Get-SourcePriorityInfo $file
         $manifestLevel = Get-ManifestPriorityLevel -Manifest $PriorityManifest -SourcePath ([string]$file.FullName)
+        $manifestExplicit = Test-ManifestPriorityEntryApplies -Manifest $PriorityManifest -SourcePath ([string]$file.FullName)
         $sortName = Remove-PriorityMarkersFromName ([System.IO.Path]::GetFileNameWithoutExtension($file.Name))
         $relativePath = Get-QueueRelativePath -FileInfo $file -RootPath $RootPath
         $showSortKey = $sortName
@@ -313,7 +317,8 @@ function Get-QueuedEntries {
             -LibraryDesignation ([string]($LibraryProfileMetadata['designation'])) `
             -LibraryOutputRoot ([string]($LibraryProfileMetadata['output_root'])) `
             -Metadata $(if ($LibraryProfileMetadata) { $LibraryProfileMetadata } else { @{} }) `
-            -ManifestPriority $manifestLevel
+            -ManifestPriority $manifestLevel `
+            -ManifestPriorityExplicit $manifestExplicit
     }
 
     if ($null -eq $entries) { return @() }
@@ -366,4 +371,3 @@ function Set-QueueEntryRuntimeMetadata {
     }
     return @($items)
 }
-

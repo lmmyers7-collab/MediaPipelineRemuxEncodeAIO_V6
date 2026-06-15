@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0614-001",
+  "title": "Fix verified release package build before zip",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-13",
+  "summary": "Fixes release package verification blockers that prevented Create Deployment with Verify and Zip from reaching the zip creation step.",
+  "reason": "A failed package from 2026-06-13 showed release verification exiting before zip creation because package-mode dependency checks were blocked by a new network core-to-desktop import and by optional network discovery dependency checks tied to the operator's local NetworkRole.",
+  "affected_areas": [
+    "lifecycle",
+    "network",
+    "network-lifecycle",
+    "release-packaging",
+    "security",
+    "tests",
+    "validation",
+    "webview"
+  ],
+  "behavior_before": "Create Deployment with Verify and Zip could leave a complete release folder and manifest but no zip because release self-test exited before the zip step.",
+  "behavior_after": "Release self-test keeps normal operator environment checks strict, but package verification treats missing optional network discovery dependencies as advisory, and network lifecycle code no longer adds new core-to-desktop dependency findings.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0614-001.json.md",
+    "docs/generated/summaries/ops/scripts/dev/verify-env.ps1.md",
+    "docs/generated/summaries/ops/scripts/release/test.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/lifecycle_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-001.json",
+    "ops/scripts/dev/verify-env.ps1",
+    "ops/scripts/release/test.ps1",
+    "src/mediapipeline/core/network/lifecycle_facade.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "manual_validation": [
+    "check_dependency_boundaries --max-internal-imports 1 - passed with unallowlisted hard findings: 0",
+    "py_compile src/mediapipeline/core/network/lifecycle_facade.py - passed",
+    "release build -Zip -Verify -IncludeTauriPreviewBinary to MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_codex_zipfix_20260614_000001 - passed; zip written",
+    "unittest tests.python.desktop.test_tauri_shell_scaffold tests.python.desktop.test_application_facade_network with PYTHONPATH=src - passed (91 tests)",
+    "validate_changes --require-worktree-coverage - failed only for unrelated uncovered dependency-atlas image files: docs/generated/dependency-atlas/assets/dependency_detail_core_library.png, docs/generated/dependency-atlas/assets/dependency_detail_core_library.svg, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.png, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.svg",
+    "verify-env.ps1 -AllowMissingConfig -ReleasePackageVerification - passed; worker-mode zeroconf warning advisory"
+  ],
+  "rollback_plan": "Revert the touched release verifier, environment verifier, network lifecycle import, and focused test updates, then rerun release self-test/package build validation.",
+  "related_changes": [
+    "MP-CHANGE-2026-0613-019"
+  ],
+  "notes": "Change packet opened after reproducing the 2026-06-13 package verifier failure from MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_20260613_205854.\nReplaced network lifecycle desktop imports with core kernel imports and added package-only optional-network verification mode.\nRefreshed summaries for touched release/network/test/change files.\nStrict change coverage was rerun after the verified zip build; MP-CHANGE-2026-0614-001 files are covered, but unrelated generated dependency-atlas image files remain dirty outside any unreleased packet."
+}

@@ -116,6 +116,7 @@ class NetworkCoordinatorStartupTests(unittest.TestCase):
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
         dispatcher._mdns = object()
         dispatcher._coord_port = lambda: 7830
+        dispatcher._coord_bind_address = lambda: "127.0.0.1"
 
         with (
             patch(
@@ -134,8 +135,9 @@ class NetworkCoordinatorStartupTests(unittest.TestCase):
 
     def test_coordinator_mdns_registration_failure_does_not_mark_advertiser_active(self) -> None:
         class RegistrationFailedAdvertiser:
-            def __init__(self, port: int) -> None:
+            def __init__(self, port: int, bind_address: str = "0.0.0.0") -> None:
                 self.port = port
+                self.bind_address = bind_address
 
             def start(self) -> bool:
                 return False
@@ -143,6 +145,7 @@ class NetworkCoordinatorStartupTests(unittest.TestCase):
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
         dispatcher._mdns = object()
         dispatcher._coord_port = lambda: 7830
+        dispatcher._coord_bind_address = lambda: "192.168.1.25"
 
         with (
             patch("mediapipeline.desktop.network.mdns.CoordinatorAdvertiser", RegistrationFailedAdvertiser),

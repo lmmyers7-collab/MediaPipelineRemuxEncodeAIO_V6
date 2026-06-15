@@ -18,7 +18,7 @@
             <strong id="pending-health-count">0</strong>
           </section>
         </div>
-        <section class="panel live-run-strip-panel" data-panel-type="evidence">
+        <section class="panel live-run-strip-panel" data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Live Run</h2>
             <strong id="pending-live-run-status" data-state="unknown">Checking</strong>
@@ -29,6 +29,51 @@
               <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
             </span>
           </div>
+        </section>
+        <section class="panel pending-action-center" data-layout-editor-exclude data-panel-type="interactive">
+          <div class="pending-action-center-header">
+            <div>
+              <h2>Pending Publish Action Center</h2>
+              <p id="pending-action-subtitle" class="note">Load backend pending-publish evidence to see the next safe action.</p>
+            </div>
+            <strong id="pending-action-status" data-state="unknown">Not loaded</strong>
+          </div>
+          <div class="pending-action-layout" aria-live="polite">
+            <div class="pending-action-primary">
+              <span class="metric-label">Next action</span>
+              <strong id="pending-action-primary">Refresh evidence</strong>
+              <p id="pending-action-reason" class="note">Backend evidence has not been loaded yet.</p>
+            </div>
+            <div class="pending-action-filter-grid" aria-label="Pending publish triage filters">
+              <button type="button" class="pending-action-filter" data-pending-action-filter="ready">
+                <span>Ready to drain</span>
+                <strong id="pending-action-ready-count" class="num">0</strong>
+                <small>backend-ready looking</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="review">
+                <span>Needs review</span>
+                <strong id="pending-action-review-count" class="num">0</strong>
+                <small>warning or read-first rows</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="evidence">
+                <span>Evidence missing</span>
+                <strong id="pending-action-evidence-count" class="num">0</strong>
+                <small>payload or sidecar gaps</small>
+              </button>
+              <button type="button" class="pending-action-filter" data-pending-action-filter="blocked">
+                <span>Blocked</span>
+                <strong id="pending-action-blocked-count" class="num">0</strong>
+                <small>do-not-drain evidence</small>
+              </button>
+            </div>
+          </div>
+          <div class="pending-action-controls action-row action-row-left wrap-actions">
+            <button type="button" id="pending-action-drain-button" class="danger-button">Drain Ready Parked Outputs</button>
+            <button type="button" id="pending-action-refresh-button" class="secondary-button">Refresh Evidence</button>
+            <button type="button" id="pending-action-blockers-button" class="secondary-button">Show Blockers</button>
+          </div>
+          <p id="pending-action-feedback" class="note">Action Center controls use existing backend-owned Pending Publish commands and local display filters.</p>
+          <pre id="pending-action-detail" class="prose-block">No Pending Publish action evidence loaded.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -67,7 +112,7 @@
           <pre id="pending-drain-detail" class="prose-block">No pending publish drain result.</pre>
           <pre id="pending-drain-history" class="prose-block">No pending publish drain history loaded.</pre>
         </section>
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel" data-layout-editor-exclude data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Pending Refresh</h2>
             <strong>Backend scan</strong>
@@ -76,7 +121,7 @@
             <button class="secondary-button" type="button" data-page-refresh-button="pending">Refresh Pending</button>
           </div>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Pending Items</h2>
             <strong id="pending-status">No rows</strong>
@@ -86,7 +131,7 @@
             <p class="note">No pending inventory progress loaded.</p>
           </div>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Parked Files</h2>
             <strong id="pending-file-inventory-status">Not loaded</strong>
@@ -136,7 +181,7 @@
           </div>
           <pre id="pending-validation" class="prose-block">No pending publish validation checklist loaded.</pre>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Next Step</h2>
             <strong id="pending-workflow-status">Not loaded</strong>
@@ -171,7 +216,7 @@
           </div>
           <p id="pending-review-legend" class="note table-legend">Pending publish review rows: no selectable rows.</p>
         </section>
-        <section class="panel" data-advanced data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Evidence</h2>
             <strong id="pending-evidence-status">Not loaded</strong>
@@ -233,7 +278,7 @@
           <pre id="pending-recovery-plan-row-detail" class="prose-block">No recovery-plan row selected.</pre>
           <pre id="pending-recovery-plan-history" class="prose-block">No pending publish recovery plan history loaded.</pre>
         </section>
-        <section class="panel" data-advanced data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Confidence</h2>
             <strong id="pending-drain-confidence-status">Not evaluated</strong>
@@ -260,7 +305,7 @@
           </div>
           <p id="pending-drain-confidence-legend" class="note table-legend">Drain confidence rows are read-only and do not move, publish, repair, delete, rewrite, or bypass backend validation.</p>
         </section>
-        <section class="panel" data-advanced data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Scope</h2>
             <strong id="pending-backend-scope-status">Not evaluated</strong>
@@ -287,7 +332,7 @@
           </div>
           <p id="pending-backend-scope-legend" class="note table-legend">Backend drain scope rows are read-only and do not move, publish, repair, delete, rewrite, or bypass backend validation.</p>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Checklist</h2>
             <strong id="pending-drain-decision-status">Not evaluated</strong>
@@ -315,14 +360,14 @@
           <p id="pending-drain-decision-legend" class="note table-legend">Pending drain decision rows: no selectable rows.</p>
           <pre id="pending-drain-decision-detail" class="prose-block">Select a drain decision checkpoint before draining parked outputs.</pre>
         </section>
-        <section class="panel" data-advanced data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Comparison</h2>
             <strong id="pending-drain-correlation-status">Not loaded</strong>
           </div>
           <pre id="pending-drain-correlation" class="prose-block">No pending publish drain correlation loaded.</pre>
         </section>
-        <section class="panel" data-advanced data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Post-Drain Review</h2>
             <strong id="pending-post-drain-trust-status">Not evaluated</strong>
@@ -350,14 +395,14 @@
           <p id="pending-post-drain-trust-legend" class="note table-legend">Post-drain trust rows are read-only and do not move, publish, repair, delete, rewrite, or mark outputs complete.</p>
           <pre id="pending-post-drain-trust-detail" class="prose-block">Select a post-drain trust checkpoint after publishing parked outputs.</pre>
         </section>
-        <section class="panel" data-panel-type="evidence">
+        <section class="panel" data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Recent Events</h2>
             <strong id="pending-drain-events-status">Not loaded</strong>
           </div>
           <pre id="pending-drain-events" class="prose-block">No pending publish drain events loaded.</pre>
         </section>
-        <section class="panel" data-advanced data-panel-type="evidence">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Last Drain</h2>
             <strong id="pending-drain-summary-status">Not loaded</strong>
@@ -392,6 +437,7 @@
                 <option value="missing_payload">Missing payload</option>
                 <option value="invalid_manifest">Invalid manifest</option>
                 <option value="missing_sidecars">Missing sidecars</option>
+                <option value="evidence_missing">Evidence missing</option>
                 <option value="orphan_payload">Orphan payload</option>
                 <option value="ready_to_drain">Ready to drain</option>
               </select>

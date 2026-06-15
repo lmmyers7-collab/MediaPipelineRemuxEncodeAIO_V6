@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/kernel/config_locations.py
 pipeline_stage: config
 token_priority: medium
-owner_domain: unknown
+owner_domain: kernel
 last_modified: 2026-06-02
 last_reviewed: 2026-06-04
 sha256: 429180900d0058b7f0834d78879a205b5349b7a99731564b111bee47d75e56f5

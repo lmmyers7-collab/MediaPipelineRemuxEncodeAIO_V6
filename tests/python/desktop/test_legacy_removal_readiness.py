@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import subprocess
 import sys
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -135,7 +137,7 @@ class LegacyRemovalReadinessTests(unittest.TestCase):
             "Pipeline/Modules/Audio.ps1",
         ]
         text_by_path = {
-            "Pipeline/Modules/Routing.ps1": "Compatibility shim\n. ops\pipeline\engine\\decide\\routing.ps1",
+            "Pipeline/Modules/Routing.ps1": "Compatibility shim\n. ops\\pipeline\\engine\\decide\\routing.ps1",
             "Pipeline/Modules/Audio.ps1": "function Build-AudioArgs {}",
         }
 
@@ -154,6 +156,30 @@ class LegacyRemovalReadinessTests(unittest.TestCase):
             "File kinds: compatibility_shim=1, implementation=1",
             readiness.render_report([status]),
         )
+
+    def test_git_ls_files_falls_back_when_not_a_git_work_tree(self) -> None:
+        # Exit 128 is git's "not a git repository" status, which happens when the
+        # check runs inside a shipped release package. It must not crash.
+        error = subprocess.CalledProcessError(128, ["git", "ls-files"])
+        with mock.patch.object(readiness.subprocess, "run", side_effect=error), mock.patch.object(
+            readiness, "_filesystem_ls_files", return_value=["README.md"]
+        ) as fallback:
+            self.assertEqual(readiness._git_ls_files(), ["README.md"])
+        fallback.assert_called_once_with()
+
+    def test_git_ls_files_falls_back_when_git_is_missing(self) -> None:
+        with mock.patch.object(readiness.subprocess, "run", side_effect=FileNotFoundError), mock.patch.object(
+            readiness, "_filesystem_ls_files", return_value=["README.md"]
+        ):
+            self.assertEqual(readiness._git_ls_files(), ["README.md"])
+
+    def test_git_ls_files_reraises_other_git_failures(self) -> None:
+        error = subprocess.CalledProcessError(1, ["git", "ls-files"])
+        with mock.patch.object(readiness.subprocess, "run", side_effect=error), mock.patch.object(
+            readiness, "_filesystem_ls_files", return_value=["README.md"]
+        ):
+            with self.assertRaises(subprocess.CalledProcessError):
+                readiness._git_ls_files()
 
     def test_report_includes_counts_categories_and_examples(self) -> None:
         status = readiness.FamilyStatus(

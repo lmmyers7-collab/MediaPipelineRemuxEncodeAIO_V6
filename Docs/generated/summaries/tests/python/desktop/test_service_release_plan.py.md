@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_release_plan.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-09
 last_reviewed: 2026-06-04
-sha256: 00ca086e22a925a257a56275cec8c085ff55634cf7e9d06141d839cf5412eae9
+sha256: 9a74ce0fabd223aa46f4fed940ac0c26e058e414c370c5b721990da20dc48ee8
 ---
 # `tests/python/desktop/test_service_release_plan.py`
 

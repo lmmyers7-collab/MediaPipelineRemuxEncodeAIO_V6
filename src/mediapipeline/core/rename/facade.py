@@ -6,6 +6,7 @@ from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.rename.policy import (
     rename_apply_blockers_result,
+    rename_apply_active_work_result,
     rename_apply_busy_result,
     rename_apply_confirmation_required_result,
     rename_apply_exception_result,
@@ -14,6 +15,7 @@ from mediapipeline.core.rename.policy import (
     rename_apply_outside_configured_roots_result,
     rename_apply_service_unavailable_result,
     rename_apply_success_result,
+    rename_apply_unscoped_operator_paths_result,
     annotate_rename_plan_path_authority,
     normalize_rename_template_preset,
     rename_configured_media_roots_from_request,
@@ -21,6 +23,7 @@ from mediapipeline.core.rename.policy import (
     rename_plan_kwargs_from_request,
     rename_plan_build_exception_result,
     rename_plan_outside_configured_roots,
+    rename_plan_unscoped_operator_paths,
     rename_clean_filename_preview_from_request,
     rename_preview_change_kind_counts,
     rename_preview_confidence_counts,
@@ -98,7 +101,7 @@ class RenameFacadeMixin:
     def get_rename_movie_filter_catalog(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
         return rename_movie_filter_catalog_payload(config)
 
-    def apply_rename_selection(self, request: dict[str, Any]) -> CommandResult:
+    def apply_rename_selection(self, request: dict[str, Any], resolved: Any | None = None) -> CommandResult:
         """Apply a selected rename plan rebuilt by the backend from the current request."""
         if request.get("confirm_apply") is not True:
             return rename_apply_confirmation_required_result()
@@ -112,6 +115,10 @@ class RenameFacadeMixin:
         if block_message:
             return rename_apply_busy_result(block_message)
         try:
+            if resolved is not None:
+                active_work_block = self._active_work_block_message(resolved, "Rename apply")
+                if active_work_block:
+                    return rename_apply_active_work_result(active_work_block)
             try:
                 plan = self._build_rename_plan_from_request(request)
             except Exception as exc:
@@ -122,6 +129,9 @@ class RenameFacadeMixin:
             blockers = [row for row in selected_plan if row.get("errors")]
             if blockers:
                 return rename_apply_blockers_result(blockers)
+            unscoped_paths = rename_plan_unscoped_operator_paths(selected_plan)
+            if unscoped_paths:
+                return rename_apply_unscoped_operator_paths_result(unscoped_paths)
             outside_roots = rename_plan_outside_configured_roots(selected_plan)
             if outside_roots and not rename_request_allows_outside_configured_roots(request):
                 return rename_apply_outside_configured_roots_result(outside_roots)

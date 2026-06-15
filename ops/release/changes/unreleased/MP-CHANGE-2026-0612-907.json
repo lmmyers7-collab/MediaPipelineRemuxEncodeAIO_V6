@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0612-907",
+  "title": "Block wizard output source path overlap",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-12",
+  "date_completed": "2026-06-12",
+  "summary": "Settings Wizard path validation now blocks final output, per-library output, and promotion destination folders that exactly match any enabled source library folder.",
+  "reason": "The wizard must keep completed-output destinations separate from source libraries so coordinator setup does not create a source/output overlap that conflicts with the project's no-touch source boundary.",
+  "affected_areas": [
+    "settings-wizard",
+    "source-output-safety"
+  ],
+  "behavior_before": "The wizard blocked Scratch / LocalBase when it matched an enabled source library, but it did not block Final output root, a library output destination, or a promotion destination from matching a source library path.",
+  "behavior_after": "The wizard blocks Preview Config and Save & Reload when Final output root, an explicit library output destination, or an enabled promotion destination exactly matches any enabled source library path.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0612-907.json",
+    "src/mediapipeline/core/config/settings_wizard.py",
+    "tests/python/desktop/test_settings_wizard_policy.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_settings_wizard_policy.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_config_preview tests.python.desktop.test_service_config_save_runner tests.python.desktop.test_application_facade_settings_patch - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_settings_wizard_policy - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - blocked by unrelated invalid packet ops/release/changes/unreleased/MP-CHANGE-2026-0613-004.json type bug_fix"
+  ],
+  "rollback_plan": "Revert the source/output overlap validation additions in src/mediapipeline/core/config/settings_wizard.py and the related tests in tests/python/desktop/test_settings_wizard_policy.py.",
+  "related_changes": [],
+  "notes": "Add wizard validation blockers when output roots equal enabled source roots."
+}

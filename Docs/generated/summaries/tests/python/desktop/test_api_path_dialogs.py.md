@@ -3,9 +3,9 @@ file: tests/python/desktop/test_api_path_dialogs.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 160763b5b95a7ea9efeb6096a4aac83fe53930ee017e745a27e0555dd5670122
+sha256: 047bdff0ac45b8e529a4f60ebee2c1d12859ea537a29620d4f181f3b60b56fbd
 ---
 # `tests/python/desktop/test_api_path_dialogs.py`
 

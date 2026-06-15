@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/scheduleView.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-06
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 794aa43cfc554ae89adee9f5eb3f0985dd4238eaa4d218c3bbcc26583f5b98e4
+sha256: bcfa2353cf65b183c0206779c2b4564a7d1aabd7b6636a79495b5662a3bc2e73
 ---
 # `apps/desktop/webview/static/assets/scheduleView.js`
 

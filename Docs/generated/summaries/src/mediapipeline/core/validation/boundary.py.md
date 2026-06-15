@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/validation/boundary.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: validation
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 94ff7ca0bb566f0e69ca9845e54e2ec2aa4c7a91d37903f0320620148d7e553a

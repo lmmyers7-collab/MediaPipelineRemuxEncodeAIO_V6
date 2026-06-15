@@ -3,9 +3,9 @@ file: ops/pipeline/engine/paths/path_capability.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: paths
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 74fb7c3816ebf9f29a6c9bace91515c8e01386c0771366d21cc8f06479329606
+sha256: bde9ab7e3860c262e9be5b807a1b75cddc35a92a651d23a7b0ace3a1e6ff0f2d
 ---
 # `ops/pipeline/engine/paths/path_capability.ps1`
 

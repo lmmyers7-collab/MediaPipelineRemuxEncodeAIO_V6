@@ -75,13 +75,14 @@
         setText("settings-queue-builder-status", "Invalid queue value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
       writeSettingsPatchJson(patch, "Queue builder merged priority, processed-index refresh, and reprocess keys into Changes JSON. Preview or Save still uses backend validation.");
       queueSettingsBuilderState.initialized = true;
       queueSettingsBuilderState.dirty = true;
       setText("settings-queue-builder-status", `${Object.keys(patch).length} queue patch keys ready`);
       renderQueueSettingsBuilderGuidance();
+      return true;
     }
 
     function renderQueueSettingsBuilderGuidance() {

@@ -95,7 +95,7 @@ Assert-Contains $moduleMapText 'must not infer drain safety or move parked paylo
 foreach ($name in $requiredModuleFiles.Keys) {
     Assert-Contains $moduleMapText $ownershipDocPaths[$name] "MODULE_MAP.md must list ownership for $name."
 }
-Assert-Contains $moduleMapText 'app/publish/pending_*.py' 'MODULE_MAP.md must list pending-publish service ownership.'
+Assert-Contains $moduleMapText 'src/mediapipeline/core/publish/pending_*.py' 'MODULE_MAP.md must list pending-publish service ownership.'
 Assert-Contains $moduleMapText 'Durable media-plus-sidecar park transaction' 'PendingTransactions ownership must include durable media-plus-sidecar transactions.'
 Assert-Contains $moduleMapText 'low-space/unknown-space deferred parking decision' 'PublishCompletion ownership must include low-space deferred parking.'
 

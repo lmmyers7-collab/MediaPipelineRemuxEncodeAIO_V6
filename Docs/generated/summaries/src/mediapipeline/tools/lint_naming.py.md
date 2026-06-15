@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/lint_naming.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 88e9fa2661cadae5249e7d298f691f1f6b211d210fd523dc0cb56e1c5b5ce710
+sha256: fdba49e6208740df3d0d3112187cfa40c4325190838b19fd95efbff9d3664761
 ---
 # `src/mediapipeline/tools/lint_naming.py`
 

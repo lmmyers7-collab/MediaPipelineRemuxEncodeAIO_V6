@@ -71,6 +71,12 @@ def _browser_rename_runner_source() -> str:
                 if (!actual.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actual);
               }
             }
+            function requireTextAbsent(id, fragments) {
+              const actual = text(id);
+              for (const fragment of fragments) {
+                if (actual.includes(fragment)) throw new Error(id + " unexpectedly included " + fragment + "\\nActual:\\n" + actual);
+              }
+            }
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
@@ -340,6 +346,40 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-detail", ["Serial Experiments Lain - S02E01 - Weird.mkv", "Confidence reason(s): folder season 02 | episode token E01"]);
             requireText("rename-apply-readiness-status", ["Ready"]);
             requireReadiness(["Apply scope", "all applicable preview rows", "Mutation boundary", "/api/rename/apply"]);
+            requireText("rename-batch-safety", ["Apply scope", "if none are checked", "all applicable safe preview rows"]);
+            requireTextAbsent("rename-batch-safety", ["selected detail row"]);
+            const posted = [];
+            window.apiPost = async (url, body) => {
+              posted.push({ url: String(url || ""), body: JSON.parse(JSON.stringify(body || {})) });
+              return { ok: false, command: "rename.apply", message: "mocked browser rename apply" };
+            };
+            const second = {
+              ...first,
+              source: "C:/TV/Season 02/Serial Experiments Lain E02 Girls.mkv",
+              source_name: "Serial Experiments Lain E02 Girls.mkv",
+              destination: "C:/TV/Season 02/Serial Experiments Lain - S02E02 - Girls.mkv",
+              target_name: "Serial Experiments Lain - S02E02 - Girls.mkv",
+              pipeline_guess: "Serial Experiments Lain - S02E02 - Girls.mkv",
+            };
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first, second], counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
+            click('#rename-rows tr[data-selectable-row="true"]', "first rename preview row");
+            requireText("rename-apply-button", ["Apply all 2 safe renames"]);
+            click("#rename-apply-button", "apply all safe rename rows");
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            if (!byId("rename-confirm-dialog").open) {
+              throw new Error("rename confirm dialog did not open for unchecked all-safe scope");
+            }
+            requireText("rename-confirm-count", ["Renaming 2 file(s)."]);
+            requireText("rename-confirm-warning", ["No rows were checked", "all safe rows"]);
+            click("#rename-confirm-apply-button", "confirm all-safe rename apply");
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            const applyPost = posted.find((entry) => entry.url === "/api/rename/apply");
+            if (!applyPost) throw new Error("unchecked all-safe rename apply did not post /api/rename/apply");
+            if (JSON.stringify(applyPost.body.selected_sources || []) !== JSON.stringify([first.source, second.source])) {
+              throw new Error("unchecked apply selected_sources did not match all applicable rows: " + JSON.stringify(applyPost.body));
+            }
+            if (applyPost.body.confirm_apply !== true) throw new Error("rename apply post omitted confirm_apply=true");
+            if (byId("rename-result-dialog").open) byId("rename-result-dialog").close();
             requireText("rename-pipeline-handoff-status", ["Ready"]);
             requireText("rename-pipeline-handoff", ["Rename-to-pipeline handoff", "Saved routing profile: plex_direct_stream", "output container: mkv", "renaming changes filenames only"]);
             window.mediaPipelineRenameView.renderRenameApplyResult({
@@ -396,9 +436,9 @@ def _browser_rename_runner_source() -> str:
             }
             const appliedOutcomeStatus = text("rename-apply-outcome-status");
 
-            const posted = [];
+            posted.length = 0;
             window.apiPost = async (url) => {
-              posted.push(String(url || ""));
+              posted.push({ url: String(url || ""), body: {} });
               return { ok: false, message: "browser smoke should not post rename apply" };
             };
 
@@ -446,7 +486,7 @@ def _browser_rename_runner_source() -> str:
             }
             click("#rename-apply-button", "apply rename");
             await new Promise((resolve) => setTimeout(resolve, 100));
-            if (posted.some((url) => url.includes("rename") && url.includes("apply"))) {
+            if (posted.some((entry) => entry.url.includes("rename") && entry.url.includes("apply"))) {
               throw new Error("blocked duplicate-target scope still posted a rename apply request");
             }
             return {

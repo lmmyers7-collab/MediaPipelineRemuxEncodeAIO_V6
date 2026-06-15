@@ -2,7 +2,7 @@ Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
 $script:TestRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
-$repoRoot = Split-Path -Parent $script:TestRoot
+$repoRoot = Split-Path -Parent (Split-Path -Parent $script:TestRoot)
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\local_worker_slots.ps1')
 
@@ -142,6 +142,55 @@ try {
     Assert-Equal $script:totalProcessed 1 'Processed counter should update from worker result.'
     Assert-Equal $script:totalEncoded 1 'Encoded counter should update from worker encode route.'
     Assert-Equal $script:totalTVEpisodes 1 'TV counter should update for TV worker result.'
+
+    $resultClaim = [pscustomobject]@{ claim_id = 'claim-1' }
+    $validWorkerResult = [pscustomobject]@{
+        SchemaVersion = 'local_worker_result.v1'
+        Success       = $true
+        Status        = 'processed'
+        Reason        = 'ok'
+        WorkerClaimId = 'claim-1'
+        WorkerRunId   = 'unit-run'
+    }
+
+    $missingResult = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $null -ResultFileExists:$false -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$missingResult.Status) 'failed_result_missing' 'Exit 0 with missing worker_result.json must not complete the claim.'
+    Assert-True ([bool]$missingResult.CountSyntheticFailure) 'Missing worker result should count as a synthetic failure.'
+
+    $unreadableResult = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $null -ResultFileExists:$true -ResultReadError 'bad json' -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$unreadableResult.Status) 'failed_result_invalid' 'Exit 0 with unreadable worker_result.json must not complete the claim.'
+    Assert-True ([string]$unreadableResult.Reason -like '*bad json*') 'Unreadable result reason should include the parse failure.'
+
+    $badSchemaResult = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result ([pscustomobject]@{ SchemaVersion = 'other'; Success = $true; WorkerClaimId = 'claim-1'; WorkerRunId = 'unit-run' }) -ResultFileExists:$true -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$badSchemaResult.Status) 'failed_result_invalid' 'Exit 0 with a wrong worker result schema must not complete the claim.'
+
+    $wrongClaimResult = $validWorkerResult.PSObject.Copy()
+    $wrongClaimResult.WorkerClaimId = 'claim-2'
+    $claimMismatch = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $wrongClaimResult -ResultFileExists:$true -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$claimMismatch.Status) 'failed_result_invalid' 'Exit 0 with another claim id must not complete the claim.'
+
+    $wrongRunResult = $validWorkerResult.PSObject.Copy()
+    $wrongRunResult.WorkerRunId = 'other-run'
+    $runMismatch = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $wrongRunResult -ResultFileExists:$true -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$runMismatch.Status) 'failed_result_invalid' 'Exit 0 with another run id must not complete the claim.'
+
+    $stringSuccessResult = $validWorkerResult.PSObject.Copy()
+    $stringSuccessResult.Success = 'true'
+    $badSuccessType = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $stringSuccessResult -ResultFileExists:$true -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$badSuccessType.Status) 'failed_result_invalid' 'Exit 0 with a non-boolean Success field must not complete the claim.'
+
+    $failedWorkerResult = $validWorkerResult.PSObject.Copy()
+    $failedWorkerResult.Success = $false
+    $failedWorkerResult.Status = 'processed'
+    $failedWorkerResult.Reason = 'child reported failure'
+    $successFalse = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $failedWorkerResult -ResultFileExists:$true -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$successFalse.Status) 'failed' 'Exit 0 with Success=false must release the claim as failed.'
+    Assert-True ([bool]$successFalse.CountSyntheticFailure) 'Success=false with a non-failed status should count as a failure.'
+
+    $validCompletion = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $validWorkerResult -ResultFileExists:$true -Claim $resultClaim -OwnerRunId 'unit-run'
+    Assert-Equal ([string]$validCompletion.Status) 'completed' 'Exit 0 with matching successful worker result should complete the claim.'
+    Assert-True ([bool]$validCompletion.ApplyCounters) 'Valid worker result should update parent counters.'
+    Assert-True (-not [bool]$validCompletion.CountSyntheticFailure) 'Valid worker result should not add a synthetic failure.'
 
     Assert-Equal (Join-MediaPipelineProcessArgument -Value 'C:\Path With Spaces\script.ps1') '"C:\Path With Spaces\script.ps1"' 'Process argument quoting should remain stable.'
 

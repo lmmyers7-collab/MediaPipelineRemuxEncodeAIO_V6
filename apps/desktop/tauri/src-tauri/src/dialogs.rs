@@ -98,11 +98,15 @@ fn is_desktop_app_root(candidate: &Path) -> bool {
 }
 
 pub(crate) fn desktop_root_candidates_from_exe_dir(exe_dir: &Path) -> Vec<PathBuf> {
-    vec![
-        exe_dir.join(".."),
-        exe_dir.join("apps").join("desktop"),
-        exe_dir.join("..").join("..").join("apps").join("desktop"),
-    ]
+    let mut candidates = Vec::new();
+    if let Some(parent) = exe_dir.parent() {
+        candidates.push(parent.to_path_buf());
+    }
+    candidates.push(exe_dir.join("apps").join("desktop"));
+    if let Some(parent) = exe_dir.parent().and_then(Path::parent) {
+        candidates.push(parent.join("apps").join("desktop"));
+    }
+    candidates
 }
 
 pub(crate) fn project_root_from_desktop_root(desktop_root: &Path) -> PathBuf {

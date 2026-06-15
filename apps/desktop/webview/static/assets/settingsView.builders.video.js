@@ -248,7 +248,7 @@
         setText("settings-video-builder-status", "Invalid video detail value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
       writeSettingsPatchJson(patch, "Video detail builder merged remux, H.264 copy, CPU fallback, and legacy flag keys into Changes JSON. Preview or Save still uses backend validation.");
       videoDetailSettingsBuilderState.initialized = true;
@@ -257,6 +257,7 @@
       updateVideoDetailSliderReadouts();
       renderVideoDetailSettingsBuilderGuidance();
       renderSettingsActiveMediaPolicyHandoff();
+      return true;
     }
 
     function renderVideoDetailSettingsBuilderGuidance() {

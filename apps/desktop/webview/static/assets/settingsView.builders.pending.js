@@ -91,7 +91,7 @@
         setText("settings-pending-builder-status", "Invalid pending-publish value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
       writeSettingsPatchJson(patch, "Pending publish builder merged deferred publish, copy, retry, cleanup, and safety keys into Changes JSON. Preview or Save still uses backend validation.");
       pendingPublishSettingsBuilderState.initialized = true;
@@ -99,6 +99,7 @@
       setText("settings-pending-builder-status", `${Object.keys(patch).length} pending-publish patch keys ready`);
       renderPendingPublishSettingsBuilderGuidance();
       renderSettingsActiveMediaPolicyHandoff();
+      return true;
     }
 
     function renderPendingPublishSettingsBuilderGuidance() {

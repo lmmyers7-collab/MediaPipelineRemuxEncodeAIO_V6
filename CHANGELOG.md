@@ -13,6 +13,37 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Network worker capability handshake: workers now report reachable library
+  IDs during claim and heartbeat, the coordinator skips library-tagged jobs
+  outside a worker's reported capability set, and the Network WebView shows
+  per-worker accessible library evidence.
+- Network worker mDNS discovery: added bundled `zeroconf` dependency
+  declarations plus backend-owned `/api/network/worker/discover-coordinators`
+  discovery, Network WebView discovery list, and one-click staging of the
+  discovered coordinator URL into the existing Distributed Settings patch flow.
+- Objective quality verification: added disabled-by-default post-encode
+  quality checks for lossy encodes, with VMAF/SSIM/PSNR metric selection,
+  sampled/full modes, warning/failure thresholds, optional block-for-review
+  action, sidecar/completed evidence, and Settings WebView controls.
+- Watch-folder autostart foundation: added disabled-by-default watch-folder
+  config keys, a desktop watch manager that debounces stable source-root files,
+  optional backend-owned Run Once dispatch through the existing launch gate, a
+  read-only `/api/watch-folders/status` payload, and Schedule/Settings WebView
+  status and controls.
+- Dynamic HDR Phase 1 detection and honesty: HDR encode/remux sources now get
+  bounded Dolby Vision RPU and HDR10+ metadata probes on the scratch copy.
+  Encodes warn and emit `dynamic_hdr_metadata_dropped` events when dynamic HDR
+  will be flattened to static HDR10, while immediate-publish sidecars and
+  completed manifest rows receive additive `dynamic_hdr` evidence. No routing,
+  config, FFmpeg command generation, or preservation behavior changed in this
+  phase.
+- Dynamic HDR Phase 2 tooling/config foundation: added `DynamicHdrPolicy`
+  (`off`, `warn`, `preserve_or_remux`, `preserve_or_review`) with default
+  `warn`, optional `DoviToolPath`/`Hdr10PlusToolPath` overrides, nonfatal
+  startup resolution for operator-placed `dovi_tool`/`hdr10plus_tool`
+  binaries, generated schema/metadata alignment, and resolver/capability unit
+  coverage. Preservation command generation and real-media remux verdicts
+  remain gated on operator-placed binaries and representative media evidence.
 - Library Route Map planning pack:
   `docs/implementation/library-route-map/` defines a no-plugin, backend-owned
   Libraries tab plan for read-only route maps, selected-file dry-run traces,

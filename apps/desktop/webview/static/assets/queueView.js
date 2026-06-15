@@ -558,8 +558,218 @@
     return lines;
   }
 
+  function queueSourceInventorySizeGb(row) {
+    const sizeGb = Number(row?.size_gb);
+    if (Number.isFinite(sizeGb) && sizeGb > 0) return sizeGb;
+    const sizeBytes = Number(row?.size_bytes);
+    return Number.isFinite(sizeBytes) && sizeBytes > 0 ? sizeBytes / (1024 ** 3) : 0;
+  }
+
+  function queueFormatSizeGb(sizeGb) {
+    const value = Number(sizeGb);
+    if (!Number.isFinite(value) || value <= 0) return "0 GB";
+    if (value >= 10) return `${value.toFixed(1)} GB`;
+    return `${value.toFixed(3)} GB`;
+  }
+
+  function queueFirstPositiveNumber(values) {
+    const match = values.map((value) => Number(value)).find((value) => Number.isFinite(value) && value > 0);
+    return match || 0;
+  }
+
+  function queueFirstCountEntry(counts) {
+    if (!counts || typeof counts !== "object") return null;
+    return Object.entries(counts)
+      .map(([label, count]) => ({ label: String(label || "unknown"), count: Number(count || 0) }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))[0] || null;
+  }
+
+  function queueFormatTopCounts(counts, limit = 3) {
+    if (!counts || typeof counts !== "object") return "No counts loaded";
+    const entries = Object.entries(counts)
+      .map(([label, count]) => ({ label: String(label || "unknown"), count: Number(count || 0) }))
+      .filter((entry) => entry.count > 0)
+      .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+      .slice(0, limit);
+    return entries.length ? entries.map((entry) => `${entry.label} ${entry.count}`).join("; ") : "No counts loaded";
+  }
+
+  function queueCountBy(rows, keyFn) {
+    return (Array.isArray(rows) ? rows : []).reduce((counts, row) => {
+      const key = String(keyFn(row) || "unknown").trim() || "unknown";
+      counts[key] = Number(counts[key] || 0) + 1;
+      return counts;
+    }, {});
+  }
+
+  function queueRowReadinessCounts(rows) {
+    return (Array.isArray(rows) ? rows : []).reduce((counts, row) => {
+      const status = String(queueDisplayRowStatus(row) || "").toLowerCase();
+      if (status.includes("blocked") || status.includes("failed") || status.includes("error")) {
+        counts.blocked += 1;
+      } else if (
+        status.includes("warning")
+        || status.includes("review")
+        || status.includes("validation")
+        || status.includes("unknown")
+        || status.includes("parked")
+        || status.includes("paused")
+        || status.includes("retry")
+      ) {
+        counts.warning += 1;
+      } else {
+        counts.ready += 1;
+      }
+      return counts;
+    }, { ready: 0, warning: 0, blocked: 0 });
+  }
+
+  function queueScanStatusTone(status) {
+    const text = String(status?.status || "").toLowerCase();
+    const errors = Array.isArray(status?.errors) ? status.errors : [];
+    const warnings = Array.isArray(status?.warnings) ? status.warnings : [];
+    if (errors.length || text.includes("fail") || text.includes("error")) return "danger";
+    if (warnings.length || text.includes("warning")) return "warning";
+    if (Boolean(status?.running) || text.includes("running") || text.includes("scan")) return "info";
+    if (text.includes("complete") || text.includes("success") || text === "ok") return "success";
+    return "muted";
+  }
+
+  function queueSourceInventoryLargestRow(rows) {
+    return (Array.isArray(rows) ? rows : []).reduce((largest, row) => {
+      const sizeGb = queueSourceInventorySizeGb(row);
+      return sizeGb > largest.sizeGb ? { row, sizeGb } : largest;
+    }, { row: null, sizeGb: 0 });
+  }
+
+  function queueSourceInventoryTileModel(queue = lastQueuePayload) {
+    const payload = queue && typeof queue === "object" ? queue : {};
+    const inventory = queueSourceInventory(payload);
+    const inventoryRows = Array.isArray(inventory.rows) ? inventory.rows : [];
+    const queueRows = Array.isArray(lastQueueRows) ? lastQueueRows : [];
+    const filteredRows = typeof queueFilteredRowsForCurrentDisplay === "function" ? queueFilteredRowsForCurrentDisplay() : queueRows;
+    const status = queueScanStatus(payload);
+    const candidateCount = queueFirstPositiveNumber([inventory.row_count, inventory.available_row_count, inventoryRows.length, status.inventory_count]);
+    const curatedCount = queueFirstPositiveNumber([status.curated_row_count, queueRows.length]);
+    const totalSizeGb = inventoryRows.reduce((total, row) => total + queueSourceInventorySizeGb(row), 0);
+    const readiness = queueRowReadinessCounts(queueRows);
+    const topBlocker = queueFirstCountEntry(payload.blocked_reason_counts) || queueFirstCountEntry(payload.blocked_reason_code_counts);
+    const routeCounts = payload.route_counts && typeof payload.route_counts === "object"
+      ? payload.route_counts
+      : queueCountBy(queueRows, (row) => row.route_name || row.route || row.route_decision || "unknown");
+    const sourceRootCounts = payload.source_root_counts && typeof payload.source_root_counts === "object"
+      ? payload.source_root_counts
+      : inventory.source_root_counts;
+    const sourceRootTotal = sourceRootCounts && typeof sourceRootCounts === "object" ? Object.keys(sourceRootCounts).length : 0;
+    const largest = queueSourceInventoryLargestRow(inventoryRows);
+    const largestName = largest.row?.relative_path || largest.row?.display_name || largest.row?.source_path || "No preview item loaded";
+    const visibleCount = Array.isArray(filteredRows) ? filteredRows.length : queueRows.length;
+    return [
+      {
+        label: "Scan Freshness",
+        value: status.status || "Not scanned",
+        detail: status.updated_at_utc ? `Updated ${status.updated_at_utc}` : (status.message || "No backend scan status loaded."),
+        tone: queueScanStatusTone(status),
+      },
+      {
+        label: "Queue Size",
+        value: `${curatedCount} row${curatedCount === 1 ? "" : "s"}`,
+        detail: `${candidateCount} inventory candidate${candidateCount === 1 ? "" : "s"}; preview size ${queueFormatSizeGb(totalSizeGb)}.`,
+        tone: curatedCount ? "info" : "muted",
+      },
+      {
+        label: "Launch Readiness",
+        value: `Ready ${readiness.ready}`,
+        detail: `Blocked ${readiness.blocked}; Warning ${readiness.warning}.`,
+        tone: readiness.blocked ? "danger" : (readiness.warning ? "warning" : (queueRows.length ? "success" : "muted")),
+      },
+      {
+        label: "Top Blocker",
+        value: topBlocker ? topBlocker.label : "No blockers",
+        detail: topBlocker ? `${topBlocker.count} row${topBlocker.count === 1 ? "" : "s"} affected.` : "No blocked reason count in the loaded queue.",
+        tone: topBlocker ? "danger" : "success",
+      },
+      {
+        label: "Work Mix",
+        value: queueFormatTopCounts(routeCounts, 2),
+        detail: "Highest route counts in the curated queue.",
+        tone: queueRows.length ? "info" : "muted",
+      },
+      {
+        label: "Largest Preview",
+        value: largest.sizeGb ? queueFormatSizeGb(largest.sizeGb) : "No size",
+        detail: largestName,
+        tone: largest.sizeGb ? "warning" : "muted",
+      },
+      {
+        label: "Filter Impact",
+        value: `${visibleCount} of ${queueRows.length}`,
+        detail: "Visible rows only; backend Launch scope is unchanged.",
+        tone: visibleCount === queueRows.length ? "success" : "warning",
+      },
+      {
+        label: "Source Roots",
+        value: sourceRootTotal ? `${sourceRootTotal} root${sourceRootTotal === 1 ? "" : "s"}` : "Not reported",
+        detail: sourceRootTotal ? queueFormatTopCounts(sourceRootCounts, 2) : "Refresh source inventory to load root evidence.",
+        tone: sourceRootTotal ? "info" : "muted",
+      },
+    ];
+  }
+
+  function appendQueueSourceTile(board, tile) {
+    const card = document.createElement("section");
+    card.className = "queue-source-tile";
+    card.dataset.tone = tile.tone || "muted";
+    const label = document.createElement("span");
+    label.className = "queue-source-tile-label";
+    label.textContent = tile.label || "";
+    const value = document.createElement("strong");
+    value.className = "queue-source-tile-value";
+    value.textContent = tile.value || "";
+    const detail = document.createElement("span");
+    detail.className = "queue-source-tile-detail";
+    detail.textContent = tile.detail || "";
+    card.append(label, value, detail);
+    board.appendChild(card);
+  }
+
+  function renderQueueSourceInventoryMessage(lines, tone = "info") {
+    const root = byId("queue-source-inventory");
+    if (!root) return;
+    root.replaceChildren();
+    const card = document.createElement("section");
+    card.className = "queue-source-tile queue-source-message-tile";
+    card.dataset.tone = tone;
+    const value = document.createElement("strong");
+    value.className = "queue-source-tile-value";
+    value.textContent = lines[0] || "Queue source inventory";
+    const detail = document.createElement("span");
+    detail.className = "queue-source-tile-detail";
+    detail.textContent = lines.slice(1).join(" ");
+    card.append(value, detail);
+    root.appendChild(card);
+  }
+
   function renderQueueScanArtifacts(queue = lastQueuePayload) {
-    setText("queue-source-inventory", queueSourceInventoryLines(queue).join("\n"));
+    const root = byId("queue-source-inventory");
+    if (root) {
+      const lines = queueSourceInventoryLines(queue);
+      const board = document.createElement("div");
+      board.className = "queue-source-tile-board";
+      queueSourceInventoryTileModel(queue).forEach((tile) => appendQueueSourceTile(board, tile));
+
+      const details = document.createElement("details");
+      details.className = "queue-source-detail-disclosure";
+      const summary = document.createElement("summary");
+      summary.textContent = "Source inventory details";
+      const body = document.createElement("pre");
+      body.className = "prose-block";
+      body.textContent = lines.join("\n");
+      details.append(summary, body);
+
+      root.replaceChildren(board, details);
+    }
     window.mediaPipelineAppRefresh?.setQueueRefreshButtonBusy?.(queueScanIsRunning(queue));
   }
 
@@ -917,6 +1127,37 @@
     return lines;
   }
 
+  function queueCompactPathText(value, maxChars) {
+    const raw = String(value || "");
+    const max = Math.max(16, Number(maxChars) || 64);
+    if (!raw || raw.length <= max) return raw;
+    const endCount = Math.max(8, Math.floor((max - 3) * 0.62));
+    const startCount = Math.max(4, max - endCount - 3);
+    return `${raw.slice(0, startCount)}...${raw.slice(-endCount)}`;
+  }
+
+  function queueExcludedSourceDisplay(sourcePath) {
+    const raw = String(sourcePath || "");
+    if (!raw) return "";
+    const sep = raw.includes("\\") ? "\\" : "/";
+    const parts = raw.split(/[\\/]+/).filter(Boolean);
+    const filename = parts[parts.length - 1] || raw;
+    const parent = parts.length > 1 ? parts[parts.length - 2] : "";
+    let root = "";
+    if (raw.startsWith("\\\\")) {
+      root = parts.length >= 2 ? `\\\\${parts[0]}${sep}${parts[1]}` : "\\\\";
+    } else if (/^[A-Za-z]:$/.test(parts[0] || "")) {
+      root = parts[0];
+    } else if (parts.length > 2 && !raw.startsWith("/")) {
+      root = parts[0];
+    }
+    const prefix = root ? `${root}${sep}...${sep}` : `...${sep}`;
+    const parentPrefix = parent && parent !== filename ? `${parent}${sep}` : "";
+    const filenameBudget = Math.max(12, 64 - prefix.length - parentPrefix.length);
+    const compactFilename = queueCompactPathText(filename, filenameBudget);
+    return `${prefix}${parentPrefix}${compactFilename}`;
+  }
+
   function renderQueueExcluded(queue) {
     const payload = queue || {};
     const rows = Array.isArray(payload.excluded_rows) ? payload.excluded_rows : [];
@@ -933,13 +1174,16 @@
       const row = document.createElement("tr");
       const key = queueExcludedRowKey(item);
       row.dataset.rowKey = key;
+      const sourcePath = item.source_path || "";
       appendCells(row, [
         item.source_order || "",
         item.media_type || item.media_kind || "",
         item.reason_code || "excluded",
         item.display_name || item.relative_path || "",
-        item.source_path || "",
-      ]);
+        queueExcludedSourceDisplay(sourcePath),
+      ], [null, null, null, null, "path-cell"]);
+      const cells = row.querySelectorAll("td");
+      if (cells[4] && sourcePath) cells[4].title = sourcePath;
       makeRowSelectable(row, () => selectQueueExcludedRow(item), {
         selected: Boolean(key && key === getSelectedQueueExcludedRowKey()),
         label: `Excluded source ${item.display_name || item.relative_path || item.source_path || ""}`,
@@ -1108,11 +1352,11 @@
     }
     queueScanInFlight = true;
     window.mediaPipelineAppRefresh?.renderQueueRefreshInProgress?.();
-    setText("queue-source-inventory", [
+    renderQueueSourceInventoryMessage([
       "Queue source scan requested.",
       "Waiting for backend source inventory and queue curation status.",
       "Mutation guardrail: this command does not process, rename, move, delete, publish, drain, or mutate source media.",
-    ].join("\n"));
+    ], "info");
     try {
       const result = await apiPost("/api/queue/scan", {
         mode: "inventory_then_curate",
@@ -1141,10 +1385,10 @@
       setQueueLoadingScreenVisible(false);
       renderQueueRows();
       setText("queue-open-status", result.message);
-      setText("queue-source-inventory", [
+      renderQueueSourceInventoryMessage([
         result.message,
         "Safe next step: inspect Diagnostics and backend command history before trying again.",
-      ].join("\n"));
+      ], "danger");
     } finally {
       queueScanInFlight = false;
       window.mediaPipelineAppRefresh?.setQueueRefreshButtonBusy?.(queueScanIsRunning());
@@ -1588,7 +1832,22 @@
     await sendQueuePriorityBulk(items, `Priority set to '${queuePriorityNormalizedLevel(level)}' for ${items.length} selected row(s).`);
   }
 
+  function confirmClearQueuePriorityManifest() {
+    if (typeof window.confirm !== "function") return false;
+    return window.confirm([
+      "Clear the entire queue priority manifest?",
+      "",
+      "This resets every backend priority override to Normal, including rows hidden by display filters or render caps.",
+      "Backend Launch scope remains unchanged and is still decided by Launch routes.",
+      "This sends a queue-state request only; it does not touch source, scratch, output, or rename files.",
+    ].join("\n"));
+  }
+
   async function clearQueuePriorityManifest() {
+    if (!confirmClearQueuePriorityManifest()) {
+      setText("queue-priority-status", "Priority manifest clear cancelled before any backend request.");
+      return;
+    }
     setText("queue-priority-status", "Clearing entire priority manifest...");
     try {
       const result = await apiPost("/api/queue/priority", { clear_all: true });

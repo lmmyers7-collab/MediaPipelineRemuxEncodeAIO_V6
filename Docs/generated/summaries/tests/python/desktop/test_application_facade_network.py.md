@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_network.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-14
 last_reviewed: 2026-06-04
-sha256: 73666753898302b0c6a139aeae6a338d823775b16ac9368b718296ea07ec1c85
+sha256: 415fae2c134a73c07fbe6092fe5c15c92b37ed7781625e687cb8f0d85d0d0ae1
 ---
 # `tests/python/desktop/test_application_facade_network.py`
 

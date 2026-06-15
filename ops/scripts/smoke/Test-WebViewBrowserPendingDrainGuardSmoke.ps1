@@ -1,34 +1,11 @@
-param()
+param(
+    [switch]$AllowSkippedTests
+)
 
 $ErrorActionPreference = 'Stop'
 
-function Resolve-WebViewBrowserPendingDrainGuardSmokePython {
-    param(
-        [Parameter(Mandatory = $true)]
-        [string]$ProjectRoot
-    )
-
-    $candidates = @(
-        (Join-Path $ProjectRoot 'apps\desktop\runtime\Python\python.exe'),
-        (Join-Path $ProjectRoot 'ops\pipeline\runtime\Python\python.exe')
-    )
-
-    foreach ($candidate in $candidates) {
-        if (Test-Path -LiteralPath $candidate -PathType Leaf) {
-            return (Resolve-Path -LiteralPath $candidate).Path
-        }
-    }
-
-    $pathPython = Get-Command python -ErrorAction SilentlyContinue
-    if ($pathPython) {
-        return $pathPython.Source
-    }
-
-    throw 'No Python runtime was found. Expected apps\desktop\runtime\Python\python.exe, ops\pipeline\runtime\Python\python.exe, or python on PATH.'
-}
-
 $projectRoot = (Resolve-Path -LiteralPath (Join-Path $PSScriptRoot '..\..\..')).Path
-$python = Resolve-WebViewBrowserPendingDrainGuardSmokePython -ProjectRoot $projectRoot
+. (Join-Path $PSScriptRoot 'webview_browser_smoke_common.ps1')
 
 Write-Host 'WebView browser Pending Publish drain guard smoke'
 Write-Host 'Boundary: starts a temporary local API against generated temporary state.'
@@ -37,24 +14,7 @@ Write-Host 'Boundary: verifies active Pending Publish display filters are disclo
 Write-Host 'Boundary: injects a backend-shaped blocked recovery dry-run result and verifies Publish Button Guard refreshes immediately.'
 Write-Host 'Boundary: verifies a blocked Publish Parked Outputs click records local frontend_guard evidence without posting /api/pipeline/start.'
 Write-Host 'Boundary: does not process media, launch pipeline commands, drain pending publish, rename, save settings, mutate queue state, or modify source/output/scratch media.'
-Write-Host 'Boundary: skips cleanly when Chrome/Edge is not installed.'
-Write-Host "Python: $python"
+Write-Host 'Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit.'
 
-Push-Location -LiteralPath $projectRoot
-$previousPythonPath = $env:PYTHONPATH
-try {
-    $env:PYTHONDONTWRITEBYTECODE = '1'
-    $srcPath = Join-Path $projectRoot 'src'
-    $env:PYTHONPATH = if ([string]::IsNullOrWhiteSpace($previousPythonPath)) { $srcPath } else { "$srcPath;$previousPythonPath" }
-    & $python -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q
-    if ($LASTEXITCODE -ne 0) {
-        exit $LASTEXITCODE
-    }
-}
-finally {
-    $env:PYTHONPATH = $previousPythonPath
-    Pop-Location
-}
-
-
+Invoke-WebViewBrowserSmokeUnittest -ProjectRoot $projectRoot -Module 'tests.webview.test_webview_browser_pending_drain_guard_smoke' -AllowSkippedTests:$AllowSkippedTests
 

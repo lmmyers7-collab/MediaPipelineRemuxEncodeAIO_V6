@@ -135,6 +135,9 @@ function Find-MediaPipelineFolderPolicy {
     if ([string]::IsNullOrWhiteSpace($current)) { return $null }
 
     $roots = @(Get-FolderPolicySearchRoots)
+    if ($roots.Count -gt 0 -and -not (@($roots | Where-Object { Test-FolderPolicyPathWithinRoot -Path $current -Root $_ }).Count -gt 0)) {
+        return $null
+    }
     while (-not [string]::IsNullOrWhiteSpace($current)) {
         $candidate = Join-Path $current $script:FolderPolicySidecarName
         if (Test-Path -LiteralPath $candidate -PathType Leaf -ErrorAction SilentlyContinue) {
@@ -251,7 +254,7 @@ function ConvertTo-MediaPipelineFolderPolicyOverrides {
         }
 
         $sizeGuardMode = ([string](Get-FolderPolicyProperty -Object $routing -Name 'size_guard_mode')).Trim().ToLowerInvariant()
-        if ($sizeGuardMode -in @('advisory','strict','off')) {
+        if ($sizeGuardMode -in @('advisory','strict','fallback_remux','off')) {
             $overrides.SizeGuardMode = $sizeGuardMode
         }
 

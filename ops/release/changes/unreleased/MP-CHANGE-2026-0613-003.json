@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0613-003",
+  "title": "Add Completed keypoint diagnosis panel",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "Replace the verbose default Completed selected-row working surface with a compact read-only diagnosis card that highlights why an output looks different.",
+  "reason": "Operators need to quickly identify the key evidence behind size/route differences while flipping between Completed rows, without reading a long raw detail dump by default.",
+  "affected_areas": [
+    "completed",
+    "operator_diagnostics",
+    "webview"
+  ],
+  "behavior_before": "The Completed selected-file panel led with a broad evidence grid and always-visible raw selected-row detail text, making size-growth investigation noisy.",
+  "behavior_after": "The Completed selected-file panel leads with a concise diagnosis line, key signals, evidence gaps, and next checks while preserving raw detail behind a collapsed disclosure.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/assets/completedView.review.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0613-003.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-003.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/webview/test_webview_browser_large_table_smoke.py",
+    "tests/webview/test_webview_browser_layout_manager_smoke.py",
+    "tests/webview/test_webview_css_design_tokens.py",
+    "tests/webview/test_webview_navigation_static.py",
+    "tests/webview/test_webview_row_detail_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Local API health http://127.0.0.1:8765/api/health - passed; in-app Browser visual check blocked by Browser URL policy/page crash",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_large_table_smoke - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_layout_manager_smoke.WebViewBrowserLayoutManagerSmoke.test_layout_editor_drawer_manages_tab_and_subsection_boxes - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests.test_panel_and_tab_consistency_contract_is_wired tests.webview.test_webview_navigation_static.WebViewNavigationStaticTests.test_operational_summary_blocks_are_movable_page_panels - passed",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_row_detail_smoke ... - blocked before Completed assertions by unrelated queueView.js insertAdjacentElement test-harness failure",
+    "apps/desktop/runtime/Python/python.exe -m pytest targeted WebView tests - blocked: bundled interpreter has no pytest module",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed: 244 packet(s) valid",
+    "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the WebView Completed selected-summary/detail rendering, raw-detail disclosure markup, CSS, shortcut behavior, tests, generated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "WebView-only/read-only change. No Local API, backend DTO, media policy, publish, rerun, repair, delete, queue, or filesystem mutation behavior changes."
+}

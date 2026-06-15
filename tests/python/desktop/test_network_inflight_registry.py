@@ -126,6 +126,106 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
             self.assertTrue(path.exists())
             self.assertIn("Invalid estimated_size_gb for claimed job", "\n".join(logs.output))
 
+    def test_inflight_registry_persists_idle_worker_seen_before_any_claim(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "inflight_registry.json"
+            registry = InFlightRegistry()
+
+            registry.note_worker_seen(worker_id="worker-1", worker_name="Worker One")
+            registry.save(path)
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(path))
+            rows = restored.idle_workers_snapshot()
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].worker_id, "worker-1")
+        self.assertEqual(rows[0].worker_name, "Worker One")
+        self.assertEqual(rows[0].status, "idle")
+        self.assertEqual(rows[0].files_completed, 0)
+        self.assertTrue(rows[0].last_heartbeat)
+
+    def test_inflight_registry_persists_last_failure_reason_for_worker_board(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "inflight_registry.json"
+            registry = InFlightRegistry()
+            registry.claim(
+                job_id="job-failed",
+                worker_id="worker-1",
+                worker_name="Worker One",
+                source_path=r"C:\Media\missing.mkv",
+                encode_config={},
+            )
+            completed = registry.complete(
+                "job-failed",
+                "worker-1",
+                success=False,
+                reason_code="SOURCE_NOT_FOUND",
+                reason=r"C:\Media\missing.mkv not found on worker",
+            )
+            self.assertIsNotNone(completed)
+            registry.save(path)
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(path))
+            rows = restored.idle_workers_snapshot()
+
+        self.assertEqual(len(rows), 1)
+        row = rows[0].to_dict()
+        self.assertEqual(row["last_failure_reason_code"], "SOURCE_NOT_FOUND")
+        self.assertEqual(row["last_failure_job_id"], "job-failed")
+        self.assertEqual(row["last_failure_source_path"], r"C:\Media\missing.mkv")
+        self.assertIn("not found on worker", row["last_failure_reason"])
+        self.assertTrue(row["last_failure_at"])
+
+    def test_inflight_registry_suppresses_repeated_same_reason_worker_source_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "inflight_registry.json"
+            registry = InFlightRegistry()
+            source = r"C:\Media\loop.mkv"
+
+            for attempt in range(1, 4):
+                job_id = f"job-{attempt}"
+                self.assertTrue(
+                    registry.claim(
+                        job_id=job_id,
+                        worker_id="worker-1",
+                        worker_name="Worker One",
+                        source_path=source,
+                        encode_config={},
+                    )
+                )
+                registry.complete(
+                    job_id,
+                    "worker-1",
+                    success=False,
+                    reason_code="SOURCE_NOT_FOUND",
+                    reason=f"{source} not found on worker",
+                )
+                blocked = registry.claim_blocked_by_failure(worker_id="worker-1", source_path=source, max_retries=3)
+                if attempt < 3:
+                    self.assertIsNone(blocked)
+                else:
+                    self.assertIsNotNone(blocked)
+                    self.assertEqual(blocked["consecutive_count"], 3)
+                    self.assertEqual(blocked["reason_code"], "SOURCE_NOT_FOUND")
+
+            alert = registry.mark_failure_quarantine_alerted(worker_id="worker-1", source_path=source, max_retries=3)
+            duplicate_alert = registry.mark_failure_quarantine_alerted(worker_id="worker-1", source_path=source, max_retries=3)
+            registry.save(path)
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(path))
+            restored_blocked = restored.claim_blocked_by_failure(worker_id="worker-1", source_path=source, max_retries=3)
+            rows = [row.to_dict() for row in restored.idle_workers_snapshot()]
+
+        self.assertIsNotNone(alert)
+        self.assertIsNone(duplicate_alert)
+        self.assertIsNotNone(restored_blocked)
+        self.assertEqual(restored_blocked["consecutive_count"], 3)
+        self.assertEqual(rows[0]["worker_misconfigured_reason_code"], "SOURCE_NOT_FOUND")
+        self.assertEqual(rows[0]["failure_streak_count"], 3)
+
     def test_network_config_json_fields_reject_nonfinite_constants(self) -> None:
         with self.assertLogs("mediapipeline.desktop.network.path_map", level="WARNING") as path_logs:
             self.assertEqual(parse_source_path_map('{"C:/Media": NaN}'), [])
@@ -137,7 +237,7 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
         }
         with self.assertLogs("mediapipeline.desktop.network.encode_config_snapshot", level="WARNING") as encode_logs:
             self.assertEqual(snapshot_encode_config(config, "worker"), {"VideoCodec": "copy"})
-        self.assertIn("non-finite JSON value is not allowed", "\n".join(encode_logs.output))
+        self.assertIn("WorkerConfigOverrides is disabled by backend policy", "\n".join(encode_logs.output))
 
     def test_inflight_registry_load_skips_malformed_rows_without_partial_failure(self) -> None:
         with tempfile.TemporaryDirectory() as td:

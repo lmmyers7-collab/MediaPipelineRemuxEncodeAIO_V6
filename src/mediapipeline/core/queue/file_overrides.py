@@ -183,11 +183,20 @@ def read_file_overrides(path: Path) -> dict:
             return _empty_manifest()
         if data.get("version") != FILE_OVERRIDES_VERSION:
             return _empty_manifest()
-        if not isinstance(data.get("entries"), dict):
+        entries = data.get("entries")
+        if not isinstance(entries, dict):
             return _empty_manifest()
-        return data
+        return {**data, "entries": _manifest_object_entries(entries)}
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return _empty_manifest()
+
+
+def _manifest_object_entries(entries: dict) -> dict:
+    return {
+        str(key): value
+        for key, value in entries.items()
+        if isinstance(value, dict)
+    }
 
 
 def _empty_manifest() -> dict:

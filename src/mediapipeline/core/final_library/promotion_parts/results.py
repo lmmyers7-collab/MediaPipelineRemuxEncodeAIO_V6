@@ -46,6 +46,10 @@ def default_promotion_row_fields() -> dict[str, Any]:
         "last_promotion_completed_at": "",
         "promotion_error": "",
         "promotion_warnings": [],
+        "required_pipeline_sidecar_path": "",
+        "required_pipeline_sidecar_exists": False,
+        "required_pipeline_sidecar_missing": False,
+        "missing_sidecars": [],
     }
 
 
@@ -54,6 +58,7 @@ def status_label(status: str) -> str:
         "disabled": "Promotion Disabled",
         "ready": "Ready",
         "missing_output": "Missing Output",
+        "missing_required_sidecar": "Missing Pipeline Sidecar",
         "outside_outsource": "Outside Outsource",
         "no_destination_rule": "No Destination Rule",
         "destination_offline": "Destination Offline",

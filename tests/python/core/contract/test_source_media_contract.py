@@ -43,6 +43,7 @@ class SourceMediaContractTests(unittest.TestCase):
         self.assertTrue(source.audio_streams[0].default)
         self.assertEqual(source.subtitle_streams[0].subtitle_kind, "text")
         self.assertTrue(source.subtitle_streams[0].passthrough_candidate)
+        self.assertFalse(source.subtitle_streams[0].drop_candidate)
         self.assertFalse(source.derived.unknown_metadata)
 
     def test_representative_fixtures_cover_dimensions_bitrate_hdr_audio_and_subtitles(self) -> None:
@@ -77,6 +78,7 @@ class SourceMediaContractTests(unittest.TestCase):
         self.assertEqual(image_subs.derived.subtitle_burn_candidates, [2, 3])
         self.assertEqual(image_subs.derived.subtitle_convert_candidates, [2, 3])
         self.assertTrue(all(stream.image_based for stream in image_subs.subtitle_streams))
+        self.assertTrue(all(not stream.drop_candidate for stream in image_subs.subtitle_streams))
 
         interlaced = source_media_from_ffprobe(load_fixture("interlaced_source.json"))
         self.assertEqual(interlaced.video_streams[0].scan_type, "interlaced")
@@ -157,7 +159,34 @@ class SourceMediaContractTests(unittest.TestCase):
         self.assertEqual(source.audio_streams[0].codec, "eac3")
         self.assertEqual(source.subtitle_streams[0].codec, "ass")
         self.assertEqual(source.subtitle_streams[0].subtitle_kind, "text")
+        self.assertTrue(source.subtitle_streams[0].convert_candidate)
+        self.assertFalse(source.subtitle_streams[0].drop_candidate)
         self.assertEqual(source.derived.dimensions_bucket, "1080p")
+
+    def test_unknown_subtitle_codecs_remain_drop_candidates(self) -> None:
+        probe = ProbeResult(
+            probe_ok=True,
+            container="matroska,webm",
+            duration_seconds=300.0,
+            bitrate_bps=8000000,
+            video_codec="hevc",
+            width=1920,
+            height=1080,
+            estimated_bitrate_mbps=8.0,
+            size_bytes=300000000,
+            streams=[
+                StreamSummary(index=0, kind="video", codec="hevc", width=1920, height=1080),
+                StreamSummary(index=2, kind="subtitle", codec="unknown_binary_subtitle", language="eng"),
+            ],
+        )
+
+        source = source_media_from_probe_result(probe, source_path=r"D:\scratch\episode.mkv", media_type="tv")
+
+        self.assertEqual(source.subtitle_streams[0].subtitle_kind, "unknown")
+        self.assertFalse(source.subtitle_streams[0].passthrough_candidate)
+        self.assertFalse(source.subtitle_streams[0].convert_candidate)
+        self.assertFalse(source.subtitle_streams[0].burn_candidate)
+        self.assertTrue(source.subtitle_streams[0].drop_candidate)
 
     def test_source_media_model_rejects_unexpected_fields(self) -> None:
         with self.assertRaises(ValidationError):

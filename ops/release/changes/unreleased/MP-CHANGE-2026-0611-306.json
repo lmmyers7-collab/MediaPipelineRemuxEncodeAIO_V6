@@ -1,0 +1,33 @@
+{
+  "id": "MP-CHANGE-2026-0611-306",
+  "title": "Hide queue display-filter evidence box",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Hid the Queue display-filter evidence pre from the operator UI by marking the existing queue-filter-summary element hidden and aria-hidden.",
+  "reason": "The operator requested that the visible Queue filter evidence box under Scan Sources be hidden while keeping backend-owned queue and launch behavior unchanged.",
+  "affected_areas": [
+    "webview"
+  ],
+  "behavior_before": "The Source Scan And Display Filters panel rendered the Queue display-filter summary box below the Scan Sources note.",
+  "behavior_after": "The Queue display-filter summary element remains in the DOM for existing compatibility checks, but it is hidden from the rendered operator UI.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-306.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Inline HTML parser check - passed; queue-filter-summary exists with hidden and aria-hidden=true.",
+    "git diff --check -- apps/desktop/webview/static/partials/page-queue.html ops/release/changes/unreleased/MP-CHANGE-2026-0611-306.json - passed; only LF-to-CRLF warning reported.",
+    "ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - failed before queue validation on existing app.js SyntaxError/undefined renderFailureRows console noise.",
+    "python -m pytest tests/python/desktop/test_application_facade_local_api.py::LocalApiServerTests::test_local_api_serves_read_only_web_prototype - blocked; bundled Python has no pytest module.",
+    "python -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype - failed before queue assertion on existing missing report-warnings HTML assertion."
+  ],
+  "rollback_plan": "Remove the hidden and aria-hidden attributes from apps/desktop/webview/static/partials/page-queue.html if the display-filter evidence box should be visible again.",
+  "related_changes": [],
+  "notes": "Hide the Queue display-filter evidence pre from the operator UI while leaving backend-owned queue behavior unchanged.\nRegenerated the queue partial summary after hiding the display-filter evidence element.\nQueue display-filter summary is hidden in the partial; no backend route, queue state, or media policy changed."
+}

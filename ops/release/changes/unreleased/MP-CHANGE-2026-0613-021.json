@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0613-021",
+  "title": "Show coordinator worker connect URL",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "Expose backend-owned coordinator connectivity evidence and display the worker coordinator URL on the Network page.",
+  "reason": "Coordinator mode was showing the bind endpoint such as 0.0.0.0:7830 as the visible coordinator target, which is not the URL workers should use.",
+  "affected_areas": [
+    "network",
+    "webview",
+    "desktop-api",
+    "tests"
+  ],
+  "behavior_before": "Coordinator Network UI could show the bind endpoint as the coordinator target, making 0.0.0.0:7830 look like a usable worker URL.",
+  "behavior_after": "GET /api/network/workers includes read-only coordinator_connectivity evidence with worker_coordinator_url, bind endpoint, candidate URLs, warnings, and summary lines; the Network page displays Worker Coordinator URL as the headline value while retaining bind endpoint evidence.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/src/mediapipeline/core/kernel/dto_workspaces.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-021.json",
+    "src/mediapipeline/core/kernel/dto_workspaces.py",
+    "src/mediapipeline/core/network/facade.py",
+    "tests/python/desktop/test_application_facade_network.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_network.py::ApplicationFacadeNetworkTests::test_network_workers_reads_persisted_runtime_state_without_lifecycle_control",
+    "tests/python/desktop/test_application_facade_network.py::ApplicationFacadeNetworkTests::test_network_workers_warns_when_coordinator_bind_is_loopback_only",
+    "tests/webview/test_webview_network_read_only_boundary.py::WebViewNetworkReadOnlyBoundaryTests::test_workers_page_distinguishes_saved_and_persisted_state_labels",
+    "tests/webview/test_webview_network_read_only_boundary.py::WebViewNetworkReadOnlyBoundaryTests::test_network_view_js_uses_only_backend_network_lifecycle_routes"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/core/kernel/dto_workspaces.py src/mediapipeline/core/network/facade.py tests/python/desktop/test_application_facade_network.py tests/webview/test_webview_network_read_only_boundary.py",
+    "node --check apps/desktop/webview/static/assets/networkView.js",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_network",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_network_read_only_boundary",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_network_smoke",
+    "\\\\LAYNE-SERVER\\...\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile server dto_workspaces.py facade.py",
+    "node --check \\\\LAYNE-SERVER\\...\\apps\\desktop\\webview\\static\\assets\\networkView.js",
+    "Select-String on server page-network.html and facade.py confirmed Worker Coordinator URL label and desktop_network_coordinator_connectivity.v1 schema"
+  ],
+  "rollback_plan": "Revert the coordinator_connectivity DTO/facade additions and the Network page label/helper changes; the page will fall back to its previous bind endpoint display.",
+  "related_changes": [],
+  "notes": "The bundled Python environment did not have pytest installed, so targeted tests were run with unittest and PYTHONPATH=src. Server bundle runtime files were backed up under \\\\LAYNE-SERVER\\Users\\Layne\\Desktop\\MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_20260613_135923\\CodexBackups\\coordinator-connect-url_20260613_224230 before copy. Strict change coverage still fails only on four unrelated dirty dependency-atlas image files: dependency_detail_core_library.png, dependency_detail_core_library.svg, dependency_detail_desktop_watch.png, dependency_detail_desktop_watch.svg."
+}

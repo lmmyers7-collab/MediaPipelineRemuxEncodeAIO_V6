@@ -3,9 +3,9 @@ file: ops/scripts/release/Backup-PreOverhaul.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: cb94c01a54099f61a3584ce470a1cb64e51892a6e16a630c166e5d1883746b0d
+sha256: 7e44a14fd50ab97232907fb45b0d636f737249d66a5fb292cd9fc910f5cc4ca7
 ---
 # `ops/scripts/release/Backup-PreOverhaul.ps1`
 

@@ -28,6 +28,10 @@ def _tauri_rust_source() -> str:
     return "\n".join(path.read_text(encoding="utf-8") for path in sorted(TAURI_SRC_ROOT.rglob("*.rs")))
 
 
+def _webview_browser_smoke_common_source() -> str:
+    return (PROJECT_ROOT / "ops/scripts/smoke/webview_browser_smoke_common.ps1").read_text(encoding="utf-8")
+
+
 class TauriShellScaffoldTests(unittest.TestCase):
     def test_active_v6_sources_do_not_reference_removed_tk_shell(self) -> None:
         removed_shell_terms = re.compile(
@@ -436,7 +440,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIsNotNone(match)
         rust_routes = set(
             re.findall(
-                r'\("([^"]+)",\s*"([^"]+)",\s*(true|false)\)',
+                r'\(\s*"([^"]+)",\s*"([^"]+)",\s*(true|false),?\s*\)',
                 match.group(1),
             )
         )
@@ -450,6 +454,39 @@ class TauriShellScaffoldTests(unittest.TestCase):
         }
 
         self.assertEqual(rust_routes, expected_routes)
+
+    def test_tauri_shell_validates_network_lifecycle_route_semantics(self) -> None:
+        routes_rs = (PROJECT_ROOT / "apps" / "desktop" / "tauri" / "src-tauri" / "src" / "backend_contract" / "routes.rs").read_text(encoding="utf-8")
+        route_contract_rs = (
+            PROJECT_ROOT / "apps" / "desktop" / "tauri" / "src-tauri" / "src" / "backend_contract" / "route_contract.rs"
+        ).read_text(encoding="utf-8")
+        types_rs = (PROJECT_ROOT / "apps" / "desktop" / "tauri" / "src-tauri" / "src" / "backend_contract" / "types.rs").read_text(encoding="utf-8")
+
+        self.assertIn("struct RequiredNetworkLifecycleRoute", routes_rs)
+        self.assertIn("REQUIRED_NETWORK_LIFECYCLE_ROUTES", routes_rs)
+        for route in (
+            "/api/network/coordinator/start-dry-run",
+            "/api/network/coordinator/stop-dry-run",
+            "/api/network/worker/start-dry-run",
+            "/api/network/worker/stop-dry-run",
+            "/api/network/coordinator/start",
+            "/api/network/coordinator/stop",
+            "/api/network/worker/start",
+            "/api/network/worker/stop",
+        ):
+            self.assertIn(route, routes_rs)
+        for semantic_field in (
+            "effect",
+            "requires_confirmation",
+            "owner",
+            "frontend_exposed",
+            "network_lifecycle",
+            "dry_run",
+        ):
+            self.assertIn(semantic_field, route_contract_rs)
+            self.assertIn(semantic_field, types_rs)
+        self.assertIn("Backend contract network lifecycle metadata drifted", route_contract_rs)
+        self.assertIn("REQUIRED_NETWORK_LIFECYCLE_ROUTES", route_contract_rs)
 
     def test_tauri_shell_checks_close_readiness_before_shutdown(self) -> None:
         source = _tauri_rust_source()
@@ -526,7 +563,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("backend shutdown request failed", source)
         self.assertIn("backend did not exit within grace period; terminating process", source)
         self.assertIn("backend process kill failed", source)
-        self.assertIn("backend process wait after kill failed", source)
+        self.assertIn("backend process wait after tree termination failed", source)
         self.assertIn("token: String", source)
         self.assertIn("url: String", source)
 
@@ -1010,11 +1047,18 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("if ($NoTokenDevMode)", shell_text)
         self.assertIn("$apiArgs += '--no-token'", shell_text)
         self.assertNotIn("'--no-token'\n)", shell_text)
+        self.assertIn("function Test-ApiHealth", shell_text)
+        self.assertIn("function Test-LocalApiPortAvailable", shell_text)
+        self.assertIn("An existing MediaPipeline Local API is already healthy on this port; reusing it.", shell_text)
+        self.assertIn("Port $Port is already in use", shell_text)
+        self.assertIn("Browser launch is skipped so the failure is visible.", shell_text)
 
     def test_dev_launchers_resolve_current_promoted_layout(self) -> None:
         start_local = (PROJECT_ROOT / "ops" / "scripts" / "dev" / "start-local-api.bat").read_text(encoding="utf-8")
         start_browser = (PROJECT_ROOT / "ops" / "scripts" / "dev" / "start-api-and-browser.bat").read_text(encoding="utf-8")
         verify_env = (PROJECT_ROOT / "ops" / "scripts" / "dev" / "verify-env.bat").read_text(encoding="utf-8")
+        verify_env_script = (PROJECT_ROOT / "ops" / "scripts" / "dev" / "verify-env.ps1").read_text(encoding="utf-8")
+        release_test = (PROJECT_ROOT / "ops" / "scripts" / "release" / "test.ps1").read_text(encoding="utf-8")
         run_text = (PROJECT_ROOT / "ops" / "scripts" / "dev" / "run.bat").read_text(encoding="utf-8")
         setup_text = (PROJECT_ROOT / "ops" / "scripts" / "dev" / "setup.bat").read_text(encoding="utf-8")
 
@@ -1026,11 +1070,25 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("apps\\desktop\\launchers\\Launch-MediaPipelineRemuxEncodeAIO-LocalApi.bat", start_local)
         self.assertIn("apps\\desktop\\launchers\\Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1", start_browser)
         self.assertIn("ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe", verify_env)
+        self.assertIn("[switch]$AllowMissingConfig", verify_env_script)
+        self.assertIn("[switch]$ReleasePackageVerification", verify_env_script)
+        self.assertIn("No active operator config exists yet", verify_env_script)
+        self.assertIn("advisory for standalone release package verification", verify_env_script)
+        self.assertIn("$environmentVerifierArgs = @('-AllowMissingConfig')", release_test)
+        self.assertIn("$environmentVerifierArgs += '-ReleasePackageVerification'", release_test)
+        self.assertIn("-Arguments $environmentVerifierArgs", release_test)
         self.assertIn('set "PIPELINE_ROOT=%PROJECT_ROOT%\\ops\\pipeline"', run_text)
         self.assertIn('set "PIPELINE_ENTRYPOINT_ROOT=%PIPELINE_ROOT%\\entrypoints"', run_text)
         self.assertIn('set "PIPELINE_CONFIG_ROOT=%PIPELINE_ROOT%\\config"', run_text)
+        self.assertIn('set "USER_CONFIG_ROOT=%LOCALAPPDATA%\\MediaPipelineRemuxEncodeAIO"', run_text)
+        self.assertIn("%USER_CONFIG_ROOT%\\MediaPipeline_config.psd1", run_text)
+        self.assertIn("%PROJECT_ROOT%\\apps\\desktop\\config\\MediaPipeline_config.psd1", run_text)
         self.assertIn('-File "%PIPELINE_ENTRYPOINT_ROOT%\\MediaPipeline.ps1" -ConfigPath "%PIPELINE_CONFIG_PATH%"', run_text)
         self.assertIn('set "PIPELINE_ROOT=%PROJECT_ROOT%\\ops\\pipeline"', setup_text)
+        self.assertIn("DisableDelayedExpansion", setup_text)
+        self.assertIn('set "SETUP_ALIAS_ARGS="', setup_text)
+        self.assertIn('"%PWSH_PATH%" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ENTRYPOINT_ROOT%\\Setup-MediaPipeline.ps1" %*', setup_text)
+        self.assertNotIn("!SETUP_ARGS!", setup_text)
         self.assertIn('-File "%PIPELINE_ENTRYPOINT_ROOT%\\Setup-MediaPipeline.ps1"', setup_text)
         self.assertNotIn('set "PIPELINE_ROOT=%PROJECT_ROOT%\\Pipeline"', run_text)
         self.assertNotIn('set "PIPELINE_ROOT=%PROJECT_ROOT%\\Pipeline"', setup_text)
@@ -1073,6 +1131,9 @@ class TauriShellScaffoldTests(unittest.TestCase):
         setup_deps = (PROJECT_ROOT / "ops" / "pipeline" / "config" / "setup" / "Dependencies.ps1").read_text(
             encoding="utf-8"
         )
+        setup_ui = (PROJECT_ROOT / "ops" / "pipeline" / "config" / "setup" / "UserInteraction.ps1").read_text(
+            encoding="utf-8"
+        )
         audit = (PROJECT_ROOT / "ops" / "pipeline" / "entrypoints" / "Audit-MediaLibrary.ps1").read_text(encoding="utf-8")
         rerun = (PROJECT_ROOT / "ops" / "pipeline" / "entrypoints" / "Invoke-RerunCsv.ps1").read_text(encoding="utf-8")
         naming = (PROJECT_ROOT / "ops" / "pipeline" / "entrypoints" / "Get-NamingPreview.ps1").read_text(encoding="utf-8")
@@ -1094,15 +1155,21 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("$script:PipelineRoot = Split-Path -Parent $script:ScriptDir", setup)
         self.assertIn("$script:RepoRoot = Split-Path -Parent (Split-Path -Parent $script:PipelineRoot)", setup)
         self.assertIn("$script:ConfigDir = Join-Path $script:PipelineRoot 'config'", setup)
+        self.assertIn("function Get-SetupConfigCandidatePaths", setup)
+        self.assertIn("MediaPipelineRemuxEncodeAIO", setup)
+        self.assertIn("Resolve-SetupDefaultConfigPath -ConfigDir $script:ConfigDir -RepoRoot $script:RepoRoot", setup)
+        self.assertIn("return $(if ($previewResult.Ok) { 0 } else { 1 })", setup)
         self.assertIn("$script:SubtitlePath = Join-Path $script:RepoRoot 'src\\mediapipeline\\pipeline\\ass_to_srt_cli.py'", setup)
         self.assertIn("$configSchemaModule = Join-Path $script:PipelineRoot 'engine\\config\\config_schema.ps1'", setup)
         self.assertIn("$script:SetupSliceDir = Join-Path $script:ConfigDir 'setup'", setup)
         self.assertIn("$script:PipelineRoot", setup_deps)
+        self.assertIn("runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe", setup_deps)
         self.assertIn("ops\\pipeline\\tools\\ffmpeg\\bin\\ffmpeg.exe", setup_deps)
         self.assertIn("ops\\pipeline\\tools\\MKVToolNix\\mkvmerge.exe", setup_deps)
         self.assertIn("param([hashtable]$Config = @{})", setup_deps)
         self.assertIn("Get-SetupAllowSystemTools -Config $Config", setup_deps)
         self.assertIn("AllowSystemTools=false prevents PATH fallback", setup_deps)
+        self.assertIn("$projectRoot = $script:RepoRoot", setup_ui)
         self.assertIn("Get-DependencyStatus -Config $Config", (PROJECT_ROOT / "ops" / "pipeline" / "config" / "setup" / "Validation.ps1").read_text(encoding="utf-8"))
         self.assertIn("$script:PipelineRoot = if ($PSScriptRoot)", audit)
         self.assertIn("Join-Path $script:PipelineRoot 'engine\\audit\\scanner.ps1'", audit)
@@ -1296,10 +1363,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1338,10 +1405,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1404,10 +1471,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("drain pending publish", source)
         self.assertIn("rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1451,10 +1518,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("drain pending publish", source)
         self.assertIn("rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1505,10 +1572,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("drain pending publish", source)
         self.assertIn("rerun, rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1552,10 +1619,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1572,7 +1639,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Render cap visibility", source)
         self.assertIn("rename-check-applicable-button", source)
         self.assertIn("rename-apply-button", source)
-        self.assertIn("blocked by apply readiness", source)
+        self.assertIn("Blocked by readiness", source)
         self.assertIn("duplicate destination target", source)
         self.assertIn("posted", source)
         self.assertNotIn("playwright", source.casefold())
@@ -1590,21 +1657,21 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("tests.webview.test_webview_browser_network_smoke", source)
         self.assertIn("temporary local API against generated temporary state", source)
         self.assertIn("Chrome/Edge headless", source)
-        self.assertIn("read-only network runtime/lifecycle readiness", source)
+        self.assertIn("backend-owned network lifecycle controls", source)
         self.assertIn("lifecycle handoff", source)
         self.assertIn("persisted worker rows", source)
         self.assertIn("filters warn when active/problem worker rows are hidden", source)
-        self.assertIn("no network lifecycle mutation commands are posted", source)
-        self.assertIn("Worker Mode Settings save is not exercised by this smoke", source)
+        self.assertIn("confirmed network lifecycle commands are not executed", source)
+        self.assertIn("Distributed Mode Settings save is not exercised by this smoke", source)
         self.assertIn("does not process media", source)
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("start or stop coordinator/workers", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("confirm start/stop coordinator/workers", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1649,10 +1716,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
 
@@ -1713,10 +1780,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("process media", source)
         self.assertIn("launch pipeline commands", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -1738,10 +1805,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename files, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -1763,10 +1830,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("launch pipeline commands", source)
         self.assertIn("publish, rename files, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -1790,10 +1857,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("run audit, run CSV rerun", source)
         self.assertIn("rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -1817,10 +1884,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("run audit, run CSV rerun", source)
         self.assertIn("rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -1848,10 +1915,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("run audit, run CSV rerun", source)
         self.assertIn("rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -1880,10 +1947,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("drain pending publish", source)
         self.assertIn("rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -1910,10 +1977,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("drain pending publish", source)
         self.assertIn("rename, save settings", source)
         self.assertIn("mutate queue state", source)
-        self.assertIn("skips cleanly when Chrome/Edge is not installed", source)
-        self.assertIn("apps\\desktop\\runtime\\Python\\python.exe", source)
-        self.assertIn("ops\\pipeline\\runtime\\Python\\python.exe", source)
-        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", source)
+        self.assertIn("fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit", source)
+        self.assertIn("webview_browser_smoke_common.ps1", source)
+        self.assertIn("Invoke-WebViewBrowserSmokeUnittest", source)
+        self.assertIn("$env:PYTHONDONTWRITEBYTECODE = '1'", _webview_browser_smoke_common_source())
         self.assertNotIn("Remove-Item", source)
         self.assertNotIn("Start-Process", source)
         self.assertNotIn("/api/rename/apply", source)
@@ -2089,6 +2156,32 @@ class TauriShellScaffoldTests(unittest.TestCase):
             self.assertIn("Backend WebView bootstrap leaked the bearer token in Tauri mode.", text)
             self.assertNotIn("Backend bootstrap did not expose a bearer token", text)
 
+    def test_tauri_pg_harnesses_require_explicit_runtime_evidence_paths(self) -> None:
+        script_parameters = {
+            "Test-TauriShell-PG1ActiveClose.ps1": ("ActiveJobsDir",),
+            "Test-TauriShell-PG2WebViewLaunch.ps1": ("ActiveJobsDir",),
+            "Test-TauriShell-PG2SampleValidationAppend.ps1": ("SampleValidationLog",),
+        }
+        removed_defaults = (
+            "[string]$ActiveJobsDir = 'E:\\Videos\\Scratch\\State\\ActiveJobs'",
+            "[string]$SampleValidationLog = 'E:\\Videos\\Scratch\\State\\Validation\\sample_validation_log.jsonl'",
+        )
+
+        for script_name, parameters in script_parameters.items():
+            script = TAURI_ROOT / script_name
+            self.assertTrue(script.exists(), script_name)
+            text = script.read_text(encoding="utf-8")
+            self.assertIn("Assert-ExplicitPgRuntimeEvidencePath", text)
+            self.assertIn("[System.IO.Path]::IsPathFullyQualified", text)
+            self.assertIn("must not use the legacy machine-specific runtime state root", text)
+            self.assertIn("temp LocalBase\\State path for this PG run", text)
+            for removed_default in removed_defaults:
+                self.assertNotIn(removed_default, text)
+            for parameter in parameters:
+                self.assertIn(f"[string]${parameter} = ''", text)
+                self.assertIn("Parameter -$ParameterName is required", text)
+                self.assertIn(f"-ParameterName '{parameter}'", text)
+
     def test_tauri_pg2_webview_launch_harness_uses_webview_start_not_backend_direct_post(self) -> None:
         script = TAURI_ROOT / "Test-TauriShell-PG2WebViewLaunch.ps1"
         self.assertTrue(script.exists())
@@ -2130,6 +2223,3 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-

@@ -3,9 +3,9 @@ file: tests/python/core/contract/test_preset_policy_contract.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-06-13
 last_reviewed: 2026-06-04
-sha256: 48e25532e36eead6159dc4177d1dfea18dae3db3bef8d9b5a134954d72c51cc8
+sha256: 8ecd10ede8cc511207dbca06fb51b64fef42e533dfccacaec20f911b46925a86
 ---
 # `tests/python/core/contract/test_preset_policy_contract.py`
 

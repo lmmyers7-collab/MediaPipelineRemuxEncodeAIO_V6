@@ -30,6 +30,10 @@ generate_project_index = _load_module(
     "generate_project_index_for_tests",
     REPO_ROOT / "src" / "mediapipeline" / "tools" / "dev" / "generate_project_index.py",
 )
+generate_feature_file_map = _load_module(
+    "generate_feature_file_map_for_tests",
+    REPO_ROOT / "src" / "mediapipeline" / "tools" / "dev" / "generate_feature_file_map.py",
+)
 
 
 def _sha(path: Path) -> str:
@@ -95,6 +99,26 @@ class SummaryIntegrityTests(unittest.TestCase):
             "setup",
         )
 
+    def test_owner_domain_covers_current_core_domains(self) -> None:
+        cases = {
+            "src/mediapipeline/core/kernel/config_key_groups.py": "kernel",
+            "src/mediapipeline/core/maintenance/change_ledger.py": "maintenance",
+            "src/mediapipeline/core/folder_policy/service.py": "folder_policy",
+            "src/mediapipeline/core/paths/service.py": "paths",
+            "src/mediapipeline/core/schedule/facade.py": "schedule",
+            "src/mediapipeline/core/files/open_policy.py": "files",
+            "src/mediapipeline/core/shared/protocols.py": "shared",
+            "src/mediapipeline/core/sample_validation/facade.py": "sample_validation",
+            "src/mediapipeline/core/validation/contracts.py": "validation",
+            "src/mediapipeline/core/metrics/service.py": "metrics",
+            "src/mediapipeline/desktop/application/sample_validation/evidence.py": "sample_validation",
+            "src/mediapipeline/desktop/watch/scanner.py": "watch",
+            "ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1": "process",
+        }
+        for path, expected in cases.items():
+            with self.subTest(path=path):
+                self.assertEqual(refresh_summaries.owner_domain_for(path), expected)
+
     def test_ass_to_srt_helper_is_indexed_as_subtitle_source(self) -> None:
         self.assertIn("src/mediapipeline/pipeline", refresh_summaries.SOURCE_ROOTS)
         self.assertIn("src/mediapipeline/pipeline/ass_to_srt_cli.py", refresh_summaries.ROOT_SOURCE_FILES)
@@ -136,6 +160,11 @@ class SummaryIntegrityTests(unittest.TestCase):
         self.assertTrue(
             refresh_summaries.is_volatile_generated_summary_source(
                 "docs/generated/DEPENDENCY_GRAPH.md"
+            )
+        )
+        self.assertTrue(
+            refresh_summaries.is_volatile_generated_summary_source(
+                "docs/generated/FEATURE_FILE_MAP.md"
             )
         )
         self.assertFalse(
@@ -300,6 +329,50 @@ class SummaryIntegrityTests(unittest.TestCase):
             finally:
                 generate_project_index.REPO_ROOT = old_root
                 generate_project_index.SUMMARY_ROOT = old_summary
+
+    def test_feature_file_map_detects_missing_and_legacy_references(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            kept = root / "src" / "mediapipeline" / "core" / "queue" / "service.py"
+            kept.parent.mkdir(parents=True)
+            kept.write_text("print('kept')\n", encoding="utf-8")
+
+            text = "\n".join(
+                [
+                    "`src/mediapipeline/core/queue/service.py`",
+                    "`src/mediapipeline/core/queue/missing.py`",
+                    "`app/api/commands.py`",
+                ]
+            )
+
+            findings = generate_feature_file_map.path_reference_findings(text, root)
+            self.assertEqual(
+                [(finding.path, finding.reason_code) for finding in findings],
+                [
+                    ("src/mediapipeline/core/queue/missing.py", "REFERENCED_PATH_MISSING"),
+                    ("app/api/commands.py", "LEGACY_ROOT_REFERENCE"),
+                ],
+            )
+
+    def test_feature_file_map_renders_current_project_index_paths(self) -> None:
+        text = "\n".join(
+            [
+                "| File | Domain | Priority | Stage | Purpose |",
+                "|---|---|---|---|---|",
+                "| `src/mediapipeline/core/queue/service.py` | queue | high | queue | Queue service. |",
+                "| `ops/pipeline/engine/queue/queue_plan.ps1` | queue | high | queue | Queue plan. |",
+                "| `apps/desktop/webview/static/assets/app.js` | ui | medium | n/a | WebView app. |",
+            ]
+        )
+
+        entries = generate_feature_file_map.parse_project_index(text)
+        rendered = generate_feature_file_map.render_feature_map(entries)
+
+        self.assertIn("Queue, source scanning, and launch planning", rendered)
+        self.assertIn("src/mediapipeline/core/queue/service.py", rendered)
+        self.assertIn("ops/pipeline/engine/queue/queue_plan.ps1", rendered)
+        self.assertIn("apps/desktop/webview/static/assets/app.js", rendered)
+        self.assertNotIn("`app/", rendered)
 
 
 if __name__ == "__main__":

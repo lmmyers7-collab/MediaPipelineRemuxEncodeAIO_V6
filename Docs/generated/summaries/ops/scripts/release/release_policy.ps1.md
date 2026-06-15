@@ -3,9 +3,9 @@ file: ops/scripts/release/release_policy.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-13
 last_reviewed: 2026-06-04
-sha256: 0239b49e756c9ffc5adfd7859964c3e8752a5b5e7bba6313a24d772f622264f1
+sha256: 09db03c0dddd945f345cd5eada969d6aaa152d823933cf0748c61de26ad4ea2c
 ---
 # `ops/scripts/release/release_policy.ps1`
 

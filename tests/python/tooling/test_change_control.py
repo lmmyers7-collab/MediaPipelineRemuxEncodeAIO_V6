@@ -534,6 +534,83 @@ class ChangeControlToolingTests(unittest.TestCase):
         self.assertEqual(manifest["release_channel"], "local")
         self.assertEqual(manifest["included_changes"], [packet_path.stem])
 
+    def test_finalize_release_rolls_back_when_generator_fails(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            unreleased = root / "ops" / "release" / "changes" / "unreleased"
+            released = root / "ops" / "release" / "changes" / "released"
+            version_file = root / "ops" / "release" / "metadata" / "VERSION"
+            manifest_path = root / "ops" / "release" / "metadata" / "RELEASE_MANIFEST.json"
+            changelog_path = root / "docs" / "change_control" / "CHANGELOG.md"
+            index_path = root / "docs" / "change_control" / "CHANGE_INDEX.md"
+            history_root = root / "ops" / "release" / "metadata" / "history"
+            version_file.parent.mkdir(parents=True)
+            changelog_path.parent.mkdir(parents=True)
+            version_file.write_text("0.1.0-dev\n", encoding="utf-8")
+            manifest_path.write_text('{"version":"0.1.0-dev"}\n', encoding="utf-8")
+            changelog_path.write_text("# old changelog\n", encoding="utf-8")
+            index_path.write_text("# old index\n", encoding="utf-8")
+            packet = _packet("MP-CHANGE-2026-0604-001", "0.1.0-dev")
+            packet["date_completed"] = ""
+            packet_path = _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", packet)
+            original_packet_text = packet_path.read_text(encoding="utf-8")
+
+            calls: list[str] = []
+
+            def failing_run_script(name: str, *_args: str) -> None:
+                calls.append(name)
+                if name == "build_changelog.py":
+                    raise RuntimeError("generator failed")
+
+            old_values = (
+                finalize_release.REPO_ROOT,
+                finalize_release.UNRELEASED_DIR,
+                finalize_release.RELEASED_DIR,
+                finalize_release.VERSION_FILE,
+                finalize_release.MANIFEST_PATH,
+                finalize_release.CHANGELOG_PATH,
+                finalize_release.INDEX_PATH,
+                finalize_release.HISTORY_ROOT,
+                finalize_release.ARCHIVE_FILES,
+                finalize_release._run_script,
+            )
+            try:
+                finalize_release.REPO_ROOT = root
+                finalize_release.UNRELEASED_DIR = unreleased
+                finalize_release.RELEASED_DIR = released
+                finalize_release.VERSION_FILE = version_file
+                finalize_release.MANIFEST_PATH = manifest_path
+                finalize_release.CHANGELOG_PATH = changelog_path
+                finalize_release.INDEX_PATH = index_path
+                finalize_release.HISTORY_ROOT = history_root
+                finalize_release.ARCHIVE_FILES = [version_file, manifest_path, changelog_path, index_path]
+                finalize_release._run_script = failing_run_script
+
+                with self.assertRaisesRegex(RuntimeError, "generator failed"):
+                    finalize_release._finalize("1.0.0", "local", [(packet_path, packet)])
+            finally:
+                (
+                    finalize_release.REPO_ROOT,
+                    finalize_release.UNRELEASED_DIR,
+                    finalize_release.RELEASED_DIR,
+                    finalize_release.VERSION_FILE,
+                    finalize_release.MANIFEST_PATH,
+                    finalize_release.CHANGELOG_PATH,
+                    finalize_release.INDEX_PATH,
+                    finalize_release.HISTORY_ROOT,
+                    finalize_release.ARCHIVE_FILES,
+                    finalize_release._run_script,
+                ) = old_values
+
+            self.assertEqual(calls, ["build_change_index.py", "build_changelog.py"])
+            self.assertEqual(packet_path.read_text(encoding="utf-8"), original_packet_text)
+            self.assertFalse((released / "1.0.0" / packet_path.name).exists())
+            self.assertEqual(version_file.read_text(encoding="utf-8"), "0.1.0-dev\n")
+            self.assertEqual(manifest_path.read_text(encoding="utf-8"), '{"version":"0.1.0-dev"}\n')
+            self.assertEqual(changelog_path.read_text(encoding="utf-8"), "# old changelog\n")
+            self.assertEqual(index_path.read_text(encoding="utf-8"), "# old index\n")
+            self.assertFalse((history_root / "1.0.0").exists())
+
     def test_manifest_can_preview_dev_placeholder_packets_for_target_version(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

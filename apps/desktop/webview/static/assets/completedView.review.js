@@ -1005,16 +1005,144 @@
       return [item.route_reason_code, item.route_reason, item.route_decision_summary].filter(Boolean).join(" - ") || "not reported";
     }
 
-    function completedSelectedEvidenceItems(item) {
+    function completedSelectedSizeDeltaPercent(item) {
+      if (typeof item?.size_delta_percent === "number") return Number(item.size_delta_percent);
+      const parsed = Number.parseFloat(String(item?.size_delta_label || "").replace("%", ""));
+      return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function completedSelectedPositiveGrowth(item) {
+      const delta = completedSelectedSizeDeltaPercent(item);
+      return delta !== null && delta > 0;
+    }
+
+    function completedSelectedRouteLooksEncode(item) {
+      return [item?.route_decision_summary, item?.route_label, item?.route]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase()
+        .includes("encode");
+    }
+
+    function completedSelectedSizePolicyLabel(item) {
+      if (!item) return "not evaluated";
+      const evidence = item.size_policy_limit_label || item.size_policy_message || item.size_policy_status || "";
+      if (item.size_policy_exceeded) return evidence ? `exceeded recorded policy (${evidence})` : "exceeded recorded policy";
+      if (item.size_policy_available && completedSelectedPositiveGrowth(item)) return evidence ? `within recorded policy (${evidence})` : "within recorded policy";
+      if (item.size_policy_available) return evidence ? `recorded (${evidence})` : "recorded";
+      if (item.size_growth_over_5) return "not recorded; legacy +5% review";
+      return "not recorded";
+    }
+
+    function completedSelectedDiagnosisLine(item) {
+      if (!item) return "Select a completed row to see the key evidence behind route, size, runtime, and output-health differences.";
+      const sizeLabel = completedSelectedSizeLabel(item);
+      if (completedSelectedOutputUnavailable(item)) {
+        return "Output is unavailable; resolve final placement or pending-publish proof before judging size or route differences.";
+      }
+      if (item.size_policy_exceeded) {
+        return `Output grew ${sizeLabel} and exceeded a recorded backend size_policy.`;
+      }
+      if (item.size_growth_over_5 && !item.size_policy_available) {
+        return `Output grew ${sizeLabel} and no backend size_policy was recorded for that growth.`;
+      }
+      if (completedSelectedPositiveGrowth(item) && item.size_policy_available) {
+        return `Output grew ${sizeLabel}, but the recorded backend size_policy says the growth stayed within limit.`;
+      }
+      if (completedSelectedPositiveGrowth(item)) {
+        return `Output grew ${sizeLabel}; route reason and logs are the key evidence to check.`;
+      }
+      if (completedRowLooksHealthy(item)) {
+        return "No output, sidecar, size, or runtime blocker is visible in the loaded completed evidence.";
+      }
+      return completedSelectedConcern(item);
+    }
+
+    function completedSelectedWhyItMatters(item) {
+      if (!item) return "The selected-row summary is read-only and only formats already-loaded backend evidence.";
+      if (completedSelectedOutputUnavailable(item)) {
+        return "Size and route evidence cannot prove success until Completed, Pending Publish, and final-placement proof agree about where the output is.";
+      }
+      if (item.size_policy_exceeded) {
+        return "A recorded size_policy exists and says this output crossed the configured limit, so route metadata and logs decide whether the result is acceptable.";
+      }
+      if (item.size_growth_over_5 && !item.size_policy_available) {
+        return completedSelectedRouteLooksEncode(item)
+          ? "This was an encode result with growth beyond the legacy threshold, but no recorded size_policy explains why that growth is acceptable."
+          : "The output grew beyond the legacy threshold, but no recorded size_policy explains why that growth is acceptable.";
+      }
+      if (completedSelectedPositiveGrowth(item) && item.size_policy_available) {
+        return "Positive growth can be expected for compatibility, subtitle, or audio choices when backend size_policy records it as within limit.";
+      }
+      if (completedSelectedRouteLooksEncode(item)) {
+        return "The route reason is the strongest available explanation for why this file behaved differently; check encoder/log evidence if the size is surprising.";
+      }
+      return "This panel highlights the row facts that are most useful while flipping between completed outputs; raw detail remains available below.";
+    }
+
+    function completedSelectedEvidenceGaps(item) {
+      if (!item) return [];
+      const gaps = [];
+      if (completedSelectedOutputUnavailable(item)) gaps.push("Output placement proof is missing or unavailable.");
+      if (!item.size_policy_available) gaps.push("No backend size_policy recorded.");
+      if (!item.runtime_outcome_status && !item.runtime_outcome_reason) gaps.push("No runtime outcome reported.");
+      if (item.sidecar_exists === false) gaps.push("Sidecar proof is missing.");
+      else if (item.sidecar_exists !== true && !item.sidecar_path && !item.expected_sidecar_path) gaps.push("Sidecar proof not reported.");
+      if (completedSelectedPolicyLabel(item) === "not reported") gaps.push("Route reason not reported.");
+      return gaps;
+    }
+
+    function completedSelectedNextChecks(item) {
+      if (!item) return ["Select a completed row.", "Review route and size evidence.", "Open raw detail only when needed."];
+      const checks = [];
+      const add = (value) => {
+        if (value && !checks.includes(value)) checks.push(value);
+      };
+      if (completedSelectedOutputUnavailable(item)) {
+        add("Check Pending Publish and final placement proof.");
+        add("Open Completed Manifest and sidecar/output evidence.");
+        add("Read Run Logs or Last Stderr before rerun.");
+      }
+      if (item.size_policy_exceeded || item.size_growth_over_5 || completedSelectedPositiveGrowth(item)) {
+        add("Open route metadata.");
+        add("Read Run Logs or Last Stderr.");
+        add("Check encoder settings or output bitrate.");
+      }
+      if (completedSelectedPolicyLabel(item) === "not reported") add("Open route metadata.");
+      if (!item.runtime_outcome_status && !item.runtime_outcome_reason) add("Read Run Logs or Last Stderr.");
+      add(completedSelectedSafeAction(item));
+      return checks.slice(0, 3);
+    }
+
+    function completedSelectedSignalTone(label, item) {
+      if (!item) return "muted";
+      if (label === "Size change") {
+        if (completedSelectedOutputUnavailable(item) || item.size_policy_exceeded) return "danger";
+        if (item.size_growth_over_5 || completedSelectedPositiveGrowth(item)) return "warning";
+        return "success";
+      }
+      if (label === "Size policy") {
+        if (item.size_policy_exceeded) return "danger";
+        if (!item.size_policy_available) return "warning";
+        return "success";
+      }
+      if (label === "Runtime/log evidence") {
+        const runtime = completedSelectedRuntimeLabel(item).toLowerCase();
+        if (runtime === "none reported") return "warning";
+        if (["failed", "error", "skipped"].some((value) => runtime.includes(value))) return "danger";
+        if (["ok", "succeeded", "success"].some((value) => runtime.includes(value))) return "success";
+      }
+      return "info";
+    }
+
+    function completedSelectedKeySignals(item) {
       return [
-        ["Route", completedSelectedRouteLabel(item)],
         ["Size change", completedSelectedSizeLabel(item)],
-        ["Health", item?.output_health || "unknown"],
-        ["Runtime", completedSelectedRuntimeLabel(item)],
-        ["Audio tracks", String(item?.audio_decision_count || 0)],
-        ["Subtitle tracks", String(item?.subtitle_decision_count || 0)],
-        ["Current table visibility", completedSelectedVisibilitySummary(item) || "not evaluated"],
-        ["Policy / route reason", completedSelectedPolicyLabel(item)],
+        ["Route", completedSelectedRouteLabel(item)],
+        ["Trigger / route reason", completedSelectedPolicyLabel(item)],
+        ["Size policy", completedSelectedSizePolicyLabel(item)],
+        ["Runtime/log evidence", completedSelectedRuntimeLabel(item)],
+        ["Audio/Subtitles", `${item?.audio_decision_count || 0} audio / ${item?.subtitle_decision_count || 0} subtitle tracks`],
       ];
     }
 
@@ -1025,18 +1153,23 @@
       return node;
     }
 
-    function completedSelectedPriorityRow(label, value) {
-      const row = completedSelectedNode("div", "completed-selected-priority-row");
-      row.appendChild(completedSelectedNode("span", "completed-selected-label", label));
-      row.appendChild(completedSelectedNode("p", "completed-selected-priority-text", value || "not reported"));
-      return row;
+    function completedSelectedSignalItem(label, value, tone) {
+      const item = completedSelectedNode("div", "completed-selected-signal");
+      item.dataset.tone = tone || "info";
+      item.appendChild(completedSelectedNode("span", "completed-selected-label", label));
+      item.appendChild(completedSelectedNode("strong", "completed-selected-signal-value", value || "not reported"));
+      return item;
     }
 
-    function completedSelectedEvidenceItem(label, value) {
-      const item = completedSelectedNode("div", "completed-selected-evidence-item");
-      item.appendChild(completedSelectedNode("span", "completed-selected-label", label));
-      item.appendChild(completedSelectedNode("strong", "completed-selected-evidence-value", value || "not reported"));
-      return item;
+    function completedSelectedListBlock(title, items, className) {
+      const block = completedSelectedNode("div", className || "completed-selected-list-card");
+      block.appendChild(completedSelectedNode("span", "completed-selected-label", title));
+      const list = completedSelectedNode("ol", "completed-selected-list");
+      items.forEach((item) => {
+        list.appendChild(completedSelectedNode("li", "", item));
+      });
+      block.appendChild(list);
+      return block;
     }
 
     function completedSelectedPaths(item) {
@@ -1074,14 +1207,24 @@
       badge.dataset.state = statusState;
       strip.appendChild(badge);
 
-      const priority = completedSelectedNode("div", "completed-selected-priority-grid");
-      priority.appendChild(completedSelectedPriorityRow("Primary concern", completedSelectedConcern(item)));
-      priority.appendChild(completedSelectedPriorityRow("Recommended next check", completedSelectedSafeAction(item)));
+      const diagnosis = completedSelectedNode("section", "completed-selected-diagnosis-card");
+      diagnosis.appendChild(completedSelectedNode("span", "completed-selected-label", "Why this output looks different"));
+      diagnosis.appendChild(completedSelectedNode("p", "completed-selected-diagnosis-text", completedSelectedDiagnosisLine(item)));
 
-      const evidenceGrid = completedSelectedNode("div", "completed-selected-evidence-grid");
-      completedSelectedEvidenceItems(item).forEach(([label, value]) => {
-        evidenceGrid.appendChild(completedSelectedEvidenceItem(label, value));
+      const evidenceGrid = completedSelectedNode("div", "completed-selected-signal-grid");
+      completedSelectedKeySignals(item).forEach(([label, value]) => {
+        evidenceGrid.appendChild(completedSelectedSignalItem(label, value, completedSelectedSignalTone(label, item)));
       });
+
+      const why = completedSelectedNode("div", "completed-selected-meaning");
+      why.appendChild(completedSelectedNode("span", "completed-selected-label", "Why it matters"));
+      why.appendChild(completedSelectedNode("p", "completed-selected-priority-text", completedSelectedWhyItMatters(item)));
+
+      const gaps = completedSelectedEvidenceGaps(item);
+      const gapBlock = gaps.length
+        ? completedSelectedListBlock("Evidence gaps", gaps, "completed-selected-list-card completed-selected-gap-card")
+        : null;
+      const checks = completedSelectedListBlock("What to check next", completedSelectedNextChecks(item), "completed-selected-list-card completed-selected-check-card");
 
       const authority = completedSelectedNode(
         "p",
@@ -1091,7 +1234,7 @@
           : "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
       );
 
-      return [strip, priority, evidenceGrid, completedSelectedPaths(item), authority];
+      return [strip, diagnosis, evidenceGrid, why, gapBlock, checks, completedSelectedPaths(item), authority].filter(Boolean);
     }
 
     function completedSelectedAtAGlanceLines(item) {

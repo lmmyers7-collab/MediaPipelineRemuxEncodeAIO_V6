@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_path_state_migration.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: d5c1683a2a4cadb5cac02580988f15fd4403b95059a29251dbef206176491161
+sha256: 7fe45a9ae35c374c8f0213f577eb3b65ae3e36c53aae5933cded7a18f8c5f48a
 ---
 # `tests/python/desktop/test_service_path_state_migration.py`
 

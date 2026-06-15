@@ -23,7 +23,6 @@ from ..config_keys import (
     KEY_VIDEO_QUALITY,
     KEY_WORKER_CONFIG_OVERRIDES,
 )
-from .json_policy import loads_strict_json
 
 
 _log = logging.getLogger(__name__)
@@ -58,25 +57,8 @@ def snapshot_encode_config(config: Mapping[str, object], worker_name: str = "") 
     raw_overrides = str(config.get(KEY_WORKER_CONFIG_OVERRIDES, "") or "").strip()
     if not raw_overrides:
         return snapshot
-    try:
-        overrides_map = loads_strict_json(raw_overrides)
-    except Exception as exc:
-        _log.warning("WorkerConfigOverrides JSON is invalid: %s", exc)
-        return snapshot
-    if not isinstance(overrides_map, dict):
-        return snapshot
-
-    for name_key, patch in overrides_map.items():
-        if isinstance(patch, dict) and str(name_key).casefold() == worker:
-            allowed_patch = {key: value for key, value in patch.items() if key in ENCODE_CONFIG_KEYS}
-            ignored_keys = sorted(str(key) for key in patch if key not in ENCODE_CONFIG_KEYS)
-            if ignored_keys:
-                _log.warning(
-                    "Ignoring unsupported WorkerConfigOverrides keys for worker '%s': %s",
-                    worker_name,
-                    ignored_keys,
-                )
-            snapshot.update(allowed_patch)
-            _log.debug("Applied config overrides for worker '%s': %s", worker_name, list(allowed_patch))
-            break
+    _log.warning(
+        "WorkerConfigOverrides is disabled by backend policy; ignoring overrides for worker '%s'.",
+        worker_name,
+    )
     return snapshot

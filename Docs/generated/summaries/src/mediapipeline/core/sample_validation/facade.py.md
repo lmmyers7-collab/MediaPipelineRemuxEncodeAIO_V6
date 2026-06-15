@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/sample_validation/facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: sample_validation
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 784f89945d056931858f2762800deca10e73c6c25c8ba7641727eeea9f91fa2f

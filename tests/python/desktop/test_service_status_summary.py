@@ -3,6 +3,7 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -10,6 +11,7 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.core.status.progress import is_progress_stale
 from mediapipeline.core.status.service import StatusServiceMixin
 from mediapipeline.core.status.summary import build_status_summary
 
@@ -100,6 +102,36 @@ class StatusSummaryHelperTests(unittest.TestCase):
         self.assertIn("Stop flag       : clear", text)
         self.assertIn("Latest failure report", text)
         self.assertIn(str(priority_csv), text)
+
+    def test_build_status_summary_keeps_paused_progress_with_pause_flag_out_of_stale_health(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            pause_flag = root / "pause.flag"
+            pause_flag.write_text("pause", encoding="utf-8")
+            resolved = _resolved(root, pause_flag=pause_flag)
+            progress = {
+                "ProgressVersion": 2,
+                "LastUpdate": (datetime.now() - timedelta(hours=2)).isoformat(timespec="seconds"),
+                "Status": "Processing",
+                "CurrentStage": "paused",
+                "CurrentStagePercent": 25,
+            }
+
+            text = build_status_summary(
+                resolved=resolved,
+                progress=progress,
+                audit_progress=None,
+                audit_root="",
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+                progress_is_stale=is_progress_stale(progress, stale_after_seconds=5),
+            )
+
+        self.assertIn("Pause flag      : present", text)
+        self.assertIn("Stage            : paused", text)
+        self.assertNotIn("Progress health  : STALE", text)
 
     def test_build_status_summary_reports_progress_audit_errors_and_events(self) -> None:
         with tempfile.TemporaryDirectory() as td:

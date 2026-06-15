@@ -2,7 +2,7 @@
 file: src/mediapipeline/desktop/application/sample_validation/pilot_plan.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: application
+owner_domain: sample_validation
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: bbe90a2c11039fbdb887a4e2dcdf10c84b463f8fea156d5f5a0660871d7b181a

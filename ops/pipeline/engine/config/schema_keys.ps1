@@ -31,6 +31,7 @@ function Get-MediaPipelineConfigArrayKeys {
         'SubSDHTitleKeywords','SubSupplementalKeywords','Tx3gExtractLanguages','BdpgsExtractLanguages','VobSubExtractLanguages',
         'PreferredDefaultAudioLanguages','RemuxSafeVideoCodecs',
         'ValidExtensions','RenameMovieRemoveTerms','RobocopyFlags','PriorityMarkers',
+        'WatchFolderRoots',
         'ExcludeSubtitleStyles','IncludeSubtitleStyles',
         'FinalLibraryPromotionRules','LibraryProfiles'
     )
@@ -152,7 +153,7 @@ function Get-MediaPipelineConfigOrderedKeys {
         'DeferredPublish',
         'FinalLibraryPromotionEnabled','FinalLibraryPromotionRules','FinalLibraryPromotionVerificationMode',
         'FinalLibraryPromotionCleanupAfterVerified','FinalLibraryPromotionOverwriteExisting',
-        'VideoCodec','VideoPreset','VideoQuality','OutputContainer','EncodeTuningPreset','EncodeLadder','ExtraVideoFlags',
+        'VideoCodec','VideoPreset','VideoQuality','OutputContainer','DynamicHdrPolicy','DoviToolPath','Hdr10PlusToolPath','EncodeTuningPreset','EncodeLadder','ExtraVideoFlags',
         'AudioPassthroughProfile','CompatibleAudioCodecs','PreferredDefaultAudioLanguages',
         'AudioTranscodeCodec','AudioTranscodeBitrate','AudioTranscodeAutoBitrateByChannels','AudioDownmixMode','AudioMaxChannels','AllowNoAudio',
         'SubKeepLanguages','ConvertTx3gToSrt','DropTx3gAfterConversion','CreateExternalTx3gSrtSidecars',
@@ -165,7 +166,9 @@ function Get-MediaPipelineConfigOrderedKeys {
         'ExcludeSubtitleStyles','IncludeSubtitleStyles',
         'RemuxSafeVideoCodecs',
         'RenameMovieFilterOptions','RenameMovieFilterTerms','RenameMovieRemoveTerms',
-        'ValidExtensions','FileStabilityWait','SkipStabilityCheck',
+        'ValidExtensions','FileStabilityWait',
+        'EnableWatchFolders','WatchFolderRoots','WatchDebounceSeconds','WatchAction','WatchRespectScheduleWindow',
+        'SkipStabilityCheck',
         'EnableIntegrityCheck','CreateTVSubfolder','AggressiveEpisodeParsing',
         'RobocopyFlags',
         'DebugMode','LogRetentionDays','PriorityMarkers','MixPriorityPhase','QueueOrderingStrategy','ConsoleLogLevel','FileLogLevel',
@@ -173,11 +176,15 @@ function Get-MediaPipelineConfigOrderedKeys {
         'FallbackCpuQuality','CpuEncodePreset','CpuEncodeProcessPriority','CpuEncodeMaxThreads','OutputSizeMultiplier',
         'FFmpegEncodeTimeoutSeconds','FFmpegCpuEncodeTimeoutSeconds','FFmpegRemuxTimeoutSeconds','MkvmergeRemuxTimeoutSeconds','SubtitleExtractTimeoutSeconds','SubtitleProbeTimeoutSeconds','BdpgsOcrTimeoutSeconds','VobSubOcrTimeoutSeconds',
         'OutputValidationProbeTimeoutSeconds','OutputValidationMinSizeBytes','OutputValidationDurationToleranceSeconds',
+        'EnableQualityVerification','QualityMetric','QualitySampleMode','QualitySampleSeconds','QualitySampleCount',
+        'QualityWarnThreshold','QualityFailThreshold','QualityFailAction','QualityVerifyTimeoutSeconds',
         'AllowSystemTools','RobocopyTimeoutSeconds','TransientFailureRetryLimit',
         'IndexScanTimeoutSeconds','SourceScanTimeoutSeconds','CleanupScanTimeoutSeconds',
         'CleanupRemoteStaging','CleanupStaleAgeHours',
         'SourceScanIntervalSeconds','ProcessedIndexRefreshSeconds',
         'MinPipelineVersion','ReprocessAll',
-        'ShowOverrides'
+        'ShowOverrides',
+        'PlannerRolloutStage','UsePythonPlanner','EnableHandBrakeSettingsUi',
+        'PlannerComparisonLogging','NewPlannerCutoverApproved'
     )
 }

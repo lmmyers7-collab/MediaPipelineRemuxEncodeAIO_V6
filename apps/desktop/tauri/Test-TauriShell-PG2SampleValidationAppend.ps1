@@ -10,13 +10,36 @@ param(
     [int]$AppendTimeoutSeconds = 180,
     [int]$CloseTimeoutSeconds = 30,
     [string]$WindowTitle = 'MediaPipelineRemuxEncodeAIO',
-    [string]$SampleValidationLog = 'E:\Videos\Scratch\State\Validation\sample_validation_log.jsonl',
+    [AllowEmptyString()]
+    [string]$SampleValidationLog = '',
     [string]$Decision = 'hold_review',
     [string]$Category = 'h264-remux-safe'
 )
 
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version 2.0
+
+function Assert-ExplicitPgRuntimeEvidencePath {
+    param(
+        [AllowEmptyString()]
+        [string]$Path,
+        [Parameter(Mandatory)][string]$ParameterName
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw "Parameter -$ParameterName is required. Pass an explicit isolated runtime evidence path for this PG run."
+    }
+    if (-not [System.IO.Path]::IsPathFullyQualified($Path)) {
+        throw "Parameter -$ParameterName must be a fully qualified path: $Path"
+    }
+
+    $fullPath = [System.IO.Path]::GetFullPath($Path)
+    $legacyRoot = [System.IO.Path]::GetFullPath('E:\Videos\Scratch\State')
+    if ($fullPath.StartsWith($legacyRoot, [StringComparison]::OrdinalIgnoreCase)) {
+        throw "Parameter -$ParameterName must not use the legacy machine-specific runtime state root E:\Videos\Scratch\State. Pass a temp LocalBase\State path for this PG run."
+    }
+    return $fullPath
+}
 
 function Resolve-ToolPath {
     param([Parameter(Mandatory)][string]$Name)
@@ -234,6 +257,7 @@ function Wait-SampleValidationRecord {
 }
 
 $resolvedSource = [System.IO.Path]::GetFullPath($SourceFile)
+$SampleValidationLog = Assert-ExplicitPgRuntimeEvidencePath -Path $SampleValidationLog -ParameterName 'SampleValidationLog'
 
 $scriptRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $MyInvocation.MyCommand.Path }
 $shellRoot = [System.IO.Path]::GetFullPath($scriptRoot)

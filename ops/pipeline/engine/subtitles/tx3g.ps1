@@ -182,16 +182,95 @@ function Convert-Tx3gToSrt {
     }
 }
 
+function Get-Tx3gSidecarObjectValue {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string] $Name,
+        $Default = $null
+    )
+
+    if ($null -eq $Object) { return $Default }
+    if ($Object -is [System.Collections.IDictionary]) {
+        if ($Object.Contains($Name)) { return $Object[$Name] }
+        return $Default
+    }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop -and $null -ne $prop.Value) { return $prop.Value }
+    return $Default
+}
+
+function Get-Tx3gSidecarTextValue {
+    param(
+        $Object,
+        [Parameter(Mandatory)] [string] $Name,
+        [string] $Default = ''
+    )
+
+    $value = Get-Tx3gSidecarObjectValue -Object $Object -Name $Name -Default $null
+    if ($null -eq $value) { return $Default }
+    $text = [string]$value
+    if ([string]::IsNullOrWhiteSpace($text)) { return $Default }
+    return $text
+}
+
+function Get-Tx3gSrtSidecarSourceSubtitleKind {
+    param(
+        $Entry,
+        $Track = $null
+    )
+
+    $kind = Get-Tx3gSidecarTextValue -Object $Track -Name 'SourceSubtitleKind' -Default ''
+    if (-not [string]::IsNullOrWhiteSpace($kind)) { return $kind }
+
+    $conversionKind = Get-Tx3gSidecarTextValue -Object $Track -Name 'ConversionKind' -Default ''
+    switch ($conversionKind) {
+        'ass_to_srt' { return 'ass' }
+        'tx3g_to_srt' { return 'tx3g' }
+        'bdpgs_to_srt' { return 'bdpgs' }
+        'vobsub_to_srt' { return 'vobsub' }
+    }
+
+    if ([bool](Get-Tx3gSidecarObjectValue -Object $Entry -Name 'IsTx3g' -Default $false)) { return 'tx3g' }
+    if ([bool](Get-Tx3gSidecarObjectValue -Object $Entry -Name 'IsBdpgs' -Default $false)) { return 'bdpgs' }
+    if ([bool](Get-Tx3gSidecarObjectValue -Object $Entry -Name 'IsVobSub' -Default $false)) { return 'vobsub' }
+
+    $codec = Get-Tx3gSidecarTextValue -Object $Entry -Name 'Codec' -Default ''
+    if (-not [string]::IsNullOrWhiteSpace($codec)) {
+        switch ($codec.ToLowerInvariant()) {
+            'mov_text' { return 'tx3g' }
+            'hdmv_pgs_subtitle' { return 'bdpgs' }
+            'dvd_subtitle' { return 'vobsub' }
+            default { return $codec.ToLowerInvariant() }
+        }
+    }
+    return 'tx3g'
+}
+
+function Get-Tx3gSrtSidecarConversionKind {
+    param(
+        $Entry,
+        $Track = $null
+    )
+
+    $conversionKind = Get-Tx3gSidecarTextValue -Object $Track -Name 'ConversionKind' -Default ''
+    if (-not [string]::IsNullOrWhiteSpace($conversionKind)) { return $conversionKind }
+    $sourceSubtitleKind = Get-Tx3gSrtSidecarSourceSubtitleKind -Entry $Entry -Track $Track
+    return "${sourceSubtitleKind}_to_srt"
+}
+
 function Resolve-Tx3gSrtDestination {
     param(
         [Parameter(Mandatory)] [string]$MediaOutputPath,
         [Parameter(Mandatory)] [hashtable]$Entry,
+        $Track = $null,
         [hashtable]$UsedPaths = @{}
     )
 
     $mediaDir = Split-Path -Parent $MediaOutputPath
     $baseName = [System.IO.Path]::GetFileNameWithoutExtension($MediaOutputPath)
     $lang = Get-NormalizedSubtitleLanguage $Entry.Lang
+    $sourceSubtitleKind = Get-SafeSubtitleFileToken -Value (Get-Tx3gSrtSidecarSourceSubtitleKind -Entry $Entry -Track $Track) -MaxLength 24
+    if ([string]::IsNullOrWhiteSpace($sourceSubtitleKind)) { $sourceSubtitleKind = 'tx3g' }
     $titleSlug = Get-SafeSubtitleFileToken -Value $Entry.RawTitle
     if ($titleSlug -in @('english','undefined','und',$lang)) { $titleSlug = "" }
 
@@ -200,7 +279,7 @@ function Resolve-Tx3gSrtDestination {
     if ($script:Tx3gTreatForcedAsSeparate -and $Entry.IsForced) { $components.Add('forced') }
     if ($Entry.IsSdh) { $components.Add('sdh') }
     if (-not [string]::IsNullOrWhiteSpace($titleSlug)) { $components.Add($titleSlug) }
-    $components.Add('tx3g')
+    $components.Add($sourceSubtitleKind)
 
     $primary = Join-Path $mediaDir ("{0}.{1}.srt" -f $baseName, ($components -join '.'))
 
@@ -255,11 +334,17 @@ function Resolve-Tx3gSrtDestination {
 function New-Tx3gSrtRecord {
     param(
         [hashtable]$Entry,
+        $Track = $null,
         [string]$Path,
         [string]$Status,
         [int]$CueCount,
         [bool]$PreservedExisting = $false
     )
+
+    $sourceSubtitleKind = Get-Tx3gSrtSidecarSourceSubtitleKind -Entry $Entry -Track $Track
+    $sourceSubtitleCodec = Get-Tx3gSidecarTextValue -Object $Track -Name 'SourceSubtitleCodec' -Default (Get-Tx3gSidecarTextValue -Object $Entry -Name 'Codec' -Default (Get-MediaSubtitleCodecMovTextName))
+    $sourceKind = Get-Tx3gSidecarTextValue -Object $Track -Name 'SourceKind' -Default (Get-Tx3gSidecarTextValue -Object $Entry -Name 'SourceKind' -Default 'embedded')
+    $conversionKind = Get-Tx3gSrtSidecarConversionKind -Entry $Entry -Track $Track
 
     return [pscustomobject]@{
         path               = $Path
@@ -280,6 +365,10 @@ function New-Tx3gSrtRecord {
         is_sdh             = if ($Entry.ContainsKey('IsSdh')) { [bool]$Entry.IsSdh } else { $false }
         is_supplemental    = if ($Entry.ContainsKey('IsSupplemental')) { [bool]$Entry.IsSupplemental } else { $false }
         supplemental_forced = if ($Entry.ContainsKey('SupplementalForced')) { [bool]$Entry.SupplementalForced } else { $false }
+        source_subtitle_kind = $sourceSubtitleKind
+        source_subtitle_codec = $sourceSubtitleCodec
+        source_kind         = $sourceKind
+        conversion_kind     = $conversionKind
     }
 }
 
@@ -306,6 +395,10 @@ function ConvertTo-Tx3gEmbeddedSrtTrackRecords {
             supplemental_forced     = if ($entry.ContainsKey('SupplementalForced')) { [bool]$entry.SupplementalForced } else { $false }
             original_preserved      = if ($track.ContainsKey('OriginalPreserved')) { [bool]$track.OriginalPreserved } else { $false }
             original_preserve_reason = if ($track.ContainsKey('OriginalPreserveReason')) { [string]$track.OriginalPreserveReason } else { '' }
+            source_subtitle_kind    = Get-Tx3gSrtSidecarSourceSubtitleKind -Entry $entry -Track $track
+            source_subtitle_codec   = Get-Tx3gSidecarTextValue -Object $track -Name 'SourceSubtitleCodec' -Default (Get-Tx3gSidecarTextValue -Object $entry -Name 'Codec' -Default (Get-MediaSubtitleCodecMovTextName))
+            source_kind             = Get-Tx3gSidecarTextValue -Object $track -Name 'SourceKind' -Default (Get-Tx3gSidecarTextValue -Object $entry -Name 'SourceKind' -Default 'embedded')
+            conversion_kind         = Get-Tx3gSrtSidecarConversionKind -Entry $entry -Track $track
         })
     }
 
@@ -336,9 +429,9 @@ function New-Tx3gSrtSidecarPublishPlan {
     foreach ($track in @($Tx3gTracks)) {
         if (-not $track) { continue }
         $entry = if ($track.StreamInfo) { $track.StreamInfo } else { $track }
-        $resolved = Resolve-Tx3gSrtDestination -MediaOutputPath $MediaOutputPath -Entry $entry -UsedPaths $used
+        $resolved = Resolve-Tx3gSrtDestination -MediaOutputPath $MediaOutputPath -Entry $entry -Track $track -UsedPaths $used
         if ($resolved.Status -eq 'existing') {
-            $records.Add((New-Tx3gSrtRecord -Entry $entry -Path $resolved.Path -Status 'existing' -CueCount $resolved.CueCount -PreservedExisting:$true))
+            $records.Add((New-Tx3gSrtRecord -Entry $entry -Track $track -Path $resolved.Path -Status 'existing' -CueCount $resolved.CueCount -PreservedExisting:$true))
             continue
         }
 
@@ -351,7 +444,7 @@ function New-Tx3gSrtSidecarPublishPlan {
             continue
         }
 
-        $record = New-Tx3gSrtRecord -Entry $entry -Path $resolved.Path -Status 'pending' -CueCount $validation.CueCount
+        $record = New-Tx3gSrtRecord -Entry $entry -Track $track -Path $resolved.Path -Status 'pending' -CueCount $validation.CueCount
         $records.Add($record)
         $sidecarFiles.Add([pscustomobject]@{
             Kind            = 'tx3g_srt'
@@ -408,10 +501,10 @@ function Publish-Tx3gSrtSidecars {
     foreach ($track in @($Tx3gTracks)) {
         if (-not $track) { continue }
         $entry = if ($track.StreamInfo) { $track.StreamInfo } else { $track }
-        $resolved = Resolve-Tx3gSrtDestination -MediaOutputPath $MediaOutputPath -Entry $entry -UsedPaths $used
+        $resolved = Resolve-Tx3gSrtDestination -MediaOutputPath $MediaOutputPath -Entry $entry -Track $track -UsedPaths $used
         if ($resolved.Status -eq 'existing') {
             Write-Log "${Context}TX3G->SRT: preserving existing sidecar $(Split-Path -Leaf $resolved.Path)" "DEBUG"
-            $records.Add((New-Tx3gSrtRecord -Entry $entry -Path $resolved.Path -Status 'existing' -CueCount $resolved.CueCount -PreservedExisting:$true))
+            $records.Add((New-Tx3gSrtRecord -Entry $entry -Track $track -Path $resolved.Path -Status 'existing' -CueCount $resolved.CueCount -PreservedExisting:$true))
             continue
         }
 
@@ -429,7 +522,7 @@ function Publish-Tx3gSrtSidecars {
 
         Write-Log "${Context}TX3G->SRT: sidecar written $(Split-Path -Leaf $resolved.Path)"
         Write-SubtitleTrackProgress -Kind 'tx3g' -StreamIndex $streamIndex -Stage 'sidecar_write' -Status 'TX3G SRT sidecar written' -StepIndex 4 -StepTotal 4 -Detail (Split-Path -Leaf $resolved.Path) -CueCount $copy.CueCount -Completed
-        $records.Add((New-Tx3gSrtRecord -Entry $entry -Path $resolved.Path -Status 'written' -CueCount $copy.CueCount))
+        $records.Add((New-Tx3gSrtRecord -Entry $entry -Track $track -Path $resolved.Path -Status 'written' -CueCount $copy.CueCount))
     }
 
     return @{

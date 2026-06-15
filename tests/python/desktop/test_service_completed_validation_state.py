@@ -32,6 +32,10 @@ class CompletedValidationStateTests(unittest.TestCase):
         self.assertTrue(validation["playback_required"])
         self.assertIn("ffprobe output proof not reported", validation["unavailable_reasons"])
         self.assertIn("output hash proof not reported", validation["unavailable_reasons"])
+        self.assertIsNone(validation["quality_score"])
+        self.assertEqual(validation["quality_metric"], "")
+        self.assertEqual(validation["quality_outcome"], "")
+        self.assertFalse(any("quality" in reason for reason in validation["unavailable_reasons"]))
 
     def test_missing_or_failed_output_is_blocked(self) -> None:
         row = {
@@ -66,6 +70,30 @@ class CompletedValidationStateTests(unittest.TestCase):
         self.assertTrue(validation["hash_ok"])
         self.assertFalse(validation["playback_required"])
         self.assertEqual(validation["unavailable_reasons"], [])
+
+    def test_quality_fields_pass_through_without_changing_validation_state(self) -> None:
+        base_row = {
+            "row_key": "row-quality",
+            "output_path": "C:/Out/Movie.mkv",
+            "output_exists": True,
+            "output_health": "ok",
+            "output_size_bytes": 4096,
+        }
+        with_quality = {
+            **base_row,
+            "quality_score": 87.4,
+            "quality_metric": "vmaf",
+            "quality_outcome": "warn",
+        }
+
+        base = validation_state_for_completed_row(base_row)
+        validation = validation_state_for_completed_row(with_quality)
+
+        self.assertEqual(validation["quality_score"], 87.4)
+        self.assertEqual(validation["quality_metric"], "vmaf")
+        self.assertEqual(validation["quality_outcome"], "warn")
+        self.assertEqual(validation["validation_status_state"], base["validation_status_state"])
+        self.assertEqual(validation["unavailable_reasons"], base["unavailable_reasons"])
 
     def test_payload_summarizes_blocked_and_validation_needed_rows(self) -> None:
         payload = validation_state_payload(

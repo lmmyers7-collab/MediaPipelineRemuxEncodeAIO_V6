@@ -17,6 +17,7 @@ CONFIG_SECTION_ORDER = (
     "BDPGS Subtitles",
     "Logging",
     "Safety",
+    "Quality Verification",
     "Queue",
 )
 

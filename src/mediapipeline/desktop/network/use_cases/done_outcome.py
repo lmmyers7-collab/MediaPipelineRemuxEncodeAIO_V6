@@ -7,6 +7,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable
 
+from mediapipeline.core.network.url_policy import redact_network_secret_text
+
+from mediapipeline.desktop.network.failure_reasons import classify_failure_reason
+
 
 @dataclass(frozen=True)
 class DoneOutcome:
@@ -24,6 +28,9 @@ class DoneOutcome:
     queue_terminal: bool
     retry_on_failure: bool
     output_path: str = ""
+    reason_code: str = ""
+    reason: str = ""
+    max_job_retries: int = 3
 
 
 class CoordinatorDoneOutcomeService:
@@ -123,12 +130,23 @@ class CoordinatorDoneOutcomeService:
 
     def _handle_failure(self, outcome: DoneOutcome) -> None:
         job = outcome.job
-        err_msg = outcome.error_message or "(no detail)"
+        reason_code, reason = classify_failure_reason(
+            success=False,
+            reason_code=outcome.reason_code,
+            reason=outcome.reason,
+            error_message=outcome.error_message,
+            completion_status=outcome.completion_status,
+            source_path=getattr(job, "source_path", ""),
+            output_path=outcome.output_path,
+            route=outcome.publish_mode,
+        )
+        err_msg = redact_network_secret_text(reason or outcome.error_message or "(no detail)")
         self._log.warning(
-            "Worker '%s' failed %s: %s",
+            "Worker '%s' failed %s: %s (%s)",
             job.worker_name or outcome.worker_id[:8],
             Path(job.source_path).name,
             err_msg,
+            reason_code,
         )
         event_name = "job_terminal_failed" if outcome.queue_terminal else "job_failed"
         self._safe_log_cluster_event(
@@ -137,14 +155,47 @@ class CoordinatorDoneOutcomeService:
             event=event_name,
             message=(
                 f"{Path(job.source_path).name}: {err_msg[:200]}"
-                f" status={outcome.completion_status or 'failed'}"
+                f" status={outcome.completion_status or 'failed'} reason_code={reason_code}"
             ),
             worker_id=outcome.worker_id,
             worker_name=job.worker_name,
             role="coordinator",
             job_id=job.job_id,
             source_path=job.source_path,
+            reason_code=reason_code,
+            reason=err_msg,
         )
+        alert = None
+        marker = getattr(self._registry, "mark_failure_quarantine_alerted", None)
+        if callable(marker):
+            alert = marker(
+                worker_id=outcome.worker_id,
+                source_path=job.source_path,
+                max_retries=outcome.max_job_retries,
+            )
+        if alert:
+            count = int(alert.get("consecutive_count", 0) or 0)
+            alert_reason_code = str(alert.get("reason_code") or reason_code)
+            alert_reason = redact_network_secret_text(alert.get("reason") or err_msg)
+            self._safe_log_cluster_event(
+                "worker-quarantined",
+                level="ERROR",
+                event="worker_quarantined",
+                message=(
+                    f"Suppressed future claims for {Path(job.source_path).name} on "
+                    f"{job.worker_name or outcome.worker_id[:8]} after {count} "
+                    f"{alert_reason_code} failure(s): {alert_reason[:200]}"
+                ),
+                worker_id=outcome.worker_id,
+                worker_name=job.worker_name,
+                role="coordinator",
+                job_id=job.job_id,
+                source_path=job.source_path,
+                reason_code=alert_reason_code,
+                reason=alert_reason,
+                consecutive_count=count,
+                max_job_retries=outcome.max_job_retries,
+            )
         # Retry policy: terminal worker outcomes have already produced
         # a durable skip/failure decision and should not be re-claimed.
         if outcome.queue_terminal or not outcome.retry_on_failure:
@@ -177,12 +228,13 @@ class CoordinatorDoneOutcomeService:
         try:
             self._registry.save(self._inflight_state_path())
         except Exception as exc:
-            self._log.exception("Failed to save registry after done report.")
+            safe_exc = redact_network_secret_text(exc)
+            self._log.error("Failed to save registry after done report: %s", safe_exc)
             self._safe_log_cluster_event(
                 "inflight-save-failed",
-                level="WARN",
+                level="ERROR",
                 event="inflight_save_failed",
-                message=f"Failed to save in-flight registry after done report: {exc}",
+                message=f"Failed to save in-flight registry after done report: {safe_exc}",
                 worker_id=outcome.worker_id,
                 worker_name=job.worker_name,
                 role="coordinator",

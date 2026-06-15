@@ -3,7 +3,7 @@ file: ops/pipeline/engine/paths/effective_settings.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: paths
-last_modified: 2026-06-05
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
 sha256: 570a45d2ed9ec3832c215cb41017c3472ad4a11ace0ec6e68acf7d199fbb7df8
 ---

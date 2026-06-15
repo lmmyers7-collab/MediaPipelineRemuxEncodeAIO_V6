@@ -30,6 +30,7 @@ function Get-FailureSuggestedAction {
         '^remux-sidecar$'  { return 'Inspect sidecar write permissions on the share; the verified local output is parked for retry.' }
         '^encode$'         { return 'Inspect the FFmpeg stderr log and repro command. If NVENC is unstable, check the CPU fallback result or run the saved repro manually.' }
         '^encode-verify$'  { return 'Compare source and encoded output durations before retrying; this usually means a truncated encode.' }
+        '^encode-quality-verify$' { return 'Compare the recorded quality score against the thresholds; the encoded output was rejected before publish.' }
         '^encode-push$'    { return 'Inspect network/share availability and free space; the verified local output is parked in PendingServerPush for retry.' }
         '^encode-sidecar$' { return 'Inspect sidecar write permissions on the share; the verified local output is parked for retry.' }
         '^scratch-integrity$' { return 'Redownload or replace the source if ffprobe cannot read the original file; otherwise inspect the scratch disk and copy path before retrying.' }
@@ -241,6 +242,7 @@ function Get-MediaFailureCode {
         '^remux-sidecar$'            { return 'SIDECAR_WRITE_FAILED' }
         '^encode$'                   { if ($combined -match 'missing|empty') { return 'ENCODE_OUTPUT_MISSING' }; return Get-FFmpegFailureCode -Stage $stageText -ErrorText $reasonText }
         '^encode-verify$'            { return 'ENCODE_DURATION_MISMATCH' }
+        '^encode-quality-verify$'    { return 'ENCODE_QUALITY_BELOW_FLOOR' }
         '^encode-push$'              { return 'PUBLISH_COPY_FAILED' }
         '^encode-sidecar$'           { return 'SIDECAR_WRITE_FAILED' }
         '^subtitle-probe$'           { if ($combined -match 'json') { return 'SUBTITLE_PROBE_JSON_INVALID' }; return 'SUBTITLE_PROBE_FAILED' }
@@ -420,6 +422,62 @@ function Get-SourceFailureMarkerPathV2 {
     return Join-Path $LocalFailureMarkers "$key.json"
 }
 
+function Test-LegacyFailureMarkerMatchesCurrentSource {
+    param(
+        $MarkerPayload,
+        $SourceFile
+    )
+
+    if ($null -eq $MarkerPayload -or $null -eq $SourceFile) { return $false }
+
+    $markerSource = [string]$MarkerPayload.source_identity
+    if (-not [string]::IsNullOrWhiteSpace($markerSource)) {
+        $currentSource = Get-SourceIdentityKey $SourceFile
+        if ($currentSource -eq $markerSource) { return $true }
+        Write-Log "Ignoring legacy failure marker for $($SourceFile.FullName): source_identity changed" "INFO"
+        return $false
+    }
+
+    $markerPath = [string]$MarkerPayload.source_full_path
+    if ([string]::IsNullOrWhiteSpace($markerPath)) {
+        $markerPath = [string]$MarkerPayload.source_path
+    }
+    if ([string]::IsNullOrWhiteSpace($markerPath) -or $markerPath.ToLowerInvariant() -ne ([string]$SourceFile.FullName).ToLowerInvariant()) {
+        Write-Log "Ignoring legacy failure marker for $($SourceFile.FullName): source path proof missing or changed" "INFO"
+        return $false
+    }
+
+    $markerSize = $null
+    try {
+        if ($null -ne $MarkerPayload.source_size) {
+            $markerSize = [long]$MarkerPayload.source_size
+        }
+    } catch {
+        $markerSize = $null
+    }
+    if ($null -eq $markerSize -or $markerSize -ne [long]$SourceFile.Length) {
+        Write-Log "Ignoring legacy failure marker for $($SourceFile.FullName): source size proof missing or changed" "INFO"
+        return $false
+    }
+
+    $markerMtimeValue = $MarkerPayload.source_mtime_utc
+    if ($null -eq $markerMtimeValue -or [string]::IsNullOrWhiteSpace([string]$markerMtimeValue)) {
+        Write-Log "Ignoring legacy failure marker for $($SourceFile.FullName): source mtime proof missing" "INFO"
+        return $false
+    }
+    $markerMtime = ''
+    try {
+        $markerMtime = ([datetime]$markerMtimeValue).ToUniversalTime().ToString('o')
+    } catch {
+        $markerMtime = [string]$markerMtimeValue
+    }
+    $currentMtime = $SourceFile.LastWriteTimeUtc.ToUniversalTime().ToString('o')
+    if ($markerMtime -eq $currentMtime) { return $true }
+
+    Write-Log "Ignoring legacy failure marker for $($SourceFile.FullName): source mtime changed" "INFO"
+    return $false
+}
+
 function Test-FailureMarkerMatchesCurrentSource {
     param(
         $MarkerPayload,
@@ -429,7 +487,7 @@ function Test-FailureMarkerMatchesCurrentSource {
     if ($null -eq $MarkerPayload -or $null -eq $SourceFile) { return $false }
     $markerSourceV2 = [string]$MarkerPayload.source_identity_v2
     if ([string]::IsNullOrWhiteSpace($markerSourceV2)) {
-        return $true
+        return Test-LegacyFailureMarkerMatchesCurrentSource -MarkerPayload $MarkerPayload -SourceFile $SourceFile
     }
 
     $currentSourceV2 = Get-SourceIdentityKeyV2 $SourceFile

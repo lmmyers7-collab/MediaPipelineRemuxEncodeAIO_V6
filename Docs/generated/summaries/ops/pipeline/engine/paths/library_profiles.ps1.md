@@ -3,9 +3,9 @@ file: ops/pipeline/engine/paths/library_profiles.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: paths
-last_modified: 2026-06-04
+last_modified: 2026-06-09
 last_reviewed: 2026-06-04
-sha256: 923f8f3d8843615b7afb135668faef893066f55dfadd003118a215e49aeba217
+sha256: 4cc0e162c8882ef81143126251cde73585a7d4ee352539ef563c17e7b5c1ddcd
 ---
 # `ops/pipeline/engine/paths/library_profiles.ps1`
 

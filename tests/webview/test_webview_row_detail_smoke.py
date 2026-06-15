@@ -976,19 +976,39 @@ def _node_runner_source() -> str:
           context.selectCompletedRow(riskCompleted.rows[0]);
           requireText("completed-selected-summary", [
             "Output unavailable",
-            "Primary concern",
-            "completed row points to a missing output",
-            "Recommended next check",
-            "Read Completed Manifest and Pending Publish before rerun.",
-            "Route",
+            "Why this output looks different",
+            "Output is unavailable; resolve final placement or pending-publish proof before judging size or route differences.",
             "Size change",
             "+110%",
-            "Audio tracks",
-            "2",
-            "Subtitle tracks",
-            "4",
-            "Current table visibility",
+            "Route",
+            "Trigger / route reason",
+            "Size policy",
+            "not recorded; legacy +5% review",
+            "Runtime/log evidence",
+            "failed - publish_missing_output - Completed manifest points at a missing file. - fresh",
+            "Audio/Subtitles",
+            "2 audio / 4 subtitle tracks",
+            "Why it matters",
+            "Evidence gaps",
+            "Output placement proof is missing or unavailable.",
+            "No backend size_policy recorded.",
+            "Sidecar proof is missing.",
+            "What to check next",
+            "Check Pending Publish and final placement proof.",
+            "Open Completed Manifest and sidecar/output evidence.",
+            "Read Run Logs or Last Stderr before rerun.",
+            "Paths",
             "Authority: this summary is read-only",
+          ]);
+          const rawDetail = context.document.getElementById("completed-raw-detail");
+          if (!rawDetail || rawDetail.open) throw new Error("raw completed detail should default to collapsed");
+          requireText("completed-detail", [
+            "Completed selected-row detail:",
+            "completed row points to a missing output",
+            "Read Completed Manifest and Pending Publish before rerun.",
+          ]);
+          requireText("completed-selected-summary", [
+            "+110%",
           ]);
           ["+0.8%", "-0.9%"].forEach((deltaLabel) => {
             const healthySmallDeltaRow = Object.assign({}, riskCompleted.rows[0], {

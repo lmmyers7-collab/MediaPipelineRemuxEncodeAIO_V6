@@ -253,8 +253,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "home",
             "launch",
             "live",
+            "metrics",
             "queue",
             "completed",
+            "pending",
             "rename",
             "reports",
             "network",
@@ -266,26 +268,52 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]
         positions = [shell_html.index(f'data-page="{page}"') for page in ordered_pages]
         self.assertEqual(positions, sorted(positions))
-        self.assertNotIn('data-page="pending"', shell_html)
+        self.assertIn('data-page="pending"', shell_html)
 
         completed_tab_order = [
             'data-completed-tab="overview"',
-            'data-output-page-target="pending"',
             'data-completed-tab="history"',
-            'data-completed-tab="advanced"',
+            'data-completed-tab="evidence"',
         ]
         completed_positions = [completed_html.index(token) for token in completed_tab_order]
         self.assertEqual(completed_positions, sorted(completed_positions))
-        self.assertIn(">Pending Publish</button>", completed_html)
         pending_tab_order = [
-            'data-output-completed-tab="overview"',
-            'data-output-page-target="pending"',
-            'data-output-completed-tab="history"',
-            'data-output-completed-tab="advanced"',
+            "Pending Publish Action Center",
+            "Pending Publish Guard Evidence",
+            "Pending Publish Drain",
         ]
         pending_positions = [pending_html.index(token) for token in pending_tab_order]
         self.assertEqual(pending_positions, sorted(pending_positions))
-        self.assertIn('data-output-page-target="pending" aria-selected="true">Pending Publish</button>', pending_html)
+        self.assertIn('data-page-panel="pending"', pending_html)
+        self.assertIn("pending-action-drain-button", pending_html)
+        self.assertIn("pending-drain-button", pending_html)
+
+    def test_pending_publish_action_center_static_contract(self) -> None:
+        desktop_root = find_repo_root(Path(__file__))
+        static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
+        assets_root = static_root / "assets"
+        pending_html = (static_root / "partials" / "page-pending.html").read_text(encoding="utf-8")
+        pending_publish_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
+        pending_publish_filters_js = (assets_root / "pendingPublish" / "filters.js").read_text(encoding="utf-8")
+        styles_css = (assets_root / "styles.components.css").read_text(encoding="utf-8")
+
+        self.assertIn("<h2>Pending Publish Action Center</h2>", pending_html)
+        self.assertIn('id="pending-action-drain-button"', pending_html)
+        self.assertIn('id="pending-action-refresh-button"', pending_html)
+        self.assertIn('data-pending-action-filter="blocked"', pending_html)
+        self.assertIn('<option value="evidence_missing">Evidence missing</option>', pending_html)
+        self.assertEqual(pending_html.count('id="pending-drain-button"'), 1)
+        self.assertLess(
+            pending_html.index("Pending Publish Action Center"),
+            pending_html.index("Pending Publish Guard Evidence"),
+        )
+        self.assertIn("function renderPendingActionCenter", pending_publish_view_js)
+        self.assertIn("function applyPendingActionFilter", pending_publish_view_js)
+        self.assertIn("Mutation guardrail: this action center can only update local filters", pending_publish_view_js)
+        self.assertIn("drainButton.click();", pending_publish_view_js)
+        self.assertIn("evidence_missing", pending_publish_filters_js)
+        self.assertIn(".pending-action-filter", styles_css)
+        _assert_namespace_export(self, pending_publish_view_js, "mediaPipelinePendingPublishView", "renderPendingActionCenter")
 
     def test_topbar_event_ticker_formats_pending_and_backend_events(self) -> None:
         node = shutil.which("node")
@@ -898,8 +926,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         combined = asset_text + "\n" + shell_text
 
         backend_only_routes_without_current_web_controls = {
+            "/api/diagnostics/tdarr-matrix/runs",
             "/api/queue/file-overrides/folder-preview",
             "/api/queue/file-overrides/folder-rule",
+            "/api/subtitle-qa/summary",
+            "/api/subtitle-qa/item",
+            "/api/subtitle-qa/preview",
         }
         route_paths = [
             route["path"]
@@ -1055,9 +1087,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertNotIn("Pause / Resume", home_html)
         self.assertNotIn("Stop After Current", home_html)
         self.assertNotIn("Force Stop", home_html)
-        self.assertIn("Dashboard controls navigate or open backend-allowlisted evidence", home_html)
+        self.assertIn("Home controls navigate or open backend-allowlisted evidence", home_html)
         self.assertIn('data-cross-page-target="completed" data-home-promotion-entry', home_html)
-        self.assertIn("Promote Files", home_html)
+        self.assertIn("Open Completed Output", home_html)
         self.assertIn('id="home-scratch-storage-status"', home_html)
         self.assertIn('id="home-scratch-storage-detail"', home_html)
         self.assertIn('id="home-output-storage-status"', home_html)
@@ -1277,7 +1309,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
 
         parser = PanelParser()
         parser.feed(html)
-        invalid_types = [panel.get("type") for panel in parser.panels if panel.get("type") not in {"evidence", "interactive"}]
+        invalid_types = [panel.get("type") for panel in parser.panels if panel.get("type") not in {"evidence", "interactive", "status"}]
         evidence_buttons = [panel for panel in parser.panels if panel.get("type") == "evidence" and panel.get("buttons")]
         self.assertEqual(invalid_types, [])
         self.assertEqual(evidence_buttons, [])
@@ -1289,21 +1321,21 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
         expected = {
-            "home": "Pipeline Dashboard",
-            "live": "Hardware Telemetry",
+            "home": "Home",
+            "launch": "Launch",
+            "live": "Telemetry",
             "metrics": "Metrics",
-            "queue": "Processing Queue",
-            "completed": "Pipeline Output",
+            "queue": "Queue",
+            "completed": "Completed Output",
             "pending": "Pending Publish",
-            "rename": "Rename Files",
-            "launch": "Launch Pipeline",
-            "reports": "Reports & Audit",
-            "schedule": "Pipeline Schedule",
-            "network": "Distributed Workers",
-            "maintenance": "Maintenance Tools",
-            "diagnostics": "System Diagnostics",
-            "libraries": "Library Profiles",
-            "settings": "Pipeline Settings",
+            "rename": "Rename",
+            "reports": "Reports",
+            "network": "Network Workers",
+            "libraries": "Libraries",
+            "schedule": "Schedule",
+            "settings": "Settings",
+            "diagnostics": "Diagnostics",
+            "maintenance": "Maintenance",
         }
 
         class PageTitleParser(HTMLParser):
@@ -1535,13 +1567,15 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                 re.S,
             )
         )
-        self.assertIn("commandResultDisplayMessage(result) || \"Rename apply failed.\"", rename_view_js)
+        self.assertIn("visibleResult = { ...result, request };", rename_view_js)
+        self.assertIn("renderRenameApplyResult(visibleResult);", rename_view_js)
         self.assertIn("function renderRenamePipelineHandoff", rename_view_js)
         self.assertIn("Rename-to-pipeline handoff:", rename_view_js)
         self.assertIn("renaming changes filenames only", rename_view_js)
         self.assertIn('renameConfigValue(config, "DeleteSourceAfterProcessing", "false")', rename_view_js)
         self.assertNotIn("DeleteOriginalAfterProcessing", rename_view_js)
-        self.assertIn("Apply Renames still calls backend rename.apply with selected_sources", rename_view_js)
+        self.assertIn("request.selected_sources = rowsToApply.map((row) => row.source);", rename_view_js)
+        self.assertIn("Apply sends this scope as backend selected_sources.", rename_view_js)
         self.assertGreaterEqual(
             maintenance_view_js.count('lines.push("", "Warnings:", ...(result.warnings || []).map((item) => `- ${item}`));'),
             2,

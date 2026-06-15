@@ -86,6 +86,40 @@ function Invoke-ManualOrderSortsHighPriorityBucketsCheck {
     Assert-Equal ((@($sorted.NormalMovies) | ForEach-Object { $_.SourcePath }) -join '|') 'C:\Media\NormalB.mkv|C:\Media\NormalA.mkv' 'ManualOrder should keep sorting normal movie bucket by manifest position.'
 }
 
+function Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineQueuePriorityTest_' + [guid]::NewGuid().ToString('N'))
+    $previousMarkers = $script:PriorityMarkers
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $script:PriorityMarkers = @('!')
+        $source = Join-Path $tempRoot '! Movie.mkv'
+        Set-Content -LiteralPath $source -Value 'fake media' -Encoding UTF8
+        $file = Get-Item -LiteralPath $source
+        $key = $source.Replace('\', '/').ToLowerInvariant().TrimEnd('/')
+        $manifest = @{
+            version = 1
+            entries = @{
+                $key = @{ level = 'normal'; reason = 'operator normalized marker'; position = 1 }
+            }
+        }
+
+        $entries = @(Get-QueuedEntries -Files @($file) -RootPath $tempRoot -PriorityManifest $manifest)
+        Assert-Equal $entries.Count 1 'Expected one queued entry.'
+        Assert-True ([bool]$entries[0].PriorityInfo.IsPriority) 'Fixture should still carry the physical filesystem priority marker.'
+        Assert-True ([bool]$entries[0].ManifestPriorityExplicit) 'Exact normal manifest entry should be marked explicit.'
+        Assert-Equal $entries[0].EffectivePriorityLevel 'normal' 'Explicit manifest normal should suppress filesystem priority.'
+
+        $phasePlan = New-MediaQueuePhasePlan -MovieEntries $entries -TVEntries @()
+        Assert-Equal @($phasePlan.HighPriorityMovieEntries).Count 0 'Explicit manifest normal should not enter high-priority movie phase.'
+        Assert-Equal @($phasePlan.NormalMovieEntries).Count 1 'Explicit manifest normal should remain in normal movie phase.'
+    } finally {
+        $script:PriorityMarkers = $previousMarkers
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
 function New-TestQueuePlan {
     return [pscustomobject]@{
         HighPriorityMovieEntries = @()
@@ -371,6 +405,7 @@ function Invoke-QueueSnapshotHoldRowsRunnableCountCheck {
 }
 
 Invoke-ManualOrderSortsHighPriorityBucketsCheck
+Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck
 Invoke-GlobalRunnableQueueSnapshotMetadataCheck
 Invoke-SerialQueueDispatchUsesGlobalRunnableMetadataCheck
 Invoke-QueueSnapshotHoldRowsRunnableCountCheck
@@ -489,11 +524,17 @@ Assert-Equal $script:WorkerDispatchCount 0 'Missing worker context should not ca
 
 $mainScriptText = Get-Content -LiteralPath (Join-Path $pipelineRoot 'entrypoints\MediaPipeline.ps1') -Raw
 $workerResultText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\worker_result.ps1') -Raw
-Assert-True ($mainScriptText -match 'if \(\$WorkerChild\)[\s\S]{0,1200}\$WorkerResultPath') 'Worker-child startup should require WorkerResultPath.'
-Assert-True ($mainScriptText -match 'WorkerResult\.ps1') 'Main script should load the worker-child result writer module.'
+Assert-True ($mainScriptText -match '\[string\]\$WorkerResultPath\s*=\s*""') 'Worker-child startup should expose WorkerResultPath.'
+Assert-True ($mainScriptText -match 'function Write-MediaPipelineEarlyWorkerChildFailureResult') 'Worker-child startup should define an early result writer for config/bootstrap failures.'
+Assert-True ($mainScriptText -match 'CONFIG_SCHEMA_INVALID') 'Config schema failures should write a structured worker-child result.'
+Assert-True ($mainScriptText -match '(?i)worker_result\.ps1') 'Main script should load the worker-child result writer module.'
 Assert-True ($workerResultText -match 'function Write-MediaPipelineWorkerChildResult') 'Worker result module should define the worker-child result writer.'
+Assert-True ($workerResultText -match 'if \(-not \$WorkerChild -or \[string\]::IsNullOrWhiteSpace\(\$WorkerResultPath\)\)') 'Worker result writer should require WorkerResultPath before writing child results.'
 Assert-True ($workerResultText -match 'SchemaVersion\s+=\s+''local_worker_result\.v1''') 'Worker-child result should have a versioned schema.'
 Assert-True ($mainScriptText -match 'Write-MediaPipelineWorkerChildResult[\s\S]{0,400}-Status ''failed''') 'Missing SingleFile path should write a failed worker result.'
 Assert-True ($mainScriptText -match 'Write-MediaPipelineWorkerChildResult[\s\S]{0,400}-ProcessResult \$sfResult') 'SingleFile completion should write the process result for the parent scheduler.'
+Assert-True ($mainScriptText -match 'catch\s*\{[\s\S]{0,1800}WORKER_CHILD_SINGLE_FILE_EXCEPTION') 'SingleFile worker-child exceptions should be converted to structured worker results.'
+Assert-True ($mainScriptText -match 'finally\s*\{[\s\S]{0,2200}WORKER_CHILD_RESULT_FALLBACK') 'SingleFile worker-child finalization should write a fallback structured result if no result exists.'
+Assert-True ($mainScriptText -match 'Test-Path -LiteralPath \$WorkerResultPath') 'SingleFile fallback should check for an existing worker result before writing.'
 
 Write-Host 'Pipeline queue engine checks passed.'

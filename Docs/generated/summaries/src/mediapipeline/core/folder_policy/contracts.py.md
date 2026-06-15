@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/folder_policy/contracts.py
 pipeline_stage: contracts
 token_priority: medium
-owner_domain: unknown
+owner_domain: folder_policy
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 8a4a73efc57c40a9f90e9d9f8eb95a66687f63d9af1aae5adcbd75d4ba362650

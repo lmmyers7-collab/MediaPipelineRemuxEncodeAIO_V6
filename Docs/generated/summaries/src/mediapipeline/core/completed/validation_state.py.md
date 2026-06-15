@@ -3,9 +3,9 @@ file: src/mediapipeline/core/completed/validation_state.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-05-29
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 36f67cf1786b2721f716762dd7b2ada31d5117f4380b4c6a89037039be623908
+sha256: 01616b02780a3d0efcd63d8652b87b0933dcb3535ba750883806eeb57bb3a5e2
 ---
 # `src/mediapipeline/core/completed/validation_state.py`
 

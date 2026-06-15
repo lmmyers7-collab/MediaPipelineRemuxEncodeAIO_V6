@@ -45,7 +45,7 @@
   "manual_validation": [
     "apps/desktop/runtime/Python/python.exe -m unittest tests.tooling.test_change_control",
     "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/validate_changes.py",
-    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/build_release_manifest.py --output \"C:\\Users\\lmmye\\AppData\\Local\\Temp\\change-control manifest path test.json\" generated an absolute path-with-spaces output without a relative-path crash.",
+    "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/build_release_manifest.py --output \"<temp>\\change-control manifest path test.json\" generated an absolute path-with-spaces output without a relative-path crash.",
     "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/prepare_release.py --version 1.0.0 --channel dev --dry-run included complete dev-placeholder packets in the preview manifest.",
     "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/finalize_release.py --version \"..\\outside\" --channel dev --dry-run rejected the path-like version label as expected.",
     "apps/desktop/runtime/Python/python.exe src/mediapipeline/tools/change_control/prepare_release.py --version 0.1.0-dev --channel dev --dry-run regenerated the active change-control index, changelog, and manifest.",

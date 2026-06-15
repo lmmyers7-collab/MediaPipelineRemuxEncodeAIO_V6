@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/worker_claims.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-04
+last_modified: 2026-06-14
 last_reviewed: 2026-06-04
-sha256: ea1464bce5508d573f805df7e4f4036dede62e08ac6e5352f34e70a99b0ab2d1
+sha256: 863c060708e1aa8f1bffaa7e8357fda83c370cbb277079390a6681b951f74eab
 ---
 # `src/mediapipeline/desktop/network/worker_claims.py`
 

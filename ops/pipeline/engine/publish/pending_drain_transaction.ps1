@@ -226,8 +226,18 @@ function Invoke-PendingDrainTransaction {
 
     Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'writing' -Percent $null -SaveNow
     $publishSidecarBackup = Backup-PublishSidecarForReveal -OutputPath $server -PublishTransactionId $publishTxn -Context 'Pending: '
+    if (-not (Test-PublishSidecarBackupReadyForReveal -Backup $publishSidecarBackup)) {
+        Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
+        Remove-PublishPartialMedia -Path $serverPartial
+        Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_sidecar_backup_failed' -Reason 'Existing final sidecar could not be backed up before pending media reveal' -Stage 'sidecar'
+        Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'failed' -Percent $null -SaveNow
+        Write-Log "Pending: existing publish sidecar backup failed - removed partial and left manifest/local copy for next retry" "ERROR"
+        $result.Status = 'sidecar_backup_failed'
+        $result.Error = 'Existing final sidecar could not be backed up before pending media reveal'
+        return [pscustomobject]$result
+    }
     if (-not (Write-Sidecar -OutputPath $server -Route $route -Extra $sidecarExtra -SkipCompletedManifest)) {
-        Restore-PublishSidecarAfterRevealFailure -OutputPath $server -BackupPath $publishSidecarBackup -Context 'Pending: '
+        Restore-PublishSidecarAfterRevealFailure -OutputPath $server -Backup $publishSidecarBackup -Context 'Pending: '
         Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
         Remove-PublishPartialMedia -Path $serverPartial
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_sidecar_failed' -Reason 'Pending sidecar write failed before final media reveal' -Stage 'sidecar'
@@ -241,7 +251,7 @@ function Invoke-PendingDrainTransaction {
     Set-ProgressStage -Stage 'sidecar' -Status 'Retrying pending push' -Route $route -SidecarState 'complete' -Percent 100 -SaveNow
     Set-ProgressStage -Stage 'retry_pending_push' -Status 'Retrying pending push' -Route $route -PushState 'revealing' -Percent 99 -SaveNow
     if (-not (Complete-PublishMediaReveal -PartialPath $serverPartial -FinalPath $server -PublishTransactionId $publishTxn -Context 'Pending: ')) {
-        Restore-PublishSidecarAfterRevealFailure -OutputPath $server -BackupPath $publishSidecarBackup -Context 'Pending: '
+        Restore-PublishSidecarAfterRevealFailure -OutputPath $server -Backup $publishSidecarBackup -Context 'Pending: '
         Undo-PendingPublishedSidecarFiles -PublishedSidecars @($pendingSidecars.Published) -Context 'Pending: '
         Remove-PublishPartialMedia -Path $serverPartial
         Update-PendingManifestRetryState -ManifestPath $manifestPath -Manifest $Manifest -State 'retry_reveal_failed' -Reason 'Server partial copy and sidecar write succeeded but final media reveal failed' -Stage 'retry_pending_push'

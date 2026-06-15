@@ -24,6 +24,10 @@ from collections import defaultdict
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
+from mediapipeline.tools.dev.release_package_scope import (
+    is_release_excluded_path,
+    release_excluded_prefixes,
+)
 
 REPO_ROOT = find_repo_root(Path(__file__))
 SUMMARY_ROOT = REPO_ROOT / "docs" / "generated" / "summaries"
@@ -36,6 +40,7 @@ RUN_COMMAND = (
 )
 VOLATILE_GENERATED_SUMMARY_FILES = {
     "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
     "docs/generated/PROJECT_INDEX.md",
 }
 
@@ -93,6 +98,7 @@ def expected_summary_path_for_file(file_path: str) -> Path:
 
 def orphan_summary_findings(summaries: list[Path]) -> list[OrphanSummaryFinding]:
     findings: list[OrphanSummaryFinding] = []
+    excluded_prefixes = release_excluded_prefixes(REPO_ROOT)
     for summary in summaries:
         text = summary.read_text(encoding="utf-8", errors="replace")
         fm = parse_frontmatter(text)
@@ -116,6 +122,10 @@ def orphan_summary_findings(summaries: list[Path]) -> list[OrphanSummaryFinding]
                     recorded_file=recorded,
                 )
             )
+            continue
+        if is_release_excluded_path(source_path.as_posix(), excluded_prefixes):
+            # The recorded source was intentionally omitted from this release
+            # package (e.g. the test suite). Its shipped summary is not an orphan.
             continue
         if not (REPO_ROOT / source_path).is_file():
             findings.append(

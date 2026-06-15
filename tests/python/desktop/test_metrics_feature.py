@@ -5,11 +5,17 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
 from mediapipeline.core.metrics.policy import METRICS_SCHEMA_VERSION, build_metrics_payload
+from mediapipeline.core.metrics.sources import (
+    metrics_source_state_payload,
+    run_metrics_sidecar_backfill,
+    update_metrics_sources,
+)
 from mediapipeline.contracts.api_commands import validate_api_command_payload
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
@@ -234,6 +240,74 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertEqual(payload["workers"]["posture"]["handoff_label"], "Open Workers")
         self.assertEqual(payload["source_evidence"]["completed_manifest"]["source"], str(manifest))
 
+    def test_metrics_source_state_streams_cache_counts_without_full_cache_read(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            metrics_root = state_root / "Metrics"
+            source_a = root / "DriveA"
+            source_b = root / "DriveB"
+            source_a.mkdir(parents=True)
+            source_b.mkdir(parents=True)
+            metrics_root.mkdir(parents=True)
+            registry = {
+                "schema_version": "desktop_metrics_sources.v1",
+                "roots": [
+                    {"source_id": "src-enabled", "path": str(source_a), "enabled": True},
+                    {"source_id": "src-disabled", "path": str(source_b), "enabled": False},
+                ],
+            }
+            (metrics_root / "metrics_sources.json").write_text(json.dumps(registry), encoding="utf-8")
+            (metrics_root / "metrics_sidecar_backfill.jsonl").write_text(
+                "\n".join(
+                    [
+                        json.dumps({"source_id": "src-enabled", "payload": {"route": "remux"}}),
+                        json.dumps({"source_id": "src-disabled", "payload": {"route": "encode"}}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+
+            with patch(
+                "mediapipeline.core.metrics.sources._read_cache_entries",
+                side_effect=AssertionError("source state must stream cache records"),
+            ):
+                state = metrics_source_state_payload(resolved)
+
+        self.assertEqual(state["cache_record_count"], 2)
+        self.assertEqual(state["enabled_cache_record_count"], 1)
+
+    def test_metrics_sidecar_backfill_skips_oversized_sidecars_with_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            drive = root / "Drive"
+            small = drive / "Movie" / "Small.pipeline.json"
+            large = drive / "Movie" / "Large.pipeline.json"
+            small.parent.mkdir(parents=True)
+            small.write_text(json.dumps({"source_path": "small.mkv", "output_path": "small-out.mkv", "route": "remux"}), encoding="utf-8")
+            large.write_text(json.dumps({"source_path": "large.mkv", "padding": "x" * 128}), encoding="utf-8")
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+
+            add_result = update_metrics_sources(resolved, {"action": "add", "path": str(drive), "enabled": True})
+            with patch("mediapipeline.core.metrics.sources.METRICS_SIDECAR_READ_MAX_BYTES", 128):
+                result = run_metrics_sidecar_backfill(resolved, {"scope": "enabled"})
+            state = metrics_source_state_payload(resolved)
+
+        self.assertTrue(add_result["ok"])
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["severity"], "warning")
+        self.assertEqual(result["data"]["backfill"]["sidecar_count"], 2)
+        self.assertEqual(result["data"]["backfill"]["loaded_count"], 1)
+        self.assertEqual(result["data"]["backfill"]["skipped_oversized_count"], 1)
+        self.assertIn("skipped oversized sidecar", "\n".join(result["warnings"]))
+        self.assertEqual(state["cache_record_count"], 1)
+        self.assertEqual(state["enabled_cache_record_count"], 1)
+
     def test_local_api_metrics_sources_backfill_multiple_recursive_roots(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -339,7 +413,7 @@ class MetricsFeatureTests(unittest.TestCase):
         self.assertIn('data-page="metrics"', shell)
         self.assertIn("partials/page-metrics.html", index)
         self.assertIn('/assets/metricsView.js', index)
-        self.assertIn('apiGet("/api/metrics")', app_js)
+        self.assertIn('refreshGet("/api/metrics"', app_js)
         self.assertIn("window.mediaPipelineMetricsView?.renderMetrics?.(values.metrics)", app_js)
         self.assertIn('postMetricsCommand("/api/metrics/sources"', metrics_js)
         self.assertIn('postMetricsCommand("/api/metrics/backfill"', metrics_js)

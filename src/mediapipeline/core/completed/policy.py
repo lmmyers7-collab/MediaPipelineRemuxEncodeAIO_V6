@@ -343,6 +343,7 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
     source_size = record.source_size_bytes
     size_delta_percent = completed_size_delta_percent(source_size, output_size)
     size_policy_fields = completed_size_policy_fields(record.payload, size_delta_percent=size_delta_percent)
+    quality_fields = completed_quality_fields(record.payload)
     bitrate_fields = completed_bitrate_fields(record.payload, source_size=source_size, output_size=output_size)
     route_reason = str(record.payload.get("route_reason", "") or "").strip()
     route_reason_code = str(record.payload.get("route_reason_code", "") or "").strip()
@@ -384,6 +385,7 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "size_delta_label": completed_size_delta_label(size_delta_percent),
         "size_growth_over_5": bool(size_delta_percent is not None and size_delta_percent > 5.0),
         **size_policy_fields,
+        **quality_fields,
         **bitrate_fields,
         "encoder": record.encode_selected_encoder,
         "encoder_kind": record.encode_selected_encoder_kind,
@@ -610,6 +612,8 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     size_policy_available = bool(row.get("size_policy_available"))
     size_policy_exceeded = bool(row.get("size_policy_exceeded"))
     size_policy_enforced = bool(row.get("size_policy_enforced"))
+    quality_outcome = str(row.get("quality_outcome") or "").strip().casefold()
+    quality_blocked = bool(row.get("quality_blocked"))
     runtime_outcome_status = str(row.get("runtime_outcome_status") or "").strip()
     runtime_outcome_freshness = str(row.get("runtime_outcome_freshness_status") or "").strip().casefold()
     runtime_error_code = str(row.get("runtime_outcome_error_code") or "").strip()
@@ -667,6 +671,18 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
             flags.append("size_growth")
             if severity == "ok":
                 severity = "warning"
+    if quality_outcome == "fail":
+        flags.append("quality_below_floor")
+        if quality_blocked:
+            severity = "error"
+        elif severity != "error":
+            severity = "warning"
+    elif quality_outcome == "warn":
+        flags.append("quality_review")
+        if severity == "ok":
+            severity = "warning"
+    elif quality_outcome == "pass":
+        flags.append("quality_within_threshold")
     if size_delta is None:
         flags.append("size_unknown")
         if severity == "ok":
@@ -712,6 +728,12 @@ def completed_row_operator_guidance(row: dict[str, Any]) -> dict[str, Any]:
     elif "size_policy_exceeded" in flags:
         label = "Review size policy"
         guidance = "Output exceeded the recorded size policy but the guard was advisory. Confirm this was an intentional compatibility encode before accepting the result."
+    elif "quality_below_floor" in flags:
+        label = "Quality below floor"
+        guidance = "Completed history reports an encode that measured below the configured quality floor. Inspect the recorded score, metric, and thresholds before trusting or re-running this output."
+    elif "quality_review" in flags:
+        label = "Quality review"
+        guidance = "Output published but its quality score fell below the warn threshold. Compare the score against the source before accepting it."
     elif "size_policy_within_limit" in flags:
         label = "Size policy allowed"
         guidance = "Output grew, but the recorded backend size_policy says it stayed within the applicable growth limit. Review route reason if the growth is surprising."
@@ -784,6 +806,9 @@ def completed_row_route_evidence_lines(row: dict[str, Any]) -> list[str]:
     size_policy_line = completed_row_size_policy_line(row)
     if size_policy_line:
         lines.append(size_policy_line)
+    quality_line = completed_row_quality_line(row)
+    if quality_line:
+        lines.append(quality_line)
     bitrate_parts: list[str] = []
     output_bitrate = str(row.get("output_bitrate_text") or "").strip()
     source_bitrate = str(row.get("source_bitrate_text") or "").strip()
@@ -957,6 +982,73 @@ def completed_size_policy_fields(payload: dict[str, Any], *, size_delta_percent:
         "size_policy_limit_label": limit_label,
         "size_policy_delta_vs_limit_percent": delta_vs_limit,
     }
+
+
+def completed_quality_fields(payload: dict[str, Any]) -> dict[str, Any]:
+    raw = payload.get("quality_verification") if isinstance(payload, dict) else None
+    if not isinstance(raw, dict):
+        return {
+            "quality_available": False,
+            "quality_metric": "",
+            "quality_score": None,
+            "quality_outcome": "",
+            "quality_min_window_score": None,
+            "quality_sample_mode": "",
+            "quality_warn_threshold": None,
+            "quality_fail_threshold": None,
+            "quality_blocked": False,
+        }
+
+    def _text(key: str) -> str:
+        return str(raw.get(key, "") or "").strip()
+
+    def _number(key: str) -> float | None:
+        value = raw.get(key)
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return None
+
+    outcome = _text("outcome").casefold()
+    fail_action = _text("fail_action").casefold()
+    return {
+        "quality_available": True,
+        "quality_metric": _text("metric"),
+        "quality_score": _number("score"),
+        "quality_outcome": outcome,
+        "quality_min_window_score": _number("min_window_score"),
+        "quality_sample_mode": _text("sample_mode"),
+        "quality_warn_threshold": _number("warn_threshold"),
+        "quality_fail_threshold": _number("fail_threshold"),
+        "quality_blocked": outcome == "fail" and fail_action == "block_review",
+    }
+
+
+def completed_quality_number_label(value: Any) -> str:
+    if not isinstance(value, (int, float)):
+        return ""
+    return f"{float(value):g}"
+
+
+def completed_row_quality_line(row: dict[str, Any]) -> str:
+    if not row.get("quality_available"):
+        return ""
+    metric = str(row.get("quality_metric") or "quality").strip() or "quality"
+    score = completed_quality_number_label(row.get("quality_score")) or "unknown"
+    warn_threshold = completed_quality_number_label(row.get("quality_warn_threshold"))
+    fail_threshold = completed_quality_number_label(row.get("quality_fail_threshold"))
+    outcome = str(row.get("quality_outcome") or "").strip()
+    thresholds: list[str] = []
+    if warn_threshold:
+        thresholds.append(f"warn < {warn_threshold}")
+    if fail_threshold:
+        thresholds.append(f"fail < {fail_threshold}")
+    line = f"Quality: {metric} {score}"
+    if thresholds:
+        line = f"{line} ({'; '.join(thresholds)})"
+    if outcome:
+        line = f"{line}; outcome={outcome}"
+    return line
 
 
 def completed_row_size_policy_line(row: dict[str, Any]) -> str:
@@ -1162,7 +1254,10 @@ __all__ = [
     "completed_size_delta_percent",
     "completed_size_delta_label",
     "completed_size_policy_fields",
+    "completed_quality_fields",
+    "completed_quality_number_label",
     "completed_row_size_policy_line",
+    "completed_row_quality_line",
     "count_by_key",
     "count_list_values",
     "completed_preview_fields",

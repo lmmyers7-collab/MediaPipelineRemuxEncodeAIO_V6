@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/facade.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 67c27f2e9eca5513611c97674619f50bdf60dc36e2b8dadaf9498b59fd23b5cc
+sha256: 1c8e78b84c3fdf4cab683d49c3b0f697dfb067eccf888dad6a2547f942b20962
 ---
 # `src/mediapipeline/core/queue/facade.py`
 

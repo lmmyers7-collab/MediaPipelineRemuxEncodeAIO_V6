@@ -41,6 +41,10 @@ LOCAL_API_CONTENT_SECURITY_POLICY = (
 )
 
 
+class QueryValidationError(ValueError):
+    """Raised when a GET query parameter fails route validation."""
+
+
 def _reject_json_constant(value: str) -> None:
     raise ValueError(f"non-finite JSON value is not allowed: {value}")
 
@@ -74,6 +78,19 @@ def query_int(query: dict[str, list[str]], name: str, default: int) -> int:
 def query_bool(query: dict[str, list[str]], name: str, default: bool = False) -> bool:
     raw = query_value(query, name, "true" if default else "false").strip().casefold()
     return raw in {"1", "true", "yes", "on"}
+
+
+def query_json_object(query: dict[str, list[str]], name: str) -> dict[str, Any]:
+    raw = query_value(query, name, "")
+    if not raw:
+        return {}
+    try:
+        value = json.loads(raw, parse_constant=_reject_json_constant)
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise QueryValidationError(f"invalid query parameter {name}: {exc}") from exc
+    if not isinstance(value, dict):
+        raise QueryValidationError(f"query parameter {name} must be a JSON object")
+    return value
 
 
 def request_authorized(

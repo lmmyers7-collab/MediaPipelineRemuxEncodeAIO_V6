@@ -154,6 +154,18 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
             "/api/metrics/sources": {"action": "add", "path": r"D:\Media", "label": "Drive D", "root": r"E:\Other"},
             "/api/metrics/backfill": {"scope": "enabled", "recursive": True},
+            "/api/network/coordinator/start-dry-run": {"reason": "check", "path": r"C:\Media\Movie.mkv"},
+            "/api/network/coordinator/stop-dry-run": {"reason": "check", "path": r"C:\Media\Movie.mkv"},
+            "/api/network/coordinator/join-blob": {"confirm_create": True, "token": "client-owned"},
+            "/api/network/worker/start-dry-run": {"reason": "check", "path": r"C:\Media\Movie.mkv"},
+            "/api/network/worker/stop-dry-run": {"reason": "check", "path": r"C:\Media\Movie.mkv"},
+            "/api/network/worker/test-connection": {"timeout_seconds": 5, "path": r"C:\Media\Movie.mkv"},
+            "/api/network/worker/discover-coordinators": {"timeout_seconds": 5, "path": r"C:\Media\Movie.mkv"},
+            "/api/network/worker/join-cluster": {"join_blob": "client-owned", "confirm_import": True, "path": r"C:\Media\Movie.mkv"},
+            "/api/network/coordinator/start": {"confirm_start": True, "path": r"C:\Media\Movie.mkv"},
+            "/api/network/coordinator/stop": {"confirm_stop": True, "path": r"C:\Media\Movie.mkv"},
+            "/api/network/worker/start": {"confirm_start": True, "path": r"C:\Media\Movie.mkv"},
+            "/api/network/worker/stop": {"confirm_stop": True, "path": r"C:\Media\Movie.mkv"},
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
             "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
             "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
@@ -252,8 +264,11 @@ class ApiCommandContractsTests(unittest.TestCase):
         )
         self.assertEqual(validate_api_payload("/api/maintenance/dependency-atlas/open-folder", {}), {})
         self.assertEqual(
-            validate_api_payload("/api/diagnostics/tdarr-matrix-audit", {"action": "smoke"}),
-            {"action": "smoke"},
+            validate_api_payload(
+                "/api/diagnostics/tdarr-matrix-audit",
+                {"action": "cleanup-delete", "confirm_delete_full_matrix": True},
+            ),
+            {"action": "cleanup-delete", "confirm_delete_full_matrix": True},
         )
         self.assertEqual(
             validate_api_payload(
@@ -306,6 +321,73 @@ class ApiCommandContractsTests(unittest.TestCase):
             {"paths": [], "selected_sources": [], "confirm_apply": True, "allow_outside_configured_roots": False},
         )
         self.assertEqual(
+            validate_api_payload(
+                "/api/rename/apply",
+                {
+                    "paths": [],
+                    "selected_sources": [],
+                    "confirm_apply": True,
+                    "rename_sidecars": False,
+                    "force_pipeline_name": True,
+                    "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": False},
+                    "use_pipeline_naming_preview": False,
+                },
+            ),
+            {
+                "paths": [],
+                "selected_sources": [],
+                "confirm_apply": True,
+                "rename_sidecars": False,
+                "force_pipeline_name": True,
+                "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": False},
+                "use_pipeline_naming_preview": False,
+            },
+        )
+        self.assertEqual(
+            validate_api_payload("/api/network/coordinator/start-dry-run", {"reason": "operator check"}),
+            {"reason": "operator check"},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/network/coordinator/start", {"confirm_start": True, "reason": "operator start"}),
+            {"confirm_start": True, "reason": "operator start"},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/network/worker/stop", {"confirm_stop": True}),
+            {"confirm_stop": True},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/network/worker/test-connection", {"timeout_seconds": 5}),
+            {"timeout_seconds": 5},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/network/worker/discover-coordinators", {"timeout_seconds": 1}),
+            {"timeout_seconds": 1},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/network/coordinator/join-blob",
+                {
+                    "coordinator_url": "http://coordinator.test:7830",
+                    "confirm_create": True,
+                    "rotate_token": True,
+                    "confirm_rotate": True,
+                },
+            ),
+            {
+                "coordinator_url": "http://coordinator.test:7830",
+                "confirm_create": True,
+                "rotate_token": True,
+                "confirm_rotate": True,
+            },
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/network/worker/join-cluster",
+                {"join_blob": "client-owned", "confirm_import": True, "timeout_seconds": 5},
+            ),
+            {"join_blob": "client-owned", "confirm_import": True, "timeout_seconds": 5},
+        )
+        self.assertEqual(
             validate_api_payload("/api/final-library-promotion/promote-queue", {"confirm_promote": True}),
             {"confirm_promote": True},
         )
@@ -322,6 +404,22 @@ class ApiCommandContractsTests(unittest.TestCase):
             {"run_id": "run-1"},
         )
 
+    def test_network_lifecycle_payloads_require_route_specific_strict_confirmation(self) -> None:
+        self.assertEqual(
+            validate_api_payload("/api/network/coordinator/start-dry-run", {"reason": "operator check"}),
+            {"reason": "operator check"},
+        )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/network/coordinator/start-dry-run", {"confirm_start": True})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/network/coordinator/start", {"reason": "missing confirmation"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/network/coordinator/start", {"confirm_start": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/network/coordinator/stop", {"confirm_start": True})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/network/worker/stop", {"confirm_stop": "1"})
+
     def test_backend_shutdown_force_cleanup_requires_strict_boolean(self) -> None:
         for value in ("true", "false", 1, 0):
             with self.subTest(value=value):
@@ -333,6 +431,39 @@ class ApiCommandContractsTests(unittest.TestCase):
             with self.subTest(value=value):
                 with self.assertRaises(ValidationFailure):
                     validate_api_payload("/api/queue/scan", {"force": value})
+
+    def test_rename_and_final_library_confirmations_require_strict_boolean(self) -> None:
+        cases = [
+            ("/api/rename/apply", "confirm_apply", {"paths": [], "selected_sources": []}),
+            ("/api/rename/apply", "rename_sidecars", {"paths": [], "selected_sources": [], "confirm_apply": True}),
+            ("/api/rename/apply", "force_pipeline_name", {"paths": [], "selected_sources": [], "confirm_apply": True}),
+            ("/api/rename/apply", "use_pipeline_naming_preview", {"paths": [], "selected_sources": [], "confirm_apply": True}),
+            (
+                "/api/rename/apply",
+                "allow_outside_configured_roots",
+                {"paths": [], "selected_sources": [], "confirm_apply": True},
+            ),
+            ("/api/final-library-promotion/promote-queue", "confirm_promote", {"row_keys": ["row-1"]}),
+        ]
+
+        for route, field, base_payload in cases:
+            for value in ("true", "false", 1, 0):
+                with self.subTest(route=route, field=field, value=value):
+                    with self.assertRaises(ValidationFailure):
+                        validate_api_payload(route, {**base_payload, field: value})
+
+        for value in ("true", "false", 1, 0):
+            with self.subTest(route="/api/rename/apply", field="force_pipeline_name_overrides", value=value):
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload(
+                        "/api/rename/apply",
+                        {
+                            "paths": [],
+                            "selected_sources": [],
+                            "confirm_apply": True,
+                            "force_pipeline_name_overrides": {"C:/Media/Show E01.mkv": value},
+                        },
+                    )
 
     def test_settings_schedule_and_maintenance_booleans_require_strict_boolean(self) -> None:
         cases = [
@@ -347,6 +478,7 @@ class ApiCommandContractsTests(unittest.TestCase):
             ("/api/maintenance/release-dry-run", "include_dev_docs", {"destination_root": "C:/Deploy"}),
             ("/api/maintenance/release-dry-run", "include_optional_tools", {"destination_root": "C:/Deploy"}),
             ("/api/maintenance/release-dry-run", "include_tool_docs", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "include_tauri_preview_binary", {"destination_root": "C:/Deploy"}),
             ("/api/maintenance/release-dry-run", "keep_personal_config", {"destination_root": "C:/Deploy"}),
             ("/api/maintenance/release-build", "zip_package", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "verify", {"destination_root": "C:/Deploy", "confirm_create": True}),
@@ -354,6 +486,7 @@ class ApiCommandContractsTests(unittest.TestCase):
             ("/api/maintenance/release-build", "include_dev_docs", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "include_optional_tools", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "include_tool_docs", {"destination_root": "C:/Deploy", "confirm_create": True}),
+            ("/api/maintenance/release-build", "include_tauri_preview_binary", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "keep_personal_config", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "force", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "confirm_create", {"destination_root": "C:/Deploy"}),
@@ -369,7 +502,7 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
         matrix = (REPO_ROOT / "docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
 
-        self.assertIn("Total command routes: 58 POST routes across 10 contract groups.", matrix)
+        self.assertIn("Total command routes: 70 POST routes across 11 contract groups.", matrix)
         for route in COMMAND_ROUTE_METHODS:
             with self.subTest(route=route):
                 self.assertIn(f"`POST {route}`", matrix)

@@ -34,6 +34,17 @@ class LocalApiCommandJournalPolicyTests(unittest.TestCase):
         self.assertEqual(scalar_text("abcdef", limit=4), "abc...")
         self.assertEqual(scalar_text(None, limit=4), "")
 
+    def test_scalar_text_redacts_url_query_fragment_and_token_assignments(self) -> None:
+        text = scalar_text(
+            "open http://user:pass@coordinator.test:7830/api?token=secret#frag WorkerAuthToken=abc",
+            limit=500,
+        )
+
+        self.assertIn("http://coordinator.test:7830/api", text)
+        self.assertNotIn("secret", text)
+        self.assertNotIn("abc", text)
+        self.assertNotIn("user:pass", text)
+
     def test_string_list_limits_and_scalarizes_values(self) -> None:
         values = ["one", 2, "three", "four"]
 

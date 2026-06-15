@@ -1,0 +1,67 @@
+{
+  "id": "MP-CHANGE-2026-0614-014",
+  "title": "Add network worker join blob flow",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Implement D1 from the network worker hardening plan by adding a secret-safe coordinator join blob and worker import flow.",
+  "reason": "Worker setup should not require hand-copying a 64-character token and manually typing the coordinator URL.",
+  "affected_areas": [
+    "api",
+    "contracts",
+    "docs",
+    "network",
+    "settings",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "A worker operator had to manually enter WorkerCoordinatorUrl and WorkerAuthToken, then configure path identity separately.",
+  "behavior_after": "The coordinator can mint a one-time setup blob and a worker can import it to persist coordinator URL/auth settings and immediately run the existing connection/path verification flow.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/architecture/NETWORK_WORKER_HARDENING_PLAN.md",
+    "docs/generated/summaries/docs/inventories/COMMAND_OWNERSHIP_MATRIX.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0614-014.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/commands_network.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/join.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_join.py.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-014.json",
+    "src/mediapipeline/contracts/api_commands.py",
+    "src/mediapipeline/core/api/commands.py",
+    "src/mediapipeline/core/api/commands_network.py",
+    "src/mediapipeline/core/network/facade.py",
+    "src/mediapipeline/core/network/join.py",
+    "src/mediapipeline/desktop/api/contract_command.py",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_api_contract_payload.py",
+    "tests/python/desktop/test_network_join.py",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_api_command_contracts.py route coverage for coordinator join blob and worker join cluster",
+    "tests/python/desktop/test_network_join.py",
+    "tests/webview/test_webview_browser_network_smoke.py browser-backed mocked join flow coverage",
+    "tests/webview/test_webview_network_read_only_boundary.py static route/button/secret-boundary coverage"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_network_read_only_boundary tests.webview.test_webview_browser_network_smoke tests.python.desktop.test_application_facade_local_api tests.python.desktop.test_api_command_contracts tests.python.desktop.test_api_contract_payload tests.python.desktop.test_network_join - passed (98 tests)",
+    "PYTHONPATH=src ops/scripts/smoke/Test-LocalApiLifecycleContractSmoke.ps1 - passed (2 tests); the first wrapper invocation without PYTHONPATH failed before app import with ModuleNotFoundError: mediapipeline",
+    "npm run webview:check - passed",
+    "npm run webview:lint -- --quiet - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1 -AllowSkippedTests - passed (1 test)"
+  ],
+  "rollback_plan": "Revert the D1 network join helpers, Local API routes, WebView controls, tests, docs, generated summaries, and this change packet. Existing manual WorkerCoordinatorUrl, WorkerAuthToken, and WorkerSourcePathMap setup remains available.",
+  "related_changes": [
+    "MP-CHANGE-2026-0614-010",
+    "MP-CHANGE-2026-0614-011",
+    "MP-CHANGE-2026-0614-012"
+  ],
+  "notes": "Opened before D1 edits. Scope is network setup ergonomics and secret handling; no source, scratch, publish, drain, FFmpeg, audio, or subtitle behavior changes."
+}

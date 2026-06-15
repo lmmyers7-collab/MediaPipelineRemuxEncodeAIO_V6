@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0612-002",
+  "title": "Shared UI preference sync race fix",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-12",
+  "date_completed": "2026-06-12",
+  "summary": "Prevent stale shared UI preference refreshes from reverting freshly clicked layout editor panel decisions or other program-owned UI preferences.",
+  "reason": "Layout editor decisions and other WebView UI preferences are stored in localStorage and mirrored through the backend UI-preferences route. In Tauri, a periodic remote refresh could apply an older backend value during the debounce window before the local change posted, causing the UI to flash back to the previous state.",
+  "affected_areas": [
+    "layout",
+    "webview"
+  ],
+  "behavior_before": "A layout editor tile click or other shared UI preference write could update locally, then a stale `/api/ui-preferences` refresh could reapply the prior state before the pending local sync completed.",
+  "behavior_after": "Pending local UI preference writes are treated as authoritative during the debounce window, the sync hook is installed before page/tab/layout initializers, and local writes are flushed before any remote refresh can apply stale state.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-002.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0612-002.json",
+    "tests/webview/test_webview_browser_layout_manager_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_layout_manager_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "manual_validation": [
+    "Bundled Python unittest tests.webview.test_webview_browser_layout_manager_smoke - passed",
+    "Bundled Python unittest tests.webview.test_webview_frontend_mutation_boundary - passed",
+    "Consistency pass reran bundled Python unittest tests.webview.test_webview_browser_layout_manager_smoke - passed",
+    "Consistency pass reran bundled Python unittest tests.webview.test_webview_frontend_mutation_boundary - passed",
+    "Consistency pass reran ops/scripts/smoke/Test-WebViewBrowserLayoutManagerSmoke.ps1 - passed",
+    "Strict change-control coverage check - failed due unrelated packet MP-CHANGE-2026-0612-006 using invalid type 'enhancement' plus unrelated uncovered files docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-305.json.md, docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-004.json.md, and tests/webview/test_webview_completed_library_filter.py",
+    "ops/scripts/smoke/Test-WebViewBrowserLayoutManagerSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the shared UI preference sync changes in app.js and the focused layout-manager/static test additions.",
+  "related_changes": [],
+  "notes": "WebView preference-state change only. No backend route, media policy, queue, publish/drain, rename, settings save, or filesystem mutation behavior changes.\nImplemented pending-local UI preference guard for layout editor state.\nBroadened the guard so all app-owned mediapipeline-* and mediapipeline.* localStorage preferences use the same local-wins behavior before remote refresh can apply stale state.\nRefreshed generated summaries for touched files.\nLayout editor preference-sync fix complete; strict coverage blocked by unrelated pre-existing change-packet issues.\nRan project WebView browser layout-manager smoke wrapper.\nBroaden shared UI preference race fix to all program-owned preference writes."
+}

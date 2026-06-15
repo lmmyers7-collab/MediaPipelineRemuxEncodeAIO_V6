@@ -250,7 +250,14 @@
     function selectableRowsFor(row) {
       const tbody = row?.closest ? row.closest("tbody") : null;
       if (!tbody) return [];
-      return Array.from(tbody.querySelectorAll('tr[data-selectable-row="true"]'));
+      return Array.from(tbody.querySelectorAll('tr[data-selectable-row="true"]')).filter(selectableRowVisible);
+    }
+
+    function selectableRowVisible(row) {
+      if (!row || row.hidden || row.getAttribute?.("aria-hidden") === "true") return false;
+      const style = typeof window.getComputedStyle === "function" ? window.getComputedStyle(row) : row.style;
+      if (!style) return true;
+      return style.display !== "none" && style.visibility !== "hidden" && style.visibility !== "collapse";
     }
 
     function focusRowWithoutDocumentScroll(row) {

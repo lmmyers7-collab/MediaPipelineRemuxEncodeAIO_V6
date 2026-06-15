@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0611-001",
+  "title": "Add worker 01 backend API application audit report",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Document the worker-01 review-only audit for backend API and application surfaces.",
+  "reason": "The concurrent function/module audit requires each worker to publish an isolated worker report and cover Markdown writes with a change packet.",
+  "affected_areas": [
+    "review",
+    "backend-api-application"
+  ],
+  "behavior_before": "The worker-01 backend API/application audit report did not exist at the requested output path.",
+  "behavior_after": "The worker-01 backend API/application audit report is present under the audit workers directory.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-01-backend-api-application.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-001.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Test-Path docs/reviews/function-module-audit-2026-06-11/workers/worker-01-backend-api-application.md -> True; first line '# Worker Review: worker-01-backend-api-application'.",
+    "apps/desktop/runtime/Python/python.exe -c \"import json, pathlib; p=pathlib.Path('ops/release/changes/unreleased/MP-CHANGE-2026-0611-001.json'); data=json.loads(p.read_text(encoding='utf-8')); print(data['id'], data['status'], len(data['files_touched']))\" -> parsed MP-CHANGE-2026-0611-001 with 2 covered files.",
+    "Read-only route contract comparison during audit -> command routes 58/58 documented with no missing or extra routes; read routes plus /api/health 45/45 documented with no missing or extra routes.",
+    "Targeted fresh-process import probes during audit -> reproduced circular import failures for mediapipeline.core.api.command_handlers, commands_process, commands_rename, and commands_settings; verified desktop.api.server, desktop.api.handler, desktop.api.contract_payload, desktop.application.facade, desktop.local_api_main, coordinator HTTP handlers, and worker_http imported.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed because unrelated docs/reviews/function-module-audit-2026-06-11/workers/worker-10-ops-powershell-scripts.md is not covered by any unreleased packet; this packet's two touched files are listed in files_touched.",
+    "A later rerun of apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed because unrelated docs/implementation/encoder-breadth-av1-plan.md is not covered by any unreleased packet; this packet's two touched files remain listed in files_touched."
+  ],
+  "rollback_plan": "Delete the worker-01 review report and this change packet.",
+  "related_changes": [],
+  "notes": "Review-only documentation change. No source, runtime, media, aggregate review, or generated summary files are modified. Strict coverage failure is unrelated to this packet and was left unabsorbed."
+}

@@ -136,6 +136,25 @@ function Get-ManifestPriorityLevel {
     return $bestLevel
 }
 
+function Test-ManifestPriorityEntryApplies {
+    <#
+    .SYNOPSIS
+        Return true when a valid exact or inherited manifest entry applies.
+    .DESCRIPTION
+        This distinguishes an explicit manifest level of "normal" from the
+        default "normal" returned when no manifest entry exists.
+    #>
+    param(
+        [hashtable] $Manifest,
+        [string]    $SourcePath
+    )
+
+    $validLevels = @('high', 'normal', 'low', 'hold')
+    $level = Get-ManifestEntryField -Manifest $Manifest -SourcePath $SourcePath -FieldName 'level'
+    if ($null -eq $level) { return $false }
+    return ([string]$level).ToLowerInvariant() -in $validLevels
+}
+
 function Get-ManifestEntryField {
     <#
     .SYNOPSIS
@@ -199,4 +218,3 @@ function Get-ManifestEntryField {
     if ($null -ne $bestEntry) { return (& $getField $bestEntry) }
     return $null
 }
-

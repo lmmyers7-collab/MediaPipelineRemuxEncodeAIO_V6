@@ -4,6 +4,7 @@ from collections.abc import Callable
 import shutil
 import sys
 import threading
+import time
 from datetime import datetime
 from pathlib import Path
 
@@ -40,12 +41,20 @@ from mediapipeline.core.telemetry.system_metrics import (
 from mediapipeline.desktop.subprocess_runner import run_capture
 
 
-# Background sampling cadence for the cached telemetry snapshot. Kept below the
-# WebView's broad 4s refresh (app.js refreshAll) so each UI fetch reads a value
-# at most ~2s old, letting CPU/GPU drops (e.g. a finished encode) clear quickly
-# instead of lingering on the previous sample's busy tail. Each sample spawns one
-# short nvidia-smi probe, so do not drop this far below the UI poll rate.
+# Background sampling cadence for the cached CPU/memory telemetry snapshot. The
+# WebView's automatic refresh runs every 15s (app.js AUTOMATIC_REFRESH_INTERVAL_MS),
+# so a 2s sampler keeps each UI fetch reading a CPU/mem value at most ~2s old and
+# lets CPU drops (e.g. a finished encode) clear quickly instead of lingering on a
+# busy tail. CPU/mem sampling is cheap (PDH counter + psutil), so this stays low.
 TELEMETRY_INTERVAL_SECONDS = 2.0
+
+# GPU telemetry sub-cadence. Unlike CPU/mem, each GPU read spawns an nvidia-smi
+# process (NVML driver query plus Windows process-creation/AV-scan cost), so
+# probing every 2s is a periodic system-load source that contends with other
+# workloads (e.g. an editor/agent reindexing the disk). Probe at most this often
+# and reuse the last parsed rows on intermediate cycles; kept just under the 15s
+# UI refresh so each UI fetch still sees recent GPU data.
+GPU_TELEMETRY_INTERVAL_SECONDS = 12.0
 
 
 class TelemetryServiceMixin:
@@ -53,6 +62,10 @@ class TelemetryServiceMixin:
         self._cpu_sampler = create_cpu_sampler()
         self._cpu_utility_sampler = create_cpu_utility_sampler()
         prime_cpu_sampler(psutil, self._cpu_sampler, self._cpu_utility_sampler)
+        # GPU probe sub-cadence cache (see GPU_TELEMETRY_INTERVAL_SECONDS): the
+        # last parsed nvidia-smi rows and the monotonic time of the last probe.
+        self._last_gpu_rows: list | None = None
+        self._last_gpu_sample_at: float | None = None
 
     def _resolve_nvidia_smi(self) -> str | None:
         if self._nvidia_smi_checked:
@@ -99,7 +112,7 @@ class TelemetryServiceMixin:
         with self._telemetry_lock:
             return self._cached_telemetry
 
-    def sample_system_telemetry(self) -> TelemetrySnapshot:
+    def sample_system_telemetry(self, now: float | None = None) -> TelemetrySnapshot:
         snapshot = TelemetrySnapshot(collected_at=datetime.now())
 
         apply_system_metrics_to_snapshot(
@@ -109,41 +122,67 @@ class TelemetryServiceMixin:
             getattr(self, "_cpu_utility_sampler", None),
         )
 
-        nvidia_smi = self._resolve_nvidia_smi()
-        if nvidia_smi:
-            try:
-                result = run_capture(
-                    [
-                        nvidia_smi,
-                        "--query-gpu=index,name,utilization.encoder,utilization.gpu,temperature.gpu,memory.used,memory.total",
-                        "--format=csv,noheader,nounits",
-                    ],
-                    encoding="utf-8",
-                    errors="replace",
-                    timeout_seconds=2,
-                    extra_popen_kwargs=self._subprocess_kwargs_hidden(),
-                    label="nvidia-smi telemetry",
-                )
-                output = result.stdout.strip()
-                if result.timed_out and not snapshot.error:
-                    snapshot.error = f"nvidia-smi timed out: {result.kill_message}"
-                elif result.returncode == 0 and output:
-                    gpu_rows, parse_failures = parse_nvidia_smi_encoder_rows(output)
-                    if gpu_rows:
-                        apply_nvidia_smi_rows_to_snapshot(snapshot, gpu_rows)
-                    elif parse_failures and not snapshot.error:
-                        snapshot.error = "nvidia-smi returned malformed encoder telemetry"
-                    elif not snapshot.error:
-                        snapshot.error = "nvidia-smi returned no parseable encoder telemetry"
-                elif not snapshot.error and result.stderr.strip():
-                    snapshot.error = result.stderr.strip()
-                elif not snapshot.error and result.returncode not in (0, None):
-                    snapshot.error = f"nvidia-smi exited with code {result.returncode}"
-            except Exception as exc:
-                if not snapshot.error:
-                    snapshot.error = f"nvidia-smi error: {exc}"
-
+        self._apply_gpu_telemetry(
+            snapshot,
+            now=time.monotonic() if now is None else float(now),
+        )
         return snapshot
+
+    def _apply_gpu_telemetry(self, snapshot: TelemetrySnapshot, *, now: float) -> None:
+        """Attach GPU telemetry to ``snapshot``.
+
+        Unlike CPU/mem, each reading spawns an ``nvidia-smi`` process, so this
+        probes at most every ``GPU_TELEMETRY_INTERVAL_SECONDS`` and reuses the
+        last parsed rows on intermediate cycles. This is the only telemetry path
+        that spawns a process; gating it keeps the 2s sampler from generating a
+        steady nvidia-smi spawn storm that contends with other system workloads.
+        """
+        nvidia_smi = self._resolve_nvidia_smi()
+        if not nvidia_smi:
+            return
+
+        last_sample_at = getattr(self, "_last_gpu_sample_at", None)
+        if last_sample_at is not None and (now - last_sample_at) < GPU_TELEMETRY_INTERVAL_SECONDS:
+            cached_rows = getattr(self, "_last_gpu_rows", None)
+            if cached_rows:
+                apply_nvidia_smi_rows_to_snapshot(snapshot, cached_rows)
+            return
+
+        # Due for a fresh probe. Advance the timer up front so a persistently
+        # failing nvidia-smi cannot fall back to spawning a process every cycle.
+        self._last_gpu_sample_at = now
+        try:
+            result = run_capture(
+                [
+                    nvidia_smi,
+                    "--query-gpu=index,name,utilization.encoder,utilization.gpu,temperature.gpu,memory.used,memory.total",
+                    "--format=csv,noheader,nounits",
+                ],
+                encoding="utf-8",
+                errors="replace",
+                timeout_seconds=2,
+                extra_popen_kwargs=self._subprocess_kwargs_hidden(),
+                label="nvidia-smi telemetry",
+            )
+            output = result.stdout.strip()
+            if result.timed_out and not snapshot.error:
+                snapshot.error = f"nvidia-smi timed out: {result.kill_message}"
+            elif result.returncode == 0 and output:
+                gpu_rows, parse_failures = parse_nvidia_smi_encoder_rows(output)
+                if gpu_rows:
+                    apply_nvidia_smi_rows_to_snapshot(snapshot, gpu_rows)
+                    self._last_gpu_rows = gpu_rows
+                elif parse_failures and not snapshot.error:
+                    snapshot.error = "nvidia-smi returned malformed encoder telemetry"
+                elif not snapshot.error:
+                    snapshot.error = "nvidia-smi returned no parseable encoder telemetry"
+            elif not snapshot.error and result.stderr.strip():
+                snapshot.error = result.stderr.strip()
+            elif not snapshot.error and result.returncode not in (0, None):
+                snapshot.error = f"nvidia-smi exited with code {result.returncode}"
+        except Exception as exc:
+            if not snapshot.error:
+                snapshot.error = f"nvidia-smi error: {exc}"
 
     def check_environment_health(
         self,

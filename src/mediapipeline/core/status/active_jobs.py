@@ -295,6 +295,8 @@ def _progress_status_state(progress: Mapping[str, Any], *, stale: bool) -> str:
         return "warning"
     if "stopped" in text:
         return "blocked"
+    if "paused" in text:
+        return "warning"
     if any(token in text for token in ("processing", "running", "active", "publishing", "copying", "encoding", "remuxing", "scanning", "retry")):
         return "running"
     if any(token in text for token in ("complete", "completed", "published", "deferred")):
@@ -307,10 +309,13 @@ def _progress_status_state(progress: Mapping[str, Any], *, stale: bool) -> str:
 def _progress_is_stale(progress: Mapping[str, Any], *, stale_after_seconds: float, now: datetime | None = None) -> bool:
     if not progress or not _progress_active(progress):
         return False
+    stage = _text_from_mapping(progress, "CurrentStage", "current_stage").casefold()
+    if stage == "paused":
+        return False
     updated_at = _text_from_mapping(progress, "LastUpdate", "UpdatedAt", "updated_at")
     parsed = parse_progress_datetime(updated_at)
     if parsed is None:
-        return False
+        return True
     reference = now or (datetime.now(parsed.tzinfo) if parsed.tzinfo is not None else datetime.now())
     if parsed.tzinfo is None and reference.tzinfo is not None:
         reference = reference.replace(tzinfo=None)

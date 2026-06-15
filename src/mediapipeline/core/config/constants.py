@@ -62,3 +62,12 @@ SIZE_GUARD_MODE_DESCRIPTIONS = {
     "fallback_remux": "For automatic size/bitrate-threshold encodes that grow past the configured size budget, attempts a safe remux fallback. Forced route overrides warn only and do not fallback.",
     "off": "Disable post-encode size growth checks.",
 }
+
+DYNAMIC_HDR_POLICY_DEFAULT = "warn"
+DYNAMIC_HDR_POLICY_NAMES = ("off", "warn", "preserve_or_remux", "preserve_or_review")
+DYNAMIC_HDR_POLICY_DESCRIPTIONS = {
+    "off": "Disable dynamic HDR preservation diagnostics beyond normal probe data.",
+    "warn": "Warn when dynamic HDR metadata is expected to be dropped by encode; remux behavior remains unchanged.",
+    "preserve_or_remux": "Future enforcement mode: prefer remux when dynamic HDR cannot be preserved by encode.",
+    "preserve_or_review": "Future enforcement mode: route to review when dynamic HDR cannot be preserved safely.",
+}

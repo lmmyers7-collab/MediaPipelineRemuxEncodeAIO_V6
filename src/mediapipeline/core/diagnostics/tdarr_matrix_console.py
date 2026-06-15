@@ -11,6 +11,11 @@ from pathlib import Path
 from typing import Any, Callable, Iterable
 
 from mediapipeline.core.kernel.dto_base import json_safe
+from mediapipeline.core.diagnostics.tdarr_matrix_proof import (
+    tdarr_case_keys_for_pack,
+    tdarr_proof_pack_root,
+    tdarr_proof_runs_root,
+)
 
 
 TDARR_MATRIX_CONSOLE_SCHEMA_VERSION = "desktop_tdarr_matrix_console.v1"
@@ -19,6 +24,8 @@ TDARR_MATRIX_COMPARE_SCHEMA_VERSION = "desktop_tdarr_matrix_compare.v1"
 TDARR_MATRIX_EVIDENCE_COMMAND = "diagnostics.tdarr_matrix.evidence_open"
 TDARR_MATRIX_RERUN_COMMAND = "diagnostics.tdarr_matrix.rerun"
 TDARR_MATRIX_AUDIT_RUN_SENTINEL = ".tdarr-matrix-audit-run.json"
+TDARR_MATRIX_REPORT_MAX_BYTES = 5_000_000
+TDARR_MATRIX_MANIFEST_MAX_BYTES = 5_000_000
 TDARR_MATRIX_CONSOLE_EVIDENCE_TARGETS = (
     "stdout",
     "stderr",
@@ -70,7 +77,11 @@ def _is_under(path: Path, root: Path) -> bool:
 
 
 def tdarr_matrix_runs_root(workspace_root: Path) -> Path:
-    return workspace_root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns"
+    return tdarr_proof_runs_root(workspace_root)
+
+
+def tdarr_matrix_library_root(workspace_root: Path) -> Path:
+    return tdarr_proof_pack_root(workspace_root)
 
 
 def _run_root(workspace_root: Path, run_id: Any) -> Path:
@@ -96,7 +107,26 @@ def _artifact_dir(run_root: Path, case_id: Any, view: Any) -> Path:
     return run_root / "manifests" / "audit" / "files" / _safe_slug(f"{case_id}-{view}")
 
 
-def _read_json(path: Path) -> dict[str, Any]:
+def _read_json(
+    path: Path,
+    *,
+    max_bytes: int | None = None,
+    warnings: list[str] | None = None,
+    label: str = "JSON artifact",
+) -> dict[str, Any]:
+    if max_bytes is not None:
+        try:
+            size_bytes = path.stat().st_size
+        except OSError:
+            size_bytes = 0
+        if size_bytes > int(max_bytes):
+            message = (
+                f"{label} is too large for bounded diagnostics parsing "
+                f"({size_bytes} bytes > {int(max_bytes)} bytes); open the artifact directly."
+            )
+            if warnings is not None:
+                warnings.append(message)
+            return {"_artifact_too_large": True, "_artifact_warning": message}
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError):
@@ -104,19 +134,167 @@ def _read_json(path: Path) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def _read_report(run_root: Path) -> dict[str, Any]:
-    return _read_json(_report_path(run_root))
+def _read_report(run_root: Path, *, warnings: list[str] | None = None) -> dict[str, Any]:
+    return _read_json(
+        _report_path(run_root),
+        max_bytes=TDARR_MATRIX_REPORT_MAX_BYTES,
+        warnings=warnings,
+        label="Tdarr Matrix audit report",
+    )
 
 
-def _read_manifest_rows(run_root: Path) -> list[dict[str, Any]]:
+def _read_manifest_rows(run_root: Path, *, warnings: list[str] | None = None) -> list[dict[str, Any]]:
     path = _manifest_path(run_root)
     if not path.exists():
+        return []
+    try:
+        size_bytes = path.stat().st_size
+    except OSError:
+        size_bytes = 0
+    if size_bytes > TDARR_MATRIX_MANIFEST_MAX_BYTES:
+        if warnings is not None:
+            warnings.append(
+                "Tdarr Matrix materialized manifest is too large for bounded diagnostics parsing "
+                f"({size_bytes} bytes > {TDARR_MATRIX_MANIFEST_MAX_BYTES} bytes); open the artifact directly."
+            )
         return []
     try:
         with path.open("r", encoding="utf-8", newline="") as handle:
             return [dict(row) for row in csv.DictReader(handle)]
     except OSError:
         return []
+
+
+def _read_proof_manifest_rows(workspace_root: Path, *, warnings: list[str] | None = None) -> list[dict[str, Any]]:
+    proof_root = tdarr_matrix_library_root(workspace_root)
+    path = proof_root / "manifests" / "materialized_library.csv"
+    if not path.exists():
+        return []
+    try:
+        with path.open("r", encoding="utf-8", newline="") as handle:
+            return [dict(row) for row in csv.DictReader(handle)]
+    except OSError as exc:
+        if warnings is not None:
+            warnings.append(f"Could not read Tdarr Proof Pack manifest: {exc}")
+        return []
+
+
+def _case_key(row: dict[str, Any]) -> str:
+    return f"{str(row.get('case_id') or '').strip()}:{str(row.get('view') or '').strip().casefold()}"
+
+
+def _worker_result_path_for_case(run_root: Path, case_key: str) -> Path:
+    case_id, _sep, view = case_key.partition(":")
+    return _artifact_dir(run_root, case_id, view) / "worker_result.json"
+
+
+def _run_findings_by_case(run_root: Path, run_id: str) -> dict[str, list[dict[str, Any]]]:
+    report = _read_report(run_root)
+    raw_findings = report.get("findings") if isinstance(report.get("findings"), list) else []
+    findings = _enriched_findings(run_root, run_id, raw_findings)
+    by_case: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for finding in findings:
+        key = f"{finding.get('case_id') or ''}:{finding.get('view') or ''}"
+        by_case[key].append(finding)
+    return by_case
+
+
+def _case_status(findings: list[dict[str, Any]], *, worker_result_exists: bool, run_pending: bool) -> str:
+    severities = {str(finding.get("severity") or "").casefold() for finding in findings}
+    if "critical" in severities or "error" in severities:
+        return "failed"
+    if severities:
+        return "review"
+    if worker_result_exists:
+        return "passed"
+    if run_pending:
+        return "queued"
+    return "not run"
+
+
+def _derive_pass_history(workspace_root: Path) -> dict[str, dict[str, Any]]:
+    history: dict[str, dict[str, Any]] = {}
+    for run in tdarr_matrix_discover_runs(workspace_root, limit=500):
+        run_id = str(run.get("run_id") or "")
+        if not run_id or not bool(run.get("report_exists")):
+            continue
+        try:
+            run_root = _run_root(workspace_root, run_id)
+        except ValueError:
+            continue
+        generated_at = str(run.get("generated_at_utc") or "")
+        run_rows = _read_manifest_rows(run_root)
+        findings_by_case = _run_findings_by_case(run_root, run_id)
+        for row in run_rows:
+            key = _case_key(row)
+            if key in history:
+                continue
+            result_path = _worker_result_path_for_case(run_root, key)
+            status = _case_status(findings_by_case.get(key, []), worker_result_exists=result_path.exists(), run_pending=False)
+            if status == "passed":
+                history[key] = {"last_passed_at": generated_at, "last_passed_run_id": run_id}
+    return history
+
+
+def _proof_pack_rows(
+    workspace_root: Path,
+    *,
+    selected_run_id: str = "",
+    pack: str = "proof-pack",
+    warnings: list[str] | None = None,
+) -> list[dict[str, Any]]:
+    proof_rows = _read_proof_manifest_rows(workspace_root, warnings=warnings)
+    if not proof_rows:
+        return []
+    wanted_keys = set(tdarr_case_keys_for_pack(pack))
+    pass_history = _derive_pass_history(workspace_root)
+    run_root: Path | None = None
+    run_pending = False
+    run_case_keys: set[str] = set()
+    findings_by_case: dict[str, list[dict[str, Any]]] = {}
+    if selected_run_id:
+        try:
+            run_root = _run_root(workspace_root, selected_run_id)
+            run = _run_metadata(run_root, include_progress=True)
+            run_pending = not bool(run.get("report_exists"))
+            run_case_keys = {_case_key(row) for row in _read_manifest_rows(run_root)}
+            findings_by_case = _run_findings_by_case(run_root, selected_run_id)
+        except ValueError:
+            run_root = None
+    rows: list[dict[str, Any]] = []
+    for row in proof_rows:
+        key = _case_key(row)
+        if key not in wanted_keys:
+            continue
+        findings = findings_by_case.get(key, [])
+        worker_exists = _worker_result_path_for_case(run_root, key).exists() if run_root is not None else False
+        status = _case_status(findings, worker_result_exists=worker_exists, run_pending=run_pending and key in run_case_keys)
+        history = pass_history.get(key, {})
+        primary_finding = findings[0] if findings else {}
+        available_targets = primary_finding.get("available_evidence_targets") if isinstance(primary_finding.get("available_evidence_targets"), list) else []
+        rows.append(
+            {
+                "case_key": key,
+                "case_id": str(row.get("case_id") or ""),
+                "pack": "smoke-pack" if key in set(tdarr_case_keys_for_pack("smoke-pack")) else "proof-pack",
+                "view": str(row.get("view") or ""),
+                "diagnostic_bucket": str(row.get("diagnostic_bucket") or ""),
+                "resolution": str(row.get("resolution") or ""),
+                "video_codec": str(row.get("video_codec") or ""),
+                "audio_codec": str(row.get("audio_codec") or ""),
+                "container": str(row.get("container") or ""),
+                "status": status,
+                "last_passed_at": str(history.get("last_passed_at") or ""),
+                "last_passed_run_id": str(history.get("last_passed_run_id") or ""),
+                "latest_run_id": selected_run_id,
+                "finding_count": len(findings),
+                "primary_finding_code": str(primary_finding.get("code") or ""),
+                "primary_finding_key": str(primary_finding.get("finding_key") or ""),
+                "available_evidence_targets": available_targets,
+                "generated_path": str(row.get("generated_path") or ""),
+            }
+        )
+    return rows
 
 
 def _finding_identity(finding: dict[str, Any]) -> str:
@@ -292,8 +470,9 @@ def _run_progress_summary(run_root: Path, selected_count: int) -> dict[str, Any]
 
 
 def _run_metadata(run_root: Path, *, include_progress: bool = False) -> dict[str, Any]:
-    report = _read_report(run_root)
-    rows = _read_manifest_rows(run_root)
+    artifact_warnings: list[str] = []
+    report = _read_report(run_root, warnings=artifact_warnings)
+    rows = _read_manifest_rows(run_root, warnings=artifact_warnings)
     findings = report.get("findings") if isinstance(report.get("findings"), list) else []
     severity_counts = Counter(str(finding.get("severity") or "info") for finding in findings if isinstance(finding, dict))
     report_path = _report_path(run_root)
@@ -314,6 +493,9 @@ def _run_metadata(run_root: Path, *, include_progress: bool = False) -> dict[str
         "selected_count": selected_count,
         "severity_counts": dict(severity_counts),
     }
+    if artifact_warnings:
+        metadata["artifact_warnings"] = artifact_warnings
+        metadata["artifact_warning_count"] = len(artifact_warnings)
     if include_progress:
         progress = _run_progress_summary(run_root, selected_count)
         metadata.update(progress)
@@ -342,6 +524,8 @@ def _pending_run_payload(workspace_root: Path, selected_run_id: str, runs: list[
             "code_counts": {},
             "sample_summary": {"selected_count": 0, "movie_count": 0, "tv_count": 0},
             "bucket_summary": [],
+            "smoke_pack_rows": _proof_pack_rows(workspace_root, selected_run_id=selected_run_id, pack="smoke-pack"),
+            "proof_pack_rows": _proof_pack_rows(workspace_root, selected_run_id=selected_run_id, pack="proof-pack"),
             "message": f"Tdarr Matrix run {selected_run_id} has been requested but has not written its audit report yet.",
         }
     )
@@ -425,11 +609,14 @@ def tdarr_matrix_console_payload(
                 "code_counts": {},
                 "sample_summary": {"selected_count": 0, "movie_count": 0, "tv_count": 0},
                 "bucket_summary": [],
+                "smoke_pack_rows": _proof_pack_rows(workspace_root, pack="smoke-pack"),
+                "proof_pack_rows": _proof_pack_rows(workspace_root, pack="proof-pack"),
                 "message": "No Tdarr Matrix sample runs were found.",
             }
         )
-    report = _read_report(run_root)
-    rows = _read_manifest_rows(run_root)
+    artifact_warnings: list[str] = []
+    report = _read_report(run_root, warnings=artifact_warnings)
+    rows = _read_manifest_rows(run_root, warnings=artifact_warnings)
     raw_findings = report.get("findings") if isinstance(report.get("findings"), list) else []
     findings = _enriched_findings(run_root, selected_run_id, raw_findings)
     sample_summary, bucket_summary = _summary_counts(rows, findings)
@@ -454,6 +641,10 @@ def tdarr_matrix_console_payload(
             "code_counts": dict(code_counts),
             "sample_summary": sample_summary,
             "bucket_summary": bucket_summary,
+            "smoke_pack_rows": _proof_pack_rows(workspace_root, selected_run_id=selected_run_id, pack="smoke-pack", warnings=artifact_warnings),
+            "proof_pack_rows": _proof_pack_rows(workspace_root, selected_run_id=selected_run_id, pack="proof-pack", warnings=artifact_warnings),
+            "artifact_warnings": artifact_warnings,
+            "artifact_warning_count": len(artifact_warnings),
         }
     )
 

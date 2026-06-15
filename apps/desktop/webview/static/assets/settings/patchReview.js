@@ -58,6 +58,8 @@
     const networkSettingsBuilderFields = dep("networkSettingsBuilderFields", []);
     const pendingPublishSettingsBuilderState = dep("pendingPublishSettingsBuilderState", {});
     const pendingPublishSettingsBuilderFields = dep("pendingPublishSettingsBuilderFields", []);
+    const qualityDetailSettingsBuilderState = dep("qualityDetailSettingsBuilderState", {});
+    const qualityDetailSettingsBuilderFields = dep("qualityDetailSettingsBuilderFields", []);
     const queueSettingsBuilderState = dep("queueSettingsBuilderState", {});
     const queueSettingsBuilderFields = dep("queueSettingsBuilderFields", []);
     const refreshAudioSettingsBuilderChoices = dep("refreshAudioSettingsBuilderChoices", function () {});
@@ -1272,12 +1274,13 @@
         setText("settings-builder-status", "Invalid builder value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
       writeSettingsPatchJson(patch, "Structured builder merged routing, size, and encoder keys into Changes JSON. Preview or Save still uses backend validation.");
       setSettingsBuilderState(true, true);
       setText("settings-builder-status", `${Object.keys(patch).length} patch keys ready`);
       renderSettingsBuilderGuidance();
+      return true;
     }
 
     function renderSettings(settings) {
@@ -1314,6 +1317,12 @@
       } else {
         refreshSettingsSelectChoices(videoDetailSettingsBuilderFields);
         addSettingsEventHandlers.renderVideoDetailSettingsBuilderGuidance();
+      }
+      if (!qualityDetailSettingsBuilderState.initialized || !qualityDetailSettingsBuilderState.dirty) {
+        addSettingsEventHandlers.syncQualityDetailSettingsBuilderFromConfig();
+      } else {
+        refreshSettingsSelectChoices(qualityDetailSettingsBuilderFields);
+        addSettingsEventHandlers.renderQualityDetailSettingsBuilderGuidance();
       }
       if (!fileSafetySettingsBuilderState.initialized || !fileSafetySettingsBuilderState.dirty) {
         addSettingsEventHandlers.syncFileSafetySettingsBuilderFromConfig();
@@ -1506,6 +1515,9 @@
       bindSettingsClick("settings-video-apply-button", addSettingsEventHandlers.applyVideoDetailSettingsBuilderToPatch);
       bindSettingsClick("settings-video-reset-button", addSettingsEventHandlers.syncVideoDetailSettingsBuilderFromConfig);
       bindSettingsControls(videoDetailSettingsBuilderFields, addSettingsEventHandlers.markVideoDetailSettingsBuilderDirty);
+      bindSettingsClick("settings-quality-apply-button", addSettingsEventHandlers.applyQualityDetailSettingsBuilderToPatch);
+      bindSettingsClick("settings-quality-reset-button", addSettingsEventHandlers.syncQualityDetailSettingsBuilderFromConfig);
+      bindSettingsControls(qualityDetailSettingsBuilderFields, addSettingsEventHandlers.markQualityDetailSettingsBuilderDirty);
       bindSettingsClick("settings-file-safety-apply-button", addSettingsEventHandlers.applyFileSafetySettingsBuilderToPatch);
       bindSettingsClick("settings-file-safety-reset-button", addSettingsEventHandlers.syncFileSafetySettingsBuilderFromConfig);
       bindSettingsControls(fileSafetySettingsBuilderFields, addSettingsEventHandlers.markFileSafetySettingsBuilderDirty);

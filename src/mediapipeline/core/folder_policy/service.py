@@ -90,7 +90,7 @@ class FolderPolicyServiceMixin:
             raise RuntimeError(f"ffprobe failed for {media_path}: {detail or result.returncode}")
         return parse_ffprobe_stream_signature(media_path, result.stdout or "{}")
 
-    def validate_folder_policy(self, folder: Path, *, sample_path: Path | None = None, max_files: int = 8) -> dict[str, Any]:
+    def validate_folder_policy(self, folder: Path, *, sample_path: Path | None = None, max_files: int = 8, save: bool = False) -> dict[str, Any]:
         if not folder.exists() or not folder.is_dir():
             raise NotADirectoryError(f"Folder does not exist: {folder}")
         folder = folder.absolute()
@@ -153,7 +153,8 @@ class FolderPolicyServiceMixin:
             else:
                 validation_payload.pop("warnings", None)
             policy["validation"] = validation_payload
-            saved_policy_path = str(self.save_folder_policy(folder, policy))
+            if save:
+                saved_policy_path = str(self.save_folder_policy(folder, policy))
 
         return {
             "ok": not errors,

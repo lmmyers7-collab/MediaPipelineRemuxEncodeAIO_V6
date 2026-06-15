@@ -375,7 +375,7 @@ class WebViewNavigationStaticTests(unittest.TestCase):
                 "Current Output Status",
                 "Output Files",
                 "Final Library Promotion",
-                "Selected File",
+                "Why This Output Looks Different",
                 "Completed History Summary",
                 "Output History",
                 "Integrity Check",

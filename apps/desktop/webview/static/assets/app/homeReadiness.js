@@ -45,10 +45,6 @@
     return home().renderHomeRecentCompleted?.(completed);
   }
 
-  function renderHomeTdarrMatrixStatus(context = {}) {
-    return home().renderHomeTdarrMatrixStatus?.(context);
-  }
-
   function renderHomePromotionEntry(status = {}) {
     return home().renderHomePromotionEntry?.(status);
   }
@@ -93,7 +89,6 @@
     renderHomeStorageHealth,
     renderHomeQueueSnapshot,
     renderHomeRecentCompleted,
-    renderHomeTdarrMatrixStatus,
     renderHomePromotionEntry,
     externalDependencyRows,
     externalDependencyOverallStatus,

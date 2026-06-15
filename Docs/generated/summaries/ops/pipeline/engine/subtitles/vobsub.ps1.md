@@ -3,9 +3,9 @@ file: ops/pipeline/engine/subtitles/vobsub.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 7829ef3287cc68842671028e554e039000949695df2d1160e8a1f76bb28e5c06
+sha256: 60faf8e0921cef853301e852625e2e2edfb85bd9245277c657438bde1bcfb589
 ---
 # `ops/pipeline/engine/subtitles/vobsub.ps1`
 

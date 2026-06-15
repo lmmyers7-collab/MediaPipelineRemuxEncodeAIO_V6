@@ -15,7 +15,7 @@ from mediapipeline.core.rename.policy import (
 
 
 class LocalApiRenameCommandPayloadMixin:
-    def _rename_request_with_backend_authority(self, request: dict[str, Any]) -> dict[str, Any]:
+    def _rename_request_with_backend_authority(self, request: dict[str, Any], resolved: Any | None = None) -> dict[str, Any]:
         backend_owned_keys = {
             "_configured_media_roots",
             "_rename_undo_manifest_root",
@@ -23,8 +23,9 @@ class LocalApiRenameCommandPayloadMixin:
             *RENAME_MOVIE_FILTER_PUBLIC_REQUEST_KEYS,
         }
         enriched = {key: value for key, value in dict(request).items() if key not in backend_owned_keys}
-        resolved_provider = getattr(self, "resolved_provider", None)
-        resolved = resolved_provider() if callable(resolved_provider) else None
+        if resolved is None:
+            resolved_provider = getattr(self, "resolved_provider", None)
+            resolved = resolved_provider() if callable(resolved_provider) else None
         if resolved is not None:
             enriched["_configured_media_roots"] = rename_configured_media_roots_from_resolved(resolved)
             enriched = rename_request_with_cleaning_policy(
@@ -87,4 +88,9 @@ class LocalApiRenameCommandPayloadMixin:
         ).to_mapping()
 
     def _rename_apply_payload(self, request: dict[str, Any]) -> dict[str, Any]:
-        return self.facade.apply_rename_selection(self._rename_request_with_backend_authority(request)).to_mapping()
+        resolved_provider = getattr(self, "resolved_provider", None)
+        resolved = resolved_provider() if callable(resolved_provider) else None
+        return self.facade.apply_rename_selection(
+            self._rename_request_with_backend_authority(request, resolved=resolved),
+            resolved=resolved,
+        ).to_mapping()

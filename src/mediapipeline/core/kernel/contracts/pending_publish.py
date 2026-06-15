@@ -16,6 +16,7 @@ PENDING_PUSH_MANIFEST_STATES = {
     "retry_copy_failed",
     "retry_reveal_failed",
     "retry_sidecar_file_failed",
+    "retry_sidecar_backup_failed",
     "retry_sidecar_failed",
     "complete",
     "published",
@@ -27,6 +28,7 @@ PENDING_PUSH_MANIFEST_DRAINABLE_STATES = {
     "retry_copy_failed",
     "retry_reveal_failed",
     "retry_sidecar_file_failed",
+    "retry_sidecar_backup_failed",
     "retry_sidecar_failed",
 }
 PENDING_PUSH_MANIFEST_REQUIRED_TEXT_FIELDS = (

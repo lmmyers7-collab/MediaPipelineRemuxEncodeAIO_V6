@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.builders.queue.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 53bfc5a93901988a1077e42ccfa7702b2e6ef38d32ab088450be551f5493ec88
+sha256: 93bcd9bdeb585c3b0a5b9d52216890175dbdf1ddb2de860fa17f3b41a4c7aaf1
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.queue.js`
 

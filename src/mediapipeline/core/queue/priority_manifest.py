@@ -117,6 +117,27 @@ def get_manifest_level(manifest: dict, source_path: str | Path) -> str:
     return _get_parent_manifest_level(entries, norm)
 
 
+def has_manifest_priority_entry(manifest: dict, source_path: str | Path) -> bool:
+    """Return true when a valid exact or inherited manifest priority entry applies."""
+    entries: dict = manifest.get("entries", {})
+    if not entries:
+        return False
+
+    norm = _normalise(source_path)
+    if norm in entries:
+        level = str(entries[norm].get("level", DEFAULT_LEVEL)).lower()
+        return level in VALID_LEVELS
+
+    for key, entry in entries.items():
+        if key == norm:
+            continue
+        if norm.startswith(key + "/"):
+            level = str(entry.get("level", DEFAULT_LEVEL)).lower()
+            if level in VALID_LEVELS:
+                return True
+    return False
+
+
 def _get_parent_manifest_level(entries: dict, norm: str) -> str:
     # Folder match — collect all ancestor entries, pick deepest
     best_len = -1

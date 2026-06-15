@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/library_profile_state.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-06-09
 last_reviewed: 2026-06-04
-sha256: ee26afe3aea5e1bfd999d38647efb7f6d34322e2d7767745a808bd2e6a530e61
+sha256: 4f07bf062e4c2890155ac718c5a5c6c1e57a606f153cc5f20bea9d7b4a2d90ab
 ---
 # `src/mediapipeline/core/config/library_profile_state.py`
 

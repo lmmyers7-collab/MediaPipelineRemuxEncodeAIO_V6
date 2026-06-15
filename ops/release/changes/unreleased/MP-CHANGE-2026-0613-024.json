@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0613-024",
+  "title": "Network worker/coordinator review fixes (queue refresh, record fields, URL parity)",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "Fixes integration seams found in the Network Worker/Coordinator review that the unit suite stubbed over: the coordinator now re-scans the source queue so newly added media is distributed instead of only the start-time snapshot; claim metadata reads the real QueueRecord fields (is_priority/size_gb) with back-compat fallback; the worker coordinator URL is validated consistently across the dry-run precondition and the dispatcher (port required, bind-all rejected); and a stop whose provider ran but whose command-journal write failed now commits the stopped state instead of leaving a phantom running.",
+  "reason": "259/259 network unit tests passed while the live feature stalled because fixtures used SimpleNamespace records with priority/estimated_size_gb names and patched out the real dispatcher. Real QueueRecord exposes is_priority/size_gb, so every live claim reported priority=False and size 0.0; the coordinator queue was a one-shot snapshot loaded at start; the dry-run worker-URL precondition allowed a port-less URL the dispatcher then rejected, and the dispatcher validator did not reject 0.0.0.0; a stop whose journal write failed left lifecycle state showing running, blocking later starts.",
+  "affected_areas": [
+    "desktop-application",
+    "network-lifecycle",
+    "validation"
+  ],
+  "behavior_before": "Coordinator served only the queue records present when it started (no rescan); network claims always reported priority=False and estimated_size_gb=0.0 against real QueueRecord; a port-less worker coordinator URL passed dry-run preconditions but failed at provider startup; validate_coordinator_url accepted http://0.0.0.0:7830 (including the hot-swap path); a confirmed stop with a failing journal write left lifecycle state as running.",
+  "behavior_after": "A daemon coordinator queue refresher re-scans build_queue_preview (force_refresh) on an interval (CoordinatorQueueRefreshSecs, default 15s, min 5s) and atomically swaps queue_records under a new app queue lock shared with the claim scan and queue removal; claim priority/size read is_priority/size_gb with fallback to the legacy names; the dry-run precondition requires a coordinator port to match the dispatcher; validate_coordinator_url rejects 0.0.0.0 and ::; a stop whose provider ran but journal failed commits the stopped state with cleanup_result=command_journal_failed_stop_state_committed.",
+  "files_touched": [
+    "src/mediapipeline/desktop/network/coordinator_url.py",
+    "src/mediapipeline/core/network/lifecycle_facade.py",
+    "src/mediapipeline/desktop/network/coordinator_queue.py",
+    "src/mediapipeline/desktop/network/coordinator_http_handlers.py",
+    "src/mediapipeline/desktop/application/network_lifecycle_provider.py",
+    "tests/python/desktop/test_network_security.py",
+    "tests/python/desktop/test_network_lifecycle_fixes.py",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_url.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/lifecycle_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_queue.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_http_handlers.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/network_lifecycle_provider.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_security.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_lifecycle_fixes.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-024.json"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_lifecycle_fixes.py",
+    "tests/python/desktop/test_network_security.py"
+  ],
+  "manual_validation": [
+    "py_compile coordinator_url/lifecycle_facade/coordinator_queue/coordinator_http_handlers/network_lifecycle_provider - passed",
+    "unittest discover tests/python/desktop test_network*.py - passed (265 tests)",
+    "unittest tests.python.desktop.test_application_facade_process_launch test_application_facade_network test_api_contract_payload test_api_command_contracts - passed (69 tests)",
+    "unittest tests.python.desktop.test_network_lifecycle_fixes -v - passed (6 tests)",
+    "unittest tests.webview.test_webview_network_read_only_boundary test_webview_frontend_mutation_boundary - passed (33 tests)",
+    "check_dependency_boundaries --max-internal-imports 1 - passed (0 unallowlisted hard findings)",
+    "refresh_summaries --paths (7 changed source/test files) - 7 written"
+  ],
+  "operator_validation_required": [
+    "AGENTS.md section 7 NOT self-certified (queue claim/launch + command journal adjacency). Run a real two-machine LAN pass: coordinator start, worker start with http://<coordinator-LAN-IP>:7830, confirm a claim/heartbeat/done cycle in cluster.log.",
+    "Add new media after the coordinator is running and confirm it gets distributed (validates the queue refresher).",
+    "Confirm priority files claim with priority and Worker Board shows non-zero GB.",
+    "Restart the running API/app so the rebuilt Python is loaded before testing."
+  ],
+  "rollback_plan": "Revert coordinator_url.py, lifecycle_facade.py, coordinator_queue.py, coordinator_http_handlers.py, and network_lifecycle_provider.py to their prior revisions, delete tests/python/desktop/test_network_lifecycle_fixes.py, revert the test_network_security.py addition, then rerun the network, lifecycle, and dependency-boundary validations.",
+  "related_changes": [
+    "MP-CHANGE-2026-0613-020"
+  ],
+  "notes": "Follow-up to MP-CHANGE-2026-0613-020. The queue refresher uses an unregistered optional config key CoordinatorQueueRefreshSecs (read defensively, not yet in the settings schema/UI); registering it across the PowerShell/Python config registry is a separate optional change."
+}

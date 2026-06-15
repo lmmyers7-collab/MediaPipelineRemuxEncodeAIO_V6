@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0614-004",
+  "title": "Fix Network page status text overlap",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Fix the Network page layout so lifecycle/status text is not hidden behind the saved-role metric tiles.",
+  "reason": "The Network status evidence block can extend over the metric tile row at wide desktop widths, making text appear hidden underneath the tiles.",
+  "affected_areas": [
+    "network",
+    "webview"
+  ],
+  "behavior_before": "Network status text could visually overlap the saved-role, coordinator URL, worker poll, and local API tiles.",
+  "behavior_after": "Network status evidence reserves its own layout space or scrolls within a bounded region before the metric tiles render below it.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0614-004.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-004.json",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "in-app Browser visual check on temporary rendered WebView shell at 2048x720 - passed; network-status-banner-lines overflowX/overflowY auto, linesInsideBanner true, metricBelowBanner true, 8px gap",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1 - passed",
+    "unittest tests.webview.test_webview_network_read_only_boundary with PYTHONPATH=src - passed (12 tests)",
+    "validate_changes --require-worktree-coverage - failed only for unrelated uncovered files: docs/generated/dependency-atlas/assets/dependency_detail_core_library.png, docs/generated/dependency-atlas/assets/dependency_detail_core_library.svg, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.png, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.svg, src/mediapipeline/core/network/url_policy.py, src/mediapipeline/desktop/api/command_journal_policy.py, src/mediapipeline/desktop/network/auth.py, src/mediapipeline/desktop/network/coordinator_auth.py, src/mediapipeline/desktop/network/coordinator_parts/http_server.py, src/mediapipeline/desktop/network/worker_loops.py, src/mediapipeline/desktop/network/worker_parts/reporting.py, src/mediapipeline/desktop/network/worker_parts/state_reports.py"
+  ],
+  "rollback_plan": "Revert the Network page layout/CSS containment edits and rerun the targeted WebView Network checks.",
+  "related_changes": [
+    "MP-CHANGE-2026-0614-002"
+  ],
+  "notes": "Opened before source edits. This is a WebView-only layout fix; it must not add backend mutation authority, network lifecycle controls, media policy changes, queue mutation, publish/drain behavior, or filesystem mutation.\nAdded overflow containment for the Network status banner lines and a static regression check.\nTemporary visual server served rendered WebView shell only and was stopped after the Browser check.\nRefreshed summaries for the touched CSS, test, and change packet.\nStrict coverage failed only on unrelated dirty files that were present outside this UI containment packet."
+}

@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/maintenance/backfill_facade.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: maintenance
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 023c007db1d3979a1d448075383d3f81e502a104c33062ea8b35af39e97e1c26

@@ -384,6 +384,7 @@ def companion_sidecars(primary: Path) -> list[Path]:
         if item.is_file()
         and item != primary
         and item.name.startswith(prefix)
+        and item.suffix.casefold() not in MEDIA_FILE_SUFFIXES
         and ".promotion-" not in item.name
     ]
     return sorted(sidecars, key=lambda item: item.name.casefold())

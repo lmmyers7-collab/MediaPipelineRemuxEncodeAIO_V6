@@ -46,19 +46,39 @@
       return item?.library_profile && typeof item.library_profile === "object" ? item.library_profile : {};
     }
 
+    function completedLibraryKindLabel(value) {
+      const raw = String(value || "").trim();
+      const normalized = raw.toLowerCase();
+      if (!normalized || ["all", "auto", "unknown", "n/a", "none", "null"].includes(normalized)) return "";
+      if (["movie", "movies", "film", "films"].includes(normalized)) return "Movie";
+      if (["tv", "episode", "episodes", "show", "shows", "series"].includes(normalized)) return "TV";
+      return raw;
+    }
+
+    function completedLibraryKindCandidates(item) {
+      const profile = completedLibraryProfile(item);
+      return [
+        item?.library_designation,
+        profile.designation,
+        item?.media_kind,
+        item?.media_type,
+        profile.media_kind,
+        profile.media_type,
+      ].map(completedLibraryKindLabel).filter(Boolean);
+    }
+
     function completedLibraryTextCandidates(item) {
       const profile = completedLibraryProfile(item);
       return [
         item?.library_id,
         item?.library_name,
-        item?.library_designation,
-        item?.library_source_root,
-        item?.library_output_root,
         profile.library_id,
         profile.id,
         profile.library_name,
         profile.name,
-        profile.designation,
+        ...completedLibraryKindCandidates(item),
+        item?.library_source_root,
+        item?.library_output_root,
         profile.source_root,
         profile.output_root,
       ].map((value) => String(value || "").trim()).filter(Boolean);
@@ -78,8 +98,7 @@
         item?.library_id,
         profile.library_id,
         profile.id,
-        item?.library_designation,
-        profile.designation,
+        ...completedLibraryKindCandidates(item),
       ].map((value) => String(value || "").trim()).find(Boolean) || "Unknown library";
     }
 

@@ -67,6 +67,27 @@ class GodFileGuardTests(unittest.TestCase):
         self.assertTrue(thresholds.allowlisted)
         self.assertEqual(thresholds.warn_lines, 1500)
 
+    def test_repo_policy_covers_promoted_source_roots(self) -> None:
+        policy = godfiles.load_policy()
+
+        self.assertTrue(godfiles.is_included("src/mediapipeline/core/config/validation.py", policy))
+        self.assertTrue(godfiles.is_included("ops/pipeline/entrypoints/Setup-MediaPipeline.ps1", policy))
+        self.assertTrue(godfiles.is_included("ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1", policy))
+
+    def test_repo_policy_does_not_reintroduce_removed_roots(self) -> None:
+        policy = godfiles.load_policy()
+        default_globs = set(policy["defaults"]["include_globs"])
+        pattern_globs = {
+            glob
+            for entry in policy["patterns"]
+            for glob in entry.get("path_globs", [])
+        }
+        all_globs = default_globs | pattern_globs
+
+        self.assertNotIn("app/**/*.py", all_globs)
+        self.assertNotIn("DesktopApp/**/*.py", all_globs)
+        self.assertNotIn("Pipeline/**/*.ps1", all_globs)
+
     def test_new_oversized_file_warns_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)

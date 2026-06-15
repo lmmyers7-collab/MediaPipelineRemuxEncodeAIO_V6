@@ -114,6 +114,10 @@ function Format-ConfigFile {
 
 function Write-ConfigFile {
     param([string]$Path, [string]$Content)
+    $parent = Split-Path -Parent $Path
+    if ($parent -and -not (Test-Path -LiteralPath $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
     $tempPath = "$Path.tmp.$([guid]::NewGuid().ToString('N'))"
     try {
         [System.IO.File]::WriteAllText($tempPath, $Content, [System.Text.UTF8Encoding]::new($false))

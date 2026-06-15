@@ -418,7 +418,7 @@ def _browser_settings_launch_runner_source() -> str:
               "Area: Network auth secrets",
               "Do not add WebView token editors",
               "Backend settings workspace redacts token values",
-              "Network lifecycle controls remain read-only",
+              "Network lifecycle controls use backend-owned dry-run and confirmed command routes",
             ]);
             const dependencyRows = window.externalDependencyRows({ settings: payload.settings });
             const rawDependency = dependencyRows.find((row) => row.area === "Settings raw-key action plan");

@@ -101,6 +101,30 @@
       ]
     },
     {
+      "route": "/api/diagnostics/tdarr-matrix-audit",
+      "files": [
+        "apps/desktop/webview/static/assets/diagnosticsView.js"
+      ]
+    },
+    {
+      "route": "/api/diagnostics/tdarr-matrix/evidence/open",
+      "files": [
+        "apps/desktop/webview/static/assets/diagnosticsView.js"
+      ]
+    },
+    {
+      "route": "/api/diagnostics/tdarr-matrix/latest?finding_limit=0",
+      "files": [
+        "apps/desktop/webview/static/assets/app.js"
+      ]
+    },
+    {
+      "route": "/api/diagnostics/tdarr-matrix/rerun",
+      "files": [
+        "apps/desktop/webview/static/assets/diagnosticsView.js"
+      ]
+    },
+    {
       "route": "/api/failures/clear",
       "files": [
         "apps/desktop/webview/static/assets/reportsView.js"
@@ -411,6 +435,12 @@
       "files": [
         "apps/desktop/webview/static/assets/app.js"
       ]
+    },
+    {
+      "route": "/api/watch-folders/status",
+      "files": [
+        "apps/desktop/webview/static/assets/app.js"
+      ]
     }
   ],
   "confirmation_rules": [
@@ -420,10 +450,6 @@
       "pattern": {},
       "note": "Settings persistence must remain explicitly backend-confirmed.",
       "files": [
-        {
-          "path": "apps/desktop/webview/static/assets/renameView.js",
-          "has_confirmation": true
-        },
         {
           "path": "apps/desktop/webview/static/assets/settingsView.js",
           "has_confirmation": true

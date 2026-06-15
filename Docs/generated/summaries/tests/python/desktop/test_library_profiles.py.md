@@ -3,9 +3,9 @@ file: tests/python/desktop/test_library_profiles.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-07
+last_modified: 2026-06-09
 last_reviewed: 2026-06-04
-sha256: f3cd335be824ad787719c1763b76d1c6f3896bffa6f5a0249e6a3405b492b353
+sha256: 82644ddf28dd266f2264f8a180ecec73f633ec239f647e362eb3f5a26fbf3270
 ---
 # `tests/python/desktop/test_library_profiles.py`
 

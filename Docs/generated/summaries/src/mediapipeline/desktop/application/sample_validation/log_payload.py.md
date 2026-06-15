@@ -2,7 +2,7 @@
 file: src/mediapipeline/desktop/application/sample_validation/log_payload.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: application
+owner_domain: sample_validation
 last_modified: 2026-05-28
 last_reviewed: 2026-06-04
 sha256: 7f930288ac1cd94dfbefd2f8d3bcca15227dad63b52d4797cab4e3665cabf71b

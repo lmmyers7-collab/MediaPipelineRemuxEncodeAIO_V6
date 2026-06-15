@@ -22,6 +22,8 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
             resolved.config_data["NetworkRole"] = "coordinator"
+            resolved.config_data["CoordinatorBindAddress"] = "0.0.0.0"
+            resolved.config_data["CoordinatorPort"] = 7830
             resolved.app_state_path = root / "State" / "App" / "desktop_app_state.json"
             state_dir = resolved.app_state_path.parent
             state_dir.mkdir(parents=True, exist_ok=True)
@@ -79,9 +81,29 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
         self.assertIsInstance(payload["rows"][0]["heartbeat_age_seconds"], int)
         self.assertGreaterEqual(payload["rows"][0]["heartbeat_age_seconds"], 0)
         self.assertEqual(payload["worker_progress"]["schema_version"], "desktop_network_worker_progress.v1")
+        connectivity = payload["coordinator_connectivity"]
+        self.assertEqual(connectivity["schema_version"], "desktop_network_coordinator_connectivity.v1")
+        self.assertEqual(connectivity["bind_endpoint"], "0.0.0.0:7830")
+        self.assertTrue(connectivity["worker_coordinator_url"].startswith("http://"))
+        self.assertNotIn("0.0.0.0", connectivity["worker_coordinator_url"])
+        self.assertTrue(connectivity["candidate_urls"])
+        self.assertIn("Worker coordinator URL:", "\n".join(connectivity["summary_lines"]))
         self.assertIn("heartbeat_age=", payload["progress_bars"][1]["detail"])
         self.assertTrue(any(bar["id"].startswith("network_worker_worker_1") for bar in payload["progress_bars"]))
         self.assertTrue(any(bar["id"] == "network_local_worker" and bar["status"] == "warning" for bar in payload["progress_bars"]))
+        self.assertEqual(payload["lifecycle_state"]["schema_version"], "desktop_network_lifecycle_state.v1")
+        self.assertEqual(payload["lifecycle_state"]["coordinator"]["status"], "stopped")
+        self.assertEqual(payload["runtime_status_label"], "Blocked")
+        self.assertEqual(payload["runtime_status_severity"], "blocked")
+        self.assertIn("Normal Launch: blocked in this network mode", "\n".join(payload["operator_summary_lines"]))
+        self.assertEqual(payload["token_posture"]["coordinator"]["status"], "blank")
+        self.assertEqual(payload["token_posture"]["worker"]["status"], "missing")
+        diagnostic = payload["diagnostic_layers"]
+        self.assertEqual(diagnostic["schema_version"], "desktop_network_diagnostic_layers.v1")
+        for key in ("url_reachable", "auth_ok", "paths_ok", "queue_fresh", "last_claim_result"):
+            self.assertIn(key, diagnostic)
+        self.assertTrue(any(layer["key"] == "last_claim_result" for layer in diagnostic["layers"]))
+        self.assertNotIn("AuthToken", json.dumps(diagnostic))
         state_files = {item["key"]: item for item in payload["state_files"]}
         self.assertEqual(state_files["coordinator_inflight"]["status"], "present")
         self.assertEqual(state_files["worker_state"]["status"], "present")
@@ -113,3 +135,74 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
         self.assertIn("coordinator_inflight.json", state_files["coordinator_inflight"]["error"])
         self.assertIn("Coordinator in-flight state could not be read", "\n".join(payload["warnings"]))
         self.assertEqual(payload["worker_progress"]["status"], "warning")
+
+    def test_network_workers_warns_when_coordinator_bind_is_loopback_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data["NetworkRole"] = "coordinator"
+            resolved.config_data["CoordinatorBindAddress"] = "127.0.0.1"
+            resolved.config_data["CoordinatorPort"] = 9001
+
+            payload = facade.get_network_workers(resolved).to_mapping()
+
+        connectivity = payload["coordinator_connectivity"]
+        self.assertEqual(connectivity["worker_coordinator_url"], "http://127.0.0.1:9001")
+        self.assertEqual(connectivity["bind_endpoint"], "127.0.0.1:9001")
+        self.assertIn("loopback", "\n".join(connectivity["warnings"]).lower())
+        self.assertIn("workers on other machines cannot reach", "\n".join(payload["warnings"]).lower())
+
+    def test_network_workers_treats_empty_worker_state_as_idle_not_warning(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data["NetworkRole"] = "worker"
+            resolved.app_state_path = root / "State" / "App" / "desktop_app_state.json"
+            resolved.app_state_path.parent.mkdir(parents=True, exist_ok=True)
+            (resolved.app_state_path.parent / "cluster.log").write_text("worker started\n", encoding="utf-8")
+
+            payload = facade.get_network_workers(resolved).to_mapping()
+
+        self.assertEqual(payload["role"], "worker")
+        self.assertEqual(payload["worker_state"], {})
+        self.assertEqual(payload["worker_progress"]["status"], "idle")
+        self.assertEqual(payload["progress_bars"][0]["status"], "idle")
+        self.assertEqual(payload["runtime_status_label"], "Stopped")
+        self.assertEqual(payload["lifecycle_state"]["worker"]["status"], "stopped")
+        self.assertIn("Worker token: missing", "\n".join(payload["operator_summary_lines"]))
+        warning_text = "\n".join(payload["warnings"])
+        self.assertNotIn("No coordinator in-flight state file exists yet", warning_text)
+        self.assertNotIn("Worker runtime state is empty", warning_text)
+
+    def test_network_workers_reports_session_lifecycle_state_without_starting_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data["NetworkRole"] = "worker"
+            resolved.config_data["WorkerCoordinatorUrl"] = "http://coordinator.test:7830"
+            resolved.config_data["WorkerAuthToken"] = "worker-token"
+            facade._network_lifecycle_state_commit(
+                "worker",
+                {
+                    "role": "worker",
+                    "status": "running",
+                    "last_command_id": "cmd-1",
+                    "last_action": "start",
+                    "state_scope": "session_memory_only",
+                },
+            )
+
+            payload = facade.get_network_workers(resolved).to_mapping()
+
+        self.assertEqual(payload["runtime_status_label"], "Running")
+        self.assertEqual(payload["runtime_status_severity"], "match")
+        self.assertEqual(payload["lifecycle_state"]["worker"]["status"], "running")
+        self.assertEqual(payload["lifecycle_state"]["worker"]["last_command_id"], "cmd-1")
+        self.assertEqual(payload["token_posture"]["worker"]["status"], "present")
+        self.assertIn("Coordinator target: http://coordinator.test:7830.", "\n".join(payload["operator_summary_lines"]))

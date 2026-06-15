@@ -1,4 +1,6 @@
 const bootstrap = window.MEDIA_PIPELINE_BOOTSTRAP || {};
+const AUTOMATIC_REFRESH_INTERVAL_MS = 15000;
+const AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS = 12000;
 
 let lastSnapshot = null;
 let lastCloseReadiness = null;
@@ -520,10 +522,6 @@ function renderHomeRecentCompleted(completed) {
   return window.mediaPipelineAppHomeReadiness?.renderHomeRecentCompleted?.(completed);
 }
 
-function renderHomeTdarrMatrixStatus(context = {}) {
-  return window.mediaPipelineAppHomeReadiness?.renderHomeTdarrMatrixStatus?.(context);
-}
-
 function renderHomePromotionEntry(status = {}) {
   return window.mediaPipelineAppHomeReadiness?.renderHomePromotionEntry?.(status);
 }
@@ -664,6 +662,17 @@ function mergeRefreshOptions(existing, next) {
   };
 }
 
+function refreshGet(path, refreshOptions = {}, options = {}) {
+  const requestOptions = {};
+  const timeoutMs = Number(options.timeoutMs);
+  if (Number.isFinite(timeoutMs) && timeoutMs > 0) {
+    requestOptions.timeoutMs = timeoutMs;
+  } else if (normalizeRefreshOptions(refreshOptions).automatic && options.required !== true) {
+    requestOptions.timeoutMs = AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS;
+  }
+  return apiGet(path, requestOptions);
+}
+
 async function refreshAll(options = {}) {
   const refreshOptions = normalizeRefreshOptions(options);
   if (refreshInFlight) {
@@ -708,27 +717,27 @@ async function refreshAllNow(options = {}) {
   const auditPriorityOnly = Boolean(byId("audit-preview-priority-only")?.checked);
   const auditQuery = `/api/audit-results?limit=100${auditPriorityOnly ? "&priority_only=true" : ""}`;
   const requests = [
-    ["health", apiGet("/api/health"), false],
-    ["snapshot", apiGet("/api/snapshot"), true],
-    ["close readiness", apiGet("/api/backend/close-readiness"), false],
-    ["telemetry", apiGet("/api/telemetry"), false],
-    ["diagnostics", apiGet("/api/diagnostics"), false],
-    ["diagnostics state summary", apiGet("/api/diagnostics/state-summary"), false],
-    ["commands", apiGet("/api/commands?limit=20"), false],
-    ["metrics", apiGet("/api/metrics"), false],
-    ["queue", apiGet("/api/queue"), false],
-    ["completed", apiGet("/api/completed?limit=100"), false],
-    ["failures", apiGet(failureQuery), false],
-    ["audit results", apiGet(auditQuery), false],
-    ["audit controls", apiGet("/api/audit-controls"), false],
-    ["pending publish", apiGet("/api/pending-publish"), false],
-    ["schedule", apiGet("/api/schedule"), false],
-    ["settings", apiGet("/api/settings/workspace"), false],
-    ["libraries route map", apiGet("/api/libraries/route-map"), false],
-    ["network workers", apiGet("/api/network/workers"), false],
-    ["sample validation", apiGet("/api/sample-validation?limit=10"), false],
-    ["tdarr matrix", apiGet("/api/diagnostics/tdarr-matrix/latest?finding_limit=0"), false],
-    ["contract", apiGet("/api/contract"), false],
+    ["health", refreshGet("/api/health", refreshOptions), false],
+    ["snapshot", refreshGet("/api/snapshot", refreshOptions, { required: true }), true],
+    ["close readiness", refreshGet("/api/backend/close-readiness", refreshOptions), false],
+    ["telemetry", refreshGet("/api/telemetry", refreshOptions), false],
+    ["diagnostics", refreshGet("/api/diagnostics", refreshOptions), false],
+    ["diagnostics state summary", refreshGet("/api/diagnostics/state-summary", refreshOptions), false],
+    ["commands", refreshGet("/api/commands?limit=20", refreshOptions), false],
+    ["metrics", refreshGet("/api/metrics", refreshOptions), false],
+    ["queue", refreshGet("/api/queue", refreshOptions), false],
+    ["completed", refreshGet("/api/completed?limit=100", refreshOptions), false],
+    ["failures", refreshGet(failureQuery, refreshOptions), false],
+    ["audit results", refreshGet(auditQuery, refreshOptions), false],
+    ["audit controls", refreshGet("/api/audit-controls", refreshOptions), false],
+    ["pending publish", refreshGet("/api/pending-publish", refreshOptions), false],
+    ["schedule", refreshGet("/api/schedule", refreshOptions), false],
+    ["watch folders", refreshGet("/api/watch-folders/status", refreshOptions), false],
+    ["settings", refreshGet("/api/settings/workspace", refreshOptions), false],
+    ["libraries route map", refreshGet("/api/libraries/route-map", refreshOptions), false],
+    ["network workers", refreshGet("/api/network/workers", refreshOptions), false],
+    ["sample validation", refreshGet("/api/sample-validation?limit=10", refreshOptions), false],
+    ["contract", refreshGet("/api/contract", refreshOptions), false],
   ];
   const results = await Promise.allSettled(requests.map(([, request]) => request));
   const values = {};
@@ -794,13 +803,18 @@ async function refreshAllNow(options = {}) {
   }
   if (values["pending publish"]) renderPendingPublish(values["pending publish"], values.snapshot || lastSnapshot);
   renderHomePendingCount(values["pending publish"] || {});
-  renderHomeTdarrMatrixStatus({
-    payload: values["tdarr matrix"] || {},
-    failure: failures.find((item) => item.name === "tdarr matrix") || null,
-  });
   if (values.schedule) {
     lastSchedule = values.schedule;
     renderSchedule(values.schedule);
+  }
+  const watchFoldersFailure = failures.find((item) => item.name === "watch folders");
+  if (values["watch folders"] || watchFoldersFailure) {
+    window.mediaPipelineScheduleView?.renderWatchFolderStatus?.(values["watch folders"] || {
+      schema_version: "desktop_watch_folders.v1",
+      status: "error",
+      reason: watchFoldersFailure?.message || "Watch-folder status read failed.",
+      last_error: watchFoldersFailure?.message || "Watch-folder status read failed.",
+    });
   }
   if (values.settings) {
     renderSettings(values.settings);
@@ -823,6 +837,7 @@ async function refreshAllNow(options = {}) {
       contract: values.contract || {},
       closeReadiness: values["close readiness"] || lastCloseReadiness,
       snapshot: values.snapshot || lastSnapshot,
+      queue: values.queue || {},
       networkWorkers: values["network workers"] || null,
       bootstrap,
     });
@@ -931,7 +946,6 @@ async function refreshAllNow(options = {}) {
     networkWorkers: values["network workers"] || {},
     failuresPayload: values.failures || {},
     auditResults: values["audit results"] || {},
-    tdarrMatrix: values["tdarr matrix"] || {},
     failures,
   };
   renderHomeNextQueue(dashboardContext);
@@ -1017,6 +1031,7 @@ let uiPreferenceRemoteRefreshTimer = null;
 let uiPreferenceSyncInFlight = false;
 let uiPreferenceSyncPending = false;
 let uiPreferenceApplyingRemote = false;
+let uiPreferenceLocalDirty = false;
 let uiPreferenceLastSerialized = "";
 
 function isSharedUiPreferenceKey(key) {
@@ -1056,11 +1071,19 @@ async function persistSharedUiPreferencesNow() {
   if (uiPreferenceApplyingRemote) return;
   if (uiPreferenceSyncInFlight) {
     uiPreferenceSyncPending = true;
+    uiPreferenceLocalDirty = true;
     return;
+  }
+  if (uiPreferenceSyncTimer) {
+    window.clearTimeout(uiPreferenceSyncTimer);
+    uiPreferenceSyncTimer = null;
   }
   const payload = sharedUiPreferencePayload();
   const serialized = JSON.stringify(payload.storage);
-  if (serialized === uiPreferenceLastSerialized) return;
+  if (serialized === uiPreferenceLastSerialized) {
+    uiPreferenceLocalDirty = false;
+    return;
+  }
   uiPreferenceSyncInFlight = true;
   try {
     const result = await apiPost("/api/ui-preferences", payload, { timeoutMs: 5000 });
@@ -1068,6 +1091,7 @@ async function persistSharedUiPreferencesNow() {
       throw new Error(result.message || "UI preference sync failed.");
     }
     uiPreferenceLastSerialized = serialized;
+    uiPreferenceLocalDirty = false;
   } catch (_) {
     // UI preference sync must never block the operator surface.
   } finally {
@@ -1100,8 +1124,13 @@ function applySharedUiPreferenceStorage(remoteStorage) {
   return changed;
 }
 
+function hasPendingSharedUiPreferenceWrite() {
+  return Boolean(uiPreferenceLocalDirty || uiPreferenceSyncTimer || uiPreferenceSyncPending);
+}
+
 function scheduleSharedUiPreferenceSync() {
   if (!uiPreferenceSyncInstalled || uiPreferenceApplyingRemote) return;
+  uiPreferenceLocalDirty = true;
   if (uiPreferenceSyncTimer) window.clearTimeout(uiPreferenceSyncTimer);
   uiPreferenceSyncTimer = window.setTimeout(() => {
     uiPreferenceSyncTimer = null;
@@ -1131,6 +1160,10 @@ async function restoreSharedUiPreferences(options = {}) {
     await persistSharedUiPreferencesNow();
     return;
   }
+  if (uiPreferenceSyncInstalled && hasPendingSharedUiPreferenceWrite() && JSON.stringify(remoteStorage) !== localSerialized) {
+    await persistSharedUiPreferencesNow();
+    return;
+  }
   if (remoteEntries.length) {
     uiPreferenceApplyingRemote = true;
     try {
@@ -1140,6 +1173,7 @@ async function restoreSharedUiPreferences(options = {}) {
       uiPreferenceApplyingRemote = false;
     }
     uiPreferenceLastSerialized = JSON.stringify(collectSharedUiPreferences());
+    uiPreferenceLocalDirty = false;
     return;
   }
 
@@ -1477,6 +1511,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   renderBrandVersion();
   initKeyboardShortcuts();
   await restoreSharedUiPreferences();
+  installSharedUiPreferenceStorageSync();
   initNavigation();
   initLayoutManager();
   initAdvancedToggle();
@@ -1489,11 +1524,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   initSettingsTabNav();
   initDiagnosticsTabNav();
   initCompletedTabNav();
-  installSharedUiPreferenceStorageSync();
   startSharedUiPreferenceRemoteRefresh();
   if (typeof applyDiagnosticCallouts === "function") applyDiagnosticCallouts(document);
   applyDefaultActionTooltips();
   window.addEventListener("mediapipeline:backend-lifecycle", handleTauriBackendLifecycleEvent);
+  window.mediaPipelineTauriLifecycleBridge?.replayLatestBackendLifecycleEvent?.();
   window.addEventListener("beforeunload", (event) => {
     if (!closeReadinessRequiresWarning()) return;
     const message = closeReadinessWarningMessage();
@@ -1686,5 +1721,5 @@ document.addEventListener("DOMContentLoaded", async () => {
   initBackendRowOpenActions();
   updatePagePanelEmptyStates();
   refreshAll({ automatic: true });
-  window.setInterval(() => refreshAll({ automatic: true }), 4000);
+  window.setInterval(() => refreshAll({ automatic: true }), AUTOMATIC_REFRESH_INTERVAL_MS);
 });

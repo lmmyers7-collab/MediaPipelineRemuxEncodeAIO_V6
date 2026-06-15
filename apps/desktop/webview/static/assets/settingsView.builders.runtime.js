@@ -87,13 +87,14 @@
         setText("settings-runtime-builder-status", "Invalid runtime value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
-        return;
+        return false;
       }
       writeSettingsPatchJson(patch, "Runtime builder merged scan, timeout, retry, logging, and tool-fallback keys into Changes JSON. Preview or Save still uses backend validation.");
       runtimeSettingsBuilderState.initialized = true;
       runtimeSettingsBuilderState.dirty = true;
       setText("settings-runtime-builder-status", `${Object.keys(patch).length} runtime patch keys ready`);
       renderRuntimeSettingsBuilderGuidance();
+      return true;
     }
 
     function renderRuntimeSettingsBuilderGuidance() {

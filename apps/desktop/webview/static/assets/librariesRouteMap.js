@@ -365,6 +365,12 @@
     });
   }
 
+  /**
+   * Public namespace for the library route-map module.
+   *
+   * Keep this object limited to stable page integration hooks; flat window.* exports
+   * remain compatibility-only.
+   */
   window.mediaPipelineLibraryRouteMap = {
     renderRouteMap,
     refreshLibraryRouteMap,

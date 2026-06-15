@@ -3,9 +3,9 @@ file: docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-02
-sha256: 9a0a285da5ecd32646c514c2ea54020d733f0f4de5397e36c25faef57c9713ad
+sha256: 5f4ecf6d9e563b8bfe4b53080dcddddba65a433f1b9cc1c5dde4bc835d9fa252
 ---
 # `docs/inventories/SETTINGS_KEY_OWNERSHIP_MAP.md`
 

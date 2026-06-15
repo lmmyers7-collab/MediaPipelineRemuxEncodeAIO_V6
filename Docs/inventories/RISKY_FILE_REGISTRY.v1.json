@@ -187,7 +187,7 @@
         "docs/generated/DEPENDENCY_GRAPH.md",
         "docs/generated/PIPELINE_MAP.md",
         "docs/generated/FEATURE_FILE_MAP.md",
-        "docs/generated/summaries/**"
+        "docs/generated/summaries/**/*.md"
       ],
       "risk_level": "high",
       "risk_domains": [

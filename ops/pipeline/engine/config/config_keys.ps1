@@ -46,6 +46,9 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     VideoPreset = 'VideoPreset'
     VideoQuality = 'VideoQuality'
     OutputContainer = 'OutputContainer'
+    DynamicHdrPolicy = 'DynamicHdrPolicy'
+    DoviToolPath = 'DoviToolPath'
+    Hdr10PlusToolPath = 'Hdr10PlusToolPath'
     EncodeTuningPreset = 'EncodeTuningPreset'
     EncodeLadder = 'EncodeLadder'
     ExtraVideoFlags = 'ExtraVideoFlags'
@@ -94,6 +97,11 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     RenameMovieRemoveTerms = 'RenameMovieRemoveTerms'
     ValidExtensions = 'ValidExtensions'
     FileStabilityWait = 'FileStabilityWait'
+    EnableWatchFolders = 'EnableWatchFolders'
+    WatchFolderRoots = 'WatchFolderRoots'
+    WatchDebounceSeconds = 'WatchDebounceSeconds'
+    WatchAction = 'WatchAction'
+    WatchRespectScheduleWindow = 'WatchRespectScheduleWindow'
     SkipStabilityCheck = 'SkipStabilityCheck'
     EnableIntegrityCheck = 'EnableIntegrityCheck'
     CreateTVSubfolder = 'CreateTVSubfolder'
@@ -124,6 +132,15 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     OutputValidationProbeTimeoutSeconds = 'OutputValidationProbeTimeoutSeconds'
     OutputValidationMinSizeBytes = 'OutputValidationMinSizeBytes'
     OutputValidationDurationToleranceSeconds = 'OutputValidationDurationToleranceSeconds'
+    EnableQualityVerification = 'EnableQualityVerification'
+    QualityMetric = 'QualityMetric'
+    QualitySampleMode = 'QualitySampleMode'
+    QualitySampleSeconds = 'QualitySampleSeconds'
+    QualitySampleCount = 'QualitySampleCount'
+    QualityWarnThreshold = 'QualityWarnThreshold'
+    QualityFailThreshold = 'QualityFailThreshold'
+    QualityFailAction = 'QualityFailAction'
+    QualityVerifyTimeoutSeconds = 'QualityVerifyTimeoutSeconds'
     AllowSystemTools = 'AllowSystemTools'
     RobocopyTimeoutSeconds = 'RobocopyTimeoutSeconds'
     TransientFailureRetryLimit = 'TransientFailureRetryLimit'
@@ -137,11 +154,17 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     MinPipelineVersion = 'MinPipelineVersion'
     ReprocessAll = 'ReprocessAll'
     ShowOverrides = 'ShowOverrides'
+    PlannerRolloutStage = 'PlannerRolloutStage'
+    UsePythonPlanner = 'UsePythonPlanner'
+    EnableHandBrakeSettingsUi = 'EnableHandBrakeSettingsUi'
+    PlannerComparisonLogging = 'PlannerComparisonLogging'
+    NewPlannerCutoverApproved = 'NewPlannerCutoverApproved'
     NetworkRole = 'NetworkRole'
     CoordinatorPort = 'CoordinatorPort'
     CoordinatorBindAddress = 'CoordinatorBindAddress'
     CoordinatorAlsoEncodeLocally = 'CoordinatorAlsoEncodeLocally'
     CoordinatorHeartbeatTimeoutMins = 'CoordinatorHeartbeatTimeoutMins'
+    CoordinatorMaxJobRetries = 'CoordinatorMaxJobRetries'
     CoordinatorAuthToken = 'CoordinatorAuthToken'
     WorkerCoordinatorUrl = 'WorkerCoordinatorUrl'
     WorkerName = 'WorkerName'
@@ -157,6 +180,7 @@ $script:MediaPipelineNetworkConfigKeys = @(
     'CoordinatorBindAddress',
     'CoordinatorAlsoEncodeLocally',
     'CoordinatorHeartbeatTimeoutMins',
+    'CoordinatorMaxJobRetries',
     'CoordinatorAuthToken',
     'WorkerCoordinatorUrl',
     'WorkerName',

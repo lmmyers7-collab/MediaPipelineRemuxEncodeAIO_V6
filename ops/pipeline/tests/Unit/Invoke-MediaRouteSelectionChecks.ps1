@@ -325,6 +325,8 @@ Assert-Near ([double]$folderBitrateOverride.BitrateThresholdMbps) 35.0 -Message 
 $folderTrace = Get-RoutingTraceData -Plan $folderBitrateOverride
 Assert-Equal ([string]$folderTrace.route_bitrate_source) 'folder_policy' 'Folder explicit bitrate source mismatch.'
 Assert-Equal ([string]$folderTrace.route_bitrate_bucket) 'explicit_override' 'Folder explicit bitrate bucket mismatch.'
+$fallbackRemuxHints = ConvertTo-MediaRouteHintMap @{ size_guard_mode = 'fallback_remux' }
+Assert-Equal ([string]$fallbackRemuxHints.size_guard_mode) 'fallback_remux' 'Route hint normalization must preserve fallback_remux size guard mode.'
 
 $h264FourK = Resolve-MediaRouteBySize `
     -FileSizeBytes ([long](4 * 1GB)) `

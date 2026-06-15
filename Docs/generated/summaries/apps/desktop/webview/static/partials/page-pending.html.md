@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-pending.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-08
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 8f7cf2c734a86da6afbae3eac3a2b86d827616000effe3f24880637cf6dc5f20
+sha256: 38fd2cc58ca1d766e70ab58b80d3c7caa0282ed960af01d9ea118f5dd37fe5c3
 ---
 # `apps/desktop/webview/static/partials/page-pending.html`
 

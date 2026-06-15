@@ -52,6 +52,7 @@ from mediapipeline.desktop.network.coordinator_policy import (
 )
 from mediapipeline.desktop.network.coordinator_url import validate_coordinator_url
 from mediapipeline.desktop.network.encode_config_snapshot import snapshot_encode_config
+from mediapipeline.desktop.network.failure_reasons import classify_failure_reason
 from mediapipeline.desktop.network.failure_policy import source_has_prior_failure
 from mediapipeline.desktop.network.path_map import apply_source_path_map, parse_source_path_map
 from mediapipeline.desktop.network.poll_policy import resolve_worker_poll_interval, resolve_worker_wait_seconds
@@ -91,6 +92,27 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             HeartbeatRequest.from_dict({"progress_percent": float("inf")})
 
+    def test_heartbeat_request_round_trips_accessible_library_ids(self) -> None:
+        req = HeartbeatRequest.from_dict(
+            {
+                "accessible_library_ids": [
+                    "Movies",
+                    " tv ",
+                    "MOVIES",
+                    "",
+                    12,
+                    {"bad": "value"},
+                ]
+            }
+        )
+
+        self.assertEqual(req.accessible_library_ids, ["Movies", "tv", "12"])
+        self.assertEqual(req.to_dict()["accessible_library_ids"], ["Movies", "tv", "12"])
+        self.assertEqual(
+            HeartbeatRequest.from_dict({"accessible_library_ids": "Movies, TV, movies"}).accessible_library_ids,
+            ["Movies", "TV"],
+        )
+
     def test_network_protocol_rejects_nonfinite_numeric_strings(self) -> None:
         with self.assertRaisesRegex(ValueError, "estimated_size_gb must be finite"):
             ClaimResponse.from_dict({"status": "ok", "estimated_size_gb": "NaN"})
@@ -104,6 +126,32 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
             HeartbeatRequest.from_dict({"fps": "NaN"})
         with self.assertRaisesRegex(ValueError, "eta_seconds must be >= 0"):
             HeartbeatRequest.from_dict({"eta_seconds": -1})
+
+    def test_done_request_rejects_coerced_boolean_flags(self) -> None:
+        defaults = DoneRequest.from_dict({})
+        self.assertFalse(defaults.success)
+        self.assertFalse(defaults.queue_terminal)
+        self.assertFalse(defaults.released)
+        self.assertTrue(defaults.retry_on_failure)
+
+        valid = DoneRequest.from_dict(
+            {
+                "success": True,
+                "queue_terminal": True,
+                "released": False,
+                "retry_on_failure": False,
+            }
+        )
+        self.assertTrue(valid.success)
+        self.assertTrue(valid.queue_terminal)
+        self.assertFalse(valid.released)
+        self.assertFalse(valid.retry_on_failure)
+
+        for field_name in ("success", "queue_terminal", "released", "retry_on_failure"):
+            for bad_value in ("false", "true", 0, 1, None, {}, []):
+                with self.subTest(field_name=field_name, bad_value=bad_value):
+                    with self.assertRaisesRegex(ValueError, f"{field_name} must be a boolean"):
+                        DoneRequest.from_dict({field_name: bad_value})
 
     def test_inflight_registry_heartbeat_clamps_progress_percent(self) -> None:
         registry = InFlightRegistry()
@@ -125,6 +173,36 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
             "ok",
         )
         self.assertEqual(registry.snapshot()[0].progress_percent, 100.0)
+
+    def test_inflight_registry_tracks_worker_library_capabilities(self) -> None:
+        registry = InFlightRegistry()
+        registry.claim(
+            job_id="job-1",
+            worker_id="worker-1",
+            worker_name="Worker",
+            source_path=r"C:\Media\movie.mkv",
+            encode_config={},
+            accessible_library_ids=["Movies", "TV", "movies"],
+        )
+
+        active_row = registry.snapshot()[0]
+        self.assertEqual(active_row.accessible_library_ids, ["Movies", "TV"])
+
+        self.assertEqual(
+            registry.heartbeat(
+                "job-1",
+                "worker-1",
+                progress_percent=25,
+                current_stage="encoding",
+                accessible_library_ids=["TV"],
+            ),
+            "ok",
+        )
+        self.assertEqual(registry.snapshot()[0].accessible_library_ids, ["TV"])
+
+        registry.unclaim("job-1", "worker-1")
+        idle_row = registry.idle_workers_snapshot()[0]
+        self.assertEqual(idle_row.accessible_library_ids, ["TV"])
 
     def test_inflight_registry_snapshot_sanitizes_bad_runtime_worker_stats(self) -> None:
         registry = InFlightRegistry()
@@ -372,6 +450,8 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         self.assertEqual(crash.worker_id, "worker-1")
         self.assertFalse(crash.success)
         self.assertEqual(crash.error_message, "Worker crashed or restarted")
+        self.assertEqual(crash.reason_code, "WORKER_CRASH")
+        self.assertEqual(crash.reason, "Worker crashed or restarted")
 
         released = build_release_done_request("job-2", "worker-1")
         self.assertFalse(released.success)
@@ -407,6 +487,36 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         non_retry_job = SimpleNamespace(job_id="job-4", encode_config={"__retry_on_failure": False})
         failed = build_completion_done_request(non_retry_job, "worker-1", success=False)
         self.assertFalse(failed.retry_on_failure)
+        self.assertEqual(failed.reason_code, "ENCODE_ERROR")
+
+    def test_done_request_preserves_structured_failure_reason(self) -> None:
+        request = DoneRequest(
+            job_id="job-1",
+            worker_id="worker-1",
+            success=False,
+            error_message="C:/Media/movie.mkv not found on worker",
+            reason_code="SOURCE_NOT_FOUND",
+            reason="C:/Media/movie.mkv not found on worker",
+        )
+
+        round_tripped = DoneRequest.from_dict(request.to_dict())
+
+        self.assertEqual(round_tripped.reason_code, "SOURCE_NOT_FOUND")
+        self.assertEqual(round_tripped.reason, "C:/Media/movie.mkv not found on worker")
+        self.assertEqual(DoneRequest.from_dict({"job_id": "old"}).reason_code, "")
+
+    def test_failure_reason_classifier_maps_observed_network_modes(self) -> None:
+        cases = {
+            "TIMEOUT": {"error_message": "HTTPConnectionPool read timed out contacting 192.168.1.50"},
+            "AUTH": {"error_message": "HTTP 401 auth_failed invalid token"},
+            "SOURCE_NOT_FOUND": {"error_message": r"C:\Users\Layne\Videos\Encode\movie.mkv not found on worker"},
+        }
+
+        for expected, kwargs in cases.items():
+            with self.subTest(expected=expected):
+                reason_code, reason = classify_failure_reason(success=False, **kwargs)
+                self.assertEqual(reason_code, expected)
+                self.assertTrue(reason)
 
     def test_worker_poll_policy_clamps_retry_hints(self) -> None:
         self.assertEqual(resolve_worker_wait_seconds(None, 30), 30.0)

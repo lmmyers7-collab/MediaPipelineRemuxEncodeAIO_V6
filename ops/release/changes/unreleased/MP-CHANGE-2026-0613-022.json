@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0613-022",
+  "title": "Persist idle network worker rows",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "Persist idle worker rows when workers poll the coordinator and clarify worker-side persisted-state evidence.",
+  "reason": "Workers polling an empty coordinator did not create coordinator_inflight.json or idle worker rows because the registry only persisted workers after claimed/completed jobs.",
+  "affected_areas": [
+    "network",
+    "coordinator",
+    "worker-board",
+    "webview",
+    "tests"
+  ],
+  "behavior_before": "A healthy worker polling an empty coordinator could remain invisible on the coordinator worker board, and the worker-side Network page warned about a missing local coordinator registry file.",
+  "behavior_after": "Each valid /api/claim poll records the worker in the coordinator registry with last_seen and persists coordinator_inflight.json even when no job is claimable; worker-side empty local state reports idle instead of warning and explains that the worker list lives on the coordinator host.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_http_handlers.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/registry.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_inflight_registry.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_workflow.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-022.json",
+    "src/mediapipeline/core/network/facade.py",
+    "src/mediapipeline/desktop/network/coordinator_http_handlers.py",
+    "src/mediapipeline/desktop/network/registry.py",
+    "tests/python/desktop/test_application_facade_network.py",
+    "tests/python/desktop/test_network_inflight_registry.py",
+    "tests/python/desktop/test_network_workflow.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_inflight_registry.py::NetworkInFlightRegistryTests::test_inflight_registry_persists_idle_worker_seen_before_any_claim",
+    "tests/python/desktop/test_network_workflow.py::NetworkWorkflowTests::test_claim_empty_persists_idle_worker_row_for_coordinator_board",
+    "tests/python/desktop/test_application_facade_network.py::ApplicationFacadeNetworkTests::test_network_workers_treats_empty_worker_state_as_idle_not_warning",
+    "tests/webview/test_webview_network_read_only_boundary.py::WebViewNetworkReadOnlyBoundaryTests::test_network_view_js_uses_only_backend_network_lifecycle_routes"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/desktop/network/registry.py src/mediapipeline/desktop/network/coordinator_http_handlers.py src/mediapipeline/core/network/facade.py tests/python/desktop/test_network_inflight_registry.py tests/python/desktop/test_network_workflow.py tests/python/desktop/test_application_facade_network.py tests/webview/test_webview_network_read_only_boundary.py",
+    "node --check apps/desktop/webview/static/assets/networkView.js",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_network_inflight_registry",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_network_workflow",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_network",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_network_read_only_boundary",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_network_smoke",
+    "\\\\LAYNE-SERVER\\...\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile server registry.py coordinator_http_handlers.py facade.py",
+    "node --check \\\\LAYNE-SERVER\\...\\apps\\desktop\\webview\\static\\assets\\networkView.js",
+    "Select-String on server registry.py and coordinator_http_handlers.py confirmed note_worker_seen and _record_worker_seen_for_board"
+  ],
+  "rollback_plan": "Revert note_worker_seen, the /api/claim worker-board persistence call, worker-side warning changes, and related WebView copy/tests; coordinator worker board would again only show claimed/completed workers.",
+  "related_changes": [],
+  "notes": "The bundled Python environment did not have pytest installed, so targeted tests were run with unittest and PYTHONPATH=src. Server bundle runtime files were backed up under \\\\LAYNE-SERVER\\Users\\Layne\\Desktop\\MediaPipelineRemuxEncodeAIO_2026.06.04.001_Portable_20260613_135923\\CodexBackups\\idle-worker-board_20260613_225105 before copy. Strict change coverage still fails only on four unrelated dirty dependency-atlas image files: dependency_detail_core_library.png, dependency_detail_core_library.svg, dependency_detail_desktop_watch.png, dependency_detail_desktop_watch.svg."
+}

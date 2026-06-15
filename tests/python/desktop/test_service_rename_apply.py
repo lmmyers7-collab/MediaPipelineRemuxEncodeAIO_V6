@@ -154,6 +154,17 @@ class RenameApplyHelperTests(unittest.TestCase):
             self.assertEqual(first_path, second_path)
             self.assertEqual(data["status"], "completed")
 
+    def test_write_rename_undo_manifest_rejects_reused_path_outside_root(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td) / "undo-root"
+            outside = Path(td) / "outside" / "rename-undo.json"
+            manifest = {"schema_version": "rename_undo.v1", "path": str(outside)}
+
+            with self.assertRaisesRegex(RuntimeError, "OUTSIDE_ALLOWED_ROOT"):
+                write_rename_undo_manifest(manifest, root=root)
+
+            self.assertFalse(outside.exists())
+
     def test_build_rename_operations_detects_duplicate_media_destination(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             first = Path(td) / "one.mkv"

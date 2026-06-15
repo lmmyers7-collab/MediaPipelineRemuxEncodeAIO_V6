@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0613-023",
+  "title": "Harden Network lifecycle UI status",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-14",
+  "summary": "Hardened the Network page UX/status layer by adding read-only lifecycle state to /api/network/workers, a first-viewport runtime banner, state-aware lifecycle buttons, custom confirmed-command dialog, inline worker coordinator URL validation, token posture copy without secret exposure, restart guidance, and focused tests/smokes.",
+  "reason": "Operators running a small LAN coordinator/worker setup need to distinguish saved configuration from active runtime state, understand why normal Launch is blocked, see coordinator/worker relationship evidence, and avoid unsafe lifecycle commands or invalid worker targets such as 0.0.0.0.",
+  "affected_areas": [
+    "network",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Network page emphasized route availability and persisted worker evidence, but lifecycle controls used generic labels, confirmed commands used window.confirm, the first viewport did not summarize runtime state/Launch blocking/token posture, and worker URL validation relied on backend preconditions.",
+  "behavior_after": "The Network page shows configured mode plus runtime status, uses backend lifecycle state to gate relevant coordinator/worker controls, keeps future controls separate and disabled, renders dry-run no-touch evidence first, requires a page-owned confirmation dialog for confirmed commands, blocks obvious invalid worker URLs inline, and keeps token values hidden.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.network.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.network.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0613-023.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/kernel/dto_workspaces.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_network_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-023.json",
+    "src/mediapipeline/core/kernel/dto_workspaces.py",
+    "src/mediapipeline/core/network/facade.py",
+    "tests/python/desktop/test_application_facade_network.py",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "node --check apps/desktop/webview/static/assets/networkView.js",
+    "node --check apps/desktop/webview/static/assets/settingsView.builders.network.js",
+    "npm run webview:check",
+    "py_compile src/mediapipeline/core/network/facade.py src/mediapipeline/core/kernel/dto_workspaces.py",
+    "python -m unittest tests.python.desktop.test_application_facade_local_api",
+    "python -m unittest tests.python.desktop.test_application_facade_network tests.python.desktop.test_application_facade_process_launch",
+    "python -m unittest tests.webview.test_webview_browser_network_smoke",
+    "python -m unittest tests.webview.test_webview_network_read_only_boundary tests.webview.test_webview_frontend_mutation_boundary"
+  ],
+  "manual_validation": [
+    "Browser plugin attempted against localhost; Playwright MCP bridge timed out, so repo browser-backed Network smoke is the browser evidence.",
+    "Refreshed generated summaries for touched source/test/change-packet files.",
+    "Strict change-control validation failed because four unrelated generated dependency-atlas assets are not listed in any unreleased packet: docs/generated/dependency-atlas/assets/dependency_detail_core_library.png, dependency_detail_core_library.svg, dependency_detail_desktop_watch.png, dependency_detail_desktop_watch.svg."
+  ],
+  "rollback_plan": "Revert the additive NetworkWorkersDto/facade fields and the Network WebView HTML/JS/CSS/test changes in this packet. Existing backend lifecycle providers, command routes, processing behavior, queue policy, and media mutation policy are not changed by this pass.",
+  "related_changes": [],
+  "notes": "Plan slug: network-ui-lifecycle-status-hardening-2026-06-14. Implementation scope is UX + Status only: read-only status evidence plus WebView clarity; no worker processing, media policy, queue behavior, or stop semantics changes."
+}

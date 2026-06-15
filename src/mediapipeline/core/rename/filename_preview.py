@@ -136,6 +136,28 @@ def rename_movie_filter_catalog_payload(config: Mapping[str, Any] | object | Non
     }
 
 
+def _optional_strict_bool(request: Mapping[str, Any], key: str, default: bool) -> bool:
+    if key not in request or request.get(key) is None:
+        return default
+    value = request.get(key)
+    if isinstance(value, bool):
+        return value
+    raise ValueError(f"{key} must be a boolean.")
+
+
+def _strict_bool_map(value: Any, key: str) -> dict[str, bool]:
+    if value is None:
+        return {}
+    if not isinstance(value, Mapping):
+        raise ValueError(f"{key} must be an object of boolean values.")
+    result: dict[str, bool] = {}
+    for raw_name, raw_value in value.items():
+        if not isinstance(raw_value, bool):
+            raise ValueError(f"{key}.{raw_name} must be a boolean.")
+        result[str(raw_name)] = raw_value
+    return result
+
+
 def rename_plan_kwargs_from_request(
     request: Mapping[str, Any],
     *,
@@ -152,11 +174,11 @@ def rename_plan_kwargs_from_request(
         "movie_filter_options": dict_bool(request.get("movie_filter_options")),
         "movie_filter_terms": dict_terms(request.get("movie_filter_terms"), parse_remove_terms),
         "final_name_overrides": dict_str(request.get("final_name_overrides")),
-        "rename_sidecars": bool(request.get("rename_sidecars", True)),
-        "force_pipeline_name": bool(request.get("force_pipeline_name", False)),
-        "force_pipeline_name_overrides": dict_bool(request.get("force_pipeline_name_overrides")),
+        "rename_sidecars": _optional_strict_bool(request, "rename_sidecars", True),
+        "force_pipeline_name": _optional_strict_bool(request, "force_pipeline_name", False),
+        "force_pipeline_name_overrides": _strict_bool_map(request.get("force_pipeline_name_overrides"), "force_pipeline_name_overrides"),
         "powershell_host": str(request.get("powershell_host") or "") or None,
-        "use_pipeline_naming_preview": bool(request.get("use_pipeline_naming_preview", False)),
+        "use_pipeline_naming_preview": _optional_strict_bool(request, "use_pipeline_naming_preview", False),
         "template_preset": str(request.get("template_preset") or ""),
     }
 

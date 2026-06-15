@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0610-005",
+  "title": "Add worker 07 WebView shell common audit report",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-10",
+  "date_completed": "2026-06-10",
+  "summary": "Document the worker-07 review-only audit for shared WebView shell/common assets, including API client, app shell, lifecycle, layout manager, DOM helpers, formatters, progress, command history, and shared CSS.",
+  "reason": "The concurrent function/module audit requires each worker to publish an isolated worker report and cover Markdown writes with a change packet.",
+  "affected_areas": [
+    "accessibility",
+    "desktop",
+    "frontend",
+    "review",
+    "webview-shell-common"
+  ],
+  "behavior_before": "The requested lowercase worker-07 WebView shell/common audit report did not exist at the assigned output path.",
+  "behavior_after": "The worker-07 WebView shell/common audit report is present under the audit workers directory with static coverage notes, findings, test gaps, and boundary risks.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-07-webview-shell-common.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0610-005.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Static review only; no runtime, media, browser, Tauri, or source mutation tests executed.",
+    "apps/desktop/runtime/Python/python.exe -m json.tool ops/release/changes/unreleased/MP-CHANGE-2026-0610-005.json - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed: unrelated existing worktree file docs/implementation/encoder-breadth-av1-plan.md is not listed in any unreleased packet."
+  ],
+  "rollback_plan": "Delete docs/reviews/function-module-audit-2026-06-11/workers/worker-07-webview-shell-common.md and ops/release/changes/unreleased/MP-CHANGE-2026-0610-005.json.",
+  "related_changes": [],
+  "notes": "Review-only documentation change. No source, runtime, media, aggregate review, generated summary, queue, settings, publish, rename, or launcher files are modified.\nReview-only W07 worker report; no source, runtime, media, aggregate, queue, publish, rename, or launcher files modified.\nStrict coverage failure is unrelated to W07 report files; W07 report and packet are covered.\nReport and packet existence checks passed."
+}

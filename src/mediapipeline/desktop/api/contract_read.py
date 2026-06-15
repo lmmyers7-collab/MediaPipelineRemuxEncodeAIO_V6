@@ -184,7 +184,8 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "query_keys": ["path"],
         "response_schema": "queue_file_overrides_effective.v1",
-        "purpose": "Read the matched file/folder override and already available inherited Library/default drawer values for one source-root-contained path without changing queue policy or media files.",
+        "read_dependencies": ["file_overrides.json", "loaded config", "bounded read-only probe stage"],
+        "purpose": "Read the matched file/folder override, inherited Library/default drawer values, and bounded read-only probe-derived track metadata for one source-root-contained path without changing queue policy, file_overrides.json, settings, pending-publish state, or media files.",
     },
     {
         "method": "GET",
@@ -200,6 +201,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "path": "/api/completed",
         "auth_required": True,
         "effect": "none",
+        "query_keys": ["limit", "force_refresh", "proof", "pending_proof_limit"],
         "response_schema": "desktop_completed_preview.v1",
         "purpose": "Read recent completed jobs from the local completed-jobs manifest without scanning the output share.",
     },
@@ -340,6 +342,14 @@ LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "response_schema": "desktop_schedule_workspace.v1",
         "purpose": "Read persisted schedule state and current schedule evaluation without saving or editing the grid.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/watch-folders/status",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_watch_folders.v1",
+        "purpose": "Read watch-folder manager status, effective roots, pending detections, and last launch/refusal evidence without saving settings, launching directly, or touching media files.",
     },
     {
         "method": "GET",

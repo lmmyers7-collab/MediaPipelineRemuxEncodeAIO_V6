@@ -10,7 +10,7 @@ def make_queue_record(claim: ClaimResponse):
     from ..models import QueueRecord  # local import to avoid circular deps
 
     src = Path(claim.source_path)
-    return QueueRecord(
+    record = QueueRecord(
         source_path=src,
         source_root=src.parent,
         media_type="Unknown",
@@ -19,7 +19,7 @@ def make_queue_record(claim: ClaimResponse):
         priority_rank=0.0,
         sort_name=src.stem,
         display_name=src.name,
-        relative_path=claim.source_path,
+        relative_path=claim.relative_path or claim.source_path,
         show_folder="",
         season_folder="",
         season_number=0,
@@ -34,3 +34,5 @@ def make_queue_record(claim: ClaimResponse):
         phase="WORKER",
         global_order=0,
     )
+    record.library_id = claim.library_id
+    return record

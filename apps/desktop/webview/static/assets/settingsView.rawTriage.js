@@ -342,7 +342,7 @@
       detail: [
         "Secrets can leak through browser memory, dev tools, logs, screenshots, and command history if exposed casually.",
         "Backend settings workspace redacts token values; Save Patch rejects '<redacted>' placeholders for sensitive keys.",
-        "Network lifecycle controls remain read-only during the Tauri/WebView transition.",
+        "Network lifecycle controls use backend-owned dry-run and confirmed command routes; auth token values remain hidden.",
       ],
     });
 

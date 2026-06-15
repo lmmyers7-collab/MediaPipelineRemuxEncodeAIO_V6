@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 98 (42 read, 56 command).
+Total routes: 112 (46 read, 66 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -23,6 +23,9 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/diagnostics` | Yes | `desktop_diagnostics.v1` | Diagnostics, Home | Recent events, errors, launch-log summary |
 | `GET /api/diagnostics/tail` | Yes | `desktop_diagnostics_tail.v1` | Diagnostics | Query params: `target` (allowlisted key only), `max_bytes` (1 KB–256 KB); backend rejects arbitrary paths; response evidence is marked `evidence_authority=backend` |
 | `GET /api/diagnostics/state-summary` | Yes | `desktop_diagnostics_state_summary.v1` | Diagnostics | Bounded inline artifact summary; no arbitrary path accepted |
+| `GET /api/diagnostics/tdarr-matrix/latest` | Yes | `desktop_tdarr_matrix_console.v1` | Diagnostics | Query params: `run_id`, `finding_limit`; reads a selected or latest Tdarr Matrix run and evidence target keys without opening files or launching work |
+| `GET /api/diagnostics/tdarr-matrix/runs` | Yes | `desktop_tdarr_matrix_runs.v1` | Diagnostics | Lists sentinel-marked Tdarr Matrix sample runs under the approved Scratch/TestLibraries/TdarrMatrixRuns root |
+| `GET /api/diagnostics/tdarr-matrix/compare` | Yes | `desktop_tdarr_matrix_compare.v1` | Diagnostics | Query params: `left_run_id`, `right_run_id`, `left`, `right`; compares existing reports without opening files or launching work |
 | `GET /api/backend/close-readiness` | Yes | `desktop_close_readiness.v1` | Tauri shell (close flow) | Backend has authority over whether it is safe to close; shell must not decide unilaterally |
 | `GET /api/ui-preferences` | Yes | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Shared UI preference state for layout/theme/tab parity; no settings, queue, or media mutation |
 | `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored pre-launch checks from read-only start-intent query fields, including pipeline single-file intent and extra-argument posture; no locks reserved, no processes started |
@@ -59,6 +62,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/maintenance/progress` | Yes | `none` | `desktop_maintenance_health_progress.v1` | Maintenance | Reads latest maintenance progress; does not run probes |
 | `GET /api/maintenance/change-ledger` | Yes | `none` | `desktop_change_ledger.v1` | Maintenance | Reads structured change-control packets, changelog source status, and hygiene; does not run probes or regenerate files |
 | `GET /api/schedule` | Yes | `none` | `desktop_schedule_workspace.v1` | Schedule | Reads persisted schedule state; schedule saves use separate backend command routes |
+| `GET /api/watch-folders/status` | Yes | `none` | `desktop_watch_folders.v1` | Schedule | Reads watch-folder manager state, roots, pending-work status, and recent detections; does not scan on demand or mutate queue/process state |
 | `GET /api/settings/workspace` | Yes | `none` | `desktop_settings_workspace.v1` | Settings | Read-only, redacted settings snapshot |
 | `GET /api/libraries/route-map` | Yes | `none` | `library_route_map.v1` | Libraries | Backend-authored Library Route Map and decision-matrix evidence from config, Library Profile inheritance state, and field metadata; no save, launch, plugin execution, queue mutation, or media touch |
 | `GET /api/libraries/route-map/trace` | Yes | `none` | `library_route_trace.v1` | Libraries | Selected-file dry-run trace from existing Queue, Completed, and Sample Validation row evidence only; no probing or media mutation |
@@ -66,7 +70,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/libraries/route-map/validation` | Yes | `none` | `library_route_validation_handoff.v1` | Libraries | Validation handoff from Sample Validation, Completed, Pending Publish, Diagnostics, and command evidence with distinct proof categories; no launch, drain, accept, repair, rename, save, plugin execution, or media mutation |
 | `GET /api/settings/wizard/status` | Yes | `none` | `desktop_settings_wizard_status.v1` | Settings Wizard | Reads availability and first-run recommendation state only |
 | `GET /api/settings/wizard/defaults` | Yes | `none` | `desktop_settings_wizard.v1` | Settings Wizard | Reads wizard defaults and tool candidates only |
-| `GET /api/network/workers` | Yes | `none` | `desktop_network_workers.v1` | Network | Coordinator/worker runtime state; no lifecycle controls |
+| `GET /api/network/workers` | Yes | `none` | `desktop_network_workers.v1` | Network | Coordinator/worker persisted runtime state; lifecycle start/stop uses separate backend-owned command routes |
 | `GET /api/sample-validation` | Yes | `none` | `desktop_sample_validation_log.v1` + summary + readiness + reconciliation + worksheet runs + pilot plan/checklist + sample set + evidence gaps + pilot runbook + policy alignment + validation audit | Home (Validation Log) | Recent validation records plus backend-authored read-only validation readiness, stale-evidence reconciliation, pilot plan, operator sample-execution checklist, generated worksheet evidence from `docs\RealMediaValidationRuns`, representative category coverage, evidence gaps, pilot runbook, saved-policy alignment, and conservative validation audit; query param: `limit` |
 
 ---
@@ -127,6 +131,8 @@ Final-library promotion remains backend-owned: the backend resolves destinations
 |---|---|---|---|---|
 | `POST /api/diagnostics/open` | `shell-open` | `target` | 20 allowlisted keys (see below) | Diagnostics, all pages |
 | `POST /api/diagnostics/tdarr-matrix-audit` | `diagnostic-process` | `action` | `report`, `smoke`, `matrix`, `full`, `strict-report` | Diagnostics |
+| `POST /api/diagnostics/tdarr-matrix/evidence/open` | `shell-open` | `run_id`, `finding_key`, `target` | `stdout`, `stderr`, `worker_result`, `source_hashes`, `failure_artifact`, `output`, `report_folder` | Diagnostics |
+| `POST /api/diagnostics/tdarr-matrix/rerun` | `diagnostic-process` | `source_run_id`, `selection`, `finding_keys` | `selected`, `latest_failures` | Diagnostics |
 
 Allowed targets for `/api/diagnostics/open`: `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
 
@@ -186,7 +192,7 @@ Metrics commands write only backend Metrics state under `State\Metrics`. Source 
 | `POST /api/settings/wizard/save` | `config-write` | `wizard`, `confirm_save` | **High** — writes PSD1 config through the normal backend save path | Settings Wizard |
 | `POST /api/settings/reload` | `none` | *(none)* | None — reloads cached state | Settings |
 
-`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Settings Wizard validation/preview routes do not write config. `settings/wizard/save` and `save-patch` perform backup, atomic write, and backend state reload. `confirm_save` must be set. The Network page's Worker Mode Settings panel delegates to these same backend Settings routes for config preview/save only; no Network lifecycle POST route is created. The browser smoke explicitly verifies that `save-patch` is NOT called during the staged-settings handoff test.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Settings Wizard validation/preview routes do not write config. `settings/wizard/save` and `save-patch` perform backup, atomic write, and backend state reload. `confirm_save` must be set. The Network page's Worker Mode Settings panel delegates to these same backend Settings routes for config preview/save only; lifecycle start/stop uses the separate Network Lifecycle routes below.
 
 ### Schedule Commands
 
@@ -218,6 +224,25 @@ Audit control commands are backend-owned report/state helpers. They do not write
 queue priority, apply holds, launch rerun work, change settings, or touch media
 files.
 
+### Network Commands
+
+| Route | Effect | Key Request Keys | Mutation Risk | Frontend Caller |
+|---|---|---|---|---|
+| `POST /api/network/coordinator/start-dry-run` | `none` | `reason` | None — lifecycle dry-run evidence only | Network |
+| `POST /api/network/coordinator/stop-dry-run` | `none` | `reason` | None — lifecycle dry-run evidence only | Network |
+| `POST /api/network/worker/start-dry-run` | `none` | `reason` | None — lifecycle dry-run evidence only | Network |
+| `POST /api/network/worker/stop-dry-run` | `none` | `reason` | None — lifecycle dry-run evidence only | Network |
+| `POST /api/network/worker/test-connection` | `none` | `timeout_seconds` | None — read-only worker TCP/auth/path preflight only | Network |
+| `POST /api/network/worker/discover-coordinators` | `none` | `timeout_seconds` | None — read-only mDNS coordinator discovery; selection only stages the Settings patch | Network |
+| `POST /api/network/coordinator/join-blob` | `secret-transfer` | `coordinator_url`, `confirm_create`, `rotate_token`, `confirm_rotate` | High — unjournaled setup blob contains the worker auth secret; no media or lifecycle mutation | Network |
+| `POST /api/network/worker/join-cluster` | `config-write` | `join_blob`, `confirm_import`, `timeout_seconds` | High — imports worker URL/token/path-map settings through backend settings save, then runs read-only test-connection | Network |
+| `POST /api/network/coordinator/start` | `backend-lifecycle` | `confirm_start`, `reason` | **High** — starts only the real coordinator lifecycle provider after confirmation and preconditions | Network |
+| `POST /api/network/coordinator/stop` | `backend-lifecycle` | `confirm_stop`, `reason` | **High** — stops only the coordinator lifecycle provider while preserving claims/state files | Network |
+| `POST /api/network/worker/start` | `backend-lifecycle` | `confirm_start`, `reason` | **High** — starts only the worker polling provider; no local queue scan or normal Launch | Network |
+| `POST /api/network/worker/stop` | `backend-lifecycle` | `confirm_stop`, `reason` | **High** — requests worker lifecycle stop while preserving pending done reports | Network |
+
+Network lifecycle dry-runs return preconditions, active-work posture, state-file posture, pending done posture, redacted config evidence, and `would_not_touch` evidence. Confirmed routes require explicit confirmation fields and fail closed when the real coordinator/worker lifecycle provider is unavailable.
+
 ### Process Commands
 
 | Route | Effect | Key Request Keys | Mutation Risk | Frontend Caller |
@@ -237,12 +262,12 @@ files.
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 50 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview) | None |
+| `none` | 62 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview, Network lifecycle dry-runs) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` | Advisory backend previews only |
-| `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/maintenance/dependency-atlas/open-folder` | OS open only; no file mutation |
+| `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/maintenance/dependency-atlas/open-folder` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker only; no file mutation |
-| `diagnostic-process` | `POST /api/diagnostics/tdarr-matrix-audit` | Backend-owned Tdarr Matrix scratch audit presets only |
+| `diagnostic-process` | `POST /api/diagnostics/tdarr-matrix-audit`, `POST /api/diagnostics/tdarr-matrix/rerun` | Backend-owned Tdarr Matrix scratch audit presets and isolated reruns only |
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
 | `metrics-state-write` | `POST /api/metrics/sources` | Metrics source registry JSON under `State\Metrics` only |
 | `metrics-backfill-state-write` | `POST /api/metrics/backfill` | Recursive sidecar read plus Metrics cache/status writes under `State\Metrics` only |
@@ -260,7 +285,7 @@ files.
 | `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/wizard/save` | Writes and reloads PSD1 config |
 | `filesystem-mutation` | `POST /api/rename/apply`, `POST /api/final-library-promotion/promote-queue` | Renames files or promotes completed outputs through backend-owned file operations |
 | `process-launch` | `POST /api/pipeline/start`, `POST /api/audit/start`, `POST /api/rerun/start` | Spawns backend processes |
-| `backend-lifecycle` | `POST /api/backend/shutdown` | Initiates graceful shutdown; forced active-work cleanup requires literal boolean `true` |
+| `backend-lifecycle` | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` | Initiates guarded backend lifecycle operations; forced active-work cleanup requires literal boolean `true` for shutdown, and Network lifecycle start/stop requires confirmation plus provider preconditions |
 
 ---
 
@@ -286,6 +311,7 @@ Every mutation route enforces backend ownership:
 - **Settings save-patch**: backend merges, validates, backs up, and atomically writes; the frontend cannot write the PSD1 directly.
 - **Schedule save**: backend parses and validates day windows, requires `confirm_save`, and writes only schedule app-state keys; the frontend cannot write state JSON directly.
 - **Pipeline/audit/rerun start**: backend owns the process launch, launch-lock, and command journal; the frontend cannot exec processes or bypass launch guards.
+- **Network lifecycle start/stop**: backend owns dry-run preconditions, confirmation-gated start/stop, command journaling, and provider availability. Network mode never falls through to normal Launch or frontend queue scanning.
 - **Shutdown**: Tauri shell issues this after `GET /api/backend/close-readiness` confirms it is safe; the backend controls the shutdown sequence.
 
 ---

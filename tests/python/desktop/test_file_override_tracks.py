@@ -1084,6 +1084,33 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             self.assertFalse(invalid["ok"])
             self.assertIn("outside configured", invalid["message"].lower())
 
+    def test_effective_endpoint_runs_bounded_read_only_probe_without_writing_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            source = resolved.source_movies / "Movie.mkv"  # type: ignore[operator]
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"fake media")
+            harness = _TrackMetadataHarness(resolved)
+            stage_result = make_stage_result(
+                stage="probe",
+                ok=True,
+                started_at=datetime.now(timezone.utc),
+                data=_probe_result(),
+            )
+
+            with patch("mediapipeline.core.api.commands_file_overrides.run_probe_stage", return_value=stage_result) as run_probe:
+                payload = harness._file_overrides_effective_read_payload({"path": [str(source)]})
+
+            self.assertTrue(payload["ok"])
+            self.assertEqual(payload["command"], "queue.file_overrides.effective")
+            self.assertTrue(payload["track_metadata"]["available"])
+            self.assertEqual(payload["track_metadata"]["source_info"]["probe_source"], "stage_probe")
+            run_probe.assert_called_once()
+            runner_options = run_probe.call_args.args[1]
+            self.assertEqual(runner_options.state_db_root, resolved.state_root)
+            self.assertFalse(resolved.file_overrides_path.exists())  # type: ignore[union-attr]
+
     def test_tracks_endpoint_is_available_through_local_api_get_route(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

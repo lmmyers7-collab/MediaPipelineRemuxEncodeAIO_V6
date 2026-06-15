@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0611-201",
+  "title": "Dynamic HDR detection honesty phase 1",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Adds bounded Dolby Vision and HDR10+ detection for HDR scratch copies, encode warning/events when dynamic metadata will be flattened, remux expected-pass-through evidence, additive sidecar/completed-record evidence, and focused PowerShell unit coverage.",
+  "reason": "The encode route previously flattened Dolby Vision RPU and HDR10+ dynamic metadata to static HDR10 with no warning or sidecar evidence. Phase 1 makes the loss visible without changing routing, config, FFmpeg arguments, or preservation behavior.",
+  "affected_areas": [
+    "contracts",
+    "dynamic-hdr",
+    "generated-summaries",
+    "probe",
+    "publish"
+  ],
+  "behavior_before": "Dynamic HDR metadata was invisible to the pipeline. Encodes could drop Dolby Vision/HDR10+ metadata without a log warning, pipeline event, sidecar field, or completed-manifest evidence.",
+  "behavior_after": "HDR encode/remux sources are probed on the scratch copy. Encodes with detected dynamic metadata log a warning and emit a dynamic_hdr_metadata_dropped event; remux records expected pass-through evidence. Immediate-publish sidecars/completed records include an additive dynamic_hdr block. SDR routing and all FFmpeg command generation remain unchanged.",
+  "files_touched": [
+    "CHANGELOG.md",
+    "docs/SESSION.md",
+    "docs/generated/summaries/ops/pipeline/engine/probe/media_probe.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/publish_completion.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/remux.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-201.json.md",
+    "docs/implementation/dynamic-hdr-preservation/PLAN.md",
+    "ops/pipeline/config/schemas/media_pipeline_completed_job.schema.json",
+    "ops/pipeline/engine/probe/media_probe.ps1",
+    "ops/pipeline/engine/publish/publish_completion.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-201.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1"
+  ],
+  "manual_validation": [
+    "Operator confirmed Phase 1 real-media validation passed for DoVi, HDR10+, and plain HDR10 - 2026-06-11",
+    "Parser::ParseFile parse check on media_probe.ps1, encode.ps1, remux.ps1, publish_completion.ps1, Invoke-DynamicHdrDetectionChecks.ps1 - clean",
+    "PowerShell parser checks on edited ps1 files - passed",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1 - passed",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1 - passed",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1 - passed",
+    "pwsh ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1 - exit 0",
+    "pwsh ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1 - passed",
+    "pwsh ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1 - passed (incl. new SMPTE2094-10 negative case)",
+    "validate_changes --require-worktree-coverage - failed after rerun due unrelated MP-CHANGE-2026-0611-127 missing notes/rollback detail and 18 uncovered dirty files outside this Phase 1 packet.",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0611-127 missing notes/rollback detail and three uncovered pre-existing docs: docs/implementation/dynamic-hdr-preservation/PLAN.md; docs/implementation/objective-quality-verification-plan.md; docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md"
+  ],
+  "rollback_plan": "Revert the Phase 1 edits in media_probe.ps1, encode.ps1, remux.ps1, publish_completion.ps1, media_pipeline_completed_job.schema.json, Invoke-DynamicHdrDetectionChecks.ps1, CHANGELOG.md, docs/SESSION.md, and the regenerated summaries. No config migration or output mutation is introduced; sidecars already written with dynamic_hdr are additive and can be ignored by existing readers.",
+  "related_changes": [],
+  "notes": "Phase 1 dynamic HDR detection + honesty only: no config keys, no command generation, no routing changes; parked/drain dynamic_hdr carry remains Phase 4 scope.\nAdded optional dynamic_hdr object to completed-job/sidecar schema; schema remains additionalProperties=true.\nOperator real-media validation still required: DoVi source, HDR10+ source, and plain HDR10 source through -Once; confirm WARN/event/sidecar evidence.\nStrict coverage failure was not caused by Phase 1 dynamic-HDR files; do not absorb unrelated dirty docs or unrelated packet 127 into this packet.\nLatest uncovered set includes the dynamic-HDR plan doc, objective-quality plan doc, one review worker doc, multiple WebViewBrowser smoke wrappers, and config metadata files; left untouched as unrelated/pre-existing work.\nOperator confirmation unblocks dynamic HDR Phase 2.\n2026-06-11 review fix: HDR10+ frame side-data regex tightened to require SMPTE2094-40 (was matching any SMPTE2094 variant); negative unit case added.\nStatus held at in_progress: AGENTS.md section 7 operator real-media validation (DoVi, HDR10+, plain HDR10 -Once runs) still required before completion.\nAbsorbed the Phase 1 source brief docs/implementation/dynamic-hdr-preservation/PLAN.md into this packet (created 2026-06-11 during planning; previously uncovered)."
+}

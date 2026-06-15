@@ -41,6 +41,9 @@
     VideoPreset = 'p7'
     VideoQuality = 22
     OutputContainer = 'mkv'
+    DynamicHdrPolicy = 'warn'
+    DoviToolPath = ''
+    Hdr10PlusToolPath = ''
     EncodeTuningPreset = 'balanced_nvenc'
     EncodeLadder = 'auto'
     ExtraVideoFlags = @()
@@ -97,6 +100,11 @@
     RenameMovieRemoveTerms = @('sample', 'trailer', 'extras', 'featurette', 'deleted scenes', 'behind the scenes')
     ValidExtensions = @('.mkv', '.mp4', '.avi', '.mov', '.m4v', '.ts', '.m2ts')
     FileStabilityWait = 15
+    EnableWatchFolders = $false
+    WatchFolderRoots = @()
+    WatchDebounceSeconds = 30
+    WatchAction = 'enqueue_only'
+    WatchRespectScheduleWindow = $true
     SkipStabilityCheck = $false
     EnableIntegrityCheck = $true
     CreateTVSubfolder = $true
@@ -123,6 +131,15 @@
     OutputValidationProbeTimeoutSeconds = 60
     OutputValidationMinSizeBytes = 1024
     OutputValidationDurationToleranceSeconds = 2
+    EnableQualityVerification = $false
+    QualityMetric = 'vmaf'
+    QualitySampleMode = 'sampled'
+    QualitySampleSeconds = 10
+    QualitySampleCount = 3
+    QualityWarnThreshold = 90
+    QualityFailThreshold = 75
+    QualityFailAction = 'warn_only'
+    QualityVerifyTimeoutSeconds = 1800
     AllowSystemTools = $false
     RobocopyTimeoutSeconds = 14400
     TransientFailureRetryLimit = 3
@@ -134,4 +151,9 @@
     SourceScanIntervalSeconds = 300
     ProcessedIndexRefreshSeconds = 900
     ReprocessAll = $false
+    PlannerRolloutStage = 'legacy'
+    UsePythonPlanner = $false
+    EnableHandBrakeSettingsUi = $false
+    PlannerComparisonLogging = $false
+    NewPlannerCutoverApproved = $false
 }

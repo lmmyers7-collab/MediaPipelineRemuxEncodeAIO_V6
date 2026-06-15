@@ -95,7 +95,7 @@ def queue_record_from_snapshot_row(row: dict) -> QueueRecord:
         except ValueError:
             last_write = 0.0
     display_name = str(row.get("display_name") or source_path.stem)
-    return QueueRecord(
+    record = QueueRecord(
         source_path=source_path,
         source_root=source_root,
         media_type=media_type,
@@ -120,3 +120,5 @@ def queue_record_from_snapshot_row(row: dict) -> QueueRecord:
         global_order=int(row.get("global_order") or 0),
         manifest_priority_level=str(row.get("manifest_priority_level") or "normal").lower(),
     )
+    record.library_id = str(row.get("library_id") or "").strip()
+    return record

@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/sample_validation/policy.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: sample_validation
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 960e96b9b8bf1fea8288b7584788df7f66fe5890e0f81e934c82b44599deff4c

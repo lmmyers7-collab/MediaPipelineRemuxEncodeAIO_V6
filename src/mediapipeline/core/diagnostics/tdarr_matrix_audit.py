@@ -13,13 +13,34 @@ from typing import Any
 
 from mediapipeline.core.kernel.dto_base import json_safe
 from mediapipeline.desktop.subprocess_runner import run_capture
+from mediapipeline.core.diagnostics.tdarr_matrix_proof import (
+    tdarr_case_keys_for_pack,
+    tdarr_expected_manifest_count,
+    tdarr_proof_pack_root,
+    tdarr_proof_runs_root,
+)
+
+try:
+    import psutil  # type: ignore
+except Exception:  # pragma: no cover - optional desktop dependency
+    psutil = None  # type: ignore
 
 
 TDARR_MATRIX_AUDIT_COMMAND = "diagnostics.tdarr_matrix_audit"
 TDARR_MATRIX_AUDIT_REFRESH_HINT = "diagnostics"
 TDARR_MATRIX_AUDIT_PROGRESS_SCHEMA_VERSION = "desktop_tdarr_matrix_audit_progress.v1"
 TDARR_MATRIX_AUDIT_TOOL_MODULE = "mediapipeline.tools.dev.tdarr_matrix_audit"
-TDARR_MATRIX_AUDIT_ALLOWED_ACTIONS = ("report", "smoke", "matrix", "full", "strict-report")
+TDARR_PROOF_PACK_TOOL_MODULE = "mediapipeline.tools.dev.tdarr_proof_pack"
+TDARR_MATRIX_AUDIT_ALLOWED_ACTIONS = (
+    "prepare-proof-pack",
+    "report",
+    "smoke-pack",
+    "proof-pack",
+    "strict-report",
+    "cleanup-plan",
+    "cleanup-archive",
+    "cleanup-delete",
+)
 TDARR_MATRIX_AUDIT_FINDINGS_PREVIEW_LIMIT = 50
 
 # Number of diagnostic buckets the run-samples harness iterates. Must stay equal to
@@ -31,44 +52,48 @@ TDARR_MATRIX_AUDIT_BUCKET_COUNT = 6
 TDARR_MATRIX_AUDIT_RUNNER_TIMEOUT_MARGIN_SECONDS = 300
 
 TDARR_MATRIX_AUDIT_PRESETS: dict[str, dict[str, Any]] = {
+    "prepare-proof-pack": {
+        "label": "Prepare Tdarr Proof Pack",
+        "mode": "proof-pack-materialize",
+        "report_only": True,
+        "prepare_timeout_seconds": 0,
+        "sample_timeout_seconds": 0,
+        "samples_per_bucket": 0,
+        "runner_timeout_seconds": 7200,
+        "tool_module": TDARR_PROOF_PACK_TOOL_MODULE,
+    },
     "report": {
-        "label": "Prepare Tdarr Matrix Audit Report",
+        "label": "Prepare Tdarr Proof Pack Audit Report",
         "mode": "report",
         "report_only": True,
-        "prepare_timeout_seconds": 600,
+        "prepare_timeout_seconds": 1800,
         "sample_timeout_seconds": 0,
         "samples_per_bucket": 0,
         "runner_timeout_seconds": 900,
         "hash_sources": True,
     },
-    "smoke": {
-        "label": "Run Tdarr Matrix 6-File Smoke",
+    "smoke-pack": {
+        "label": "Run Tdarr Smoke Pack",
         "mode": "run-samples",
         "report_only": True,
         "prepare_timeout_seconds": 600,
         "sample_timeout_seconds": 900,
-        "samples_per_bucket": 1,
-        "runner_timeout_seconds": 6000,
+        "samples_per_bucket": 0,
+        "sample_count_hint": tdarr_expected_manifest_count("smoke-pack"),
+        "case_pack": "smoke-pack",
+        "runner_timeout_seconds": 24000,
+        "background": True,
     },
-    "matrix": {
-        "label": "Run Tdarr Matrix 30-File Matrix",
-        "mode": "run-samples",
-        "report_only": True,
-        "prepare_timeout_seconds": 600,
-        "sample_timeout_seconds": 1800,
-        "samples_per_bucket": 5,
-        "runner_timeout_seconds": 55200,
-    },
-    "full": {
-        "label": "Run Tdarr Matrix 100 Percent Matrix",
+    "proof-pack": {
+        "label": "Run Tdarr Proof Pack",
         "mode": "run-samples",
         "report_only": True,
         "prepare_timeout_seconds": 600,
         "sample_timeout_seconds": 1800,
         "samples_per_bucket": 0,
-        "sample_count_hint": 4632,
-        "runner_timeout_seconds": 8339700,
-        "all_samples": True,
+        "sample_count_hint": tdarr_expected_manifest_count("proof-pack"),
+        "case_pack": "proof-pack",
+        "runner_timeout_seconds": 172200,
         "background": True,
     },
     # strict-report is a STATIC gate (G9): it runs the pipeline validate / effective-config /
@@ -77,14 +102,47 @@ TDARR_MATRIX_AUDIT_PRESETS: dict[str, dict[str, Any]] = {
     # critical/error findings -- audio-only "processed successfully" stays an advisory warning
     # and does not fail the gate. See docs/dev/tdarr-matrix-audit-gaps.md G9.
     "strict-report": {
-        "label": "Run Tdarr Matrix Strict Report Gate",
+        "label": "Run Tdarr Proof Pack Strict Report Gate",
         "mode": "report",
         "report_only": False,
-        "prepare_timeout_seconds": 600,
+        "prepare_timeout_seconds": 1800,
         "sample_timeout_seconds": 0,
         "samples_per_bucket": 0,
         "runner_timeout_seconds": 900,
         "hash_sources": True,
+    },
+    "cleanup-plan": {
+        "label": "Plan Tdarr Full Matrix Cleanup",
+        "mode": "proof-pack-cleanup",
+        "cleanup_action": "plan",
+        "report_only": True,
+        "prepare_timeout_seconds": 0,
+        "sample_timeout_seconds": 0,
+        "samples_per_bucket": 0,
+        "runner_timeout_seconds": 900,
+        "tool_module": TDARR_PROOF_PACK_TOOL_MODULE,
+    },
+    "cleanup-archive": {
+        "label": "Archive Tdarr Full Matrix Evidence",
+        "mode": "proof-pack-cleanup",
+        "cleanup_action": "archive",
+        "report_only": True,
+        "prepare_timeout_seconds": 0,
+        "sample_timeout_seconds": 0,
+        "samples_per_bucket": 0,
+        "runner_timeout_seconds": 1800,
+        "tool_module": TDARR_PROOF_PACK_TOOL_MODULE,
+    },
+    "cleanup-delete": {
+        "label": "Delete Verified Tdarr Full Matrix",
+        "mode": "proof-pack-cleanup",
+        "cleanup_action": "delete",
+        "report_only": True,
+        "prepare_timeout_seconds": 0,
+        "sample_timeout_seconds": 0,
+        "samples_per_bucket": 0,
+        "runner_timeout_seconds": 3600,
+        "tool_module": TDARR_PROOF_PACK_TOOL_MODULE,
     },
 }
 
@@ -118,11 +176,14 @@ def tdarr_matrix_audit_runner_timeout(preset: dict[str, Any]) -> int:
     floor, so this only ever raises the cap, never lowers it.
     """
     prepare = 3 * int(preset.get("prepare_timeout_seconds", 0) or 0)
-    sample_count = (
-        int(preset.get("sample_count_hint", 0) or 0)
-        if bool(preset.get("all_samples"))
-        else int(preset.get("samples_per_bucket", 0) or 0) * TDARR_MATRIX_AUDIT_BUCKET_COUNT
-    )
+    if str(preset.get("mode") or "") == "run-samples":
+        sample_count = (
+            int(preset.get("sample_count_hint", 0) or 0)
+            if bool(preset.get("sample_count_hint")) or bool(preset.get("all_samples")) or bool(preset.get("case_pack"))
+            else int(preset.get("samples_per_bucket", 0) or 0) * TDARR_MATRIX_AUDIT_BUCKET_COUNT
+        )
+    else:
+        sample_count = 0
     samples = sample_count * int(preset.get("sample_timeout_seconds", 0) or 0)
     derived = prepare + samples + TDARR_MATRIX_AUDIT_RUNNER_TIMEOUT_MARGIN_SECONDS
     floor = int(preset.get("runner_timeout_seconds", 0) or 0)
@@ -130,15 +191,19 @@ def tdarr_matrix_audit_runner_timeout(preset: dict[str, Any]) -> int:
 
 
 def tdarr_matrix_default_library_root(workspace_root: Path) -> Path:
-    return workspace_root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix"
+    return tdarr_proof_pack_root(workspace_root)
 
 
 def tdarr_matrix_default_runs_root(workspace_root: Path) -> Path:
-    return workspace_root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns"
+    return tdarr_proof_runs_root(workspace_root)
 
 
 def tdarr_matrix_background_run_id(action: str, runs_root: Path) -> str:
-    suffix = "-full" if normalize_tdarr_matrix_audit_action(action) == "full" else ""
+    suffixes = {
+        "smoke-pack": "-smoke-pack",
+        "proof-pack": "-proof-pack",
+    }
+    suffix = suffixes.get(normalize_tdarr_matrix_audit_action(action), "")
     base = datetime.now(timezone.utc).strftime(f"run-%Y%m%d-%H%M%S{suffix}")
     candidate = base
     index = 2
@@ -161,22 +226,156 @@ def _tdarr_matrix_run_sentinel(run_root: Path) -> dict[str, Any]:
     return payload if isinstance(payload, dict) else {}
 
 
-def tdarr_matrix_incomplete_full_run(runs_root: Path, *, selected_count: int) -> Path | None:
+def _tdarr_matrix_background_process_metadata_path(runs_root: Path, run_id: str) -> Path:
+    return runs_root / "_background" / f"{run_id}.process.json"
+
+
+def _tdarr_matrix_read_json(path: Path) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _tdarr_matrix_process_start_time_text(pid: int, *, psutil_module: Any | None = None) -> str:
+    if psutil_module is None:
+        psutil_module = psutil
+    if pid <= 0 or psutil_module is None:
+        return ""
+    try:
+        process = psutil_module.Process(pid)
+        created = float(process.create_time())
+    except Exception:
+        return ""
+    return datetime.fromtimestamp(created, timezone.utc).isoformat()
+
+
+def _tdarr_matrix_timestamp_matches(expected: Any, actual: Any, *, tolerance_seconds: float = 2.0) -> bool:
+    try:
+        expected_time = datetime.fromisoformat(str(expected).replace("Z", "+00:00")).astimezone(timezone.utc)
+        actual_time = datetime.fromisoformat(str(actual).replace("Z", "+00:00")).astimezone(timezone.utc)
+    except (TypeError, ValueError):
+        return False
+    return abs((expected_time - actual_time).total_seconds()) <= tolerance_seconds
+
+
+def _tdarr_matrix_background_process_state(
+    runs_root: Path,
+    run_id: str,
+    *,
+    psutil_module: Any | None = None,
+) -> dict[str, Any]:
+    if psutil_module is None:
+        psutil_module = psutil
+    metadata_path = _tdarr_matrix_background_process_metadata_path(runs_root, run_id)
+    metadata = _tdarr_matrix_read_json(metadata_path)
+    pid = _int_value(metadata.get("pid"))
+    if pid <= 0:
+        return {
+            "live": False,
+            "reason": "missing_background_pid",
+            "pid": 0,
+            "metadata_path": str(metadata_path),
+        }
+    expected_start = str(metadata.get("process_start_time") or "")
+    if not expected_start:
+        return {
+            "live": False,
+            "reason": "missing_process_start_time",
+            "pid": pid,
+            "metadata_path": str(metadata_path),
+        }
+    if psutil_module is None:
+        return {
+            "live": False,
+            "reason": "process_liveness_unavailable",
+            "pid": pid,
+            "metadata_path": str(metadata_path),
+        }
+    try:
+        process = psutil_module.Process(pid)
+        alive = bool(process.is_running()) and process.status() != psutil_module.STATUS_ZOMBIE
+    except psutil_module.NoSuchProcess:
+        return {
+            "live": False,
+            "reason": "process_not_found",
+            "pid": pid,
+            "metadata_path": str(metadata_path),
+        }
+    except Exception as exc:
+        return {
+            "live": False,
+            "reason": f"process_liveness_check_failed: {exc}",
+            "pid": pid,
+            "metadata_path": str(metadata_path),
+        }
+    if not alive:
+        return {
+            "live": False,
+            "reason": "process_not_running",
+            "pid": pid,
+            "metadata_path": str(metadata_path),
+        }
+    actual_start = _tdarr_matrix_process_start_time_text(pid, psutil_module=psutil_module)
+    if not actual_start or not _tdarr_matrix_timestamp_matches(expected_start, actual_start):
+        return {
+            "live": False,
+            "reason": "pid_identity_mismatch",
+            "pid": pid,
+            "metadata_path": str(metadata_path),
+        }
+    return {
+        "live": True,
+        "reason": "",
+        "pid": pid,
+        "metadata_path": str(metadata_path),
+        "process_start_time": expected_start,
+    }
+
+
+def tdarr_matrix_incomplete_full_run_evidence(
+    runs_root: Path,
+    *,
+    selected_count: int,
+    psutil_module: Any | None = None,
+) -> dict[str, Any]:
+    if psutil_module is None:
+        psutil_module = psutil
     if not runs_root.exists():
-        return None
-    candidates: list[Path] = []
+        return {"active": None, "stale": None}
+    active_candidates: list[tuple[Path, dict[str, Any]]] = []
+    stale_candidates: list[tuple[Path, dict[str, Any]]] = []
     for child in runs_root.iterdir():
         if not child.is_dir() or child.name == "_background":
             continue
         if _tdarr_matrix_report_path(child).exists():
             continue
         sentinel = _tdarr_matrix_run_sentinel(child)
-        if _int_value(sentinel.get("selected_count")) >= selected_count:
-            candidates.append(child)
-    if not candidates:
-        return None
-    candidates.sort(key=lambda path: path.stat().st_mtime, reverse=True)
-    return candidates[0]
+        if _int_value(sentinel.get("selected_count")) < selected_count:
+            continue
+        process_state = _tdarr_matrix_background_process_state(
+            runs_root,
+            child.name,
+            psutil_module=psutil_module,
+        )
+        if bool(process_state.get("live")):
+            active_candidates.append((child, process_state))
+        else:
+            stale_candidates.append((child, process_state))
+    if active_candidates:
+        active_candidates.sort(key=lambda item: item[0].stat().st_mtime, reverse=True)
+        return {"active": active_candidates[0][0], "active_process": active_candidates[0][1], "stale": None}
+    if stale_candidates:
+        stale_candidates.sort(key=lambda item: item[0].stat().st_mtime, reverse=True)
+        return {"active": None, "stale": stale_candidates[0][0], "stale_process": stale_candidates[0][1]}
+    return {"active": None, "stale": None}
+
+
+def tdarr_matrix_incomplete_full_run(runs_root: Path, *, selected_count: int) -> Path | None:
+    evidence = tdarr_matrix_incomplete_full_run_evidence(runs_root, selected_count=selected_count)
+    active = evidence.get("active")
+    return active if isinstance(active, Path) else None
 
 
 def tdarr_matrix_default_entrypoint(workspace_root: Path) -> Path:
@@ -193,12 +392,33 @@ def tdarr_matrix_audit_arguments(
     library_root: Path,
     powershell: str,
     entrypoint: Path,
+    runs_root: Path | None = None,
     case_keys: list[str] | tuple[str, ...] | None = None,
     run_id: str = "",
+    confirm_delete_full_matrix: bool = False,
 ) -> list[str]:
     preset = tdarr_matrix_audit_preset(action)
     if preset is None:
         raise ValueError(f"Unsupported Tdarr Matrix audit action: {action}")
+    mode = str(preset["mode"])
+    if mode == "proof-pack-materialize":
+        return [
+            "materialize",
+            "--proof-root",
+            str(library_root),
+        ]
+    if mode == "proof-pack-cleanup":
+        args = [
+            "cleanup",
+            "--proof-root",
+            str(library_root),
+            "--action",
+            str(preset.get("cleanup_action") or "plan"),
+        ]
+        if str(preset.get("cleanup_action") or "") == "delete" and confirm_delete_full_matrix:
+            args.append("--confirm-delete-full-matrix")
+        return args
+
     args = [
         str(preset["mode"]),
         "--library-root",
@@ -210,7 +430,7 @@ def tdarr_matrix_audit_arguments(
         "--prepare-timeout-seconds",
         str(int(preset["prepare_timeout_seconds"])),
     ]
-    if preset["mode"] == "report":
+    if mode == "report":
         args.append("--prepare-evidence")
         if preset.get("hash_sources"):
             args.append("--hash-sources")
@@ -221,17 +441,23 @@ def tdarr_matrix_audit_arguments(
                 str(int(preset["sample_timeout_seconds"])),
             ]
         )
-        if bool(preset.get("all_samples")):
+        if runs_root is not None:
+            args.extend(["--runs-root", str(runs_root)])
+        requested_case_keys = list(case_keys or ())
+        if not requested_case_keys and preset.get("case_pack"):
+            requested_case_keys = list(tdarr_case_keys_for_pack(str(preset["case_pack"])))
+        if requested_case_keys:
+            for case_key in requested_case_keys:
+                text = str(case_key or "").strip()
+                if text:
+                    args.extend(["--case-key", text])
+        elif bool(preset.get("all_samples")):
             args.append("--all-samples")
         else:
             args.extend(["--samples-per-bucket", str(int(preset["samples_per_bucket"]))])
         run_id_text = str(run_id or "").strip()
         if run_id_text:
             args.extend(["--run-id", run_id_text])
-        for case_key in case_keys or ():
-            text = str(case_key or "").strip()
-            if text:
-                args.extend(["--case-key", text])
     if bool(preset["report_only"]):
         args.append("--report-only")
     return args
@@ -333,10 +559,11 @@ def tdarr_matrix_audit_progress_payload(result: dict[str, Any]) -> dict[str, Any
     timed_out = bool(result.get("timed_out"))
     background_started = bool(result.get("background_started"))
     already_running = bool(result.get("already_running"))
+    stale_incomplete_run = bool(result.get("stale_incomplete_run"))
     action = str(result.get("action") or "")
     mode = str(result.get("mode") or "")
     finding_count = _int_value(result.get("finding_count"))
-    status = "active" if background_started or already_running else "complete" if success and finding_count == 0 else "warning" if success else "blocked" if timed_out else "error"
+    status = "active" if background_started or already_running else "complete" if success and finding_count == 0 else "warning" if success else "blocked" if timed_out or stale_incomplete_run else "error"
     detail = (
         f"{result.get('label') or 'Tdarr Matrix audit'} started in background as {result.get('run_id') or 'a new run'}."
         if background_started
@@ -347,6 +574,8 @@ def tdarr_matrix_audit_progress_payload(result: dict[str, Any]) -> dict[str, Any
         if success
         else f"{result.get('label') or 'Tdarr Matrix audit'} timed out."
         if timed_out
+        else f"{result.get('label') or 'Tdarr Matrix audit'} found a stale incomplete run that requires review: {result.get('stale_reason') or 'unknown'}."
+        if stale_incomplete_run
         else f"{result.get('label') or 'Tdarr Matrix audit'} failed with exit {_int_value(result.get('returncode'))}."
     )
     run_samples = mode == "run-samples"
@@ -354,13 +583,13 @@ def tdarr_matrix_audit_progress_payload(result: dict[str, Any]) -> dict[str, Any
         {
             "key": "prepare",
             "label": "Prepare Evidence",
-            "status": "active" if background_started or already_running else "complete" if success else "blocked" if timed_out else "error",
+            "status": "active" if background_started or already_running else "complete" if success else "blocked" if timed_out or stale_incomplete_run else "error",
             "detail": f"Action {action}; report-only={bool(result.get('report_only'))}.",
         },
         {
             "key": "samples",
             "label": "Sample Processing",
-            "status": "active" if already_running else "pending" if background_started else "complete" if success and run_samples else "skipped" if not run_samples else "blocked" if timed_out else "error",
+            "status": "active" if already_running else "pending" if background_started else "complete" if success and run_samples else "skipped" if not run_samples else "blocked" if timed_out or stale_incomplete_run else "error",
             "detail": (
                 f"Selected {result.get('selected_count') or 0} generated source path(s)."
                 if run_samples
@@ -370,7 +599,7 @@ def tdarr_matrix_audit_progress_payload(result: dict[str, Any]) -> dict[str, Any
         {
             "key": "report",
             "label": "Audit Report",
-            "status": "pending" if background_started or already_running else "complete" if success and result.get("report_path") else "blocked" if success else "blocked" if timed_out else "error",
+            "status": "pending" if background_started or already_running else "complete" if success and result.get("report_path") else "blocked" if success else "blocked" if timed_out or stale_incomplete_run else "error",
             "detail": f"Report: {result.get('report_path') or 'not written'}",
         },
     ]
@@ -522,7 +751,13 @@ class TdarrMatrixAuditServiceMixin:
                 return candidate
         return Path(sys.executable)
 
-    def run_tdarr_matrix_audit(self, *, action: str, case_keys: list[str] | tuple[str, ...] | None = None) -> dict[str, Any]:
+    def run_tdarr_matrix_audit(
+        self,
+        *,
+        action: str,
+        case_keys: list[str] | tuple[str, ...] | None = None,
+        confirm_delete_full_matrix: bool = False,
+    ) -> dict[str, Any]:
         preset = tdarr_matrix_audit_preset(action)
         if preset is None:
             raise ValueError(f"Unsupported Tdarr Matrix audit action: {action}")
@@ -532,23 +767,35 @@ class TdarrMatrixAuditServiceMixin:
         runs_root = tdarr_matrix_default_runs_root(workspace_root)
         entrypoint = tdarr_matrix_default_entrypoint(workspace_root)
         python_path = self.tdarr_matrix_audit_python_path()
+        tool_module = str(preset.get("tool_module") or TDARR_MATRIX_AUDIT_TOOL_MODULE)
         if not runner.exists():
             return self._tdarr_matrix_missing_result(preset, runner, library_root)
         manifest_path = library_root / "manifests" / "materialized_library.csv"
-        if not manifest_path.exists():
+        if str(preset.get("mode") or "") in {"report", "run-samples"} and not manifest_path.exists():
             return self._tdarr_matrix_missing_library_result(preset, library_root, manifest_path)
         powershell = self._tdarr_matrix_powershell_host()
         background = bool(preset.get("background"))
         if background:
-            existing = tdarr_matrix_incomplete_full_run(
+            existing_evidence = tdarr_matrix_incomplete_full_run_evidence(
                 runs_root,
                 selected_count=_int_value(preset.get("sample_count_hint")),
+                psutil_module=psutil,
             )
+            existing = existing_evidence.get("active")
             if existing is not None:
                 return self._tdarr_matrix_existing_full_run_result(
                     preset=preset,
                     library_root=library_root,
                     run_root=existing,
+                    process_state=existing_evidence.get("active_process") if isinstance(existing_evidence, dict) else None,
+                )
+            stale = existing_evidence.get("stale") if isinstance(existing_evidence, dict) else None
+            if stale is not None:
+                return self._tdarr_matrix_stale_full_run_result(
+                    preset=preset,
+                    library_root=library_root,
+                    run_root=stale,
+                    process_state=existing_evidence.get("stale_process") if isinstance(existing_evidence, dict) else None,
                 )
         run_id = tdarr_matrix_background_run_id(str(preset["action"]), runs_root) if background else ""
         audit_args = tdarr_matrix_audit_arguments(
@@ -556,13 +803,15 @@ class TdarrMatrixAuditServiceMixin:
             library_root=library_root,
             powershell=powershell,
             entrypoint=entrypoint,
+            runs_root=runs_root,
             case_keys=case_keys,
             run_id=run_id,
+            confirm_delete_full_matrix=confirm_delete_full_matrix,
         )
         args = [
             str(python_path),
             str(runner),
-            TDARR_MATRIX_AUDIT_TOOL_MODULE,
+            tool_module,
             *audit_args,
         ]
         command_line = subprocess.list2cmdline(args)
@@ -654,12 +903,30 @@ class TdarrMatrixAuditServiceMixin:
             stderr_handle.close()
         run_root = runs_root / run_id
         audit_dir = run_root / "manifests" / "audit"
+        pid = int(getattr(proc, "pid", 0) or 0)
+        process_start_time = _tdarr_matrix_process_start_time_text(pid, psutil_module=psutil)
+        process_metadata = {
+            "schema_version": "tdarr_matrix_background_process.v1",
+            "run_id": run_id,
+            "pid": pid,
+            "process_start_time": process_start_time,
+            "started_at": datetime.now(timezone.utc).isoformat(),
+            "stdout_path": str(stdout_path),
+            "stderr_path": str(stderr_path),
+        }
+        try:
+            _tdarr_matrix_background_process_metadata_path(runs_root, run_id).write_text(
+                json.dumps(process_metadata, indent=2, sort_keys=True) + "\n",
+                encoding="utf-8",
+            )
+        except OSError:
+            pass
         return {
             "success": True,
             "timed_out": False,
             "background_started": True,
             "returncode": 0,
-            "pid": int(getattr(proc, "pid", 0) or 0),
+            "pid": pid,
             "run_id": run_id,
             "command": command_line,
             "stdout": f"Background stdout: {stdout_path}",
@@ -673,15 +940,23 @@ class TdarrMatrixAuditServiceMixin:
             **preset,
         }
 
-    def _tdarr_matrix_existing_full_run_result(self, *, preset: dict[str, Any], library_root: Path, run_root: Path) -> dict[str, Any]:
+    def _tdarr_matrix_existing_full_run_result(
+        self,
+        *,
+        preset: dict[str, Any],
+        library_root: Path,
+        run_root: Path,
+        process_state: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         run_id = run_root.name
         audit_dir = run_root / "manifests" / "audit"
+        process_state = process_state or {}
         return {
             "success": True,
             "timed_out": False,
             "already_running": True,
             "returncode": 0,
-            "pid": 0,
+            "pid": _int_value(process_state.get("pid")),
             "run_id": run_id,
             "command": "",
             "stdout": "",
@@ -692,6 +967,40 @@ class TdarrMatrixAuditServiceMixin:
             "report_path": str(audit_dir / "tdarr_matrix_audit_report.json"),
             "selected_count": _int_value(preset.get("sample_count_hint")),
             "finding_count": 0,
+            **preset,
+        }
+
+    def _tdarr_matrix_stale_full_run_result(
+        self,
+        *,
+        preset: dict[str, Any],
+        library_root: Path,
+        run_root: Path,
+        process_state: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        run_id = run_root.name
+        audit_dir = run_root / "manifests" / "audit"
+        process_state = process_state or {}
+        stale_reason = str(process_state.get("reason") or "stale_incomplete_run")
+        return {
+            "success": False,
+            "timed_out": False,
+            "already_running": False,
+            "stale_incomplete_run": True,
+            "stale_reason": stale_reason,
+            "returncode": 2,
+            "pid": _int_value(process_state.get("pid")),
+            "run_id": run_id,
+            "command": "",
+            "stdout": "",
+            "stderr": f"Stale Tdarr Proof Pack run requires review before another proof run starts: {stale_reason}",
+            "elapsed_seconds": 0.0,
+            "library_root": str(library_root),
+            "run_root": str(run_root),
+            "report_path": str(audit_dir / "tdarr_matrix_audit_report.json"),
+            "selected_count": _int_value(preset.get("sample_count_hint")),
+            "finding_count": 0,
+            "process_metadata_path": str(process_state.get("metadata_path") or ""),
             **preset,
         }
 
@@ -710,8 +1019,7 @@ class TdarrMatrixAuditServiceMixin:
 
     def _tdarr_matrix_missing_library_result(self, preset: dict[str, Any], library_root: Path, manifest_path: Path) -> dict[str, Any]:
         guidance = (
-            "python -m mediapipeline.tools.dev.materialize_tdarr_test_library "
-            "--write-config --rebuild"
+            "python -m mediapipeline.tools.dev.tdarr_proof_pack materialize"
         )
         return {
             "success": False,
@@ -720,7 +1028,7 @@ class TdarrMatrixAuditServiceMixin:
             "command": "",
             "stdout": "",
             "stderr": (
-                f"Tdarr Matrix test library is not materialized (missing {manifest_path}). "
+                f"Tdarr Proof Pack is not materialized (missing {manifest_path}). "
                 f"Generate it first, then re-run this audit: {guidance}"
             ),
             "elapsed_seconds": 0.0,
@@ -767,6 +1075,7 @@ __all__ = [
     "TDARR_MATRIX_AUDIT_FINDINGS_PREVIEW_LIMIT",
     "TdarrMatrixAuditServiceMixin",
     "tdarr_matrix_background_run_id",
+    "tdarr_matrix_incomplete_full_run_evidence",
     "tdarr_matrix_incomplete_full_run",
     "normalize_tdarr_matrix_audit_action",
     "tdarr_matrix_audit_arguments",

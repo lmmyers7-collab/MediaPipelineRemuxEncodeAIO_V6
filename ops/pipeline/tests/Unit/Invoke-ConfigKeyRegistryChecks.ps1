@@ -226,6 +226,7 @@ foreach ($enumPolicy in @(
     @{ Key = 'VideoCodec'; Values = @(Get-MediaPipelineVideoCodecNames) },
     @{ Key = 'VideoPreset'; Values = @(Get-MediaPipelineVideoPresetNames) },
     @{ Key = 'OutputContainer'; Values = @(Get-MediaPipelineOutputContainerNames) },
+    @{ Key = 'DynamicHdrPolicy'; Values = @(Get-MediaPipelineDynamicHdrPolicyNames) },
     @{ Key = 'EncodeTuningPreset'; Values = @(Get-MediaPipelineEncodeTuningPresetNames) },
     @{ Key = 'EncodeLadder'; Values = @(Get-MediaPipelineEncodeLadderNames) },
     @{ Key = 'RoutingProfile'; Values = @(Get-MediaPipelineRoutingProfileNames) },
@@ -256,6 +257,22 @@ if (-not [bool]$strictDefaultSchemaCheck.Ok) {
     throw "PowerShell default config failed schema validation under StrictMode: $(@($strictDefaultSchemaCheck.Errors) -join '; ')"
 }
 
+foreach ($relativeRoot in @(
+    @{ Key = 'SourceMovies'; Value = 'Movies' },
+    @{ Key = 'SourceTV'; Value = 'TV' },
+    @{ Key = 'Outsource'; Value = 'Out' },
+    @{ Key = 'LocalBase'; Value = 'Scratch' }
+)) {
+    $relativeRootConfig = Get-MediaPipelineConfigDefaultValues
+    $relativeRootConfig[[string]$relativeRoot.Key] = [string]$relativeRoot.Value
+    $relativeRootCheck = Test-MediaPipelineConfigSchema -Config $relativeRootConfig
+    $relativeRootErrors = @($relativeRootCheck.Errors) -join "`n"
+    $expectedRelativeRootError = "$($relativeRoot.Key) must be an absolute path."
+    if ([bool]$relativeRootCheck.Ok -or $relativeRootErrors -notmatch [regex]::Escape($expectedRelativeRootError)) {
+        throw "PowerShell schema must reject relative $($relativeRoot.Key) root."
+    }
+}
+
 $zeroAudioBitrateConfig = Get-MediaPipelineConfigDefaultValues
 $zeroAudioBitrateConfig['AudioTranscodeBitrate'] = '0k'
 $zeroAudioBitrateCheck = Test-MediaPipelineConfigSchema -Config $zeroAudioBitrateConfig
@@ -270,6 +287,45 @@ if ([string]$audioBitrateSchema.pattern -ne '^[1-9]\d*k$') {
 
 $vobSubOcrToolDefault = 'tools\SubtitleEditLegacy\SubtitleEdit.exe'
 $powershellDefaults = Get-MediaPipelineConfigDefaultValues
+$defaultProfileConfig = Import-PowerShellDataFile -Path (Join-Path $repoRoot 'ops\pipeline\config\profiles\Default.psd1')
+$expectedDefaultRoots = [ordered]@{
+    SourceMovies = 'C:\MediaPipeline\Incoming\Movies'
+    SourceTV = 'C:\MediaPipeline\Incoming\TV'
+    Outsource = 'C:\MediaPipeline\Processed'
+    LocalBase = 'C:\MediaPipeline\Scratch'
+}
+foreach ($rootPair in $expectedDefaultRoots.GetEnumerator()) {
+    $key = [string]$rootPair.Key
+    $expected = [string]$rootPair.Value
+    $jsonDefault = [string](Get-JsonSchemaProperty -Key $key).default
+    if ([string]$powershellDefaults[$key] -ne $expected) {
+        throw "PowerShell default $key drifted. Actual='$($powershellDefaults[$key])' Expected='$expected'"
+    }
+    if ([string]$templateConfig[$key] -ne $expected) {
+        throw "Template default $key drifted. Actual='$($templateConfig[$key])' Expected='$expected'"
+    }
+    if ([string]$defaultProfileConfig[$key] -ne $expected) {
+        throw "Default profile $key drifted. Actual='$($defaultProfileConfig[$key])' Expected='$expected'"
+    }
+    if ($jsonDefault -ne $expected) {
+        throw "JSON schema default $key drifted. Actual='$jsonDefault' Expected='$expected'"
+    }
+}
+$expectedProfileDefaults = @{
+    movies = @{ source_path = $expectedDefaultRoots['SourceMovies']; output_path = $expectedDefaultRoots['Outsource'] }
+    tv = @{ source_path = $expectedDefaultRoots['SourceTV']; output_path = $expectedDefaultRoots['Outsource'] }
+}
+foreach ($profile in @($powershellDefaults['LibraryProfiles'])) {
+    $profileId = [string]$profile['id']
+    if (-not $expectedProfileDefaults.ContainsKey($profileId)) { continue }
+    foreach ($fieldName in @('source_path', 'output_path')) {
+        $actual = [string]$profile[$fieldName]
+        $expected = [string]$expectedProfileDefaults[$profileId][$fieldName]
+        if ($actual -ne $expected) {
+            throw "PowerShell default LibraryProfiles[$profileId].$fieldName drifted. Actual='$actual' Expected='$expected'"
+        }
+    }
+}
 if ([string]$powershellDefaults['VobSubOcrToolPath'] -ne $vobSubOcrToolDefault) {
     throw "PowerShell VobSubOcrToolPath default drifted. Actual='$($powershellDefaults['VobSubOcrToolPath'])' Expected='$vobSubOcrToolDefault'"
 }

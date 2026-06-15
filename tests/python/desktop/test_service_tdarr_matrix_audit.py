@@ -7,6 +7,7 @@ import sys
 import tempfile
 import threading
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
@@ -22,10 +23,12 @@ from mediapipeline.core.diagnostics.tdarr_matrix_audit import (  # noqa: E402
     TDARR_MATRIX_AUDIT_RUNNER_TIMEOUT_MARGIN_SECONDS,
     TdarrMatrixAuditServiceMixin,
     tdarr_matrix_audit_arguments,
+    tdarr_matrix_default_library_root,
     tdarr_matrix_audit_invalid_action_result,
     tdarr_matrix_audit_preset,
     tdarr_matrix_audit_result,
     tdarr_matrix_audit_runner_timeout,
+    tdarr_matrix_incomplete_full_run_evidence,
     tdarr_matrix_incomplete_full_run,
 )
 from mediapipeline.core.diagnostics.tdarr_matrix_audit_facade import (  # noqa: E402
@@ -36,7 +39,13 @@ from mediapipeline.core.diagnostics.tdarr_matrix_console import (  # noqa: E402
     tdarr_matrix_compare_runs_payload,
     tdarr_matrix_console_payload,
     tdarr_matrix_evidence_open_result,
+    tdarr_matrix_library_root,
     tdarr_matrix_rerun_case_keys,
+    tdarr_matrix_runs_root,
+)
+from mediapipeline.core.diagnostics.tdarr_matrix_proof import (  # noqa: E402
+    tdarr_case_keys_for_pack,
+    tdarr_expected_manifest_count,
 )
 
 
@@ -70,7 +79,7 @@ def _successful_runner_payload() -> dict[str, object]:
         "returncode": 0,
         "action": "report",
         "mode": "report",
-        "label": "Prepare Tdarr Matrix Audit Report",
+        "label": "Prepare Tdarr Proof Pack Audit Report",
         "report_only": True,
         "manifest_count": 1,
         "finding_count": 0,
@@ -141,7 +150,7 @@ def _write_fake_tdarr_run(
     findings: list[dict[str, object]],
     rows: list[dict[str, str]] | None = None,
 ) -> Path:
-    run_root = workspace_root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns" / run_id
+    run_root = tdarr_matrix_runs_root(workspace_root) / run_id
     manifest_dir = run_root / "manifests"
     audit_dir = manifest_dir / "audit"
     audit_dir.mkdir(parents=True, exist_ok=True)
@@ -184,6 +193,17 @@ def _write_fake_tdarr_run(
     return run_root
 
 
+def _write_proof_manifest(workspace_root: Path, rows: list[dict[str, str]]) -> Path:
+    proof_root = tdarr_matrix_library_root(workspace_root)
+    manifest_path = proof_root / "manifests" / "materialized_library.csv"
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    with manifest_path.open("w", newline="", encoding="utf-8") as handle:
+        writer = csv.DictWriter(handle, fieldnames=MANIFEST_FIELDNAMES)
+        writer.writeheader()
+        writer.writerows(rows)
+    return manifest_path
+
+
 def _finding(
     *,
     case_id: str = "tdarr-0001",
@@ -216,9 +236,16 @@ def _finding(
 
 class TdarrMatrixAuditServiceTests(unittest.TestCase):
     def test_argument_presets_are_backend_owned(self) -> None:
-        library_root = Path("C:/Repo/LocalBase/Scratch/TestLibraries/TdarrMatrix")
+        library_root = Path("C:/Repo/LocalBase/Scratch/TestLibraries/TdarrProofPack")
+        runs_root = Path("C:/Repo/LocalBase/Scratch/TestLibraries/TdarrProofPack/runs")
         entrypoint = Path("C:/Repo/ops/pipeline/entrypoints/MediaPipeline.ps1")
 
+        prepare = tdarr_matrix_audit_arguments(
+            action="prepare-proof-pack",
+            library_root=library_root,
+            powershell="pwsh",
+            entrypoint=entrypoint,
+        )
         report = tdarr_matrix_audit_arguments(
             action="report",
             library_root=library_root,
@@ -226,23 +253,19 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
             entrypoint=entrypoint,
         )
         smoke = tdarr_matrix_audit_arguments(
-            action="smoke",
+            action="smoke-pack",
             library_root=library_root,
+            runs_root=runs_root,
             powershell="pwsh",
             entrypoint=entrypoint,
         )
-        matrix = tdarr_matrix_audit_arguments(
-            action="matrix",
+        proof = tdarr_matrix_audit_arguments(
+            action="proof-pack",
             library_root=library_root,
+            runs_root=runs_root,
             powershell="pwsh",
             entrypoint=entrypoint,
-        )
-        full = tdarr_matrix_audit_arguments(
-            action="full",
-            library_root=library_root,
-            powershell="pwsh",
-            entrypoint=entrypoint,
-            run_id="run-20260608-000000-full",
+            run_id="run-20260608-000000-proof-pack",
         )
         strict = tdarr_matrix_audit_arguments(
             action="strict-report",
@@ -250,39 +273,48 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
             powershell="pwsh",
             entrypoint=entrypoint,
         )
+        cleanup_delete = tdarr_matrix_audit_arguments(
+            action="cleanup-delete",
+            library_root=library_root,
+            powershell="pwsh",
+            entrypoint=entrypoint,
+            confirm_delete_full_matrix=True,
+        )
 
+        self.assertEqual(prepare, ["materialize", "--proof-root", str(library_root)])
         self.assertEqual(report[0], "report")
         self.assertIn("--prepare-evidence", report)
         self.assertIn("--report-only", report)
         self.assertEqual(smoke[0], "run-samples")
-        self.assertEqual(smoke[smoke.index("--samples-per-bucket") + 1], "1")
+        self.assertEqual(smoke.count("--case-key"), tdarr_expected_manifest_count("smoke-pack"))
+        self.assertIn("tdarr-0002:movies", smoke)
+        self.assertIn("tdarr-0063:tv", smoke)
+        self.assertIn(str(runs_root), smoke)
+        self.assertNotIn("--samples-per-bucket", smoke)
         self.assertEqual(smoke[smoke.index("--sample-timeout-seconds") + 1], "900")
         self.assertIn("--report-only", smoke)
-        self.assertEqual(matrix[matrix.index("--samples-per-bucket") + 1], "5")
-        self.assertEqual(matrix[matrix.index("--sample-timeout-seconds") + 1], "1800")
-        self.assertIn("--all-samples", full)
-        self.assertEqual(full[full.index("--run-id") + 1], "run-20260608-000000-full")
-        self.assertNotIn("--samples-per-bucket", full)
-        self.assertEqual(full[full.index("--sample-timeout-seconds") + 1], "1800")
+        self.assertEqual(proof.count("--case-key"), tdarr_expected_manifest_count("proof-pack"))
+        self.assertIn("tdarr-2125:tv", proof)
+        self.assertNotIn("--all-samples", proof)
+        self.assertNotIn("--samples-per-bucket", proof)
+        self.assertEqual(proof[proof.index("--run-id") + 1], "run-20260608-000000-proof-pack")
+        self.assertEqual(proof[proof.index("--sample-timeout-seconds") + 1], "1800")
+        self.assertEqual(cleanup_delete, ["cleanup", "--proof-root", str(library_root), "--action", "delete", "--confirm-delete-full-matrix"])
         self.assertNotIn("--report-only", strict)
-        # G8: report/strict verify source hashes; run-samples already hashes and the flag is
-        # not valid on that subparser, so it must not be passed for smoke/matrix.
         self.assertIn("--hash-sources", report)
         self.assertIn("--hash-sources", strict)
         self.assertNotIn("--hash-sources", smoke)
-        self.assertNotIn("--hash-sources", matrix)
-        self.assertNotIn("--hash-sources", full)
+        self.assertNotIn("--hash-sources", proof)
 
-    def test_service_invokes_run_python_tool_with_fixed_scratch_library(self) -> None:
+    def test_report_service_invokes_run_python_tool_with_fixed_proof_library(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runner = root / "ops" / "scripts" / "dev" / "run-python-tool.py"
             runner.parent.mkdir(parents=True)
             runner.write_text("# runner\n", encoding="utf-8")
             (root / "src").mkdir()
-            manifest = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix" / "manifests" / "materialized_library.csv"
-            manifest.parent.mkdir(parents=True)
-            manifest.write_text("schema_version\n", encoding="utf-8")
+            library_root = tdarr_matrix_default_library_root(root)
+            _write_proof_manifest(root, [_manifest_row(root, case_id="tdarr-0002", view="movies", bucket="audio-only")])
             harness = _Harness(root)
             calls: list[dict[str, object]] = []
 
@@ -292,8 +324,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                     returncode=0,
                     stdout=json.dumps(
                         {
-                            "run_root": str(root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns" / "run-1"),
-                            "selected_count": 6,
+                            "manifest_count": 1,
                             "finding_count": 0,
                             "report_path": str(root / "report.json"),
                         }
@@ -304,33 +335,30 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 )
 
             with patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.run_capture", fake_run_capture):
-                result = harness.run_tdarr_matrix_audit(action="smoke")
+                result = harness.run_tdarr_matrix_audit(action="report")
 
-        self.assertEqual(result["selected_count"], 6)
+        self.assertEqual(result["manifest_count"], 1)
         call = calls[0]
         args = call["args"]
         kwargs = call["kwargs"]
         self.assertIsInstance(args, list)
         self.assertEqual(Path(args[1]), runner)
         self.assertEqual(args[2], "mediapipeline.tools.dev.tdarr_matrix_audit")
-        self.assertIn("run-samples", args)
+        self.assertIn("report", args)
         self.assertIn("--report-only", args)
-        self.assertIn(str(root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix"), args)
+        self.assertIn(str(library_root), args)
         self.assertEqual(kwargs["cwd"], str(root))
-        # Derived runner timeout (G1): prepare 3*600 + samples 1*6*900 + 300 margin.
-        self.assertEqual(kwargs["timeout_seconds"], 7500)
+        self.assertEqual(kwargs["timeout_seconds"], 5700)
         self.assertTrue(str(root / "src") in str(kwargs["env"]["PYTHONPATH"]))
 
-    def test_full_service_starts_background_run_without_capture(self) -> None:
+    def test_proof_pack_service_starts_background_run_without_capture(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runner = root / "ops" / "scripts" / "dev" / "run-python-tool.py"
             runner.parent.mkdir(parents=True)
             runner.write_text("# runner\n", encoding="utf-8")
             (root / "src").mkdir()
-            manifest = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix" / "manifests" / "materialized_library.csv"
-            manifest.parent.mkdir(parents=True)
-            manifest.write_text("schema_version\n", encoding="utf-8")
+            _write_proof_manifest(root, [_manifest_row(root, case_id="tdarr-0002", view="movies", bucket="audio-only")])
             harness = _Harness(root)
             calls: list[dict[str, object]] = []
 
@@ -345,38 +373,37 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.run_capture") as mock_capture,
                 patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.subprocess.Popen", fake_popen),
             ):
-                result = harness.run_tdarr_matrix_audit(action="full")
+                result = harness.run_tdarr_matrix_audit(action="proof-pack")
 
         mock_capture.assert_not_called()
         self.assertTrue(result["success"])
         self.assertTrue(result["background_started"])
         self.assertEqual(result["pid"], 4321)
-        self.assertEqual(result["selected_count"], 4632)
-        self.assertIn("-full", result["run_id"])
+        self.assertEqual(result["selected_count"], tdarr_expected_manifest_count("proof-pack"))
+        self.assertIn("-proof-pack", result["run_id"])
         call = calls[0]
         args = call["args"]
         kwargs = call["kwargs"]
-        self.assertIn("--all-samples", args)
+        self.assertNotIn("--all-samples", args)
+        self.assertEqual(args.count("--case-key"), tdarr_expected_manifest_count("proof-pack"))
         self.assertIn("--run-id", args)
         self.assertEqual(args[args.index("--run-id") + 1], result["run_id"])
         self.assertEqual(kwargs["cwd"], str(root))
         self.assertEqual(kwargs["stdin"], subprocess.DEVNULL)
         self.assertTrue(str(root / "src") in str(kwargs["env"]["PYTHONPATH"]))
 
-    def test_full_service_reuses_incomplete_full_run_without_duplicate_launch(self) -> None:
+    def test_proof_pack_service_blocks_stale_incomplete_run_without_pid_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             runner = root / "ops" / "scripts" / "dev" / "run-python-tool.py"
             runner.parent.mkdir(parents=True)
             runner.write_text("# runner\n", encoding="utf-8")
             (root / "src").mkdir()
-            manifest = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix" / "manifests" / "materialized_library.csv"
-            manifest.parent.mkdir(parents=True)
-            manifest.write_text("schema_version\n", encoding="utf-8")
-            run_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns" / "run-existing-full"
+            _write_proof_manifest(root, [_manifest_row(root, case_id="tdarr-0002", view="movies", bucket="audio-only")])
+            run_root = tdarr_matrix_runs_root(root) / "run-existing-proof-pack"
             run_root.mkdir(parents=True)
             (run_root / ".tdarr-matrix-audit-run.json").write_text(
-                json.dumps({"schema_version": "tdarr_matrix_audit.v1", "selected_count": 4632}),
+                json.dumps({"schema_version": "tdarr_matrix_audit.v1", "selected_count": tdarr_expected_manifest_count("proof-pack")}),
                 encoding="utf-8",
             )
             harness = _Harness(root)
@@ -385,16 +412,94 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.run_capture") as mock_capture,
                 patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.subprocess.Popen") as mock_popen,
             ):
-                result = harness.run_tdarr_matrix_audit(action="full")
+                result = harness.run_tdarr_matrix_audit(action="proof-pack")
 
-            detected = tdarr_matrix_incomplete_full_run(run_root.parent, selected_count=4632)
+            detected = tdarr_matrix_incomplete_full_run(run_root.parent, selected_count=tdarr_expected_manifest_count("proof-pack"))
+            evidence = tdarr_matrix_incomplete_full_run_evidence(run_root.parent, selected_count=tdarr_expected_manifest_count("proof-pack"))
+
+        mock_capture.assert_not_called()
+        mock_popen.assert_not_called()
+        self.assertIsNone(detected)
+        self.assertEqual(evidence["stale"], run_root)
+        self.assertFalse(result["success"])
+        self.assertFalse(result["already_running"])
+        self.assertTrue(result["stale_incomplete_run"])
+        self.assertEqual(result["stale_reason"], "missing_background_pid")
+        self.assertEqual(result["run_id"], "run-existing-proof-pack")
+        from mediapipeline.core.diagnostics.tdarr_matrix_audit import tdarr_matrix_audit_progress_payload
+
+        self.assertEqual(tdarr_matrix_audit_progress_payload(result)["status"], "blocked")
+
+    def test_proof_pack_service_reuses_live_incomplete_run_without_duplicate_launch(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            runner = root / "ops" / "scripts" / "dev" / "run-python-tool.py"
+            runner.parent.mkdir(parents=True)
+            runner.write_text("# runner\n", encoding="utf-8")
+            (root / "src").mkdir()
+            _write_proof_manifest(root, [_manifest_row(root, case_id="tdarr-0002", view="movies", bucket="audio-only")])
+            runs_root = tdarr_matrix_runs_root(root)
+            run_root = runs_root / "run-existing-proof-pack"
+            run_root.mkdir(parents=True)
+            (run_root / ".tdarr-matrix-audit-run.json").write_text(
+                json.dumps({"schema_version": "tdarr_matrix_audit.v1", "selected_count": tdarr_expected_manifest_count("proof-pack")}),
+                encoding="utf-8",
+            )
+            process_start = datetime.fromtimestamp(12345.0, timezone.utc).isoformat()
+            metadata_dir = runs_root / "_background"
+            metadata_dir.mkdir()
+            (metadata_dir / "run-existing-proof-pack.process.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "tdarr_matrix_background_process.v1",
+                        "run_id": "run-existing-proof-pack",
+                        "pid": 4321,
+                        "process_start_time": process_start,
+                    }
+                ),
+                encoding="utf-8",
+            )
+            harness = _Harness(root)
+
+            class FakeProcess:
+                def is_running(self) -> bool:
+                    return True
+
+                def status(self) -> str:
+                    return "running"
+
+                def create_time(self) -> float:
+                    return 12345.0
+
+            class FakePsutil:
+                STATUS_ZOMBIE = "zombie"
+
+                class NoSuchProcess(Exception):
+                    pass
+
+                @staticmethod
+                def Process(pid: int) -> FakeProcess:
+                    if pid != 4321:
+                        raise FakePsutil.NoSuchProcess(pid)
+                    return FakeProcess()
+
+            with (
+                patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.run_capture") as mock_capture,
+                patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.subprocess.Popen") as mock_popen,
+                patch("mediapipeline.core.diagnostics.tdarr_matrix_audit.psutil", FakePsutil),
+            ):
+                result = harness.run_tdarr_matrix_audit(action="proof-pack")
+                detected = tdarr_matrix_incomplete_full_run(run_root.parent, selected_count=tdarr_expected_manifest_count("proof-pack"))
+                evidence = tdarr_matrix_incomplete_full_run_evidence(run_root.parent, selected_count=tdarr_expected_manifest_count("proof-pack"))
 
         mock_capture.assert_not_called()
         mock_popen.assert_not_called()
         self.assertEqual(detected, run_root)
+        self.assertEqual(evidence["active"], run_root)
         self.assertTrue(result["success"])
         self.assertTrue(result["already_running"])
-        self.assertEqual(result["run_id"], "run-existing-full")
+        self.assertEqual(result["pid"], 4321)
+        self.assertEqual(result["run_id"], "run-existing-proof-pack")
 
     def test_service_reports_missing_library_without_launching(self) -> None:
         # G5: with no materialized base library, return an actionable result and do not
@@ -412,7 +517,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
         self.assertFalse(result["success"])
         self.assertEqual(result["returncode"], 2)
         self.assertIn("not materialized", result["stderr"])
-        self.assertIn("materialize_tdarr_test_library", result["stderr"])
+        self.assertIn("tdarr_proof_pack", result["stderr"])
 
     def test_result_policy_shapes_success_warning_and_invalid_action(self) -> None:
         clean = tdarr_matrix_audit_result(
@@ -422,9 +527,9 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 "returncode": 0,
                 "action": "report",
                 "mode": "report",
-                "label": "Prepare Tdarr Matrix Audit Report",
+                "label": "Prepare Tdarr Proof Pack Audit Report",
                 "report_only": True,
-                "manifest_count": 4632,
+                "manifest_count": tdarr_expected_manifest_count("proof-pack"),
                 "finding_count": 0,
                 "report_path": "C:/Scratch/report.json",
                 "library_root": "C:/Scratch/TdarrMatrix",
@@ -437,11 +542,11 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 "success": True,
                 "timed_out": False,
                 "returncode": 0,
-                "action": "smoke",
+                "action": "smoke-pack",
                 "mode": "run-samples",
-                "label": "Run Tdarr Matrix 6-File Smoke",
+                "label": "Run Tdarr Smoke Pack",
                 "report_only": True,
-                "selected_count": 6,
+                "selected_count": tdarr_expected_manifest_count("smoke-pack"),
                 "finding_count": 2,
                 "report_path": "C:/Scratch/run/report.json",
                 "run_root": "C:/Scratch/TdarrMatrixRuns/run-1",
@@ -456,12 +561,12 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 "background_started": True,
                 "returncode": 0,
                 "pid": 4321,
-                "run_id": "run-20260608-000000-full",
-                "action": "full",
+                "run_id": "run-20260608-000000-proof-pack",
+                "action": "proof-pack",
                 "mode": "run-samples",
-                "label": "Run Tdarr Matrix 100 Percent Matrix",
+                "label": "Run Tdarr Proof Pack",
                 "report_only": True,
-                "selected_count": 4632,
+                "selected_count": tdarr_expected_manifest_count("proof-pack"),
                 "finding_count": 0,
                 "run_root": "C:/Scratch/run",
                 "report_path": "C:/Scratch/run/report.json",
@@ -475,12 +580,12 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 "timed_out": False,
                 "already_running": True,
                 "returncode": 0,
-                "run_id": "run-existing-full",
-                "action": "full",
+                "run_id": "run-existing-proof-pack",
+                "action": "proof-pack",
                 "mode": "run-samples",
-                "label": "Run Tdarr Matrix 100 Percent Matrix",
+                "label": "Run Tdarr Proof Pack",
                 "report_only": True,
-                "selected_count": 4632,
+                "selected_count": tdarr_expected_manifest_count("proof-pack"),
                 "finding_count": 0,
                 "run_root": "C:/Scratch/run",
                 "report_path": "C:/Scratch/run/report.json",
@@ -493,7 +598,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
         self.assertTrue(clean.ok)
         self.assertEqual(clean.command, TDARR_MATRIX_AUDIT_COMMAND)
         self.assertEqual(clean.data["schema_version"], "desktop_tdarr_matrix_audit_result.v1")
-        self.assertEqual(clean.data["manifest_count"], 4632)
+        self.assertEqual(clean.data["manifest_count"], tdarr_expected_manifest_count("proof-pack"))
         self.assertFalse(clean.data["writes_canonical_tdarr_cache"])
         self.assertEqual(clean.data["tdarr_matrix_audit_progress"]["schema_version"], "desktop_tdarr_matrix_audit_progress.v1")
         self.assertTrue(warning.ok)
@@ -547,11 +652,11 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                     "success": True,
                     "timed_out": False,
                     "returncode": 0,
-                    "action": "smoke",
+                    "action": "smoke-pack",
                     "mode": "run-samples",
-                    "label": "Run Tdarr Matrix 6-File Smoke",
+                    "label": "Run Tdarr Smoke Pack",
                     "report_only": True,
-                    "selected_count": 6,
+                    "selected_count": tdarr_expected_manifest_count("smoke-pack"),
                     "finding_count": 1,
                     "report_path": str(report_path),
                     "run_root": str(Path(tmp) / "run"),
@@ -576,14 +681,16 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
         for action in TDARR_MATRIX_AUDIT_ALLOWED_ACTIONS:
             preset = tdarr_matrix_audit_preset(action)
             assert preset is not None
-            worst_case = (
-                3 * int(preset["prepare_timeout_seconds"])
-                + (
+            sample_count = 0
+            if preset.get("mode") == "run-samples":
+                sample_count = (
                     int(preset.get("sample_count_hint", 0))
-                    if preset.get("all_samples")
+                    if preset.get("sample_count_hint") or preset.get("case_pack") or preset.get("all_samples")
                     else int(preset["samples_per_bucket"]) * TDARR_MATRIX_AUDIT_BUCKET_COUNT
                 )
-                * int(preset["sample_timeout_seconds"])
+            worst_case = (
+                3 * int(preset["prepare_timeout_seconds"])
+                + sample_count * int(preset["sample_timeout_seconds"])
             )
             timeout = tdarr_matrix_audit_runner_timeout(preset)
             self.assertGreaterEqual(
@@ -595,11 +702,11 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
             self.assertGreaterEqual(timeout, int(preset["runner_timeout_seconds"]))
 
     def test_runner_timeout_raises_report_floor_for_prepare_evidence(self) -> None:
-        # report/strict have a 900s floor but prepare-evidence alone can take 3*600s.
+        # report/strict have a 900s floor but prepare-evidence alone can take 3*1800s.
         report = tdarr_matrix_audit_preset("report")
         assert report is not None
         self.assertEqual(int(report["runner_timeout_seconds"]), 900)
-        self.assertEqual(tdarr_matrix_audit_runner_timeout(report), 3 * 600 + TDARR_MATRIX_AUDIT_RUNNER_TIMEOUT_MARGIN_SECONDS)
+        self.assertEqual(tdarr_matrix_audit_runner_timeout(report), 3 * 1800 + TDARR_MATRIX_AUDIT_RUNNER_TIMEOUT_MARGIN_SECONDS)
 
     def test_progress_payload_status_transitions(self) -> None:
         from mediapipeline.core.diagnostics.tdarr_matrix_audit import tdarr_matrix_audit_progress_payload
@@ -629,6 +736,7 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
     def test_console_payload_discovers_latest_run_and_enriches_findings(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
+            _write_proof_manifest(root, [_manifest_row(root, case_id="tdarr-0002", view="tv", bucket="audio-only")])
             _write_fake_tdarr_run(root, "run-20260608-000001", findings=[])
             _write_fake_tdarr_run(root, "run-20260608-000002", findings=[_finding()])
 
@@ -649,6 +757,46 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
         finding = payload["findings"][0]
         self.assertIn("run-20260608-000002:tdarr-0001:movies:classified_processing_failure", finding["finding_key"])
         self.assertEqual(finding["available_evidence_targets"], ["stdout", "stderr", "worker_result", "source_hashes", "report_folder"])
+
+    def test_console_payload_returns_planned_proof_pack_rows_before_any_run(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            _write_proof_manifest(
+                root,
+                [
+                    _manifest_row(root, case_id="tdarr-0002", view="movies", bucket="audio-only"),
+                    _manifest_row(root, case_id="tdarr-0258", view="tv", bucket="h264-h265-direct"),
+                ],
+            )
+
+            payload = tdarr_matrix_console_payload(root)
+
+        self.assertEqual(payload["latest_run_id"], "")
+        self.assertEqual([row["case_key"] for row in payload["smoke_pack_rows"]], ["tdarr-0002:movies"])
+        self.assertEqual({row["case_key"] for row in payload["proof_pack_rows"]}, {"tdarr-0002:movies", "tdarr-0258:tv"})
+        self.assertEqual({row["status"] for row in payload["proof_pack_rows"]}, {"not run"})
+
+    def test_console_payload_warns_without_parsing_oversized_report_or_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            run_root = _write_fake_tdarr_run(root, "run-20260608-oversized", findings=[_finding()])
+            report_path = run_root / "manifests" / "audit" / "tdarr_matrix_audit_report.json"
+            manifest_path = run_root / "manifests" / "materialized_library.csv"
+            report_path.write_text('{"findings":[],' + (" " * 128) + "}", encoding="utf-8")
+            manifest_path.write_text("case_id,view\n" + ("x" * 128), encoding="utf-8")
+
+            with (
+                patch("mediapipeline.core.diagnostics.tdarr_matrix_console.TDARR_MATRIX_REPORT_MAX_BYTES", 32),
+                patch("mediapipeline.core.diagnostics.tdarr_matrix_console.TDARR_MATRIX_MANIFEST_MAX_BYTES", 32),
+            ):
+                payload = tdarr_matrix_console_payload(root, run_id="run-20260608-oversized")
+
+        self.assertEqual(payload["schema_version"], "desktop_tdarr_matrix_console.v1")
+        self.assertEqual(payload["finding_count"], 0)
+        self.assertEqual(payload["sample_summary"]["selected_count"], 0)
+        self.assertEqual(payload["artifact_warning_count"], 2)
+        self.assertIn("too large for bounded diagnostics parsing", "\n".join(payload["artifact_warnings"]))
+        self.assertEqual(payload["run"]["artifact_warning_count"], 2)
 
     def test_console_payload_reports_requested_run_before_report_exists(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -751,8 +899,8 @@ class TdarrMatrixAuditServiceTests(unittest.TestCase):
                 },
             )
             args = tdarr_matrix_audit_arguments(
-                action="matrix",
-                library_root=root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix",
+                action="proof-pack",
+                library_root=tdarr_matrix_library_root(root),
                 powershell="pwsh",
                 entrypoint=root / "ops" / "pipeline" / "entrypoints" / "MediaPipeline.ps1",
                 case_keys=selected_keys,

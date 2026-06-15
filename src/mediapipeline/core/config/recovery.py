@@ -73,10 +73,12 @@ def _first_existing(paths: list[Path]) -> Path | None:
 
 
 def _newest_backup(config_dir: Path) -> Path | None:
+    backups: list[Path] = []
     backup_dir = config_dir / BACKUP_DIR_NAME
-    if not backup_dir.is_dir():
-        return None
-    backups = [path for path in backup_dir.glob("*.psd1") if path.is_file()]
+    if backup_dir.is_dir():
+        backups.extend(path for path in backup_dir.glob("*.psd1") if path.is_file())
+    backups.extend(path for path in config_dir.glob(f"{CANONICAL_CONFIG_NAME}.bak.*") if path.is_file())
+    backups.extend(path for path in config_dir.glob(f"{LEGACY_CONFIG_NAME}.bak.*") if path.is_file())
     if not backups:
         return None
     return max(backups, key=lambda path: path.stat().st_mtime)

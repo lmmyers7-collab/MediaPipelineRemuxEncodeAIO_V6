@@ -3,7 +3,7 @@ file: src/mediapipeline/core/config/metadata_parts/field_scope.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-05
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
 sha256: 3a9583a9754e6f3c033fb176b86ef920971f6c0d1c43a2a3eb05b2baea8dbd8a
 ---

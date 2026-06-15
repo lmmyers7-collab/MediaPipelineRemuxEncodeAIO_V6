@@ -336,10 +336,71 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "function handlePrimaryWizardAction()",
             "function syncRiskAckRows()",
             "Wizard draft changed after the last preview. Preview Config again before saving.",
+            'return "Review Policy";',
+            'if (label === "Review Policy")',
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',
             'apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })',
         ):
             self.assertIn(token, wizard_js)
+
+        toolchain_block = re.search(
+            r"if \(state\.currentStep === 2\) \{(?P<body>.*?)\n    \}\n    if \(state\.currentStep === 3\)",
+            wizard_js,
+            re.S,
+        )
+        self.assertIsNotNone(toolchain_block)
+        toolchain_body = toolchain_block.group("body")
+        self.assertIn('return "Review Policy";', toolchain_body)
+        self.assertNotIn('return "Preview Config";', toolchain_body)
+        self.assertIn(
+            '} else if (label === "Review Policy") {\n'
+            '      setCurrentStep(3);\n'
+            '    } else if (label === "Save & Reload")',
+            wizard_js,
+        )
+
+    def test_settings_deployment_action_path_is_visible_and_backend_owned(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+
+        for token in (
+            "settings-deployment-path-panel",
+            "Deployment Path",
+            "settings-deployment-start-button",
+            "settings-deployment-verify-button",
+            "settings-deployment-repair-button",
+            "settings-deployment-launch-button",
+            "settings-deployment-action-status",
+        ):
+            self.assertIn(token, html)
+
+        for token in (
+            "function bindDeploymentActionPath()",
+            'byIdLocal("settings-deployment-start-button")?.addEventListener("click", openWizard)',
+            'byIdLocal("settings-deployment-verify-button")?.addEventListener("click", verifyDeploymentSettings)',
+            'byIdLocal("settings-deployment-repair-button")?.addEventListener("click", showDeploymentRepairGuidance)',
+            'byIdLocal("settings-deployment-launch-button")?.addEventListener("click", openDeploymentLaunchReadiness)',
+            'document.getElementById("settings-validate-button")?.click();',
+            'window.showPage("launch");',
+            'window.mediaPipelineLaunchView?.activateLaunchTab?.("readiness");',
+            "Repair guidance is read-only",
+        ):
+            self.assertIn(token, wizard_js)
+
+        forbidden = [
+            "/api/settings/save-patch",
+            "/api/settings/wizard/save",
+            "/api/pipeline/start",
+            "apiPostLocal(",
+        ]
+        repair_block = re.search(
+            r"function showDeploymentRepairGuidance\(\) \{(?P<body>.*?)\n  \}",
+            wizard_js,
+            re.S,
+        )
+        self.assertIsNotNone(repair_block)
+        for token in forbidden:
+            self.assertNotIn(token, repair_block.group("body"))
 
     def test_routing_labels_are_visible_without_taxonomy_badges(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")

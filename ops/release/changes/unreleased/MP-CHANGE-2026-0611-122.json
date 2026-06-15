@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0611-122",
+  "title": "FB-002 keep adjacent media out of final-library sidecars",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Prevent final-library promotion from treating adjacent dot-suffixed media files as companion sidecars.",
+  "reason": "Worker finding FR-004 identified that final-library promotion sidecar discovery can include adjacent media files such as Movie.2160p.mkv, allowing cleanup-after-verified to delete them after a verified promotion transaction.",
+  "affected_areas": [
+    "final_library",
+    "publish_cleanup",
+    "tests"
+  ],
+  "behavior_before": "Final-library companion sidecar discovery accepted any file whose name started with the primary media stem plus a dot, so adjacent media such as Movie.2160p.mkv entered the promotion copy plan and cleanup-after-verified delete list.",
+  "behavior_after": "Companion sidecar discovery excludes candidates whose own suffix is a recognized media suffix. Adjacent media remains in the publish tree, is not copied as a sidecar, and is not deleted by cleanup-after-verified.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "docs/generated/summaries/src/mediapipeline/core/final_library/promotion_parts/transfer.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_final_library_promotion.py.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-122.json.md",
+    "src/mediapipeline/core/final_library/promotion_parts/transfer.py",
+    "tests/python/desktop/test_final_library_promotion.py",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-122.json"
+  ],
+  "tests_added": [
+    "Python final-library promotion regressions proving adjacent dot-suffixed media is excluded from companion sidecar discovery and survives cleanup-after-verified."
+  ],
+  "manual_validation": [
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_final_library_promotion.FinalLibraryPromotionTests.test_fast_and_cautious_transfer_copy_sidecars_and_cleanup_verified_outputs tests.python.desktop.test_final_library_promotion.FinalLibraryPromotionTests.test_sidecar_discovery_uses_primary_stem_and_excludes_temp_files -q passed, 2 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_final_library_promotion.FinalLibraryPromotionTests -q passed, 24 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_final_library_promotion.FinalLibraryPromotionServiceTests -q passed, 4 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_final_library_promotion -q failed one unrelated WebView static-copy assertion expecting the old home promotion button text.",
+    "Bundled Python: mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed only for unrelated uncovered dirty files docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Revert the final-library companion sidecar filtering and test updates, then rerun focused final-library promotion tests.",
+  "related_changes": [
+    "FB-002",
+    "FR-004"
+  ],
+  "notes": "Source/output cleanup boundary change. Focused temp-directory tests are required; representative operator validation is recommended before enabling cleanup-after-verified in production."
+}

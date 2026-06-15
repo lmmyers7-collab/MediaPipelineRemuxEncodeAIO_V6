@@ -3,9 +3,9 @@ file: ops/pipeline/engine/audio/audio.ps1
 pipeline_stage: audio
 token_priority: medium
 owner_domain: audio
-last_modified: 2026-06-08
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: e37e29b651e10199108dfc027949320b5e30d8f3c24989c0734f116842dc5c3b
+sha256: 12c625b3827a07e91df159fcf2e0fdb618c18dcfa864b7b4b9cfa16ff67efa69
 ---
 # `ops/pipeline/engine/audio/audio.ps1`
 

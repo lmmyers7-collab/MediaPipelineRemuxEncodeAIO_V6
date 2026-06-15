@@ -520,16 +520,18 @@
         <div class="settings-tab-pane" data-diag-tab="advanced">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Tdarr Matrix Tests</h2>
+            <h2>Tdarr Proof Pack</h2>
             <strong id="tdarr-matrix-audit-status">Idle</strong>
           </div>
-          <p class="note">Runs backend-owned Tdarr Matrix audit presets against LocalBase/Scratch/TestLibraries/TdarrMatrix and isolated TdarrMatrixRuns roots.</p>
+          <p class="note">Runs backend-owned Tdarr proof diagnostics against E:\Videos\TdarrMatrix\ProofPack and isolated proof run roots.</p>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="report">Prepare Audit Report</button>
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="smoke">Run 6-File Smoke</button>
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="matrix">Run 30-File Matrix</button>
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="full">Run 100% Matrix</button>
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="strict-report">Strict Report Gate</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="prepare-proof-pack">Prepare Proof Pack</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="smoke-pack">Smoke Pack</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="proof-pack">Proof Pack</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="strict-report">Strict Proof Gate</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="cleanup-plan">Cleanup Full Matrix</button>
+            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="cleanup-archive">Archive Matrix Evidence</button>
+            <button type="button" class="danger-button" data-tdarr-matrix-audit-action="cleanup-delete">Delete Verified Full Matrix</button>
           </div>
           <pre id="tdarr-matrix-audit-detail" class="prose-block">No Tdarr Matrix audit has been run from this shell.</pre>
           <div class="action-row action-row-left wrap-actions">
@@ -538,6 +540,39 @@
             <button type="button" class="secondary-button" id="tdarr-matrix-audit-rerun-failures" disabled>Rerun Latest Failures</button>
           </div>
           <pre id="tdarr-matrix-console-summary" class="prose-block">No Tdarr Matrix run summary loaded.</pre>
+          <div class="panel-heading panel-subheading">
+            <h3>Pack Tests</h3>
+            <strong id="tdarr-matrix-proof-pack-status">Not loaded</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-tdarr-proof-pack-view="smoke-pack">Show Smoke Pack</button>
+            <button type="button" class="secondary-button" data-tdarr-proof-pack-view="proof-pack">Show Proof Pack</button>
+          </div>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Test</th>
+                  <th scope="col">Pack</th>
+                  <th scope="col">Bucket</th>
+                  <th scope="col">View</th>
+                  <th scope="col">Resolution</th>
+                  <th scope="col">Video</th>
+                  <th scope="col">Audio</th>
+                  <th scope="col">Container</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Last Passed</th>
+                  <th scope="col">Run</th>
+                  <th scope="col">Findings</th>
+                  <th scope="col">Primary Code</th>
+                  <th scope="col">Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="tdarr-matrix-proof-pack-rows">
+                <tr><td colspan="14">No Tdarr Proof Pack rows loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
           <div class="action-row action-row-left wrap-actions">
             <label class="field-label" for="tdarr-matrix-audit-filter">Search</label>
             <input id="tdarr-matrix-audit-filter" type="search" placeholder="code, case, bucket, route, message">

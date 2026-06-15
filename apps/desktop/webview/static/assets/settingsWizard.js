@@ -394,7 +394,7 @@
       if ((state.hardwareProbe.errors || []).length || state.hardwareProbe.ok === false) return "Probe Encoders";
       if (!state.workerValidation || state.workerValidationSignature !== wizardPayloadSignature()) return "Validate Workers";
       if ((state.workerValidation.errors || []).length || state.workerValidation.ok === false) return "Validate Workers";
-      return "Preview Config";
+      return "Review Policy";
     }
     if (state.currentStep === 3) return "Preview Config";
     return settingsWizardSaveReadinessIssues().length ? "Preview Config" : "Save & Reload";
@@ -484,6 +484,38 @@
     activateWizardTab();
     setCurrentStep(0);
     if (!state.defaultsLoaded || !state.dirty) await loadWizardDefaults();
+  }
+
+  function setDeploymentActionStatus(status, detail) {
+    setTextLocal("settings-deployment-action-status", status);
+    setTextLocal("settings-deployment-action-detail", detail);
+  }
+
+  function verifyDeploymentSettings() {
+    setDeploymentActionStatus("Verify requested", "Verify Settings delegates to the existing backend settings validator.");
+    document.getElementById("settings-validate-button")?.click();
+  }
+
+  function showDeploymentRepairGuidance() {
+    setDeploymentActionStatus(
+      "Repair guidance",
+      "Repair guidance is read-only. Restore or fix the active PSD1, use Reload From Disk, then verify Config Health before launch."
+    );
+    (byIdLocal("settings-trust-summary") || byIdLocal("settings-reload-button"))?.scrollIntoView?.({ block: "center", behavior: "smooth" });
+    byIdLocal("settings-reload-button")?.focus();
+  }
+
+  function openDeploymentLaunchReadiness() {
+    setDeploymentActionStatus("Launch handoff", "Opening Launch readiness. Start commands remain owned by the Launch page backend preflight.");
+    if (typeof window.showPage === "function") window.showPage("launch");
+    window.mediaPipelineLaunchView?.activateLaunchTab?.("readiness");
+  }
+
+  function bindDeploymentActionPath() {
+    byIdLocal("settings-deployment-start-button")?.addEventListener("click", openWizard);
+    byIdLocal("settings-deployment-verify-button")?.addEventListener("click", verifyDeploymentSettings);
+    byIdLocal("settings-deployment-repair-button")?.addEventListener("click", showDeploymentRepairGuidance);
+    byIdLocal("settings-deployment-launch-button")?.addEventListener("click", openDeploymentLaunchReadiness);
   }
 
   async function loadWizardDefaults() {
@@ -1024,6 +1056,8 @@
     } else if (label === "Validate Workers") {
       setCurrentStep(2);
       await validateWorkers();
+    } else if (label === "Review Policy") {
+      setCurrentStep(3);
     } else if (label === "Save & Reload") {
       await saveWizard();
     } else {
@@ -1087,6 +1121,7 @@
     byIdLocal("settings-wizard-preview-button")?.addEventListener("click", previewWizard);
     byIdLocal("settings-wizard-save-button")?.addEventListener("click", saveWizard);
     byIdLocal("settings-wizard-copy-diagnostics-button")?.addEventListener("click", copyDiagnostics);
+    bindDeploymentActionPath();
     initWizardChoiceGroups();
     document.querySelectorAll(".settings-wizard-panel input, .settings-wizard-panel select").forEach((node) => {
       node.addEventListener("input", markDirty);

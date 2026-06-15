@@ -6,17 +6,75 @@ import uuid
 from datetime import datetime
 from pathlib import Path
 
+from mediapipeline.core.network.url_policy import redact_network_secret_text
+
 from .coordinator_policy import RETRY_AFTER_ACTIVE_SECONDS as _RETRY_AFTER_ACTIVE_SECONDS
-from .coordinator_queue import _coerce_record_estimated_size_gb
+from .coordinator_queue import _coerce_record_estimated_size_gb, _coerce_record_priority
+from .coordinator_queue import _scan_for_next_record_for_claim
+from .failure_reasons import classify_failure_reason
 from .identity import coerce_worker_name, is_valid_worker_id, sanitize_log_entry_fields
 from .json_policy import loads_strict_json
-from .protocol import ClaimResponse, DoneRequest, HeartbeatRequest
+from .library_roots import claim_library_fields_for_record
+from .library_roots import libraries_response_from_config
+from .protocol import ClaimResponse, DoneRequest, HeartbeatRequest, PingResponse, coerce_library_id_list
 from .protocol import HeartbeatResponse, LogEntryRequest, WorkersResponse
 
 _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 
 
 class CoordinatorHttpHandlersMixin:
+    def _http_ping(self, handler: _CoordHandler) -> None:
+        """Handle auth-required ``GET /api/ping`` for connection diagnostics."""
+        handler._send_json(
+            PingResponse(
+                server_time=datetime.now().astimezone().isoformat(timespec="seconds")
+            ).to_dict()
+        )
+
+    def _http_libraries(self, handler: _CoordHandler, params: dict[str, str]) -> None:
+        """Handle auth-required ``GET /api/libraries`` for worker auto-mapping."""
+        _ = params
+        try:
+            payload = libraries_response_from_config(self._config())
+        except Exception as exc:
+            _log.exception("Failed to build /api/libraries response: %s", exc)
+            handler._send_json({"error": "library roots unavailable"}, 500)
+            return
+        handler._send_json(payload)
+
+    def _record_worker_seen_for_board(
+        self,
+        worker_id: str,
+        worker_name: str,
+        *,
+        accessible_library_ids: list[str] | None = None,
+    ) -> None:
+        registry = getattr(self, "_registry", None)
+        recorder = getattr(registry, "note_worker_seen", None)
+        if not callable(recorder):
+            return
+        try:
+            recorder(
+                worker_id=worker_id,
+                worker_name=worker_name,
+                accessible_library_ids=accessible_library_ids,
+            )
+            registry.save(self._inflight_state_path())
+        except Exception as exc:
+            safe_exc = redact_network_secret_text(exc)
+            _log.warning("Failed to persist worker-board presence for %s: %s", worker_id, safe_exc)
+            logger = getattr(self, "_safe_log_cluster_event", None)
+            if callable(logger):
+                logger(
+                    "worker-presence-save-failed",
+                    level="WARN",
+                    event="worker_presence_save_failed",
+                    message=f"Failed to persist worker-board presence: {safe_exc}",
+                    worker_id=worker_id,
+                    worker_name=worker_name,
+                    role="coordinator",
+                )
+
     def _http_claim(self, handler: _CoordHandler, params: dict[str, str]) -> None:
         """Handle ``GET /api/claim?worker_id=<id>&worker_name=<name>``."""
         worker_id   = str(params.get("worker_id", "") or "").strip()
@@ -40,6 +98,17 @@ class CoordinatorHttpHandlersMixin:
             }, 400)
             return
 
+        accessible_library_ids = (
+            coerce_library_id_list(params.get("accessible_library_ids"))
+            if "accessible_library_ids" in params
+            else None
+        )
+        self._record_worker_seen_for_board(
+            worker_id,
+            worker_name,
+            accessible_library_ids=accessible_library_ids,
+        )
+
         if not self._accepting_claims:
             handler._send_json(
                 ClaimResponse.empty(
@@ -52,7 +121,13 @@ class CoordinatorHttpHandlersMixin:
         # find-then-claim sequence so two concurrent workers don't race.
         try:
             with self._claim_lock:
-                record, encode_config = self._scan_for_next_record(worker_name)
+                record, encode_config = _scan_for_next_record_for_claim(
+                    self,
+                    worker_name,
+                    worker_id=worker_id,
+                    max_job_retries=self._coordinator_max_job_retries(),
+                    accessible_library_ids=accessible_library_ids,
+                )
 
                 if record is None:
                     # W4 — choose a backoff hint that reflects whether other
@@ -67,7 +142,12 @@ class CoordinatorHttpHandlersMixin:
 
                 job_id      = str(uuid.uuid4())
                 source_path = str(getattr(record, "source_path", ""))
-                priority    = bool(getattr(record, "priority", False))
+                try:
+                    config = self._config()
+                except Exception:
+                    config = {}
+                library_id, relative_path = claim_library_fields_for_record(record, config)
+                priority    = _coerce_record_priority(record)
                 size_gb     = _coerce_record_estimated_size_gb(record, source_path)
 
                 ok = self._registry.claim(
@@ -78,6 +158,7 @@ class CoordinatorHttpHandlersMixin:
                     encode_config=encode_config,
                     priority=priority,
                     estimated_size_gb=size_gb,
+                    accessible_library_ids=accessible_library_ids,
                 )
         except Exception as exc:
             _log.exception("Failed to process /api/claim for worker %s: %s", worker_id, exc)
@@ -120,18 +201,33 @@ class CoordinatorHttpHandlersMixin:
         try:
             self._registry.save(self._inflight_state_path())
         except Exception as exc:
-            _log.exception("Failed to save registry after claim.")
+            safe_exc = redact_network_secret_text(exc)
+            _log.warning("Failed to save registry after claim: %s", safe_exc)
+            try:
+                rollback = getattr(self._registry, "rollback_claim", None)
+                if callable(rollback):
+                    rollback(job_id, worker_id)
+                else:
+                    self._registry.unclaim(job_id, worker_id)
+            except Exception as release_exc:
+                _log.warning(
+                    "Failed to release claim %s after inflight save failure: %s",
+                    job_id[:8],
+                    redact_network_secret_text(release_exc),
+                )
             self._safe_log_cluster_event(
                 "inflight-save-failed",
                 level="WARN",
                 event="inflight_save_failed",
-                message=f"Failed to save in-flight registry after claim: {exc}",
+                message=f"Claim denied because in-flight registry could not be saved: {safe_exc}",
                 worker_id=worker_id,
                 worker_name=worker_name,
                 role="coordinator",
                 job_id=job_id,
                 source_path=source_path,
             )
+            handler._send_json({"error": "claim state unavailable"}, 503)
+            return
 
         _log.info(
             "Claimed job %s (%s) for worker '%s' (retry=%s, %.2f GB, priority=%s)",
@@ -153,6 +249,8 @@ class CoordinatorHttpHandlersMixin:
             status            = "ok",
             job_id            = job_id,
             source_path       = source_path,
+            library_id         = library_id,
+            relative_path      = relative_path,
             priority          = priority,
             estimated_size_gb = size_gb,
             encode_config     = encode_config,
@@ -227,12 +325,13 @@ class CoordinatorHttpHandlersMixin:
             try:
                 self._registry.save(self._inflight_state_path())
             except Exception as exc:
-                _log.warning("Failed to save inflight state after worker release: %s", exc)
+                safe_exc = redact_network_secret_text(exc)
+                _log.warning("Failed to save inflight state after worker release: %s", safe_exc)
                 self._safe_log_cluster_event(
                     "inflight-save-failed",
                     level="WARN",
                     event="inflight_save_failed",
-                    message=f"Failed to save in-flight registry after worker release: {exc}",
+                    message=f"Failed to save in-flight registry after worker release: {safe_exc}",
                     worker_id=req.worker_id,
                     worker_name=job.worker_name,
                     role="coordinator",
@@ -251,12 +350,24 @@ class CoordinatorHttpHandlersMixin:
                 _existing = self._registry._jobs.get(req.job_id)
                 _existing_owner = _existing.worker_id if _existing else None
 
+            final_reason_code, final_reason = classify_failure_reason(
+                success=bool(req.success),
+                reason_code=req.reason_code,
+                reason=req.reason,
+                error_message=req.error_message,
+                completion_status=req.completion_status,
+                source_path=str(getattr(_existing, "source_path", "") or ""),
+                output_path=req.output_path,
+                route=req.route,
+            )
             job = self._registry.complete(
                 req.job_id,
                 req.worker_id,
                 success           = req.success,
                 elapsed_seconds   = req.elapsed_seconds,
                 output_size_bytes = req.output_size_bytes,
+                reason_code       = final_reason_code,
+                reason            = final_reason,
             )
         except Exception as exc:
             _log.exception("Failed to process /api/done completion for job %s from worker %s: %s", req.job_id, req.worker_id, exc)
@@ -313,6 +424,8 @@ class CoordinatorHttpHandlersMixin:
             queue_terminal    = bool(req.queue_terminal),
             retry_on_failure  = bool(req.retry_on_failure),
             output_path       = req.output_path or "",
+            reason_code       = final_reason_code,
+            reason            = final_reason,
         )
 
         handler._send_json({"status": "ok"})
@@ -342,6 +455,7 @@ class CoordinatorHttpHandlersMixin:
                 req.worker_id,
                 progress_percent=req.progress_percent,
                 current_stage=req.current_stage,
+                accessible_library_ids=req.accessible_library_ids,
             )
         except Exception as exc:
             _log.exception("Failed to process /api/heartbeat for job %s from worker %s: %s", req.job_id, req.worker_id, exc)
@@ -425,6 +539,7 @@ class CoordinatorHttpHandlersMixin:
             _log.warning("Truncated /api/log event field from %d to %d characters.", len(raw_event), len(entry.event))
         if raw_message and entry.message != raw_message:
             _log.warning("Truncated /api/log message field from %d to %d characters.", len(raw_message), len(entry.message))
+        entry.message = redact_network_secret_text(entry.message)
         # W7 — preserve the worker-supplied timestamp on a side-channel
         # attribute and rewrite ``entry.timestamp`` to the coordinator
         # receive time. The cluster log is keyed off entry.timestamp, so

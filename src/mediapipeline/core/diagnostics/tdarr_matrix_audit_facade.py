@@ -38,7 +38,10 @@ class DiagnosticsTdarrMatrixAuditFacadeMixin:
         if block_message:
             return tdarr_matrix_audit_unavailable_result(block_message)
         try:
-            result = runner(action=str(preset["action"]))
+            result = runner(
+                action=str(preset["action"]),
+                confirm_delete_full_matrix=bool(request.get("confirm_delete_full_matrix")),
+            )
         except Exception as exc:
             return tdarr_matrix_audit_exception_result(exc)
         finally:
@@ -107,7 +110,7 @@ class DiagnosticsTdarrMatrixAuditFacadeMixin:
         if block_message:
             return tdarr_matrix_audit_unavailable_result(block_message)
         try:
-            result = runner(action="matrix", case_keys=case_keys)
+            result = runner(action="proof-pack", case_keys=case_keys)
         except Exception as exc:
             return tdarr_matrix_audit_exception_result(exc)
         finally:

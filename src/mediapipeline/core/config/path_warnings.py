@@ -85,6 +85,29 @@ def config_path_overlap_warning(
     return None
 
 
+def config_path_overlap_error(
+    left_key: str,
+    right_key: str,
+    path_values: dict[str, str],
+    *,
+    normalized_path_key: PathKeyFunc,
+    path_within_root: PathWithinRootFunc,
+) -> str | None:
+    left_raw = path_values.get(left_key, "")
+    right_raw = path_values.get(right_key, "")
+    if not left_raw or not right_raw:
+        return None
+    left_path = Path(left_raw).expanduser()
+    right_path = Path(right_raw).expanduser()
+    if not left_path.is_absolute() or not right_path.is_absolute():
+        return None
+    if normalized_path_key(left_path) == normalized_path_key(right_path):
+        return f"{left_key} and {right_key} must not point to the same path."
+    if path_within_root(left_path, right_path) or path_within_root(right_path, left_path):
+        return f"{left_key} and {right_key} must not be nested inside each other."
+    return None
+
+
 def config_root_path_warnings(
     values: dict[str, Any],
     *,
@@ -96,10 +119,6 @@ def config_root_path_warnings(
         key: _path_text_for_warning(values.get(key, ""))
         for key in (KEY_SOURCE_MOVIES, KEY_SOURCE_TV, KEY_OUTSOURCE, KEY_LOCAL_BASE)
     }
-    for key, path_text in path_values.items():
-        if path_text and not Path(path_text).expanduser().is_absolute():
-            add_unique_warning(warnings, f"{key} should be an absolute path.")
-
     for left_key, right_key in (
         (KEY_SOURCE_MOVIES, KEY_SOURCE_TV),
         (KEY_SOURCE_MOVIES, KEY_OUTSOURCE),
@@ -118,3 +137,37 @@ def config_root_path_warnings(
         if warning:
             add_unique_warning(warnings, warning)
     return warnings
+
+
+def config_root_path_errors(
+    values: dict[str, Any],
+    *,
+    normalized_path_key: PathKeyFunc,
+    path_within_root: PathWithinRootFunc,
+) -> list[str]:
+    errors: list[str] = []
+    path_values = {
+        key: _path_text_for_warning(values.get(key, ""))
+        for key in (KEY_SOURCE_MOVIES, KEY_SOURCE_TV, KEY_OUTSOURCE, KEY_LOCAL_BASE)
+    }
+    for key, path_text in path_values.items():
+        if path_text and not Path(path_text).expanduser().is_absolute():
+            add_unique_warning(errors, f"{key} must be an absolute path.")
+
+    for left_key, right_key in (
+        (KEY_LOCAL_BASE, KEY_OUTSOURCE),
+        (KEY_LOCAL_BASE, KEY_SOURCE_MOVIES),
+        (KEY_LOCAL_BASE, KEY_SOURCE_TV),
+        (KEY_OUTSOURCE, KEY_SOURCE_MOVIES),
+        (KEY_OUTSOURCE, KEY_SOURCE_TV),
+    ):
+        error = config_path_overlap_error(
+            left_key,
+            right_key,
+            path_values,
+            normalized_path_key=normalized_path_key,
+            path_within_root=path_within_root,
+        )
+        if error:
+            add_unique_warning(errors, error)
+    return errors

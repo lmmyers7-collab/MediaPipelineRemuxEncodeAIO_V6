@@ -8,17 +8,19 @@ $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent $testsRoot
-$projectRoot = Split-Path -Parent $pipelineRoot
+$projectRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 
-$bundledPwshPath = Join-Path $pipelineRoot 'PowerShell-7.6.0-win-x64\pwsh.exe'
-$ffmpegPath = Join-Path $pipelineRoot 'Tools\ffmpeg\bin\ffmpeg.exe'
-$ffprobePath = Join-Path $pipelineRoot 'Tools\ffmpeg\bin\ffprobe.exe'
+$bundledPwshPath = Join-Path $pipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pwsh.exe'
+$ffmpegPath = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffmpeg.exe'
+$ffprobePath = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffprobe.exe'
+$mediaPipelinePath = Join-Path $pipelineRoot 'entrypoints\MediaPipeline.ps1'
 
 $missingTools = @()
 foreach ($tool in @(
     @{ Name = 'PowerShell'; Path = $bundledPwshPath },
     @{ Name = 'ffmpeg';     Path = $ffmpegPath },
-    @{ Name = 'ffprobe';    Path = $ffprobePath }
+    @{ Name = 'ffprobe';    Path = $ffprobePath },
+    @{ Name = 'MediaPipeline.ps1'; Path = $mediaPipelinePath }
 )) {
     if (-not (Test-Path -LiteralPath $tool.Path -PathType Leaf)) {
         $missingTools += "$($tool.Name) ($($tool.Path))"
@@ -26,8 +28,7 @@ foreach ($tool in @(
 }
 
 if ($missingTools.Count -gt 0) {
-    Write-Host ("SKIP: adversarial force-kill encode checks require: {0}" -f ($missingTools -join ', '))
-    return
+    throw ("adversarial force-kill encode checks require promoted bundled tools: {0}" -f ($missingTools -join ', '))
 }
 
 function Assert-True {
@@ -326,7 +327,7 @@ try {
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline queue plan before force-kill' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
+        '-File', $mediaPipelinePath,
         '-ConfigPath', $configPath,
         '-EmitQueuePlan',
         '-QueuePlanOutPath', $queueBeforePath
@@ -340,7 +341,7 @@ try {
 
     $pipelineArgs = @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
+        '-File', $mediaPipelinePath,
         '-ConfigPath', $configPath,
         '-Once'
     )
@@ -393,7 +394,7 @@ try {
 
     Invoke-SmokeCommand -FilePath $bundledPwshPath -Label 'pipeline queue plan after force-kill' -ArgumentList @(
         '-NoProfile', '-ExecutionPolicy', 'Bypass',
-        '-File', (Join-Path $pipelineRoot 'MediaPipeline.ps1'),
+        '-File', $mediaPipelinePath,
         '-ConfigPath', $configPath,
         '-EmitQueuePlan',
         '-QueuePlanOutPath', $queueAfterPath

@@ -121,20 +121,25 @@ function Resolve-PwshPath {
     $candidates = [System.Collections.Generic.List[string]]::new()
     foreach ($candidate in @(
             (Join-Path $script:ScriptDir 'pwsh.exe'),
-            (Join-Path $script:ScriptDir 'PowerShell-7.6.0-win-x64\pwsh.exe')
+            (Join-Path $script:ScriptDir 'PowerShell-7.6.0-win-x64\pwsh.exe'),
+            (Join-Path $script:PipelineRoot 'runtime\pwsh.exe'),
+            (Join-Path $script:PipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pwsh.exe')
         )) {
         if ($candidate -and (Test-Path -LiteralPath $candidate)) {
             [void]$candidates.Add($candidate)
         }
     }
 
-    Get-ChildItem -LiteralPath $script:ScriptDir -Directory -Filter 'PowerShell-*' -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            $candidate = Join-Path $_.FullName 'pwsh.exe'
-            if (Test-Path -LiteralPath $candidate) {
-                [void]$candidates.Add($candidate)
+    foreach ($searchRoot in @($script:ScriptDir, (Join-Path $script:PipelineRoot 'runtime'))) {
+        if (-not (Test-Path -LiteralPath $searchRoot)) { continue }
+        Get-ChildItem -LiteralPath $searchRoot -Directory -Filter 'PowerShell-*' -ErrorAction SilentlyContinue |
+            ForEach-Object {
+                $candidate = Join-Path $_.FullName 'pwsh.exe'
+                if (Test-Path -LiteralPath $candidate) {
+                    [void]$candidates.Add($candidate)
+                }
             }
-        }
+    }
 
     $cmd = Get-Command pwsh -ErrorAction SilentlyContinue
     if ($cmd -and $cmd.Source) {

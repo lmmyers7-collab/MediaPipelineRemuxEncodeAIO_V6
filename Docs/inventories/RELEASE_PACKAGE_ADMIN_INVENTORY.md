@@ -66,7 +66,7 @@ Documents what a clean release package is expected to include and exclude. Sourc
 | `ops\pipeline\entrypoints\MediaPipeline.ps1` | Yes | Backend pipeline entry point |
 | `ops\pipeline\engine\**\*.ps1` | Yes | Active PowerShell engine implementations |
 | `Pipeline\Modules\*.ps1` | No | Removed legacy shim surface; active PowerShell implementations live under `ops\pipeline\engine\` |
-| `ops\pipeline\config\setup.ps1` | Yes | Setup wizard |
+| `ops\pipeline\entrypoints\Setup-MediaPipeline.ps1` and `ops\pipeline\config\setup\*.ps1` | Yes | Setup wizard entry point and helper slices |
 | `ops\pipeline\entrypoints\Audit-MediaLibrary.ps1` | Yes | Audit script |
 | `ops\pipeline\entrypoints\Invoke-RerunCsv.ps1` | Yes | CSV rerun script |
 | `ops\pipeline\entrypoints\Backfill-CompletedManifest.ps1` | Yes | Backfill script |

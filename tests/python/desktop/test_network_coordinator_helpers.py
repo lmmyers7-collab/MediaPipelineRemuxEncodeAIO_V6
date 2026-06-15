@@ -103,6 +103,50 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
 
         self.assertEqual(block, "Coordinator URL: http://192.168.1.20:9000\nAuth Token:      secret-token")
 
+    def test_cluster_log_formatter_sanitizes_control_characters_to_one_line(self) -> None:
+        entry = LogEntryRequest(
+            timestamp="2026-06-11T10:00:00-04:00\nforged",
+            worker_id="worker-1",
+            worker_name="worker\r\nname",
+            role="worker\nrole",
+            level="warn\rINFO",
+            event="job\ncompleted",
+            message="finished\r\nforged\x00row",
+            job_id="job-1\nbad",
+            source_path="C:\\Media\\Movie\r\nforged.mkv",
+        )
+        entry._worker_ts = "2026-06-11T09:59:00-04:00\nforged"  # type: ignore[attr-defined]
+
+        line = format_cluster_log_line(entry)
+
+        self.assertEqual(line.count("\n"), 1)
+        self.assertTrue(line.endswith("\n"))
+        self.assertNotRegex(line[:-1], r"[\r\n\x00-\x1f\x7f]")
+        self.assertIn("worker name", line)
+        self.assertIn("worker role", line)
+        self.assertIn("WARN INFO", line)
+        self.assertIn("job completed", line)
+        self.assertIn("finished forged row", line)
+        self.assertIn("worker_ts=2026-06-11T09:59:00-04:00 forged", line)
+
+    def test_cluster_log_formatter_redacts_url_and_token_secrets(self) -> None:
+        entry = LogEntryRequest(
+            timestamp="2026-06-11T10:00:00-04:00",
+            worker_id="worker-1",
+            worker_name="worker",
+            role="worker",
+            level="warn",
+            event="claim_failed",
+            message="failed http://user:pass@host.test:7830/api?token=secret#frag WorkerAuthToken=abc",
+        )
+
+        line = format_cluster_log_line(entry)
+
+        self.assertIn("http://host.test:7830/api", line)
+        self.assertNotIn("secret", line)
+        self.assertNotIn("abc", line)
+        self.assertNotIn("user:pass", line)
+
     def test_network_probe_helpers_check_health_and_worker_auth(self) -> None:
         class FakeResponse:
             def __init__(self, code: int) -> None:
@@ -134,8 +178,8 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
         self.assertEqual(health_request, "http://coordinator:7830/api/health")
         self.assertEqual(health_timeout, 4)
         self.assertTrue(auth.ok)
-        self.assertEqual(auth.detail, "Token accepted (HTTP 200)")
-        self.assertEqual(auth_request.full_url, "http://coordinator:7830/api/workers")
+        self.assertEqual(auth.detail, "Auth ping accepted (HTTP 200)")
+        self.assertEqual(auth_request.full_url, "http://coordinator:7830/api/ping")
         auth_headers = {key.casefold(): value for key, value in auth_request.header_items()}
         self.assertNotIn("authorization", auth_headers)
         self.assertEqual(auth_headers["x-mediapipeline-auth-version"], AUTH_VERSION)
@@ -169,7 +213,7 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
 
     def test_worker_auth_probe_normalizes_failure_details(self) -> None:
         unauthorized_error = urllib.error.HTTPError(
-            "http://coordinator:7830/api/workers",
+            "http://coordinator:7830/api/ping",
             401,
             "Unauthorized",
             hdrs=None,
@@ -183,7 +227,7 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
         self.assertEqual(unauthorized.detail, "401 Unauthorized - token does not match coordinator")
 
         forbidden_error = urllib.error.HTTPError(
-            "http://coordinator:7830/api/workers",
+            "http://coordinator:7830/api/ping",
             403,
             "Forbidden",
             hdrs=None,
@@ -266,7 +310,7 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
         self.assertIn("Coordinator reaper heartbeat timeout lookup failed", "\n".join(logs.output))
         self.assertIn("config unavailable", "\n".join(logs.output))
 
-    def test_encode_config_snapshot_applies_case_insensitive_worker_overrides(self) -> None:
+    def test_encode_config_snapshot_ignores_worker_overrides_by_backend_policy(self) -> None:
         config = {
             "VideoCodec": "hevc_nvenc",
             "VideoPreset": "p4",
@@ -288,13 +332,13 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
             snapshot = snapshot_encode_config(config, "beast-pc")
 
         self.assertEqual(snapshot["VideoCodec"], "hevc_nvenc")
-        self.assertEqual(snapshot["VideoPreset"], "p7")
+        self.assertEqual(snapshot["VideoPreset"], "p4")
         self.assertEqual(snapshot["SizeGuardMode"], "strict")
-        self.assertEqual(snapshot["ExtraVideoFlags"], "-b:v 8M")
+        self.assertNotIn("ExtraVideoFlags", snapshot)
         self.assertNotIn("UnrelatedKey", snapshot)
         self.assertNotIn("SourceMovies", snapshot)
         self.assertNotIn("WorkerAuthToken", snapshot)
-        self.assertIn("Ignoring unsupported WorkerConfigOverrides keys", "\n".join(logs.output))
+        self.assertIn("WorkerConfigOverrides is disabled by backend policy", "\n".join(logs.output))
 
     def test_coordinator_snapshot_encode_config_uses_helper(self) -> None:
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
@@ -309,7 +353,7 @@ class NetworkCoordinatorHelperTests(unittest.TestCase):
 
         snapshot = CoordinatorDispatcher._snapshot_encode_config(dispatcher, "WORKER-A")
 
-        self.assertEqual(snapshot["VideoCodec"], "hevc_nvenc")
+        self.assertEqual(snapshot["VideoCodec"], "h264_nvenc")
 
     def test_prior_failure_policy_matches_source_case_insensitively(self) -> None:
         records = [

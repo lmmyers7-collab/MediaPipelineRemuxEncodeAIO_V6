@@ -10,6 +10,7 @@ param()
 # asserts the resolved values + the reserved-key guard. Locks in:
 #   - HIGH-1  reserved PowerShell variable names are not published as config vars
 #   - cross-key defaults (FFmpegCpuEncodeTimeoutSeconds = 2x; OutsourceMinFreeSpaceGB = MinFreeSpaceGB)
+#   - legacy partial configs inherit BDPGS OCR tool/tessdata defaults
 #   - MEDIUM-4 partial/field-missing progress file loads as 0 instead of crashing
 # ==============================================================================
 
@@ -18,12 +19,12 @@ $ErrorActionPreference = 'Stop'
 $testsRoot   = Split-Path -Parent $PSCommandPath
 $unitRoot    = $testsRoot
 $pipelineRoot = Split-Path -Parent (Split-Path -Parent $unitRoot)
-$projectRoot = Split-Path -Parent $pipelineRoot
+$projectRoot = Split-Path -Parent (Split-Path -Parent $pipelineRoot)
 
-$bundledPwshPath = Join-Path $pipelineRoot 'PowerShell-7.6.0-win-x64\pwsh.exe'
-$ffmpegPath  = Join-Path $pipelineRoot 'Tools\ffmpeg\bin\ffmpeg.exe'
-$ffprobePath = Join-Path $pipelineRoot 'Tools\ffmpeg\bin\ffprobe.exe'
-$scriptPath  = Join-Path $pipelineRoot 'MediaPipeline.ps1'
+$bundledPwshPath = Join-Path $pipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pwsh.exe'
+$ffmpegPath  = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffmpeg.exe'
+$ffprobePath = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffprobe.exe'
+$scriptPath  = Join-Path $pipelineRoot 'entrypoints\MediaPipeline.ps1'
 
 $missing = @()
 foreach ($tool in @(
@@ -32,8 +33,7 @@ foreach ($tool in @(
     if (-not (Test-Path -LiteralPath $tool.Path)) { $missing += "$($tool.Name) ($($tool.Path))" }
 }
 if ($missing.Count -gt 0) {
-    Write-Host ("SKIP: runtime-config resolution checks require: {0}" -f ($missing -join ', '))
-    return
+    throw ("runtime-config resolution checks require promoted bundled tools: {0}" -f ($missing -join ', '))
 }
 
 function Assert-True {
@@ -134,25 +134,46 @@ try {
         } catch { Write-Host "FAIL [A] $_"; $failures++ }
     }
 
-    # ---- Scenario B: partial progress file loads as 0, no crash --------------
+    # ---- Scenario B: partial legacy config inherits BDPGS OCR defaults -------
     $b = New-FixtureConfig -WorkRoot (Join-Path $workRoot 'B')
     $cfgB = $b.Config
+    $cfgB.Remove('BdpgsOcrToolPath') | Out-Null
+    $cfgB.Remove('BdpgsOcrTessdataPath') | Out-Null
     $cfgPathB = Join-Path $workRoot 'configB.psd1'
     $dumpB    = Join-Path $workRoot 'dumpB.json'
     Write-FixtureConfig -Config $cfgB -Path $cfgPathB
-    # Pre-seed a truncated/field-missing progress file at the canonical path.
-    $progressDir = Join-Path $b.LocalBase 'State\Progress'
-    New-Item -ItemType Directory -Path $progressDir -Force | Out-Null
-    [System.IO.File]::WriteAllText((Join-Path $progressDir 'pipeline_progress.json'), '{"Encoded":5}', [System.Text.UTF8Encoding]::new($false))
     $runB = Invoke-DumpRun -ConfigPath $cfgPathB -DumpPath $dumpB
 
     if ($runB.ExitCode -ne 0) { Write-Host "FAIL [B] dump run exit $($runB.ExitCode)`n$($runB.Output)"; $failures++ }
+    elseif (-not (Test-Path -LiteralPath $dumpB)) { Write-Host "FAIL [B] dump not written"; $failures++ }
+    else {
+        $d = Get-Content -LiteralPath $dumpB -Raw | ConvertFrom-Json
+        try {
+            Assert-True ([string]$d.BdpgsOcrToolPath -eq 'tools\PgsToSrt\PgsToSrt.exe') "BdpgsOcrToolPath default drifted to '$($d.BdpgsOcrToolPath)'"
+            Assert-True ([string]$d.BdpgsOcrTessdataPath -eq 'tools\PgsToSrt\tessdata') "BdpgsOcrTessdataPath default drifted to '$($d.BdpgsOcrTessdataPath)'"
+            Write-Host "PASS [B] partial config BDPGS OCR defaults"
+        } catch { Write-Host "FAIL [B] $_"; $failures++ }
+    }
+
+    # ---- Scenario C: partial progress file loads as 0, no crash --------------
+    $c = New-FixtureConfig -WorkRoot (Join-Path $workRoot 'C')
+    $cfgC = $c.Config
+    $cfgPathC = Join-Path $workRoot 'configC.psd1'
+    $dumpC    = Join-Path $workRoot 'dumpC.json'
+    Write-FixtureConfig -Config $cfgC -Path $cfgPathC
+    # Pre-seed a truncated/field-missing progress file at the canonical path.
+    $progressDir = Join-Path $c.LocalBase 'State\Progress'
+    New-Item -ItemType Directory -Path $progressDir -Force | Out-Null
+    [System.IO.File]::WriteAllText((Join-Path $progressDir 'pipeline_progress.json'), '{"Encoded":5}', [System.Text.UTF8Encoding]::new($false))
+    $runC = Invoke-DumpRun -ConfigPath $cfgPathC -DumpPath $dumpC
+
+    if ($runC.ExitCode -ne 0) { Write-Host "FAIL [C] dump run exit $($runC.ExitCode)`n$($runC.Output)"; $failures++ }
     else {
         try {
-            Assert-True ($runB.Output -match 'Loaded previous progress: 0 files') 'partial progress did not load counters as 0'
-            Assert-True (-not ($runB.Output -match 'Could not load progress file')) 'partial progress incorrectly reported as unreadable'
-            Write-Host "PASS [B] partial progress file recovery"
-        } catch { Write-Host "FAIL [B] $_"; $failures++ }
+            Assert-True ($runC.Output -match 'Loaded previous progress: 0 files') 'partial progress did not load counters as 0'
+            Assert-True (-not ($runC.Output -match 'Could not load progress file')) 'partial progress incorrectly reported as unreadable'
+            Write-Host "PASS [C] partial progress file recovery"
+        } catch { Write-Host "FAIL [C] $_"; $failures++ }
     }
 } finally {
     if ($null -eq $prevMutexSuffix) { Remove-Item Env:\MEDIA_PIPELINE_TEST_MUTEX_SUFFIX -ErrorAction SilentlyContinue }

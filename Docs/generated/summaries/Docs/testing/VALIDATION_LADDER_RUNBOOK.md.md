@@ -3,9 +3,9 @@ file: docs/testing/VALIDATION_LADDER_RUNBOOK.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-03
-sha256: 66d992016e0450295d6087d7b99ecaf0c26c6b90f1148e27cd684b23227cec54
+sha256: 1cd5baabb1b24e9554bbc92a9a720a4853d8295d04a4e88b9122a1b53fd3d88d
 ---
 # `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
 

@@ -80,6 +80,9 @@ class ProcessGuardFacadeMixin:
         promotion_block = self._final_library_promotion_block_message(action)
         if promotion_block:
             return promotion_block
+        queue_scan_block = self._queue_source_scan_block_message(action)
+        if queue_scan_block:
+            return queue_scan_block
         if blocking_job_kinds is None or "pipeline" in blocking_job_kinds:
             watcher_block = self._schedule_stop_watcher_close_block_message(action)
             if watcher_block:
@@ -133,6 +136,16 @@ class ProcessGuardFacadeMixin:
         except Exception as exc:
             self._log_close_guard_exception("Final-library promotion close-readiness verification failed", exc)
             return f"{action} blocked because final-library promotion state could not be verified: {exc}"
+
+    def _queue_source_scan_block_message(self, action: str) -> str:
+        block_message = getattr(self.service, "queue_source_scan_active_block_message", None)
+        if not callable(block_message):
+            return ""
+        try:
+            return str(block_message(action) or "")
+        except Exception as exc:
+            self._log_close_guard_exception("Queue source scan close-readiness verification failed", exc)
+            return f"{action} blocked because queue source scan state could not be verified: {exc}"
 
     def _active_job_block_messages(self, resolved: ResolvedPaths, *, job_kinds: set[str] | None = None) -> list[str]:
         block_messages = getattr(self.service, "active_job_close_block_messages", None)

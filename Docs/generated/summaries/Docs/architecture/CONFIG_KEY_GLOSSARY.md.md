@@ -3,9 +3,9 @@ file: docs/architecture/CONFIG_KEY_GLOSSARY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-02
-sha256: 5e3e63564e034c7fa0c48462d241de575dd97fd71c20440935a3175e3596522f
+sha256: cba520a2b6e7cd3d6718f3556fddd2bac026e95c264f1e446834ec06bb63ecb2
 ---
 # `docs/architecture/CONFIG_KEY_GLOSSARY.md`
 

@@ -21,28 +21,69 @@ function Remove-PublishPartialMedia {
     } catch {}
 }
 
+function New-PublishSidecarBackupResult {
+    param(
+        [bool] $HadExistingSidecar = $false,
+        [bool] $BackupOk = $true,
+        [string] $SidecarPath = '',
+        [string] $BackupPath = '',
+        [string] $Error = ''
+    )
+
+    return [pscustomobject]([ordered]@{
+        HadExistingSidecar = [bool]$HadExistingSidecar
+        BackupOk           = [bool]$BackupOk
+        SidecarPath         = [string]$SidecarPath
+        BackupPath          = [string]$BackupPath
+        Error               = [string]$Error
+    })
+}
+
+function Get-PublishSidecarBackupPath {
+    param($Backup)
+
+    if ($null -eq $Backup) { return '' }
+    if ($Backup -is [string]) { return [string]$Backup }
+    if ($Backup.PSObject.Properties['BackupPath']) { return [string]$Backup.BackupPath }
+    return ''
+}
+
+function Test-PublishSidecarBackupReadyForReveal {
+    param($Backup)
+
+    if ($null -eq $Backup -or $Backup -is [string]) { return $true }
+    $hadExisting = $Backup.PSObject.Properties['HadExistingSidecar'] -and [bool]$Backup.HadExistingSidecar
+    $backupOk = (-not $Backup.PSObject.Properties['BackupOk']) -or [bool]$Backup.BackupOk
+    return (-not $hadExisting) -or $backupOk
+}
+
 function Backup-PublishSidecarForReveal {
     param(
         [Parameter(Mandatory)] [string] $OutputPath,
         [Parameter(Mandatory)] [string] $PublishTransactionId,
         [string] $Context = ''
     )
-    if (-not (Get-Command -Name Get-SidecarPath -ErrorAction SilentlyContinue)) { return '' }
+    if (-not (Get-Command -Name Get-SidecarPath -ErrorAction SilentlyContinue)) {
+        return (New-PublishSidecarBackupResult)
+    }
     $sidecar = Get-SidecarPath $OutputPath
-    if (-not (Test-Path -LiteralPath $sidecar -PathType Leaf -ErrorAction SilentlyContinue)) { return '' }
+    if (-not (Test-Path -LiteralPath $sidecar -PathType Leaf -ErrorAction SilentlyContinue)) {
+        return (New-PublishSidecarBackupResult -SidecarPath $sidecar)
+    }
     $dir = Split-Path -Parent $sidecar
     $backup = Join-Path $dir (".{0}.mp-publish-sidecar-backup.{1}" -f (Split-Path -Leaf $sidecar), $PublishTransactionId)
     try {
         Copy-Item -LiteralPath $sidecar -Destination $backup -Force -ErrorAction Stop
-        return $backup
+        return (New-PublishSidecarBackupResult -HadExistingSidecar:$true -BackupOk:$true -SidecarPath $sidecar -BackupPath $backup)
     } catch {
         Write-Log "${Context}publish sidecar backup failed for $sidecar : $_" "WARN"
-        return ''
+        return (New-PublishSidecarBackupResult -HadExistingSidecar:$true -BackupOk:$false -SidecarPath $sidecar -Error ([string]$_))
     }
 }
 
 function Remove-PublishSidecarBackup {
-    param([string] $BackupPath)
+    param($BackupPath)
+    $BackupPath = Get-PublishSidecarBackupPath -Backup $BackupPath
     if ([string]::IsNullOrWhiteSpace($BackupPath)) { return }
     Remove-Item -LiteralPath $BackupPath -Force -ErrorAction SilentlyContinue
 }
@@ -71,14 +112,25 @@ function Move-PublishSidecarBackupIntoPlace {
 function Restore-PublishSidecarAfterRevealFailure {
     param(
         [Parameter(Mandatory)] [string] $OutputPath,
+        $Backup = $null,
         [string] $BackupPath = '',
         [string] $Context = ''
     )
     if (-not (Get-Command -Name Get-SidecarPath -ErrorAction SilentlyContinue)) { return }
     $sidecar = Get-SidecarPath $OutputPath
+    if ($null -ne $Backup -and $Backup -isnot [string]) {
+        if ($Backup.PSObject.Properties['SidecarPath'] -and -not [string]::IsNullOrWhiteSpace([string]$Backup.SidecarPath)) {
+            $sidecar = [string]$Backup.SidecarPath
+        }
+        if (-not (Test-PublishSidecarBackupReadyForReveal -Backup $Backup)) {
+            Write-Log "${Context}publish sidecar cleanup skipped after reveal failure because existing sidecar backup was unavailable: $sidecar" "ERROR"
+            return
+        }
+    }
+    $resolvedBackupPath = if (-not [string]::IsNullOrWhiteSpace($BackupPath)) { $BackupPath } else { Get-PublishSidecarBackupPath -Backup $Backup }
     try {
-        if (-not [string]::IsNullOrWhiteSpace($BackupPath) -and (Test-Path -LiteralPath $BackupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
-            Move-PublishSidecarBackupIntoPlace -BackupPath $BackupPath -SidecarPath $sidecar -Context $Context
+        if (-not [string]::IsNullOrWhiteSpace($resolvedBackupPath) -and (Test-Path -LiteralPath $resolvedBackupPath -PathType Leaf -ErrorAction SilentlyContinue)) {
+            Move-PublishSidecarBackupIntoPlace -BackupPath $resolvedBackupPath -SidecarPath $sidecar -Context $Context
             Write-Log "${Context}publish sidecar restored after reveal failure: $sidecar" "WARN"
             return
         }

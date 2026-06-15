@@ -163,6 +163,9 @@ def validation_state_for_completed_row(row: dict[str, Any]) -> dict[str, object]
         "failure_reason": failure_reason,
         "unavailable_reasons": unavailable_reasons,
         "safe_next_action": safe_next_action,
+        "quality_score": row.get("quality_score"),
+        "quality_metric": _row_text(row, "quality_metric"),
+        "quality_outcome": _row_text(row, "quality_outcome"),
         "read_only": True,
     }
 

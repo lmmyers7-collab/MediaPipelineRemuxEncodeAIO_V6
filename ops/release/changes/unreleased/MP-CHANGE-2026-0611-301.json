@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0611-301",
+  "title": "FB-043 document Tdarr Matrix local API routes",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Document the active Tdarr Matrix Local API read and command routes in the route inventory, route ownership map, and evidence/mutation matrix.",
+  "reason": "Worker finding FR-058 showed the route docs omitted five routes that are present in LOCAL_API_ROUTE_CONTRACT, causing the route inventory guard test to fail.",
+  "affected_areas": [
+    "Diagnostics",
+    "Local API docs",
+    "Route inventory"
+  ],
+  "behavior_before": "Route docs listed 99 routes and omitted Tdarr Matrix latest, runs, compare, evidence-open, and rerun routes.",
+  "behavior_after": "Route docs list 104 routes, include the five active Tdarr Matrix routes, and classify the backend-owned read, shell-open, and diagnostic-process boundaries.",
+  "files_touched": [
+    "docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md.md",
+    "docs/generated/summaries/docs/inventories/API_ROUTE_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-301.json.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-301.json"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_api_route_inventory.py"
+  ],
+  "manual_validation": [
+    "python -m unittest tests.python.desktop.test_api_route_inventory -q - passed",
+    "stale route-count scan across API_ROUTE_INVENTORY, LOCAL_API_ROUTE_OWNERSHIP_MAP, and LOCAL_API_EVIDENCE_MUTATION_MATRIX - passed"
+  ],
+  "rollback_plan": "Revert the three route-doc inventory edits and rerun tests.python.desktop.test_api_route_inventory to reproduce the mismatch.",
+  "related_changes": [
+    "FB-043",
+    "FR-058",
+    "W12-001"
+  ],
+  "notes": "Docs-only inventory update; no Local API route behavior changed."
+}

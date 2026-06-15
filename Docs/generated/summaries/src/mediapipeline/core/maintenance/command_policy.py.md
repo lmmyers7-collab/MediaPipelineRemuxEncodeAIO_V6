@@ -2,10 +2,10 @@
 file: src/mediapipeline/core/maintenance/command_policy.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
-last_modified: 2026-06-07
+owner_domain: maintenance
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 146bed94e45c6e8695403cce78f2496026845b4ec1e4451cfeffae49ab53e39d
+sha256: 5486150da4388b5510f574033eed7d47e8abb7bfbc61047f3210489ac66a4475
 ---
 # `src/mediapipeline/core/maintenance/command_policy.py`
 

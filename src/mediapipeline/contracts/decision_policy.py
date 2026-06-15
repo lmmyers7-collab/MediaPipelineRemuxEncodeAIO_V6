@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, ValidationInfo, field_validator, model_validator
 
 from mediapipeline.contracts.height_tolerance import (
     DEFAULT_ROUTE_1080P_UPPER_HEIGHT_TOLERANCE_PERCENT,
@@ -42,6 +42,12 @@ def _normalized_list(value: Any) -> list[str]:
         return [_normalized_text(item) for item in value if _normalized_text(item)]
     text = _normalized_text(value)
     return [text] if text else []
+
+
+def _canonical_audio_language(value: str) -> str:
+    if value in {"en", "eng", "english"}:
+        return "eng"
+    return value
 
 
 class DecisionPolicyModel(BaseModel):
@@ -178,8 +184,11 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
         mode="before",
     )
     @classmethod
-    def _coerce_list(cls, value: Any) -> list[str]:
-        return _normalized_list(value)
+    def _coerce_list(cls, value: Any, info: ValidationInfo) -> list[str]:
+        items = _normalized_list(value)
+        if info.field_name == "preferred_default_audio_languages":
+            return [_canonical_audio_language(item) for item in items]
+        return items
 
     @model_validator(mode="after")
     def _default_output_size_check_action(self) -> "EffectiveDecisionPolicy":

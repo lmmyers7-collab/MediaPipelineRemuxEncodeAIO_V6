@@ -1,8 +1,7 @@
 import { readFileSync, writeFileSync, existsSync, mkdirSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
-import { parse } from "@babel/parser";
 import traverseModule from "@babel/traverse";
-import { repoRoot } from "./webview-tooling-common.mjs";
+import { parseScript, repoRoot } from "./webview-tooling-common.mjs";
 
 const traverse = traverseModule.default || traverseModule;
 const defaultFiles = [
@@ -268,11 +267,7 @@ function buildCandidates(declarations, file, minLines, maxGap) {
 function analyzeFile(file, options) {
   const absolute = resolve(repoRoot, file);
   const source = readFileSync(absolute, "utf-8");
-  const ast = parse(source, {
-    sourceType: "script",
-    errorRecovery: true,
-    plugins: ["optionalChaining", "nullishCoalescingOperator"],
-  });
+  const ast = parseScript(source, file);
   const declarationPaths = [];
   const localNames = new Set();
   const windowExports = [];

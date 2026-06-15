@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_rename.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: 3f5496190f594955726b655a88e71f9b6a48af4b7b87e0c6cc34d8cbf585b5aa
+sha256: 44015e90d152ce00cfce73ebb77c42237146e5338c83041b2942f03a2f078e4a
 ---
 # `tests/python/desktop/test_application_facade_rename.py`
 

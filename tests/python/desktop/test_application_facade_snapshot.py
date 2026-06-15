@@ -60,7 +60,7 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
         self.assertEqual(snapshot.worker_progress["schema_version"], "desktop_worker_progress.v1")
         self.assertEqual(snapshot.worker_progress["rows"][0]["worker_id"], "local")
         self.assertEqual(snapshot.worker_progress["rows"][0]["job_id"], "launch-1")
-        self.assertEqual(snapshot.worker_progress["rows"][0]["status_state"], "running")
+        self.assertEqual(snapshot.worker_progress["rows"][0]["status_state"], "warning")
         self.assertEqual(snapshot.ffmpeg_progress["schema_version"], "desktop_ffmpeg_progress.v1")
         self.assertTrue(snapshot.ffmpeg_progress["read_only"])
         self.assertEqual(snapshot.eta["schema_version"], "desktop_eta.v1")

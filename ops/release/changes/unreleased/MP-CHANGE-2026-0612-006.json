@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0612-006",
+  "title": "Queue excluded source path compaction",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-12",
+  "date_completed": "2026-06-12",
+  "summary": "Shorten the WebView Queue backend-excluded Source column display while preserving the full source path for hover inspection.",
+  "reason": "Long UNC source paths wrap across many lines in the backend-excluded source files table, reducing the number of visible rows.",
+  "affected_areas": [
+    "queue",
+    "webview"
+  ],
+  "behavior_before": "The Queue backend-excluded source rows table rendered the full source_path string directly in the Source cell, causing long UNC paths to wrap into tall rows.",
+  "behavior_after": "The Source cell renders a compact path with root, parent folder, and filename context, applies the standard path-cell ellipsis styling, and keeps the full path in the cell title.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queueView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-006.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_large_table_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0612-006.json",
+    "tests/webview/test_webview_browser_large_table_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_large_table_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_large_table_smoke - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated uncovered files: docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0612-005.json.md; tests/webview/test_webview_completed_library_filter.py",
+    "npm run webview:check - passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - harness failed before printing captured unittest output; direct unittest module passed"
+  ],
+  "rollback_plan": "Revert the Queue excluded-row renderer and focused WebView smoke assertion to restore full source_path table text.",
+  "related_changes": [],
+  "notes": "Display-only WebView change. No backend route, filesystem mutation, media policy, queue mutation, publish/drain, rename, settings, or source/scratch/output behavior changes.\nQueue excluded Source column compacts UNC paths to root + parent + truncated filename, with full source_path preserved as title.\nStrict coverage for this packet is satisfied, but global worktree coverage is blocked by unrelated uncovered dirty files."
+}

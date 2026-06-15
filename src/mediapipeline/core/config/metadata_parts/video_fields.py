@@ -6,6 +6,11 @@ from ..metadata_support import (
     ENCODE_LADDER_DESCRIPTIONS,
     ENCODE_TUNING_PRESET_DESCRIPTIONS,
 )
+from .policy import (
+    DYNAMIC_HDR_POLICY_DEFAULT,
+    DYNAMIC_HDR_POLICY_DESCRIPTIONS,
+    DYNAMIC_HDR_POLICY_NAMES,
+)
 
 
 VIDEO_CONFIG_FIELD_DEFINITIONS = (
@@ -45,6 +50,35 @@ VIDEO_CONFIG_FIELD_DEFINITIONS = (
         "kind": "combo",
         "choices": ("mkv", "mp4"),
         "help": "Output container format used when muxing or encoding creates the saved output; it does not decide whether video is re-encoded.",
+    },
+    {
+        "page": "Video",
+        "section": "Dynamic HDR",
+        "key": "DynamicHdrPolicy",
+        "label": "Dynamic HDR Policy",
+        "kind": "combo",
+        "choices": DYNAMIC_HDR_POLICY_NAMES,
+        "default": DYNAMIC_HDR_POLICY_DEFAULT,
+        "choice_help": DYNAMIC_HDR_POLICY_DESCRIPTIONS,
+        "help": "Controls Dolby Vision and HDR10+ preservation handling. Warn is the current safe default until preserve modes have real-media remux evidence.",
+    },
+    {
+        "page": "Video",
+        "section": "Dynamic HDR",
+        "key": "DoviToolPath",
+        "label": "dovi_tool Path",
+        "kind": "optional_string",
+        "default": "",
+        "help": "Optional path override for dovi_tool.exe. Leave blank to use the bundled tool drop-zone when present.",
+    },
+    {
+        "page": "Video",
+        "section": "Dynamic HDR",
+        "key": "Hdr10PlusToolPath",
+        "label": "hdr10plus_tool Path",
+        "kind": "optional_string",
+        "default": "",
+        "help": "Optional path override for hdr10plus_tool.exe. Leave blank to use the bundled tool drop-zone when present.",
     },
     {
         "page": "Video",

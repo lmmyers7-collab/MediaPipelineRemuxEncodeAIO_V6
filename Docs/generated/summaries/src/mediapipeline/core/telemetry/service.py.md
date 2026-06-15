@@ -3,9 +3,9 @@ file: src/mediapipeline/core/telemetry/service.py
 pipeline_stage: observability
 token_priority: medium
 owner_domain: observability
-last_modified: 2026-06-07
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: f58fdb5d0594e6392a9c691bac32b17e0da822e9451532a63c732fba97f4d6b5
+sha256: 0cdf1a2a1e56e08db9592e7ef445b709735933150ecd834921913e58e6212fab
 ---
 # `src/mediapipeline/core/telemetry/service.py`
 

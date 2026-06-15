@@ -44,6 +44,7 @@ from mediapipeline.core.telemetry.system_metrics import (
     WINDOWS_PROCESSOR_UTILITY_COUNTER,
     WindowsProcessorUtilitySampler,
 )
+from mediapipeline.core.telemetry.service import GPU_TELEMETRY_INTERVAL_SECONDS
 from mediapipeline.desktop.services import DesktopAppService
 from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
 
@@ -784,6 +785,47 @@ class TelemetryServiceTests(unittest.TestCase):
             self.assertEqual(snapshot.gpu_rows[0]["encoder_percent"], 0.0)
             self.assertEqual(snapshot.gpu_rows[0]["gpu_percent"], 1.0)
             self.assertIn("NVIDIA RTX Test", snapshot.gpu_name)
+            for handler in list(service.logger.handlers):
+                base_filename = getattr(handler, "baseFilename", "")
+                if base_filename and str(base_filename).startswith(str(Path(td))):
+                    service.logger.removeHandler(handler)
+                    handler.close()
+
+    def test_gpu_probe_respects_sub_cadence_and_reuses_cached_rows(self) -> None:
+        # CPU/mem sample every cycle, but nvidia-smi (a process spawn) must be
+        # probed at most every GPU_TELEMETRY_INTERVAL_SECONDS; intermediate
+        # cycles reuse the last parsed rows so the UI still shows GPU data.
+        with tempfile.TemporaryDirectory() as td:
+            service = DesktopAppService(Path(td))
+            service._nvidia_smi_checked = True
+            service._nvidia_smi_path = r"C:\NVIDIA\nvidia-smi.exe"
+
+            calls = {"count": 0}
+
+            def fake_run(*_args, **_kwargs):
+                calls["count"] += 1
+                return CapturedCommandResult(
+                    args=[],
+                    returncode=0,
+                    stdout="0, NVIDIA RTX Test, 21, 64, 55, 2048, 8192\n",
+                    stderr="",
+                )
+
+            with patch("mediapipeline.core.telemetry.service.run_capture", fake_run):
+                first = service.sample_system_telemetry(now=1000.0)
+                reused = service.sample_system_telemetry(now=1002.0)
+                due_again = service.sample_system_telemetry(
+                    now=1000.0 + GPU_TELEMETRY_INTERVAL_SECONDS
+                )
+
+            # Two spawns: the first probe and the one after the interval elapsed;
+            # the 2s-later call in between reused the cache without spawning.
+            self.assertEqual(calls["count"], 2)
+            self.assertEqual(first.gpu_encoder_percent, 21.0)
+            self.assertEqual(reused.gpu_encoder_percent, 21.0)
+            self.assertEqual(reused.gpu_percent, 64.0)
+            self.assertEqual(due_again.gpu_encoder_percent, 21.0)
+
             for handler in list(service.logger.handlers):
                 base_filename = getattr(handler, "baseFilename", "")
                 if base_filename and str(base_filename).startswith(str(Path(td))):

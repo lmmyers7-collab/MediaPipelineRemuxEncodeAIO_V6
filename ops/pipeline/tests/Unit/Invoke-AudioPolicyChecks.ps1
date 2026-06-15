@@ -157,6 +157,16 @@ function Invoke-FFprobeCommand {
         }
         return [pscustomobject]@{ ExitCode = 0; Output = (@{ streams = @() } | ConvertTo-Json -Depth 4); Error = ''; TimedOut = $false; Stopped = $false }
     }
+    if ([string]$script:ProbeMode -match '^presence-(nonzero|timedout|stopped)$') {
+        if ($joined -match 'default=noprint_wrappers') {
+            switch ($script:ProbeMode) {
+                'presence-nonzero' { return [pscustomobject]@{ ExitCode = 1; Output = ''; Error = 'presence probe failed'; TimedOut = $false; Stopped = $false } }
+                'presence-timedout' { return [pscustomobject]@{ ExitCode = -1; Output = ''; Error = 'presence probe timed out'; TimedOut = $true; Stopped = $false } }
+                'presence-stopped' { return [pscustomobject]@{ ExitCode = -1; Output = ''; Error = 'presence probe stopped'; TimedOut = $false; Stopped = $true } }
+            }
+        }
+        return [pscustomobject]@{ ExitCode = 0; Output = (@{ streams = @() } | ConvertTo-Json -Depth 4); Error = ''; TimedOut = $false; Stopped = $false }
+    }
 
     $payload = @{
         streams = @(
@@ -312,6 +322,21 @@ Assert-SequenceEqual $noAudioArgs @('-an') 'AllowNoAudio did not emit -an.'
 $noAudioDecisions = @(Get-LastAudioDecisionRecords)
 Assert-Equal $noAudioDecisions.Count 1 'AllowNoAudio decision record count changed.'
 Assert-Equal $noAudioDecisions[0].action 'omit_all' 'AllowNoAudio decision action changed.'
+
+foreach ($presenceProbeMode in @('presence-nonzero', 'presence-timedout', 'presence-stopped')) {
+    foreach ($allowNoAudioValue in @($false, $true)) {
+        $script:AllowNoAudio = $allowNoAudioValue
+        $script:ProbeMode = $presenceProbeMode
+        try {
+            $null = @(Build-AudioArgs "$presenceProbeMode.mkv")
+            throw "Build-AudioArgs did not fail for $presenceProbeMode with AllowNoAudio=$allowNoAudioValue."
+        } catch {
+            if ([string]$_.Exception.Message -notmatch 'SOURCE_MEDIA_AUDIO_PRESENCE_PROBE_FAILED') {
+                throw "Unexpected audio presence-probe failure for $presenceProbeMode with AllowNoAudio=$allowNoAudioValue`: $($_.Exception.Message)"
+            }
+        }
+    }
+}
 
 $script:AllowNoAudio = $false
 $script:ProbeMode = 'metadata-failed'

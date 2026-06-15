@@ -16,6 +16,8 @@ function Do-Encode {
     $script:CurrentEncodeAttempts = @()
     $script:LastPublishResult = $null
     $script:CurrentSizePolicyResult = $null
+    $script:LastQualityVerification = $null
+    $script:CurrentDynamicHdrEvidence = $null
 
     try {
         Set-ProgressStage -Stage 'copy_to_scratch' -Status $script:pipelineStatus -Route 'encode' -CopyState 'starting' -Percent $null -SaveNow
@@ -71,6 +73,22 @@ function Do-Encode {
                 Write-Log "ENCODE: HDR10 metadata found — master-display='$hdr10MasterDisplay' max-cll='$hdr10MaxCll'" "DEBUG"
             } else {
                 Write-Log "ENCODE: HDR source but no HDR10 mastering metadata in side_data ($($hdr10Meta.Reason)); CPU-encoded HDR output will lack master-display/MaxCLL SEI" "WARN"
+            }
+        }
+        if ($isHDR) {
+            $doviState = Get-DolbyVisionState -FilePath $localIn
+            $hdr10PlusState = Test-Hdr10PlusPresence -FilePath $localIn
+            $script:CurrentDynamicHdrEvidence = New-DynamicHdrEvidence -Route 'encode' -DoviState $doviState -Hdr10PlusState $hdr10PlusState
+            if ([bool]$script:CurrentDynamicHdrEvidence.dynamic_metadata_present) {
+                Write-Log ("ENCODE: source carries dynamic HDR metadata ({0}) - it will be DROPPED by this encode (static HDR10 only)" -f $script:CurrentDynamicHdrEvidence.summary) "WARN"
+                Write-PipelineEvent -EventType 'dynamic_hdr_metadata_dropped' -Stage 'encode_prepare' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
+                    dovi_present      = [bool]$script:CurrentDynamicHdrEvidence.dovi_present
+                    dovi_profile      = [int]$script:CurrentDynamicHdrEvidence.dovi_profile
+                    hdr10plus_present = [bool]$script:CurrentDynamicHdrEvidence.hdr10plus_present
+                    summary           = [string]$script:CurrentDynamicHdrEvidence.summary
+                    outcome           = [string]$script:CurrentDynamicHdrEvidence.outcome
+                    probe_error       = [string]$script:CurrentDynamicHdrEvidence.probe_error
+                } | Out-Null
             }
         }
         $usingCpu    = $false
@@ -456,6 +474,41 @@ function Do-Encode {
             $localIn = $null
             Write-Log "ENCODE: duration mismatch - recorded as transient and scheduled for retry: $safeName" "ERROR"
             return $false
+        }
+
+        $script:LastQualityVerification = $null
+        if ([bool]$script:EnableQualityVerification) {
+            Set-ProgressStage -Stage 'encode_verify' -Status "Verifying encode quality ($($script:QualityMetric))" -Route $verifyRoute -Percent $null -SaveNow
+            $qualityRecord = Invoke-MediaQualityVerification `
+                -ReferencePath $localIn `
+                -DistortedPath $tempOut `
+                -Metric $script:QualityMetric `
+                -SampleMode $script:QualitySampleMode `
+                -SampleSeconds $script:QualitySampleSeconds `
+                -SampleCount $script:QualitySampleCount `
+                -TimeoutSeconds $script:QualityVerifyTimeoutSeconds
+            $qualityRecord = Resolve-MediaQualityOutcome `
+                -Record $qualityRecord `
+                -WarnThreshold $script:QualityWarnThreshold `
+                -FailThreshold $script:QualityFailThreshold `
+                -FailAction $script:QualityFailAction
+            $script:LastQualityVerification = $qualityRecord
+            $qualityOutcome = [string]$qualityRecord['outcome']
+            Write-PipelineEvent -EventType 'quality_verification' -Stage 'encode-quality-verify' -Route $verifyRoute -Status $qualityOutcome -SourcePath $file.FullName -Data $qualityRecord | Out-Null
+            if ([bool]$qualityRecord['block_publish']) {
+                $qualityReason = "ENCODE quality score $($qualityRecord['score']) $($qualityRecord['metric']) is below fail threshold $($qualityRecord['fail_threshold']); output rejected before publish"
+                $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $qualityReason -Stage 'encode-quality-verify' -ErrorCode 'ENCODE_QUALITY_BELOW_FLOOR' -SuggestedAction 'Compare the recorded quality score and metric against the configured thresholds; review the encode settings or thresholds before re-encoding or accepting the output.'
+                $localIn = $null
+                Write-Log "ENCODE QUALITY: $qualityReason`: $safeName" "ERROR"
+                return $false
+            }
+            if ($qualityOutcome -in @('warn', 'fail')) {
+                Write-Log "ENCODE QUALITY: $qualityOutcome score $($qualityRecord['score']) $($qualityRecord['metric']) for $safeName (warn=$($qualityRecord['warn_threshold']), fail=$($qualityRecord['fail_threshold']), action=$($qualityRecord['fail_action']))" "WARN"
+            } elseif ($qualityOutcome -in @('error', 'stopped')) {
+                Write-Log "ENCODE QUALITY: verification $qualityOutcome for $safeName; publishing remains fail-open. $($qualityRecord['tool_error'])" "WARN"
+            } else {
+                Write-Log "ENCODE QUALITY: pass score $($qualityRecord['score']) $($qualityRecord['metric']) for $safeName" "DEBUG"
+            }
         }
 
         $routeIntentReasonCode = ''

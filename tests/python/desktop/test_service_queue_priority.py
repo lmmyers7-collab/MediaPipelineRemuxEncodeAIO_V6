@@ -22,6 +22,7 @@ from mediapipeline.core.queue.priority_markers import (
 )
 from mediapipeline.core.queue.priority_manifest import (
     get_manifest_level,
+    has_manifest_priority_entry,
     read_priority_manifest,
     set_manifest_entries_bulk,
     set_manifest_entry,
@@ -97,7 +98,9 @@ class QueuePriorityHelperTests(unittest.TestCase):
             manifest = set_manifest_entry(manifest_path, media, "normal", "file normal")
 
             self.assertEqual(get_manifest_level(manifest, media), "normal")
+            self.assertTrue(has_manifest_priority_entry(manifest, media))
             self.assertEqual(get_manifest_level(manifest, sibling), "low")
+            self.assertTrue(has_manifest_priority_entry(manifest, sibling))
             entries = read_priority_manifest(manifest_path)["entries"]
             self.assertEqual(entries[str(media).replace("\\", "/").lower()]["level"], "normal")
 
@@ -111,6 +114,7 @@ class QueuePriorityHelperTests(unittest.TestCase):
             manifest = set_manifest_entry(manifest_path, media, "normal", "clear")
 
             self.assertEqual(get_manifest_level(manifest, media), "normal")
+            self.assertFalse(has_manifest_priority_entry(manifest, media))
             self.assertEqual(read_priority_manifest(manifest_path)["entries"], {})
 
     def test_manifest_new_priority_level_overwrites_exact_entry(self) -> None:

@@ -318,6 +318,7 @@ function Build-QueuePlanSnapshotRows {
             global_order            = $globalOrder
             phase                   = [string]$entry.QueuePhase
             manifest_priority_level = [string]$entry.EffectivePriorityLevel
+            manifest_priority_explicit = [bool]$entry.ManifestPriorityExplicit
             media_kind              = [string]$entry.MediaKind
             queue_index             = [int]$entry.QueueIndex
             queue_total             = [int]$entry.QueueTotal
@@ -473,4 +474,3 @@ function Build-QueuePlanSnapshotRows {
         gpu_unavailable_reason = $gpuReason
     }
 }
-

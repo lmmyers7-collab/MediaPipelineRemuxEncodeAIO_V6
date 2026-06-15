@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0611-123",
+  "title": "FB-004 block close while queue source scan runs",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Make queue source scans visible to backend close-readiness and avoid daemonized scan abandonment.",
+  "reason": "Worker finding FR-008 identified that queue source-scan workers are daemonized and not consulted by close-readiness, allowing shutdown to abandon scan and subprocess cleanup work.",
+  "affected_areas": [
+    "queue",
+    "close_readiness",
+    "tests"
+  ],
+  "behavior_before": "Queue source scan started a daemon thread recorded only in queue service state. Process close-readiness did not ask the queue service about active source scans.",
+  "behavior_after": "Queue source scan starts a non-daemon thread, exposes an active-scan close-readiness block message, and the process guard blocks shell close or launch actions while the scan thread is alive.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/service.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/guard_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_queue_source_scan.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_close_readiness.py.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-123.json.md",
+    "src/mediapipeline/core/queue/service.py",
+    "src/mediapipeline/core/processes/guard_facade.py",
+    "tests/python/desktop/test_service_queue_source_scan.py",
+    "tests/python/desktop/test_application_facade_close_readiness.py",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-123.json"
+  ],
+  "tests_added": [
+    "Python queue source-scan test proving scan threads are non-daemon and expose active-scan block messages.",
+    "Python close-readiness test proving an active queue source scan blocks safe close."
+  ],
+  "manual_validation": [
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_service_queue_source_scan.QueueSourceScanTests.test_source_scan_thread_is_not_daemonized_and_blocks_close_readiness -q passed.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_application_facade_close_readiness.ApplicationFacadeCloseReadinessTests.test_close_readiness_blocks_active_queue_source_scan -q passed.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_service_queue_source_scan -q passed, 3 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_application_facade_close_readiness -q passed, 11 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_application_facade_queue -q passed, 11 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_service_queue_dry_run_runner -q passed, 3 tests.",
+    "Bundled Python with PYTHONPATH=src: targeted Local API close-readiness endpoint tests passed, 2 tests.",
+    "Bundled Python: mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed only for unrelated uncovered dirty files docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Revert queue source scan close-readiness and thread lifecycle changes, then rerun focused queue source scan and close-readiness tests.",
+  "related_changes": [
+    "FB-004",
+    "FR-008"
+  ],
+  "notes": "Queue launch and backend close-readiness boundary change. Validation must prove close-readiness blocks active scans and the scan thread is not daemonized."
+}

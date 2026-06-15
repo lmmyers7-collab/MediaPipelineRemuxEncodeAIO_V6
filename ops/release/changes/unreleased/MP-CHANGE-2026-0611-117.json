@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0611-117",
+  "title": "FB-012 harden Tauri close and backend URL trust",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Hardened the Tauri shell close path, process-tree fallback, and backend URL trust boundary.",
+  "reason": "Worker findings FR-034, FR-035, and FR-036 identified Tauri lifecycle gaps: safe close could proceed after final backend shutdown was blocked, forced fallback only killed the backend parent, and bootstrap backend URLs were not constrained to loopback before bearer requests and WebView navigation.",
+  "affected_areas": [
+    "tauri",
+    "lifecycle",
+    "local_api",
+    "tests"
+  ],
+  "behavior_before": "The close handler called safe-only backend shutdown and exited even if that shutdown was blocked or failed. Forced fallback used direct child kill only. Backend HTTP helpers accepted any http host with a port, and WebView navigation parsed the backend URL without enforcing loopback.",
+  "behavior_after": "Backend shutdown returns explicit outcomes and safe close is prevented when final safe-only shutdown is blocked or failed. Windows fallback terminates the backend process tree with taskkill /T /F before direct-kill fallback. Backend URL validation requires explicit-port HTTP loopback and is used before bearer requests and WebView navigation.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+    "apps/desktop/tauri/src-tauri/src/http_helpers.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_process.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/http_helpers.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-117.json.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-117.json"
+  ],
+  "tests_added": [
+    "Added Rust coverage proving safe-only shutdown blocked by backend retains the backend child instead of allowing close.",
+    "Added Windows Rust process-tree coverage proving fallback termination removes a spawned descendant process.",
+    "Added Rust URL validation coverage for accepted loopback URLs and rejected HTTPS, implicit-port, external hostname, LAN IP, and non-loopback IPv6 URLs."
+  ],
+  "manual_validation": [
+    "cargo test in apps/desktop/tauri/src-tauri passed, 37 tests.",
+    "apps/desktop/tauri/Test-TauriShell-Build.ps1 -SkipLinkCheck passed, including WebView JavaScript syntax, npm run check, and cargo test --lib.",
+    "ops/scripts/dev/start-tauri-preview.bat -CheckOnly passed.",
+    "apps/desktop/tauri/Test-TauriShell-ProductionSurface.ps1 passed.",
+    "Bundled Python: mediapipeline.tools.dev.refresh_summaries completed for FB-012 files.",
+    "Bundled Python: mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed only for unrelated uncovered dirty files docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Revert the Tauri Rust close/shutdown, process-tree termination, and URL validation changes plus the FB-012 review-doc updates, then rerun cargo test and Tauri build/check scripts.",
+  "related_changes": [
+    "FR-034",
+    "FR-035",
+    "FR-036",
+    "FB-012"
+  ],
+  "notes": "PG active-close GUI smoke was not run for this batch because PG script state-path isolation is tracked separately as FB-031/FR-037; running those scripts before that fix risks validation evidence tied to machine-specific runtime paths."
+}

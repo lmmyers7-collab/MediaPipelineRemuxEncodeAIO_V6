@@ -137,6 +137,10 @@
 }
 .route-chip[data-route="remux"]  { background: var(--semantic-success-bg);  color: var(--semantic-success-text);  }
 .route-chip[data-route="encode"] { background: var(--semantic-info-bg);     color: var(--semantic-info-text);     }
+.route-chip[data-route="remux-fallback"] {
+  background: linear-gradient(90deg, var(--semantic-info-bg) 0 50%, var(--semantic-success-bg) 50% 100%);
+  color: var(--grey-50);
+}
 .route-chip[data-route="skip"]   { background: var(--semantic-disabled-bg); color: var(--semantic-disabled-text); }
 .route-chip[data-route="review"] { background: var(--semantic-warning-bg);  color: var(--semantic-warning-text);  }
 

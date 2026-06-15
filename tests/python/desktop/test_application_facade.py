@@ -269,7 +269,7 @@ class DummyFacadeService(AppStateScheduleServiceMixin):
             "success": True,
             "timed_out": False,
             "returncode": 0,
-            "command": "pwsh -File scripts\\ops\release\metadata\\build.ps1" + (" -DryRun" if dry_run else ""),
+            "command": "pwsh -File scripts\\ops\\release\\metadata\\build.ps1" + (" -DryRun" if dry_run else ""),
             "stdout": stdout,
             "stderr": "",
             "destination_root": str(destination),
@@ -419,6 +419,7 @@ def _resolved(root: Path) -> ResolvedPaths:
             pause_flag=root / "State" / "Pipeline" / "pipeline_pause.flag",
             stop_flag=root / "State" / "Pipeline" / "pipeline_stop.flag",
             rescan_flag=root / "State" / "Pipeline" / "pipeline_rescan.flag",
+            config_data={"NetworkRole": "standalone"},
     )
 
 if __name__ == "__main__":

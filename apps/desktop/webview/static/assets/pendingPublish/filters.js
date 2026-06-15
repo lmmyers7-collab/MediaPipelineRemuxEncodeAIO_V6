@@ -29,6 +29,7 @@ function pendingInvestigationFilterLabel(value) {
       missing_payload: "missing payload",
       invalid_manifest: "invalid manifest",
       missing_sidecars: "missing sidecars",
+      evidence_missing: "evidence missing",
       orphan_payload: "orphan payload",
       ready_to_drain: "ready to drain",
     };
@@ -44,6 +45,14 @@ function pendingMatchesInvestigationFilter(item, filter) {
     if (normalized === "missing_payload") return item?.local_exists === false || Number(item?.missing_local_count || 0) > 0 || state.includes("missing");
     if (normalized === "invalid_manifest") return state.includes("invalid_manifest") || state.includes("unreadable_manifest") || String(item?.error || "").toLowerCase().includes("manifest");
     if (normalized === "missing_sidecars") return Number(item?.missing_sidecar_count || 0) > 0;
+    if (normalized === "evidence_missing") {
+      return item?.local_exists === false
+        || Number(item?.missing_local_count || 0) > 0
+        || Number(item?.missing_sidecar_count || 0) > 0
+        || state.includes("invalid_manifest")
+        || state.includes("unreadable_manifest")
+        || String(item?.error || "").toLowerCase().includes("manifest");
+    }
     if (normalized === "orphan_payload") return state.includes("orphan_payload");
     if (normalized === "ready_to_drain") return item?.ready_to_drain !== false && recommendation !== "do_not_drain" && pendingTableRowStatus(item) === "match";
     return true;

@@ -34,6 +34,7 @@ def save_active_worker_state(
             job_id=job_id,
             source_path=source_path,
         )
+        raise
 
 
 def save_pending_worker_report(

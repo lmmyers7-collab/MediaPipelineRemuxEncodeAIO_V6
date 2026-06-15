@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0611-146",
+  "title": "FB-027 harden layout drawer focus and customize open behavior",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-027 and FR-029 by making the closed layout drawer inert and making empty-state Customize open-only.",
+  "reason": "Worker findings showed the closed Layout Editor drawer remained focusable and the empty-state Customize action used a retired class check that could close an already open drawer.",
+  "affected_areas": [
+    "WebView accessibility",
+    "WebView layout manager"
+  ],
+  "behavior_before": "Closed drawer controls remained reachable off-screen, and empty-state Customize could toggle the drawer closed while the empty state was visible.",
+  "behavior_after": "Closed drawer is hidden and inert, reset controls ignore closed state, and empty-state Customize only opens or refreshes the layout drawer.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/layoutManager.js",
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/partials/app-shell-start.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/layoutManager.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/lifecycle.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/app-shell-start.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-146.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_layout_manager_smoke.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-146.json",
+    "tests/webview/test_webview_browser_layout_manager_smoke.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_browser_layout_manager_smoke"
+  ],
+  "manual_validation": [
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.webview.test_webview_browser_layout_manager_smoke -q passed.",
+    "Layout-manager browser smoke passed; npm run webview:check passed.",
+    "Red layout-manager browser smoke failed on closed drawer not hidden before the fix.",
+    "npm run webview:check passed."
+  ],
+  "rollback_plan": "Restore the prior layout drawer open/close and empty-state customize behavior, then rerun layout-manager smoke tests.",
+  "related_changes": [
+    "FB-027",
+    "FR-027",
+    "FR-029",
+    "W07-003",
+    "W07-005"
+  ],
+  "notes": "WebView UI behavior only; no backend mutation path changes. The layout smoke had stale Launch, Reports, and Completed label expectations updated to match the active markup while validating this drawer behavior."
+}

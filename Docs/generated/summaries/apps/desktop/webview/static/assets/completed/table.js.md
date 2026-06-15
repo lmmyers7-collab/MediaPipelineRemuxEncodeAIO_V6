@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/table.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-07
+last_modified: 2026-06-12
 last_reviewed: 2026-06-04
-sha256: c0a2c0148bc2abe5dadb16f7d977b81413e21b131727be0604f9370a15aa659b
+sha256: 146e0f49f8ec6e7a9870c5d325fb89a431f69362ffe29c4f94eb427e0c43743c
 ---
 # `apps/desktop/webview/static/assets/completed/table.js`
 

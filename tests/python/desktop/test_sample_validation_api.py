@@ -16,6 +16,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.api.static_files import render_index
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.desktop.application.sample_validation import reconciliation as sample_reconciliation
 from mediapipeline.desktop.models import ResolvedPaths
 
 
@@ -385,13 +386,13 @@ class SampleValidationApiTests(unittest.TestCase):
                 self.assertIn("Read-only representative sample-set guidance", sample_set["guardrail"])
                 policy_alignment = read_payload["policy_alignment"]
                 self.assertEqual(policy_alignment["schema_version"], "desktop_real_media_policy_alignment.v1")
-                self.assertEqual(policy_alignment["operator_status"], "ready-looking")
-                self.assertTrue(policy_alignment["policy_ready"])
-                self.assertEqual(policy_alignment["required_ready_count"], 4)
+                self.assertEqual(policy_alignment["operator_status"], "review")
+                self.assertFalse(policy_alignment["policy_ready"])
+                self.assertEqual(policy_alignment["required_ready_count"], 3)
                 self.assertEqual(policy_alignment["required_count"], 4)
                 policy_rows = {row["category_key"]: row for row in policy_alignment["rows"]}
                 self.assertEqual(policy_rows["h264-remux-safe"]["status"], "ready")
-                self.assertEqual(policy_rows["subtitle-srt-generation"]["status"], "ready")
+                self.assertEqual(policy_rows["subtitle-srt-generation"]["status"], "review")
                 self.assertEqual(policy_rows["audio-routing"]["status"], "ready")
                 self.assertEqual(policy_rows["encode-size-policy"]["status"], "ready")
                 self.assertEqual(policy_rows["deferred-publish"]["status"], "manual")
@@ -433,7 +434,7 @@ class SampleValidationApiTests(unittest.TestCase):
                 self.assertIn(audit_rows["Current backend proof"]["status"], {"ready", "review"})
                 self.assertEqual(audit_rows["Sample validation records"]["status"], "ready")
                 self.assertEqual(audit_rows["Representative category coverage"]["status"], "missing")
-                self.assertEqual(audit_rows["Saved media policy alignment"]["status"], "ready")
+                self.assertEqual(audit_rows["Saved media policy alignment"]["status"], "review")
                 self.assertEqual(audit_rows["Evidence gap status"]["status"], "missing")
                 self.assertEqual(audit_rows["Pilot runbook"]["status"], "missing")
                 self.assertEqual(audit_rows["WebView cutover posture"]["status"], "review")
@@ -670,9 +671,9 @@ class SampleValidationApiTests(unittest.TestCase):
         self.assertIn("Read-only real-media pilot runbook", pilot_runbook["guardrail"])
         policy_alignment = payload["policy_alignment"]
         self.assertEqual(policy_alignment["schema_version"], "desktop_real_media_policy_alignment.v1")
-        self.assertEqual(policy_alignment["operator_status"], "ready-looking")
-        self.assertTrue(policy_alignment["policy_ready"])
-        self.assertEqual(policy_alignment["required_ready_count"], 4)
+        self.assertEqual(policy_alignment["operator_status"], "review")
+        self.assertFalse(policy_alignment["policy_ready"])
+        self.assertEqual(policy_alignment["required_ready_count"], 3)
         self.assertEqual(policy_alignment["required_count"], 4)
         self.assertTrue(any("Real-media policy alignment:" in line for line in policy_alignment["summary_lines"]))
         validation_audit = payload["validation_audit"]
@@ -684,7 +685,7 @@ class SampleValidationApiTests(unittest.TestCase):
         self.assertEqual(audit_rows["Sample validation records"]["status"], "missing")
         self.assertEqual(audit_rows["Representative category coverage"]["status"], "missing")
         self.assertEqual(audit_rows["Generated worksheet context"]["status"], "review")
-        self.assertEqual(audit_rows["Saved media policy alignment"]["status"], "ready")
+        self.assertEqual(audit_rows["Saved media policy alignment"]["status"], "review")
         self.assertIn("Current backend proof", validation_audit["missing_required"])
         self.assertIn("Sample validation records", validation_audit["missing_required"])
         self.assertIn("Boundary: validation audit is read-only", "\n".join(validation_audit["summary_lines"]))
@@ -772,7 +773,7 @@ class SampleValidationApiTests(unittest.TestCase):
             self.assertEqual(audit_rows["Generated worksheet context"]["status"], "ready")
             self.assertEqual(audit_rows["Sample validation records"]["status"], "missing")
             self.assertEqual(audit_rows["Representative category coverage"]["status"], "missing")
-            self.assertEqual(audit_rows["Saved media policy alignment"]["status"], "ready")
+            self.assertEqual(audit_rows["Saved media policy alignment"]["status"], "review")
             self.assertEqual(audit_rows["WebView cutover posture"]["status"], "missing")
             self.assertIn("Sample validation records", validation_audit["missing_required"])
             self.assertIn("Representative category coverage", validation_audit["missing_required"])
@@ -864,6 +865,96 @@ class SampleValidationApiTests(unittest.TestCase):
             self.assertTrue(any(row["checkpoint"] == "Stale or review history" for row in cutover_gate["rows"]))
             for path, contents in before.items():
                 self.assertEqual(path.read_bytes(), contents, path)
+
+    def test_sample_validation_reconciliation_scans_completed_manifest_beyond_recent_tail(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            source = resolved.source_tv / "Show" / "Season 01" / "Show S01E01.mkv"
+            output = root / "Outsource" / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"
+            log_path = resolved.state_root / "Validation" / "sample_validation_log.jsonl"
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            log_path.write_text(json.dumps(_sample_request(source, output), ensure_ascii=False) + "\n", encoding="utf-8")
+            resolved.queue_snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            resolved.queue_snapshot_path.write_text(json.dumps({"rows": []}), encoding="utf-8")
+            resolved.completed_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            rows = [
+                json.dumps({"source_path": str(source), "output_path": str(output)}),
+                *(
+                    json.dumps({"source_path": str(root / f"other-{index}.mkv"), "output_path": str(root / f"other-out-{index}.mkv")})
+                    for index in range(450)
+                ),
+            ]
+            resolved.completed_manifest_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            run_log = root / "RunLogs" / "run.stderr.log"
+            run_log.parent.mkdir(parents=True, exist_ok=True)
+            run_log.write_text(f"source={source} output={output}\n", encoding="utf-8")
+            before = {
+                log_path: log_path.read_bytes(),
+                resolved.queue_snapshot_path: resolved.queue_snapshot_path.read_bytes(),
+                resolved.completed_manifest_path: resolved.completed_manifest_path.read_bytes(),
+                run_log: run_log.read_bytes(),
+            }
+            facade = MediaPipelineApplicationFacade(SampleValidationService(), app_version="v5-test")
+            server = LocalApiServer(facade, token="sample-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                status, payload = _request_json(f"{server.url}/api/sample-validation?limit=5", token="sample-token")
+            finally:
+                server.stop()
+
+            self.assertEqual(status, 200)
+            reconciliation = payload["reconciliation"]
+            self.assertEqual(reconciliation["operator_status"], "current")
+            self.assertEqual(reconciliation["stale_count"], 0)
+            row = reconciliation["rows"][0]
+            self.assertEqual(row["status"], "current")
+            self.assertTrue(row["matches"]["completed_source"])
+            self.assertTrue(row["matches"]["completed_output"])
+            scan = row["completed_manifest_scan"]
+            self.assertTrue(scan["scan_complete"])
+            self.assertFalse(scan["scan_capped"])
+            self.assertGreater(scan["rows_scanned"], 400)
+            self.assertEqual(scan["matched_source_count"], 1)
+            self.assertEqual(scan["matched_output_count"], 1)
+            for path, contents in before.items():
+                self.assertEqual(path.read_bytes(), contents, path)
+
+    def test_sample_validation_reconciliation_does_not_mark_capped_completed_scan_stale(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            source = resolved.source_tv / "Show" / "Season 01" / "Show S01E01.mkv"
+            output = root / "Outsource" / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"
+            resolved.queue_snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            resolved.queue_snapshot_path.write_text(json.dumps({"rows": []}), encoding="utf-8")
+            resolved.completed_manifest_path.parent.mkdir(parents=True, exist_ok=True)
+            rows = [
+                *(json.dumps({"source_path": str(root / f"pre-cap-{index}.mkv"), "output_path": str(root / f"pre-cap-out-{index}.mkv")}) for index in range(3)),
+                json.dumps({"source_path": str(source), "output_path": str(output)}),
+                *(json.dumps({"source_path": str(root / f"tail-{index}.mkv"), "output_path": str(root / f"tail-out-{index}.mkv")}) for index in range(450)),
+            ]
+            resolved.completed_manifest_path.write_text("\n".join(rows) + "\n", encoding="utf-8")
+            old_row_limit = sample_reconciliation.COMPLETED_MANIFEST_TARGET_SCAN_MAX_ROWS
+            try:
+                sample_reconciliation.COMPLETED_MANIFEST_TARGET_SCAN_MAX_ROWS = 2
+                payload = sample_reconciliation.sample_validation_reconciliation_payload(
+                    resolved,
+                    [_sample_request(source, output)],
+                )
+            finally:
+                sample_reconciliation.COMPLETED_MANIFEST_TARGET_SCAN_MAX_ROWS = old_row_limit
+
+            self.assertEqual(payload["operator_status"], "review")
+            self.assertEqual(payload["stale_count"], 0)
+            row = payload["rows"][0]
+            self.assertEqual(row["status"], "review")
+            self.assertTrue(
+                any("Completed manifest target scan was capped" in item for item in row["missing_current_evidence"])
+            )
+            scan = row["completed_manifest_scan"]
+            self.assertTrue(scan["scan_capped"])
+            self.assertFalse(scan["scan_complete"])
 
     def test_sample_validation_static_webview_controls_use_backend_routes(self) -> None:
         webview_root = PROJECT_ROOT / "apps" / "desktop" / "webview" / "static"

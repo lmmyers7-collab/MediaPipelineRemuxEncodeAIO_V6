@@ -28,6 +28,7 @@
       ...networkSettingsBuilderFields,
       ...queueSettingsBuilderFields,
       ...videoDetailSettingsBuilderFields,
+      ...qualityDetailSettingsBuilderFields,
       ...runtimeSettingsBuilderFields,
       ...pendingPublishSettingsBuilderFields,
       ...finalLibraryPromotionSettingsBuilderFields,
@@ -45,6 +46,7 @@ const fileSafetySettingsBuilderState = { initialized: false, dirty: false };
 const networkSettingsBuilderState = { initialized: false, dirty: false };
 const queueSettingsBuilderState = { initialized: false, dirty: false };
 const videoDetailSettingsBuilderState = { initialized: false, dirty: false };
+const qualityDetailSettingsBuilderState = { initialized: false, dirty: false };
 const runtimeSettingsBuilderState = { initialized: false, dirty: false };
 const pendingPublishSettingsBuilderState = { initialized: false, dirty: false };
 const finalLibraryPromotionSettingsBuilderState = { initialized: false, dirty: false };
@@ -161,6 +163,7 @@ const fileSafetySettingsBuilderFields = settingsMetadata.fileSafetySettingsBuild
 const networkSettingsBuilderFields = settingsMetadata.networkSettingsBuilderFields || [];
 const queueSettingsBuilderFields = settingsMetadata.queueSettingsBuilderFields || [];
 const videoDetailSettingsBuilderFields = settingsMetadata.videoDetailSettingsBuilderFields || [];
+const qualityDetailSettingsBuilderFields = settingsMetadata.qualityDetailSettingsBuilderFields || [];
 const runtimeSettingsBuilderFields = settingsMetadata.runtimeSettingsBuilderFields || [];
 const pendingPublishSettingsBuilderFields = settingsMetadata.pendingPublishSettingsBuilderFields || [];
 const finalLibraryPromotionSettingsBuilderFields = settingsMetadata.finalLibraryPromotionSettingsBuilderFields || [];
@@ -232,6 +235,7 @@ const settingsBuilderControls = typeof settingsBuilderControlsModule.createSetti
     formatSettingsChoiceLabel,
     networkSettingsBuilderFields,
     pendingPublishSettingsBuilderFields,
+    qualityDetailSettingsBuilderFields,
     queueSettingsBuilderFields,
     runtimeSettingsBuilderFields,
     settingsBuilderFields,
@@ -311,6 +315,33 @@ const markVideoDetailSettingsBuilderDirty = videoDetailSettingsBuilder.markVideo
 const collectVideoDetailSettingsBuilderPatch = videoDetailSettingsBuilder.collectVideoDetailSettingsBuilderPatch || function () { return {}; };
 const applyVideoDetailSettingsBuilderToPatch = videoDetailSettingsBuilder.applyVideoDetailSettingsBuilderToPatch || function () {};
 const renderVideoDetailSettingsBuilderGuidance = videoDetailSettingsBuilder.renderVideoDetailSettingsBuilderGuidance || function () {};
+
+const qualityDetailSettingsBuilderModule = window.__settingsViewQualityBuilderModule || {};
+delete window.__settingsViewQualityBuilderModule;
+const qualityDetailSettingsBuilder = typeof qualityDetailSettingsBuilderModule.createQualityDetailSettingsBuilder === "function"
+  ? qualityDetailSettingsBuilderModule.createQualityDetailSettingsBuilder({
+    byId,
+    formatSettingsChoiceLabel,
+    qualityDetailSettingsBuilderFields,
+    qualityDetailSettingsBuilderState,
+    readSettingsBuilderFloat,
+    readSettingsBuilderNumber,
+    refreshSettingsSelectChoices,
+    renderSettingsActiveMediaPolicyHandoff,
+    setSettingsBuilderControl,
+    setText,
+    settingsBuilderConfigValue,
+    settingsBuilderInputValue,
+    settingsFieldDefinition,
+    settingsSpecificImpactHints,
+    writeSettingsPatchJson,
+  })
+  : {};
+const syncQualityDetailSettingsBuilderFromConfig = qualityDetailSettingsBuilder.syncQualityDetailSettingsBuilderFromConfig || function () {};
+const markQualityDetailSettingsBuilderDirty = qualityDetailSettingsBuilder.markQualityDetailSettingsBuilderDirty || function () {};
+const collectQualityDetailSettingsBuilderPatch = qualityDetailSettingsBuilder.collectQualityDetailSettingsBuilderPatch || function () { return {}; };
+const applyQualityDetailSettingsBuilderToPatch = qualityDetailSettingsBuilder.applyQualityDetailSettingsBuilderToPatch || function () {};
+const renderQualityDetailSettingsBuilderGuidance = qualityDetailSettingsBuilder.renderQualityDetailSettingsBuilderGuidance || function () {};
 
 const subtitleSettingsBuilderModule = window.__settingsViewSubtitleBuilderModule || {};
 delete window.__settingsViewSubtitleBuilderModule;
@@ -462,6 +493,7 @@ const networkSettingsBuilder = typeof networkSettingsBuilderModule.createNetwork
     settingsBuilderConfigValue,
     settingsBuilderInputValue,
     settingsFieldDefinition,
+    runNetworkWorkerTestConnection: (options) => window.mediaPipelineNetworkView?.runNetworkWorkerTestConnection?.(options),
     writeSettingsPatchJson,
   })
   : {};
@@ -826,7 +858,7 @@ function collectSettingsBuilderPatch() {
 
 function applySettingsBuilderToPatch() {
   const fn = settingsPatchReviewFunction("applySettingsBuilderToPatch");
-  if (fn) fn();
+  return fn ? fn() : true;
 }
 
 let settingsPolicyImpact = {};
@@ -907,6 +939,7 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
       applyFileSafetySettingsBuilderToPatch,
       applyNetworkSettingsBuilderToPatch,
       applyPendingPublishSettingsBuilderToPatch,
+      applyQualityDetailSettingsBuilderToPatch,
       applyQueueSettingsBuilderToPatch,
       applyRuntimeSettingsBuilderToPatch,
       applySettingsBuilderToPatch,
@@ -918,6 +951,7 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
       markFinalLibraryPromotionSettingsBuilderDirty,
       markNetworkSettingsBuilderDirty,
       markPendingPublishSettingsBuilderDirty,
+      markQualityDetailSettingsBuilderDirty,
       markQueueSettingsBuilderDirty,
       markRuntimeSettingsBuilderDirty,
       markSettingsBuilderDirty,
@@ -930,6 +964,7 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
       renderFileSafetySettingsBuilderGuidance,
       renderNetworkSettingsBuilderGuidance,
       renderPendingPublishSettingsBuilderGuidance,
+      renderQualityDetailSettingsBuilderGuidance,
       renderQueueSettingsBuilderGuidance,
       renderRuntimeSettingsBuilderGuidance,
       renderSubtitleSettingsBuilderGuidance,
@@ -942,6 +977,7 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
       syncFinalLibraryPromotionSettingsBuilderFromConfig,
       syncNetworkSettingsBuilderFromConfig,
       syncPendingPublishSettingsBuilderFromConfig,
+      syncQualityDetailSettingsBuilderFromConfig,
       syncQueueSettingsBuilderFromConfig,
       syncRuntimeSettingsBuilderFromConfig,
       syncSettingsBuilderFromConfig,
@@ -1024,6 +1060,8 @@ settingsPatchReview = typeof settingsPatchReviewModule.createSettingsPatchReview
     networkSettingsBuilderState,
     pendingPublishSettingsBuilderFields,
     pendingPublishSettingsBuilderState,
+    qualityDetailSettingsBuilderFields,
+    qualityDetailSettingsBuilderState,
     queueSettingsBuilderFields,
     queueSettingsBuilderState,
     subtitleSettingsBuilderFields,
@@ -1240,32 +1278,73 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
   });
 }
 
+  function settingsBuilderFlushFailureMessage(failedBuilders) {
+    const names = Array.isArray(failedBuilders) && failedBuilders.length ? failedBuilders.join(", ") : "unknown builder";
+    return `Fix invalid Settings builder input before Preview or Save. Failed builder(s): ${names}.`;
+  }
+
+  function recordSettingsBuilderFlushFailure(command, flushResult) {
+    const failedBuilders = Array.isArray(flushResult?.failedBuilders) ? flushResult.failedBuilders : [];
+    const message = flushResult?.message || settingsBuilderFlushFailureMessage(failedBuilders);
+    const existingDetail = byId("settings-patch-detail")?.textContent || "";
+    appendCommandResult({
+      command,
+      ok: false,
+      severity: "error",
+      message,
+      errors: failedBuilders,
+    });
+    setText("settings-patch-status", "Builder invalid");
+    setText("settings-patch-detail", [message, existingDetail].filter(Boolean).join("\n"));
+    renderSettingsPatchSummary();
+    if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
+  }
+
   function flushDirtySettingsBuilders() {
     // Merge any builder the operator edited (dirty) into the Changes JSON before
     // preview/save read it. Without this, toggling a control only marks the builder
     // dirty and the change never reaches the patch that is actually sent to the backend.
     const flushTargets = [
-      [settingsBuilderDirty, applySettingsBuilderToPatch],
-      [videoDetailSettingsBuilderState.dirty, applyVideoDetailSettingsBuilderToPatch],
-      [fileSafetySettingsBuilderState.dirty, applyFileSafetySettingsBuilderToPatch],
-      [networkSettingsBuilderState.dirty, applyNetworkSettingsBuilderToPatch],
-      [queueSettingsBuilderState.dirty, applyQueueSettingsBuilderToPatch],
-      [runtimeSettingsBuilderState.dirty, applyRuntimeSettingsBuilderToPatch],
-      [pendingPublishSettingsBuilderState.dirty, applyPendingPublishSettingsBuilderToPatch],
-      [subtitleSettingsBuilderState.dirty, applySubtitleSettingsBuilderToPatch],
-      [audioSettingsBuilderState.dirty, applyAudioSettingsBuilderToPatch],
+      ["routing and size builder", settingsBuilderDirty, applySettingsBuilderToPatch],
+      ["video detail builder", videoDetailSettingsBuilderState.dirty, applyVideoDetailSettingsBuilderToPatch],
+      ["quality verification builder", qualityDetailSettingsBuilderState.dirty, applyQualityDetailSettingsBuilderToPatch],
+      ["file safety builder", fileSafetySettingsBuilderState.dirty, applyFileSafetySettingsBuilderToPatch],
+      ["network builder", networkSettingsBuilderState.dirty, applyNetworkSettingsBuilderToPatch],
+      ["queue builder", queueSettingsBuilderState.dirty, applyQueueSettingsBuilderToPatch],
+      ["runtime builder", runtimeSettingsBuilderState.dirty, applyRuntimeSettingsBuilderToPatch],
+      ["pending publish builder", pendingPublishSettingsBuilderState.dirty, applyPendingPublishSettingsBuilderToPatch],
+      ["subtitle builder", subtitleSettingsBuilderState.dirty, applySubtitleSettingsBuilderToPatch],
+      ["audio builder", audioSettingsBuilderState.dirty, applyAudioSettingsBuilderToPatch],
     ];
     let flushed = 0;
-    flushTargets.forEach(([dirty, applyFn]) => {
+    const failedBuilders = [];
+    flushTargets.forEach(([label, dirty, applyFn]) => {
       if (!dirty || typeof applyFn !== "function") return;
       try {
-        applyFn();
+        const result = applyFn();
+        if (result === false) {
+          failedBuilders.push(label);
+          return;
+        }
         flushed += 1;
       } catch (error) {
-        // Each apply function already reports its own validation error to the UI.
+        const message = error instanceof Error ? error.message : String(error);
+        failedBuilders.push(`${label}: ${message}`);
       }
     });
-    return flushed;
+    if (failedBuilders.length) {
+      return {
+        ok: false,
+        flushed,
+        failedBuilders,
+        message: settingsBuilderFlushFailureMessage(failedBuilders),
+      };
+    }
+    return {
+      ok: true,
+      flushed,
+      failedBuilders: [],
+    };
   }
 
   function resetSettingsBuilderSyncState(options = {}) {
@@ -1273,6 +1352,7 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
     settingsBuilderDirty = false;
     [
       videoDetailSettingsBuilderState,
+      qualityDetailSettingsBuilderState,
       fileSafetySettingsBuilderState,
       networkSettingsBuilderState,
       queueSettingsBuilderState,
@@ -1299,7 +1379,11 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
 
   async function previewSettingsPatch() {
     if (rejectSettingsCommandWhileBusy("settings.preview_patch", "settings-patch-status", "settings-patch-detail")) return;
-    flushDirtySettingsBuilders();
+    const flushResult = flushDirtySettingsBuilders();
+    if (!flushResult.ok) {
+      recordSettingsBuilderFlushFailure("settings.preview_patch", flushResult);
+      return;
+    }
     const raw = byId("settings-patch-json")?.value || "{}";
     const rawAtRequest = raw;
     markSettingsPatchTouched();
@@ -1415,7 +1499,11 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
 
 async function saveSettingsPatch() {
   if (rejectSettingsCommandWhileBusy("settings.save_patch", "settings-patch-status", "settings-patch-detail")) return;
-  flushDirtySettingsBuilders();
+  const flushResult = flushDirtySettingsBuilders();
+  if (!flushResult.ok) {
+    recordSettingsBuilderFlushFailure("settings.save_patch", flushResult);
+    return;
+  }
   const raw = byId("settings-patch-json")?.value || "{}";
   markSettingsPatchTouched();
   if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
@@ -1759,6 +1847,7 @@ async function reloadSettingsFromDisk() {
     markSettingsPatchTouched, settingsPatchIsTouched, settingsPatchEffectiveChangedEntries, settingsPatchHasUnsavedChanges, settingsStableJsonValue, settingsPatchSignature, settingsCurrentPatchSignature,
     syncSettingsBuilderFromConfig, collectSettingsBuilderPatch, applySettingsBuilderToPatch, refreshSettingsBuilderChoices, renderSettingsBuilderGuidance, markSettingsBuilderDirty,
     syncVideoDetailSettingsBuilderFromConfig, collectVideoDetailSettingsBuilderPatch, applyVideoDetailSettingsBuilderToPatch, renderVideoDetailSettingsBuilderGuidance, markVideoDetailSettingsBuilderDirty,
+    syncQualityDetailSettingsBuilderFromConfig, collectQualityDetailSettingsBuilderPatch, applyQualityDetailSettingsBuilderToPatch, renderQualityDetailSettingsBuilderGuidance, markQualityDetailSettingsBuilderDirty,
     syncFileSafetySettingsBuilderFromConfig, collectFileSafetySettingsBuilderPatch, applyFileSafetySettingsBuilderToPatch, renderFileSafetySettingsBuilderGuidance, markFileSafetySettingsBuilderDirty,
     syncNetworkSettingsBuilderFromConfig, collectNetworkSettingsBuilderPatch, applyNetworkSettingsBuilderToPatch, renderNetworkSettingsBuilderGuidance, markNetworkSettingsBuilderDirty,
     syncQueueSettingsBuilderFromConfig, collectQueueSettingsBuilderPatch, applyQueueSettingsBuilderToPatch, renderQueueSettingsBuilderGuidance, markQueueSettingsBuilderDirty,
@@ -1783,6 +1872,7 @@ async function reloadSettingsFromDisk() {
   window.settingsPolicyDeltaRows = settingsPolicyDeltaRows; window.settingsPolicyDeltaStatus = settingsPolicyDeltaStatus; window.settingsLaunchImpactRows = settingsLaunchImpactRows; window.settingsLaunchImpactStatus = settingsLaunchImpactStatus;
   window.settingsPatchIsTouched = settingsPatchIsTouched; window.settingsPatchEffectiveChangedEntries = settingsPatchEffectiveChangedEntries; window.syncVideoDetailSettingsBuilderFromConfig = syncVideoDetailSettingsBuilderFromConfig; window.collectVideoDetailSettingsBuilderPatch = collectVideoDetailSettingsBuilderPatch;
   window.applyVideoDetailSettingsBuilderToPatch = applyVideoDetailSettingsBuilderToPatch; window.renderVideoDetailSettingsBuilderGuidance = renderVideoDetailSettingsBuilderGuidance; window.markVideoDetailSettingsBuilderDirty = markVideoDetailSettingsBuilderDirty; window.syncFileSafetySettingsBuilderFromConfig = syncFileSafetySettingsBuilderFromConfig;
+  window.syncQualityDetailSettingsBuilderFromConfig = syncQualityDetailSettingsBuilderFromConfig; window.collectQualityDetailSettingsBuilderPatch = collectQualityDetailSettingsBuilderPatch; window.applyQualityDetailSettingsBuilderToPatch = applyQualityDetailSettingsBuilderToPatch; window.renderQualityDetailSettingsBuilderGuidance = renderQualityDetailSettingsBuilderGuidance; window.markQualityDetailSettingsBuilderDirty = markQualityDetailSettingsBuilderDirty;
   window.collectFileSafetySettingsBuilderPatch = collectFileSafetySettingsBuilderPatch; window.applyFileSafetySettingsBuilderToPatch = applyFileSafetySettingsBuilderToPatch; window.renderFileSafetySettingsBuilderGuidance = renderFileSafetySettingsBuilderGuidance; window.markFileSafetySettingsBuilderDirty = markFileSafetySettingsBuilderDirty;
   window.syncNetworkSettingsBuilderFromConfig = syncNetworkSettingsBuilderFromConfig; window.collectNetworkSettingsBuilderPatch = collectNetworkSettingsBuilderPatch; window.applyNetworkSettingsBuilderToPatch = applyNetworkSettingsBuilderToPatch; window.renderNetworkSettingsBuilderGuidance = renderNetworkSettingsBuilderGuidance; window.markNetworkSettingsBuilderDirty = markNetworkSettingsBuilderDirty;
   window.syncQueueSettingsBuilderFromConfig = syncQueueSettingsBuilderFromConfig; window.collectQueueSettingsBuilderPatch = collectQueueSettingsBuilderPatch; window.applyQueueSettingsBuilderToPatch = applyQueueSettingsBuilderToPatch; window.renderQueueSettingsBuilderGuidance = renderQueueSettingsBuilderGuidance; window.markQueueSettingsBuilderDirty = markQueueSettingsBuilderDirty;

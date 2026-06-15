@@ -30,6 +30,7 @@ APP_CAPABILITIES = (
     "rename-preview",
     "rename-apply",
     "schedule-workspace",
+    "watch-folder-status",
     "settings-workspace",
     "settings-validate",
     "settings-preview-patch",

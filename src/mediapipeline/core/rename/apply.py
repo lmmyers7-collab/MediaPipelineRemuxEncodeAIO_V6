@@ -108,6 +108,8 @@ def write_rename_undo_manifest(manifest: dict[str, Any], *, root: Path | None = 
     manifest_root.mkdir(parents=True, exist_ok=True)
     path_text = str(manifest.get("path") or "")
     path = Path(path_text) if path_text else manifest_root / f"rename-undo-{uuid.uuid4().hex}.json"
+    if root is not None:
+        ensure_path_boundary_safe_for_mutation(path, manifest_root, allow_missing_leaf=True)
     manifest["path"] = str(path)
     atomic_write_text(path, json.dumps(manifest, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return path

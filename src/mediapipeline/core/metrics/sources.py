@@ -21,6 +21,7 @@ METRICS_BACKFILL_SCHEMA_VERSION = "desktop_metrics_backfill.v1"
 METRICS_BACKFILL_CACHE_SCHEMA_VERSION = "desktop_metrics_sidecar_backfill.v1"
 METRICS_STATE_DIR_NAME = "Metrics"
 METRICS_SIDECAR_SUFFIX = ".pipeline.json"
+METRICS_SIDECAR_READ_MAX_BYTES = 2_000_000
 
 
 def _text(value: Any) -> str:
@@ -160,25 +161,28 @@ def _save_registry(registry_path: Path, registry: Mapping[str, Any]) -> None:
     _json_dump(registry_path, payload)
 
 
-def _read_cache_entries(cache_path: Path) -> list[dict[str, Any]]:
+def _iter_cache_entries(cache_path: Path) -> Iterable[dict[str, Any]]:
     if not cache_path.exists():
-        return []
-    entries: list[dict[str, Any]] = []
+        return
     try:
-        raw = cache_path.read_text(encoding="utf-8-sig", errors="replace")
+        handle = cache_path.open("r", encoding="utf-8-sig", errors="replace")
     except OSError:
-        return []
-    for line in raw.splitlines():
-        line = line.strip()
-        if not line:
-            continue
-        try:
-            parsed = json.loads(line)
-        except json.JSONDecodeError:
-            continue
-        if isinstance(parsed, dict):
-            entries.append(parsed)
-    return entries
+        return
+    with handle:
+        for line in handle:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                parsed = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(parsed, dict):
+                yield parsed
+
+
+def _read_cache_entries(cache_path: Path) -> list[dict[str, Any]]:
+    return list(_iter_cache_entries(cache_path))
 
 
 def _count_cache_entries(cache_path: Path) -> int:
@@ -193,6 +197,16 @@ def _count_cache_entries(cache_path: Path) -> int:
     except OSError:
         return 0
     return count
+
+
+def _cache_record_counts(cache_path: Path, enabled_ids: set[str]) -> tuple[int, int]:
+    total = 0
+    enabled = 0
+    for entry in _iter_cache_entries(cache_path):
+        total += 1
+        if str(entry.get("source_id") or "") in enabled_ids:
+            enabled += 1
+    return total, enabled
 
 
 def _source_state_from_registry(
@@ -227,8 +241,7 @@ def _source_state_from_registry(
         if isinstance(item, Mapping)
     ]
     enabled_ids = {str(item.get("source_id") or "") for item in roots if _bool_value(item.get("enabled"), default=True)}
-    cache_entries = _read_cache_entries(paths["cache"])
-    enabled_cache_count = sum(1 for item in cache_entries if str(item.get("source_id") or "") in enabled_ids)
+    cache_record_count, enabled_cache_count = _cache_record_counts(paths["cache"], enabled_ids)
     status_payload = _json_load(paths["status"])
     return {
         "schema_version": METRICS_SOURCE_REGISTRY_SCHEMA_VERSION,
@@ -241,7 +254,7 @@ def _source_state_from_registry(
         "status_path": str(paths["status"]),
         "source_count": len(roots),
         "enabled_source_count": len(enabled_ids),
-        "cache_record_count": len(cache_entries),
+        "cache_record_count": cache_record_count,
         "enabled_cache_record_count": enabled_cache_count,
         "roots": roots,
         "last_backfill": status_payload,
@@ -447,6 +460,7 @@ def _scan_source_entry(entry: Mapping[str, Any], *, max_sidecars: int | None, sc
         "sidecar_count": 0,
         "loaded_count": 0,
         "error_count": 0,
+        "skipped_oversized_count": 0,
         "errors": [],
         "warnings": [],
         "scanned_at": scanned_at,
@@ -501,6 +515,18 @@ def _scan_source_entry(entry: Mapping[str, Any], *, max_sidecars: int | None, sc
             sidecar_path = current_path / filename
             stats["sidecar_count"] = int(stats["sidecar_count"]) + 1
             try:
+                sidecar_size = sidecar_path.stat().st_size
+            except OSError as exc:
+                stats["error_count"] = int(stats["error_count"]) + 1
+                stats["errors"].append(f"{sidecar_path}: {exc}")
+                continue
+            if sidecar_size > METRICS_SIDECAR_READ_MAX_BYTES:
+                stats["skipped_oversized_count"] = int(stats["skipped_oversized_count"]) + 1
+                stats["warnings"].append(
+                    f"{sidecar_path}: skipped oversized sidecar ({sidecar_size} bytes > {METRICS_SIDECAR_READ_MAX_BYTES} bytes)"
+                )
+                continue
+            try:
                 payload = json.loads(sidecar_path.read_text(encoding="utf-8-sig", errors="replace"))
             except (OSError, json.JSONDecodeError) as exc:
                 stats["error_count"] = int(stats["error_count"]) + 1
@@ -522,7 +548,7 @@ def _scan_source_entry(entry: Mapping[str, Any], *, max_sidecars: int | None, sc
                     "payload": json_safe(payload),
                 }
             )
-    if stats["error_count"]:
+    if stats["error_count"] or stats["skipped_oversized_count"]:
         stats["status"] = "warning"
     return stats, cache_entries
 
@@ -615,15 +641,17 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
     total_sidecars = sum(int(item.get("sidecar_count") or 0) for item in root_results)
     total_loaded = sum(int(item.get("loaded_count") or 0) for item in root_results)
     total_errors = sum(int(item.get("error_count") or 0) for item in root_results)
+    total_oversized = sum(int(item.get("skipped_oversized_count") or 0) for item in root_results)
     status_payload = {
         "schema_version": METRICS_BACKFILL_SCHEMA_VERSION,
-        "status": "warning" if total_errors else "complete",
+        "status": "warning" if total_errors or total_oversized else "complete",
         "started_at": scanned_at,
         "completed_at": utc_now_text(),
         "source_count": len(root_results),
         "sidecar_count": total_sidecars,
         "loaded_count": total_loaded,
         "error_count": total_errors,
+        "skipped_oversized_count": total_oversized,
         "cache_path": str(paths["cache"]),
         "roots": root_results,
     }
@@ -633,7 +661,7 @@ def run_metrics_sidecar_backfill(resolved: ResolvedPaths, request: Mapping[str, 
     return {
         "ok": True,
         "message": message,
-        "severity": "warning" if total_errors else "info",
+        "severity": "warning" if total_errors or total_oversized else "info",
         "warnings": [
             warning
             for item in root_results
@@ -663,7 +691,7 @@ def load_metrics_backfill_records(
     }
     records: list[CompletedJobRecord] = []
     skipped = 0
-    for entry in _read_cache_entries(paths["cache"]):
+    for entry in _iter_cache_entries(paths["cache"]):
         source_id = _text(entry.get("source_id"))
         if source_id not in enabled_ids:
             skipped += 1

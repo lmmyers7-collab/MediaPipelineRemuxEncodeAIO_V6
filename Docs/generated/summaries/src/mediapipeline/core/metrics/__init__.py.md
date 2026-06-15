@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/metrics/__init__.py
 pipeline_stage: n/a
 token_priority: low
-owner_domain: unknown
+owner_domain: metrics
 last_modified: 2026-06-05
 last_reviewed: 2026-06-05
 sha256: 7994354275e72ececf09437fe19dc5be2ed29930814b4efef3f26b1f13b2d7f5

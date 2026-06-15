@@ -1,5 +1,7 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$AllowMissingTools
+)
 
 $ErrorActionPreference = 'Stop'
 
@@ -26,8 +28,12 @@ foreach ($tool in @(
 }
 
 if ($missingTools.Count -gt 0) {
-    Write-Host ("SKIP: end-to-end smoke checks require: {0}" -f ($missingTools -join ', '))
-    return
+    $missingMessage = "End-to-end smoke checks require: {0}" -f ($missingTools -join ', ')
+    if ($AllowMissingTools) {
+        Write-Host "SKIP: $missingMessage"
+        return
+    }
+    throw $missingMessage
 }
 
 function Assert-True {

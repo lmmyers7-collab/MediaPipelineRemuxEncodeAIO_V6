@@ -360,6 +360,36 @@ def main(argv: Sequence[str] | None = None) -> int:
             )
         )
         print(json.dumps(bootstrap_payload(server, resolved, include_token=require_token), sort_keys=True), flush=True)
+        # Started after the listener and bootstrap line so an enabled watcher's
+        # first scan of large/remote roots can never delay backend reachability.
+        startup_steps = list(server.startup_progress.get("steps", [])) if isinstance(server.startup_progress, dict) else []
+        try:
+            watch_state = server.facade._start_watch_folder_manager(
+                resolved_provider=server.resolved_provider,
+                resolved_reload=server.resolved_reload,
+            )
+            if not bool(watch_state.get("enabled", False)):
+                watch_detail = "disabled"
+                watch_status = "complete"
+            elif str(watch_state.get("status") or "").casefold() == "degraded":
+                watch_detail = f"degraded: {watch_state.get('reason') or watch_state.get('last_error') or 'unknown'}"
+                watch_status = "warning"
+            else:
+                watch_detail = f"started ({len(watch_state.get('roots') or [])} roots)"
+                watch_status = "complete"
+        except Exception as exc:
+            watch_detail = f"degraded: {exc}"
+            watch_status = "warning"
+        server.set_startup_progress(
+            record_startup_step(
+                startup_steps,
+                "watch_folders",
+                "Start watch-folder manager",
+                detail=watch_detail,
+                status=watch_status,
+                callback=startup_callback,
+            )
+        )
         while not stop_event.wait(3600.0):
             pass
     except KeyboardInterrupt:

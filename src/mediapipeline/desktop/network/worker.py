@@ -8,9 +8,11 @@ Phase 2 implementation.
 """
 from __future__ import annotations
 
+import hashlib
 import logging
 import socket
 import threading
+import time
 import uuid
 from datetime import datetime
 from pathlib import Path
@@ -32,6 +34,11 @@ from .worker_loops import WorkerLoopMixin
 from .http_json import HTTP_MAX_RESPONSE_BYTES as _HTTP_MAX_RESPONSE_BYTES
 from .http_json import HTTP_TIMEOUT as _HTTP_TIMEOUT
 from .http_json import http_read_capped as _http_read_capped
+from .library_roots import (
+    auto_source_path_map_from_libraries,
+    merge_manual_and_auto_path_maps,
+    resolve_worker_library_relative_path,
+)
 from .path_map import apply_source_path_map, parse_source_path_map
 from .poll_policy import resolve_worker_poll_interval
 from .protocol import LogEntryRequest
@@ -52,6 +59,20 @@ _log = logging.getLogger(__name__)
 _HEARTBEAT_INTERVAL = 30   # seconds between heartbeats
 # HTTP timeout and response-size caps live in network.http_json and are
 # imported here under their historical names for compatibility.
+
+
+def _fingerprint_text(value: str) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()[:8]
+
+
+def _path_map_fingerprint(mappings: list[tuple[str, str]]) -> str:
+    if not mappings:
+        return ""
+    material = "\n".join(f"{source}\0{target}" for source, target in mappings)
+    return _fingerprint_text(material)
 
 
 class WorkerDispatcher(
@@ -100,9 +121,14 @@ class WorkerDispatcher(
 
         # Source path mapping: rewrite coordinator paths to local-reachable ones.
         # Parsed once at construction; callers can hot-swap via update_source_path_map().
-        self._source_path_map: list[tuple[str, str]] = self._parse_source_path_map(
+        self._manual_source_path_map: list[tuple[str, str]] = self._parse_source_path_map(
             str(config.get(KEY_WORKER_SOURCE_PATH_MAP, "") or "").strip()
         )
+        self._auto_source_path_map: list[tuple[str, str]] = []
+        self._source_path_map: list[tuple[str, str]] = self._combined_source_path_map()
+        self._library_auto_map_last_refresh = 0.0
+        self._library_auto_map_refresh_seconds = 300.0
+        self._library_auto_map_last_error = ""
 
         # State path for crash recovery — same directory as the app state file.
         svc = getattr(app, "service", None)
@@ -249,7 +275,36 @@ class WorkerDispatcher(
         but the original casing of the un-matched suffix is preserved.
         Returns *path* unchanged when no prefix matches.
         """
-        return apply_source_path_map(path, self._source_path_map)
+        _base_url, _auth_token, mappings = self._runtime_settings_snapshot()
+        return apply_source_path_map(path, mappings)
+
+    def _runtime_settings_snapshot(self) -> tuple[str, str, list[tuple[str, str]]]:
+        """Return a consistent URL/token/path-map snapshot for the poll loop."""
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            return (
+                str(getattr(self, "_base_url", "") or ""),
+                str(getattr(self, "_auth_token", "") or ""),
+                list(getattr(self, "_source_path_map", []) or []),
+            )
+        with lock:
+            return (
+                str(getattr(self, "_base_url", "") or ""),
+                str(getattr(self, "_auth_token", "") or ""),
+                list(getattr(self, "_source_path_map", []) or []),
+            )
+
+    def _combined_source_path_map(self) -> list[tuple[str, str]]:
+        return merge_manual_and_auto_path_maps(
+            list(getattr(self, "_manual_source_path_map", []) or []),
+            list(getattr(self, "_auto_source_path_map", []) or []),
+        )
+
+    def _worker_config(self) -> dict[str, Any]:
+        app = getattr(self, "app", None)
+        resolved = getattr(app, "resolved", None)
+        config = getattr(resolved, "config_data", {}) if resolved is not None else {}
+        return dict(config or {})
 
     def update_source_path_map(self, raw: str) -> None:
         """Hot-swap the source path map without restarting the dispatcher.
@@ -257,11 +312,80 @@ class WorkerDispatcher(
         Called from the Network tab when the user edits WorkerSourcePathMap
         and wants the change applied immediately.
         """
-        self._source_path_map = self._parse_source_path_map((raw or "").strip())
+        mappings = self._parse_source_path_map((raw or "").strip())
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            self._manual_source_path_map = mappings
+            self._source_path_map = self._combined_source_path_map()
+        else:
+            with lock:
+                self._manual_source_path_map = mappings
+                self._source_path_map = self._combined_source_path_map()
         _log.info(
-            "Worker source path map updated (hot-swap, %d entries).",
+            "Worker source path map updated (hot-swap, manual=%d effective=%d entries).",
+            len(mappings),
             len(self._source_path_map),
         )
+        wakeup = getattr(self, "_wakeup", None)
+        if wakeup is not None:
+            wakeup.set()
+
+    def update_library_auto_map(self, coordinator_libraries: list[dict[str, Any]]) -> None:
+        """Hot-swap the auto-derived library path map without restarting."""
+        auto_mappings = auto_source_path_map_from_libraries(coordinator_libraries, self._worker_config())
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            self._auto_source_path_map = auto_mappings
+            self._source_path_map = self._combined_source_path_map()
+            effective_count = len(self._source_path_map)
+        else:
+            with lock:
+                self._auto_source_path_map = auto_mappings
+                self._source_path_map = self._combined_source_path_map()
+                effective_count = len(self._source_path_map)
+        _log.info(
+            "Worker library auto-map refreshed (auto=%d effective=%d entries).",
+            len(auto_mappings),
+            effective_count,
+        )
+
+    def refresh_library_auto_map(self) -> bool:
+        """Fetch coordinator library roots and refresh the auto-derived path map."""
+        response = self._http_get("/api/libraries")
+        libraries = response.get("libraries", [])
+        if not isinstance(libraries, list):
+            raise RuntimeError("Coordinator /api/libraries response did not include a libraries list.")
+        self.update_library_auto_map([dict(item) for item in libraries if isinstance(item, dict)])
+        self._library_auto_map_last_error = ""
+        return True
+
+    def _maybe_refresh_library_auto_map(self, *, force: bool = False) -> None:
+        interval = max(60.0, float(getattr(self, "_library_auto_map_refresh_seconds", 300.0) or 300.0))
+        now = time.monotonic()
+        last_refresh = float(getattr(self, "_library_auto_map_last_refresh", 0.0) or 0.0)
+        if not force and last_refresh > 0 and now - last_refresh < interval:
+            return
+        self._library_auto_map_last_refresh = now
+        try:
+            self.refresh_library_auto_map()
+        except Exception as exc:
+            err_text = _worker_diagnostic_preview(exc)
+            if err_text != getattr(self, "_library_auto_map_last_error", ""):
+                _log.warning("Worker library auto-map refresh failed; manual path map remains active: %s", err_text)
+                self._library_auto_map_last_error = err_text
+            else:
+                _log.debug("Worker library auto-map refresh still failing: %s", err_text)
+
+    def resolve_claim_source_path(self, claim: ClaimResponse) -> tuple[str, str]:
+        """Resolve the source path for a claim, preferring library-relative fields."""
+        library_path = resolve_worker_library_relative_path(
+            self._worker_config(),
+            claim.library_id,
+            claim.relative_path,
+        )
+        if library_path:
+            return library_path, "library_relative"
+        return self._apply_path_map(claim.source_path), "path_map"
 
     # ------------------------------------------------------------------
     # Hot-swap methods — apply config changes without restarting the dispatcher
@@ -273,8 +397,17 @@ class WorkerDispatcher(
         Thread-safe: the poll loop reads ``_auth_token`` on each HTTP call
         so the new value is picked up on the very next request.
         """
-        self._auth_token = new_token.strip()
+        token = new_token.strip()
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            self._auth_token = token
+        else:
+            with lock:
+                self._auth_token = token
         _log.info("WorkerDispatcher: auth token updated (hot-swap).")
+        wakeup = getattr(self, "_wakeup", None)
+        if wakeup is not None:
+            wakeup.set()
 
     def update_coordinator_url(self, new_url: str) -> None:
         """Replace the coordinator base URL immediately. N17 — validates
@@ -285,9 +418,23 @@ class WorkerDispatcher(
         is picked up on the next poll cycle.  The wakeup event fires so the
         change takes effect without waiting for the full sleep interval.
         """
-        self._base_url = _validate_coordinator_url(new_url)
-        _log.info("WorkerDispatcher: coordinator URL updated to %s (hot-swap).", self._base_url)
-        self._wakeup.set()
+        validated_url = _validate_coordinator_url(new_url)
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            old_url = str(getattr(self, "_base_url", "") or "")
+            self._base_url = validated_url
+        else:
+            with lock:
+                old_url = str(getattr(self, "_base_url", "") or "")
+                self._base_url = validated_url
+        _log.info(
+            "WorkerDispatcher: coordinator URL hot-swapped %s -> %s.",
+            old_url or "(unset)",
+            validated_url,
+        )
+        wakeup = getattr(self, "_wakeup", None)
+        if wakeup is not None:
+            wakeup.set()
 
     def set_status_callback(self, callback: "Callable[[str], None] | None") -> None:
         """Register a callback invoked from the poll thread after every attempt.
@@ -322,9 +469,22 @@ class WorkerDispatcher(
         with self._active_job_lock:
             return self._active_job
 
+    def runtime_descriptor(self) -> dict[str, Any]:
+        """Return token-safe live settings evidence for drift detection."""
+        base_url, auth_token, mappings = self._runtime_settings_snapshot()
+        return {
+            "schema_version": "desktop_network_worker_runtime_descriptor.v1",
+            "coordinator_url": base_url,
+            "token_fingerprint": _fingerprint_text(auth_token),
+            "path_map_entries": len(mappings),
+            "path_map_fingerprint": _path_map_fingerprint(mappings),
+            "read_only": True,
+        }
+
     @property
     def coordinator_url(self) -> str:
-        return self._base_url
+        base_url, _auth_token, _mappings = self._runtime_settings_snapshot()
+        return base_url
 
 
 # ---------------------------------------------------------------------------

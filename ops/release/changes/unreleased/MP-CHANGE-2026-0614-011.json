@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0614-011",
+  "title": "Add library-relative network claim fields",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "schema",
+  "risk_level": "high",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Implement C2 from the network worker hardening plan by adding additive library_id and relative_path claim fields and resolving them on workers before falling back to prefix maps.",
+  "reason": "Absolute coordinator-local source paths require fragile prefix matching; library-relative claims let a worker resolve by configured library ID without changing older workers.",
+  "affected_areas": [
+    "contracts",
+    "docs",
+    "library_profiles",
+    "network",
+    "tests"
+  ],
+  "behavior_before": "ClaimResponse only carried source_path, so workers had to reverse-map the coordinator absolute path with manual or auto prefix rules.",
+  "behavior_after": "ClaimResponse will also carry library_id and relative_path when known, and new workers will resolve worker library root plus relative path before falling back to C1 auto/manual maps and raw source_path.",
+  "files_touched": [
+    "docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md",
+    "docs/architecture/NETWORK_WORKER_HARDENING_PLAN.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0614-011.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/snapshot.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_http_handlers.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_parts/http_server.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/library_roots.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/protocol.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker_loops.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker_parts/tasks.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker_record.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_library_relative_claim.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-011.json",
+    "src/mediapipeline/core/queue/snapshot.py",
+    "src/mediapipeline/desktop/network/coordinator_http_handlers.py",
+    "src/mediapipeline/desktop/network/coordinator_parts/http_server.py",
+    "src/mediapipeline/desktop/network/library_roots.py",
+    "src/mediapipeline/desktop/network/protocol.py",
+    "src/mediapipeline/desktop/network/worker.py",
+    "src/mediapipeline/desktop/network/worker_loops.py",
+    "src/mediapipeline/desktop/network/worker_parts/tasks.py",
+    "src/mediapipeline/desktop/network/worker_record.py",
+    "tests/python/desktop/test_network_library_relative_claim.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_library_relative_claim.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest discover -s tests\\\\python\\\\desktop -p test_network*.py (PASS: 301 tests)",
+    "PYTHONPATH=src .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_app_config_contract tests.python.desktop.test_config_keys (PASS: 40 tests)",
+    "PYTHONPATH=src .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_network_library_relative_claim tests.python.desktop.test_network_protocol_runtime tests.python.desktop.test_network_coordinator_http tests.python.desktop.test_network_path_auto_map (PASS: 53 tests)",
+    "change_control.validate_changes --require-worktree-coverage (FAIL: only unrelated dependency-atlas assets uncovered: dependency_detail_core_library.{png,svg}, dependency_detail_desktop_watch.{png,svg})"
+  ],
+  "rollback_plan": "Revert the additive ClaimResponse fields, coordinator population, worker resolution, tests, docs, and generated summaries for this packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0614-010"
+  ],
+  "notes": "Opened before source edits. Scope is C2 only from docs/architecture/NETWORK_WORKER_HARDENING_PLAN.md. Additive, back-compatible claim fields only; no source deletion, publish/drain, FFmpeg, audio, or subtitle behavior changes. Operator two-machine sign-off remains required by the plan.\nC2 implementation agent-side complete; operator two-machine sign-off remains required.\nC2 complete agent-side. Strict worktree coverage is blocked only by unrelated pre-existing dependency-atlas asset changes; operator two-machine sign-off remains required."
+}

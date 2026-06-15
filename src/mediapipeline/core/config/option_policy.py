@@ -12,6 +12,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_CONSOLE_LOG_LEVEL,
     KEY_CPU_ENCODE_PRESET,
     KEY_CPU_ENCODE_PROCESS_PRIORITY,
+    KEY_DYNAMIC_HDR_POLICY,
     KEY_ENCODE_LADDER,
     KEY_ENCODE_TUNING_PRESET,
     KEY_EXTRA_VIDEO_FLAGS,
@@ -37,6 +38,7 @@ from mediapipeline.core.config.constants import (
     ROUTE_THRESHOLD_MODE_NAMES,
     ROUTING_PROFILE_NAMES,
     SIZE_GUARD_MODE_NAMES,
+    DYNAMIC_HDR_POLICY_NAMES,
 )
 
 
@@ -86,6 +88,10 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
         errors.append(f"SizeGuardMode must be one of: {', '.join(SIZE_GUARD_MODE_NAMES)}.")
     if size_guard_mode == "strict" and routing_profile == "archive_shrink":
         warnings.append("Archive Shrink with strict Output Size Check can reject outputs that do not shrink enough; use advisory while tuning.")
+
+    dynamic_hdr_policy = str(values.get(KEY_DYNAMIC_HDR_POLICY, "warn") or "warn").strip().lower()
+    if dynamic_hdr_policy not in DYNAMIC_HDR_POLICY_NAMES:
+        errors.append(f"DynamicHdrPolicy must be one of: {', '.join(DYNAMIC_HDR_POLICY_NAMES)}.")
 
     video_codec = str(values.get(KEY_VIDEO_CODEC, "") or "").strip().lower()
     if video_codec and video_codec not in {"hevc_nvenc", "libx265", "h264_nvenc", "libx264", "av1_nvenc"}:

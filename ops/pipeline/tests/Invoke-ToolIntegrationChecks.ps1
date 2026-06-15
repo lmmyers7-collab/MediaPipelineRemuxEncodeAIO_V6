@@ -1,16 +1,20 @@
 [CmdletBinding()]
-param()
+param(
+    [switch]$AllowMissingTools
+)
 
 $ErrorActionPreference = 'Stop'
 
 $testsRoot = Split-Path -Parent $PSCommandPath
 $pipelineRoot = Split-Path -Parent $testsRoot
-$projectRoot = Split-Path -Parent $pipelineRoot
+$opsRoot = Split-Path -Parent $pipelineRoot
+$projectRoot = Split-Path -Parent $opsRoot
 
-$bundledPwshPath = Join-Path $pipelineRoot 'PowerShell-7.6.0-win-x64\pwsh.exe'
-$ffmpegPath = Join-Path $pipelineRoot 'Tools\ffmpeg\bin\ffmpeg.exe'
-$ffprobePath = Join-Path $pipelineRoot 'Tools\ffmpeg\bin\ffprobe.exe'
+$bundledPwshPath = Join-Path $pipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pwsh.exe'
+$ffmpegPath = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffmpeg.exe'
+$ffprobePath = Join-Path $pipelineRoot 'tools\ffmpeg\bin\ffprobe.exe'
 $pythonPath = Join-Path $projectRoot 'apps\desktop\runtime\Python\python.exe'
+$assToSrtPath = Join-Path $projectRoot 'src\mediapipeline\pipeline\ass_to_srt_cli.py'
 
 $missingTools = @()
 foreach ($tool in @(
@@ -25,8 +29,12 @@ foreach ($tool in @(
 }
 
 if ($missingTools.Count -gt 0) {
-    Write-Host ("SKIP: bundled tool integration checks require: {0}" -f ($missingTools -join ', '))
-    return
+    $missingMessage = "Bundled tool integration checks require: {0}" -f ($missingTools -join ', ')
+    if ($AllowMissingTools) {
+        Write-Host "SKIP: $missingMessage"
+        return
+    }
+    throw $missingMessage
 }
 
 function Assert-True {
@@ -123,9 +131,13 @@ $script:AllowSystemTools = $false
 $scriptDir = $pipelineRoot
 $OutputContainer = 'mkv'
 $Global:ffmpegProcess = $null
+$previousPythonPath = $env:PYTHONPATH
 
 try {
+    $srcPath = Join-Path $projectRoot 'src'
+    $env:PYTHONPATH = if ([string]::IsNullOrWhiteSpace($previousPythonPath)) { $srcPath } else { "$srcPath;$previousPythonPath" }
     New-Item -ItemType Directory -Path $workRoot, $LocalFailed, $LocalFailureReports -Force | Out-Null
+    Assert-True (Test-Path -LiteralPath $assToSrtPath -PathType Leaf) "ASS helper is missing: $assToSrtPath"
 
     $sourcePath = Join-Path $workRoot 'source.mp4'
     $encodedPath = Join-Path $workRoot 'encoded.mkv'
@@ -259,7 +271,7 @@ try {
             Remove-Item -LiteralPath $assSrt -Force -ErrorAction SilentlyContinue
         }
         $assConvert = Invoke-PythonToolCommand -Stage 'integration-ass-convert' -TimeoutSeconds 60 -ArgumentList @(
-            (Join-Path $pipelineRoot 'ass_to_srt.py'),
+            $assToSrtPath,
             '--input', $assMkv,
             '--stream-index', ([string]$assIndex),
             '--output', $assSrt,
@@ -384,6 +396,7 @@ exit /b 0
 
     Write-Host 'Bundled FFmpeg/ffprobe/subtitle integration checks passed.'
 } finally {
+    $env:PYTHONPATH = $previousPythonPath
     Remove-Item -LiteralPath $StopFlag -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $PauseFlag -Force -ErrorAction SilentlyContinue
     Remove-Item -LiteralPath $workRoot -Recurse -Force -ErrorAction SilentlyContinue

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import json
+import threading
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -78,8 +79,20 @@ def _resolved(root: Path, outsource: Path, config: dict | None = None) -> Resolv
     )
 
 
-def _record(source: Path, output: Path, *, title: str = "Movie") -> CompletedJobRecord:
+def _record(source: Path, output: Path, *, title: str = "Movie", write_sidecar: bool = True) -> CompletedJobRecord:
     sidecar = output.with_suffix(".pipeline.json")
+    if write_sidecar and output.exists():
+        sidecar.write_text(
+            json.dumps(
+                {
+                    "source_path": str(source),
+                    "output_path": str(output),
+                    "route": "remux",
+                },
+                sort_keys=True,
+            ),
+            encoding="utf-8",
+        )
     return CompletedJobRecord(
         sidecar_path=sidecar,
         payload={
@@ -473,6 +486,67 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             self.assertEqual(evidence["destination_path"], "")
             self.assertTrue(output.exists())
 
+    def test_status_blocks_ready_promotion_when_required_pipeline_sidecar_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movies" / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            output.parent.mkdir(parents=True)
+            dest.mkdir()
+            source.write_bytes(b"source")
+            output.write_bytes(b"media")
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {"id": "movies", "enabled": True, "source_root": str(root / "Source"), "destination_root": str(dest)}
+                    ],
+                },
+            )
+
+            item = promotion_status_payload(resolved, [_record(source, output, write_sidecar=False)])["items"][0]
+
+            self.assertFalse(item["ready_for_promotion"])
+            self.assertEqual(item["final_library_promotion_status"], "missing_required_sidecar")
+            self.assertTrue(item["required_pipeline_sidecar_missing"])
+            self.assertEqual(item["missing_sidecars"], [str(output.with_suffix(".pipeline.json"))])
+
+    def test_promote_item_fails_before_copy_or_cleanup_when_pipeline_sidecar_is_missing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movies" / "Movie.mkv"
+            source.parent.mkdir(parents=True)
+            output.parent.mkdir(parents=True)
+            dest.mkdir()
+            source.write_bytes(b"source")
+            output.write_bytes(b"media")
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {"id": "movies", "enabled": True, "source_root": str(root / "Source"), "destination_root": str(dest)}
+                    ],
+                    KEY_FINAL_LIBRARY_PROMOTION_CLEANUP_AFTER_VERIFIED: True,
+                },
+            )
+            item = promotion_status_payload(resolved, [_record(source, output, write_sidecar=False)])["items"][0]
+
+            evidence = promote_item(item, promotion_settings_from_config(resolved.config_data))
+
+            self.assertFalse(evidence["success"])
+            self.assertIn("Required pipeline sidecar is missing.", evidence["failures"])
+            self.assertEqual(evidence["missing_sidecars"], [str(output.with_suffix(".pipeline.json"))])
+            self.assertTrue(output.exists())
+            self.assertFalse((dest / "Movies" / "Movie.mkv").exists())
+
     def test_status_uses_library_profile_output_and_promotion_destination(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -579,6 +653,8 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             source.write_bytes(b"source")
             output.write_bytes(b"media")
             output.with_suffix(".en.srt").write_text("subtitle", encoding="utf-8")
+            adjacent_media = output.with_name("Movie.2160p.mkv")
+            adjacent_media.write_bytes(b"alternate-media")
             resolved = _resolved(
                 root,
                 outsource,
@@ -597,10 +673,14 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             self.assertTrue(evidence["success"])
             self.assertFalse(output.exists())
             self.assertFalse(output.with_suffix(".en.srt").exists())
+            self.assertFalse(output.with_suffix(".pipeline.json").exists())
+            self.assertTrue(adjacent_media.exists())
             self.assertTrue((dest / "Movies" / "Movie.mkv").exists())
             self.assertTrue((dest / "Movies" / "Movie.en.srt").exists())
+            self.assertTrue((dest / "Movies" / "Movie.pipeline.json").exists())
+            self.assertFalse((dest / "Movies" / "Movie.2160p.mkv").exists())
             self.assertTrue(outsource.exists())
-            self.assertFalse((outsource / "Movies").exists())
+            self.assertTrue((outsource / "Movies").exists())
 
     def test_sidecar_destination_conflict_rolls_back_primary_promotion(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -925,6 +1005,8 @@ class FinalLibraryPromotionTests(unittest.TestCase):
                 path.write_text("sidecar", encoding="utf-8")
             primary.with_name("Movie2.en.srt").write_text("wrong stem", encoding="utf-8")
             primary.with_name("Movie.promotion-temp.srt").write_text("temp", encoding="utf-8")
+            primary.with_name("Movie.2160p.mkv").write_bytes(b"alternate media")
+            primary.with_name("Movie.featurette.mp4").write_bytes(b"extra media")
 
             self.assertEqual(companion_sidecars(primary), expected)
 
@@ -1134,6 +1216,67 @@ class FinalLibraryPromotionServiceTests(unittest.TestCase):
             self.assertEqual(len(evidence), 1)
             self.assertTrue(next(iter(evidence.values()))["success"])
 
+    def test_service_promotion_worker_is_non_daemon_and_close_blocking(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            dest = root / "Final"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movie.mkv"
+            output.parent.mkdir(parents=True)
+            dest.mkdir()
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"source")
+            output.write_bytes(b"media")
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [
+                        {"id": "movies", "enabled": True, "source_root": str(root / "Source"), "destination_root": str(dest)}
+                    ],
+                    KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE: "fast",
+                },
+            )
+            harness = _PromotionHarness([_record(source, output)])
+            worker_entered = threading.Event()
+            release_worker = threading.Event()
+            worker_thread: threading.Thread | None = None
+
+            def held_success(item, settings):
+                worker_entered.set()
+                self.assertTrue(release_worker.wait(5), "promotion worker was not released by the test")
+                return {
+                    "row_key": item["row_key"],
+                    "success": True,
+                    "destination_path": item.get("final_library_destination_path"),
+                    "failures": [],
+                    "cleanup_result": {"completed": False},
+                }
+
+            with patch.object(promotion_service, "promote_item", side_effect=held_success):
+                try:
+                    started = harness.start_final_library_promotion_run(resolved, harness.records)
+                    self.assertTrue(started["ok"])
+                    self.assertTrue(worker_entered.wait(5), "promotion worker did not start")
+                    with harness._final_library_promotion_lock:
+                        active = harness._final_library_promotion_active
+                        self.assertIsInstance(active, dict)
+                        worker_thread = active.get("thread")
+                    self.assertIsInstance(worker_thread, threading.Thread)
+                    assert isinstance(worker_thread, threading.Thread)
+                    self.assertFalse(worker_thread.daemon)
+                    self.assertIn(
+                        "Shell close blocked",
+                        harness.final_library_promotion_active_block_message("Shell close"),
+                    )
+                finally:
+                    release_worker.set()
+                    if worker_thread is not None:
+                        worker_thread.join(5)
+                self.assertFalse(worker_thread.is_alive() if worker_thread is not None else True)
+            self.assertIsNone(harness._final_library_promotion_active_snapshot())
+
     def test_service_stops_after_three_consecutive_item_failures(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)
@@ -1219,7 +1362,7 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         completed_script_text = completed_js + "\n" + completed_promotion_js
         lifecycle_js = (static_root / "assets" / "app" / "lifecycle.js").read_text(encoding="utf-8")
 
-        self.assertIn('data-cross-page-target="completed" data-home-promotion-entry disabled>Promote Files</button>', home_html)
+        self.assertIn('data-cross-page-target="completed" data-home-promotion-entry disabled>Open Completed Output</button>', home_html)
         self.assertIn("function renderHomePromotionEntry", home_js)
         self.assertIn("counts.eligible", home_js)
         self.assertIn("homePromotionRunActive", home_js)

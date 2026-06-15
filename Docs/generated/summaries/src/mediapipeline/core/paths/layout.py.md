@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/paths/layout.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: paths
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 94104b9f2521c126f0f085c52dbb051061cf6462bcdc97690a35add0d31ffb3a

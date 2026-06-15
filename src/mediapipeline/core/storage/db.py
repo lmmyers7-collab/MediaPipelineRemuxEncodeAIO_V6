@@ -18,7 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-CURRENT_SCHEMA_VERSION = 1
+CURRENT_SCHEMA_VERSION = 2
 STATE_DB_FILENAME = "mediapipeline_state.sqlite3"
 
 
@@ -100,6 +100,10 @@ class StateDb:
                 if version < 1:
                     self._apply_migration_1(conn)
                     conn.execute("PRAGMA user_version = 1")
+                    version = 1
+                if version < 2:
+                    self._apply_migration_2(conn)
+                    conn.execute("PRAGMA user_version = 2")
                 conn.commit()
 
     def _apply_migration_1(self, conn: sqlite3.Connection) -> None:
@@ -165,6 +169,41 @@ class StateDb:
         conn.execute(
             "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)",
             (1, "initial_state_mirror", _utc_now()),
+        )
+
+    def _apply_migration_2(self, conn: sqlite3.Connection) -> None:
+        conn.executescript(
+            """
+            DROP TABLE IF EXISTS completed_jobs_append_rows;
+            CREATE TABLE completed_jobs_append_rows (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recorded_at TEXT NOT NULL,
+                job_key TEXT NOT NULL,
+                output_path TEXT NOT NULL,
+                sidecar_path TEXT NOT NULL,
+                completed_at TEXT NOT NULL,
+                payload_hash TEXT NOT NULL,
+                payload_json TEXT NOT NULL
+            );
+            INSERT INTO completed_jobs_append_rows(
+                id, recorded_at, job_key, output_path, sidecar_path,
+                completed_at, payload_hash, payload_json
+            )
+            SELECT
+                id, recorded_at, job_key, output_path, sidecar_path,
+                completed_at, payload_hash, payload_json
+            FROM completed_jobs
+            ORDER BY id;
+            DROP TABLE completed_jobs;
+            ALTER TABLE completed_jobs_append_rows RENAME TO completed_jobs;
+            CREATE INDEX IF NOT EXISTS idx_completed_jobs_recorded_at ON completed_jobs(recorded_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_completed_jobs_output_path ON completed_jobs(output_path);
+            CREATE INDEX IF NOT EXISTS idx_completed_jobs_job_key ON completed_jobs(job_key);
+            """
+        )
+        conn.execute(
+            "INSERT OR IGNORE INTO schema_migrations(version, name, applied_at) VALUES (?, ?, ?)",
+            (2, "completed_jobs_append_rows", _utc_now()),
         )
 
     def record_command(self, command_event: Mapping[str, Any]) -> None:
@@ -272,13 +311,6 @@ class StateDb:
                         completed_at, payload_hash, payload_json
                     )
                     VALUES (?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(job_key) DO UPDATE SET
-                        recorded_at = excluded.recorded_at,
-                        output_path = excluded.output_path,
-                        sidecar_path = excluded.sidecar_path,
-                        completed_at = excluded.completed_at,
-                        payload_hash = excluded.payload_hash,
-                        payload_json = excluded.payload_json
                     """,
                     (
                         _utc_now(),

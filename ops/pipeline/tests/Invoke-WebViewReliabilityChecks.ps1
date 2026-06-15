@@ -196,10 +196,13 @@ $remuxText = Read-Text (Join-Path $pipelineRoot 'entrypoints\MediaPipeline\remux
 $sidecarText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\publish\sidecar.ps1')
 $releasePolicyText = Read-Text (Join-Path $projectRoot 'ops\scripts\release\release_policy.ps1')
 $reliabilityWrapperText = Read-Text (Join-Path $pipelineRoot 'tests\Invoke-ReliabilityRegressionChecks.ps1')
+$toolIntegrationText = Read-Text (Join-Path $pipelineRoot 'tests\Invoke-ToolIntegrationChecks.ps1')
+$endToEndSmokeText = Read-Text (Join-Path $pipelineRoot 'tests\Invoke-EndToEndSmokeChecks.ps1')
 $repoHygieneText = Read-Text (Join-Path $pipelineRoot 'tests\Unit\Invoke-RepoHygieneChecks.ps1')
 $legacyReliabilityPath = Join-Path $pipelineRoot 'tests\Legacy\Invoke-LegacyDesktopReliabilityRegressionChecks.ps1'
 $releaseBuilderText = Read-Text (Join-Path $projectRoot 'ops\scripts\release\build.ps1')
 $releaseVerifierText = Read-Text (Join-Path $projectRoot 'ops\scripts\release\test.ps1')
+$browserSmokeCommonText = Read-Text (Join-Path $projectRoot 'ops\scripts\smoke\webview_browser_smoke_common.ps1')
 $worksheetHelperText = Read-Text (Join-Path $projectRoot 'ops\scripts\operator\New-RealMediaValidationWorksheet.ps1')
 
 Assert-True ($serverText -match 'Read and command API\s+routes require a per-run token') "LocalApiServer docstring must describe the current token-protected read/command API surface."
@@ -247,8 +250,18 @@ Assert-True ($releaseVerifierText -match 'Invoke-WebViewReliabilityChecks\.ps1')
 Assert-True ($releaseVerifierText -match 'tests\\python\\desktop' -and $releaseVerifierText -match 'tests\\python\\core' -and $releaseVerifierText -match 'tests\\python\\tooling') "Release self-test must run desktop, core, and tooling Python test suites when tests are required."
 Assert-True ($releaseVerifierText -match 'refresh_summaries' -and $releaseVerifierText -match 'generate_project_index' -and $releaseVerifierText -match 'generate_config_schema' -and $releaseVerifierText -match 'check_active_doc_references' -and $releaseVerifierText -match 'check_dependency_boundaries') "Release self-test must run package-safe generated-artifact, active-doc, schema, and dependency guardrails."
 Assert-True ($releaseVerifierText -match 'Import-MediaPipelineReleasePolicy' -and $releaseVerifierText -match 'Get-MediaPipelineReleaseHygieneRules') "Release self-test must verify hygiene through the shared release policy module."
+Assert-True ($releaseVerifierText -match 'Record-ReleaseGateSkip' -and $releaseVerifierText -match 'Tool integration checks skipped by request.'' -Required:\(\[bool\]\$RequireTests\)' -and $releaseVerifierText -match 'End-to-end smoke checks skipped by request.'' -Required:\(\[bool\]\$RequireTests\)' -and $releaseVerifierText -match 'FailOnSkipOutput:\(\[bool\]\$RequireTests\)' -and $releaseVerifierText -match 'Required test gate mode: enabled') "Release self-test must fail requested skips in -RequireTests mode and report skipped/downshifted gate evidence."
 Assert-True ($releaseVerifierText -notmatch 'legacyDesktopEntryPoint') "Release self-test must not branch on removed desktop-shell entrypoints."
 Assert-True ($releaseVerifierText -notmatch 'Legacy desktop reliability regression checks skipped') "Release self-test must not skip reliability checks just because the removed desktop shell is absent."
+Assert-True ($toolIntegrationText -match 'runtime\\PowerShell-7\.6\.0-win-x64\\pwsh\.exe' -and $toolIntegrationText -match 'tools\\ffmpeg\\bin\\ffmpeg\.exe' -and $toolIntegrationText -match 'apps\\desktop\\runtime\\Python\\python\.exe' -and $toolIntegrationText -match 'src\\mediapipeline\\pipeline\\ass_to_srt_cli\.py' -and $toolIntegrationText -match 'throw \$missingMessage' -and $toolIntegrationText -match '\[switch\]\$AllowMissingTools') "Tool integration gate must use promoted runtime/tool/helper paths and fail on missing tools unless -AllowMissingTools is explicit."
+Assert-True ($endToEndSmokeText -match 'tools\\ffmpeg\\bin\\ffmpeg\.exe' -and $endToEndSmokeText -match 'throw \$missingMessage' -and $endToEndSmokeText -match '\[switch\]\$AllowMissingTools') "End-to-end smoke gate must fail on missing bundled tools unless -AllowMissingTools is explicit."
+Assert-True ($browserSmokeCommonText -match 'skipped=\\d\+' -and $browserSmokeCommonText -match 'AllowSkippedTests' -and $browserSmokeCommonText -match 'Install Node\.js and Chrome/Edge') "Shared WebView browser smoke runner must fail skipped unittest coverage unless -AllowSkippedTests is explicit."
+Assert-True ($browserSmokeCommonText -match 'Using python from PATH for WebView browser smoke' -and $browserSmokeCommonText -match 'bundled Python runtimes were not found') "Shared WebView browser smoke runner must make PATH Python fallback prominent in release evidence."
+Get-ChildItem -LiteralPath (Join-Path $projectRoot 'ops\scripts\smoke') -Filter 'Test-WebViewBrowser*.ps1' -File |
+    ForEach-Object {
+        $wrapperText = Read-Text $_.FullName
+        Assert-True ($wrapperText -match 'webview_browser_smoke_common\.ps1' -and $wrapperText -match 'Invoke-WebViewBrowserSmokeUnittest' -and $wrapperText -match '\[switch\]\$AllowSkippedTests' -and $wrapperText -notmatch 'skips cleanly when Chrome/Edge is not installed') "WebView browser smoke wrapper must use the shared no-skip runner: $($_.Name)"
+    }
 Assert-True ($releasePolicyText -match 'mediapipeline_release_policy\.v1' -and $releasePolicyText -match 'CodexVerification\\\*' -and $releasePolicyText -match 'LocalBase\\\*' -and $releasePolicyText -match 'docs\\archive\\docs-housekeeping\\\*') "Release policy must exclude local verification, runtime state, and docs housekeeping quarantine artifacts."
 Assert-True ($releasePolicyText -match '\*_AUDIT\.md' -and $releasePolicyText -match '\*_REPORT\.md') "Release policy must exclude generated root audit/report documents by pattern."
 Assert-Leaf -Path $legacyReliabilityPath -Label 'Archived legacy desktop-shell reliability checks'

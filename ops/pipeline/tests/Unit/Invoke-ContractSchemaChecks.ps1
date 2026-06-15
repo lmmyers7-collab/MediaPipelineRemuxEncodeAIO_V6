@@ -197,12 +197,21 @@ Assert-True ($partialPath -like '*Movie.mkv.mp-publish-partial.tx-test') 'Publis
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\config_keys.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\config_schema.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\policy\folder_policy.ps1')
+if (-not (Get-Command Write-Log -ErrorAction SilentlyContinue)) {
+    function Write-Log { param([string] $Message, [string] $Level = 'INFO') }
+}
 $zeroBitratePolicy = Convert-RoundTripJson ([ordered]@{
     schema_version = 'folder_policy.v1'
     audio = [ordered]@{ transcode_bitrate = '0k' }
 })
 $zeroBitrateOverrides = ConvertTo-MediaPipelineFolderPolicyOverrides -Policy $zeroBitratePolicy -PolicyPath 'C:\Media\mediapipeline.folder.json'
 Assert-True (-not $zeroBitrateOverrides.ContainsKey('AudioTranscodeBitrate')) 'Folder policy must not promote zero audio transcode bitrate overrides.'
+$fallbackRemuxPolicy = Convert-RoundTripJson ([ordered]@{
+    schema_version = 'folder_policy.v1'
+    routing = [ordered]@{ size_guard_mode = 'fallback_remux' }
+})
+$fallbackRemuxOverrides = ConvertTo-MediaPipelineFolderPolicyOverrides -Policy $fallbackRemuxPolicy -PolicyPath 'C:\Media\mediapipeline.folder.json'
+Assert-Equal $fallbackRemuxOverrides.SizeGuardMode 'fallback_remux' 'Folder policy must preserve fallback_remux size guard mode.'
 $pythonWrittenTopology = Convert-RoundTripJson ([ordered]@{
     audio = @(@('eac3', 'eng', 6))
     subtitles = @(@('ass', 'eng'))
@@ -212,5 +221,36 @@ $objectWrittenTopology = [ordered]@{
     subtitles = @([ordered]@{ codec = 'ass'; language = 'eng' })
 }
 Assert-True (Test-FolderPolicyTopologyMatches -Expected $pythonWrittenTopology -Actual $objectWrittenTopology) 'Folder policy topology should accept JSON-array and object/dictionary item shapes.'
+
+$folderPolicyRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-folder-policy-root-' + [guid]::NewGuid().ToString('N'))
+try {
+    $sourceMovies = Join-Path $folderPolicyRoot 'Movies'
+    $sourceTv = Join-Path $folderPolicyRoot 'TV'
+    $insideSeason = Join-Path $sourceTv 'Show\Season 01'
+    $outside = Join-Path $folderPolicyRoot 'Outside'
+    New-Item -ItemType Directory -Path $sourceMovies, $insideSeason, $outside -Force | Out-Null
+    $insideSource = Join-Path $insideSeason 'Show - S01E01.mkv'
+    $outsideSource = Join-Path $outside 'Outside.mkv'
+    Set-Content -LiteralPath $insideSource -Value 'media' -Encoding UTF8
+    Set-Content -LiteralPath $outsideSource -Value 'media' -Encoding UTF8
+    $policyJson = [ordered]@{
+        schema_version = 'folder_policy.v1'
+        audio = [ordered]@{ preferred_default_languages = @('jpn') }
+    } | ConvertTo-Json -Depth 5
+    Set-Content -LiteralPath (Join-Path $sourceTv 'mediapipeline.folder.json') -Value $policyJson -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $outside 'mediapipeline.folder.json') -Value $policyJson -Encoding UTF8
+
+    $script:SourceMovies = $sourceMovies
+    $script:SourceTV = $sourceTv
+    $outsideOverrides = Resolve-FolderPolicyOverrides -SourceFile $outsideSource
+    Assert-True ($null -eq $outsideOverrides) 'Folder policy sidecar outside configured source roots must not be applied.'
+    $insideOverrides = Resolve-FolderPolicyOverrides -SourceFile $insideSource
+    Assert-True ($null -ne $insideOverrides) 'Folder policy sidecar inside source root should be discovered by parent climb.'
+    Assert-Equal $insideOverrides['PreferredDefaultAudioLanguages'][0] 'jpn' 'Inside folder policy audio override not applied.'
+} finally {
+    Remove-Item -LiteralPath $folderPolicyRoot -Recurse -Force -ErrorAction SilentlyContinue
+    Remove-Variable -Name SourceMovies -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name SourceTV -Scope Script -ErrorAction SilentlyContinue
+}
 
 Write-Host "OK: contract schema checks passed."

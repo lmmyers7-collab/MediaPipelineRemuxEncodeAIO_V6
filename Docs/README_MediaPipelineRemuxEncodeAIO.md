@@ -12,8 +12,9 @@ Start here:
 
 Top-level layout:
 
-- `DesktopApp\`
-- `Pipeline\`
+- `src\mediapipeline\`
+- `apps\desktop\`
+- `ops\pipeline\`
 - `ops\scripts\dev\start-api-and-browser.bat`
 - `ops\scripts\dev\start-local-api.bat`
 - `ops\scripts\dev\start-tauri-preview.bat`
@@ -25,7 +26,7 @@ Top-level layout:
 ## What This Bundle Contains
 
 - a Python local API plus WebView/Tauri surface for day-to-day control and monitoring
-- the PowerShell pipeline scripts
+- the PowerShell pipeline entrypoints and engine modules
 - the audit tool
 - bundled runtime/tool locations for portable deployment
 - a release builder that strips personal config and generated runtime clutter for new-user packages
@@ -35,17 +36,17 @@ Top-level layout:
 - subtitle conversion helpers for ASS/SSA, MP4 Timed Text / tx3g, and optional BDPGS OCR
 - audio policy controls for passthrough profiles, transcode codec/bitrate, downmix mode, max channels, language preference, and explicit no-audio opt-in
 
-The backend script filenames inside `Pipeline\` are still the established internal names. That is intentional.
+The backend script filenames under `ops\pipeline\entrypoints\` are the stable operator-facing names. Reusable implementation belongs under `ops\pipeline\engine\<domain>\`.
 
 ## Backend Module Boundaries
 
-The PowerShell backend keeps stable launcher/script names. Reusable implementation logic lives under `ops\pipeline\engine\<domain>\`; the legacy `Pipeline\Modules\*.ps1` shim layer has been removed from the active package surface:
+The PowerShell backend keeps stable launcher/script names. Reusable implementation logic lives under `ops\pipeline\engine\<domain>\`; the legacy root module-shim layer has been removed from the active package surface:
 
 - subtitle policy and conversion: `ops\pipeline\engine\subtitles\*.ps1`
 - audit progress, probe cache, issue policy, scanning, and reports: `ops\pipeline\engine\audit\*.ps1`
 - routing, encode policy, native tool execution, media probing, audio, naming, folder policies, sidecars, and pending publish: dedicated `ops\pipeline\engine\` domain files
 
-Do not add new `Pipeline\Modules` files for compatibility. New PowerShell implementation belongs under `ops\pipeline\engine\<domain>\`, with `ops\pipeline\entrypoints\MediaPipeline.ps1` and its established child scripts remaining the stable backend entrypoints.
+Do not add new legacy shim files for compatibility. New PowerShell implementation belongs under `ops\pipeline\engine\<domain>\`, with `ops\pipeline\entrypoints\MediaPipeline.ps1` and its established child scripts remaining the stable backend entrypoints.
 
 ## Recommended First-Run Order
 
@@ -139,10 +140,10 @@ To verify the copied package before zipping or handoff, add `-Verify`. For the f
 By default, the release builder strips the live config and generated runtime clutter, then includes:
 
 - `ops\pipeline\config\MediaPipeline_config_template.psd1`
-- canonical `scripts\` setup/run/verify/desktop launchers and the release builder
+- canonical `ops\scripts\` setup/run/verify/desktop launchers and the release builder
 - the explicit Tauri/WebView2 preview launcher
-- local API/WebView source and bundled Python runtime
-- pipeline source, modules, bundled PowerShell, runtime-required FFmpeg/MKVToolNix command tools, and PgsToSrt
+- local API source under `src\mediapipeline\desktop\`, WebView/Tauri source under `apps\desktop\`, and bundled Python runtime
+- pipeline entrypoints and engine modules under `ops\pipeline\`, bundled PowerShell, runtime-required FFmpeg/MKVToolNix command tools, and PgsToSrt
 - `ops\scripts\release\test.ps1`
 - `release_manifest.json`
 
@@ -155,11 +156,10 @@ Clean releases omit optional tool bulk such as `ffplay.exe`, MKVToolNix GUI/diag
 - `CURRENT_PROJECT_STATE.md`: current operational state, launch paths, and safety assumptions
 - `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: real-media pilot checklist for validating WebView/Tauri on real media
 - `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`: evidence template for real-media validation runs
-- `Pipeline\NEW_PC_CHECKLIST_MediaPipelineRemuxEncodeAIO.md`: new-machine checklist
-- `Pipeline\README_MediaPipelineRemuxEncodeAIO_Deployment.md`: backend deployment notes
-- `DesktopApp\docs\README.md`: local API/WebView structure and backend integration notes
+- `desktop\README.md`: local API/WebView/Tauri structure and backend integration notes
+- `operator\POWERSHELL_HOST_EXPECTATIONS.md`: PowerShell host/runtime expectations
+- `testing\VALIDATION_LADDER_RUNBOOK.md`: ordered validation gates before promotion
 - `inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`: release package inclusion/exclusion reference
-- `testing/VALIDATION_LADDER_RUNBOOK.md`: ordered validation gates before promotion
 - `DOCS_INDEX.md`: current archive/quarantine locations for completed or superseded docs
 
 ## Current Media Policy Highlights

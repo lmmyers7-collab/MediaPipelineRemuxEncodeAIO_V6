@@ -111,6 +111,75 @@ function Get-MediaPipelineLocalWorkerClaimActiveStatuses {
     return @('claimed','starting','running','result_ready','finalizing')
 }
 
+function Get-MediaPipelineProcessStartTimeUtcText {
+    param([object] $ProcessId)
+
+    try {
+        $pidValue = [int]$ProcessId
+        if ($pidValue -le 0) { return '' }
+        $proc = Get-Process -Id $pidValue -ErrorAction SilentlyContinue
+        if ($null -eq $proc -or $proc.HasExited) { return '' }
+        return $proc.StartTime.ToUniversalTime().ToString('o')
+    } catch {
+        return ''
+    }
+}
+
+function Test-MediaPipelineUtcTimestampMatch {
+    param(
+        [object] $Expected,
+        [object] $Actual,
+        [double] $ToleranceSeconds = 2
+    )
+
+    try {
+        if ($null -eq $Expected -or $null -eq $Actual) { return $false }
+        $expectedTime = ([datetime]$Expected).ToUniversalTime()
+        $actualTime = ([datetime]$Actual).ToUniversalTime()
+        return ([math]::Abs(($expectedTime - $actualTime).TotalSeconds) -le $ToleranceSeconds)
+    } catch {
+        return $false
+    }
+}
+
+function Test-MediaPipelineLocalWorkerClaimIdentity {
+    param(
+        [Parameter(Mandatory)] $Claim,
+        [string] $CurrentRunId = ''
+    )
+
+    $workerPid = if ($Claim.PSObject.Properties['worker_pid']) { $Claim.worker_pid } else { $null }
+    if (-not (Test-MediaPipelineProcessAlive -ProcessId $workerPid)) { return $false }
+
+    $workerStartTime = if ($Claim.PSObject.Properties['worker_start_time']) { $Claim.worker_start_time } else { $null }
+    if ($null -eq $workerStartTime -or [string]::IsNullOrWhiteSpace([string]$workerStartTime)) { return $false }
+    $actualStartTime = Get-MediaPipelineProcessStartTimeUtcText -ProcessId $workerPid
+    if ([string]::IsNullOrWhiteSpace($actualStartTime) -or -not (Test-MediaPipelineUtcTimestampMatch -Expected $workerStartTime -Actual $actualStartTime)) { return $false }
+
+    $metadataPath = if ($Claim.PSObject.Properties['worker_metadata_path']) { [string]$Claim.worker_metadata_path } else { '' }
+    if ([string]::IsNullOrWhiteSpace($metadataPath) -or -not (Test-Path -LiteralPath $metadataPath -PathType Leaf)) { return $false }
+
+    $metadata = $null
+    try { $metadata = Read-MediaPipelineJsonFile -Path $metadataPath } catch { $metadata = $null }
+    if (-not $metadata) { return $false }
+    if (-not $metadata.PSObject.Properties['schema_version'] -or [string]$metadata.schema_version -ne 'local_worker_metadata.v1') { return $false }
+    if (-not $metadata.PSObject.Properties['claim_id'] -or [string]$metadata.claim_id -ne [string]$Claim.claim_id) { return $false }
+
+    $ownerRun = if ($Claim.PSObject.Properties['owner_run_id']) { [string]$Claim.owner_run_id } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($CurrentRunId) -and $ownerRun -ne $CurrentRunId) { return $false }
+    if (-not $metadata.PSObject.Properties['owner_run_id'] -or [string]$metadata.owner_run_id -ne $ownerRun) { return $false }
+
+    if ($metadata.PSObject.Properties['worker_pid'] -and [string]$metadata.worker_pid -ne [string]$workerPid) { return $false }
+    if ($metadata.PSObject.Properties['worker_start_time'] -and -not (Test-MediaPipelineUtcTimestampMatch -Expected $workerStartTime -Actual $metadata.worker_start_time)) { return $false }
+
+    $resultPath = if ($Claim.PSObject.Properties['result_path']) { [string]$Claim.result_path } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($resultPath) -and $metadata.PSObject.Properties['result_path'] -and [string]$metadata.result_path -ne $resultPath) {
+        return $false
+    }
+
+    return $true
+}
+
 function Repair-MediaPipelineLocalWorkerClaims {
     param(
         [Parameter(Mandatory)] [string] $ClaimStorePath,
@@ -132,13 +201,16 @@ function Repair-MediaPipelineLocalWorkerClaims {
 
             $resultPath = if ($claim.PSObject.Properties['result_path']) { [string]$claim.result_path } else { '' }
             $workerPid = if ($claim.PSObject.Properties['worker_pid']) { $claim.worker_pid } else { $null }
-            $alive = Test-MediaPipelineProcessAlive -ProcessId $workerPid
-            if ($alive) { continue }
+            $identityVerified = Test-MediaPipelineLocalWorkerClaimIdentity -Claim $claim -CurrentRunId $CurrentRunId
+            if ($identityVerified) { continue }
 
             if (-not [string]::IsNullOrWhiteSpace($resultPath) -and (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
-                $claim.status = 'result_ready'
-                $claim | Add-Member -NotePropertyName updated_at -NotePropertyValue (Get-MediaPipelineLocalWorkerTimestamp) -Force
-                $claim | Add-Member -NotePropertyName recovery_note -NotePropertyValue 'worker result exists; controller must consume result before releasing claim' -Force
+                $releasedAt = Get-MediaPipelineLocalWorkerTimestamp
+                $claim.status = 'released_stale_result'
+                $claim | Add-Member -NotePropertyName released_at -NotePropertyValue $releasedAt -Force
+                $claim | Add-Member -NotePropertyName updated_at -NotePropertyValue $releasedAt -Force
+                $claim | Add-Member -NotePropertyName release_reason -NotePropertyValue 'released stale worker claim with no live worker process; prior result file remains available for diagnostics' -Force
+                $claim | Add-Member -NotePropertyName recovery_note -NotePropertyValue 'released because no current controller can finalize the prior worker result; source may be claimed again' -Force
                 $changed = $true
                 continue
             }
@@ -152,7 +224,7 @@ function Repair-MediaPipelineLocalWorkerClaims {
                 $releasedAt = Get-MediaPipelineLocalWorkerTimestamp
                 $claim | Add-Member -NotePropertyName released_at -NotePropertyValue $releasedAt -Force
                 $claim | Add-Member -NotePropertyName updated_at -NotePropertyValue $releasedAt -Force
-                $claim | Add-Member -NotePropertyName recovery_note -NotePropertyValue 'released because no live worker process owned the claim' -Force
+                $claim | Add-Member -NotePropertyName recovery_note -NotePropertyValue 'released because no verified live worker process owned the claim' -Force
                 $changed = $true
             }
         }
@@ -260,4 +332,3 @@ function Release-MediaPipelineLocalWorkerClaim {
     }
     return Update-MediaPipelineLocalWorkerClaim -ClaimStorePath $ClaimStorePath -ClaimId $ClaimId -Updates $updates
 }
-

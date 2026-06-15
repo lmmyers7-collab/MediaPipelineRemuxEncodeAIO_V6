@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/shared/utils.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: shared
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 5664d07c282d3798d15e07316c9a9024420a897c9ac51e249e49b74a1a864849

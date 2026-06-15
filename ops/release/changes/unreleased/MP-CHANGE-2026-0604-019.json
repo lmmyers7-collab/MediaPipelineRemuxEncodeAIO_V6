@@ -102,7 +102,7 @@
     "DesktopApp\\Runtime\\Python\\python.exe -m pytest DesktopApp\\tests\\test_service_rename_movie.py DesktopApp\\tests\\test_facade_rename_policy.py DesktopApp\\tests\\test_application_facade_rename.py DesktopApp\\tests\\test_application_facade_local_api.py::LocalApiServerTests::test_rename_clean_filename_preview_get_route_uses_backend_cleaner_without_command_journal DesktopApp\\tests\\test_application_facade_local_api.py::LocalApiServerTests::test_rename_filter_settings_persist_and_feed_saved_preview_policy DesktopApp\\tests\\test_application_facade_local_api.py::LocalApiServerTests::test_local_api_queue_and_rename_preview_contracts -q -> 24 passed, 7 subtests passed.",
     "DesktopApp\\Runtime\\Python\\python.exe -m pytest DesktopApp\\tests\\test_webview_browser_rename_smoke.py -q -> 1 passed.",
     "DesktopApp\\Runtime\\Python\\python.exe -m pytest DesktopApp\\tests\\test_status_service.py DesktopApp\\tests\\test_application_facade_snapshot.py -q -> 16 passed.",
-    "Live read-only reproduction against C:\\Users\\lmmye\\AppData\\Local\\MediaPipelineRemuxEncodeAIO\\MediaPipeline_config.psd1 plus E:\\Videos\\Scratch\\State\\Progress\\pipeline_progress.json -> Dashboard current-work item_label computed as Hoppers (2026).",
+    "Live read-only reproduction against <local-appdata>\\MediaPipelineRemuxEncodeAIO\\MediaPipeline_config.psd1 plus <scratch-state>\\Progress\\pipeline_progress.json -> Dashboard current-work item_label computed as Hoppers (2026).",
     "DesktopApp\\Runtime\\Python\\python.exe -m pytest DesktopApp\\tests\\test_service_rename_movie.py DesktopApp\\tests\\test_facade_rename_policy.py DesktopApp\\tests\\test_application_facade_rename.py -q -> 21 passed, 7 subtests passed.",
     "DesktopApp\\Runtime\\Python\\python.exe scripts\\dev\\generate_config_schema.py --check -> OK: src\\mediapipeline\\contracts\\schemas\\config.v1.schema.json is current.",
     "pwsh -NoProfile -ExecutionPolicy Bypass -File Pipeline\\Tests\\Unit\\Invoke-ConfigKeyRegistryChecks.ps1 -> Config-key registry checks passed.",
@@ -110,6 +110,6 @@
   ],
   "rollback_plan": "Revert the new RenameMovieFilter* config keys, policy injection, WebView save-patch path, PowerShell cleaner term application, and related tests/schemas. Existing PSD1 configs that contain the new keys can safely leave them unused until the change is reapplied.",
   "related_changes": [],
-  "notes": "No source media mutation behavior changed. Real-media substitute evidence is planner/API/browser-smoke validation with representative filenames, live read-only Dashboard-label reproduction against the operator AppData config and scratch progress file, and no-mutation browser smoke coverage; no operator real-media sample was available in this coding session."
+  "notes": "No source media mutation behavior changed. Real-media substitute evidence is planner/API/browser-smoke validation with representative filenames, live read-only Dashboard-label reproduction against the operator local app-data config and scratch progress file, and no-mutation browser smoke coverage; no operator real-media sample was available in this coding session."
 }
 

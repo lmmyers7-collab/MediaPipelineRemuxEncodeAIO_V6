@@ -21,6 +21,7 @@ graph LR
   kernel["kernel"]
   library["library"]
   maintenance["maintenance"]
+  metrics["metrics"]
   naming["naming"]
   network["network"]
   observability["observability"]
@@ -46,53 +47,54 @@ graph LR
   ui_preferences["ui_preferences"]
   unknown["unknown"]
   validation["validation"]
+  verify["verify"]
+  watch["watch"]
   webview["webview"]
-  tests -->|575| api
-  tests -->|55| config
-  unknown -->|36| api
+  tests -->|615| api
+  tests -->|57| config
+  scripts -->|39| api
   tests -->|33| processes
-  scripts -->|30| api
   config -->|27| api
   observability -->|27| status
   contracts -->|26| api
   process -->|23| api
   tests -->|23| rename
   process -->|21| processes
-  tests -->|20| queue
-  tests -->|19| status
+  tests -->|21| queue
+  tests -->|20| status
   config -->|17| kernel
   observability -->|17| api
   tests -->|15| publish
   audit -->|14| api
   queue -->|14| api
+  subtitles -->|13| api
+  sample_validation -->|12| api
   decide -->|11| api
-  subtitles -->|11| api
   tests -->|11| completed
   tests -->|11| paths
   completed -->|10| api
   contracts -->|10| kernel
   tests -->|10| audit
-  unknown -->|9| maintenance
   api -->|8| queue
+  maintenance -->|8| api
   tests -->|8| maintenance
-  unknown -->|8| kernel
+  unknown -->|8| api
   api -->|7| config
-  unknown -->|7| folder_policy
-  unknown -->|7| paths
+  tests -->|7| diagnostics
+  unknown -->|7| config
   application -->|6| kernel
+  diagnostics -->|6| api
   failures -->|6| api
   orchestration -->|6| api
   publish -->|6| api
   tests -->|6| decide
   tests -->|6| final_library
   tests -->|6| folder_policy
-  diagnostics -->|5| api
+  unknown -->|6| kernel
   orchestration -->|5| config
   rename -->|5| api
   tests -->|5| storage
-  unknown -->|5| config
-  unknown -->|5| files
-  unknown -->|5| schedule
+  tests -->|5| telemetry
   diagnostics -->|4| status
   final_library -->|4| api
   observability -->|4| rename
@@ -100,34 +102,46 @@ graph LR
   process -->|4| config
   queue -->|4| observability
   rename -->|4| files
+  schedule -->|4| api
   tests -->|4| failures
+  tests -->|4| observability
   tests -->|4| orchestration
-  tests -->|4| telemetry
   config -->|3| rename
   contracts -->|3| rename
+  metrics -->|3| api
+  metrics -->|3| completed
   network -->|3| api
   orchestration -->|3| decide
-  tests -->|3| diagnostics
+  paths -->|3| kernel
   tests -->|3| files
-  tests -->|3| observability
   tests -->|3| schedule
-  unknown -->|3| storage
   api -->|2| kernel
   api -->|2| orchestration
   api -->|2| rename
   completed -->|2| observability
+  diagnostics -->|2| kernel
+  paths -->|2| api
+  paths -->|2| storage
   process -->|2| kernel
   queue -->|2| config
   rename -->|2| kernel
   rename -->|2| paths
+  scripts -->|2| diagnostics
+  tests -->|2| application
+  tests -->|2| metrics
   tests -->|2| validation
   unknown -->|2| failures
+  unknown -->|2| files
+  unknown -->|2| maintenance
+  validation -->|2| api
   api -->|1| publish
   api -->|1| ui_preferences
   application -->|1| config
   application -->|1| observability
   audit -->|1| failures
+  completed -->|1| files
   completed -->|1| kernel
+  completed -->|1| subtitles
   config -->|1| processes
   diagnostics -->|1| config
   diagnostics -->|1| processes
@@ -136,20 +150,32 @@ graph LR
   final_library -->|1| config
   final_library -->|1| files
   final_library -->|1| kernel
+  folder_policy -->|1| api
+  folder_policy -->|1| files
+  metrics -->|1| kernel
   observability -->|1| config
   observability -->|1| kernel
   observability -->|1| processes
   observability -->|1| storage
+  paths -->|1| config
   publish -->|1| completed
+  publish -->|1| files
   publish -->|1| kernel
   queue -->|1| files
+  queue -->|1| subtitles
+  subtitles -->|1| completed
   tests -->|1| kernel
+  tests -->|1| library
+  tests -->|1| subtitles
   tests -->|1| ui_preferences
   unknown -->|1| audit
   unknown -->|1| completed
+  unknown -->|1| diagnostics
   unknown -->|1| final_library
-  unknown -->|1| processes
-  unknown -->|1| sample_validation
+  unknown -->|1| folder_policy
+  unknown -->|1| library
+  unknown -->|1| paths
+  unknown -->|1| storage
   unknown -->|1| ui_preferences
 ```
 
@@ -157,52 +183,51 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 575 |
-| tests | config | 55 |
-| unknown | api | 36 |
+| tests | api | 615 |
+| tests | config | 57 |
+| scripts | api | 39 |
 | tests | processes | 33 |
-| scripts | api | 30 |
 | config | api | 27 |
 | observability | status | 27 |
 | contracts | api | 26 |
 | process | api | 23 |
 | tests | rename | 23 |
 | process | processes | 21 |
-| tests | queue | 20 |
-| tests | status | 19 |
+| tests | queue | 21 |
+| tests | status | 20 |
 | config | kernel | 17 |
 | observability | api | 17 |
 | tests | publish | 15 |
 | audit | api | 14 |
 | queue | api | 14 |
+| subtitles | api | 13 |
+| sample_validation | api | 12 |
 | decide | api | 11 |
-| subtitles | api | 11 |
 | tests | completed | 11 |
 | tests | paths | 11 |
 | completed | api | 10 |
 | contracts | kernel | 10 |
 | tests | audit | 10 |
-| unknown | maintenance | 9 |
 | api | queue | 8 |
+| maintenance | api | 8 |
 | tests | maintenance | 8 |
-| unknown | kernel | 8 |
+| unknown | api | 8 |
 | api | config | 7 |
-| unknown | folder_policy | 7 |
-| unknown | paths | 7 |
+| tests | diagnostics | 7 |
+| unknown | config | 7 |
 | application | kernel | 6 |
+| diagnostics | api | 6 |
 | failures | api | 6 |
 | orchestration | api | 6 |
 | publish | api | 6 |
 | tests | decide | 6 |
 | tests | final_library | 6 |
 | tests | folder_policy | 6 |
-| diagnostics | api | 5 |
+| unknown | kernel | 6 |
 | orchestration | config | 5 |
 | rename | api | 5 |
 | tests | storage | 5 |
-| unknown | config | 5 |
-| unknown | files | 5 |
-| unknown | schedule | 5 |
+| tests | telemetry | 5 |
 | diagnostics | status | 4 |
 | final_library | api | 4 |
 | observability | rename | 4 |
@@ -210,34 +235,46 @@ graph LR
 | process | config | 4 |
 | queue | observability | 4 |
 | rename | files | 4 |
+| schedule | api | 4 |
 | tests | failures | 4 |
+| tests | observability | 4 |
 | tests | orchestration | 4 |
-| tests | telemetry | 4 |
 | config | rename | 3 |
 | contracts | rename | 3 |
+| metrics | api | 3 |
+| metrics | completed | 3 |
 | network | api | 3 |
 | orchestration | decide | 3 |
-| tests | diagnostics | 3 |
+| paths | kernel | 3 |
 | tests | files | 3 |
-| tests | observability | 3 |
 | tests | schedule | 3 |
-| unknown | storage | 3 |
 | api | kernel | 2 |
 | api | orchestration | 2 |
 | api | rename | 2 |
 | completed | observability | 2 |
+| diagnostics | kernel | 2 |
+| paths | api | 2 |
+| paths | storage | 2 |
 | process | kernel | 2 |
 | queue | config | 2 |
 | rename | kernel | 2 |
 | rename | paths | 2 |
+| scripts | diagnostics | 2 |
+| tests | application | 2 |
+| tests | metrics | 2 |
 | tests | validation | 2 |
 | unknown | failures | 2 |
+| unknown | files | 2 |
+| unknown | maintenance | 2 |
+| validation | api | 2 |
 | api | publish | 1 |
 | api | ui_preferences | 1 |
 | application | config | 1 |
 | application | observability | 1 |
 | audit | failures | 1 |
+| completed | files | 1 |
 | completed | kernel | 1 |
+| completed | subtitles | 1 |
 | config | processes | 1 |
 | diagnostics | config | 1 |
 | diagnostics | processes | 1 |
@@ -246,18 +283,30 @@ graph LR
 | final_library | config | 1 |
 | final_library | files | 1 |
 | final_library | kernel | 1 |
+| folder_policy | api | 1 |
+| folder_policy | files | 1 |
+| metrics | kernel | 1 |
 | observability | config | 1 |
 | observability | kernel | 1 |
 | observability | processes | 1 |
 | observability | storage | 1 |
+| paths | config | 1 |
 | publish | completed | 1 |
+| publish | files | 1 |
 | publish | kernel | 1 |
 | queue | files | 1 |
+| queue | subtitles | 1 |
+| subtitles | completed | 1 |
 | tests | kernel | 1 |
+| tests | library | 1 |
+| tests | subtitles | 1 |
 | tests | ui_preferences | 1 |
 | unknown | audit | 1 |
 | unknown | completed | 1 |
+| unknown | diagnostics | 1 |
 | unknown | final_library | 1 |
-| unknown | processes | 1 |
-| unknown | sample_validation | 1 |
+| unknown | folder_policy | 1 |
+| unknown | library | 1 |
+| unknown | paths | 1 |
+| unknown | storage | 1 |
 | unknown | ui_preferences | 1 |

@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0611-006",
+  "title": "Add worker 06 contracts storage observability audit report",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Document the worker-06 review-only audit for contracts, storage, observability, diagnostics, failures, audit helpers, and related PowerShell support modules.",
+  "reason": "The concurrent function/module audit requires each worker to publish an isolated worker report and cover Markdown writes with a change packet.",
+  "affected_areas": [
+    "review",
+    "contracts",
+    "storage",
+    "observability",
+    "diagnostics",
+    "failures",
+    "audit"
+  ],
+  "behavior_before": "The lowercase worker-06 contracts/storage/observability audit report did not exist at the requested output path.",
+  "behavior_after": "The worker-06 contracts/storage/observability audit report is present under the audit workers directory.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-06-contracts-storage-observability.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-006.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    {
+      "command": "Test-Path docs/reviews/function-module-audit-2026-06-11/workers/worker-06-contracts-storage-observability.md",
+      "result": "passed",
+      "notes": "Requested lowercase worker report path exists."
+    },
+    {
+      "command": "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_stage_contracts.StageContractTests.test_generated_stage_schema_is_current_and_references_all_models",
+      "result": "failed-as-finding-evidence",
+      "notes": "The test fails because the checked-in stage schema omits fallback_remux from DecidePayload.size_guard_mode while regenerated schema includes it."
+    },
+    {
+      "command": "Bundled-Python validate_api_payload snippet for /api/rename/apply and /api/final-library-promotion/promote-queue with string/int confirmation fields",
+      "result": "confirmed-finding",
+      "notes": "Route payload validation accepted non-bool confirmation values for the reviewed high-risk command contracts."
+    },
+    {
+      "command": "Bundled-Python temp SQLite mirror snippet inserting two completed jobs with the same job_id",
+      "result": "confirmed-finding",
+      "notes": "The mirror retained one row because completed_jobs.job_key is unique and record_completed_job upserts on job_id."
+    }
+  ],
+  "rollback_plan": "Delete the worker-06 review report and this change packet.",
+  "related_changes": [],
+  "notes": "Review-only documentation change. No source, runtime, media, aggregate review, generated summary, queue, settings, publish, rename, or launcher files are modified. Summary regeneration was intentionally not run because this worker was instructed to write only the worker report plus the required change packet."
+}

@@ -1,0 +1,33 @@
+{
+  "id": "MP-CHANGE-2026-0611-104",
+  "title": "Add worker 09 Tauri Rust shell audit report",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Document the worker-09 review-only audit for the Tauri Rust shell, launchers, lifecycle checks, close readiness, single-instance guard, event bridge, and security posture.",
+  "reason": "The concurrent function/module audit requires each worker to publish an isolated worker report and cover Markdown writes with a change packet.",
+  "affected_areas": [
+    "review",
+    "tauri-rust-shell",
+    "shell",
+    "desktop",
+    "lifecycle"
+  ],
+  "behavior_before": "The requested worker-09 Tauri/Rust shell audit report did not exist at the lowercase worker output path.",
+  "behavior_after": "The worker-09 Tauri/Rust shell audit report is present under the audit workers directory with findings and coverage notes.",
+  "files_touched": [
+    "docs/reviews/function-module-audit-2026-06-11/workers/worker-09-tauri-rust-shell.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-104.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Static review only; no runtime/media/Tauri smoke executed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed because unrelated concurrent file docs/implementation/encoder-breadth-av1-plan.md is not listed in any unreleased packet."
+  ],
+  "rollback_plan": "Delete docs/reviews/function-module-audit-2026-06-11/workers/worker-09-tauri-rust-shell.md and ops/release/changes/unreleased/MP-CHANGE-2026-0611-104.json.",
+  "related_changes": [],
+  "notes": "Review-only documentation change. No source, runtime, media, aggregate review, generated summary, queue, settings, publish, rename, or launcher files are modified."
+}

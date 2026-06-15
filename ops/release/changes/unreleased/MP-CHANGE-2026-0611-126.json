@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0611-126",
+  "title": "FB-011 fail closed on invalid settings builders",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fixed FR-032 by making dirty Settings builder validation failures abort Preview and Save before any API POST is sent.",
+  "reason": "Worker finding W08-002 reported that invalid builder input could show a local error while Preview/Save continued with stale raw JSON, which is unsafe for settings persistence and media-policy staging.",
+  "affected_areas": [
+    "media policy staging",
+    "settings persistence",
+    "webview settings"
+  ],
+  "behavior_before": "Dirty Settings builders could reject invalid input locally, but Preview/Save still continued with the existing raw Changes JSON and posted it to settings preview/save routes.",
+  "behavior_after": "Dirty Settings builder flushes return explicit success or failure. Preview and Save record a Builder invalid result and return before POST when any dirty builder rejects invalid JSON/text or numeric input.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settings/patchReview.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.file_safety.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.network.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.pending.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.queue.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.runtime.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.video.js",
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.audio.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.file_safety.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.queue.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.runtime.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-126.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_settings_builder_flush_smoke.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-126.json",
+    "tests/webview/test_webview_browser_settings_builder_flush_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_settings_builder_flush_smoke.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_application_facade_settings_patch -q passed, 20 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_facade_settings_patch_policy -q passed, 6 tests.",
+    "PYTHONPATH=src python -m unittest tests.python.desktop.test_service_config_validation -q passed, 18 tests.",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_browser_settings_builder_flush_smoke -q passed, 1 browser-backed test covering invalid JSON/text and invalid positive-number builders with no Preview/Save POST.",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_frontend_mutation_boundary -q passed, 21 tests.",
+    "PYTHONPATH=src python -m unittest tests.webview.test_webview_handbrake_settings_ui -q passed, 27 tests.",
+    "python -m unittest tests.python.desktop.test_application_facade_settings_patch -q passed",
+    "python -m unittest tests.python.desktop.test_facade_settings_patch_policy -q passed",
+    "python -m unittest tests.python.desktop.test_service_config_validation -q passed",
+    "python -m unittest tests.webview.test_webview_browser_settings_builder_flush_smoke -q passed",
+    "python -m unittest tests.webview.test_webview_frontend_mutation_boundary -q passed",
+    "python -m unittest tests.webview.test_webview_handbrake_settings_ui -q passed",
+    "validate_changes --require-worktree-coverage failed only for unrelated uncovered files: docs/implementation/dynamic-hdr-preservation/PLAN.md, docs/implementation/objective-quality-verification-plan.md, docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Revert the Settings builder flush result handling and the focused browser smoke in this packet, then rerun the listed WebView/settings validation commands.",
+  "related_changes": [
+    "FB-011",
+    "FR-032",
+    "W08-002"
+  ],
+  "notes": "The broader settings launch browser smoke was not used for this batch because it has a separate pre-existing Library Route Map expectation failure unrelated to FR-032. Strict change-control coverage for FB-011 is clean; repository-wide strict coverage still fails on unrelated uncovered dirty files: docs/implementation/dynamic-hdr-preservation/PLAN.md, docs/implementation/objective-quality-verification-plan.md, and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+}

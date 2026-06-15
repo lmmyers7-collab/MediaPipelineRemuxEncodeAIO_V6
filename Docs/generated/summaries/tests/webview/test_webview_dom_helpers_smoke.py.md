@@ -3,9 +3,9 @@ file: tests/webview/test_webview_dom_helpers_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-07
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: bbff71d821773eabb54b150c1430d6d92c8d9a984b598be7726c8cf13c96317d
+sha256: 1150dda8203445e36649b009b705343054668c3a19ce9cb27c29337002a5e606
 ---
 # `tests/webview/test_webview_dom_helpers_smoke.py`
 

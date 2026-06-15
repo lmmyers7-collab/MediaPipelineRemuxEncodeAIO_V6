@@ -25,6 +25,15 @@ REPORTS_PAGE = (
     / "partials"
     / "page-reports.html"
 )
+COMPONENT_STYLES = (
+    REPO_ROOT
+    / "apps"
+    / "desktop"
+    / "webview"
+    / "static"
+    / "assets"
+    / "styles.components.css"
+)
 
 
 class ReportsViewStaticTests(unittest.TestCase):
@@ -155,6 +164,24 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("function renderReportWarnings", source)
         self.assertIn("reportCompactPath(item.path)", source)
         self.assertIn("warningRows.length ? \"Review\" : \"Ready\"", source)
+
+    def test_failure_review_board_uses_tile_summary_with_detail_fallback(self) -> None:
+        source = REPORTS_VIEW.read_text(encoding="utf-8")
+        html = REPORTS_PAGE.read_text(encoding="utf-8")
+        styles = COMPONENT_STYLES.read_text(encoding="utf-8")
+
+        self.assertIn("<h3>Failure Review Board</h3>", html)
+        self.assertIn('id="failure-review-board" class="review-tile-board"', html)
+        self.assertIn("Full failure review detail", html)
+        self.assertIn("failure-review-board-detail", html)
+        self.assertIn("function failureReviewBoardTiles", source)
+        self.assertIn("Review State", source)
+        self.assertIn("Root Cause", source)
+        self.assertIn("Fix OCR path", source)
+        self.assertIn("failureReviewBoardTiles().map(failureReviewTileNode)", source)
+        self.assertIn(".review-tile-board", styles)
+        self.assertIn(".review-tile-wide", styles)
+        self.assertIn("@media (max-width: 520px)", styles)
 
 
 if __name__ == "__main__":

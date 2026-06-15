@@ -144,15 +144,26 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
             });
 
             const row = tbody.children[0];
-            if (row.children.length !== 8) {
-              throw new Error(`Expected 8 completed table cells after state/health removal, got ${row.children.length}`);
+            if (row.children.length !== 7) {
+              throw new Error(`Expected 7 completed table cells after media spacer removal, got ${row.children.length}`);
             }
             const titleCell = row.children[1];
-            const evidenceCell = row.children[4];
-            const measureCell = row.children[5];
+            const routeCell = row.children[2];
+            const evidenceCell = row.children[3];
+            const measureCell = row.children[4];
             const titleChildren = titleCell.children.map((child) => child.className);
             if (titleCell.textContent !== "Legally Blonde (2001)") {
               throw new Error(`Unexpected title cell text: ${titleCell.textContent}`);
+            }
+            if (routeCell.textContent !== "REMUX") {
+              throw new Error(`Route did not move directly after Title: ${routeCell.textContent}`);
+            }
+            const routeChip = routeCell.children[0];
+            if (!routeChip || routeChip.dataset.route !== "remux") {
+              throw new Error(`Regular remux route chip changed unexpectedly: ${routeChip && JSON.stringify(routeChip.dataset)}`);
+            }
+            if (row.children.some((cell) => cell.textContent === "Movie")) {
+              throw new Error(`Unused media spacer cell rendered: ${row.textContent}`);
             }
             if (titleChildren.includes("completed-title-meta")) {
               throw new Error(`Duplicate filename meta line rendered: ${titleChildren.join(",")}`);
@@ -173,6 +184,30 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
               throw new Error(`Redundant health/consistency text rendered: ${row.textContent}`);
             }
 
+            const fallbackRemuxRow = Object.assign({}, movieRow, {
+              row_key: "row-fallback-remux",
+              route: "remux",
+              route_label: "REMUX",
+              route_reason_code: "oversized_encode_remux_fallback",
+              route_reason: "Remux fallback after oversized encode; encoded output exceeded configured growth limit.",
+            });
+            module.renderCompletedTableRows({
+              tbodyId: "completed-rows",
+              legendId: "completed-table-legend",
+              rows: [fallbackRemuxRow],
+              sourceRows: [],
+              emptyMessage: "No rows",
+              legendLabel: "Current output rows",
+              rowLabel: "Current output row",
+            });
+            const fallbackRouteChip = tbody.children[0].children[2].children[0];
+            if (!fallbackRouteChip || fallbackRouteChip.dataset.route !== "remux-fallback") {
+              throw new Error(`Fallback remux route chip was not split-state: ${fallbackRouteChip && JSON.stringify(fallbackRouteChip.dataset)}`);
+            }
+            if (!fallbackRouteChip.title.includes("Encode was attempted first") || !fallbackRouteChip.title.includes("Final route: REMUX.")) {
+              throw new Error(`Fallback remux tooltip omitted route history: ${fallbackRouteChip.title}`);
+            }
+
             state.completedSizeColumnMode = "bitrate";
             module.renderCompletedTableRows({
               tbodyId: "completed-rows",
@@ -183,7 +218,7 @@ class WebViewCompletedTableTitleCellTests(unittest.TestCase):
               legendLabel: "Current output rows",
               rowLabel: "Current output row",
             });
-            const bitrateCell = tbody.children[0].children[5];
+            const bitrateCell = tbody.children[0].children[4];
             if (bitrateCell.textContent !== "9.5 Mbps") {
               throw new Error(`Bitrate mode did not render bitrate text: ${bitrateCell.textContent}`);
             }

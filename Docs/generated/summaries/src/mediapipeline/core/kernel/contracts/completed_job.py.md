@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/kernel/contracts/completed_job.py
 pipeline_stage: contracts
 token_priority: medium
-owner_domain: unknown
+owner_domain: kernel
 last_modified: 2026-05-06
 last_reviewed: 2026-06-04
 sha256: cbbe89bdd3713af25d7c75fd5a50541d78a033e3ff38982998ed981ed60b96f1

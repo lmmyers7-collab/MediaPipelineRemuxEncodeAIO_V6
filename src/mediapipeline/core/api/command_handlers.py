@@ -7,6 +7,7 @@ from .commands_file_overrides import LocalApiFileOverridesCommandPayloadMixin
 from .commands_files import LocalApiFileCommandPayloadMixin
 from .commands_maintenance import LocalApiMaintenanceCommandPayloadMixin
 from .commands_metrics import LocalApiMetricsCommandPayloadMixin
+from .commands_network import LocalApiNetworkCommandPayloadMixin
 from .commands_process import LocalApiProcessCommandPayloadMixin
 from .commands_queue_priority import LocalApiQueuePriorityCommandPayloadMixin
 from .commands_queue_scan import LocalApiQueueScanCommandPayloadMixin
@@ -27,6 +28,7 @@ class LocalApiCommandHandlerMixin(
     LocalApiFileCommandPayloadMixin,
     LocalApiMaintenanceCommandPayloadMixin,
     LocalApiMetricsCommandPayloadMixin,
+    LocalApiNetworkCommandPayloadMixin,
     LocalApiQueueScanCommandPayloadMixin,
     LocalApiQueuePriorityCommandPayloadMixin,
     LocalApiQueueStrategyCommandPayloadMixin,

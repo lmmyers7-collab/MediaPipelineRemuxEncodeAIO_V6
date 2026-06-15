@@ -52,6 +52,34 @@ function Resolve-PythonCandidates {
     $preferred | Select-Object -ExpandProperty Source -Unique
 }
 
+function Test-ApiHealth {
+    param(
+        [Parameter(Mandatory = $true)][string]$HealthUrl,
+        [int]$TimeoutSec = 2
+    )
+
+    try {
+        $null = Invoke-WebRequest -Uri $HealthUrl -UseBasicParsing -TimeoutSec $TimeoutSec -ErrorAction Stop
+        return $true
+    } catch {
+        return $false
+    }
+}
+
+function Test-LocalApiPortAvailable {
+    param([Parameter(Mandatory = $true)][int]$Port)
+
+    $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Parse('127.0.0.1'), $Port)
+    try {
+        $listener.Start()
+        return $true
+    } catch {
+        return $false
+    } finally {
+        try { $listener.Stop() } catch { }
+    }
+}
+
 $pythonCandidates = @(Resolve-PythonCandidates -DesktopRoot $desktopRoot -ProjectRoot $projectRoot)
 if (-not $pythonCandidates) {
     Write-Error ('Python runtime not found.  Expected apps\desktop\runtime\Python\python.exe ' +
@@ -94,6 +122,7 @@ try {
 # Banner
 # ---------------------------------------------------------------------------
 $apiUrl = "http://127.0.0.1:$Port"
+$healthUrl = "$apiUrl/api/health"
 Write-Host ''
 Write-Host 'MediaPipelineRemuxEncodeAIO - API + Browser launcher' -ForegroundColor Cyan
 Write-Host "Python  : $python"
@@ -111,56 +140,63 @@ Write-Host ''
 # script exits.  Normal browser mode keeps API token checks enabled; the public
 # local HTML bootstrap provides the page with the per-run token for API calls.
 # ---------------------------------------------------------------------------
-$apiArgs = @(
-    '-m', 'mediapipeline.desktop.local_api_main',
-    '--app-root', $desktopRoot,
-    '--port',     $Port
-)
-if ($NoTokenDevMode) {
-    $apiArgs += '--no-token'
-}
+$ready = Test-ApiHealth -HealthUrl $healthUrl -TimeoutSec 1
+if ($ready) {
+    Write-Host 'An existing MediaPipeline Local API is already healthy on this port; reusing it.' -ForegroundColor Green
+} elseif (-not (Test-LocalApiPortAvailable -Port $Port)) {
+    $env:PYTHONPATH = $oldPythonPath
+    Write-Error ("Port $Port is already in use, but $healthUrl did not respond as a healthy MediaPipeline API. " +
+                 "Close the process using that port or rerun this launcher with -Port <free-port>.")
+    exit 1
+} else {
+    $apiArgs = @(
+        '-m', 'mediapipeline.desktop.local_api_main',
+        '--app-root', $desktopRoot,
+        '--port',     $Port
+    )
+    if ($NoTokenDevMode) {
+        $apiArgs += '--no-token'
+    }
 
-Write-Host 'Starting local API in a new console window...' -ForegroundColor Yellow
-$previousNoTokenDevEnv = [Environment]::GetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', 'Process')
-if ($NoTokenDevMode) {
-    [Environment]::SetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', '1', 'Process')
-}
-Start-Process -FilePath $python `
-              -ArgumentList $apiArgs `
-              -WorkingDirectory $desktopRoot `
-              -WindowStyle Normal
-if ($NoTokenDevMode) {
-    [Environment]::SetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', $previousNoTokenDevEnv, 'Process')
+    Write-Host 'Starting local API in a new console window...' -ForegroundColor Yellow
+    $previousNoTokenDevEnv = [Environment]::GetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', 'Process')
+    if ($NoTokenDevMode) {
+        [Environment]::SetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', '1', 'Process')
+    }
+    Start-Process -FilePath $python `
+                  -ArgumentList $apiArgs `
+                  -WorkingDirectory $desktopRoot `
+                  -WindowStyle Normal
+    if ($NoTokenDevMode) {
+        [Environment]::SetEnvironmentVariable('MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV', $previousNoTokenDevEnv, 'Process')
+    }
 }
 $env:PYTHONPATH = $oldPythonPath
 
 # ---------------------------------------------------------------------------
 # Health poll — wait until the API is accepting connections
 # ---------------------------------------------------------------------------
-$healthUrl = "$apiUrl/api/health"
-$ready     = $false
-
-if ($NoWait) {
+if ($ready) {
+    # Existing API reuse was already proven healthy.
+} elseif ($NoWait) {
     Write-Host '-NoWait: skipping health poll, opening browser immediately.' -ForegroundColor DarkYellow
     $ready = $true
 } else {
     Write-Host "Waiting for API to become healthy ($healthUrl)..." -ForegroundColor Yellow
     $deadline = (Get-Date).AddSeconds($TimeoutSeconds)
     while ((Get-Date) -lt $deadline) {
-        try {
-            $null = Invoke-WebRequest -Uri $healthUrl -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+        if (Test-ApiHealth -HealthUrl $healthUrl -TimeoutSec 2) {
             $ready = $true
             break
-        } catch {
-            Start-Sleep -Milliseconds 400
         }
+        Start-Sleep -Milliseconds 400
     }
 }
 
 if (-not $ready) {
     Write-Warning ("API did not respond on $healthUrl within ${TimeoutSeconds}s.  " +
-                   'The API window may show an error.  Opening browser anyway — ' +
-                   'refresh the page once the API is up.')
+                   'The API window may show an error. Browser launch is skipped so the failure is visible.')
+    exit 1
 }
 
 # ---------------------------------------------------------------------------

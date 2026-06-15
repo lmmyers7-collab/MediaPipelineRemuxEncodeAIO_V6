@@ -14,19 +14,19 @@ pub(crate) fn request_backend_json(
     token: &str,
     body: &str,
 ) -> ShellResult<String> {
-    let parsed = url::Url::parse(backend_url)?;
-    if parsed.scheme() != "http" {
-        return Err(shell_error(
-            "Only http backend URLs are supported for shell backend requests.",
-        ));
-    }
+    let parsed = validate_loopback_backend_url(backend_url)?;
     let host = parsed
         .host_str()
         .ok_or_else(|| shell_error("Backend URL is missing a host."))?;
     let port = parsed
-        .port_or_known_default()
-        .ok_or_else(|| shell_error("Backend URL is missing a port."))?;
-    let mut addresses = format!("{host}:{port}").to_socket_addrs()?;
+        .port()
+        .ok_or_else(|| shell_error("Backend URL is missing an explicit port."))?;
+    let socket_target = if host.contains(':') {
+        format!("[{host}]:{port}")
+    } else {
+        format!("{host}:{port}")
+    };
+    let mut addresses = socket_target.to_socket_addrs()?;
     let address = addresses
         .next()
         .ok_or_else(|| shell_error("Backend URL did not resolve to a socket address."))?;
@@ -69,6 +69,26 @@ pub(crate) fn request_backend_json(
         ));
     };
     Ok(body.to_string())
+}
+
+pub(crate) fn validate_loopback_backend_url(backend_url: &str) -> ShellResult<url::Url> {
+    let parsed = url::Url::parse(backend_url)?;
+    if parsed.scheme() != "http" {
+        return Err(shell_error(
+            "Only http backend URLs are supported for shell backend requests.",
+        ));
+    }
+    if parsed.port().is_none() {
+        return Err(shell_error("Backend URL is missing an explicit port."));
+    }
+    match parsed.host() {
+        Some(url::Host::Domain(host)) if host.eq_ignore_ascii_case("localhost") => Ok(parsed),
+        Some(url::Host::Ipv4(address)) if address.is_loopback() => Ok(parsed),
+        Some(url::Host::Ipv6(address)) if address.is_loopback() => Ok(parsed),
+        _ => Err(shell_error(
+            "Backend URL must use an explicit http loopback host.",
+        )),
+    }
 }
 
 fn backend_response_body_preview(response: &str, max_chars: usize) -> String {
@@ -114,4 +134,37 @@ pub(crate) fn read_backend_response_capped(
     }
     String::from_utf8(response)
         .map_err(|error| shell_error(format!("Backend response was not UTF-8: {error}")))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::validate_loopback_backend_url;
+
+    #[test]
+    fn validate_loopback_backend_url_accepts_explicit_http_loopback_hosts() {
+        for url in [
+            "http://127.0.0.1:8765",
+            "http://localhost:8765",
+            "http://[::1]:8765",
+        ] {
+            let parsed = validate_loopback_backend_url(url).expect("loopback URL should pass");
+            assert_eq!(parsed.scheme(), "http");
+        }
+    }
+
+    #[test]
+    fn validate_loopback_backend_url_rejects_non_loopback_and_implicit_ports() {
+        for url in [
+            "https://127.0.0.1:8765",
+            "http://127.0.0.1",
+            "http://example.com:8765",
+            "http://192.168.1.10:8765",
+            "http://[2001:db8::1]:8765",
+        ] {
+            assert!(
+                validate_loopback_backend_url(url).is_err(),
+                "{url} should be rejected"
+            );
+        }
+    }
 }

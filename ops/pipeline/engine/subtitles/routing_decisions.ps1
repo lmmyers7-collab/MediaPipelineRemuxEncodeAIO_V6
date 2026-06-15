@@ -44,6 +44,35 @@ function New-SubtitleEnrichedTitle {
     return $title
 }
 
+function Get-SubtitleRoutingEntryValue {
+    param(
+        [Parameter(Mandatory)] $Entry,
+        [Parameter(Mandatory)] [string] $Name,
+        $Default = $null
+    )
+
+    if ($null -eq $Entry) { return $Default }
+    if ($Entry -is [System.Collections.IDictionary] -and $Entry.Contains($Name)) {
+        return $Entry[$Name]
+    }
+    $prop = $Entry.PSObject.Properties[$Name]
+    if ($null -ne $prop) { return $prop.Value }
+    return $Default
+}
+
+function ConvertTo-SubtitleRoutingBool {
+    param(
+        $Value,
+        [bool] $Default = $false
+    )
+
+    if ($null -eq $Value) { return $Default }
+    if ($Value -is [bool]) { return [bool]$Value }
+    $text = ([string]$Value).Trim()
+    if ([string]::IsNullOrWhiteSpace($text)) { return $Default }
+    return ($text -match '^(true|1|yes|y)$')
+}
+
 function Resolve-SubtitleStreamPolicy {
     param(
         [Parameter(Mandatory)] $Stream,
@@ -55,6 +84,7 @@ function Resolve-SubtitleStreamPolicy {
     $isTx3g      = Test-IsTx3gSubtitleStream -Stream $Stream
     $isBdpgs     = Test-IsBdpgsSubtitleStream -Stream $Stream
     $isVobSub    = Test-IsVobSubSubtitleStream -Stream $Stream
+    $isAss       = ($codec -in (Get-MediaSubtitleCodecAssNames))
     $rawLang     = if ($Stream.tags.language)     { ([string]$Stream.tags.language).ToLowerInvariant() } else { "" }
     $lang        = if ($isTx3g -or $isBdpgs -or $isVobSub) { Get-NormalizedSubtitleLanguage $rawLang } else { $rawLang }
     $titleLower  = if ($Stream.tags.title)        { ([string]$Stream.tags.title).ToLowerInvariant() } else { "" }
@@ -73,10 +103,18 @@ function Resolve-SubtitleStreamPolicy {
         }
     }
 
-    $languagePolicy = Get-SubtitleLanguagePolicy -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs -IsVobSub:$isVobSub -IsAss:($codec -in (Get-MediaSubtitleCodecAssNames))
-    $langOk = ($languagePolicy -contains $lang)
-    if ($isSdh -and -not $langOk) { $langOk = $true }
-    if ($isForced -and -not $langOk) { $langOk = $true }
+    $languagePolicy = Get-SubtitleLanguagePolicy -IsTx3g:$isTx3g -IsBdpgs:$isBdpgs -IsVobSub:$isVobSub -IsAss:$isAss
+    $languagePolicyMatched = ($languagePolicy -contains $lang)
+    $langOk = $languagePolicyMatched
+    $retainReason = if ($languagePolicyMatched) { 'language_policy' } else { 'language_or_title_policy' }
+    if (-not $isAss -and $isSdh -and -not $langOk) {
+        $langOk = $true
+        $retainReason = 'sdh_metadata'
+    }
+    if (-not $isAss -and $isForced -and -not $langOk) {
+        $langOk = $true
+        $retainReason = 'forced_metadata'
+    }
 
     $enrichedTitle = New-SubtitleEnrichedTitle -Language $lang -RawTitle $rawTitle -TitleLower $titleLower -IsSdh:$isSdh -IsForced:$isForced -IsSupplemental:$isSupplemental
     return [pscustomobject]@{
@@ -91,6 +129,8 @@ function Resolve-SubtitleStreamPolicy {
         IsDefault          = $isDefault
         SourceIsDefault    = $isDefault
         IsForced           = $isForced
+        LanguagePolicyMatched = [bool]$languagePolicyMatched
+        RetainReason       = $retainReason
         IsSdh              = $isSdh
         IsSupplemental     = $isSupplemental
         SupplementalForced = $treatSupplementalAsForced
@@ -144,6 +184,8 @@ function New-SubtitleDecisionRecord {
         is_default          = [bool]$Entry.IsDefault
         source_is_default   = [bool]$Entry.SourceIsDefault
         is_forced           = [bool]$Entry.IsForced
+        language_policy_matched = ConvertTo-SubtitleRoutingBool -Value (Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'LanguagePolicyMatched' -Default $true) -Default $true
+        retain_reason       = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'RetainReason' -Default '')
         is_sdh              = [bool]$Entry.IsSdh
         is_supplemental     = [bool]$Entry.IsSupplemental
         is_tx3g             = [bool]$Entry.IsTx3g
@@ -168,6 +210,11 @@ function Get-SubtitleRoutingPolicyChain {
             $effectiveKeepSaS = Get-EffectiveSubtitleSwitch -Name 'KeepSignsAndSongs' -Default $true
             if ([bool]$Entry.IsSupplemental -and $effectiveKeepSaS) {
                 return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP ASS (supplemental) stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
+            }
+            $languagePolicyMatched = ConvertTo-SubtitleRoutingBool -Value (Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'LanguagePolicyMatched' -Default $true) -Default $true
+            if (-not $languagePolicyMatched) {
+                $retainReason = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'RetainReason' -Default 'metadata_policy')
+                return New-SubtitleRoutingDecision -Action 'Drop' -Message "DROP ASS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)': $retainReason outside ASS conversion language policy" -Level 'WARN'
             }
             if (-not (Get-EffectiveSubtitleSwitch -Name 'ConvertAssToSrt' -Default $true)) {
                 return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP ASS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)': ConvertAssToSrt disabled"
@@ -246,4 +293,3 @@ function Add-SubtitleRoutingDecision {
         default       { $Drop.Add($Entry); break }
     }
 }
-

@@ -64,6 +64,113 @@
     ];
   }
 
+  function watchFolderActionLabel(value) {
+    const labels = {
+      enqueue_only: "Enqueue only",
+      enqueue_and_launch: "Enqueue and launch",
+    };
+    const key = String(value || "enqueue_only").toLowerCase();
+    return labels[key] || key || "Enqueue only";
+  }
+
+  function watchFolderStatusLabel(payload) {
+    if (!payload || typeof payload !== "object" || !payload.schema_version) return "Not loaded";
+    const status = String(payload.status || "unknown").toLowerCase();
+    if (!payload.enabled) return "Disabled";
+    if (payload.pending_work) return "Pending";
+    if (status === "degraded") return "Degraded";
+    if (status === "error") return "Error";
+    if (payload.running) return "Running";
+    return payload.status || "Unknown";
+  }
+
+  function watchFolderStatusValue(payload) {
+    if (!payload || typeof payload !== "object" || !payload.schema_version) return "blocked";
+    const status = String(payload.status || "unknown").toLowerCase();
+    if (status === "degraded" || status === "error") return "blocked";
+    if (payload.pending_work || !payload.enabled) return "review";
+    if (payload.running || status === "running") return "ready";
+    return "review";
+  }
+
+  function watchFolderRecentLines(payload) {
+    const rows = Array.isArray(payload?.recent_detections) ? payload.recent_detections : [];
+    if (!rows.length) {
+      return [
+        "No recent stable detections.",
+        "Mutation guardrail: this card is read-only; watch-folder scanning and launch decisions remain backend-owned.",
+      ];
+    }
+    const lines = ["Recent stable detections:"];
+    rows.slice(-8).reverse().forEach((item) => {
+      const detected = scheduleDisplayValue(item?.detected_utc);
+      lines.push(`- ${detected}: ${item?.path || "(path not reported)"}`);
+    });
+    lines.push("", "Mutation guardrail: this card is read-only; watch-folder scanning and launch decisions remain backend-owned.");
+    return lines;
+  }
+
+  function watchFolderSummaryLines(payload) {
+    if (!payload || typeof payload !== "object" || !payload.schema_version) {
+      return [
+        "Watch-folder state is not loaded.",
+        "Mutation guardrail: Schedule only displays watch-folder status; backend configuration and lifecycle own scanner behavior.",
+      ];
+    }
+    const roots = Array.isArray(payload.roots) ? payload.roots : [];
+    const lastLaunch = payload.last_launch && typeof payload.last_launch === "object" ? payload.last_launch : null;
+    const lastRefusal = payload.last_refusal && typeof payload.last_refusal === "object" ? payload.last_refusal : null;
+    const rootText = roots.length
+      ? roots.map((root) => `${root.reachable ? "reachable" : "unreachable"}: ${root.path || "(path not reported)"}${root.last_error ? ` (${root.last_error})` : ""}`)
+      : ["none"];
+    const lines = [
+      "Watch-folder manager:",
+      `Status: ${payload.status || "unknown"}`,
+      `Enabled: ${payload.enabled ? "yes" : "no"}`,
+      `Running: ${payload.running ? "yes" : "no"}`,
+      `Action: ${watchFolderActionLabel(payload.effective_action)}`,
+      `Network role: ${payload.network_role || "standalone"}`,
+      `Roots: ${roots.length}${payload.derived_roots_from_library_profiles ? " (from source/library profile roots)" : ""}`,
+      `Debounce: ${Number(payload.debounce_seconds || 0) || "unknown"} second(s)`,
+      `Pending work: ${payload.pending_work ? "yes" : "no"}`,
+      `Last cycle: ${scheduleDisplayValue(payload.last_cycle_completed_utc)}`,
+      `Reason: ${payload.reason || "(not reported)"}`,
+      `Last error: ${payload.last_error || "none"}`,
+      "",
+      "Roots:",
+      ...rootText.map((line) => `- ${line}`),
+    ];
+    if (lastLaunch) {
+      lines.push(
+        "",
+        "Last launch:",
+        `- Outcome: ${lastLaunch.outcome || "(not reported)"}`,
+        `- Requested: ${scheduleDisplayValue(lastLaunch.requested_utc)}`,
+        `- PID: ${lastLaunch.pid || "none"}`,
+        `- Message: ${lastLaunch.message || "(not reported)"}`
+      );
+    }
+    if (lastRefusal) {
+      lines.push(
+        "",
+        "Last refusal:",
+        `- Time: ${scheduleDisplayValue(lastRefusal.utc)}`,
+        `- Reason: ${lastRefusal.reason || "(not reported)"}`
+      );
+    }
+    return lines;
+  }
+
+  function renderWatchFolderStatus(payload) {
+    const status = byId("schedule-watch-folder-status");
+    if (status) {
+      status.textContent = watchFolderStatusLabel(payload);
+      status.dataset.state = watchFolderStatusValue(payload);
+    }
+    setText("schedule-watch-folder-summary", watchFolderSummaryLines(payload || {}).join("\n"));
+    setText("schedule-watch-folder-recent", watchFolderRecentLines(payload || {}).join("\n"));
+  }
+
   function scheduleLaunchGuidanceLines(schedule) {
     const evaluation = schedule?.evaluation || {};
     const enabled = Boolean(schedule?.enabled);
@@ -1078,6 +1185,7 @@
     renderSchedule,
     renderScheduleGuidance,
     renderScheduleTimingTrust,
+    renderWatchFolderStatus,
     renderScheduleCoverage,
     renderScheduleDayDetail,
     renderScheduleEditor,
@@ -1105,6 +1213,10 @@
     scheduleWatcherStatusValue,
     scheduleWatcherSummary,
     scheduleWatcherDetailLines,
+    watchFolderStatusLabel,
+    watchFolderStatusValue,
+    watchFolderSummaryLines,
+    watchFolderRecentLines,
     scheduleTotalAllowedBlocks,
     scheduleAllowedDayCount,
     scheduleBlockLabel,

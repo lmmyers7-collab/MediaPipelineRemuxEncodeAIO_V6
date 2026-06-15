@@ -3,9 +3,9 @@ file: tests/python/desktop/test_api_command_contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-07
+last_modified: 2026-06-14
 last_reviewed: 2026-06-04
-sha256: 1e751488c958f3c7197ec4fa76897048877ff547b614c3c86955983fb79ae424
+sha256: c7895a3bc77d6069bddeb3cd6fa6dbea88157004128363065d71cb15060bb5a2
 ---
 # `tests/python/desktop/test_api_command_contracts.py`
 

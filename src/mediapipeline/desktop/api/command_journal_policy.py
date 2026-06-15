@@ -5,6 +5,8 @@ from datetime import datetime, timezone
 import math
 from typing import Any
 
+from mediapipeline.core.network.url_policy import redact_network_secret_text
+
 
 COMMAND_HISTORY_SCHEMA_VERSION = "desktop_command_history.v1"
 COMMAND_RESULT_SCHEMA_VERSION = "desktop_command_result.v1"
@@ -31,7 +33,7 @@ def is_command_result_payload(payload: Mapping[str, Any]) -> bool:
 def scalar_text(value: Any, *, limit: int) -> str:
     if value is None:
         return ""
-    text = str(value).replace("\r\n", "\n").replace("\r", "\n")
+    text = redact_network_secret_text(value).replace("\r\n", "\n").replace("\r", "\n")
     if len(text) <= limit:
         return text
     return text[: max(0, limit - 1)] + "..."

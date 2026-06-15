@@ -37,7 +37,8 @@ def _line(
 
 
 def test_import_ass_to_srt_keeps_cli_module_public_surface():
-    assert ass_to_srt.__file__.endswith("ass_to_srt.py")
+    assert ass_to_srt.__name__ == "mediapipeline.pipeline.ass_to_srt_cli"
+    assert Path(ass_to_srt.__file__).name == "ass_to_srt_cli.py"
     assert ass_to_srt.ms_to_srt(3661007) == "01:01:01,007"
     assert callable(ass_to_srt.parse_args)
     assert callable(ass_to_srt.main)
@@ -136,3 +137,51 @@ def test_encoding_selection_can_be_exercised_without_real_pysubs2_loader():
     assert diagnostics[1]["encoding"] == "cp932"
     assert diagnostics[2]["ok"] is False
     assert isinstance(last_err, UnicodeDecodeError)
+
+
+def test_encoding_selection_prefers_clean_cp932_over_longer_single_byte_mojibake():
+    class FakePysubs2:
+        @staticmethod
+        def load(_path, *, encoding):
+            if encoding == "cp1252":
+                return [_line(text="\u201a\u00b1\u201a\u00f1\u201a\xc9\u201a\xbf\u201a\xcd", plaintext="\u201a\u00b1\u201a\u00f1\u201a\xc9\u201a\xbf\u201a\xcd")]
+            if encoding == "cp932":
+                return [_line(text="\u3053\u3093\u306b\u3061\u306f", plaintext="\u3053\u3093\u306b\u3061\u306f")]
+            raise UnicodeDecodeError(encoding, b"\x80", 0, 1, "bad byte")
+
+    loader = importlib.import_module("mediapipeline.pipeline.ass_to_srt.ass_events").load_ass_with_best_encoding
+    subs, encoding, diagnostics, last_err = loader(
+        "sample.ass",
+        ("cp1252", "cp932", "iso-8859-1"),
+        FakePysubs2,
+    )
+
+    assert subs[0].plaintext == "\u3053\u3093\u306b\u3061\u306f"
+    assert encoding == "cp932"
+    assert diagnostics[0]["encoding"] == "cp1252"
+    assert diagnostics[0]["mojibake_count"] > 0
+    assert diagnostics[0]["review_required"] is True
+    assert diagnostics[1]["encoding_priority"] > diagnostics[0]["encoding_priority"]
+    assert isinstance(last_err, UnicodeDecodeError)
+
+
+def test_high_risk_single_byte_fallback_decode_routes_to_review():
+    class FakePysubs2:
+        @staticmethod
+        def load(_path, *, encoding):
+            if encoding == "cp1252":
+                return [_line(text="\u201a\u00b1\u201a\u00f1\u201a\xc9\u201a\xbf\u201a\xcd", plaintext="\u201a\u00b1\u201a\u00f1\u201a\xc9\u201a\xbf\u201a\xcd")]
+            raise UnicodeDecodeError(encoding, b"\x80", 0, 1, "bad byte")
+
+    loader = importlib.import_module("mediapipeline.pipeline.ass_to_srt.ass_events").load_ass_with_best_encoding
+    subs, encoding, diagnostics, last_err = loader(
+        "sample.ass",
+        ("utf-8", "cp1252"),
+        FakePysubs2,
+    )
+
+    assert subs is None
+    assert encoding == ""
+    assert diagnostics[1]["encoding"] == "cp1252"
+    assert diagnostics[1]["review_required"] is True
+    assert "review required" in str(last_err)

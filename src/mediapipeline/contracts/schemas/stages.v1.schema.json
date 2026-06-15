@@ -168,6 +168,7 @@
           "enum": [
             "advisory",
             "strict",
+            "fallback_remux",
             "off"
           ],
           "title": "Size Guard Mode",

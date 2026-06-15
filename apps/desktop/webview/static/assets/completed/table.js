@@ -78,14 +78,51 @@
     return "";
   }
 
+  function completedRouteEvidenceText(item) {
+    const evidenceLines = Array.isArray(item?.route_evidence_lines) ? item.route_evidence_lines : [];
+    return [
+      item?.route_reason_code,
+      item?.route_reason,
+      item?.route_decision_summary,
+      item?.size_policy_route_reason_code,
+      item?.size_policy_message,
+      item?.runtime_outcome_reason,
+      item?.runtime_outcome_error_code,
+      ...evidenceLines,
+    ].map((value) => String(value || "")).join(" ").toLowerCase();
+  }
+
+  function completedUsedOversizedEncodeRemuxFallback(item) {
+    const evidence = completedRouteEvidenceText(item);
+    return evidence.includes("oversized_encode_remux_fallback")
+      || (evidence.includes("remux fallback") && evidence.includes("oversized encode"));
+  }
+
+  function completedRouteChipCategory(item, routeText) {
+    const category = completedRouteCategory(routeText);
+    if (category === "remux" && completedUsedOversizedEncodeRemuxFallback(item)) return "remux-fallback";
+    return category;
+  }
+
+  function completedRouteChipTitle(item, routeText, category) {
+    const label = routeText || "Pending";
+    if (category !== "remux-fallback") return routeText || "Route pending";
+    const reason = String(item?.route_reason || item?.route_decision_summary || "").trim();
+    return [
+      `Final route: ${label}.`,
+      "Encode was attempted first and remux fallback was published after the encode exceeded size policy.",
+      reason,
+    ].filter(Boolean).join("\n");
+  }
+
   function makeCompletedRouteChip(item) {
     const routeText = item?.route_label || item?.route || "";
     const span = document.createElement("span");
     span.className = "route-chip";
-    const category = completedRouteCategory(routeText);
+    const category = completedRouteChipCategory(item, routeText);
     if (category) span.dataset.route = category;
     span.textContent = routeText || "Pending";
-    span.title = routeText || "Route pending";
+    span.title = completedRouteChipTitle(item, routeText, category);
     return span;
   }
 
@@ -249,13 +286,12 @@
     ctx.appendCells(row, [
       item.completed_at || "",
       "",
-      item.media_type || "",
       "",
       completedEvidenceText(item),
       completedMeasureDisplay(item, measureMode),
       item.publish || "",
       ctx.finalLibraryPromotionStatusText(item),
-    ], [null, "completed-title-cell", null, "completed-route-cell", "completed-evidence-cell", "num", null, null]);
+    ], [null, "completed-title-cell", "completed-route-cell", "completed-evidence-cell", "num", null, null]);
   }
 
   function renderCompletedTitleCell(cell, item, model) {
@@ -305,10 +341,10 @@
 
     const cells = row.querySelectorAll("td");
     const titleCell = cells[1] || row.children?.[1];
-    const routeCell = cells[3] || row.children?.[3];
-    const evidenceCell = cells[4] || row.children?.[4];
-    const measureCell = cells[5] || row.children?.[5];
-    const promotionCell = cells[7] || row.children?.[7];
+    const routeCell = cells[2] || row.children?.[2];
+    const evidenceCell = cells[3] || row.children?.[3];
+    const measureCell = cells[4] || row.children?.[4];
+    const promotionCell = cells[6] || row.children?.[6];
     renderCompletedTitleCell(titleCell, item, model);
     if (routeCell) routeCell.appendChild(makeCompletedRouteChip(item));
     if (measureCell) {
@@ -495,6 +531,7 @@
       completedStateFromItem,
       makeCompletedStateChip,
       completedRouteCategory,
+      completedRouteChipCategory,
       makeCompletedRouteChip,
       completedShortPath,
       completedEvidenceText,

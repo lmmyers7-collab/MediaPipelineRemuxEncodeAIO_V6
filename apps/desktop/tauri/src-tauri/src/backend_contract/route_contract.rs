@@ -3,7 +3,7 @@ use crate::http_helpers::request_backend_json;
 use crate::ShellResult;
 
 use super::formatting::format_route_sample;
-use super::routes::REQUIRED_ROUTES;
+use super::routes::{REQUIRED_NETWORK_LIFECYCLE_ROUTES, REQUIRED_ROUTES};
 use super::types::BackendContract;
 
 pub(crate) fn validate_backend_contract(backend_url: &str, token: &str) -> ShellResult<()> {
@@ -24,6 +24,39 @@ pub(crate) fn validate_backend_contract(backend_url: &str, token: &str) -> Shell
                 "Backend contract is missing required route: {method} {path} auth_required={auth_required}; backend reported {} route(s); sample: {}",
                 contract.routes.len(),
                 format_route_sample(&contract.routes, 12)
+            )));
+        }
+    }
+    for required in REQUIRED_NETWORK_LIFECYCLE_ROUTES {
+        let route = contract
+            .routes
+            .iter()
+            .find(|route| route.method == "POST" && route.path == required.path && route.auth_required)
+            .ok_or_else(|| {
+                shell_error(format!(
+                    "Backend contract is missing required network lifecycle route: POST {}; backend reported {} route(s); sample: {}",
+                    required.path,
+                    contract.routes.len(),
+                    format_route_sample(&contract.routes, 12)
+                ))
+            })?;
+        let lifecycle = route.network_lifecycle.as_ref().ok_or_else(|| {
+            shell_error(format!(
+                "Backend contract route POST {} is missing network_lifecycle metadata.",
+                required.path
+            ))
+        })?;
+        if route.effect.as_deref() != Some(required.effect)
+            || route.requires_confirmation != Some(required.requires_confirmation)
+            || route.owner.as_deref() != Some(required.owner)
+            || route.frontend_exposed != Some(required.frontend_exposed)
+            || lifecycle.role != required.role
+            || lifecycle.action != required.action
+            || lifecycle.dry_run != required.dry_run
+        {
+            return Err(shell_error(format!(
+                "Backend contract network lifecycle metadata drifted for POST {}.",
+                required.path
             )));
         }
     }

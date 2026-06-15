@@ -18,10 +18,14 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_FINAL_LIBRARY_PROMOTION_RULES,
     KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE,
     KEY_LIBRARY_PROFILES,
+    KEY_LOCAL_BASE,
     KEY_MIN_FREE_SPACE_GB,
+    KEY_OUTSOURCE,
     KEY_OUTSOURCE_MIN_FREE_SPACE_GB,
     KEY_PROCESSED_INDEX_REFRESH_SECONDS,
+    KEY_SOURCE_MOVIES,
     KEY_SOURCE_SCAN_INTERVAL_SECONDS,
+    KEY_SOURCE_TV,
     KEY_VOBSUB_OCR_TOOL_PATH,
 )
 from mediapipeline.core.config.library_profiles import (
@@ -35,6 +39,7 @@ from mediapipeline.core.config.path_warnings import (
     PathKeyFunc,
     PathWithinRootFunc,
     config_path_overlap_warning as config_path_overlap_warning_helper,
+    config_root_path_errors,
     config_root_path_warnings,
 )
 from mediapipeline.core.config.numeric_policy import validate_required_and_numeric_config
@@ -44,6 +49,13 @@ EVIDENCE_ONLY_CONFIG_KEYS = {
     "library_effective_settings",
     "runtime_effective_settings",
 }
+_STRICT_ROOT_PATH_ERROR_PAIRS = (
+    (KEY_LOCAL_BASE, KEY_OUTSOURCE),
+    (KEY_LOCAL_BASE, KEY_SOURCE_MOVIES),
+    (KEY_LOCAL_BASE, KEY_SOURCE_TV),
+    (KEY_OUTSOURCE, KEY_SOURCE_MOVIES),
+    (KEY_OUTSOURCE, KEY_SOURCE_TV),
+)
 _CANONICAL_CONFIG_KEYS_BY_CASEFOLD = {str(key).casefold(): str(key) for key in ALL_CONFIG_KEYS}
 _CONFIG_KEY_ALIASES_BY_CASEFOLD = {
     str(alias).casefold(): str(target) for alias, target in CONFIG_KEY_ALIASES.items()
@@ -128,6 +140,22 @@ def _unique_strings(values: list[str]) -> list[str]:
         seen.add(value)
         unique.append(value)
     return unique
+
+
+def _root_path_warning_promoted_to_error(warning: str) -> bool:
+    for left_key, right_key in _STRICT_ROOT_PATH_ERROR_PAIRS:
+        if warning in {
+            f"{left_key} and {right_key} point to the same location.",
+            f"{right_key} and {left_key} point to the same location.",
+            f"{left_key} is inside {right_key}. Keep source, output, and scratch roots separated.",
+            f"{right_key} is inside {left_key}. Keep source, output, and scratch roots separated.",
+        }:
+            return True
+        if {left_key, right_key} == {KEY_LOCAL_BASE, KEY_OUTSOURCE} and warning == (
+            "LocalBase and Outsource are identical. That defeats scratch-vs-library separation."
+        ):
+            return True
+    return False
 
 
 def split_list_input(raw: str) -> list[str]:
@@ -268,12 +296,20 @@ def validate_config_values(
     if had_library_profiles:
         warnings.append("LibraryProfiles mirrors its primary Movie/TV paths back to SourceMovies, SourceTV, and Outsource for compatibility during the transition.")
 
+    root_path_errors = config_root_path_errors(
+        values,
+        normalized_path_key=normalized_path_key,
+        path_within_root=path_within_root,
+    )
+    errors.extend(root_path_errors)
     warnings.extend(
-        config_root_path_warnings(
+        warning
+        for warning in config_root_path_warnings(
             values,
             normalized_path_key=normalized_path_key,
             path_within_root=path_within_root,
         )
+        if not _root_path_warning_promoted_to_error(warning)
     )
     bdpgs_error = bdpgs_ocr_path_error(values)
     if bdpgs_error and bdpgs_error not in errors:

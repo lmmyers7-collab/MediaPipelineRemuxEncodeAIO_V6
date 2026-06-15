@@ -22,6 +22,21 @@ function Write-Ok   { param([string]$Message) Write-Host "[ OK ] $Message" -Fore
 function Write-Warn { param([string]$Message) Write-Host "[WARN] $Message" -ForegroundColor Yellow }
 function Write-Fail { param([string]$Message) Write-Host "[FAIL] $Message" -ForegroundColor Red }
 
+function Record-ReleaseGateSkip {
+    param(
+        [Parameter(Mandatory = $true)][string]$Message,
+        [switch]$Required
+    )
+
+    $script:SkippedGates += $Message
+    if ($Required) {
+        Write-Fail $Message
+        $script:Failed = $true
+    } else {
+        Write-Warn $Message
+    }
+}
+
 function Resolve-ReleasePowerShell {
     param([Parameter(Mandatory = $true)][string]$Root)
 
@@ -130,6 +145,7 @@ function Invoke-ReleaseScriptCheck {
         [string[]]$Arguments = @(),
         [switch]$Required,
         [switch]$ShowWarningsOnSuccess,
+        [switch]$FailOnSkipOutput,
         [int]$TimeoutSeconds = 600
     )
 
@@ -138,7 +154,7 @@ function Invoke-ReleaseScriptCheck {
             Write-Fail "$Label script is missing: $ScriptPath"
             $script:Failed = $true
         } else {
-            Write-Warn "$Label skipped; script is not present: $ScriptPath"
+            Record-ReleaseGateSkip "$Label skipped; script is not present: $ScriptPath"
         }
         return
     }
@@ -162,6 +178,17 @@ function Invoke-ReleaseScriptCheck {
 
     $exitCode = $result.ExitCode
     if ($exitCode -eq 0) {
+        $skipOutput = @($output | Where-Object {
+            $_ -match '^SKIP:' -or
+            $_ -match '\bskipped=\d+\b' -or
+            $_ -match '^OK \(skipped=\d+\)'
+        })
+        if ($FailOnSkipOutput -and $skipOutput.Count -gt 0) {
+            Write-Fail "$Label reported skipped coverage."
+            $script:Failed = $true
+            $skipOutput | Select-Object -First 20 | ForEach-Object { Write-Host $_ }
+            return
+        }
         if ($ShowWarningsOnSuccess) {
             $output | Where-Object { $_ -match '^\[WARN\]' } | ForEach-Object { Write-Host $_ -ForegroundColor Yellow }
         }
@@ -187,7 +214,7 @@ function Invoke-PythonModuleCheck {
             Write-Fail "$Label requires bundled desktop Python: $script:Python"
             $script:Failed = $true
         } else {
-            Write-Warn "$Label skipped; bundled desktop Python is missing: $script:Python"
+            Record-ReleaseGateSkip "$Label skipped; bundled desktop Python is missing: $script:Python"
         }
         return
     }
@@ -201,10 +228,13 @@ function Invoke-PythonModuleCheck {
         $exitCode = $LASTEXITCODE
         if ($exitCode -eq 0) {
             Write-Ok "$Label passed."
-        } else {
+        } elseif ($Required) {
             Write-Fail "$Label failed with exit $exitCode."
             $script:Failed = $true
             $output | Select-Object -Last 80 | ForEach-Object { Write-Host $_ }
+        } else {
+            Record-ReleaseGateSkip "$Label reported issues (advisory in this context; exit $exitCode)."
+            $output | Select-Object -Last 40 | ForEach-Object { Write-Host $_ }
         }
     } finally {
         Pop-Location
@@ -225,7 +255,7 @@ function Invoke-PythonUnittestDiscovery {
             Write-Fail "$Label tests are required but missing: $testRoot"
             $script:Failed = $true
         } else {
-            Write-Warn "$Label tests skipped; tests are not present: $testRoot"
+            Record-ReleaseGateSkip "$Label tests skipped; tests are not present: $testRoot"
         }
         return
     }
@@ -323,6 +353,173 @@ function Assert-ReleasePatternAbsent {
         $script:Failed = $true
     } else {
         Write-Ok "$Label absent: $RelativePattern"
+    }
+}
+
+function Test-ReleaseMapContainsKey {
+    param(
+        $Map,
+        [Parameter(Mandatory = $true)][string]$Key
+    )
+
+    if ($null -eq $Map) { return $false }
+    try { return [bool]$Map.Contains($Key) } catch { return $false }
+}
+
+function ConvertTo-ReleaseStringArray {
+    param($Value)
+
+    if ($null -eq $Value) { return @() }
+    return @($Value | ForEach-Object { [string]$_ })
+}
+
+function Test-ReleaseStringArrayEquals {
+    param(
+        $Actual,
+        $Expected,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    $actualValues = @(ConvertTo-ReleaseStringArray -Value $Actual)
+    $expectedValues = @(ConvertTo-ReleaseStringArray -Value $Expected)
+    if ($actualValues.Count -ne $expectedValues.Count) {
+        Write-Fail "$Label count drifted. Actual=$($actualValues.Count) Expected=$($expectedValues.Count)"
+        $script:Failed = $true
+        return $false
+    }
+
+    for ($i = 0; $i -lt $expectedValues.Count; $i++) {
+        if ([string]$actualValues[$i] -cne [string]$expectedValues[$i]) {
+            Write-Fail "$Label drifted at index $i. Actual='$($actualValues[$i])' Expected='$($expectedValues[$i])'"
+            $script:Failed = $true
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Test-ReleaseRenameFilterConfigMatchesDefaults {
+    param(
+        [Parameter(Mandatory = $true)][string]$ConfigPath,
+        [Parameter(Mandatory = $true)][string]$Label,
+        [Parameter(Mandatory = $true)]$ExpectedOptions,
+        [Parameter(Mandatory = $true)]$ExpectedTerms,
+        [Parameter(Mandatory = $true)]$ExpectedRemoveTerms,
+        [Parameter(Mandatory = $true)][string[]]$ExpectedCategories
+    )
+
+    $ok = $true
+    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
+        Write-Fail "$Label missing from release package: $ConfigPath"
+        $script:Failed = $true
+        return $false
+    }
+
+    try {
+        $config = Import-PowerShellDataFile -Path $ConfigPath
+    } catch {
+        Write-Fail "$Label could not be parsed as a PowerShell data file: $($_.Exception.Message)"
+        $script:Failed = $true
+        return $false
+    }
+
+    foreach ($key in @('RenameMovieFilterOptions', 'RenameMovieFilterTerms', 'RenameMovieRemoveTerms')) {
+        if (-not (Test-ReleaseMapContainsKey -Map $config -Key $key)) {
+            Write-Fail "$Label must include standard rename filter key '$key'."
+            $script:Failed = $true
+            $ok = $false
+        }
+    }
+    if (-not $ok) { return $false }
+
+    $options = $config['RenameMovieFilterOptions']
+    $terms = $config['RenameMovieFilterTerms']
+    foreach ($category in $ExpectedCategories) {
+        if (-not (Test-ReleaseMapContainsKey -Map $options -Key $category)) {
+            Write-Fail "$Label RenameMovieFilterOptions missing category '$category'."
+            $script:Failed = $true
+            $ok = $false
+        } else {
+            $actualOption = $options[$category]
+            $expectedOption = $ExpectedOptions[$category]
+            if ($actualOption -isnot [bool]) {
+                Write-Fail "$Label RenameMovieFilterOptions.$category must be a boolean."
+                $script:Failed = $true
+                $ok = $false
+            } elseif ([bool]$actualOption -ne [bool]$expectedOption) {
+                Write-Fail "$Label RenameMovieFilterOptions.$category drifted. Actual='$actualOption' Expected='$expectedOption'"
+                $script:Failed = $true
+                $ok = $false
+            }
+        }
+
+        if (-not (Test-ReleaseMapContainsKey -Map $terms -Key $category)) {
+            Write-Fail "$Label RenameMovieFilterTerms missing category '$category'."
+            $script:Failed = $true
+            $ok = $false
+        } elseif (-not (Test-ReleaseStringArrayEquals -Actual $terms[$category] -Expected $ExpectedTerms[$category] -Label "$Label RenameMovieFilterTerms.$category")) {
+            $ok = $false
+        }
+    }
+
+    if (-not (Test-ReleaseStringArrayEquals -Actual $config['RenameMovieRemoveTerms'] -Expected $ExpectedRemoveTerms -Label "$Label RenameMovieRemoveTerms")) {
+        $ok = $false
+    }
+
+    if ($ok) {
+        Write-Ok "$Label keeps standard rename filters."
+    }
+    return $ok
+}
+
+function Test-ReleaseStandardRenameFilterRetention {
+    Write-Section 'Standard Rename Filters'
+
+    $choiceRegistryPath = Join-Path $script:BundleRoot 'ops\pipeline\engine\config\choice_registry.ps1'
+    $defaultValuesPath = Join-Path $script:BundleRoot 'ops\pipeline\engine\config\default_values.ps1'
+    foreach ($entry in @(
+        @{ Label = 'config choice registry'; Path = $choiceRegistryPath },
+        @{ Label = 'config default values'; Path = $defaultValuesPath }
+    )) {
+        if (-not (Test-Path -LiteralPath $entry.Path -PathType Leaf)) {
+            Write-Fail "Cannot verify standard rename filters; $($entry.Label) is missing: $($entry.Path)"
+            $script:Failed = $true
+            return
+        }
+    }
+
+    try {
+        . $choiceRegistryPath
+        . $defaultValuesPath
+        $expectedCategories = @(Get-MediaPipelineRenameMovieFilterCategoryNames)
+        $expectedOptions = Get-MediaPipelineRenameMovieFilterOptionsDefault
+        $expectedTerms = Get-MediaPipelineRenameMovieFilterTermsDefault
+        $expectedRemoveTerms = @(Get-MediaPipelineRenameMovieRemoveTermsDefault)
+    } catch {
+        Write-Fail "Cannot load standard rename filter defaults: $($_.Exception.Message)"
+        $script:Failed = $true
+        return
+    }
+
+    $allOk = $true
+    foreach ($configFile in @(
+        @{ Label = 'Config template'; Path = (Join-Path $script:BundleRoot 'ops\pipeline\config\MediaPipeline_config_template.psd1') },
+        @{ Label = 'Default config profile'; Path = (Join-Path $script:BundleRoot 'ops\pipeline\config\profiles\Default.psd1') }
+    )) {
+        if (-not (Test-ReleaseRenameFilterConfigMatchesDefaults `
+            -ConfigPath $configFile.Path `
+            -Label $configFile.Label `
+            -ExpectedOptions $expectedOptions `
+            -ExpectedTerms $expectedTerms `
+            -ExpectedRemoveTerms $expectedRemoveTerms `
+            -ExpectedCategories $expectedCategories)) {
+            $allOk = $false
+        }
+    }
+
+    if ($allOk) {
+        Write-Ok 'Standard rename filter deployment baseline retained.'
     }
 }
 
@@ -479,7 +676,7 @@ function Test-ReleaseManifestHygiene {
 
     Write-Section 'Release Manifest'
     if (-not (Test-Path -LiteralPath $ManifestPath -PathType Leaf)) {
-        Write-Warn 'release_manifest.json not found. Manifest hygiene checks are skipped for source/dev folders.'
+        Record-ReleaseGateSkip 'release_manifest.json not found. Manifest hygiene checks are skipped for source/dev folders.'
         return
     }
 
@@ -570,6 +767,7 @@ $script:BundleRoot = if ($BundleRoot) {
 
 $script:Pwsh = Resolve-ReleasePowerShell -Root $script:BundleRoot
 $script:Failed = $false
+$script:SkippedGates = @()
 
 $pipelineRoot = Join-Path $script:BundleRoot 'ops\pipeline'
 $testsRoot = Join-Path $pipelineRoot 'tests'
@@ -647,6 +845,7 @@ foreach ($entry in @(
     @{ Label = 'Desktop local API launcher'; Path = (Join-Path $script:BundleRoot 'apps\desktop\launchers\Launch-MediaPipelineRemuxEncodeAIO-LocalApi.bat'); Type = 'Leaf' },
     @{ Label = 'Environment verifier'; Path = $verifier; Type = 'Leaf' },
     @{ Label = 'Config template'; Path = (Join-Path $pipelineRoot 'config\MediaPipeline_config_template.psd1'); Type = 'Leaf' },
+    @{ Label = 'Default config profile'; Path = (Join-Path $pipelineRoot 'config\profiles\Default.psd1'); Type = 'Leaf' },
     @{ Label = 'ASS to SRT helper'; Path = (Join-Path $script:BundleRoot 'src\mediapipeline\pipeline\ass_to_srt_cli.py'); Type = 'Leaf' },
     @{ Label = 'Application DTO compatibility exports'; Path = (Join-Path $script:BundleRoot 'src\mediapipeline\desktop\application\dto.py'); Type = 'Leaf' },
     @{ Label = 'Application DTO base helpers'; Path = (Join-Path $script:BundleRoot 'src\mediapipeline\desktop\application\dto_base.py'); Type = 'Leaf' },
@@ -748,6 +947,7 @@ foreach ($entry in @(
 }
 
 Test-ReleaseManifestHygiene -ManifestPath $releaseManifest
+Test-ReleaseStandardRenameFilterRetention
 Test-WebStaticAssetReferences -StaticRoot (Join-Path $script:BundleRoot 'apps\desktop\webview\static')
 Test-ApiBrowserLauncherTokenPolicy
 
@@ -926,19 +1126,34 @@ foreach ($suite in @(
 }
 
 Write-Section 'Generated and Tooling Guards'
+# Generated-doc freshness and active-doc lint checks compare generated artifacts against the FULL source
+# tree. A shipped release package intentionally strips parts of that tree (tests, dev docs), and is a frozen
+# snapshot taken from a possibly-in-flight working tree, so these source/CI checks cannot be guaranteed
+# against it. In a release package (release_manifest.json present) they run as advisory warnings; the checks
+# that validate the shipped code/contracts/boundaries themselves stay required. Outside a package
+# (source/CI) every check remains required.
+$inReleasePackage = Test-Path -LiteralPath $releaseManifest -PathType Leaf
 foreach ($check in @(
-    @{ Label = 'summary freshness'; Module = 'mediapipeline.tools.dev.refresh_summaries'; Arguments = @('--check') },
-    @{ Label = 'project index freshness'; Module = 'mediapipeline.tools.dev.generate_project_index'; Arguments = @('--check') },
-    @{ Label = 'config schema freshness'; Module = 'mediapipeline.tools.dev.generate_config_schema'; Arguments = @('--check') },
-    @{ Label = 'active doc references'; Module = 'mediapipeline.tools.dev.check_active_doc_references'; Arguments = @() },
-    @{ Label = 'dependency boundaries'; Module = 'mediapipeline.tools.dev.check_dependency_boundaries'; Arguments = @('--max-internal-imports', '1') },
-    @{ Label = 'legacy removal readiness'; Module = 'mediapipeline.tools.dev.check_legacy_removal_readiness'; Arguments = @() }
+    @{ Label = 'summary freshness'; Module = 'mediapipeline.tools.dev.refresh_summaries'; Arguments = @('--check'); SourceTreeOnly = $true },
+    @{ Label = 'project index freshness'; Module = 'mediapipeline.tools.dev.generate_project_index'; Arguments = @('--check'); SourceTreeOnly = $true },
+    @{ Label = 'feature file map freshness'; Module = 'mediapipeline.tools.dev.generate_feature_file_map'; Arguments = @('--check'); SourceTreeOnly = $true },
+    @{ Label = 'pipeline map freshness'; Module = 'mediapipeline.tools.dev.generate_pipeline_map'; Arguments = @('--check'); SourceTreeOnly = $true },
+    @{ Label = 'lifecycle map freshness'; Module = 'mediapipeline.tools.dev.generate_lifecycle_map'; Arguments = @('--check'); SourceTreeOnly = $true },
+    @{ Label = 'config schema freshness'; Module = 'mediapipeline.tools.dev.generate_config_schema'; Arguments = @('--check'); SourceTreeOnly = $false },
+    @{ Label = 'active doc references'; Module = 'mediapipeline.tools.dev.check_active_doc_references'; Arguments = @(); SourceTreeOnly = $true },
+    @{ Label = 'dependency boundaries'; Module = 'mediapipeline.tools.dev.check_dependency_boundaries'; Arguments = @('--max-internal-imports', '1'); SourceTreeOnly = $false },
+    @{ Label = 'legacy removal readiness'; Module = 'mediapipeline.tools.dev.check_legacy_removal_readiness'; Arguments = @(); SourceTreeOnly = $false }
 )) {
-    Invoke-PythonModuleCheck -Label $check.Label -Module $check.Module -Arguments $check.Arguments -Required
+    $checkRequired = -not ($check.SourceTreeOnly -and $inReleasePackage)
+    Invoke-PythonModuleCheck -Label $check.Label -Module $check.Module -Arguments $check.Arguments -Required:$checkRequired
 }
 
 Write-Section 'Environment'
-Invoke-ReleaseScriptCheck -Label 'environment verifier' -ScriptPath $verifier -Required -TimeoutSeconds 300
+$environmentVerifierArgs = @('-AllowMissingConfig')
+if ($inReleasePackage) {
+    $environmentVerifierArgs += '-ReleasePackageVerification'
+}
+Invoke-ReleaseScriptCheck -Label 'environment verifier' -ScriptPath $verifier -Arguments $environmentVerifierArgs -Required -TimeoutSeconds 300
 
 Write-Section 'Tauri Preview Gate'
 Invoke-ReleaseScriptCheck -Label 'Tauri shell preview prerequisites' -ScriptPath $tauriPrereqs -Required -ShowWarningsOnSuccess -TimeoutSeconds 120
@@ -950,30 +1165,44 @@ if (-not $testsPresent) {
         Write-Fail "Tests are required but missing: $testsRoot"
         $script:Failed = $true
     } else {
-        Write-Warn "Pipeline tests are not present in this package. Build with -IncludeTests for the full release gate."
+        Record-ReleaseGateSkip "Pipeline tests are not present in this package. Build with -IncludeTests for the full release gate."
     }
 } else {
     Invoke-ReleaseScriptCheck -Label 'release package policy checks' -ScriptPath $releasePolicyUnit -Required:([bool]$RequireTests) -TimeoutSeconds 120
     Invoke-ReleaseScriptCheck -Label 'current WebView reliability checks' -ScriptPath $webviewReliability -Required:([bool]$RequireTests) -TimeoutSeconds 600
 
     if ($SkipToolIntegration) {
-        Write-Warn 'Tool integration checks skipped by request.'
+        Record-ReleaseGateSkip 'Tool integration checks skipped by request.' -Required:([bool]$RequireTests)
     } else {
-        Invoke-ReleaseScriptCheck -Label 'tool integration checks' -ScriptPath $toolIntegration -Required:([bool]$RequireTests) -TimeoutSeconds 600
+        Invoke-ReleaseScriptCheck -Label 'tool integration checks' -ScriptPath $toolIntegration -Required:([bool]$RequireTests) -FailOnSkipOutput:([bool]$RequireTests) -TimeoutSeconds 600
     }
 
     if ($SkipEndToEndSmoke) {
-        Write-Warn 'End-to-end smoke checks skipped by request.'
+        Record-ReleaseGateSkip 'End-to-end smoke checks skipped by request.' -Required:([bool]$RequireTests)
     } else {
-        Invoke-ReleaseScriptCheck -Label 'end-to-end smoke checks' -ScriptPath $endToEndSmoke -Required:([bool]$RequireTests) -TimeoutSeconds 900
+        Invoke-ReleaseScriptCheck -Label 'end-to-end smoke checks' -ScriptPath $endToEndSmoke -Required:([bool]$RequireTests) -FailOnSkipOutput:([bool]$RequireTests) -TimeoutSeconds 900
     }
 }
 
 Write-Section 'Summary'
+if ($RequireTests) {
+    Write-Ok 'Required test gate mode: enabled (-RequireTests).'
+} else {
+    Write-Warn 'Required test gate mode: disabled; source/dev convenience skips can be reported.'
+}
+if (Test-Path -LiteralPath $releaseManifest -PathType Leaf) {
+    Write-Ok 'Release manifest present; package hygiene checks ran in package mode.'
+} else {
+    Write-Warn 'Release manifest absent; source/dev-only manifest hygiene mode.'
+}
+if ($script:SkippedGates.Count -gt 0) {
+    Write-Warn ("Skipped or downshifted validation gates: {0}" -f ($script:SkippedGates -join ' | '))
+} else {
+    Write-Ok 'No validation gates were skipped.'
+}
 if ($script:Failed) {
     Write-Fail 'Release self-test failed.'
     exit 1
 }
 
 Write-Ok 'Release self-test passed.'
-

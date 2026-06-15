@@ -5,6 +5,7 @@ import json
 import os
 import tempfile
 import unittest
+from dataclasses import replace
 from pathlib import Path
 
 from mediapipeline.tools.dev import tdarr_matrix_audit as audit
@@ -47,6 +48,29 @@ def write_manifest(path: Path, rows: list[dict[str, str]]) -> None:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
+
+
+def write_template(root: Path) -> Path:
+    template = root / "ops" / "pipeline" / "config" / "MediaPipeline_config_template.psd1"
+    template.parent.mkdir(parents=True)
+    template.write_text(
+        "@{\n"
+        "    SourceMovies = 'C:\\Media\\Movies'\n"
+        "    SourceTV = 'C:\\Media\\TV'\n"
+        "    Outsource = 'C:\\Media\\Out'\n"
+        "    LocalBase = 'C:\\Media\\Scratch'\n"
+        "    FinalLibraryPromotionEnabled = $true\n"
+        "    FinalLibraryPromotionRules = @()\n"
+        "    FinalLibraryPromotionCleanupAfterVerified = $true\n"
+        "    FinalLibraryPromotionOverwriteExisting = $true\n"
+        "    OutputContainer = 'mp4'\n"
+        "    DynamicHdrPolicy = 'off'\n"
+        "    EncodeLadder = 'movie_archive'\n"
+        "    ValidExtensions = @('.mkv')\n"
+        "}\n",
+        encoding="utf-8",
+    )
+    return template
 
 
 def manifest_row(
@@ -109,6 +133,27 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             self.assertEqual(rows[0].view, "movies")
             self.assertEqual(rows[0].generated_path, row["generated_path"])
             self.assertEqual(rows[0].generated_abs, library_root / row["generated_path"])
+
+    def test_load_manifest_rows_rejects_unsafe_generated_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            library_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix"
+            manifest_path = library_root / "manifests" / "materialized_library.csv"
+            for index, generated_path in enumerate(
+                (
+                    str(root / "outside-linked.mkv"),
+                    "../outside-linked.mkv",
+                    "source/Movies/../outside-linked.mkv",
+                    "C:outside-linked.mkv",
+                ),
+                start=1,
+            ):
+                row = manifest_row(root, case_id=f"tdarr-{index:04d}", generated_path=generated_path)
+                write_manifest(manifest_path, [row])
+
+                with self.subTest(generated_path=generated_path):
+                    with self.assertRaisesRegex(ValueError, "generated_path"):
+                        audit.load_manifest_rows(manifest_path, library_root=library_root)
 
     def test_audit_queue_snapshot_flags_missing_kind_mismatch_and_missing_route(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -320,6 +365,8 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             self.assertEqual([finding.code for finding in findings], ["fixture_probe_mismatch"])
             self.assertEqual(findings[0].severity, "warning")
             self.assertEqual(findings[0].evidence["format_name"], "mp3")
+            self.assertTrue(findings[0].evidence["expected_negative"])
+            self.assertEqual(findings[0].evidence["classification"], "fixture_metadata_no_usable_video")
 
     def test_fixture_probe_mismatch_is_warning_not_strict_failure(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
@@ -336,6 +383,7 @@ class TdarrMatrixAuditTests(unittest.TestCase):
 
             self.assertEqual(finding.code, "fixture_probe_mismatch")
             self.assertEqual(finding.severity, "warning")
+            self.assertTrue(finding.evidence["expected_negative"])
             self.assertEqual(audit.exit_code_for_findings([finding], strict=True), 0)
 
     def test_materialize_run_subset_uses_hardlinks_and_guarded_rebuild(self) -> None:
@@ -352,24 +400,7 @@ class TdarrMatrixAuditTests(unittest.TestCase):
                 sha256=audit.sha256_file(source),
             )
             row = audit.ManifestRow.from_record(row_record, library_root=library_root)
-            template = root / "ops" / "pipeline" / "config" / "MediaPipeline_config_template.psd1"
-            template.parent.mkdir(parents=True)
-            template.write_text(
-                "@{\n"
-                "    SourceMovies = 'C:\\Media\\Movies'\n"
-                "    SourceTV = 'C:\\Media\\TV'\n"
-                "    Outsource = 'C:\\Media\\Out'\n"
-                "    LocalBase = 'C:\\Media\\Scratch'\n"
-                "    FinalLibraryPromotionEnabled = $true\n"
-                "    FinalLibraryPromotionRules = @()\n"
-                "    FinalLibraryPromotionCleanupAfterVerified = $true\n"
-                "    FinalLibraryPromotionOverwriteExisting = $true\n"
-                "    OutputContainer = 'mp4'\n"
-                "    EncodeLadder = 'movie_archive'\n"
-                "    ValidExtensions = @('.mkv')\n"
-                "}\n",
-                encoding="utf-8",
-            )
+            template = write_template(root)
             run_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns" / "run-001"
 
             audit.materialize_run_subset(
@@ -391,6 +422,76 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             (unsafe / "manual.txt").write_text("manual", encoding="utf-8")
             with self.assertRaises(FileExistsError):
                 audit.prepare_run_root(unsafe, repo_root=root, rebuild=True)
+
+    def test_materialize_run_subset_rejects_forged_generated_path_before_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            source = root / "LocalBase" / "TestFixtures" / "TdarrSamples" / "files" / "sample.mkv"
+            source.parent.mkdir(parents=True)
+            source.write_bytes(b"sample")
+            library_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix"
+            row = audit.ManifestRow.from_record(
+                manifest_row(
+                    root,
+                    source_path=source,
+                    generated_path="source/Movies/h264-h265-direct/sample.mkv",
+                    sha256=audit.sha256_file(source),
+                ),
+                library_root=library_root,
+            )
+            template = write_template(root)
+            run_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns" / "run-unsafe"
+            outside_target = root / "outside-linked.mkv"
+
+            for generated_path in ("../outside-linked.mkv", str(outside_target)):
+                with self.subTest(generated_path=generated_path):
+                    unsafe_row = replace(row, generated_path=generated_path)
+
+                    with self.assertRaisesRegex(ValueError, "generated_path"):
+                        audit.materialize_run_subset(
+                            rows=[unsafe_row],
+                            run_root=run_root,
+                            repo_root=root,
+                            template_path=template,
+                            rebuild=False,
+                        )
+
+                    self.assertFalse(run_root.exists())
+                    self.assertFalse(outside_target.exists())
+
+    def test_materialize_run_subset_rejects_external_source_path_before_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            fixture_source = root / "LocalBase" / "TestFixtures" / "TdarrSamples" / "files" / "sample.mkv"
+            fixture_source.parent.mkdir(parents=True)
+            fixture_source.write_bytes(b"sample")
+            external_source = root / "external-media" / "production.mkv"
+            external_source.parent.mkdir(parents=True)
+            external_source.write_bytes(b"production")
+            library_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrix"
+            row = audit.ManifestRow.from_record(
+                manifest_row(
+                    root,
+                    source_path=fixture_source,
+                    generated_path="source/Movies/h264-h265-direct/sample.mkv",
+                    sha256=audit.sha256_file(fixture_source),
+                ),
+                library_root=library_root,
+            )
+            unsafe_row = replace(row, source_path=external_source)
+            template = write_template(root)
+            run_root = root / "LocalBase" / "Scratch" / "TestLibraries" / "TdarrMatrixRuns" / "run-external-source"
+
+            with self.assertRaisesRegex(ValueError, "source_path"):
+                audit.materialize_run_subset(
+                    rows=[unsafe_row],
+                    run_root=run_root,
+                    repo_root=root,
+                    template_path=template,
+                    rebuild=False,
+                )
+
+            self.assertFalse(run_root.exists())
 
     def test_command_builders_use_pipeline_entrypoint_and_worker_result(self) -> None:
         config = Path("C:/matrix/config/MediaPipeline_config.tdarr-matrix.psd1")
@@ -507,6 +608,47 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             self.assertEqual([finding.code for finding in findings], ["subprocess_timeout"])
             self.assertEqual(findings[0].severity, "critical")
 
+    def test_audit_worker_result_classifies_startup_config_failure_from_logs(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            library_root = root / "lib"
+            row = audit.ManifestRow.from_record(manifest_row(root), library_root=library_root)
+            missing = library_root / "absent.json"
+            stdout = root / "stdout.log"
+            stderr = root / "stderr.log"
+            stdout.write_text("ERROR: Config missing key: DynamicHdrPolicy\n", encoding="utf-8")
+            stderr.write_text("", encoding="utf-8")
+            outcome = audit.ProcessOutcome(
+                command=["pwsh", "-File", "MediaPipeline.ps1"],
+                returncode=1,
+                timed_out=False,
+                duration_seconds=0.1,
+                stdout_path=stdout,
+                stderr_path=stderr,
+            )
+
+            findings = audit.audit_worker_result(row, result_path=missing, outcome=outcome, library_root=library_root)
+
+            self.assertEqual([finding.code for finding in findings], ["worker_startup_config_invalid"])
+            self.assertEqual(findings[0].severity, "error")
+            self.assertEqual(findings[0].evidence["missing_config_key"], "DynamicHdrPolicy")
+
+    def test_audit_existing_worker_evidence_replays_file_artifacts(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            library_root = root / "lib"
+            audit_dir = library_root / "manifests" / "audit"
+            row = audit.ManifestRow.from_record(manifest_row(root), library_root=library_root)
+            item_dir = audit_dir / "files" / audit.safe_slug(f"{row.case_id}-{row.view}")
+            item_dir.mkdir(parents=True)
+            (item_dir / "stdout.log").write_text("ERROR: Config missing key: DynamicHdrPolicy\n", encoding="utf-8")
+            (item_dir / "stderr.log").write_text("", encoding="utf-8")
+
+            findings = audit.audit_existing_worker_evidence([row], library_root=library_root, audit_dir=audit_dir)
+
+            self.assertEqual([finding.code for finding in findings], ["worker_startup_config_invalid"])
+            self.assertEqual(findings[0].case_id, row.case_id)
+
     def test_audit_worker_result_failure_classification(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
@@ -523,6 +665,37 @@ class TdarrMatrixAuditTests(unittest.TestCase):
             findings = audit.audit_worker_result(row, result_path=result_path, outcome=self._make_outcome(root, returncode=1), library_root=library_root)
             self.assertEqual([finding.code for finding in findings], ["processing_failure_unclassified"])
             self.assertEqual(findings[0].severity, "error")
+
+    def test_audit_worker_result_classifies_worker_child_guard_failures(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            library_root = root / "lib"
+            row = audit.ManifestRow.from_record(manifest_row(root), library_root=library_root)
+            result_path = library_root / "worker_result.json"
+
+            for error_code in ("WORKER_CHILD_SINGLE_FILE_EXCEPTION", "WORKER_CHILD_RESULT_FALLBACK"):
+                with self.subTest(error_code=error_code):
+                    self._write_worker(
+                        result_path,
+                        {
+                            "Success": False,
+                            "Status": "failed",
+                            "Reason": "SingleFile worker-child guard wrote structured failure evidence.",
+                            "ErrorCode": error_code,
+                        },
+                    )
+
+                    findings = audit.audit_worker_result(
+                        row,
+                        result_path=result_path,
+                        outcome=self._make_outcome(root, returncode=1),
+                        library_root=library_root,
+                    )
+
+                    self.assertEqual([finding.code for finding in findings], ["classified_processing_failure"])
+                    self.assertEqual(findings[0].severity, "warning")
+                    self.assertEqual(findings[0].evidence["worker_result"]["ErrorCode"], error_code)
+                    self.assertEqual(findings[0].evidence["worker_result_classification"], "worker_child_result_guard")
 
     def test_audit_bucket_classification_flags_unmapped_codec(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:

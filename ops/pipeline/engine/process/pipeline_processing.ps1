@@ -108,6 +108,68 @@ function Write-MediaPipelineProcessCompletedEvent {
     } | Out-Null
 }
 
+function Resolve-MediaPipelineSourceProbeFailure {
+    param($SourceMediaProfile)
+
+    $probeError = if ($SourceMediaProfile -and $SourceMediaProfile.PSObject.Properties['probe_error']) {
+        [string]$SourceMediaProfile.probe_error
+    } else {
+        ''
+    }
+    if ([string]::IsNullOrWhiteSpace($probeError)) { $probeError = 'probe_failed' }
+
+    switch ($probeError) {
+        'video_stream_missing' {
+            return [pscustomobject]@{
+                ErrorCode       = 'SOURCE_MEDIA_VIDEO_MISSING'
+                RouteReasonCode = 'source_video_missing'
+                Classification  = 'permanent'
+                Retryable       = $false
+                QueueTerminal   = $true
+                Reason          = 'SOURCE_MEDIA_VIDEO_MISSING: ffprobe found no usable video stream in a source being processed by the video media pipeline.'
+                SuggestedAction = 'Inspect or replace the source with media that contains a usable video stream; do not clear this marker until source health is understood.'
+                LogWarningCode  = 'SOURCE_MEDIA_VIDEO_MISSING'
+            }
+        }
+        'file_missing' {
+            return [pscustomobject]@{
+                ErrorCode       = 'SOURCE_FILE_MISSING'
+                RouteReasonCode = 'source_probe_file_missing'
+                Classification  = 'operator_required'
+                Retryable       = $true
+                QueueTerminal   = $false
+                Reason          = 'SOURCE_FILE_MISSING: source media probe could not find the source file before route selection.'
+                SuggestedAction = 'Confirm the source path is still available, then rerun after storage or library state is corrected.'
+                LogWarningCode  = 'SOURCE_FILE_MISSING'
+            }
+        }
+        'file_path_empty' {
+            return [pscustomobject]@{
+                ErrorCode       = 'SOURCE_FILE_PATH_EMPTY'
+                RouteReasonCode = 'source_probe_file_path_empty'
+                Classification  = 'operator_required'
+                Retryable       = $true
+                QueueTerminal   = $false
+                Reason          = 'SOURCE_FILE_PATH_EMPTY: source media probe received an empty source path before route selection.'
+                SuggestedAction = 'Inspect queue/source metadata and rerun after the source path is corrected.'
+                LogWarningCode  = 'SOURCE_FILE_PATH_EMPTY'
+            }
+        }
+        default {
+            return [pscustomobject]@{
+                ErrorCode       = 'SOURCE_MEDIA_PROBE_FAILED'
+                RouteReasonCode = 'source_probe_failed'
+                Classification  = 'transient'
+                Retryable       = $true
+                QueueTerminal   = $false
+                Reason          = "SOURCE_MEDIA_PROBE_FAILED: source media probe failed before route selection ($probeError)."
+                SuggestedAction = 'Inspect ffprobe/tool output and source accessibility, then rerun after the probe problem is corrected.'
+                LogWarningCode  = 'SOURCE_MEDIA_PROBE_FAILED'
+            }
+        }
+    }
+}
+
 function Invoke-MediaPipelineProcessPreflightDecision {
     param(
         [Parameter(Mandatory)] $Decision,
@@ -361,32 +423,35 @@ function Invoke-MediaPipelineProcessFile {
     $activeConfigOverrideSnapshot = Push-MediaPipelineActiveConfigOverrides -Overrides $script:ActiveOverrides
     try {
         $script:CurrentSizePolicyResult = $null
+        $script:LastQualityVerification = $null
         $routeHints = Get-ActiveMediaRouteHints
         $sourceMediaProfile = Get-SourceMediaRouteProfile -FilePath $file.FullName -FileSizeBytes ([long]$file.Length)
-        if ([string]$sourceMediaProfile.probe_error -eq 'video_stream_missing') {
-            $reason = 'SOURCE_MEDIA_VIDEO_MISSING: ffprobe found no usable video stream in a source being processed by the video media pipeline.'
-            $suggestedAction = 'Inspect or replace the source with media that contains a usable video stream; do not clear this marker until source health is understood.'
+        if ($sourceMediaProfile -and $sourceMediaProfile.PSObject.Properties['probe_ok'] -and -not [bool]$sourceMediaProfile.probe_ok) {
+            $probeFailure = Resolve-MediaPipelineSourceProbeFailure -SourceMediaProfile $sourceMediaProfile
+            $reason = [string]$probeFailure.Reason
+            $suggestedAction = [string]$probeFailure.SuggestedAction
+            $errorCode = [string]$probeFailure.ErrorCode
             Write-Log "${queuePrefix}$reason" "ERROR"
             try {
                 Register-SourceFailure `
                     -SourceFile $file `
-                    -Classification 'permanent' `
+                    -Classification ([string]$probeFailure.Classification) `
                     -Reason $reason `
                     -Stage 'source-probe' `
-                    -ErrorCode 'SOURCE_MEDIA_VIDEO_MISSING' `
+                    -ErrorCode $errorCode `
                     -SuggestedAction $suggestedAction | Out-Null
             } catch {
-                Write-Log "${queuePrefix}Failed to record SOURCE_MEDIA_VIDEO_MISSING failure state: $($_.Exception.Message)" "WARN"
+                Write-Log "${queuePrefix}Failed to record $([string]$probeFailure.LogWarningCode) failure state: $($_.Exception.Message)" "WARN"
             }
             $result = New-MediaPipelineProcessFileResult `
                 -File $file `
                 -Status 'failed' `
                 -Success:$false `
-                -QueueTerminal:$true `
-                -Retryable:$false `
+                -QueueTerminal:([bool]$probeFailure.QueueTerminal) `
+                -Retryable:([bool]$probeFailure.Retryable) `
                 -Reason $reason `
-                -ErrorCode 'SOURCE_MEDIA_VIDEO_MISSING' `
-                -RouteReasonCode 'source_video_missing' `
+                -ErrorCode $errorCode `
+                -RouteReasonCode ([string]$probeFailure.RouteReasonCode) `
                 -RouteReason $reason
             Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'source-probe' -MediaType $queueLabel.ToLowerInvariant()
             return $result
@@ -558,7 +623,8 @@ function Invoke-MediaPipelineProcessFile {
             -Route $routeName
         $verificationEvidence = New-MediaPipelineVerificationEvidence `
             -SizeGuardEvidence $sizeGuardEvidence `
-            -PublishEvidence $publishEvidence
+            -PublishEvidence $publishEvidence `
+            -QualityEvidence $script:LastQualityVerification
         if ($ok) {
             Set-ProgressStage -Stage 'completed' -Status 'Completed' -Route $routeName -Percent 100 -SaveNow
             $publishResult = $script:LastPublishResult
@@ -591,6 +657,7 @@ function Invoke-MediaPipelineProcessFile {
         $script:CurrentRoutePlan = $null
         $script:CurrentEncodeAttempts = $null
         $script:CurrentSizePolicyResult = $null
+        $script:LastQualityVerification = $null
         $script:LastPublishResult = $null
         $script:CurrentRouteReasonCode = $null
         $script:CurrentRouteReason = $null

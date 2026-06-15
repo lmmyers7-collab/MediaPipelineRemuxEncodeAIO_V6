@@ -39,6 +39,7 @@ class OpenLocationCommandPayload(ApiCommandPayload):
 
 class DiagnosticsTdarrMatrixAuditCommandPayload(StrictApiCommandPayload):
     action: Any = None
+    confirm_delete_full_matrix: StrictBool | None = None
 
 
 class DiagnosticsTdarrMatrixEvidenceOpenCommandPayload(StrictApiCommandPayload):
@@ -200,15 +201,15 @@ class RenameApplyCommandPayload(StrictApiCommandPayload):
     movie_filter_terms: Any = None
     movie_filter_terms_enabled: Any = None
     final_name_overrides: Any = None
-    rename_sidecars: Any = None
-    force_pipeline_name: Any = None
-    force_pipeline_name_overrides: Any = None
+    rename_sidecars: StrictBool | None = None
+    force_pipeline_name: StrictBool | None = None
+    force_pipeline_name_overrides: dict[str, StrictBool] | None = None
     powershell_host: Any = None
-    use_pipeline_naming_preview: Any = None
+    use_pipeline_naming_preview: StrictBool | None = None
     template_preset: Any = None
     selected_sources: Any = None
-    confirm_apply: Any = None
-    allow_outside_configured_roots: Any = None
+    confirm_apply: StrictBool | None = None
+    allow_outside_configured_roots: StrictBool | None = None
 
 
 class ProcessControlCommandPayload(ApiCommandPayload):
@@ -216,6 +217,47 @@ class ProcessControlCommandPayload(ApiCommandPayload):
     mode: Any = None
     dry_run: Any = None
     force_active_work_shutdown: Any = None
+
+
+class NetworkLifecycleCommandPayload(StrictApiCommandPayload):
+    confirm_start: StrictBool | None = None
+    confirm_stop: StrictBool | None = None
+    reason: Any = None
+
+
+class NetworkLifecycleDryRunCommandPayload(StrictApiCommandPayload):
+    reason: Any = None
+
+
+class NetworkLifecycleStartCommandPayload(StrictApiCommandPayload):
+    confirm_start: StrictBool
+    reason: Any = None
+
+
+class NetworkLifecycleStopCommandPayload(StrictApiCommandPayload):
+    confirm_stop: StrictBool
+    reason: Any = None
+
+
+class NetworkWorkerTestConnectionCommandPayload(StrictApiCommandPayload):
+    timeout_seconds: Any = None
+
+
+class NetworkWorkerDiscoverCoordinatorsCommandPayload(StrictApiCommandPayload):
+    timeout_seconds: Any = None
+
+
+class NetworkCoordinatorJoinBlobCommandPayload(StrictApiCommandPayload):
+    coordinator_url: Any = None
+    confirm_create: StrictBool | None = None
+    rotate_token: StrictBool | None = None
+    confirm_rotate: StrictBool | None = None
+
+
+class NetworkWorkerJoinClusterCommandPayload(StrictApiCommandPayload):
+    join_blob: Any = None
+    confirm_import: StrictBool | None = None
+    timeout_seconds: Any = None
 
 
 class AuditScorePolicyCommandPayload(StrictApiCommandPayload):
@@ -274,6 +316,7 @@ class MaintenanceReleaseDryRunCommandPayload(StrictApiCommandPayload):
     include_dev_docs: StrictBool | None = None
     include_optional_tools: StrictBool | None = None
     include_tool_docs: StrictBool | None = None
+    include_tauri_preview_binary: StrictBool | None = None
     keep_personal_config: StrictBool | None = None
     timeout_seconds: Any = None
 
@@ -286,6 +329,7 @@ class MaintenanceReleaseBuildCommandPayload(StrictApiCommandPayload):
     include_dev_docs: StrictBool | None = None
     include_optional_tools: StrictBool | None = None
     include_tool_docs: StrictBool | None = None
+    include_tauri_preview_binary: StrictBool | None = None
     keep_personal_config: StrictBool | None = None
     force: StrictBool | None = None
     confirm_create: StrictBool | None = None
@@ -359,7 +403,7 @@ class FailureCommandPayload(StrictApiCommandPayload):
 
 
 class FinalLibraryPromoteQueueCommandPayload(StrictApiCommandPayload):
-    confirm_promote: Any = None
+    confirm_promote: StrictBool | None = None
     row_keys: Any = None
 
 
@@ -413,6 +457,18 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/settings/reload": EmptyCommandPayload,
     "/api/sample-validation/preview": SampleValidationCommandPayload,
     "/api/sample-validation/append": SampleValidationCommandPayload,
+    "/api/network/coordinator/start-dry-run": NetworkLifecycleDryRunCommandPayload,
+    "/api/network/coordinator/stop-dry-run": NetworkLifecycleDryRunCommandPayload,
+    "/api/network/coordinator/join-blob": NetworkCoordinatorJoinBlobCommandPayload,
+    "/api/network/coordinator/start": NetworkLifecycleStartCommandPayload,
+    "/api/network/coordinator/stop": NetworkLifecycleStopCommandPayload,
+    "/api/network/worker/start-dry-run": NetworkLifecycleDryRunCommandPayload,
+    "/api/network/worker/stop-dry-run": NetworkLifecycleDryRunCommandPayload,
+    "/api/network/worker/test-connection": NetworkWorkerTestConnectionCommandPayload,
+    "/api/network/worker/discover-coordinators": NetworkWorkerDiscoverCoordinatorsCommandPayload,
+    "/api/network/worker/join-cluster": NetworkWorkerJoinClusterCommandPayload,
+    "/api/network/worker/start": NetworkLifecycleStartCommandPayload,
+    "/api/network/worker/stop": NetworkLifecycleStopCommandPayload,
     "/api/pipeline/control": PipelineControlCommandPayload,
     "/api/pipeline/browse-file": PipelineBrowseFileCommandPayload,
     "/api/pipeline/start": PipelineStartCommandPayload,

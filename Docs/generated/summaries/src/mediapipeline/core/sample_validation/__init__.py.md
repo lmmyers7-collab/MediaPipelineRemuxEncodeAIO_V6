@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/sample_validation/__init__.py
 pipeline_stage: n/a
 token_priority: low
-owner_domain: unknown
+owner_domain: sample_validation
 last_modified: 2026-05-31
 last_reviewed: 2026-06-04
 sha256: bdcd955934decf30d57b1f6780d8630ac6e573476647629dcb9db0c3351cf9c1

@@ -28,7 +28,7 @@ use backend_process::{
 };
 use backend_process::{
     close_request_decision, shutdown_backend_state, start_backend, BackendShutdownMode,
-    CloseRequestDecision,
+    BackendShutdownOutcome, CloseRequestDecision,
 };
 #[cfg(test)]
 use close_readiness::{
@@ -40,7 +40,10 @@ use debug_webview::{
 };
 use dialogs::resolve_desktop_root;
 #[cfg(test)]
-use dialogs::{desktop_root_candidates_from_exe_dir, format_path_candidates};
+use dialogs::{
+    desktop_root_candidates_from_exe_dir, format_path_candidates, project_root_from_desktop_root,
+};
+use http_helpers::validate_loopback_backend_url;
 #[cfg(test)]
 use http_helpers::{read_backend_response_capped, request_backend_json};
 use single_instance_guard::acquire_single_instance_guard;
@@ -73,7 +76,7 @@ pub fn run() {
             maybe_write_debug_backend_auth_capture(backend.url(), backend.token());
             let initialization_script =
                 tauri_bootstrap_initialization_script(backend.token(), backend.startup_warnings());
-            let url = url::Url::parse(backend.url())?;
+            let url = validate_loopback_backend_url(backend.url())?;
             app.manage(backend);
             start_backend_lifecycle_monitor(app.app_handle().clone());
             eprintln!("[mediapipeline-shell] setup: building main WebView window");
@@ -106,7 +109,14 @@ pub fn run() {
                             return;
                         }
                         CloseRequestDecision::AllowSafe => {
-                            shutdown_backend_state(window, BackendShutdownMode::SafeOnly);
+                            match shutdown_backend_state(window, BackendShutdownMode::SafeOnly) {
+                                BackendShutdownOutcome::Requested => {}
+                                BackendShutdownOutcome::Blocked
+                                | BackendShutdownOutcome::Failed => {
+                                    api.prevent_close();
+                                    return;
+                                }
+                            }
                         }
                         CloseRequestDecision::AllowConfirmedForce => {
                             shutdown_backend_state(
@@ -319,17 +329,25 @@ mod tests {
         let candidates =
             desktop_root_candidates_from_exe_dir(Path::new("C:\\Bundle\\apps\\desktop\\tauri"));
 
-        assert_eq!(
-            candidates[0],
-            PathBuf::from("C:\\Bundle\\apps\\desktop\\tauri\\..")
-        );
+        assert_eq!(candidates[0], PathBuf::from("C:\\Bundle\\apps\\desktop"));
         assert_eq!(
             candidates[1],
             PathBuf::from("C:\\Bundle\\apps\\desktop\\tauri\\apps\\desktop")
         );
         assert_eq!(
             candidates[2],
-            PathBuf::from("C:\\Bundle\\apps\\desktop\\tauri\\..\\..\\apps\\desktop")
+            PathBuf::from("C:\\Bundle\\apps\\apps\\desktop")
+        );
+    }
+
+    #[test]
+    fn packaged_desktop_root_derives_project_root_for_pythonpath() {
+        let candidates =
+            desktop_root_candidates_from_exe_dir(Path::new("C:\\Bundle\\apps\\desktop\\tauri"));
+
+        assert_eq!(
+            project_root_from_desktop_root(&candidates[0]),
+            PathBuf::from("C:\\Bundle")
         );
     }
 
@@ -350,6 +368,11 @@ mod tests {
                 method: "GET".to_string(),
                 path: format!("/api/test-{index}"),
                 auth_required: true,
+                effect: None,
+                requires_confirmation: None,
+                owner: None,
+                frontend_exposed: None,
+                network_lifecycle: None,
             })
             .collect::<Vec<BackendRoute>>();
         let route_preview = format_route_sample(&routes, 2);

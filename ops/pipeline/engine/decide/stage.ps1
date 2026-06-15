@@ -24,16 +24,20 @@ function Invoke-DecideStage {
     if ($null -eq $sourceMediaProfile) {
         $sourceMediaProfile = [ordered]@{}
     }
+    $movieEncodeThresholdGB = [double](Get-ObjectValue -Object $Payload -Name 'encode_threshold_gb' -Default 8)
+    $tvEncodeThresholdGB = [double](Get-ObjectValue -Object $Payload -Name 'tv_encode_threshold_gb' -Default 3)
 
     $plan = Resolve-MediaRouteBySize `
         -FileSizeBytes $fileSizeBytes `
         -IsTV:$isTv `
-        -MovieRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1080p_size_limit_gb' -Default 8)) `
-        -MovieRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1440p_size_limit_gb' -Default 8)) `
-        -MovieRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_4k_size_limit_gb' -Default 8)) `
-        -TVRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1080p_size_limit_gb' -Default 3)) `
-        -TVRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1440p_size_limit_gb' -Default 3)) `
-        -TVRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_4k_size_limit_gb' -Default 3)) `
+        -MovieRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1080p_size_limit_gb' -Default $movieEncodeThresholdGB)) `
+        -MovieRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_1440p_size_limit_gb' -Default $movieEncodeThresholdGB)) `
+        -MovieRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_4k_size_limit_gb' -Default $movieEncodeThresholdGB)) `
+        -TVRoute1080pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1080p_size_limit_gb' -Default $tvEncodeThresholdGB)) `
+        -TVRoute1440pTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_1440p_size_limit_gb' -Default $tvEncodeThresholdGB)) `
+        -TVRoute4KTargetSizeGB ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_4k_size_limit_gb' -Default $tvEncodeThresholdGB)) `
+        -MovieRouteMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'movie_route_max_video_bitrate_mbps' -Default 35.0)) `
+        -TVRouteMaxVideoBitrateMbps ([double](Get-ObjectValue -Object $Payload -Name 'tv_route_max_video_bitrate_mbps' -Default 18.0)) `
         -DurationSeconds $durationSeconds `
         -VideoCodec $videoCodec `
         -VideoHeight $videoHeight `

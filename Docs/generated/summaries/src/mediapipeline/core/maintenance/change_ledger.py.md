@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/maintenance/change_ledger.py
 pipeline_stage: n/a
 token_priority: medium
-owner_domain: unknown
+owner_domain: maintenance
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 2b54bbc1e1a59659507a8240622b7fb88542e31a0aef789f2e9a06541fa47c34

@@ -1,10 +1,10 @@
 # Settings Key Ownership Map
 
-Date: 2026-06-03
+Date: 2026-06-11
 
 Maps the highest-impact configuration keys to: builder page/group, mutation risk, Settings-to-Launch handoff visibility, and test coverage. Source: `config_schema.py`, `settings_risk_policy_rules.py`, `docs/inventories/SETTINGS_BUILDER_COVERAGE_MATRIX.md`.
 
-134 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. 122 are covered by structured WebView builder arrays, `LibraryProfiles` is handled by the dedicated Library Profiles editor, 9 non-secret keys are known advanced/direct-config metadata without routine builders, and 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
+156 backend metadata keys are present in `CONFIG_FIELD_DEFINITIONS`. 136 are covered by structured WebView builder arrays, `LibraryProfiles` is handled by the dedicated Library Profiles editor, 17 non-secret keys are known advanced/direct-config metadata without routine builders, and 2 intentionally hidden auth keys remain excluded. This document covers the highest-impact subset plus all hidden keys.
 
 ---
 
@@ -46,6 +46,16 @@ These keys have no structured WebView builder panel because they are auth secret
 | `EnableIntegrityCheck` | Medium | Pre-process media verification. Disabling speeds up processing but skips source file integrity probe. | Yes — integrity posture row | `test_service_config_validation.py` |
 | `CreateTVSubfolder` | Low | Creates `Show/Season XX/` subfolder structure (Plex style). Affects output path layout. | Not directly surfaced | `test_service_config_value_checks.py` |
 
+### Watch Folder Group
+
+| Key | Risk | Description | Launch handoff | Tests |
+|---|---|---|---|---|
+| `EnableWatchFolders` | **High** | Enables the desktop watch-folder manager. Disabled by default; when enabled, the local API host scans watch roots and records stable-file detections. | Schedule page watch-folder status card | `test_watch_folder_manager.py`, `test_watch_folder_routes.py` |
+| `WatchFolderRoots` | **High** | Optional explicit watch roots. Empty derives from source/library-profile roots; wrong roots can miss work or scan too broadly. | Schedule page watch-folder roots/status evidence | `test_watch_folder_manager.py` |
+| `WatchDebounceSeconds` | Medium | File stability debounce for watch detections, minimum 5 seconds. | Schedule page debounce/status evidence | `test_watch_folder_scanner.py`, `test_watch_folder_manager.py` |
+| `WatchAction` | **High** | `enqueue_only` records pending work; `enqueue_and_launch` asks backend `/api/pipeline/start` for Run Once. | Schedule page action/status evidence; launch remains backend-owned | `test_watch_folder_manager.py` |
+| `WatchRespectScheduleWindow` | **High** | When true, watch-triggered launches respect schedule gates; false sends an explicit ignore-schedule override. | Schedule page action/status evidence | `test_watch_folder_manager.py` |
+
 ### Routing / Size Group
 
 | Key | Risk | Description | Launch handoff | Tests |
@@ -77,6 +87,20 @@ These keys have no structured WebView builder panel because they are auth secret
 | `FallbackCpuQuality` | Medium | CPU encode fallback CRF value. Used when GPU encode is unavailable. | Yes — CPU fallback row | `test_service_config_numeric_policy.py` |
 | `FFmpegEncodeTimeoutSeconds` | Medium | GPU encode kill timer (default 21600s = 6h). Setting too low kills long encodes. | Not directly surfaced | `test_service_config_numeric_policy.py` |
 | `MkvmergeRemuxTimeoutSeconds` | Medium | Remux timeout (default 7200s = 2h). | Not directly surfaced | `test_service_config_numeric_policy.py` |
+
+### Quality Verification Group
+
+| Key | Risk | Description | Launch handoff | Tests |
+|---|---|---|---|---|
+| `EnableQualityVerification` | Medium | Enables objective source-vs-output metric checks after lossy encodes. Remux/direct-copy paths do not run the check. | Not directly surfaced; completed rows/sidecars carry quality evidence after runs | `Invoke-QualityVerificationChecks.ps1`, `test_settings_risk_policy_rules.py` |
+| `QualityMetric` | Medium | Selects `vmaf`, `ssim`, or `psnr`; threshold units depend on the metric. | Not directly surfaced | `Invoke-QualityVerificationChecks.ps1` |
+| `QualitySampleMode` | Medium | Uses sampled windows or full-file measurement. Full-file runs can be expensive on long media. | Not directly surfaced | `Invoke-QualityVerificationChecks.ps1` |
+| `QualitySampleSeconds` | Medium | Seconds measured per sampled window. Larger windows improve signal and increase verification runtime. | Not directly surfaced | `Invoke-QualityVerificationChecks.ps1` |
+| `QualitySampleCount` | Medium | Number of sampled windows measured. More windows improve coverage and increase verification runtime. | Not directly surfaced | `Invoke-QualityVerificationChecks.ps1` |
+| `QualityWarnThreshold` | Medium | Score below this tier is reported as quality review evidence. Zero disables warning thresholding. | Completed review guidance after run | `test_facade_completed_policy.py` |
+| `QualityFailThreshold` | **High** | Score below this tier can become a below-floor encode result. Zero disables fail thresholding. | Completed review guidance after run | `test_facade_completed_policy.py` |
+| `QualityFailAction` | **High** | `warn_only` records evidence; `block_review` rejects below-floor encodes before publish for operator review. | Not directly surfaced; affects encode/publish outcome | `test_settings_risk_policy_rules.py`, `Invoke-QualityVerificationChecks.ps1` |
+| `QualityVerifyTimeoutSeconds` | Medium | FFmpeg quality verification timeout. Tool errors and timeouts fail open with error evidence. | Not directly surfaced | `Invoke-QualityVerificationChecks.ps1` |
 
 ### Audio Group
 
@@ -133,7 +157,7 @@ These keys have no structured WebView builder panel because they are auth secret
 
 ## Settings-to-Launch Handoff Summary
 
-The Launch page reads these config values (via `GET /api/launch/preflight` and `GET /api/snapshot`) and renders them as readiness rows in the Active Media Policy Boundary panel:
+The Launch and Schedule pages read these config values (via `GET /api/launch/preflight`, `GET /api/snapshot`, and `GET /api/watch-folders/status`) and render them as readiness/status rows:
 
 | Handoff row | Key(s) driving it |
 |---|---|
@@ -143,6 +167,7 @@ The Launch page reads these config values (via `GET /api/launch/preflight` and `
 | Subtitle policy | `SubKeepLanguages`, `ConvertTx3gToSrt`, `ConvertBdpgsToSrt` |
 | Deferred publish posture | `DeferredPublish`, `OutsourceMinFreeSpaceGB` |
 | Path readiness | `SourceMovies`, `SourceTV`, `Outsource`, `LocalBase` |
+| Watch folder posture | `EnableWatchFolders`, `WatchFolderRoots`, `WatchDebounceSeconds`, `WatchAction`, `WatchRespectScheduleWindow` |
 | Size guard posture | `SizeGuardMode`, `MaxEncodeGrowthPercent` |
 | System tool warnings | `AllowSystemTools`, `ExtraVideoFlags`, `ReprocessAll`, `AllowNoAudio` |
 | Network role | `NetworkRole` |

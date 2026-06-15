@@ -25,10 +25,25 @@ from mediapipeline.desktop.network.worker import WorkerDispatcher
 class WorkflowEnhancementTests(unittest.TestCase):
     """Coverage for the W1/W2/W3/W5/W6/W7 workflow improvements."""
 
+    def _inflight_state_job(self, *, job_id: str, source_path: str, worker_id: str = "worker-1") -> dict[str, object]:
+        return {
+            "job_id": job_id,
+            "worker_id": worker_id,
+            "worker_name": worker_id,
+            "source_path": source_path,
+            "claimed_at": "2026-05-08T12:00:00+00:00",
+            "last_heartbeat": "2026-05-08T12:00:00+00:00",
+            "progress_percent": 0.0,
+            "current_stage": "encode",
+            "encode_config": {},
+            "priority": False,
+            "estimated_size_gb": 0.0,
+        }
+
     # ------------------------------------------------------------------
     # W1 — mark_done() forwards parameters into _emit_done_outcome
     # ------------------------------------------------------------------
-    def test_local_claim_survives_inflight_save_failure(self) -> None:
+    def test_local_claim_is_denied_when_inflight_save_fails(self) -> None:
         reg = InFlightRegistry()
 
         def _save_denied(_path: Path) -> None:
@@ -49,14 +64,70 @@ class WorkflowEnhancementTests(unittest.TestCase):
         with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
             job = CoordinatorDispatcher.claim_next(dispatcher)
 
-        self.assertIsNotNone(job)
-        self.assertEqual(job.record, record)
-        self.assertEqual(job.encode_config, {"Codec": "copy"})
-        self.assertTrue(reg.is_in_flight(r"C:\Media\movie.mkv"))
+        self.assertIsNone(job)
+        self.assertFalse(reg.is_in_flight(r"C:\Media\movie.mkv"))
         self.assertIn("Failed to save inflight state after local claim", "\n".join(logs.output))
         self.assertEqual(events[0]["event"], "inflight_save_failed")
-        self.assertIn("after local claim: save denied", events[0]["message"])
+        self.assertIn("Local claim denied because in-flight registry could not be saved: save denied", events[0]["message"])
         self.assertEqual(events[0]["source_path"], r"C:\Media\movie.mkv")
+
+    def test_inflight_registry_load_rejects_duplicate_job_id(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "jobs": [
+                            self._inflight_state_job(job_id="job-1", source_path=r"C:\Media\first.mkv"),
+                            self._inflight_state_job(job_id="job-1", source_path=r"C:\Media\second.mkv", worker_id="worker-2"),
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="existing",
+                    worker_id="worker-existing",
+                    worker_name="worker-existing",
+                    source_path=r"C:\Media\existing.mkv",
+                    encode_config={},
+                )
+            )
+
+            with self.assertLogs("mediapipeline.desktop.network.registry", level="ERROR") as logs:
+                loaded = registry.load(state_path)
+
+        self.assertFalse(loaded)
+        self.assertEqual(registry.active_count, 1)
+        self.assertTrue(registry.is_in_flight(r"C:\Media\existing.mkv"))
+        self.assertFalse(registry.is_in_flight(r"C:\Media\first.mkv"))
+        self.assertIn("duplicate in-flight job_id", "\n".join(logs.output))
+
+    def test_inflight_registry_load_rejects_duplicate_source_path(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            state_path.write_text(
+                json.dumps(
+                    {
+                        "jobs": [
+                            self._inflight_state_job(job_id="job-1", source_path=r"C:\Media\same.mkv"),
+                            self._inflight_state_job(job_id="job-2", source_path=r"C:\Media\same.mkv", worker_id="worker-2"),
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            registry = InFlightRegistry()
+
+            with self.assertLogs("mediapipeline.desktop.network.registry", level="ERROR") as logs:
+                loaded = registry.load(state_path)
+
+        self.assertFalse(loaded)
+        self.assertEqual(registry.active_count, 0)
+        self.assertFalse(registry.is_in_flight(r"C:\Media\same.mkv"))
+        self.assertIn("duplicate in-flight source_path", "\n".join(logs.output))
 
     def test_local_release_survives_inflight_save_failure(self) -> None:
         reg = InFlightRegistry()
@@ -151,6 +222,114 @@ class WorkflowEnhancementTests(unittest.TestCase):
         self.assertTrue(events, "mark_done must emit a cluster_log event for local encodes")
         self.assertEqual(events[0]["event"], "job_completed_pending_publish")
         self.assertIn("pending/parked", events[0]["message"])
+
+    def test_http_done_failure_reason_propagates_to_registry_and_cluster_log(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            registry = InFlightRegistry()
+            registry.claim(
+                job_id="job-source-missing",
+                worker_id="worker-1",
+                worker_name="Worker",
+                source_path=r"C:\Media\missing.mkv",
+                encode_config={},
+            )
+            events: list[dict] = []
+            sent: list[tuple[dict, int]] = []
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._registry = registry
+            dispatcher._app = SimpleNamespace(root=SimpleNamespace(after=lambda _delay, _fn=None: None), queue_records=[])
+            dispatcher._remove_from_queue = lambda _sp: None  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: Path(td) / "coordinator_inflight.json"
+            dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+            handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+            request = DoneRequest(
+                job_id="job-source-missing",
+                worker_id="worker-1",
+                success=False,
+                error_message=r"C:\Media\missing.mkv not found on worker",
+            )
+
+            CoordinatorDispatcher._http_done(
+                dispatcher,
+                handler,  # type: ignore[arg-type]
+                json.dumps(request.to_dict()).encode("utf-8"),
+            )
+
+            rows = [row.to_dict() for row in registry.idle_workers_snapshot()]
+
+        self.assertEqual(sent, [({"status": "ok"}, 200)])
+        self.assertEqual(events[0]["event"], "job_failed")
+        self.assertEqual(events[0]["reason_code"], "SOURCE_NOT_FOUND")
+        self.assertIn("reason_code=SOURCE_NOT_FOUND", events[0]["message"])
+        self.assertEqual(rows[0]["last_failure_reason_code"], "SOURCE_NOT_FOUND")
+        self.assertEqual(rows[0]["last_failure_job_id"], "job-source-missing")
+        self.assertEqual(rows[0]["last_failure_source_path"], r"C:\Media\missing.mkv")
+        self.assertIn("not found on worker", rows[0]["last_failure_reason"])
+
+    def test_repeated_same_reason_worker_failures_stop_same_worker_redispatch(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            source = r"C:\Media\loop.mkv"
+            record = SimpleNamespace(source_path=source, priority=False, estimated_size_gb=1.0)
+            events: list[dict] = []
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._registry = InFlightRegistry()
+            dispatcher._registry._RECENT_COMPLETION_TTL_SECONDS = 0.0
+            dispatcher._claim_lock = threading.Lock()
+            dispatcher._accepting_claims = True
+            dispatcher._app = SimpleNamespace(
+                root=SimpleNamespace(after=lambda _delay, _fn=None: None),
+                queue_records=[record],
+                failure_records=[],
+            )
+            dispatcher._config = lambda: {"CoordinatorMaxJobRetries": 3}  # type: ignore[assignment]
+            dispatcher._remove_from_queue = lambda _sp: None  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: Path(td) / "coordinator_inflight.json"
+            dispatcher.log_cluster_event = lambda **kwargs: events.append(kwargs)  # type: ignore[assignment]
+
+            for attempt in range(1, 4):
+                claim_sent: list[tuple[dict, int]] = []
+                claim_handler = SimpleNamespace(_send_json=lambda payload, status=200: claim_sent.append((payload, status)))
+                CoordinatorDispatcher._http_claim(
+                    dispatcher,
+                    claim_handler,  # type: ignore[arg-type]
+                    {"worker_id": "worker-1", "worker_name": "Worker One"},
+                )
+                claim_payload = claim_sent[-1][0]
+                self.assertEqual(claim_payload["status"], "ok")
+                done_sent: list[tuple[dict, int]] = []
+                done_handler = SimpleNamespace(_send_json=lambda payload, status=200: done_sent.append((payload, status)))
+                CoordinatorDispatcher._http_done(
+                    dispatcher,
+                    done_handler,  # type: ignore[arg-type]
+                    json.dumps(
+                        DoneRequest(
+                            job_id=claim_payload["job_id"],
+                            worker_id="worker-1",
+                            success=False,
+                            error_message=f"{source} not found on worker",
+                        ).to_dict()
+                    ).encode("utf-8"),
+                )
+                self.assertEqual(done_sent[-1], ({"status": "ok"}, 200))
+                with dispatcher._registry._lock:
+                    dispatcher._registry._recent_completions.clear()
+
+            blocked_claim_sent: list[tuple[dict, int]] = []
+            blocked_handler = SimpleNamespace(_send_json=lambda payload, status=200: blocked_claim_sent.append((payload, status)))
+            CoordinatorDispatcher._http_claim(
+                dispatcher,
+                blocked_handler,  # type: ignore[arg-type]
+                {"worker_id": "worker-1", "worker_name": "Worker One"},
+            )
+            rows = [row.to_dict() for row in dispatcher._registry.idle_workers_snapshot()]
+
+        quarantine_events = [event for event in events if event.get("event") == "worker_quarantined"]
+        self.assertEqual(blocked_claim_sent[-1][0]["status"], "empty")
+        self.assertEqual(len(quarantine_events), 1)
+        self.assertEqual(quarantine_events[0]["reason_code"], "SOURCE_NOT_FOUND")
+        self.assertEqual(quarantine_events[0]["consecutive_count"], 3)
+        self.assertIn("Suppressed future claims", quarantine_events[0]["message"])
+        self.assertEqual(rows[0]["worker_misconfigured_reason_code"], "SOURCE_NOT_FOUND")
 
     def test_http_done_outcome_cluster_log_failure_does_not_block_response_or_save(self) -> None:
         class Root:
@@ -670,6 +849,117 @@ class WorkflowEnhancementTests(unittest.TestCase):
         self.assertEqual(sent[0][0]["status"], "empty")
         self.assertEqual(sent[0][0]["retry_after_seconds"], 5)
 
+    def test_claim_empty_persists_idle_worker_row_for_coordinator_board(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            registry = InFlightRegistry()
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._accepting_claims = True
+            dispatcher._claim_lock = threading.Lock()
+            dispatcher._registry = registry
+            dispatcher._scan_for_next_record = lambda _worker_name: (None, {})  # type: ignore[assignment]
+            dispatcher._compute_retry_after_seconds = lambda: 11  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[assignment]
+            sent: list[tuple[dict, int]] = []
+            handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+            CoordinatorDispatcher._http_claim(
+                dispatcher,
+                handler,  # type: ignore[arg-type]
+                {"worker_id": "worker-1", "worker_name": "Worker One"},
+            )
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(state_path))
+            rows = restored.idle_workers_snapshot()
+
+        self.assertEqual(sent[0][1], 200)
+        self.assertEqual(sent[0][0]["status"], "empty")
+        self.assertEqual(sent[0][0]["retry_after_seconds"], 11)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].worker_id, "worker-1")
+        self.assertEqual(rows[0].worker_name, "Worker One")
+        self.assertEqual(rows[0].status, "idle")
+        self.assertTrue(rows[0].last_heartbeat)
+
+    def test_http_claim_skips_records_outside_worker_accessible_libraries(self) -> None:
+        tv_record = SimpleNamespace(
+            source_path=r"C:\Coord\TV\Show\S01E01.mkv",
+            library_id="tv",
+            relative_path=r"Show\S01E01.mkv",
+            priority=False,
+            estimated_size_gb=1.0,
+        )
+        movie_record = SimpleNamespace(
+            source_path=r"C:\Coord\Movies\Movie.mkv",
+            library_id="movies",
+            relative_path="Movie.mkv",
+            priority=False,
+            estimated_size_gb=2.0,
+        )
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "coordinator_inflight.json"
+            registry = InFlightRegistry()
+            dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+            dispatcher._accepting_claims = True
+            dispatcher._claim_lock = threading.Lock()
+            dispatcher._registry = registry
+            dispatcher._app = SimpleNamespace(
+                queue_records=[tv_record, movie_record],
+                failure_records=[],
+                resolved=SimpleNamespace(config_data={}),
+            )
+            dispatcher._config = lambda: {}  # type: ignore[assignment]
+            dispatcher._snapshot_encode_config = lambda worker_name="": {"worker": worker_name}  # type: ignore[assignment]
+            dispatcher._compute_retry_after_seconds = lambda: 11  # type: ignore[assignment]
+            dispatcher._inflight_state_path = lambda: state_path  # type: ignore[assignment]
+            dispatcher._safe_log_cluster_event = lambda *_args, **_kwargs: None  # type: ignore[assignment]
+            sent: list[tuple[dict, int]] = []
+            handler = SimpleNamespace(_send_json=lambda payload, status=200: sent.append((payload, status)))
+
+            CoordinatorDispatcher._http_claim(
+                dispatcher,
+                handler,  # type: ignore[arg-type]
+                {
+                    "worker_id": "worker-1",
+                    "worker_name": "Worker One",
+                    "accessible_library_ids": "Movies",
+                },
+            )
+
+            rows = registry.snapshot()
+
+        payload = sent[-1][0]
+        self.assertEqual(payload["status"], "ok")
+        self.assertEqual(payload["source_path"], movie_record.source_path)
+        self.assertEqual(payload["library_id"], "movies")
+        self.assertFalse(registry.is_in_flight(tv_record.source_path))
+        self.assertEqual(rows[0].accessible_library_ids, ["Movies"])
+
+    def test_scan_with_explicit_empty_accessible_libraries_hands_no_library_jobs(self) -> None:
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._registry = InFlightRegistry()
+        dispatcher._app = SimpleNamespace(
+            queue_records=[
+                SimpleNamespace(source_path=r"C:\Coord\TV\Show\S01E01.mkv", library_id="tv"),
+                SimpleNamespace(source_path=r"C:\Coord\Movies\Movie.mkv", library_id="movies"),
+            ]
+        )
+        dispatcher._snapshot_encode_config = lambda worker_name="": {"worker": worker_name}  # type: ignore[assignment]
+        dispatcher._coordinator_max_job_retries = lambda: 3  # type: ignore[assignment]
+
+        record, encode_config = CoordinatorDispatcher._scan_for_next_record(
+            dispatcher,
+            "Worker One",
+            worker_id="worker-1",
+            max_job_retries=3,
+            accessible_library_ids=[],
+        )
+
+        self.assertIsNone(record)
+        self.assertEqual(encode_config, {})
+
     def test_claim_rejection_logs_missing_and_invalid_worker_id(self) -> None:
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
         sent: list[tuple[dict, int]] = []
@@ -730,17 +1020,20 @@ class WorkflowEnhancementTests(unittest.TestCase):
             {},
         )
         claim_dispatcher._source_has_prior_failure = lambda _source_path: False  # type: ignore[assignment]
-        claim_handler = SimpleNamespace(_send_json=lambda _payload, status=200: None)
+        claim_sent: list[tuple[dict, int]] = []
+        claim_handler = SimpleNamespace(_send_json=lambda payload, status=200: claim_sent.append((payload, status)))
 
         with (
             patch.object(claim_registry, "save", side_effect=OSError("claim save denied")),
-            self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as claim_logs,
+            self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as claim_logs,
         ):
             CoordinatorDispatcher._http_claim(
                 claim_dispatcher,
                 claim_handler,  # type: ignore[arg-type]
                 {"worker_id": "worker-1", "worker_name": "Worker"},
             )
+        self.assertEqual(claim_sent, [({"error": "claim state unavailable"}, 503)])
+        self.assertFalse(claim_registry.is_in_flight(r"C:\Media\claim.mkv"))
 
         release_registry = InFlightRegistry()
         release_registry.claim(
@@ -778,13 +1071,13 @@ class WorkflowEnhancementTests(unittest.TestCase):
 
         with (
             patch.object(done_registry, "save", side_effect=OSError("done save denied")),
-            self.assertLogs("mediapipeline.desktop.network.coordinator", level="ERROR") as done_logs,
+            self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as done_logs,
         ):
             CoordinatorDispatcher._http_done(done_dispatcher, done_handler, done_body)  # type: ignore[arg-type]
 
         save_events = [event for event in events if event.get("event") == "inflight_save_failed"]
         self.assertEqual(len(save_events), 3)
-        self.assertIn("after claim: claim save denied", save_events[0]["message"])
+        self.assertIn("Claim denied because in-flight registry could not be saved: claim save denied", save_events[0]["message"])
         self.assertEqual(save_events[0]["source_path"], r"C:\Media\claim.mkv")
         self.assertIn("after worker release: release save denied", save_events[1]["message"])
         self.assertEqual(save_events[1]["job_id"], "job-release")

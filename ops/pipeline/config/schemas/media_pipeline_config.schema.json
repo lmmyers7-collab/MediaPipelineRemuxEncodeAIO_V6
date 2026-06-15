@@ -702,6 +702,27 @@
       "title": "Outputcontainer",
       "type": "string"
     },
+    "DynamicHdrPolicy": {
+      "default": "warn",
+      "enum": [
+        "off",
+        "warn",
+        "preserve_or_remux",
+        "preserve_or_review"
+      ],
+      "title": "Dynamichdrpolicy",
+      "type": "string"
+    },
+    "DoviToolPath": {
+      "default": "",
+      "title": "Dovitoolpath",
+      "type": "string"
+    },
+    "Hdr10PlusToolPath": {
+      "default": "",
+      "title": "Hdr10Plustoolpath",
+      "type": "string"
+    },
     "EncodeTuningPreset": {
       "default": "balanced_nvenc",
       "enum": [
@@ -1014,6 +1035,38 @@
       "title": "Filestabilitywait",
       "type": "integer"
     },
+    "EnableWatchFolders": {
+      "default": false,
+      "title": "Enablewatchfolders",
+      "type": "boolean"
+    },
+    "WatchFolderRoots": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Watchfolderroots",
+      "type": "array"
+    },
+    "WatchDebounceSeconds": {
+      "default": 30,
+      "minimum": 5,
+      "title": "Watchdebounceseconds",
+      "type": "integer"
+    },
+    "WatchAction": {
+      "default": "enqueue_only",
+      "enum": [
+        "enqueue_only",
+        "enqueue_and_launch"
+      ],
+      "title": "Watchaction",
+      "type": "string"
+    },
+    "WatchRespectScheduleWindow": {
+      "default": true,
+      "title": "Watchrespectschedulewindow",
+      "type": "boolean"
+    },
     "SkipStabilityCheck": {
       "default": false,
       "title": "Skipstabilitycheck",
@@ -1255,6 +1308,72 @@
       "title": "Outputvalidationdurationtoleranceseconds",
       "type": "integer"
     },
+    "EnableQualityVerification": {
+      "default": false,
+      "title": "Enablequalityverification",
+      "type": "boolean"
+    },
+    "QualityMetric": {
+      "default": "vmaf",
+      "enum": [
+        "vmaf",
+        "ssim",
+        "psnr"
+      ],
+      "title": "Qualitymetric",
+      "type": "string"
+    },
+    "QualitySampleMode": {
+      "default": "sampled",
+      "enum": [
+        "sampled",
+        "full"
+      ],
+      "title": "Qualitysamplemode",
+      "type": "string"
+    },
+    "QualitySampleSeconds": {
+      "default": 10,
+      "maximum": 60,
+      "minimum": 2,
+      "title": "Qualitysampleseconds",
+      "type": "integer"
+    },
+    "QualitySampleCount": {
+      "default": 3,
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Qualitysamplecount",
+      "type": "integer"
+    },
+    "QualityWarnThreshold": {
+      "default": 90,
+      "minimum": 0,
+      "title": "Qualitywarnthreshold",
+      "type": "number"
+    },
+    "QualityFailThreshold": {
+      "default": 75,
+      "minimum": 0,
+      "title": "Qualityfailthreshold",
+      "type": "number"
+    },
+    "QualityFailAction": {
+      "default": "warn_only",
+      "enum": [
+        "warn_only",
+        "block_review"
+      ],
+      "title": "Qualityfailaction",
+      "type": "string"
+    },
+    "QualityVerifyTimeoutSeconds": {
+      "default": 1800,
+      "maximum": 21600,
+      "minimum": 60,
+      "title": "Qualityverifytimeoutseconds",
+      "type": "integer"
+    },
     "AllowSystemTools": {
       "default": false,
       "title": "Allowsystemtools",
@@ -1333,6 +1452,39 @@
       "additionalProperties": true,
       "title": "Showoverrides",
       "type": "object"
+    },
+    "PlannerRolloutStage": {
+      "default": "legacy",
+      "enum": [
+        "legacy",
+        "shadow",
+        "selected_jobs",
+        "ui_old_backend",
+        "new_planner_default",
+        "deprecation_cleanup"
+      ],
+      "title": "Plannerrolloutstage",
+      "type": "string"
+    },
+    "UsePythonPlanner": {
+      "default": false,
+      "title": "Usepythonplanner",
+      "type": "boolean"
+    },
+    "EnableHandBrakeSettingsUi": {
+      "default": false,
+      "title": "Enablehandbrakesettingsui",
+      "type": "boolean"
+    },
+    "PlannerComparisonLogging": {
+      "default": false,
+      "title": "Plannercomparisonlogging",
+      "type": "boolean"
+    },
+    "NewPlannerCutoverApproved": {
+      "default": false,
+      "title": "Newplannercutoverapproved",
+      "type": "boolean"
     }
   },
   "required": [
@@ -1359,7 +1511,7 @@
     "DebugMode",
     "SkipStabilityCheck"
   ],
-  "title": "MediaPipeline Remux Encode AIO Config",
+  "title": "Config",
   "type": "object",
   "x-config-schema-version": 1
 }

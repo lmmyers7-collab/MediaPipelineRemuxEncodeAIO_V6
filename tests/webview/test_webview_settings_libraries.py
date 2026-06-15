@@ -658,6 +658,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
         self.assertLess(partial.index("settings-libraries-panel"), route_panel_start)
         self.assertIn('data-panel-type="evidence"', route_panel)
+        self.assertIn('data-table-ui="off"', route_panel)
         for token in (
             "Library Route Map",
             "Decision Matrix",
@@ -696,7 +697,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertNotIn("apiPost", route_map_js)
         self.assertNotIn("/api/settings/save-patch", route_map_js)
         self.assertNotIn("/api/pipeline/start", route_map_js)
-        self.assertIn('["libraries route map", apiGet("/api/libraries/route-map"), false]', app_js)
+        self.assertIn('["libraries route map", refreshGet("/api/libraries/route-map", refreshOptions), false]', app_js)
         self.assertIn("window.mediaPipelineLibraryRouteMap?.renderRouteMap?", app_js)
         self.assertIn("queue: values.queue || {}", app_js)
         self.assertIn("completed: values.completed || {}", app_js)

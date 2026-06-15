@@ -15,6 +15,8 @@ def completion_cluster_event(
     error: str | None = None,
     publish_state: str | None = None,
     queue_terminal: bool = False,
+    reason_code: str | None = None,
+    reason: str | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Build the cluster-log context and payload for a done/failure report."""
     record = job.record
@@ -38,6 +40,8 @@ def completion_cluster_event(
         )
 
     event_name = "encode_terminal" if queue_terminal else "encode_failed"
+    detail = reason or completion_status or error or "(no detail)"
+    code_suffix = f" reason_code={reason_code}" if reason_code else ""
     return (
         "encode-failed",
         {
@@ -45,10 +49,12 @@ def completion_cluster_event(
             "event": event_name,
             "message": (
                 f"Pipeline failed for {Path(source_path).name} after "
-                f"{elapsed_seconds:.1f}s: {(completion_status or error or '(no detail)')[:200]}"
+                f"{elapsed_seconds:.1f}s: {str(detail)[:200]}{code_suffix}"
             ),
             "job_id": job_id,
             "source_path": source_path,
+            "reason_code": reason_code or "",
+            "reason": reason or "",
         },
     )
 

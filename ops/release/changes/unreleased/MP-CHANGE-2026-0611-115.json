@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0611-115",
+  "title": "FB-005 harden pending publish reveal evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Hardened pending publish sidecar reveal evidence and deferred publish result sizing for FB-005.",
+  "reason": "Worker findings FR-011 and FR-012 identified two pending-publish safety gaps: failed final sidecar backup could be treated like no prior sidecar existed, and deferred publish result evidence could read size after the local output had already moved.",
+  "affected_areas": [
+    "publish",
+    "pending_publish",
+    "tests"
+  ],
+  "behavior_before": "Publish sidecar backup returned only a nullable backup path, so callers could not distinguish no existing sidecar from a failed backup of an existing sidecar. Deferred/output-space pending publish branches could derive result output size from the moved local output path and report zero bytes.",
+  "behavior_after": "Publish sidecar backup returns explicit state, immediate publish and pending drain fail closed before reveal/write when an existing final sidecar cannot be backed up, and restore avoids deleting prior proof after backup failure. Pending park success returns the transaction object, and deferred/output-space publish result evidence uses the transaction output-size proof.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_drain_transaction.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_push.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/publish_completion.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/publish_partial.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-115.json.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/pipeline/engine/publish/pending_drain_transaction.ps1",
+    "ops/pipeline/engine/publish/pending_push.ps1",
+    "ops/pipeline/engine/publish/publish_completion.ps1",
+    "ops/pipeline/engine/publish/publish_partial.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-115.json"
+  ],
+  "tests_added": [
+    "Pending publish safety checks assert that Invoke-ParkPendingPush returns a transaction whose OutputSize matches pending manifest output_size.",
+    "Pending publish safety checks simulate existing final sidecar backup failure and prove prior sidecar proof remains in place."
+  ],
+  "manual_validation": [
+    "Bundled PowerShell 7: ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1 passed.",
+    "Bundled PowerShell 7: ops/pipeline/tests/Unit/Invoke-PendingPublishOwnershipChecks.ps1 passed.",
+    "Bundled PowerShell 7: ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 passed.",
+    "Bundled Python: mediapipeline.tools.dev.refresh_summaries completed for FB-005 files.",
+    "Bundled Python: mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed only for unrelated uncovered dirty files docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+  ],
+  "rollback_plan": "Revert the publish/pending PowerShell changes and this batch's pending publish safety test updates, then rerun pending publish safety, ownership, and reliability checks.",
+  "related_changes": [
+    "FR-011",
+    "FR-012",
+    "FB-005"
+  ],
+  "notes": "Strict change-control coverage was run after completion; expected unrelated uncovered dirty files remain docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md."
+}

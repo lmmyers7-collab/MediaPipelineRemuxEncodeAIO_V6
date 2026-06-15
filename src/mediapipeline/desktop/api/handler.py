@@ -14,7 +14,7 @@ from .handler_policy import (
     should_record_command_payload,
     unauthorized_payload,
 )
-from .http_helpers import discard_request_body, read_json_body, send_bytes
+from .http_helpers import QueryValidationError, discard_request_body, read_json_body, send_bytes
 from .routes import GET_ROUTE_HANDLERS, POST_ROUTE_HANDLERS
 
 
@@ -66,6 +66,8 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                     return
                 handler = getattr(owner, spec.method_name)
                 self._send_json(handler(query) if spec.needs_query else handler())
+            except QueryValidationError as exc:
+                self._send_json(route_validation_error_payload(route, exc), status=400)
             except Exception as exc:
                 payload = route_exception_payload(route, exc)
                 owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
@@ -140,7 +142,12 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 status = 500
                 payload = route_exception_payload("local-api response", exc)
                 body = json.dumps(payload, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8")
-            if should_record_command_payload(status):
+            data = payload.get("data") if isinstance(payload, dict) else None
+            suppress_journal = isinstance(data, dict) and (
+                data.get("suppress_command_journal") is True
+                or data.get("strict_command_journal_recorded") is True
+            )
+            if should_record_command_payload(status) and not suppress_journal:
                 owner._record_command_journal(payload, request=journal_request)
             self._send_bytes(body, status=status, content_type="application/json; charset=utf-8")
 

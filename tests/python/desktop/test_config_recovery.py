@@ -193,6 +193,22 @@ class ConfigRecoveryTests(unittest.TestCase):
             self.assertEqual(result.source_path, newer)
             self.assertFalse((self._pipeline(workspace_root) / CANONICAL_CONFIG_NAME).is_file())
 
+    def test_setup_style_side_by_side_backup_is_recovery_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            tmp = Path(raw)
+            app_root, workspace_root = self._roots(tmp)
+            config_dir = self._pipeline(workspace_root)
+            setup_backup = config_dir / f"{CANONICAL_CONFIG_NAME}.bak.20260613-120000"
+            setup_backup.write_text("@{ restored = 1 }\n", encoding="utf-8")
+
+            with _localappdata(tmp / "LocalAppData"):
+                result = ensure_canonical_config(app_root, workspace_root)
+
+            self.assertEqual(result.action, "backup_available")
+            self.assertFalse(result.ok)
+            self.assertEqual(result.source_path, setup_backup)
+            self.assertEqual(result.canonical_path, self._user_dir(tmp) / CANONICAL_CONFIG_NAME)
+
     def test_missing_config_restores_last_good_snapshot_to_user_config(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             tmp = Path(raw)

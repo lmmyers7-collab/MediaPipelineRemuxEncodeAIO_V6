@@ -192,23 +192,36 @@
               Destination
               <input id="release-dry-run-destination" type="text" autocomplete="off" placeholder="Blank uses timestamped default">
             </label>
-            <label class="check-row launch-check-row"><input id="release-dry-run-zip" type="checkbox" checked> Plan zip</label>
-            <label class="check-row launch-check-row"><input id="release-dry-run-verify" type="checkbox" checked> Plan verify</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-zip" type="checkbox" checked> Zip package</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-verify" type="checkbox" checked> Verify package</label>
             <label class="check-row launch-check-row"><input id="release-dry-run-tests" type="checkbox"> Include tests</label>
             <label class="check-row launch-check-row"><input id="release-dry-run-dev-docs" type="checkbox"> Include dev docs</label>
             <label class="check-row launch-check-row"><input id="release-dry-run-optional-tools" type="checkbox"> Include optional tools</label>
             <label class="check-row launch-check-row"><input id="release-dry-run-tool-docs" type="checkbox"> Include tool docs</label>
+            <label class="check-row launch-check-row"><input id="release-dry-run-tauri-binary" type="checkbox" checked> Include Tauri launcher</label>
             <label class="check-row launch-check-row"><input id="release-dry-run-keep-config" type="checkbox"> Keep personal config</label>
             <label class="check-row launch-check-row"><input id="release-build-force" type="checkbox"> Replace existing destination</label>
           </div>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="release-dry-run-button" class="secondary-button">Plan Deployment</button>
+            <button type="button" id="release-dry-run-button" class="secondary-button">Preview Deployment</button>
             <button type="button" id="release-build-button" class="primary-button">Create Deployment</button>
+          </div>
+          <div id="release-package-status-strip" class="live-run-strip live-run-strip-inline release-package-status-strip" role="status" aria-live="polite" aria-atomic="true">
+            <div id="release-dry-run-state-chip" class="live-run-chip" data-status="empty">
+              <span class="live-run-chip-label">Plan status</span>
+              <strong id="release-dry-run-state-value" class="live-run-chip-value">Idle</strong>
+              <span id="release-dry-run-state-hint" class="live-run-chip-hint">Preview is dry-run only; Create writes the package and zip.</span>
+            </div>
+            <div id="release-build-state-chip" class="live-run-chip" data-status="empty">
+              <span class="live-run-chip-label">Build status</span>
+              <strong id="release-build-state-value" class="live-run-chip-value">Idle</strong>
+              <span id="release-build-state-hint" class="live-run-chip-hint">No deployment package has been created from this shell.</span>
+            </div>
           </div>
           <div id="release-dry-run-progress-bars" class="progress-bar-list" aria-live="polite">
             <p class="note">No release package progress loaded.</p>
           </div>
-          <pre id="release-dry-run-detail" class="prose-block">No release dry run has been executed from this shell.</pre>
+          <pre id="release-dry-run-detail" class="prose-block">No deployment preview has been executed from this shell. Preview does not write a release folder, manifest, or zip.</pre>
           <div class="panel-heading panel-subheading">
             <h3>Create Deployment</h3>
             <strong id="release-build-status">Idle</strong>
@@ -217,7 +230,7 @@
             <p class="note">No deployment package progress loaded.</p>
           </div>
           <pre id="release-build-detail" class="prose-block">No deployment package has been created from this shell.</pre>
-          <p class="note">Plan Deployment runs the same release builder with DryRun. Create Deployment writes a deployable folder, manifest, and optional zip through the backend release builder after confirmation.</p>
+          <p class="note">Preview Deployment runs the release builder with DryRun and reports whether a zip would be created. Create Deployment writes the folder, manifest, optional zip, and selected launcher payload after confirmation.</p>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">

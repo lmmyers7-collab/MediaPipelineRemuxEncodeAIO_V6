@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/filters.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-07
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 8bf6439479c0b32eb3e25327f251b4ce5d3412dd8bc7fff0302930b843dcfa47
+sha256: 64f2e5ce371082edbff8df6fbdcba4c85b76bb4fbc9c6b978b092973f624bf80
 ---
 # `apps/desktop/webview/static/assets/completed/filters.js`
 

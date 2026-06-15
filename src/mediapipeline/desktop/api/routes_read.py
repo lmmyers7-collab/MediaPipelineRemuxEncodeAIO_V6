@@ -37,6 +37,7 @@ GET_ROUTE_HANDLERS: dict[str, RouteHandlerSpec] = {
     "/api/maintenance/progress": RouteHandlerSpec("_maintenance_progress_payload"),
     "/api/maintenance/change-ledger": RouteHandlerSpec("_maintenance_change_ledger_payload"),
     "/api/schedule": RouteHandlerSpec("_schedule_payload"),
+    "/api/watch-folders/status": RouteHandlerSpec("_watch_folders_status_payload"),
     "/api/settings/workspace": RouteHandlerSpec("_settings_workspace_payload"),
     "/api/libraries/route-map": RouteHandlerSpec("_libraries_route_map_payload"),
     "/api/libraries/route-map/trace": RouteHandlerSpec("_libraries_route_trace_payload", needs_query=True),

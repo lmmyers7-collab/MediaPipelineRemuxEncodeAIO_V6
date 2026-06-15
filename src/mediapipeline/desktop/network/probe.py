@@ -32,7 +32,7 @@ def probe_coordinator_health(base_url: str, *, timeout_seconds: int = 4) -> Netw
 def probe_worker_auth(base_url: str, token: str, *, timeout_seconds: int = 4) -> NetworkProbeResult:
     url = base_url.rstrip("/")
     try:
-        path = "/api/workers"
+        path = "/api/ping"
         request = urllib.request.Request(
             url + path,
             headers=sign_request("GET", path, b"", token) if str(token or "").strip() else {},
@@ -40,7 +40,7 @@ def probe_worker_auth(base_url: str, token: str, *, timeout_seconds: int = 4) ->
         with urllib.request.urlopen(request, timeout=timeout_seconds) as response:
             code = int(response.getcode())
         if code == 200:
-            return NetworkProbeResult(True, f"Token accepted (HTTP {code})", code)
+            return NetworkProbeResult(True, f"Auth ping accepted (HTTP {code})", code)
         return NetworkProbeResult(False, f"Unexpected HTTP {code}", code)
     except urllib.error.HTTPError as exc:
         code = int(exc.code)

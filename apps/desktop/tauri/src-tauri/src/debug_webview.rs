@@ -1,5 +1,7 @@
+#[cfg(debug_assertions)]
 use crate::ShellResult;
 
+#[cfg(debug_assertions)]
 const TEST_AUTH_CAPTURE_ENV_VAR: &str = "MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE";
 
 #[cfg(debug_assertions)]

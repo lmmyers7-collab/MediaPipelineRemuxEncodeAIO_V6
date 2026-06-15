@@ -30,6 +30,7 @@
     "bdpgs_srt_failures": { "type": "array" },
     "tx3g_embedded_srt_tracks": { "type": "array" },
     "bdpgs_embedded_srt_tracks": { "type": "array" },
+    "dynamic_hdr": { "type": "object" },
     "encode_selected_encoder": { "type": "string" },
     "encode_selected_encoder_kind": { "type": "string" },
     "encode_selected_gpu_device": { "type": "string" }

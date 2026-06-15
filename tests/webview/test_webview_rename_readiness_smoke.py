@@ -166,6 +166,13 @@ def _rename_readiness_runner_source() -> str:
             }
           }
         }
+        function requireNotContains(label, value, fragments) {
+          for (const fragment of fragments) {
+            if (String(value).includes(fragment)) {
+              throw new Error(`${label} unexpectedly included ${fragment}\nActual:\n${value}`);
+            }
+          }
+        }
 
         context.getSelectedQueueRow = () => ({
           source_path: "C:/Queue/Selected Rename Source.mkv",
@@ -217,6 +224,8 @@ def _rename_readiness_runner_source() -> str:
         context.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
         context.selectRenameRow(first);
         context.renderRenameApplyReadiness();
+        requireContains("batch safety unchecked scope", text("rename-batch-safety"), ["Apply scope", "if none are checked", "all applicable safe preview rows"]);
+        requireNotContains("batch safety unchecked scope", text("rename-batch-safety"), ["selected detail row"]);
         requireContains("ready status", text("rename-apply-readiness-status"), ["Ready"]);
         requireContains("ready cells", readinessCellText(), ["Apply scope", "all applicable preview rows", "Mutation boundary", "/api/rename/apply"]);
         requireContains("all safe apply button", text("rename-apply-button"), ["Apply all 1 safe rename"]);

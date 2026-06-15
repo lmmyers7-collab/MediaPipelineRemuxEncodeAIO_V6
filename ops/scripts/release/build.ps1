@@ -89,6 +89,137 @@ function Resolve-ReleaseVerificationPowerShell {
     return $null
 }
 
+function ConvertTo-ReleaseCanonicalPath {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $full = [System.IO.Path]::GetFullPath($Path)
+    $root = [System.IO.Path]::GetPathRoot($full)
+    $trimmed = $full.TrimEnd([char[]]@('\', '/'))
+    if ($root) {
+        $rootTrimmed = $root.TrimEnd([char[]]@('\', '/'))
+        if ($trimmed.Equals($rootTrimmed, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $root
+        }
+    }
+    return $trimmed
+}
+
+function Test-ReleasePathEqualOrChild {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        [Parameter(Mandatory)][string]$Root
+    )
+
+    $pathCanonical = ConvertTo-ReleaseCanonicalPath -Path $Path
+    $rootCanonical = ConvertTo-ReleaseCanonicalPath -Path $Root
+    if ($pathCanonical.Equals($rootCanonical, [System.StringComparison]::OrdinalIgnoreCase)) {
+        return $true
+    }
+    $prefix = $rootCanonical
+    if (-not ($prefix.EndsWith('\') -or $prefix.EndsWith('/'))) {
+        $prefix += [System.IO.Path]::DirectorySeparatorChar
+    }
+    return $pathCanonical.StartsWith($prefix, [System.StringComparison]::OrdinalIgnoreCase)
+}
+
+function Test-ReleaseDirectoryIsEmpty {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $children = @(Get-ChildItem -LiteralPath $Path -Force -ErrorAction SilentlyContinue | Select-Object -First 1)
+    return $children.Count -eq 0
+}
+
+function Test-ReleaseDestinationHasMarker {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $manifestPath = Join-Path $Path 'release_manifest.json'
+    if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
+        return $false
+    }
+    try {
+        $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+    } catch {
+        return $false
+    }
+    return [string]$manifest.schema_version -eq 'mediapipeline_release_manifest.v1'
+}
+
+function Test-ReleaseDestinationHasInProgressMarker {
+    param([Parameter(Mandatory)][string]$Path)
+
+    $markerPath = Join-Path $Path '.release_in_progress.json'
+    if (-not (Test-Path -LiteralPath $markerPath -PathType Leaf)) {
+        return $false
+    }
+    try {
+        $marker = Get-Content -LiteralPath $markerPath -Raw | ConvertFrom-Json
+    } catch {
+        return $false
+    }
+    return [string]$marker.schema_version -eq 'mediapipeline_release_in_progress.v1'
+}
+
+function Assert-ReleaseDestinationPathAllowed {
+    param(
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][string]$SourceRoot
+    )
+
+    $destinationCanonical = ConvertTo-ReleaseCanonicalPath -Path $DestinationPath
+    $sourceCanonical = ConvertTo-ReleaseCanonicalPath -Path $SourceRoot
+    $destinationRoot = [System.IO.Path]::GetPathRoot($destinationCanonical)
+    if ($destinationRoot -and $destinationCanonical.Equals($destinationRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Destination must not be a filesystem root: $destinationCanonical"
+    }
+
+    $profileRoots = [System.Collections.Generic.List[string]]::new()
+    foreach ($candidate in @(
+        $env:USERPROFILE,
+        $env:HOME,
+        [Environment]::GetFolderPath([Environment+SpecialFolder]::UserProfile)
+    )) {
+        if ($candidate) {
+            [void]$profileRoots.Add((ConvertTo-ReleaseCanonicalPath -Path $candidate))
+        }
+    }
+    foreach ($profileRoot in @($profileRoots.ToArray() | Select-Object -Unique)) {
+        if ($destinationCanonical.Equals($profileRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            throw "Destination must not be the user profile root: $destinationCanonical"
+        }
+    }
+
+    if (Test-ReleasePathEqualOrChild -Path $destinationCanonical -Root $sourceCanonical) {
+        throw "Destination must not be the source folder or a child of it: $destinationCanonical"
+    }
+    if (Test-ReleasePathEqualOrChild -Path $sourceCanonical -Root $destinationCanonical) {
+        throw "Destination must not be an ancestor of the source folder: $destinationCanonical"
+    }
+    return $destinationCanonical
+}
+
+function Assert-ReleaseDestinationReplacementAllowed {
+    param(
+        [Parameter(Mandatory)][string]$DestinationPath,
+        [Parameter(Mandatory)][string]$SourceRoot
+    )
+
+    $resolvedDestination = (Resolve-Path -LiteralPath $DestinationPath).Path
+    $destinationCanonical = Assert-ReleaseDestinationPathAllowed -DestinationPath $resolvedDestination -SourceRoot $SourceRoot
+    if (-not (Test-Path -LiteralPath $destinationCanonical -PathType Container)) {
+        throw "Destination exists but is not a directory: $destinationCanonical"
+    }
+    if (Test-ReleaseDirectoryIsEmpty -Path $destinationCanonical) {
+        return $destinationCanonical
+    }
+    if (Test-ReleaseDestinationHasMarker -Path $destinationCanonical) {
+        return $destinationCanonical
+    }
+    if (Test-ReleaseDestinationHasInProgressMarker -Path $destinationCanonical) {
+        return $destinationCanonical
+    }
+    throw "Refusing to replace destination without a MediaPipeline release manifest marker: $destinationCanonical"
+}
+
 function Get-MediaPipelineReleaseLabel {
     $versionFile = Join-Path $script:SourceRoot 'ops\release\metadata\VERSION'
     if (Test-Path -LiteralPath $versionFile -PathType Leaf) {
@@ -109,11 +240,7 @@ if (-not $DestinationRoot) {
     $releaseLabel = Get-MediaPipelineReleaseLabel
     $DestinationRoot = Join-Path (Split-Path -Parent $script:SourceRoot) ("MediaPipelineRemuxEncodeAIO_{0}_Portable_{1}" -f $releaseLabel, (Get-Date -Format 'yyyyMMdd_HHmmss'))
 }
-$destinationFull = [System.IO.Path]::GetFullPath($DestinationRoot)
-
-if ($destinationFull.TrimEnd('\') -eq $script:SourceRoot.TrimEnd('\') -or $destinationFull.StartsWith($script:SourceRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-    throw "Destination must not be the source folder or a child of it: $destinationFull"
-}
+$destinationFull = Assert-ReleaseDestinationPathAllowed -DestinationPath $DestinationRoot -SourceRoot $script:SourceRoot
 
 $allFiles = @(Get-ChildItem -LiteralPath $script:SourceRoot -Recurse -File -Force)
 $copyPlan = [System.Collections.Generic.List[object]]::new()
@@ -154,8 +281,8 @@ if ($IncludeTauriPreviewBinary) {
 }
 
 $summary = [ordered]@{
-    source_root = $script:SourceRoot
-    destination_root = $destinationFull
+    source_root = '<repo-root>'
+    destination_root = '<release-root>'
     generated_at = (Get-Date).ToString('o')
     personal_config_included = [bool]$KeepPersonalConfig
     tests_included = [bool]$IncludeTests
@@ -171,8 +298,8 @@ $summary = [ordered]@{
     excluded_bytes = [int64](($excludePlan | Measure-Object -Property bytes -Sum).Sum)
 }
 
-Write-Host "Source      : $($summary.source_root)"
-Write-Host "Destination : $($summary.destination_root)"
+Write-Host "Source      : $script:SourceRoot"
+Write-Host "Destination : $destinationFull"
 Write-Host "Mode        : $(if ($KeepPersonalConfig) { 'personal mirror' } else { 'new-user deployable; live config stripped' })"
 Write-Host "Copy files  : $($summary.copied_file_count)"
 Write-Host "Exclude     : $($summary.excluded_file_count)"
@@ -191,17 +318,24 @@ if ($DryRun) {
 }
 
 if (Test-Path -LiteralPath $destinationFull) {
-    $resolvedDestination = (Resolve-Path -LiteralPath $destinationFull).Path
     if (-not $Force) {
+        $resolvedDestination = (Resolve-Path -LiteralPath $destinationFull).Path
         throw "Destination already exists. Use -Force to replace it: $resolvedDestination"
     }
-    if ($resolvedDestination.TrimEnd('\') -eq $script:SourceRoot.TrimEnd('\') -or $resolvedDestination.StartsWith($script:SourceRoot.TrimEnd('\') + '\', [System.StringComparison]::OrdinalIgnoreCase)) {
-        throw "Refusing to remove unsafe destination: $resolvedDestination"
-    }
+    $resolvedDestination = Assert-ReleaseDestinationReplacementAllowed -DestinationPath $destinationFull -SourceRoot $script:SourceRoot
     Remove-Item -LiteralPath $resolvedDestination -Recurse -Force
 }
 
 New-Item -ItemType Directory -Path $destinationFull -Force | Out-Null
+$inProgressMarkerPath = Join-Path $destinationFull '.release_in_progress.json'
+$inProgressMarker = [ordered]@{
+    schema_version = 'mediapipeline_release_in_progress.v1'
+    generated_at = (Get-Date).ToString('o')
+    source_root = '<repo-root>'
+    destination_root = '<release-root>'
+    recovery = 'If copying is interrupted before release_manifest.json is written, rerun build.ps1 with -Force to replace this partial release directory.'
+}
+$inProgressMarker | ConvertTo-Json -Depth 4 | Set-Content -LiteralPath $inProgressMarkerPath -Encoding UTF8
 foreach ($entry in $copyPlan) {
     $parent = Split-Path -Parent $entry.destination
     if ($parent -and -not (Test-Path -LiteralPath $parent)) {
@@ -216,7 +350,7 @@ $manifest = [ordered]@{
     config_policy = if ($KeepPersonalConfig) {
         'ops\pipeline\config\MediaPipeline_config.psd1 (and legacy ops\pipeline\config\MediaPipeline_config_chatgpt.psd1) were copied as-is.'
     } else {
-        'ops\pipeline\config\MediaPipeline_config.psd1 and legacy ops\pipeline\config\MediaPipeline_config_chatgpt.psd1 were excluded. New users should run setup; ops\pipeline\config\MediaPipeline_config_template.psd1 is included for reference.'
+        'ops\pipeline\config\MediaPipeline_config.psd1 and legacy ops\pipeline\config\MediaPipeline_config_chatgpt.psd1 were excluded. New users should run setup; ops\pipeline\config\MediaPipeline_config_template.psd1 and ops\pipeline\config\profiles\Default.psd1 are included with the standard RenameMovieFilterOptions, RenameMovieFilterTerms, and RenameMovieRemoveTerms baseline.'
     }
     tool_policy = if ($IncludeOptionalTools) {
         'Optional bundled tool binaries and GUI assets were included.'
@@ -253,6 +387,7 @@ $manifest = [ordered]@{
 
 $manifestPath = Join-Path $destinationFull 'release_manifest.json'
 $manifest | ConvertTo-Json -Depth 8 | Set-Content -LiteralPath $manifestPath -Encoding UTF8
+Remove-Item -LiteralPath $inProgressMarkerPath -Force -ErrorAction SilentlyContinue
 Write-Host "Manifest    : $manifestPath"
 
 if ($Verify) {

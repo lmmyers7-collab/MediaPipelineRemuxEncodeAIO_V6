@@ -12,6 +12,9 @@ from ...models import ResolvedPaths
 SAMPLE_VALIDATION_RECONCILIATION_SCHEMA = "desktop_sample_validation_reconciliation.v1"
 SAMPLE_VALIDATION_CURRENT_EVIDENCE_SCHEMA = "desktop_sample_validation_current_evidence.v1"
 SAMPLE_VALIDATION_TEXT_MAX_CHARS = 600
+COMPLETED_MANIFEST_RECENT_RECORD_LIMIT = 400
+COMPLETED_MANIFEST_TARGET_SCAN_MAX_ROWS = 20_000
+COMPLETED_MANIFEST_TARGET_SCAN_MAX_BYTES = 32 * 1024 * 1024
 
 
 def sample_validation_reconciliation_payload(
@@ -28,8 +31,9 @@ def sample_validation_reconciliation_payload(
     """
 
     errors = list(artifact_errors or [])
-    index = _current_validation_artifact_index(resolved, errors)
-    rows = [_reconcile_validation_record(record, index) for record in records[:10]]
+    checked_records = records[:10]
+    index = _current_validation_artifact_index(resolved, errors, target_tokens=_record_path_tokens(checked_records))
+    rows = [_reconcile_validation_record(record, index) for record in checked_records]
     stale_count = sum(1 for row in rows if row.get("status") == "stale")
     review_count = sum(1 for row in rows if row.get("severity") == "warning")
     current_count = sum(1 for row in rows if row.get("status") == "current")
@@ -74,6 +78,7 @@ def sample_validation_reconciliation_payload(
             "pending_path_clues": len(index["pending_path_clues"]),
             "diagnostics_loaded": bool(index["diagnostics_text"]),
         },
+        "completed_manifest_scan": index.get("completed_manifest_scan", {}),
         "errors": errors,
         "summary_lines": summary_lines,
         "safe_next_action": safe_next_action,
@@ -88,7 +93,10 @@ def sample_validation_current_evidence_payload(resolved: ResolvedPaths, record: 
     """Compare one proposed validation record with current bounded backend evidence."""
 
     errors: list[str] = []
-    row = _reconcile_validation_record(record, _current_validation_artifact_index(resolved, errors))
+    row = _reconcile_validation_record(
+        record,
+        _current_validation_artifact_index(resolved, errors, target_tokens=_record_path_tokens([record])),
+    )
     return {
         "schema_version": SAMPLE_VALIDATION_CURRENT_EVIDENCE_SCHEMA,
         "record_id": row.get("record_id", ""),
@@ -99,6 +107,7 @@ def sample_validation_current_evidence_payload(resolved: ResolvedPaths, record: 
         "missing_current_evidence": row.get("missing_current_evidence", []),
         "evidence": row.get("evidence", ""),
         "safe_next_action": row.get("safe_next_action", ""),
+        "completed_manifest_scan": row.get("completed_manifest_scan", {}),
         "artifact_errors": errors,
         "guardrail": (
             "Read-only current-evidence preview. This does not mark jobs complete, clear failures, drain pending publish, "
@@ -107,13 +116,23 @@ def sample_validation_current_evidence_payload(resolved: ResolvedPaths, record: 
     }
 
 
-def _current_validation_artifact_index(resolved: ResolvedPaths, errors: list[str]) -> dict[str, Any]:
+def _current_validation_artifact_index(
+    resolved: ResolvedPaths,
+    errors: list[str],
+    *,
+    target_tokens: set[str] | None = None,
+) -> dict[str, Any]:
     queue_sources: set[str] = set()
     completed_sources: set[str] = set()
     completed_outputs: set[str] = set()
     pending_path_tokens: set[str] = set()
     pending_text_parts: list[str] = []
     diagnostics_parts: list[str] = []
+    manifest_target_tokens = {token for token in (target_tokens or set()) if token}
+    completed_manifest_scan = _completed_manifest_scan_summary(
+        target_token_count=len(manifest_target_tokens),
+        scan_requested=bool(manifest_target_tokens),
+    )
 
     path = resolved.queue_snapshot_path
     if path and Path(path).exists():
@@ -128,12 +147,17 @@ def _current_validation_artifact_index(resolved: ResolvedPaths, errors: list[str
     path = resolved.completed_manifest_path
     if path and Path(path).exists():
         try:
-            records, _invalid_count = _read_jsonl_records(Path(path), limit=400)
+            manifest_path = Path(path)
+            records, _invalid_count = _read_jsonl_records(manifest_path, limit=COMPLETED_MANIFEST_RECENT_RECORD_LIMIT)
             for record in records:
                 for value in _row_path_values(record, ("source_path", "source", "input_path")):
                     _add_path_token(completed_sources, value)
                 for value in _row_path_values(record, ("output_path", "output_file", "output", "destination_path", "final_path")):
                     _add_path_token(completed_outputs, value)
+            if manifest_target_tokens:
+                completed_manifest_scan = _scan_completed_manifest_for_tokens(manifest_path, manifest_target_tokens)
+                completed_sources.update(completed_manifest_scan.pop("_source_tokens", set()))
+                completed_outputs.update(completed_manifest_scan.pop("_output_tokens", set()))
         except OSError as exc:
             errors.append(f"Completed manifest could not be read for sample-validation reconciliation: {exc}")
 
@@ -160,6 +184,7 @@ def _current_validation_artifact_index(resolved: ResolvedPaths, errors: list[str
         "pending_path_clues": pending_text_parts,
         "pending_text": "\n".join(pending_text_parts).casefold(),
         "diagnostics_text": "\n".join(diagnostics_parts).casefold(),
+        "completed_manifest_scan": completed_manifest_scan,
     }
 
 
@@ -196,10 +221,21 @@ def _reconcile_validation_record(record: Mapping[str, Any], index: Mapping[str, 
         missing.append("Current run logs do not contain a source/output clue for this record.")
 
     has_current_completed_proof = bool(matches["completed_output"] or matches["completed_source"])
+    completed_manifest_scan = index.get("completed_manifest_scan") if isinstance(index.get("completed_manifest_scan"), Mapping) else {}
+    completed_scan_capped = bool(completed_manifest_scan.get("scan_capped")) if isinstance(completed_manifest_scan, Mapping) else False
     if decision == "accepted" and proof in {"exact-path", "partial-exact"} and not has_current_completed_proof:
-        status = "stale"
-        severity = "warning"
-        safe_next_action = "Do not rely on this accepted record as current proof; rerun or re-check Queue, Completed, Pending Publish, and Diagnostics."
+        if completed_scan_capped:
+            status = "review"
+            severity = "warning"
+            safe_next_action = (
+                "Completed manifest target scan was capped before proving this accepted record stale; "
+                "rerun or re-check Queue, Completed, Pending Publish, and Diagnostics."
+            )
+            missing.append("Completed manifest target scan was capped before all historical rows could be checked.")
+        else:
+            status = "stale"
+            severity = "warning"
+            safe_next_action = "Do not rely on this accepted record as current proof; rerun or re-check Queue, Completed, Pending Publish, and Diagnostics."
     elif matches["pending_source_or_output"]:
         status = "review"
         severity = "warning"
@@ -237,8 +273,19 @@ def _reconcile_validation_record(record: Mapping[str, Any], index: Mapping[str, 
         "matches": matches,
         "missing_current_evidence": missing,
         "evidence": "; ".join(evidence_parts),
+        "completed_manifest_scan": completed_manifest_scan,
         "safe_next_action": safe_next_action,
     }
+
+
+def _record_path_tokens(records: list[Mapping[str, Any]]) -> set[str]:
+    tokens: set[str] = set()
+    for record in records:
+        for key in ("source_path", "output_path"):
+            token = _path_token(_clean_text(record.get(key)))
+            if token:
+                tokens.add(token)
+    return tokens
 
 
 def _row_path_values(row: Mapping[str, Any], keys: tuple[str, ...]) -> list[str]:
@@ -365,6 +412,68 @@ def _read_jsonl_records(path: Path, *, limit: int) -> tuple[list[dict[str, Any]]
             else:
                 invalid_count += 1
     return records[-limit:], invalid_count
+
+
+def _completed_manifest_scan_summary(*, target_token_count: int, scan_requested: bool) -> dict[str, Any]:
+    return {
+        "scan_requested": scan_requested,
+        "target_token_count": target_token_count,
+        "rows_scanned": 0,
+        "bytes_scanned": 0,
+        "invalid_count": 0,
+        "matched_source_count": 0,
+        "matched_output_count": 0,
+        "scan_complete": not scan_requested,
+        "scan_capped": False,
+    }
+
+
+def _scan_completed_manifest_for_tokens(path: Path, target_tokens: set[str]) -> dict[str, Any]:
+    result = _completed_manifest_scan_summary(target_token_count=len(target_tokens), scan_requested=bool(target_tokens))
+    source_tokens: set[str] = set()
+    output_tokens: set[str] = set()
+    if not target_tokens:
+        result["_source_tokens"] = source_tokens
+        result["_output_tokens"] = output_tokens
+        return result
+
+    with path.open("rb") as handle:
+        for raw_line in handle:
+            if result["rows_scanned"] >= COMPLETED_MANIFEST_TARGET_SCAN_MAX_ROWS:
+                result["scan_capped"] = True
+                break
+            if result["bytes_scanned"] + len(raw_line) > COMPLETED_MANIFEST_TARGET_SCAN_MAX_BYTES:
+                result["scan_capped"] = True
+                break
+
+            result["rows_scanned"] += 1
+            result["bytes_scanned"] += len(raw_line)
+            text = raw_line.decode("utf-8", errors="replace").strip()
+            if not text:
+                continue
+            try:
+                payload = json.loads(text)
+            except json.JSONDecodeError:
+                result["invalid_count"] += 1
+                continue
+            if not isinstance(payload, Mapping):
+                result["invalid_count"] += 1
+                continue
+            for value in _row_path_values(payload, ("source_path", "source", "input_path")):
+                token = _path_token(value)
+                if token in target_tokens:
+                    source_tokens.add(token)
+            for value in _row_path_values(payload, ("output_path", "output_file", "output", "destination_path", "final_path")):
+                token = _path_token(value)
+                if token in target_tokens:
+                    output_tokens.add(token)
+
+    result["matched_source_count"] = len(source_tokens)
+    result["matched_output_count"] = len(output_tokens)
+    result["scan_complete"] = not result["scan_capped"]
+    result["_source_tokens"] = source_tokens
+    result["_output_tokens"] = output_tokens
+    return result
 
 
 def _run_log_candidates(resolved: ResolvedPaths) -> list[Path]:

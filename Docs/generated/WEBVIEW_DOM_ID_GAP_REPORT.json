@@ -23,9 +23,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1573,
-    "js_touched_ids": 478,
-    "ids_present_in_index": 447,
+    "html_ids": 1594,
+    "js_touched_ids": 482,
+    "ids_present_in_index": 451,
     "ids_missing_from_index": 31,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 31
@@ -403,11 +403,14 @@
     "schedule-editor-save-button",
     "schedule-editor-save-state",
     "schedule-enabled-state",
+    "schedule-watch-folder-status",
     "settings-active-media-policy-rows",
     "settings-audio-auto-bitrate",
     "settings-audio-preferred-languages",
     "settings-backend-media-policy-rows",
     "settings-backend-result-rows",
+    "settings-builder-quality-enable",
+    "settings-builder-quality-fail-action",
     "settings-effective-policy-rows",
     "settings-filter",
     "settings-handbrake-active-preset",
@@ -425,6 +428,7 @@
     "settings-library-warning-summary",
     "settings-media-policy-rows",
     "settings-overview-rows",
+    "settings-patch-detail",
     "settings-patch-json",
     "settings-patch-status",
     "settings-patch-summary-changed-only",
@@ -1317,6 +1321,15 @@
       "missing_from_index": []
     },
     {
+      "src": "/assets/settingsView.builders.quality.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.quality.js",
+      "dom_ids_touched": [
+        "settings-builder-quality-enable",
+        "settings-builder-quality-fail-action"
+      ],
+      "missing_from_index": []
+    },
+    {
       "src": "/assets/settingsView.builders.subtitle.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
       "dom_ids_touched": [
@@ -1446,6 +1459,7 @@
       "path": "apps/desktop/webview/static/assets/settingsView.js",
       "dom_ids_touched": [
         "settings-handbrake-active-preset",
+        "settings-patch-detail",
         "settings-patch-json",
         "settings-patch-status",
         "settings-rename-filter-release-groups",
@@ -1666,7 +1680,8 @@
         "schedule-editor-rows",
         "schedule-editor-save-button",
         "schedule-editor-save-state",
-        "schedule-enabled-state"
+        "schedule-enabled-state",
+        "schedule-watch-folder-status"
       ],
       "missing_from_index": []
     },

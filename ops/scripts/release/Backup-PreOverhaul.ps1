@@ -76,7 +76,7 @@ function Assert-Tool {
 
 function Get-FileSha256Hex {
     param([string]$Path)
-    return (Get-FileHash -Algorithm SHA256 -Path $Path).Hash.ToLowerInvariant()
+    return (Get-FileHash -Algorithm SHA256 -LiteralPath $Path).Hash.ToLowerInvariant()
 }
 
 # --- Pre-flight checks ------------------------------------------------------
@@ -86,6 +86,7 @@ Assert-Tool -Name 'git'
 $RepoRoot = (git rev-parse --show-toplevel) 2>$null
 if (-not $RepoRoot) { throw "Not inside a git repository. Run from the project root." }
 $RepoRoot = $RepoRoot.Trim()
+$Destination = [System.IO.Path]::GetFullPath($Destination)
 
 Write-Step "Repo root: $RepoRoot"
 
@@ -94,8 +95,8 @@ if (-not $tagSha) { throw "Tag '$Tag' not found. Use 'git tag' to list available
 Write-Step "Tag '$Tag' resolves to commit $tagSha"
 
 # Destination must not exist, or must be empty.
-if (Test-Path $Destination) {
-    $existing = @(Get-ChildItem -Path $Destination -Force -ErrorAction SilentlyContinue)
+if (Test-Path -LiteralPath $Destination) {
+    $existing = @(Get-ChildItem -LiteralPath $Destination -Force -ErrorAction SilentlyContinue)
     if ($existing.Count -gt 0) {
         throw "Destination '$Destination' exists and is not empty. Delete it first or choose another path."
     }
@@ -104,7 +105,7 @@ if (Test-Path $Destination) {
     if ($DryRun) {
         Write-Step "[dry-run] Would create destination: $Destination"
     } else {
-        New-Item -ItemType Directory -Path $Destination | Out-Null
+        [System.IO.Directory]::CreateDirectory($Destination) | Out-Null
         Write-Step "Created destination: $Destination"
     }
 }
@@ -121,14 +122,14 @@ Write-Step "Step 1: source archive of tag '$Tag'"
 if ($DryRun) {
     Write-Step "[dry-run] Would run: git archive --format=zip $Tag -o $SourceArchivePath"
 } else {
-    Push-Location $RepoRoot
+    Push-Location -LiteralPath $RepoRoot
     try {
         git archive --format=zip --output=$SourceArchivePath $Tag
         if ($LASTEXITCODE -ne 0) { throw "git archive failed with exit code $LASTEXITCODE" }
     } finally {
         Pop-Location
     }
-    $size = (Get-Item $SourceArchivePath).Length
+    $size = (Get-Item -LiteralPath $SourceArchivePath).Length
     Write-Step "Wrote $SourceArchivePath ($('{0:N0}' -f $size) bytes)"
 }
 
@@ -139,7 +140,7 @@ if ($SkipReleaseBuild) {
 } else {
     Write-Step "Step 2: invoking ops/scripts/release/build.ps1 -> $ReleaseDir"
     $buildScript = Join-Path $RepoRoot 'ops\scripts\release\build.ps1'
-    if (-not (Test-Path $buildScript)) {
+    if (-not (Test-Path -LiteralPath $buildScript)) {
         throw "Release build script not found at ops\scripts\release\build.ps1."
     }
     if ($DryRun) {
@@ -156,16 +157,18 @@ if ($SkipStateSnapshot) {
     Write-Step "Step 3: skipped (--SkipStateSnapshot)"
 } else {
     $stateSource = Join-Path $RepoRoot 'LocalBase\State'
-    if (-not (Test-Path $stateSource)) {
+    if (-not (Test-Path -LiteralPath $stateSource)) {
         Write-Step "Step 3: LocalBase\State not present (no runtime state to snapshot)"
     } else {
         Write-Step "Step 3: copying LocalBase\State -> $StateDir"
         if ($DryRun) {
-            $count = (Get-ChildItem -Path $stateSource -Recurse -Force -File -ErrorAction SilentlyContinue | Measure-Object).Count
+            $count = (Get-ChildItem -LiteralPath $stateSource -Recurse -Force -File -ErrorAction SilentlyContinue | Measure-Object).Count
             Write-Step "[dry-run] Would copy approximately $count files"
         } else {
-            New-Item -ItemType Directory -Path $StateDir | Out-Null
-            Copy-Item -Path (Join-Path $stateSource '*') -Destination $StateDir -Recurse -Force
+            [System.IO.Directory]::CreateDirectory($StateDir) | Out-Null
+            Get-ChildItem -LiteralPath $stateSource -Force | ForEach-Object {
+                Copy-Item -LiteralPath $_.FullName -Destination $StateDir -Recurse -Force
+            }
         }
     }
 }
@@ -180,7 +183,7 @@ if ($DryRun) {
 Write-Step "Step 4: writing manifest"
 
 $manifestEntries = @()
-Get-ChildItem -Path $Destination -Recurse -File | ForEach-Object {
+Get-ChildItem -LiteralPath $Destination -Recurse -File | ForEach-Object {
     $relPath = $_.FullName.Substring($Destination.Length).TrimStart('\','/')
     if ($relPath -ieq 'manifest.json') { return }
     $hash = Get-FileSha256Hex -Path $_.FullName
@@ -194,7 +197,7 @@ Get-ChildItem -Path $Destination -Recurse -File | ForEach-Object {
 $manifest = [ordered]@{
     schema_version    = 1
     created_at_utc    = (Get-Date).ToUniversalTime().ToString('o')
-    repo_root         = $RepoRoot
+    repo_root         = '<repo-root>'
     tag               = $Tag
     tag_sha           = $tagSha
     skipped_steps     = @(
@@ -207,7 +210,7 @@ $manifest = [ordered]@{
 }
 
 $manifestJson = $manifest | ConvertTo-Json -Depth 6
-Set-Content -Path $ManifestPath -Value $manifestJson -Encoding UTF8
+Set-Content -LiteralPath $ManifestPath -Value $manifestJson -Encoding UTF8
 Write-Step "Wrote manifest with $($manifest.file_count) files, $('{0:N0}' -f $manifest.total_size_bytes) bytes"
 
 # --- Step 5: read-back verification ----------------------------------------

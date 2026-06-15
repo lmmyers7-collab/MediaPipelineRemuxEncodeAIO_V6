@@ -149,7 +149,7 @@
 <title>external_tools_dev&#45;&gt;mediapipeline_tools_paths</title>
 <path fill="none" stroke="#64748b" stroke-width="1.05" stroke-dasharray="5,2" d="M143.08,-143.18C166.57,-146.79 199.17,-154.34 223.71,-170 288.38,-211.27 339.87,-288.32 363.51,-327.99"/>
 <polygon fill="#64748b" stroke="#64748b" stroke-width="1.05" points="361.27,-328.66 366.52,-333.11 365.19,-326.36 361.27,-328.66"/>
-<text xml:space="preserve" text-anchor="middle" x="256.21" y="-201.71" font-family="Segoe UI" font-size="9.00" fill="#475569">17</text>
+<text xml:space="preserve" text-anchor="middle" x="256.21" y="-201.71" font-family="Segoe UI" font-size="9.00" fill="#475569">21</text>
 </g>
 <!-- external_tools_lint_naming -->
 <g id="node12" class="node">

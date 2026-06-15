@@ -2,6 +2,13 @@ from __future__ import annotations
 
 from typing import Any
 
+from ..config_keys import (
+    KEY_QUALITY_FAIL_ACTION,
+    KEY_QUALITY_FAIL_THRESHOLD,
+    KEY_QUALITY_METRIC,
+    KEY_QUALITY_WARN_THRESHOLD,
+)
+
 RiskItem = dict[str, str]
 
 SEVERITY_ORDER = {"critical": 4, "high": 3, "medium": 2, "low": 1}
@@ -274,6 +281,13 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
                 key,
                 "SizeGuardMode tries remux fallback for oversized automatic size/bitrate-threshold encodes and rejects the oversized encode when remux is blocked; forced route overrides warn only. Validate with real media before unattended batches.",
             )
+    if normalized_key == KEY_QUALITY_FAIL_ACTION.casefold() and str(value or "").strip().casefold() == "block_review":
+        return make_risk_item(
+            "medium",
+            "quality_block_review_enabled",
+            key,
+            "QualityFailAction is block_review. Encodes measuring below the quality floor will fail before publishing; validate thresholds with real media first.",
+        )
     if normalized_key in {"droptx3gafterconversion", "dropbdpgsafterconversion", "dropvobsubafterconversion", "dropassafterconversion"} and truthy_setting(value):
         return make_risk_item(
             "medium",
@@ -337,8 +351,41 @@ def changed_key_risk_item(key: str, value: Any) -> RiskItem | None:
             "path_root_changed",
             key,
             f"{key} changes a pipeline root. Verify UNC access, nesting, free space, and scratch/output separation before saving.",
-        )
+            )
     return None
+
+
+def quality_metric_threshold_risk_items(config: dict[str, Any]) -> list[RiskItem]:
+    metric = str(config.get(KEY_QUALITY_METRIC) or "").strip().casefold()
+    if metric not in {"ssim", "psnr"}:
+        return []
+
+    thresholds: list[float] = []
+    for key in (KEY_QUALITY_WARN_THRESHOLD, KEY_QUALITY_FAIL_THRESHOLD):
+        try:
+            thresholds.append(float(config.get(key) or 0))
+        except (TypeError, ValueError):
+            thresholds.append(0.0)
+
+    if metric == "ssim" and any(value > 1 for value in thresholds):
+        return [
+            make_risk_item(
+                "high",
+                "quality_threshold_metric_mismatch",
+                KEY_QUALITY_METRIC,
+                "QualityMetric is ssim but a quality threshold is above 1.0. Thresholds appear to be in VMAF units and may warn or fail every encode.",
+            )
+        ]
+    if metric == "psnr" and any(value > 60 for value in thresholds):
+        return [
+            make_risk_item(
+                "high",
+                "quality_threshold_metric_mismatch",
+                KEY_QUALITY_METRIC,
+                "QualityMetric is psnr but a quality threshold is above 60 dB. Thresholds appear to be in VMAF units and may warn or fail every encode.",
+            )
+        ]
+    return []
 
 
 def summarize_risk_items(items: list[RiskItem]) -> tuple[dict[str, int], str]:

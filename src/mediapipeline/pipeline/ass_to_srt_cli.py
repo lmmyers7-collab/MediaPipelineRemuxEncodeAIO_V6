@@ -623,6 +623,7 @@ def main():
     try:
         tmp_fd, tmp_ass = tempfile.mkstemp(suffix='.ass')
         os.close(tmp_fd)
+        os.remove(tmp_ass)
         summary_data["temp_ass"] = tmp_ass
 
         # ------------------------------------------------------------------

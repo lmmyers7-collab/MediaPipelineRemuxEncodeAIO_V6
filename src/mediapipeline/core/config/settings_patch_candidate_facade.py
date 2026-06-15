@@ -9,11 +9,13 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_BDPGS_OCR_TOOL_PATH,
     KEY_CONVERT_BDPGS_TO_SRT,
     KEY_CONVERT_VOBSUB_TO_SRT,
+    KEY_OUTSOURCE,
     KEY_RENAME_MOVIE_FILTER_OPTIONS,
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,
     KEY_VOBSUB_OCR_TOOL_PATH,
 )
+from mediapipeline.core.config.metadata_network import KEY_COORDINATOR_ALSO_ENCODE_LOCALLY
 from mediapipeline.core.rename.policy import rename_cleaning_policy_from_config
 from mediapipeline.core.config.settings_patch_policy import (
     settings_patch_changes_from_request,
@@ -95,6 +97,20 @@ def _truthy_patch_value(value: Any) -> bool:
     return str(value or "").strip().casefold() in {"1", "true", "yes", "on", "enabled", "enable"}
 
 
+def _coerce_network_patch_value(key: str, value: Any) -> Any:
+    if key != KEY_COORDINATOR_ALSO_ENCODE_LOCALLY:
+        return value
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().casefold()
+        if normalized in {"true", "yes", "on"}:
+            return True
+        if normalized in {"false", "no", "off", ""}:
+            return False
+    return value
+
+
 def _ocr_tool_path_errors(values: dict[str, Any], changed_keys: list[str]) -> list[str]:
     errors: list[str] = []
     changed = set(changed_keys)
@@ -156,7 +172,7 @@ class SettingsPatchCandidateFacadeMixin:
             if self._is_sensitive_key(key) and str(value or "").strip() == "<redacted>":
                 errors.append(f"{key} is sensitive and cannot be set to the redacted display placeholder.")
                 continue
-            safe_value = _json_safe(value)
+            safe_value = _json_safe(_coerce_network_patch_value(key, value))
             if self._source_mutation_setting(key, safe_value):
                 errors.append(
                     f"{key} appears to enable source/original-file mutation and cannot be saved through Settings Patch."
@@ -187,6 +203,12 @@ class SettingsPatchCandidateFacadeMixin:
             merged[key] = safe_value
             if key not in changed_keys and _json_safe(base_config.get(key)) != safe_value:
                 changed_keys.append(key)
+        if request.get("preserve_outsource_root") is True and KEY_OUTSOURCE in raw_changes:
+            safe_outsource = _json_safe(raw_changes.get(KEY_OUTSOURCE))
+            if _json_safe(merged.get(KEY_OUTSOURCE)) != safe_outsource:
+                merged[KEY_OUTSOURCE] = safe_outsource
+                if KEY_OUTSOURCE not in changed_keys and _json_safe(base_config.get(KEY_OUTSOURCE)) != safe_outsource:
+                    changed_keys.append(KEY_OUTSOURCE)
 
         _normalize_rename_cleaning_policy_values(merged, changed_keys)
 
@@ -210,11 +232,6 @@ class SettingsPatchCandidateFacadeMixin:
         if callable(validator):
             try:
                 validation_values = {key: value for key, value in merged.items() if key in REGISTERED_CONFIG_KEYS}
-                changed = set(changed_keys)
-                if KEY_CONVERT_BDPGS_TO_SRT not in changed and KEY_BDPGS_OCR_TOOL_PATH not in changed:
-                    validation_values.pop(KEY_CONVERT_BDPGS_TO_SRT, None)
-                if KEY_CONVERT_VOBSUB_TO_SRT not in changed and KEY_VOBSUB_OCR_TOOL_PATH not in changed:
-                    validation_values.pop(KEY_CONVERT_VOBSUB_TO_SRT, None)
                 raw_errors, raw_warnings = validator(validation_values)
                 errors.extend(str(item) for item in raw_errors)
                 warnings.extend(str(item) for item in raw_warnings)

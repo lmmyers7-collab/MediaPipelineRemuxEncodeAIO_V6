@@ -42,15 +42,26 @@ class CommandJournal:
         self._lock = threading.Lock()
         self._entries: list[dict[str, Any]] = self._load()
 
-    def record(self, payload: Mapping[str, Any], *, request: Mapping[str, Any] | None = None) -> None:
+    def record(
+        self,
+        payload: Mapping[str, Any],
+        *,
+        request: Mapping[str, Any] | None = None,
+        strict: bool = False,
+    ) -> None:
         if not is_command_result_payload(payload):
             return
         entry = summarize_command_payload(payload, request=request)
         with self._lock:
+            previous_entries = list(self._entries)
             self._entries.insert(0, entry)
             del self._entries[self.max_entries :]
-            self._save_locked()
-            self._mirror_sqlite_locked(entry)
+            try:
+                self._save_locked(strict=strict)
+                self._mirror_sqlite_locked(entry)
+            except Exception:
+                self._entries = previous_entries
+                raise
 
     def to_mapping(self, *, limit: int = 20) -> dict[str, Any]:
         with self._lock:
@@ -67,8 +78,10 @@ class CommandJournal:
         raw_entries = payload.get("entries") if isinstance(payload, dict) else None
         return valid_journal_entries(raw_entries, max_entries=self.max_entries)
 
-    def _save_locked(self) -> None:
+    def _save_locked(self, *, strict: bool = False) -> None:
         if self.path is None:
+            if strict:
+                raise RuntimeError("Local API command journal path is not configured.")
             return
         payload = {
             "schema_version": COMMAND_HISTORY_SCHEMA_VERSION,
@@ -107,6 +120,8 @@ class CommandJournal:
                 except OSError as cleanup_exc:
                     self.logger.warning("Could not remove temporary local API command journal %s: %s", tmp_path, cleanup_exc)
             self.logger.warning("Could not save local API command journal %s: %s", self.path, exc)
+            if strict:
+                raise
 
     def _mirror_sqlite_locked(self, entry: Mapping[str, Any]) -> None:
         if self.state_db_root is None:

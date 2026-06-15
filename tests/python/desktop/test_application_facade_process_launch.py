@@ -3,8 +3,11 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 import sys
 import tempfile
+import threading
+import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 
 from mediapipeline.tools.paths import find_repo_root
 from unittest.mock import patch
@@ -92,6 +95,570 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(audit_preflight["status"], "blocked")
         self.assertEqual(rerun_preflight["status"], "blocked")
 
+    def test_pipeline_start_refuses_network_modes(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+
+            coordinator = _resolved(root)
+            coordinator.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorAlsoEncodeLocally": False,
+            }
+            coordinator_result = facade.start_pipeline_process(coordinator, {"mode": "once"}).to_mapping()
+            coordinator_preflight = facade.get_launch_preflight(coordinator, {"target": "pipeline", "mode": "once"})
+
+            local_worker = _resolved(root)
+            local_worker.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorAlsoEncodeLocally": True,
+            }
+            local_worker_result = facade.start_pipeline_process(local_worker, {"mode": "once"}).to_mapping()
+
+            worker = _resolved(root)
+            worker.config_data = {"NetworkRole": "worker"}
+            worker_result = facade.start_pipeline_process(worker, {"mode": "once"}).to_mapping()
+            worker_preflight = facade.get_launch_preflight(worker, {"target": "pipeline", "mode": "once"})
+
+            invalid = _resolved(root)
+            invalid.config_data = {"NetworkRole": "coordinator-only"}
+            invalid_result = facade.start_pipeline_process(invalid, {"mode": "once"}).to_mapping()
+            invalid_preflight = facade.get_launch_preflight(invalid, {"target": "pipeline", "mode": "once"})
+
+            string_local_flag = _resolved(root)
+            string_local_flag.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorAlsoEncodeLocally": "False",
+            }
+            string_local_result = facade.start_pipeline_process(string_local_flag, {"mode": "once"}).to_mapping()
+            string_local_preflight = facade.get_launch_preflight(string_local_flag, {"target": "pipeline", "mode": "once"})
+
+            missing_role = _resolved(root)
+            missing_role.config_data = {}
+            missing_role_result = facade.start_pipeline_process(missing_role, {"mode": "once"}).to_mapping()
+            missing_role_preflight = facade.get_launch_preflight(missing_role, {"target": "pipeline", "mode": "once"})
+
+            null_role = _resolved(root)
+            null_role.config_data = {"NetworkRole": None}
+            null_role_result = facade.start_pipeline_process(null_role, {"mode": "once"}).to_mapping()
+
+            empty_role = _resolved(root)
+            empty_role.config_data = {"NetworkRole": ""}
+            empty_role_result = facade.start_pipeline_process(empty_role, {"mode": "once"}).to_mapping()
+
+        self.assertFalse(coordinator_result["ok"])
+        self.assertEqual(coordinator_result["refresh_hint"], "network")
+        self.assertEqual(coordinator_result["data"]["network_mode_label"], "Coordinator only")
+        self.assertIn("Normal Launch is disabled", coordinator_result["message"])
+        self.assertEqual(coordinator_preflight["status"], "blocked")
+        self.assertFalse(coordinator_preflight["can_request_start"])
+        self.assertTrue(
+            any(
+                row["key"] == "network_role"
+                and row["status"] == "blocked"
+                and "Coordinator only" in row["evidence"]
+                for row in coordinator_preflight["checks"]
+            )
+        )
+        self.assertFalse(local_worker_result["ok"])
+        self.assertEqual(local_worker_result["data"]["network_mode_label"], "Coordinator + local worker")
+        self.assertFalse(worker_result["ok"])
+        self.assertEqual(worker_result["data"]["network_mode_label"], "Worker only")
+        self.assertEqual(worker_preflight["status"], "blocked")
+        self.assertTrue(any(row["key"] == "network_role" and row["status"] == "blocked" for row in worker_preflight["checks"]))
+        self.assertFalse(invalid_result["ok"])
+        self.assertFalse(invalid_result["data"]["network_role_valid"])
+        self.assertEqual(invalid_result["data"]["network_mode_label"], "Invalid NetworkRole (coordinator-only)")
+        self.assertEqual(invalid_preflight["status"], "blocked")
+        self.assertTrue(
+            any(
+                row["key"] == "network_role"
+                and row["status"] == "blocked"
+                and "valid=no" in row["evidence"]
+                for row in invalid_preflight["checks"]
+            )
+        )
+        self.assertFalse(string_local_result["ok"])
+        self.assertEqual(string_local_result["data"]["network_mode_label"], "Coordinator only")
+        self.assertTrue(
+            any(
+                row["key"] == "network_role"
+                and row["status"] == "blocked"
+                and "Coordinator only" in row["evidence"]
+                for row in string_local_preflight["checks"]
+            )
+        )
+        self.assertFalse(missing_role_result["ok"])
+        self.assertEqual(missing_role_result["data"]["network_mode_label"], "Invalid NetworkRole (empty)")
+        self.assertFalse(missing_role_result["data"]["network_role_valid"])
+        self.assertEqual(missing_role_preflight["status"], "blocked")
+        self.assertFalse(null_role_result["ok"])
+        self.assertFalse(empty_role_result["ok"])
+        self.assertFalse(hasattr(service, "started_pipeline"))
+
+    def test_network_lifecycle_dry_run_reports_no_touch_and_requires_journal_before_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+            }
+
+            dry_run = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="start",
+                dry_run=True,
+                request={},
+            ).to_mapping()
+            confirmed = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="start",
+                dry_run=False,
+                request={"confirm_start": True},
+            ).to_mapping()
+
+        self.assertTrue(dry_run["ok"])
+        self.assertEqual(dry_run["command"], "network.coordinator.start")
+        self.assertEqual(dry_run["data"]["schema_version"], "desktop_network_lifecycle_dry_run.v1")
+        self.assertTrue(dry_run["data"]["dry_run_only"])
+        self.assertEqual(dry_run["data"]["effect"], "none")
+        self.assertTrue(dry_run["data"]["safe_to_apply"])
+        self.assertIn("source_media", dry_run["data"]["would_not_touch"])
+        self.assertNotIn("would_write_state", dry_run["data"])
+        self.assertEqual(dry_run["data"]["dry_run_writes"], [])
+        self.assertTrue(dry_run["data"]["suppress_command_journal"])
+        self.assertEqual(dry_run["data"]["lifecycle_state_source"], "session_memory_only")
+        self.assertIn("command_journal_entry", dry_run["data"]["confirmed_route_would_write"])
+        self.assertTrue(dry_run["data"]["provider_available"])
+        preconditions = {row["key"]: row for row in dry_run["data"]["precondition_results"]}
+        self.assertEqual(preconditions["NetworkRole_is_coordinator"]["status"], "pass")
+        self.assertEqual(preconditions["lifecycle_provider_available"]["status"], "pass")
+        self.assertFalse(confirmed["ok"])
+        self.assertEqual(confirmed["data"]["cleanup_result"], "not_started_command_journal_unavailable")
+        self.assertFalse(hasattr(service, "started_pipeline"))
+
+    def test_worker_lifecycle_invalid_coordinator_url_blocks_before_provider(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "worker",
+                "WorkerCoordinatorUrl": "http://0.0.0.0:7830",
+                "WorkerAuthToken": "worker-token",
+            }
+
+            dry_run = facade.request_network_lifecycle(
+                resolved,
+                role="worker",
+                action="start",
+                dry_run=True,
+                request={},
+            ).to_mapping()
+            confirmed = facade.request_network_lifecycle(
+                resolved,
+                role="worker",
+                action="start",
+                dry_run=False,
+                request={"confirm_start": True},
+                journal_recorder=lambda _payload, _request: None,
+            ).to_mapping()
+            bad_port = _resolved(root)
+            bad_port.config_data = {
+                "NetworkRole": "worker",
+                "WorkerCoordinatorUrl": "http://coordinator.test:99999",
+                "WorkerAuthToken": "worker-token",
+            }
+            bad_port_dry_run = facade.request_network_lifecycle(
+                bad_port,
+                role="worker",
+                action="start",
+                dry_run=True,
+                request={},
+            ).to_mapping()
+
+        self.assertFalse(dry_run["data"]["safe_to_apply"])
+        preconditions = {row["key"]: row for row in dry_run["data"]["precondition_results"]}
+        self.assertEqual(preconditions["lifecycle_provider_available"]["status"], "pass")
+        self.assertEqual(preconditions["coordinator_url_present"]["status"], "blocked")
+        self.assertIn("not a bind-all listen address", preconditions["coordinator_url_present"]["evidence"])
+        self.assertFalse(confirmed["ok"])
+        self.assertEqual(confirmed["data"]["cleanup_result"], "not_started_preconditions_blocked")
+        self.assertNotIn("worker", getattr(facade, "_network_dispatcher_runtime", {}))
+        bad_port_preconditions = {row["key"]: row for row in bad_port_dry_run["data"]["precondition_results"]}
+        self.assertEqual(bad_port_preconditions["coordinator_url_present"]["status"], "blocked")
+        self.assertIn("port must be in 1..65535", bad_port_preconditions["coordinator_url_present"]["evidence"])
+
+    def test_coordinator_lifecycle_provider_starts_and_stops_dispatcher_without_pipeline_launch(self) -> None:
+        class FakeCoordinatorDispatcher:
+            instances: list["FakeCoordinatorDispatcher"] = []
+
+            def __init__(self, app: object) -> None:
+                self.app = app
+                self.shutdown_called = False
+                FakeCoordinatorDispatcher.instances.append(self)
+
+            def shutdown(self) -> None:
+                self.shutdown_called = True
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            service.build_queue_preview = lambda _resolved, force_refresh=False: [  # type: ignore[assignment]
+                SimpleNamespace(source_path=root / "Movie.mkv", priority=False, estimated_size_gb=1.0)
+            ]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+            }
+            journaled: list[dict[str, object]] = []
+
+            with patch(
+                "mediapipeline.desktop.application.network_lifecycle_provider.CoordinatorDispatcher",
+                FakeCoordinatorDispatcher,
+            ):
+                started = facade.request_network_lifecycle(
+                    resolved,
+                    role="coordinator",
+                    action="start",
+                    dry_run=False,
+                    request={"confirm_start": True},
+                    journal_recorder=lambda payload, _request: journaled.append(payload),
+                ).to_mapping()
+                stopped = facade.request_network_lifecycle(
+                    resolved,
+                    role="coordinator",
+                    action="stop",
+                    dry_run=False,
+                    request={"confirm_stop": True},
+                    journal_recorder=lambda payload, _request: journaled.append(payload),
+                ).to_mapping()
+
+        self.assertTrue(started["ok"])
+        self.assertTrue(stopped["ok"])
+        self.assertEqual(len(FakeCoordinatorDispatcher.instances), 1)
+        self.assertEqual(len(FakeCoordinatorDispatcher.instances[0].app.queue_records), 1)
+        self.assertTrue(FakeCoordinatorDispatcher.instances[0].shutdown_called)
+        self.assertEqual(len(journaled), 2)
+        self.assertFalse(hasattr(service, "started_pipeline"))
+
+    def test_worker_provider_claimed_job_starts_backend_single_file_and_reports_done(self) -> None:
+        class ProcWithWait(DummyProc):
+            def wait(self) -> int:
+                return 0
+
+        class WorkerService(DummyWorkflowFacadeService):
+            def start_pipeline(self, *args: object, **kwargs: object) -> ProcWithWait:  # type: ignore[override]
+                super().start_pipeline(*args, **kwargs)  # type: ignore[arg-type]
+                return ProcWithWait()
+
+        class FakeWorkerDispatcher:
+            instances: list["FakeWorkerDispatcher"] = []
+
+            def __init__(self, app: object) -> None:
+                self.app = app
+                self.done: list[dict[str, object]] = []
+                self.shutdown_called = False
+                FakeWorkerDispatcher.instances.append(self)
+
+            def set_status_callback(self, _callback: object) -> None:
+                return None
+
+            def mark_done(self, _job: object, **kwargs: object) -> None:
+                self.done.append(dict(kwargs))
+
+            def shutdown(self) -> None:
+                self.shutdown_called = True
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = WorkerService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "worker",
+                "WorkerCoordinatorUrl": "http://coordinator.test:7830",
+                "WorkerAuthToken": "worker-token",
+            }
+
+            with patch(
+                "mediapipeline.desktop.application.network_lifecycle_provider.WorkerDispatcher",
+                FakeWorkerDispatcher,
+            ):
+                started = facade.request_network_lifecycle(
+                    resolved,
+                    role="worker",
+                    action="start",
+                    dry_run=False,
+                    request={"confirm_start": True},
+                    journal_recorder=lambda _payload, _request: None,
+                ).to_mapping()
+                dispatcher = FakeWorkerDispatcher.instances[0]
+                job = SimpleNamespace(
+                    job_id="job-1",
+                    record=SimpleNamespace(source_path=root / "Claimed.mkv"),
+                )
+                dispatcher.app._worker_start_single_file(job)
+                deadline = time.time() + 2.0
+                while not dispatcher.done and time.time() < deadline:
+                    time.sleep(0.01)
+                stopped = facade.request_network_lifecycle(
+                    resolved,
+                    role="worker",
+                    action="stop",
+                    dry_run=False,
+                    request={"confirm_stop": True},
+                    journal_recorder=lambda _payload, _request: None,
+                ).to_mapping()
+
+        self.assertTrue(started["ok"])
+        self.assertTrue(stopped["ok"])
+        self.assertEqual(service.started_pipeline["single_file"], str(root / "Claimed.mkv"))
+        self.assertEqual(service.started_pipeline["mode"], "once")
+        self.assertTrue(dispatcher.done)
+        self.assertTrue(dispatcher.done[0]["success"])
+        self.assertTrue(dispatcher.shutdown_called)
+
+    def test_network_lifecycle_provider_signature_mismatch_fails_closed_without_retry(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            calls: list[object] = []
+
+            def provider(_resolved: object, _request: object) -> None:
+                calls.append((_resolved, _request))
+
+            service.start_network_coordinator = provider  # type: ignore[attr-defined]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+            }
+
+            result = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="start",
+                dry_run=False,
+                request={"confirm_start": True},
+                journal_recorder=lambda _payload, _request: None,
+            ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["data"]["cleanup_result"], "provider_exception")
+        self.assertIn("unexpected keyword", "\n".join(result["errors"]))
+        self.assertEqual(calls, [])
+        self.assertEqual(facade._network_lifecycle_state_for("coordinator")["status"], "stopped")
+
+    def test_network_lifecycle_journal_failure_does_not_commit_state(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            provider_calls: list[dict[str, object]] = []
+
+            def provider(**kwargs: object) -> None:
+                provider_calls.append(dict(kwargs))
+
+            def failing_journal(_payload: dict[str, object], _request: dict[str, object] | None) -> None:
+                raise RuntimeError("journal path unavailable")
+
+            service.start_network_coordinator = provider  # type: ignore[attr-defined]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+            }
+
+            result = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="start",
+                dry_run=False,
+                request={"confirm_start": True},
+                journal_recorder=failing_journal,
+            ).to_mapping()
+
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["data"]["cleanup_result"], "command_journal_failed_provider_cleanup_ok")
+        self.assertEqual(len(provider_calls), 1)
+        self.assertEqual(facade._network_lifecycle_state_for("coordinator")["status"], "stopped")
+
+    def test_network_lifecycle_success_requires_strict_journal_before_state_commit_and_blocks_duplicates(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            start_calls: list[dict[str, object]] = []
+            stop_calls: list[dict[str, object]] = []
+            journaled: list[tuple[dict[str, object], dict[str, object] | None]] = []
+
+            service.start_network_coordinator = lambda **kwargs: start_calls.append(dict(kwargs))  # type: ignore[attr-defined]
+            service.stop_network_coordinator = lambda **kwargs: stop_calls.append(dict(kwargs))  # type: ignore[attr-defined]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+            }
+
+            def journal_recorder(payload: dict[str, object], request: dict[str, object] | None) -> None:
+                journaled.append((payload, request))
+
+            first_start = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="start",
+                dry_run=False,
+                request={"confirm_start": True, "reason": "start"},
+                journal_recorder=journal_recorder,
+            ).to_mapping()
+            duplicate_start = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="start",
+                dry_run=False,
+                request={"confirm_start": True},
+                journal_recorder=journal_recorder,
+            ).to_mapping()
+            first_stop = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="stop",
+                dry_run=False,
+                request={"confirm_stop": True, "reason": "stop"},
+                journal_recorder=journal_recorder,
+            ).to_mapping()
+            duplicate_stop = facade.request_network_lifecycle(
+                resolved,
+                role="coordinator",
+                action="stop",
+                dry_run=False,
+                request={"confirm_stop": True},
+                journal_recorder=journal_recorder,
+            ).to_mapping()
+
+        self.assertTrue(first_start["ok"])
+        self.assertTrue(first_start["data"]["strict_command_journal_recorded"])
+        self.assertEqual(first_start["data"]["state_before"]["status"], "stopped")
+        self.assertEqual(first_start["data"]["state_after"]["status"], "running")
+        self.assertEqual(first_start["data"]["cleanup_result"], "ok")
+        self.assertFalse(duplicate_start["ok"])
+        self.assertEqual(duplicate_start["data"]["cleanup_result"], "not_started_preconditions_blocked")
+        self.assertIn("duplicate_start_guard", duplicate_start["errors"])
+        self.assertTrue(first_stop["ok"])
+        self.assertEqual(first_stop["data"]["state_before"]["status"], "running")
+        self.assertEqual(first_stop["data"]["state_after"]["status"], "stopped")
+        self.assertTrue(duplicate_stop["ok"])
+        self.assertEqual(duplicate_stop["data"]["state_before"]["status"], "stopped")
+        self.assertEqual(duplicate_stop["data"]["state_after"]["status"], "stopped")
+        self.assertEqual(len(start_calls), 1)
+        self.assertEqual(len(stop_calls), 2)
+        self.assertEqual(len(journaled), 3)
+        journal_payload = journaled[0][0]
+        self.assertIn("command_id", journal_payload["data"])
+        self.assertIn("state_before", journal_payload["data"])
+        self.assertIn("state_after", journal_payload["data"])
+        self.assertEqual(journal_payload["data"]["cleanup_result"], "ok")
+        self.assertIn("redacted_config_evidence", journal_payload["data"])
+
+    def test_network_lifecycle_concurrent_start_requests_are_serialized(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            provider_calls: list[dict[str, object]] = []
+            journaled: list[dict[str, object]] = []
+
+            def provider(**kwargs: object) -> None:
+                time.sleep(0.05)
+                provider_calls.append(dict(kwargs))
+
+            service.start_network_coordinator = provider  # type: ignore[attr-defined]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "coordinator",
+                "CoordinatorPort": 7830,
+                "CoordinatorBindAddress": "127.0.0.1",
+                "CoordinatorHeartbeatTimeoutMins": 5,
+            }
+            results: list[dict[str, object]] = []
+
+            def run_start() -> None:
+                result = facade.request_network_lifecycle(
+                    resolved,
+                    role="coordinator",
+                    action="start",
+                    dry_run=False,
+                    request={"confirm_start": True},
+                    journal_recorder=lambda payload, _request: journaled.append(payload),
+                ).to_mapping()
+                results.append(result)
+
+            threads = [threading.Thread(target=run_start) for _ in range(2)]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join()
+
+        self.assertEqual(sum(1 for result in results if result["ok"]), 1)
+        self.assertEqual(sum(1 for result in results if not result["ok"]), 1)
+        self.assertEqual(len(provider_calls), 1)
+        self.assertEqual(len(journaled), 1)
+
+    def test_worker_lifecycle_pending_done_read_failure_blocks_and_redacts_config(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "NetworkRole": "worker",
+                "WorkerCoordinatorUrl": "http://user:pass@example.test:7830/claim?token=secret#frag",
+                "WorkerName": "worker-a",
+                "WorkerAuthToken": "token-secret",
+            }
+
+            def fail_worker_state(_resolved_paths: object) -> object:
+                raise RuntimeError("worker state unreadable")
+
+            facade.get_network_workers = fail_worker_state  # type: ignore[method-assign]
+            dry_run = facade.request_network_lifecycle(
+                resolved,
+                role="worker",
+                action="start",
+                dry_run=True,
+                request={},
+            ).to_mapping()
+
+        preconditions = {row["key"]: row for row in dry_run["data"]["precondition_results"]}
+        self.assertEqual(preconditions["pending_done_reports_delivered"]["status"], "blocked")
+        self.assertIn("pending_done_report=unknown", preconditions["pending_done_reports_delivered"]["evidence"])
+        self.assertTrue(dry_run["data"]["active_work"]["state_read_failed"])
+        redacted = dry_run["data"]["redacted_config_evidence"]
+        self.assertEqual(redacted["WorkerCoordinatorUrl"], "http://example.test:7830/claim")
+        self.assertEqual(redacted["WorkerAuthToken"], "present_redacted")
+        self.assertNotIn("secret", str(redacted))
+
     def test_pipeline_start_respects_schedule_gate_before_web_launch_ui(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -144,7 +711,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
-            resolved.config_data = {"Outsource": str(root / "Outsource")}
+            resolved.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
 
             result = facade.start_audit_process(resolved, {"include_sidecars": True}).to_mapping()
 
@@ -176,7 +743,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service.active_job_close_block_messages = active_job_messages  # type: ignore[method-assign]
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
-            resolved.config_data = {"Outsource": str(root / "Outsource")}
+            resolved.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
 
             audit = facade.start_audit_process(resolved, {"include_sidecars": True}).to_mapping()
             audit_preflight = facade.get_launch_preflight(resolved, {"target": "audit", "include_sidecars": True})
@@ -186,7 +753,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service_with_audit.find_related_pipeline_processes = lambda _resolved, *, job_kinds=None: [DummyProc(25002)] if job_kinds is None or "audit" in job_kinds else []  # type: ignore[method-assign]
             facade_with_audit = MediaPipelineApplicationFacade(service_with_audit, app_version="v5-test")
             resolved_with_audit = _resolved(root)
-            resolved_with_audit.config_data = {"Outsource": str(root / "Outsource")}
+            resolved_with_audit.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
 
             duplicate_audit = facade_with_audit.start_audit_process(resolved_with_audit, {}).to_mapping()
 
@@ -237,7 +804,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
-            resolved.config_data = {"Outsource": str(root / "Outsource")}
+            resolved.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
 
             self.assertTrue(facade._process_launch_lock.acquire(blocking=False))  # type: ignore[attr-defined]
             try:
@@ -315,7 +882,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
-            resolved.config_data = {"Outsource": str(root / "Outsource")}
+            resolved.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
 
             pipeline = facade.get_launch_preflight(
                 resolved,
@@ -390,7 +957,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
-            resolved.config_data = {"SourceMovies": r"\\LAYNE-SERVER\Video\Movies"}
+            resolved.config_data = {"NetworkRole": "standalone", "SourceMovies": r"\\LAYNE-SERVER\Video\Movies"}
 
             with patch("mediapipeline.core.processes.preflight_facade.configured_path_health", return_value=health):
                 preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
@@ -409,6 +976,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
             resolved.config_data = {
+                "NetworkRole": "standalone",
                 "Outsource": r"\\LAYNE-SERVER\Users\Layne\Videos\outsource\Movies",
             }
 

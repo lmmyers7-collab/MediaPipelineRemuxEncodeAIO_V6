@@ -73,6 +73,49 @@ function Test-SubtitleEntryLanguageIsFallbackDefault {
     return ([string]::IsNullOrWhiteSpace($lang) -or $lang -eq 'und')
 }
 
+function Test-IsTx3gSubtitleStream {
+    param($Stream)
+    return $false
+}
+
+function Test-IsBdpgsSubtitleStream {
+    param($Stream)
+    return $false
+}
+
+function Test-IsVobSubSubtitleStream {
+    param($Stream)
+    return $false
+}
+
+function Get-SubtitleLanguageDisplayMap {
+    return @{
+        eng = 'English'
+        jpn = 'Japanese'
+        und = 'Undefined'
+    }
+}
+
+function Test-SubtitleTitleMatchesAnyKeyword {
+    param([string] $TitleLower, [array] $Keywords)
+    foreach ($keyword in @($Keywords)) {
+        if (-not [string]::IsNullOrWhiteSpace([string]$keyword) -and $TitleLower -match [regex]::Escape([string]$keyword)) {
+            return $true
+        }
+    }
+    return $false
+}
+
+function Get-SubtitleLanguagePolicy {
+    param(
+        [switch] $IsTx3g,
+        [switch] $IsBdpgs,
+        [switch] $IsVobSub,
+        [switch] $IsAss
+    )
+    return @('eng')
+}
+
 function Get-ConvertedSrtCodecForFfmpegOutput {
     return 'srt'
 }
@@ -171,7 +214,10 @@ function New-TestSubtitleEntry {
         [switch] $Tx3g,
         [switch] $Bdpgs,
         [switch] $VobSub,
-        [string] $SourceKind = 'embedded'
+        [string] $SourceKind = 'embedded',
+        [switch] $SourceDefault,
+        [bool] $LanguagePolicyMatched = $true,
+        [string] $RetainReason = 'language_policy'
     )
     return @{
         Stream = [pscustomobject]@{ index = $Index }
@@ -185,6 +231,10 @@ function New-TestSubtitleEntry {
         IsTx3g = [bool]$Tx3g
         IsBdpgs = [bool]$Bdpgs
         IsVobSub = [bool]$VobSub
+        IsDefault = [bool]$SourceDefault
+        SourceIsDefault = [bool]$SourceDefault
+        LanguagePolicyMatched = [bool]$LanguagePolicyMatched
+        RetainReason = $RetainReason
         SourceKind = $SourceKind
     }
 }
@@ -269,12 +319,36 @@ $script:AssConversionMode = 'success'
 $script:Tx3gConversionMode = 'success'
 $script:BdpgsConversionMode = 'success'
 $script:VobSubConversionMode = 'success'
+$script:SubSDHTitleKeywords = @('sdh', 'hearing')
+$script:SubSupplementalKeywords = @('sign', 'song', 'karaoke')
 $script:processingDir = Join-Path ([System.IO.Path]::GetTempPath()) ('mp-subtitle-builder-decisions-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $script:processingDir -Force | Out-Null
 
 try {
     . (Join-Path $repoRoot 'ops\pipeline\engine\shared\media_constants.ps1')
+    . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\routing_decisions.ps1')
+    . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\filtering.ps1')
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\builders.ps1')
+
+    $preferredAssRoutingDecision = Resolve-SubtitleRoutingDecision -Entry (New-TestSubtitleEntry -Index 8 -Lang 'eng' -Title 'English Preferred ASS' -Codec 'ass')
+    Assert-Equal $preferredAssRoutingDecision.Action 'ConvertAss' 'Preferred-language ASS should remain conversion-eligible.'
+
+    $nonPolicyForcedAssPolicy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal 0 -Stream ([pscustomobject]@{
+        index = 9
+        codec_name = 'ass'
+        codec_tag_string = ''
+        tags = [pscustomobject]@{ language = 'jpn'; title = 'Japanese Forced ASS' }
+        disposition = [pscustomobject]@{ forced = 1; default = 0 }
+    })
+    Assert-True (-not [bool]$nonPolicyForcedAssPolicy.Retain) 'Non-policy forced ASS should be dropped before routing.'
+    Assert-True (-not [bool]$nonPolicyForcedAssPolicy.LanguagePolicyMatched) 'Non-policy forced ASS should not be marked conversion-language matched.'
+    Assert-Equal $nonPolicyForcedAssPolicy.RetainReason 'language_or_title_policy' 'Non-policy forced ASS should not use forced metadata to bypass ASS language policy.'
+    $nonPolicyForcedAssEntry = New-SubtitleFilterEntry -Policy $nonPolicyForcedAssPolicy
+    Assert-True (-not [bool]$nonPolicyForcedAssEntry.LanguagePolicyMatched) 'Filter entry should carry non-policy ASS conversion evidence.'
+    Assert-Equal $nonPolicyForcedAssEntry.RetainReason 'language_or_title_policy' 'Filter entry should carry non-policy ASS drop reason.'
+    $nonPolicyForcedAssRoutingDecision = Resolve-SubtitleRoutingDecision -Entry $nonPolicyForcedAssEntry
+    Assert-Equal $nonPolicyForcedAssRoutingDecision.Action 'Drop' 'Non-policy forced ASS should not be preserved or converted if it reaches routing.'
+    Assert-ContainsText $nonPolicyForcedAssRoutingDecision.Message 'outside ASS conversion language policy' 'Non-policy forced ASS routing should explain why it was dropped.'
 
     $filter = @{
         Convert = @(
@@ -327,9 +401,38 @@ try {
     Assert-Equal $mp4Build.MapArgs.Count 0 'MP4 compatibility should not emit subtitle map args.'
     Assert-Equal $mp4Build.ExtraInputs.Count 0 'MP4 compatibility should not add generated SRT inputs for embedding.'
     Assert-Equal $mp4Build.Tx3gTracks.Count 1 'MP4 compatibility should reduce converted SRT sidecar candidates to exactly one publish record.'
+    Assert-Equal $mp4Build.ConvertedSrtSidecarTracks.Count 1 'MP4 compatibility should expose the selected converted SRT sidecar through a source-neutral field.'
+    $selectedMp4Sidecar = @($mp4Build.ConvertedSrtSidecarTracks)[0]
+    Assert-True $selectedMp4Sidecar.ContainsKey('ConversionKind') 'Selected MP4 sidecar should retain the conversion kind.'
+    Assert-Equal $selectedMp4Sidecar.ConversionKind 'ass_to_srt' 'Selected MP4 sidecar should retain ASS-to-SRT provenance.'
+    Assert-Equal $selectedMp4Sidecar.SourceSubtitleKind 'ass' 'Selected MP4 sidecar should retain the source subtitle kind.'
+    Assert-Equal $selectedMp4Sidecar.SourceSubtitleCodec 'ass' 'Selected MP4 sidecar should retain the source subtitle codec.'
+    Assert-Equal $selectedMp4Sidecar.SourceKind 'embedded' 'Selected MP4 sidecar should retain embedded-vs-sidecar provenance.'
+    Assert-Equal @($mp4Build.Tx3gTracks)[0].ConversionKind 'ass_to_srt' 'Compatibility TX3G sidecar field should not erase non-TX3G provenance.'
     Assert-True ($mp4Build.DroppedEmbeddedTrackCount -ge 3) 'MP4 compatibility should report dropped embedded subtitle candidates.'
 
+    $script:ConversionCalls.Clear()
+    $mp4SourceDefaultAssFilter = @{
+        Convert = @(
+            (New-TestSubtitleEntry -Index 40 -Lang 'jpn' -Title 'Japanese Source Default ASS' -Codec 'ass' -SourceDefault),
+            (New-TestSubtitleEntry -Index 41 -Lang 'eng' -Title 'English Preferred ASS' -Codec 'ass')
+        )
+        Tx3gConvert = @()
+        BdpgsConvert = @()
+        VobSubConvert = @()
+        Keep = @()
+    }
+    $mp4SourceDefaultAssBuild = Build-SubtitleArgsForFFmpeg -FilterResult $mp4SourceDefaultAssFilter -DefaultAudioLang 'jpn' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-Equal ($script:ConversionCalls -join ',') 'ass:40,ass:41' 'MP4 compatibility should still evaluate converted ASS candidates in routed order.'
+    Assert-Equal $mp4SourceDefaultAssBuild.ConvertedSrtSidecarTracks.Count 1 'MP4 compatibility should still select exactly one converted ASS sidecar.'
+    $selectedAssSidecar = @($mp4SourceDefaultAssBuild.ConvertedSrtSidecarTracks)[0]
+    Assert-Equal $selectedAssSidecar.StreamInfo.Lang 'eng' 'MP4 compatibility should prefer the converted preferred-language ASS SRT over a source-default non-English ASS.'
+    Assert-True ([bool]$selectedAssSidecar.StreamInfo.IsDefault) 'Selected converted ASS SRT should carry the converted default disposition evidence.'
+
     $mkvRecords = @(Get-SubtitleBuilderTrackDecisionRecords -FilterResult $filter -Builder 'Mkvmerge')
+    $mkvAssDecision = @($mkvRecords | Where-Object { $_.Action -eq 'ConvertAss' })[0]
+    Assert-True $mkvAssDecision.PreserveOriginal 'mkvmerge ASS conversion should preserve the original ASS subtitle when drop-original is disabled.'
+    Assert-Equal $mkvAssDecision.OriginalPreserveReason 'preserved' 'mkvmerge ASS preserve reason should remain preserved.'
     $mkvBdpgsDecision = @($mkvRecords | Where-Object { $_.Action -eq 'ConvertBdpgs' })[0]
     Assert-True $mkvBdpgsDecision.PreserveOriginal 'mkvmerge BDPGS conversion should preserve the original image subtitle when drop-original is disabled.'
     Assert-Equal $mkvBdpgsDecision.OriginalPreserveReason 'preserved' 'mkvmerge BDPGS preserve reason should remain preserved.'
@@ -580,6 +683,7 @@ try {
             [switch] $SaveReproOnFailure,
             [string] $ProcessPriority
         )
+        $script:BdpgsOcrInvocationCount++
         $outputIndex = [array]::IndexOf($ArgumentList, '--output')
         $outputPath = [string]$ArgumentList[$outputIndex + 1]
         [System.IO.File]::WriteAllText($outputPath, "1`r`n00:00:00,200 --> 00:00:01,400`r`n| am here.`r`n", [System.Text.UTF8Encoding]::new($false))
@@ -588,12 +692,22 @@ try {
 
     $script:BdpgsOcrToolPath = $PSCommandPath
     $script:BdpgsOcrTessdataPath = ''
+    $script:BdpgsOcrInvocationCount = 0
+    Assert-Equal (Resolve-BdpgsOcrLanguage 'und') 'und' 'BDPGS OCR must not silently default undetermined language to English.'
+    Assert-Equal (Resolve-BdpgsOcrLanguage '') 'und' 'BDPGS OCR must not silently default blank language to English.'
     $bdpgsConvertedPath = Join-Path $script:processingDir 'bdpgs-converted-pipe-glyph.srt'
     $bdpgsConverted = Convert-BdpgsToSrt -SourceFile (Join-Path $script:processingDir 'source.mkv') -StreamIndex 40 -StreamInfo (New-TestSubtitleEntry -Index 40 -Lang 'eng' -Title 'English PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs) -DestinationPath $bdpgsConvertedPath -Context 'TEST: '
     Assert-True ([bool]$bdpgsConverted.Ok) ("BDPGS OCR conversion with pipe-glyph repair should succeed: {0}" -f $bdpgsConverted.Reason)
     $bdpgsConvertedText = [System.IO.File]::ReadAllText($bdpgsConvertedPath, [System.Text.Encoding]::UTF8)
     Assert-ContainsText $bdpgsConvertedText 'I am here.' 'BDPGS OCR conversion should repair pipe glyphs before accepting the SRT.'
     Assert-True (-not ($bdpgsConvertedText -match '\|')) 'BDPGS OCR conversion should not publish OCR pipe glyphs in cue text.'
+
+    $script:BdpgsOcrInvocationCount = 0
+    $bdpgsUnknownLanguagePath = Join-Path $script:processingDir 'bdpgs-unknown-language.srt'
+    $bdpgsUnknownLanguage = Convert-BdpgsToSrt -SourceFile (Join-Path $script:processingDir 'source.mkv') -StreamIndex 41 -StreamInfo (New-TestSubtitleEntry -Index 41 -Lang 'und' -Title 'Unknown PGS' -Codec 'hdmv_pgs_subtitle' -Bdpgs) -DestinationPath $bdpgsUnknownLanguagePath -Context 'TEST: '
+    Assert-True (-not [bool]$bdpgsUnknownLanguage.Ok) 'BDPGS conversion should fail before OCR when the OCR language is unknown.'
+    Assert-Equal $bdpgsUnknownLanguage.Failure.ErrorCode 'SUBTITLE_BDPGS_OCR_LANGUAGE_UNKNOWN' 'Unknown BDPGS OCR language should use a distinct failure code.'
+    Assert-Equal $script:BdpgsOcrInvocationCount 0 'Unknown BDPGS OCR language should not invoke the OCR tool.'
 } finally {
     Remove-Item -LiteralPath $script:processingDir -Recurse -Force -ErrorAction SilentlyContinue
 }

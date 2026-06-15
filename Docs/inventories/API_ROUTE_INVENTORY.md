@@ -1,20 +1,20 @@
 # API Route Inventory
 
-Date: 2026-06-07
+Date: 2026-06-13
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 98 routes — 42 GET (read) + 56 POST (command).
+Total: 112 routes — 46 GET (read) + 66 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
 ---
 
-## GET Routes (Read — 42 routes)
+## GET Routes (Read — 46 routes)
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
-### Status Group (11 routes)
+### Status Group (14 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -25,6 +25,9 @@ All GET routes return data only. None launch pipeline work, write config, drain 
 | `GET /api/diagnostics` | `none` | `desktop_diagnostics.v1` | Diagnostics, Home | Yes | `test_facade_diagnostics_policy.py` |
 | `GET /api/diagnostics/tail` | `none` | `desktop_diagnostics_tail.v1` | Diagnostics | Yes | `test_facade_diagnostics_policy.py`, `test_application_facade_local_api.py` |
 | `GET /api/diagnostics/state-summary` | `none` | `desktop_diagnostics_state_summary.v1` | Diagnostics | Yes | `test_facade_diagnostics_policy.py`, `test_application_facade_local_api.py` |
+| `GET /api/diagnostics/tdarr-matrix/latest` | `none` | `desktop_tdarr_matrix_console.v1` | Diagnostics | Yes | `test_service_tdarr_matrix_audit.py` |
+| `GET /api/diagnostics/tdarr-matrix/runs` | `none` | `desktop_tdarr_matrix_runs.v1` | Diagnostics | Yes | `test_service_tdarr_matrix_audit.py` |
+| `GET /api/diagnostics/tdarr-matrix/compare` | `none` | `desktop_tdarr_matrix_compare.v1` | Diagnostics | Yes | `test_service_tdarr_matrix_audit.py` |
 | `GET /api/backend/close-readiness` | `none` | `desktop_close_readiness.v1` | Tauri shell (close flow) | Yes | `test_tauri_shell_scaffold.py`, `test_local_api_lifecycle_contract_smoke.py`, `test_application_facade_local_api.py` |
 | `GET /api/ui-preferences` | `none` | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Yes | `test_application_facade_core_contracts.py`, `test_webview_frontend_mutation_boundary.py` |
 | `GET /api/launch/preflight` | `none` | `desktop_launch_preflight.v1` + nested `desktop_launch_readiness.v1` | Launch | Yes | `test_service_process_readiness.py`, `test_facade_process_pipeline_policy.py`, `test_application_facade_process_launch.py`, `test_application_facade_local_api.py` |
@@ -59,9 +62,9 @@ Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `ma
 
 Repair/reconcile mutation remains design-only. `/api/contract` publishes the future dry-run, rollback, source-file, and route-exposure gates, but there are no repair/reconcile POST routes in this inventory and no WebView controls may call one until `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` is satisfied.
 
-Network lifecycle mutation remains design-only. `/api/contract` publishes the future dry-run, process cleanup/rollback, source-file, and route-exposure gates for coordinator/worker lifecycle commands, but there are no Network start/stop/reclaim/ops/release/metadata/worker-polling POST routes in this inventory and no WebView controls may call one until `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` is satisfied.
+Network lifecycle start/stop now has backend-owned dry-run and confirmed command routes. Dry-runs have `effect=none` and report preconditions plus `would_not_touch` evidence. Confirmed routes are confirmation-gated, command-journaled, and provider-guarded; if the real coordinator/worker lifecycle provider is unavailable, they fail closed without normal Launch, queue scan, media processing, or source/scratch/output/pending-publish mutation.
 
-### Workspace Group (13 routes)
+### Workspace Group (14 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -69,6 +72,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 | `GET /api/maintenance/progress` | `none` | `desktop_maintenance_health_progress.v1` | Maintenance | Yes | `test_application_facade_maintenance.py` |
 | `GET /api/maintenance/change-ledger` | `none` | `desktop_change_ledger.v1` | Maintenance | Yes | `test_maintenance_change_ledger.py` |
 | `GET /api/schedule` | `none` | `desktop_schedule_workspace.v1` | Schedule | Yes | `test_facade_schedule_policy.py`, `test_application_facade_schedule.py` |
+| `GET /api/watch-folders/status` | `none` | `desktop_watch_folders.v1` | Schedule | Yes | `test_watch_folder_routes.py` |
 | `GET /api/settings/workspace` | `none` | `desktop_settings_workspace.v1` | Settings | Yes | `test_facade_settings_policy.py`, `test_application_facade_settings_workspace.py` |
 | `GET /api/libraries/route-map` | `none` | `library_route_map.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
 | `GET /api/libraries/route-map/trace` | `none` | `library_route_trace.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
@@ -83,7 +87,7 @@ Network lifecycle mutation remains design-only. `/api/contract` publishes the fu
 
 ---
 
-## POST Routes (Command — 55 routes)
+## POST Routes (Command — 66 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
@@ -140,12 +144,14 @@ Priority and file override/folder-rule path writes are rejected unless the submi
 
 Final-library promotion is backend-owned. The frontend can request the run, pause, or resume with allowlisted keys, but the backend owns destination resolution, completed-output eligibility, copy behavior, pause state, and any configured publish-output cleanup.
 
-### Diagnostics Commands (2 routes)
+### Diagnostics Commands (4 routes)
 
 | Route | Effect | Allowed Targets | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/diagnostics/open` | `shell-open` | 20 allowlisted target keys (see below) | Diagnostics, all pages | Low — OS open only | `test_facade_diagnostics_open_policy.py` |
 | `POST /api/diagnostics/tdarr-matrix-audit` | `diagnostic-process` | actions: `report`, `smoke`, `matrix`, `full`, `strict-report` | Diagnostics | Medium — backend runs fixed Tdarr Matrix scratch audit presets only | `test_service_tdarr_matrix_audit.py` |
+| `POST /api/diagnostics/tdarr-matrix/evidence/open` | `shell-open` | `stdout`, `stderr`, `worker_result`, `source_hashes`, `failure_artifact`, `output`, `report_folder` | Diagnostics | Low — opens only backend-resolved Tdarr Matrix evidence artifacts | `test_service_tdarr_matrix_audit.py` |
+| `POST /api/diagnostics/tdarr-matrix/rerun` | `diagnostic-process` | selections: `selected`, `latest_failures` | Diagnostics | Medium — backend maps finding keys to manifest case IDs and reruns into a fresh isolated TdarrMatrixRuns root | `test_service_tdarr_matrix_audit.py` |
 
 Allowlisted targets (20): `run_logs`, `cluster_log`, `config`, `config_folder`, `workspace`, `state`, `pending_publish`, `failed_reports`, `failed_markers`, `audit_reports`, `queue_snapshot`, `active_jobs`, `completed_manifest`, `latest_failure_report`, `latest_failure_json`, `latest_audit_csv`, `latest_priority_csv`, `last_stdout_log`, `last_stderr_log`, `sample_validation_log`.
 
@@ -239,6 +245,25 @@ Audit control commands are backend-owned report/state helpers. They do not
 write queue priority, apply holds, launch rerun work, change settings, or touch
 media files.
 
+### Network Commands (12 routes)
+
+| Route | Effect | Key Request Keys / Allowed Values | Frontend Caller | Mutation Risk | Backend Test Coverage |
+|---|---|---|---|---|---|
+| `POST /api/network/coordinator/start-dry-run` | `none` | `reason` | Network | None — lifecycle dry-run only; reports coordinator preconditions, active-work posture, state-file posture, and `would_not_touch` evidence | `test_application_facade_process_launch.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/network/coordinator/stop-dry-run` | `none` | `reason` | Network | None — lifecycle dry-run only; reports stop preconditions and state preservation evidence without releasing claims | `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/network/worker/start-dry-run` | `none` | `reason` | Network | None — lifecycle dry-run only; reports coordinator URL/path-map/pending-done posture without claiming, scanning, or launching work | `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/network/worker/stop-dry-run` | `none` | `reason` | Network | None — lifecycle dry-run only; reports worker stop and pending done posture without aborting active work or deleting scratch files | `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/network/worker/test-connection` | `none` | `timeout_seconds` | Network | None — read-only worker TCP/auth/path preflight; does not claim work, start lifecycle, scan queue, save settings, publish, drain, or touch media files | `test_network_test_connection.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py`, `test_webview_network_read_only_boundary.py` |
+| `POST /api/network/worker/discover-coordinators` | `none` | `timeout_seconds` | Network | None — read-only mDNS coordinator discovery; selecting a result only stages `WorkerCoordinatorUrl` in the Settings patch until preview/save | `test_network_mdns.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py`, `test_webview_network_read_only_boundary.py` |
+| `POST /api/network/coordinator/join-blob` | `secret-transfer` | `coordinator_url`, `confirm_create`, `rotate_token`, `confirm_rotate` | Network | High — returns an unjournaled join blob containing the worker auth secret; does not start lifecycle, claim work, launch processing, publish, drain, or touch media files | `test_network_join.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py`, `test_webview_network_read_only_boundary.py` |
+| `POST /api/network/worker/join-cluster` | `config-write` | `join_blob`, `confirm_import`, `timeout_seconds` | Network | High — imports a join blob through backend settings save, seeds worker URL/token/path-map settings, then runs read-only test-connection | `test_network_join.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py`, `test_webview_network_read_only_boundary.py` |
+| `POST /api/network/coordinator/start` | `backend-lifecycle` | `confirm_start`, `reason` | Network | **High** — starts only the real coordinator lifecycle provider after confirmation and preconditions; provider unavailable fails closed | `test_application_facade_process_launch.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/network/coordinator/stop` | `backend-lifecycle` | `confirm_stop`, `reason` | Network | **High** — stops only the coordinator lifecycle provider while preserving `coordinator_inflight.json`, `worker_state.json`, and `cluster.log` | `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/network/worker/start` | `backend-lifecycle` | `confirm_start`, `reason` | Network | **High** — starts only the real worker polling lifecycle provider; worker must claim coordinator-assigned work one file at a time and must not scan local queue | `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/network/worker/stop` | `backend-lifecycle` | `confirm_stop`, `reason` | Network | **High** — requests worker lifecycle stop while preserving pending done reports and `worker_state.json`; abort/partial cleanup remains separate | `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+
+Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mutation evidence/setup routes. Confirmed start/stop routes require confirmation fields and backend provider preconditions. They do not use normal Launch, do not scan the full queue, do not silently release claims, and do not mutate source media. If the provider hook is unavailable, the route returns a blocked command result rather than starting a fake local run.
+
 ### Process Commands (6 routes)
 
 | Route | Effect | Key Request Keys / Allowed Values | Frontend Caller | Mutation Risk | Backend Test Coverage |
@@ -258,12 +283,12 @@ media files.
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 50 | All non-probing GET routes + preview/validate/reload POSTs |
+| `none` (read-only) | 62 | All non-probing GET routes + preview/validate/reload POSTs + Network lifecycle dry-runs |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `read-only-preview` | 4 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` |
-| `shell-open` | 5 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open`, `maintenance/dependency-atlas/open-folder` |
+| `shell-open` | 6 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open`, `diagnostics/tdarr-matrix/evidence/open`, `maintenance/dependency-atlas/open-folder` |
 | `shell-dialog` | 3 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` |
-| `diagnostic-process` | 1 | `POST /api/diagnostics/tdarr-matrix-audit` |
+| `diagnostic-process` | 2 | `POST /api/diagnostics/tdarr-matrix-audit`, `POST /api/diagnostics/tdarr-matrix/rerun` |
 | `ui-state-write` | 1 | `POST /api/ui-preferences` |
 | `metrics-state-write` | 1 | `POST /api/metrics/sources` |
 | `metrics-backfill-state-write` | 1 | `POST /api/metrics/backfill` |
@@ -281,7 +306,7 @@ media files.
 | `config-write` | 2 | `POST /api/settings/save-patch`, `settings/wizard/save` |
 | `filesystem-mutation` | 2 | `POST /api/rename/apply`, `final-library-promotion/promote-queue` |
 | `process-launch` | 3 | `POST /api/pipeline/start`, `audit/start`, `rerun/start` |
-| `backend-lifecycle` | 1 | `POST /api/backend/shutdown` |
+| `backend-lifecycle` | 5 | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` |
 
 ---
 

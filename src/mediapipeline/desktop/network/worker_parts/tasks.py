@@ -31,10 +31,13 @@ def claim_with_source_path(claim: ClaimResponse, source_path: str) -> ClaimRespo
         status=claim.status,
         job_id=claim.job_id,
         source_path=source_path,
+        library_id=claim.library_id,
+        relative_path=claim.relative_path,
         priority=claim.priority,
         estimated_size_gb=claim.estimated_size_gb,
         encode_config=claim.encode_config,
         retry_on_failure=claim.retry_on_failure,
+        retry_after_seconds=claim.retry_after_seconds,
     )
 
 

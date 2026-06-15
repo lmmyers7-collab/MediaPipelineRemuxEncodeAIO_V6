@@ -5,6 +5,7 @@ from typing import Any
 from .contract_payload import local_api_contract_payload
 from .http_helpers import query_bool, query_int, query_value
 from .read_payloads_policy import close_readiness_unavailable_payload, read_unavailable_payload
+from mediapipeline.desktop.watch import watch_folder_state_mapping
 
 
 class LocalApiStatusReadPayloadMixin:
@@ -71,6 +72,19 @@ class LocalApiStatusReadPayloadMixin:
         if resolved is None:
             return close_readiness_unavailable_payload()
         return self.facade.get_close_readiness(resolved, self._snapshot()).to_mapping()
+
+    def _watch_folders_status_payload(self) -> dict[str, Any]:
+        state_reader = getattr(self.facade, "get_watch_folder_state", None)
+        if not callable(state_reader):
+            return watch_folder_state_mapping(None)
+        try:
+            return dict(state_reader())
+        except Exception as exc:
+            payload = watch_folder_state_mapping(None)
+            payload["status"] = "error"
+            payload["reason"] = "Watch-folder state could not be read."
+            payload["last_error"] = str(exc)
+            return payload
 
     def _launch_preflight_payload(self, query: dict[str, list[str]]) -> dict[str, Any]:
         resolved = self._resolved()

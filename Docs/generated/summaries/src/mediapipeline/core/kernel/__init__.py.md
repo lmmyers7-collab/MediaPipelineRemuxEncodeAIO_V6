@@ -2,7 +2,7 @@
 file: src/mediapipeline/core/kernel/__init__.py
 pipeline_stage: n/a
 token_priority: low
-owner_domain: unknown
+owner_domain: kernel
 last_modified: 2026-06-04
 last_reviewed: 2026-06-04
 sha256: 46b1608589f1ff5a3ed9747be4453724b5e1dacdf2e1967fee0d17dc721d23da

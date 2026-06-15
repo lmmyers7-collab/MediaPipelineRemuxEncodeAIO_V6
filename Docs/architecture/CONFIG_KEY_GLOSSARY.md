@@ -1,6 +1,6 @@
 # Config Key Glossary
 
-Last updated: 2026-06-03
+Last updated: 2026-06-11
 
 Operator-friendly glossary for major settings and config keys. Intended for operators who want to understand what a key does before editing it, and for documentation authors writing about config behavior.
 
@@ -45,6 +45,18 @@ Code constants live in `src/mediapipeline/desktop/config_keys.py` and `ops/pipel
 
 ---
 
+## Watch Folders
+
+| Key | Purpose | Risk note | Builder |
+|---|---|---|---|
+| `EnableWatchFolders` | Enables the local desktop watch-folder manager | Disabled by default; enabling causes the desktop API host to scan configured/derived source roots for newly stable files | Builder |
+| `WatchFolderRoots` | Explicit roots scanned by the watch-folder manager; empty means derive from configured source/library-profile roots | Wrong roots can miss new files or scan too broadly; source files are never deleted or overwritten by the watcher | Builder |
+| `WatchDebounceSeconds` | Seconds a discovered file must remain unchanged before it is treated as stable | Too low can notice files before copy completion; too high delays enqueue/launch response | Builder |
+| `WatchAction` | Watch response: `enqueue_only` records pending work; `enqueue_and_launch` requests backend Run Once | Launch remains backend-owned and still goes through `/api/pipeline/start` guards | Builder |
+| `WatchRespectScheduleWindow` | Keeps watch-triggered launch requests schedule-gated when true | Setting false sends an explicit ignore-schedule override for watch-triggered launches | Builder |
+
+---
+
 ## Routing and Encode Profile
 
 | Key | Purpose | Risk note | Builder |
@@ -81,6 +93,22 @@ Bitrate route decisions use bitrate estimated from `file_size_bytes` and `durati
 | `CpuEncodeProcessPriority` | OS process priority for CPU encode jobs | Below normal priority prevents encode from starving the system | Builder |
 | `CpuEncodeMaxThreads` | Thread count cap for CPU encodes | Caps CPU usage; 0 = no cap | Builder |
 | `ExtraVideoFlags` | Raw FFmpeg video flags appended to encode commands | **High risk** — raw FFmpeg passthrough; errors may produce silent corruption or failed encodes | Builder |
+
+---
+
+## Quality Verification
+
+| Key | Purpose | Risk note | Builder |
+|---|---|---|---|
+| `EnableQualityVerification` | Enables objective source-vs-output metric checks after lossy encodes | Disabled by default; enabling should be validated with representative media before unattended runs | Builder |
+| `QualityMetric` | Metric used for the comparison: `vmaf`, `ssim`, or `psnr` | Threshold units differ by metric: VMAF 0-100, SSIM 0-1, PSNR dB | Builder |
+| `QualitySampleMode` | Chooses sampled windows or full-file measurement | Full-file quality checks can be expensive on long movies | Builder |
+| `QualitySampleSeconds` | Seconds measured per sampled window | Larger windows improve signal but increase FFmpeg verification runtime | Builder |
+| `QualitySampleCount` | Number of sampled windows measured | More windows improve coverage but increase FFmpeg verification runtime | Builder |
+| `QualityWarnThreshold` | Score below this tier is recorded as quality-review evidence | Zero disables this tier; threshold units follow `QualityMetric` | Builder |
+| `QualityFailThreshold` | Score below this tier is recorded as below-floor quality evidence | Zero disables this tier; with `block_review`, below-floor encodes do not publish | Builder |
+| `QualityFailAction` | Action for below-floor encodes: `warn_only` or `block_review` | `block_review` rejects the encode before publish and routes the source to operator review | Builder |
+| `QualityVerifyTimeoutSeconds` | FFmpeg timeout for each quality verification run | Tool errors and timeouts fail open with error evidence rather than blocking publish | Builder |
 
 ---
 

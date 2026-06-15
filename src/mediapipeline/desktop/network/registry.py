@@ -23,20 +23,67 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
+from .failure_reasons import REASON_ENCODE_ERROR, bounded_failure_reason, normalize_failure_reason_code
 from .json_policy import loads_strict_json
-from .protocol import WorkerEntry, coerce_finite_float, coerce_nonnegative_int, coerce_progress_percent
+from .protocol import (
+    WorkerEntry,
+    coerce_finite_float,
+    coerce_library_id_list,
+    coerce_nonnegative_int,
+    coerce_progress_percent,
+)
 
 _log = logging.getLogger(__name__)
+
+
+def _default_worker_stats(worker_id: str, worker_name: str = "") -> dict[str, Any]:
+    safe_name = str(worker_name or "").strip() or worker_id[:8]
+    return {
+        "name": safe_name,
+        "files": 0,
+        "gb": 0.0,
+        "secs": 0.0,
+        "last_seen": "",
+        "last_failure_reason_code": "",
+        "last_failure_reason": "",
+        "last_failure_job_id": "",
+        "last_failure_source_path": "",
+        "last_failure_at": "",
+        "failure_streak_reason_code": "",
+        "failure_streak_count": 0,
+        "worker_misconfigured_reason_code": "",
+        "worker_misconfigured_at": "",
+        "accessible_library_ids": [],
+    }
+
+
+def _ensure_worker_stats_fields(stats: dict[str, Any], worker_id: str, worker_name: str = "") -> dict[str, Any]:
+    defaults = _default_worker_stats(worker_id, worker_name)
+    for key, value in defaults.items():
+        stats.setdefault(key, value)
+    if worker_name:
+        stats["name"] = str(worker_name)
+    return stats
 
 
 def _safe_worker_stats(worker_id: str, raw_stats: Any) -> dict[str, Any]:
     """Return worker-board-safe cumulative stats for one worker."""
     if not isinstance(raw_stats, dict):
         _log.warning("Malformed worker stats for %s while building worker snapshot; using zero metrics.", worker_id)
-        return {"name": worker_id[:8], "files": 0, "gb": 0.0, "secs": 0.0}
+        return _default_worker_stats(worker_id)
 
     name = str(raw_stats.get("name", "") or worker_id[:8])
-    safe: dict[str, Any] = {"name": name, "files": 0, "gb": 0.0, "secs": 0.0}
+    safe: dict[str, Any] = _default_worker_stats(worker_id, name)
+    safe["last_seen"] = str(raw_stats.get("last_seen", "") or "")
+    safe["last_failure_reason_code"] = normalize_failure_reason_code(raw_stats.get("last_failure_reason_code", ""))
+    safe["last_failure_reason"] = bounded_failure_reason(raw_stats.get("last_failure_reason", ""))
+    safe["last_failure_job_id"] = str(raw_stats.get("last_failure_job_id", "") or "")
+    safe["last_failure_source_path"] = str(raw_stats.get("last_failure_source_path", "") or "")
+    safe["last_failure_at"] = str(raw_stats.get("last_failure_at", "") or "")
+    safe["failure_streak_reason_code"] = normalize_failure_reason_code(raw_stats.get("failure_streak_reason_code", ""))
+    safe["worker_misconfigured_reason_code"] = normalize_failure_reason_code(raw_stats.get("worker_misconfigured_reason_code", ""))
+    safe["worker_misconfigured_at"] = str(raw_stats.get("worker_misconfigured_at", "") or "")
+    safe["accessible_library_ids"] = coerce_library_id_list(raw_stats.get("accessible_library_ids", []))
     try:
         safe["files"] = coerce_nonnegative_int(raw_stats.get("files", 0), "files")
     except Exception as exc:
@@ -49,6 +96,10 @@ def _safe_worker_stats(worker_id: str, raw_stats: Any) -> dict[str, Any]:
         safe["secs"] = coerce_finite_float(raw_stats.get("secs", 0.0), "secs", minimum=0.0)
     except Exception as exc:
         _log.warning("Invalid worker stats secs for %s while building worker snapshot; using 0.0: %s", worker_id, exc)
+    try:
+        safe["failure_streak_count"] = coerce_nonnegative_int(raw_stats.get("failure_streak_count", 0), "failure_streak_count")
+    except Exception as exc:
+        _log.warning("Invalid worker failure streak for %s while building worker snapshot; using 0: %s", worker_id, exc)
     return safe
 
 
@@ -59,6 +110,39 @@ def _safe_snapshot_progress(worker_id: str, value: Any) -> float:
     except Exception as exc:
         _log.warning("Invalid worker progress for %s while building worker snapshot; using 0.0: %s", worker_id, exc)
         return 0.0
+
+
+def _failure_ledger_key(worker_id: str, source_path: str) -> str:
+    return f"{str(worker_id or '').strip()}\0{str(source_path or '').strip()}"
+
+
+def _safe_failure_reason_code(value: Any) -> str:
+    return normalize_failure_reason_code(value) or REASON_ENCODE_ERROR
+
+
+def _safe_failure_ledger_entry(raw_entry: Any) -> dict[str, Any] | None:
+    if not isinstance(raw_entry, dict):
+        return None
+    worker_id = str(raw_entry.get("worker_id", "") or "").strip()
+    source_path = str(raw_entry.get("source_path", "") or "").strip()
+    if not worker_id or not source_path:
+        return None
+    try:
+        count = coerce_nonnegative_int(raw_entry.get("consecutive_count", 0), "consecutive_count")
+    except Exception:
+        count = 0
+    return {
+        "worker_id": worker_id,
+        "worker_name": str(raw_entry.get("worker_name", "") or ""),
+        "source_path": source_path,
+        "reason_code": _safe_failure_reason_code(raw_entry.get("reason_code", "")),
+        "reason": bounded_failure_reason(raw_entry.get("reason", "")),
+        "consecutive_count": count,
+        "first_failed_at": str(raw_entry.get("first_failed_at", "") or ""),
+        "last_failed_at": str(raw_entry.get("last_failed_at", "") or ""),
+        "last_job_id": str(raw_entry.get("last_job_id", "") or ""),
+        "alert_emitted": bool(raw_entry.get("alert_emitted", False)),
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -80,6 +164,7 @@ class InFlightJob:
     encode_config:     dict  = field(default_factory=dict)
     priority:          bool  = False
     estimated_size_gb: float = 0.0
+    accessible_library_ids: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -94,6 +179,7 @@ class InFlightJob:
             "encode_config":     self.encode_config,
             "priority":          self.priority,
             "estimated_size_gb": self.estimated_size_gb,
+            "accessible_library_ids": coerce_library_id_list(self.accessible_library_ids),
         }
 
     @classmethod
@@ -110,6 +196,7 @@ class InFlightJob:
             encode_config=dict(d.get("encode_config", {})),
             priority=bool(d.get("priority", False)),
             estimated_size_gb=coerce_finite_float(d.get("estimated_size_gb", 0.0), "estimated_size_gb", minimum=0.0),
+            accessible_library_ids=coerce_library_id_list(d.get("accessible_library_ids", [])),
         )
 
 
@@ -152,9 +239,11 @@ class InFlightRegistry:
         self._recent_completions: dict[str, float] = {}
         self.session_completed: int = 0
         self.session_failed: int    = 0
-        # Per-worker cumulative session stats.
-        # Keys: worker_id → {name, files, gb, secs}
+        # Per-worker cumulative session stats plus last terminal failure reason.
         self._worker_stats: dict[str, dict[str, Any]] = {}
+        # Worker/source failure ledger used to suppress repeated same-reason
+        # redispatch loops without mutating source media or queue records.
+        self._failure_ledger: dict[str, dict[str, Any]] = {}
 
     # ------------------------------------------------------------------
     # Mutations
@@ -170,6 +259,7 @@ class InFlightRegistry:
         encode_config: dict,
         priority: bool = False,
         estimated_size_gb: float = 0.0,
+        accessible_library_ids: list[str] | None = None,
     ) -> bool:
         """Atomically claim *source_path* for *worker_id*.
 
@@ -195,6 +285,7 @@ class InFlightRegistry:
                     exc,
                 )
                 safe_estimated_size_gb = 0.0
+            safe_library_ids = coerce_library_id_list(accessible_library_ids or [])
             job = InFlightJob(
                 job_id=job_id,
                 worker_id=worker_id,
@@ -205,10 +296,43 @@ class InFlightRegistry:
                 encode_config=encode_config,
                 priority=priority,
                 estimated_size_gb=safe_estimated_size_gb,
+                accessible_library_ids=safe_library_ids,
             )
             self._jobs[job_id] = job
             self._claimed_paths[source_path] = job_id
+
+            safe_worker_id = str(worker_id or "").strip()
+            if safe_worker_id:
+                stats = self._worker_stats.setdefault(
+                    safe_worker_id,
+                    _default_worker_stats(safe_worker_id, worker_name),
+                )
+                _ensure_worker_stats_fields(stats, safe_worker_id, worker_name)
+                stats["name"] = worker_name or str(stats.get("name", "") or safe_worker_id[:8])
+                stats["last_seen"] = now
+                stats["accessible_library_ids"] = safe_library_ids
         return True
+
+    def note_worker_seen(
+        self,
+        *,
+        worker_id: str,
+        worker_name: str,
+        accessible_library_ids: list[str] | None = None,
+    ) -> None:
+        """Record that a worker reached the coordinator, even if no job is claimable."""
+        now = datetime.now(timezone.utc).isoformat()
+        safe_worker_id = str(worker_id or "").strip()
+        if not safe_worker_id:
+            return
+        safe_worker_name = str(worker_name or "").strip() or safe_worker_id[:8]
+        with self._lock:
+            stats = self._worker_stats.setdefault(safe_worker_id, _default_worker_stats(safe_worker_id, safe_worker_name))
+            _ensure_worker_stats_fields(stats, safe_worker_id, safe_worker_name)
+            stats["name"] = safe_worker_name or str(stats.get("name", "") or safe_worker_id[:8])
+            stats["last_seen"] = now
+            if accessible_library_ids is not None:
+                stats["accessible_library_ids"] = coerce_library_id_list(accessible_library_ids)
 
     def heartbeat(
         self,
@@ -217,6 +341,7 @@ class InFlightRegistry:
         *,
         progress_percent: float = 0.0,
         current_stage: str = "",
+        accessible_library_ids: list[str] | None = None,
     ) -> str:
         """Update heartbeat for *job_id*.
 
@@ -231,6 +356,17 @@ class InFlightRegistry:
             job.last_heartbeat   = datetime.now(timezone.utc).isoformat()
             job.progress_percent = coerce_progress_percent(progress_percent)
             job.current_stage    = current_stage
+            if accessible_library_ids is not None:
+                safe_library_ids = coerce_library_id_list(accessible_library_ids)
+                job.accessible_library_ids = safe_library_ids
+                stats = self._worker_stats.setdefault(
+                    worker_id,
+                    _default_worker_stats(worker_id, job.worker_name),
+                )
+                _ensure_worker_stats_fields(stats, worker_id, job.worker_name)
+                stats["name"] = job.worker_name or stats["name"]
+                stats["last_seen"] = job.last_heartbeat
+                stats["accessible_library_ids"] = safe_library_ids
         return "ok"
 
     def complete(
@@ -241,6 +377,8 @@ class InFlightRegistry:
         success: bool,
         elapsed_seconds: float = 0.0,
         output_size_bytes: int = 0,
+        reason_code: str = "",
+        reason: str = "",
     ) -> "InFlightJob | None":
         """Remove *job_id* from in-flight and increment the session counter.
 
@@ -281,15 +419,24 @@ class InFlightRegistry:
             # return False (already cleared above), and re-claim the
             # same source.
             self._recent_completions[job.source_path] = time.monotonic()
+            now = datetime.now(timezone.utc).isoformat()
+            ledger_key = _failure_ledger_key(job.worker_id, job.source_path)
             if success:
+                self._failure_ledger.pop(ledger_key, None)
                 self.session_completed += 1
                 # Update per-worker performance stats.
                 stats = self._worker_stats.setdefault(
                     job.worker_id,
-                    {"name": job.worker_name, "files": 0, "gb": 0.0, "secs": 0.0},
+                    _default_worker_stats(job.worker_id, job.worker_name),
                 )
+                _ensure_worker_stats_fields(stats, job.worker_id, job.worker_name)
                 stats["name"]  = job.worker_name or stats["name"]
+                stats["last_seen"] = now
                 stats["files"] += 1
+                stats["failure_streak_reason_code"] = ""
+                stats["failure_streak_count"] = 0
+                stats["worker_misconfigured_reason_code"] = ""
+                stats["worker_misconfigured_at"] = ""
                 # Prefer output_size_bytes when provided; fall back to estimate.
                 gb = (
                     output_size_bytes / (1024 ** 3)
@@ -300,6 +447,46 @@ class InFlightRegistry:
                 stats["secs"] += max(0.0, elapsed_seconds)
             else:
                 self.session_failed += 1
+                safe_reason_code = _safe_failure_reason_code(reason_code)
+                safe_reason = bounded_failure_reason(reason)
+                previous_entry = self._failure_ledger.get(ledger_key)
+                if previous_entry and previous_entry.get("reason_code") == safe_reason_code:
+                    consecutive_count = int(previous_entry.get("consecutive_count", 0) or 0) + 1
+                    first_failed_at = str(previous_entry.get("first_failed_at", "") or now)
+                    alert_emitted = bool(previous_entry.get("alert_emitted", False))
+                else:
+                    consecutive_count = 1
+                    first_failed_at = now
+                    alert_emitted = False
+                self._failure_ledger[ledger_key] = {
+                    "worker_id": job.worker_id,
+                    "worker_name": job.worker_name,
+                    "source_path": job.source_path,
+                    "reason_code": safe_reason_code,
+                    "reason": safe_reason,
+                    "consecutive_count": consecutive_count,
+                    "first_failed_at": first_failed_at,
+                    "last_failed_at": now,
+                    "last_job_id": job.job_id,
+                    "alert_emitted": alert_emitted,
+                }
+                stats = self._worker_stats.setdefault(
+                    job.worker_id,
+                    _default_worker_stats(job.worker_id, job.worker_name),
+                )
+                _ensure_worker_stats_fields(stats, job.worker_id, job.worker_name)
+                stats["name"] = job.worker_name or stats["name"]
+                stats["last_seen"] = now
+                stats["last_failure_reason_code"] = safe_reason_code
+                stats["last_failure_reason"] = safe_reason
+                stats["last_failure_job_id"] = job.job_id
+                stats["last_failure_source_path"] = job.source_path
+                stats["last_failure_at"] = now
+                if stats.get("failure_streak_reason_code") == safe_reason_code:
+                    stats["failure_streak_count"] = int(stats.get("failure_streak_count", 0) or 0) + 1
+                else:
+                    stats["failure_streak_reason_code"] = safe_reason_code
+                    stats["failure_streak_count"] = 1
         return job
 
     def unclaim(self, job_id: str, worker_id: str = "") -> "InFlightJob | None":
@@ -329,6 +516,77 @@ class InFlightRegistry:
             # immediately re-picking the path it just released.
             self._recent_completions[job.source_path] = time.monotonic()
         return job
+
+    def rollback_claim(self, job_id: str, worker_id: str = "") -> "InFlightJob | None":
+        """Undo a claim that was never durably saved.
+
+        Unlike :meth:`unclaim`, this does not add the source path to the
+        recent-completion quarantine. The coordinator is rolling back an
+        uncommitted claim, not releasing work that a worker has observed.
+        """
+        with self._lock:
+            job = self._jobs.get(job_id)
+            if job is None:
+                return None
+            requester = (worker_id or "").strip()
+            if requester and requester != job.worker_id:
+                _log.warning(
+                    "Rejecting rollback_claim() for job %s: requester worker_id=%r "
+                    "does not match owner %r",
+                    job_id[:8], requester[:32], job.worker_id[:32],
+                )
+                return None
+            del self._jobs[job_id]
+            self._claimed_paths.pop(job.source_path, None)
+            self._recent_completions.pop(job.source_path, None)
+        return job
+
+    def claim_blocked_by_failure(self, *, worker_id: str, source_path: str, max_retries: int) -> dict[str, Any] | None:
+        """Return ledger evidence when this worker/source is retry-suppressed."""
+        threshold = max(1, int(max_retries or 1))
+        key = _failure_ledger_key(worker_id, source_path)
+        with self._lock:
+            entry = self._failure_ledger.get(key)
+            if not entry:
+                return None
+            if int(entry.get("consecutive_count", 0) or 0) < threshold:
+                return None
+            return dict(entry)
+
+    def mark_failure_quarantine_alerted(
+        self,
+        *,
+        worker_id: str,
+        source_path: str,
+        max_retries: int,
+    ) -> dict[str, Any] | None:
+        """Mark and return the quarantine entry once when its threshold is reached."""
+        threshold = max(1, int(max_retries or 1))
+        key = _failure_ledger_key(worker_id, source_path)
+        now = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            entry = self._failure_ledger.get(key)
+            if not entry:
+                return None
+            if int(entry.get("consecutive_count", 0) or 0) < threshold:
+                return None
+            if bool(entry.get("alert_emitted", False)):
+                return None
+            entry["alert_emitted"] = True
+            stats = self._worker_stats.setdefault(
+                str(worker_id or ""),
+                _default_worker_stats(str(worker_id or ""), str(entry.get("worker_name", "") or "")),
+            )
+            _ensure_worker_stats_fields(stats, str(worker_id or ""), str(entry.get("worker_name", "") or ""))
+            if int(stats.get("failure_streak_count", 0) or 0) >= threshold:
+                stats["worker_misconfigured_reason_code"] = str(entry.get("reason_code", "") or "")
+                stats["worker_misconfigured_at"] = now
+            return dict(entry)
+
+    def failure_ledger_snapshot(self) -> list[dict[str, Any]]:
+        """Return a stable copy of per-worker/source failure suppression state."""
+        with self._lock:
+            return [dict(entry) for entry in self._failure_ledger.values()]
 
     def reclaim_stale(self, timeout_mins: float) -> list[InFlightJob]:
         """Return and remove all jobs whose heartbeat has expired.
@@ -439,6 +697,18 @@ class InFlightRegistry:
                 files_completed  = int(ws.get("files", 0)),
                 total_gb_encoded = round(total_gb, 2),
                 avg_speed_gbh    = round(avg_speed, 2),
+                last_failure_reason_code = str(ws.get("last_failure_reason_code", "") or ""),
+                last_failure_reason      = str(ws.get("last_failure_reason", "") or ""),
+                last_failure_job_id      = str(ws.get("last_failure_job_id", "") or ""),
+                last_failure_source_path = str(ws.get("last_failure_source_path", "") or ""),
+                last_failure_at          = str(ws.get("last_failure_at", "") or ""),
+                failure_streak_reason_code = str(ws.get("failure_streak_reason_code", "") or ""),
+                failure_streak_count       = int(ws.get("failure_streak_count", 0) or 0),
+                worker_misconfigured_reason_code = str(ws.get("worker_misconfigured_reason_code", "") or ""),
+                worker_misconfigured_at          = str(ws.get("worker_misconfigured_at", "") or ""),
+                accessible_library_ids = coerce_library_id_list(
+                    j.accessible_library_ids or ws.get("accessible_library_ids", [])
+                ),
             ))
         return entries
 
@@ -468,12 +738,22 @@ class InFlightRegistry:
                 status           = "idle",
                 current_file     = "",
                 progress_percent = 100.0,
-                current_stage    = "done",
-                last_heartbeat   = "",
+                current_stage    = "idle",
+                last_heartbeat   = str(ws.get("last_seen", "") or ""),
                 claimed_at       = "",
                 files_completed  = int(ws.get("files", 0)),
                 total_gb_encoded = round(total_gb, 2),
                 avg_speed_gbh    = round(avg_speed, 2),
+                last_failure_reason_code = str(ws.get("last_failure_reason_code", "") or ""),
+                last_failure_reason      = str(ws.get("last_failure_reason", "") or ""),
+                last_failure_job_id      = str(ws.get("last_failure_job_id", "") or ""),
+                last_failure_source_path = str(ws.get("last_failure_source_path", "") or ""),
+                last_failure_at          = str(ws.get("last_failure_at", "") or ""),
+                failure_streak_reason_code = str(ws.get("failure_streak_reason_code", "") or ""),
+                failure_streak_count       = int(ws.get("failure_streak_count", 0) or 0),
+                worker_misconfigured_reason_code = str(ws.get("worker_misconfigured_reason_code", "") or ""),
+                worker_misconfigured_at          = str(ws.get("worker_misconfigured_at", "") or ""),
+                accessible_library_ids = coerce_library_id_list(ws.get("accessible_library_ids", [])),
             ))
         return entries
 
@@ -495,6 +775,7 @@ class InFlightRegistry:
                 "session_completed": self.session_completed,
                 "session_failed":    self.session_failed,
                 "worker_stats":      dict(self._worker_stats),
+                "failure_ledger":    [dict(entry) for entry in self._failure_ledger.values()],
             }
         tmp_path: Path | None = None
         try:
@@ -549,6 +830,17 @@ class InFlightRegistry:
                         path,
                     )
                     continue
+                if job.job_id in jobs:
+                    raise ValueError(
+                        f"duplicate in-flight job_id {job.job_id!r} at index {index}; "
+                        "coordinator recovery requires unique job ownership"
+                    )
+                if job.source_path in claimed_paths:
+                    owner = claimed_paths[job.source_path]
+                    raise ValueError(
+                        f"duplicate in-flight source_path {job.source_path!r} at index {index}; "
+                        f"already claimed by job_id {owner!r}"
+                    )
                 jobs[job.job_id] = job
                 claimed_paths[job.source_path] = job.job_id
 
@@ -565,11 +857,37 @@ class InFlightRegistry:
                             "files": coerce_nonnegative_int(ws.get("files", 0), "files"),
                             "gb":    coerce_finite_float(ws.get("gb", 0.0), "gb", minimum=0.0),
                             "secs":  coerce_finite_float(ws.get("secs", 0.0), "secs", minimum=0.0),
+                            "last_seen": str(ws.get("last_seen", "") or ""),
+                            "last_failure_reason_code": normalize_failure_reason_code(ws.get("last_failure_reason_code", "")),
+                            "last_failure_reason": bounded_failure_reason(ws.get("last_failure_reason", "")),
+                            "last_failure_job_id": str(ws.get("last_failure_job_id", "") or ""),
+                            "last_failure_source_path": str(ws.get("last_failure_source_path", "") or ""),
+                            "last_failure_at": str(ws.get("last_failure_at", "") or ""),
+                            "failure_streak_reason_code": normalize_failure_reason_code(ws.get("failure_streak_reason_code", "")),
+                            "failure_streak_count": coerce_nonnegative_int(ws.get("failure_streak_count", 0), "failure_streak_count"),
+                            "worker_misconfigured_reason_code": normalize_failure_reason_code(ws.get("worker_misconfigured_reason_code", "")),
+                            "worker_misconfigured_at": str(ws.get("worker_misconfigured_at", "") or ""),
                         }
                     except Exception as exc:
                         _log.warning("Skipping malformed worker stats for %s in %s: %s", wid, path, exc)
             else:
                 _log.warning("Ignoring malformed worker_stats in %s: expected object", path)
+
+            failure_ledger: dict[str, dict[str, Any]] = {}
+            raw_ledger = data.get("failure_ledger", [])
+            if isinstance(raw_ledger, dict):
+                raw_ledger_items = list(raw_ledger.values())
+            elif isinstance(raw_ledger, list):
+                raw_ledger_items = raw_ledger
+            else:
+                raw_ledger_items = []
+                _log.warning("Ignoring malformed failure_ledger in %s: expected array or object", path)
+            for index, raw_entry in enumerate(raw_ledger_items):
+                entry = _safe_failure_ledger_entry(raw_entry)
+                if entry is None:
+                    _log.warning("Skipping malformed failure ledger entry at index %d in %s", index, path)
+                    continue
+                failure_ledger[_failure_ledger_key(entry["worker_id"], entry["source_path"])] = entry
 
             try:
                 session_completed = coerce_nonnegative_int(data.get("session_completed", 0), "session_completed")
@@ -588,6 +906,7 @@ class InFlightRegistry:
                 self.session_completed = session_completed
                 self.session_failed = session_failed
                 self._worker_stats = worker_stats
+                self._failure_ledger = failure_ledger
             _log.info("Restored %d in-flight job(s) from %s", len(self._jobs), path)
             return True
         except Exception:

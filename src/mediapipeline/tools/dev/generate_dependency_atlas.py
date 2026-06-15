@@ -50,6 +50,25 @@ SUMMARY_CSV = ASSET_ROOT / "dependency_summary.csv"
 DOMAIN_EDGE_CSV = ASSET_ROOT / "dependency_edges.csv"
 MODULE_EDGE_CSV = ASSET_ROOT / "dependency_module_edges.csv"
 
+LEGACY_ROOT_ATLAS_EXACT_NAMES = frozenset(
+    {
+        "python_dependencies.png",
+        "python_dependencies.svg",
+        "dependency_domains.png",
+        "dependency_domains.svg",
+    }
+)
+LEGACY_ROOT_ATLAS_PATTERNS = (
+    "*python_dependencies.png",
+    "*python_dependencies.svg",
+    "*dependency_domains.png",
+    "*dependency_domains.svg",
+)
+LEGACY_ROOT_ATLAS_TEXT_MARKERS = (
+    "dependency atlas",
+    "python dependency atlas",
+)
+
 GRAPHVIZ_FALLBACKS = (
     Path(r"C:\Program Files\Graphviz\bin\dot.exe"),
     Path(r"C:\Program Files (x86)\Graphviz\bin\dot.exe"),
@@ -168,19 +187,31 @@ def clean_outputs() -> None:
         path.unlink(missing_ok=True)
     if LEGACY_ASSET_ROOT.exists() and LEGACY_ASSET_ROOT.is_dir():
         legacy_asset_root = LEGACY_ASSET_ROOT.resolve()
-        if legacy_asset_root.parent != REPO_ROOT.resolve():
+        expected_legacy_parent = (REPO_ROOT / Path(ROOT_OUTPUT_PREFIX).parent).resolve()
+        if legacy_asset_root.parent != expected_legacy_parent:
             raise RuntimeError(f"Refusing to remove unexpected atlas asset path: {legacy_asset_root}")
         shutil.rmtree(legacy_asset_root)
 
     # Remove earlier one-off dependency graph names from the manual setup pass.
-    for stale_pattern in (
-        "*python_dependencies.png",
-        "*python_dependencies.svg",
-        "*dependency_domains.png",
-        "*dependency_domains.svg",
-    ):
+    for stale_pattern in LEGACY_ROOT_ATLAS_PATTERNS:
         for path in REPO_ROOT.glob(stale_pattern):
-            path.unlink(missing_ok=True)
+            if legacy_root_atlas_artifact(path):
+                path.unlink(missing_ok=True)
+
+
+def legacy_root_atlas_artifact(path: Path) -> bool:
+    if not path.is_file():
+        return False
+    if path.name in LEGACY_ROOT_ATLAS_EXACT_NAMES:
+        return True
+    if path.suffix.lower() != ".svg":
+        return False
+    try:
+        text = path.read_text(encoding="utf-8", errors="ignore")
+    except OSError:
+        return False
+    lowered = text.lower()
+    return any(marker in lowered for marker in LEGACY_ROOT_ATLAS_TEXT_MARKERS)
 
 
 def iter_python_modules(package_roots: Iterable[tuple[str, Path]]) -> ModuleIndex:

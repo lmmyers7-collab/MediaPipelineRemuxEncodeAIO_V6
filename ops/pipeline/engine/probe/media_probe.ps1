@@ -400,6 +400,245 @@ function Get-SourceHdr10MasteringMetadata {
     return $base
 }
 
+function ConvertTo-DynamicHdrInt {
+    param($Value, [int] $Default = 0)
+
+    if ($null -eq $Value) { return $Default }
+    $result = 0
+    if ([int]::TryParse([string]$Value, [ref]$result)) { return $result }
+    return $Default
+}
+
+function Test-DynamicHdrFlag {
+    param($Value)
+
+    if ($null -eq $Value) { return $false }
+    $text = ([string]$Value).Trim()
+    return ($text -eq '1' -or $text -match '^(?i:true)$')
+}
+
+function Get-DynamicHdrProbeFailureReason {
+    param($ProbeResult, [string] $Stage)
+
+    if ($ProbeResult -and $ProbeResult.TimedOut) {
+        return "ffprobe timed out during $Stage"
+    }
+    if ($ProbeResult -and $ProbeResult.Stopped) {
+        return "ffprobe stopped during $Stage"
+    }
+    if ($ProbeResult -and -not [string]::IsNullOrWhiteSpace([string]$ProbeResult.Error)) {
+        return [string]$ProbeResult.Error
+    }
+    if ($ProbeResult) {
+        return "ffprobe exited with code $($ProbeResult.ExitCode) during $Stage"
+    }
+    return "ffprobe did not return a result during $Stage"
+}
+
+function Get-DynamicHdrObjectValue {
+    param($Object, [Parameter(Mandatory)] [string] $Name, $Default = $null)
+
+    if (-not $Object) { return $Default }
+    if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name)) { return $Object[$Name] }
+    $prop = $Object.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    return $Default
+}
+
+function Get-DolbyVisionState {
+    param([string]$FilePath)
+
+    $base = [pscustomobject][ordered]@{
+        Known          = $false
+        Reason         = ''
+        DoviPresent    = $false
+        DoviProfile    = 0
+        DoviLevel      = 0
+        DoviBlCompatId = -1
+        DoviRpuPresent = $false
+        DoviElPresent  = $false
+    }
+
+    $r = Invoke-FFprobeCommand -ArgumentList @(
+        "-v","error","-select_streams","v:0",
+        "-show_entries","stream=codec_name:stream_side_data_list",
+        "-of","json","--",$FilePath
+    ) -TimeoutSeconds 30 -Stage 'dovi-detection'
+
+    if ($r.ExitCode -ne 0 -or $r.TimedOut -or $r.Stopped) {
+        $base.Reason = Get-DynamicHdrProbeFailureReason -ProbeResult $r -Stage 'Dolby Vision detection'
+        return $base
+    }
+
+    try {
+        $json = $r.Output | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        $base.Reason = "Dolby Vision JSON parse failed: $($_.Exception.Message)"
+        return $base
+    }
+
+    $streams = @($json.streams)
+    if ($streams.Count -eq 0) {
+        $base.Known = $true
+        return $base
+    }
+
+    $sideData = @($streams[0].side_data_list)
+    foreach ($entry in $sideData) {
+        $type = [string]$entry.side_data_type
+        if ($type -match '(?i)(dovi|dolby\s+vision).*configuration') {
+            $base.Known = $true
+            $base.DoviPresent = $true
+            $base.DoviProfile = ConvertTo-DynamicHdrInt -Value $entry.dv_profile -Default 0
+            $base.DoviLevel = ConvertTo-DynamicHdrInt -Value $entry.dv_level -Default 0
+            $base.DoviBlCompatId = ConvertTo-DynamicHdrInt -Value $entry.dv_bl_signal_compatibility_id -Default -1
+            $base.DoviRpuPresent = Test-DynamicHdrFlag -Value $entry.rpu_present_flag
+            $base.DoviElPresent = Test-DynamicHdrFlag -Value $entry.el_present_flag
+            return $base
+        }
+    }
+
+    $base.Known = $true
+    return $base
+}
+
+function Test-Hdr10PlusPresence {
+    param([string]$FilePath, [int]$FrameSampleCount = 24)
+
+    if ($FrameSampleCount -lt 1) { $FrameSampleCount = 24 }
+    $base = [pscustomobject][ordered]@{
+        Known            = $false
+        Reason           = ''
+        Hdr10PlusPresent = $false
+        SampledFrames    = 0
+    }
+
+    $r = Invoke-FFprobeCommand -ArgumentList @(
+        "-v","error","-select_streams","v:0",
+        "-read_intervals","%+#$FrameSampleCount",
+        "-show_frames","-show_entries","frame=side_data_list",
+        "-of","json","--",$FilePath
+    ) -TimeoutSeconds 60 -Stage 'hdr10plus-detection'
+
+    if ($r.ExitCode -ne 0 -or $r.TimedOut -or $r.Stopped) {
+        $base.Reason = Get-DynamicHdrProbeFailureReason -ProbeResult $r -Stage 'HDR10+ detection'
+        return $base
+    }
+
+    try {
+        $json = $r.Output | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        $base.Reason = "HDR10+ JSON parse failed: $($_.Exception.Message)"
+        return $base
+    }
+
+    $frames = @($json.frames)
+    $base.Known = $true
+    $base.SampledFrames = [int]$frames.Count
+    foreach ($frame in $frames) {
+        foreach ($entry in @($frame.side_data_list)) {
+            $type = [string]$entry.side_data_type
+            # Require the -40 variant explicitly: SMPTE 2094-10 frame side data
+            # (DoVi-flavored dynamic metadata) must not be reported as HDR10+.
+            if ($type -match '(?i)SMPTE.?2094.?40|HDR.?10\+') {
+                $base.Hdr10PlusPresent = $true
+                return $base
+            }
+        }
+    }
+
+    return $base
+}
+
+function New-DynamicHdrEvidence {
+    param(
+        [Parameter(Mandatory)] [ValidateSet('encode','remux')] [string] $Route,
+        $DoviState = $null,
+        $Hdr10PlusState = $null,
+        [string] $Policy = 'warn'
+    )
+
+    $doviKnown = [bool](Get-DynamicHdrObjectValue -Object $DoviState -Name 'Known' -Default $false)
+    $hdr10PlusKnown = [bool](Get-DynamicHdrObjectValue -Object $Hdr10PlusState -Name 'Known' -Default $false)
+    $doviReason = [string](Get-DynamicHdrObjectValue -Object $DoviState -Name 'Reason' -Default '')
+    $hdr10PlusReason = [string](Get-DynamicHdrObjectValue -Object $Hdr10PlusState -Name 'Reason' -Default '')
+
+    $doviPresent = $doviKnown -and [bool](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviPresent' -Default $false)
+    $hdr10PlusPresent = $hdr10PlusKnown -and [bool](Get-DynamicHdrObjectValue -Object $Hdr10PlusState -Name 'Hdr10PlusPresent' -Default $false)
+    $dynamicPresent = ($doviPresent -or $hdr10PlusPresent)
+    $probeErrors = [System.Collections.Generic.List[string]]::new()
+    if (-not $doviKnown -and -not [string]::IsNullOrWhiteSpace($doviReason)) {
+        $probeErrors.Add("dovi: $doviReason")
+    }
+    if (-not $hdr10PlusKnown -and -not [string]::IsNullOrWhiteSpace($hdr10PlusReason)) {
+        $probeErrors.Add("hdr10plus: $hdr10PlusReason")
+    }
+    $probed = ($doviKnown -and $hdr10PlusKnown)
+    $probeError = ($probeErrors.ToArray() -join '; ')
+
+    $summaryParts = [System.Collections.Generic.List[string]]::new()
+    if ($doviPresent) {
+        $doviProfile = [int](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviProfile' -Default 0)
+        $doviCompat = [int](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviBlCompatId' -Default -1)
+        $doviEl = [bool](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviElPresent' -Default $false)
+        $doviSummary = "DoVi profile $doviProfile"
+        if ($doviCompat -ge 0) { $doviSummary = "$doviSummary (BL compat $doviCompat)" }
+        if ($doviEl) { $doviSummary = "$doviSummary (EL present)" }
+        $summaryParts.Add($doviSummary)
+    }
+    if ($hdr10PlusPresent) {
+        $summaryParts.Add('HDR10+')
+    }
+
+    $summary = if ($summaryParts.Count -gt 0) {
+        $summaryParts.ToArray() -join ' + '
+    } elseif (-not $probed) {
+        'dynamic HDR probe failed'
+    } else {
+        'no dynamic HDR metadata detected'
+    }
+
+    $outcome = 'none_detected'
+    $warning = ''
+    if ($dynamicPresent -and $Route -eq 'encode') {
+        $outcome = 'will_drop_encode'
+        $warning = "Dynamic HDR metadata ($summary) will be dropped by encode; static HDR10 metadata is handled separately."
+    } elseif ($dynamicPresent -and $Route -eq 'remux') {
+        $outcome = 'expected_preserved_remux'
+    } elseif (-not $probed) {
+        $outcome = 'probe_failed'
+    }
+
+    return [pscustomobject][ordered]@{
+        schema_version           = 'dynamic_hdr_evidence.v1'
+        probed                   = [bool]$probed
+        probe_error              = $probeError
+        dovi_present             = [bool]$doviPresent
+        dovi_profile             = [int](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviProfile' -Default 0)
+        dovi_level               = [int](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviLevel' -Default 0)
+        dovi_bl_compat_id        = [int](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviBlCompatId' -Default -1)
+        dovi_el_present          = [bool](Get-DynamicHdrObjectValue -Object $DoviState -Name 'DoviElPresent' -Default $false)
+        hdr10plus_present        = [bool]$hdr10PlusPresent
+        dynamic_metadata_present = [bool]$dynamicPresent
+        policy                   = if ([string]::IsNullOrWhiteSpace($Policy)) { 'warn' } else { [string]$Policy }
+        route                    = [string]$Route
+        outcome                  = $outcome
+        summary                  = $summary
+        warning                  = $warning
+        tool_versions            = [ordered]@{
+            dovi_tool       = ''
+            hdr10plus_tool  = ''
+        }
+        verification             = [ordered]@{
+            checked                  = $false
+            output_dovi_present      = $false
+            output_hdr10plus_present = $false
+            rpu_frame_count          = 0
+            expected_frame_count     = 0
+        }
+    }
+}
+
 function Test-IsHDR {
     param([string]$FilePath)
     $state = Get-HDRState $FilePath

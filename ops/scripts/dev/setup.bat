@@ -1,19 +1,19 @@
 @echo off
-setlocal EnableExtensions EnableDelayedExpansion
+setlocal EnableExtensions DisableDelayedExpansion
 
 set "SCRIPT_ROOT=%~dp0"
 for %%I in ("%SCRIPT_ROOT%..\..\..") do set "PROJECT_ROOT=%%~fI"
 set "PIPELINE_ROOT=%PROJECT_ROOT%\ops\pipeline"
 set "PIPELINE_ENTRYPOINT_ROOT=%PIPELINE_ROOT%\entrypoints"
+set "SETUP_ALIAS_ARGS="
 
 if /i "%~1"=="/?" goto :show_help
 if /i "%~1"=="-h" goto :show_help
 if /i "%~1"=="--help" goto :show_help
 
-set "SETUP_ARGS=%*"
-if /i "%~1"=="validate" set "SETUP_ARGS=-ValidateOnly"
-if /i "%~1"=="quick" set "SETUP_ARGS=-AcceptDefaults"
-if /i "%~1"=="defaults" set "SETUP_ARGS=-ListDefaults"
+if /i "%~1"=="validate" set "SETUP_ALIAS_ARGS=-ValidateOnly"
+if /i "%~1"=="quick" set "SETUP_ALIAS_ARGS=-AcceptDefaults"
+if /i "%~1"=="defaults" set "SETUP_ALIAS_ARGS=-ListDefaults"
 
 if not exist "%PIPELINE_ENTRYPOINT_ROOT%\Setup-MediaPipeline.ps1" (
     echo ERROR: Setup-MediaPipeline.ps1 was not found in:
@@ -47,8 +47,12 @@ if not defined PWSH_PATH (
 
 :pwsh_resolved
 if defined PWSH_PATH (
-    echo Launching setup with PowerShell 7: !PWSH_PATH!
-    "!PWSH_PATH!" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ENTRYPOINT_ROOT%\Setup-MediaPipeline.ps1" !SETUP_ARGS!
+    echo Launching setup with PowerShell 7: %PWSH_PATH%
+    if defined SETUP_ALIAS_ARGS (
+        "%PWSH_PATH%" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ENTRYPOINT_ROOT%\Setup-MediaPipeline.ps1" %SETUP_ALIAS_ARGS%
+    ) else (
+        "%PWSH_PATH%" -NoProfile -ExecutionPolicy Bypass -File "%PIPELINE_ENTRYPOINT_ROOT%\Setup-MediaPipeline.ps1" %*
+    )
 ) else (
     echo ERROR: PowerShell 7 was not found.
     echo Expected bundled runtime under "%PIPELINE_ROOT%\runtime\PowerShell-7.6.0-win-x64" or pwsh.exe on PATH.
@@ -56,11 +60,11 @@ if defined PWSH_PATH (
     exit /b 1
 )
 
-set "EXIT_CODE=!ERRORLEVEL!"
+set "EXIT_CODE=%ERRORLEVEL%"
 echo.
-echo Setup exited with code !EXIT_CODE!.
+echo Setup exited with code %EXIT_CODE%.
 pause
-exit /b !EXIT_CODE!
+exit /b %EXIT_CODE%
 
 :show_help
 echo MediaPipelineRemuxEncodeAIO setup launcher 1.0

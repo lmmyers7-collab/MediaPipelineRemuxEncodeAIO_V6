@@ -1,23 +1,15 @@
 from __future__ import annotations
 
-import json
 from typing import Any
 
 from mediapipeline.core.rename.policy import rename_cleaning_policy_from_resolved, rename_request_with_cleaning_policy
 
-from .http_helpers import query_value
+from .http_helpers import query_json_object, query_value
 from .read_payloads_policy import read_unavailable_payload
 
 
 def _query_json_dict(query: dict[str, list[str]], key: str) -> dict[str, Any]:
-    raw = query_value(query, key, "")
-    if not raw:
-        return {}
-    try:
-        value = json.loads(raw)
-    except (TypeError, ValueError):
-        return {}
-    return value if isinstance(value, dict) else {}
+    return query_json_object(query, key)
 
 
 class LocalApiWorkspaceReadPayloadMixin:

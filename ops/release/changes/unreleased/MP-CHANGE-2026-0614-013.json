@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0614-013",
+  "title": "Record C4 UNC-canonical alternative as skipped",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Record the C4 decision from the network worker hardening plan as skipped because the C1/C2 per-worker library-root strategy is already implemented.",
+  "reason": "C4 is explicitly alternative-to C1+C2 and the plan says not to ship both path identity strategies.",
+  "affected_areas": [
+    "docs",
+    "network"
+  ],
+  "behavior_before": "The plan listed C4 as an unclassified alternative after C1/C2 completion.",
+  "behavior_after": "The plan records that C4 is intentionally not implemented in this execution path.",
+  "files_touched": [
+    "docs/architecture/NETWORK_WORKER_HARDENING_PLAN.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0614-013.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-013.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Doc-only C4 decision: no code behavior changed; C4 skipped because C1/C2 strategy is already implemented and plan says not to ship both.",
+    "change_control.validate_changes --require-worktree-coverage (FAIL: only unrelated dependency-atlas assets uncovered: dependency_detail_core_library.{png,svg}, dependency_detail_desktop_watch.{png,svg})"
+  ],
+  "rollback_plan": "Remove the C4 status note if the operator explicitly chooses the UNC-canonical addressing strategy in a later change.",
+  "related_changes": [
+    "MP-CHANGE-2026-0614-010",
+    "MP-CHANGE-2026-0614-011"
+  ],
+  "notes": "No code behavior changes. This packet documents the plan decision only.\nC4 intentionally skipped; proceed to Phase D.\nC4 doc decision complete. Strict coverage blocked only by unrelated dependency-atlas assets."
+}

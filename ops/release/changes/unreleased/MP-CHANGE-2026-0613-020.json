@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0613-020",
+  "title": "Enable network lifecycle dispatcher providers",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-13",
+  "date_completed": "2026-06-13",
+  "summary": "Adds desktop-owned Coordinator/Worker lifecycle providers so confirmed Network Lifecycle Start/Stop commands can construct and stop the real coordinator and worker dispatchers instead of permanently failing provider preconditions.",
+  "reason": "The deployed portable build showed the hardened Network page and route controls, but Start Worker/Start Coordinator still returned a backend precondition block because request_network_lifecycle only saw monkeypatched test providers and no real app/service provider existed. The worker screenshot also showed a bind-all coordinator address being used as a worker connect URL, so worker URL preflight now blocks that before provider startup.",
+  "affected_areas": [
+    "desktop-application",
+    "network-lifecycle",
+    "validation"
+  ],
+  "behavior_before": "Network lifecycle routes were registered and fail-closed, but confirmed start could not start coordinator or worker runtime because no start_network_coordinator/start_network_worker provider existed. Worker settings such as http://0.0.0.0:7830 were not rejected until provider/runtime validation.",
+  "behavior_after": "The application facade exposes desktop-owned lifecycle providers that start/stop CoordinatorDispatcher and WorkerDispatcher through request_network_lifecycle only. Claimed worker jobs launch as backend single-file pipeline work without enabling normal Launch in network modes, journal failure after start attempts triggers provider cleanup, and malformed/bind-all worker coordinator URLs block during preflight.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/desktop/application/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0613-020.json",
+    "src/mediapipeline/core/network/lifecycle_facade.py",
+    "src/mediapipeline/desktop/application/facade.py",
+    "src/mediapipeline/desktop/application/network_lifecycle_provider.py",
+    "tests/python/desktop/test_application_facade_process_launch.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_process_launch.py"
+  ],
+  "manual_validation": [
+    "check_dependency_boundaries --max-internal-imports 1 - passed with unallowlisted hard findings: 0",
+    "git diff --check targeted tracked files - passed",
+    "node --check networkView.js settingsView.builders.network.js - passed",
+    "py_compile edited lifecycle/provider/facade/test files - passed",
+    "py_compile lifecycle_facade.py network_lifecycle_provider.py facade.py - passed",
+    "rg trailing whitespace on network_lifecycle_provider.py - no matches",
+    "unittest api contracts/local api/tauri/watch targeted suites - passed (182 tests)",
+    "unittest final backend/API/network/WebView grouped validation - passed (359 tests)",
+    "unittest network coordinator/worker runtime and WebView mutation boundary suites - passed (150 tests)",
+    "unittest tests.python.desktop.test_application_facade_process_launch - passed (25 tests)",
+    "unittest webview browser network/settings smokes - passed (2 tests)",
+    "validate_changes --require-worktree-coverage - failed only for unrelated uncovered dependency-atlas image files: docs/generated/dependency-atlas/assets/dependency_detail_core_library.png, docs/generated/dependency-atlas/assets/dependency_detail_core_library.svg, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.png, docs/generated/dependency-atlas/assets/dependency_detail_desktop_watch.svg"
+  ],
+  "rollback_plan": "Revert network_lifecycle_provider.py, remove NetworkLifecycleProviderMixin from the application facade, restore lifecycle provider lookup to service-only behavior, and revert the process-launch lifecycle tests. Then rerun the targeted network lifecycle, Local API, WebView, and dependency-boundary validations.",
+  "related_changes": [
+    "MP-CHANGE-2026-0613-019",
+    "MP-CHANGE-2026-0614-001"
+  ],
+  "notes": "Adds real desktop-owned network lifecycle providers after deployed UI showed lifecycle start still blocked because no provider existed. Worker URL preflight now blocks bind-all or malformed coordinator URLs before provider startup."
+}

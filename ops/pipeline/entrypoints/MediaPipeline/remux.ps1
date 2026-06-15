@@ -21,6 +21,7 @@ function Do-Remux {
     $fallbackSourceRouteReasonCode = if ($FallbackFromOversizedEncode) { [string]$script:CurrentRouteReasonCode } else { '' }
     $fallbackSourceRouteReason = if ($FallbackFromOversizedEncode) { [string]$script:CurrentRouteReason } else { '' }
     $script:LastPublishResult = $null
+    $script:CurrentDynamicHdrEvidence = $null
     if ($FallbackFromOversizedEncode) {
         $script:CurrentSizePolicyResult = $fallbackSizePolicyResult
     } else {
@@ -124,6 +125,37 @@ function Do-Remux {
         $script:CurrentRoutePlan = $codecRoutePlan
         $script:CurrentRouteReasonCode = [string]$codecRoutePlan.ReasonCode
         $script:CurrentRouteReason = [string]$codecRoutePlan.Reason
+
+        $remuxHdrKnown = $false
+        $remuxIsHdr = $false
+        $sourceProfile = $null
+        if ($script:CurrentRoutePlan -and $script:CurrentRoutePlan.PSObject.Properties['SourceMediaProfile']) {
+            $sourceProfile = $script:CurrentRoutePlan.SourceMediaProfile
+        }
+        if ($sourceProfile -is [System.Collections.IDictionary] -and $sourceProfile.Contains('is_hdr')) {
+            $remuxHdrKnown = $true
+            $remuxIsHdr = [bool]$sourceProfile['is_hdr']
+        } elseif ($sourceProfile -and $sourceProfile.PSObject.Properties['is_hdr']) {
+            $remuxHdrKnown = $true
+            $remuxIsHdr = [bool]$sourceProfile.is_hdr
+        }
+        if (-not $remuxHdrKnown) {
+            $remuxHdrState = Get-HDRState $localIn
+            if ([bool]$remuxHdrState.Known) {
+                $remuxHdrKnown = $true
+                $remuxIsHdr = [bool]$remuxHdrState.IsHDR
+            } else {
+                Write-Log "REMUX: HDR state unknown during dynamic HDR probe gate ($($remuxHdrState.Reason)); continuing without dynamic-HDR evidence" "DEBUG"
+            }
+        }
+        if ($remuxIsHdr) {
+            $doviState = Get-DolbyVisionState -FilePath $localIn
+            $hdr10PlusState = Test-Hdr10PlusPresence -FilePath $localIn
+            $script:CurrentDynamicHdrEvidence = New-DynamicHdrEvidence -Route 'remux' -DoviState $doviState -Hdr10PlusState $hdr10PlusState
+            if ([bool]$script:CurrentDynamicHdrEvidence.dynamic_metadata_present) {
+                Write-Log ("REMUX: source carries dynamic HDR metadata ({0}); expected to pass through remux, output verification ships in a later phase" -f $script:CurrentDynamicHdrEvidence.summary)
+            }
+        }
 
         Set-ProgressStage -Stage 'remux_prepare' -Status $script:pipelineStatus -Route 'remux' -CopyState 'complete' -Percent 0 -SaveNow
         try {

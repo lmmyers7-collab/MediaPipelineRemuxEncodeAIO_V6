@@ -12,12 +12,16 @@ from unittest.mock import patch
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.network.auth import (
+    AUTH_FAILURE_CLOCK_SKEW,
     LEGACY_BEARER_ENV_VAR,
     sign_request,
     validate_header,
     validate_request_auth,
+    validate_request_auth_result,
     validate_signed_request,
+    validate_signed_request_result,
 )
+from mediapipeline.core.network.url_policy import redact_network_secret_text, redact_url
 from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher, _CoordHandler
 from mediapipeline.desktop.network.identity import (
     LOG_MESSAGE_TRUNCATION_SUFFIX,
@@ -112,6 +116,60 @@ class NetworkSecurityTests(unittest.TestCase):
                 now=timestamp + 301,
             )
         )
+
+    def test_hmac_clock_skew_is_diagnosed_only_after_signature_matches(self) -> None:
+        token = "s" * 32
+        timestamp = 1_700_000_000
+        stale = sign_request("GET", "/api/workers", b"", token, timestamp=timestamp, nonce="nonce-skew")
+
+        skew = validate_signed_request_result(
+            stale,
+            token,
+            method="GET",
+            path_with_query="/api/workers",
+            body=b"",
+            now=timestamp + 600,
+        )
+        self.assertFalse(skew.ok)
+        self.assertEqual(skew.reason, AUTH_FAILURE_CLOCK_SKEW)
+
+        wrong_token = validate_signed_request_result(
+            stale,
+            "x" * 32,
+            method="GET",
+            path_with_query="/api/workers",
+            body=b"",
+            now=timestamp + 600,
+        )
+        self.assertFalse(wrong_token.ok)
+        self.assertNotEqual(wrong_token.reason, AUTH_FAILURE_CLOCK_SKEW)
+
+    def test_request_auth_result_reports_clock_skew_reason(self) -> None:
+        token = "s" * 32
+        timestamp = 1_700_000_000
+        stale = sign_request("POST", "/api/heartbeat", b"{}", token, timestamp=timestamp, nonce="nonce-skew-2")
+
+        result = validate_request_auth_result(
+            stale,
+            token,
+            method="POST",
+            path_with_query="/api/heartbeat",
+            body=b"{}",
+        )
+        self.assertFalse(result.ok)
+        self.assertEqual(result.reason, AUTH_FAILURE_CLOCK_SKEW)
+
+    def test_url_secret_redaction_strips_query_fragment_userinfo_and_assignments(self) -> None:
+        self.assertEqual(
+            redact_url("http://user:pass@host.test:7830/path?token=secret#frag"),
+            "http://host.test:7830/path",
+        )
+        redacted = redact_network_secret_text(
+            "failed http://user:pass@host.test:7830/api?token=secret#frag WorkerAuthToken=abc"
+        )
+        self.assertIn("http://host.test:7830/api", redacted)
+        self.assertNotIn("secret", redacted)
+        self.assertNotIn("abc", redacted)
 
     def test_request_auth_allows_legacy_bearer_only_when_env_enabled(self) -> None:
         token = "s" * 32
@@ -490,6 +548,11 @@ class NetworkSecurityTests(unittest.TestCase):
         # Missing explicit coordinator port.
         with self.assertRaises(ValueError):
             _validate_coordinator_url("http://host")
+        # Bind-all listen addresses are not valid connect targets for a worker.
+        with self.assertRaises(ValueError):
+            _validate_coordinator_url("http://0.0.0.0:7830")
+        with self.assertRaises(ValueError):
+            _validate_coordinator_url("http://[::]:7830")
         # Invalid/out-of-range ports.
         with self.assertRaises(ValueError):
             _validate_coordinator_url("http://host:notaport")

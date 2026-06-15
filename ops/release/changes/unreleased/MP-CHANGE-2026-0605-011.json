@@ -32,7 +32,7 @@
   "manual_validation": [
     "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui -q -> passed; 38 tests OK.",
     "Browser-backed Settings route rail final interaction check via the repository CDP harness -> passed; full 1200/1800 values fit in the colored inputs, typing 1188 updated the 1080p hidden boundary/range/payload, and dragging the 4K segment moved the 4K lower boundary to 1695 with synchronized range text and payload.",
-    "Browser-backed Settings route rail visual check via the repository CDP harness -> passed; 3 rail segments, control values 1200 and 1800, viewportOverflow=0, railOverflow=0, overlaps=[]. Screenshot captured at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-settings-route-rail-editable.png.",
+    "Browser-backed Settings route rail visual check via the repository CDP harness -> passed; 3 rail segments, control values 1200 and 1800, viewportOverflow=0, railOverflow=0, overlaps=[]. Screenshot captured at <temp>\\mediapipeline-settings-route-rail-editable.png.",
     "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 -> passed; 1 test OK.",
     "Final strict coverage rerun -> failed due unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0605-010.json missing required field date_completed and not being listed in files_touched of any unreleased packet. This packet's files were not listed as uncovered."
   ],

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import threading
 import time
 import unittest
 from pathlib import Path
@@ -53,9 +54,15 @@ class DummyQueueScanService(QueueServiceMixin):
         self.app_root = root / "DesktopApp"
         self.workspace_root = root
         self.curate_force_refresh: list[bool] = []
+        self.block_curate = False
+        self.curate_started = threading.Event()
+        self.release_curate = threading.Event()
 
     def build_queue_preview(self, _resolved: ResolvedPaths, force_refresh: bool = False) -> list[object]:
         self.curate_force_refresh.append(force_refresh)
+        if self.block_curate:
+            self.curate_started.set()
+            self.release_curate.wait(timeout=5.0)
         return [object(), object()]
 
 
@@ -122,6 +129,36 @@ class QueueSourceScanTests(unittest.TestCase):
             self.assertEqual(inventory["row_count"], 1)
             self.assertFalse(inventory["launchable"])
             self.assertEqual(inventory["rows"][0]["curation_state"], "uncurated")
+
+    def test_source_scan_thread_is_not_daemonized_and_blocks_close_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            source = root / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_bytes(b"media")
+            service = DummyQueueScanService(root)
+            service.block_curate = True
+
+            result = service.start_queue_source_scan(
+                resolved,
+                {"mode": "inventory_then_curate", "force": True, "scope": "all"},
+            )
+            self.assertTrue(service.curate_started.wait(timeout=2.0))
+            active = getattr(service, "_queue_source_scan_active", None)
+            thread = active.get("thread") if isinstance(active, dict) else None
+            try:
+                self.assertTrue(result["ok"])
+                self.assertIsInstance(thread, threading.Thread)
+                assert isinstance(thread, threading.Thread)
+                self.assertFalse(thread.daemon)
+                self.assertIn("queue source scan", service.queue_source_scan_active_block_message("Shell close"))
+            finally:
+                service.release_curate.set()
+                if isinstance(thread, threading.Thread):
+                    thread.join(timeout=2.0)
+
+            self.assertEqual(service.queue_source_scan_active_block_message("Shell close"), "")
 
 
 if __name__ == "__main__":

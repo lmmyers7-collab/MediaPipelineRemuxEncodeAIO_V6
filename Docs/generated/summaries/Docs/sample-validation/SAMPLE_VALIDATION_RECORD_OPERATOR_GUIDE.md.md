@@ -3,9 +3,9 @@ file: docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-09
 last_reviewed: 2026-06-04
-sha256: 7079a53a66593291822c9f5ae08b724f552ebdd96f0e21cc049f8831a5a07f19
+sha256: 067a65675ea27521a1208aeaed758e6783e887b752cabb320c273f133c62c044
 ---
 # `docs/sample-validation/SAMPLE_VALIDATION_RECORD_OPERATOR_GUIDE.md`
 

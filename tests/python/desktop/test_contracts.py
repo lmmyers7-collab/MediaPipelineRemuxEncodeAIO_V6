@@ -456,7 +456,7 @@ class ContractTests(unittest.TestCase):
             self.assertEqual(schema["properties"][field].get("minLength"), 1)
 
     def test_pending_push_manifest_contract_accepts_recovery_and_sidecar_retry_states(self) -> None:
-        for state in ("parked_recovered", "retry_sidecar_failed"):
+        for state in ("parked_recovered", "retry_sidecar_backup_failed", "retry_sidecar_failed"):
             with self.subTest(state=state):
                 manifest = PendingPushManifest.from_mapping(current_pending_manifest_payload(manifest_state=state))
                 self.assertEqual(manifest.manifest_state, state)

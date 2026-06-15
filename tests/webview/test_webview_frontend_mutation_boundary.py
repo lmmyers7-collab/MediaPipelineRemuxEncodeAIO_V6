@@ -150,6 +150,15 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             literal_matches = list(API_POST_LITERAL_RE.finditer(source))
             all_calls = list(API_POST_CALL_RE.finditer(source))
             if len(literal_matches) != len(all_calls):
+                if (
+                    name == "networkView.js"
+                    and len(all_calls) - len(literal_matches) == 2
+                    and "function postNetworkLifecycleRoute" in source
+                    and "function networkWorkerTestConnectionRoute" in source
+                    and "apiPost(route, request)" in source
+                    and "apiPost(route, {})" in source
+                ):
+                    continue
                 unexpected.append(f"{name}: apiPost call must use a literal documented route")
                 continue
             for match in literal_matches:
@@ -161,6 +170,32 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
     def test_api_post_command_ownership_stays_page_specific(self) -> None:
         self.assertEqual(_literal_api_post_owners(), EXPECTED_API_POST_OWNERS)
+
+    def test_network_lifecycle_dispatch_uses_backend_contract_routes_and_confirmation_prompt(self) -> None:
+        source = _asset_sources()["networkView.js"]
+        lifecycle_paths = (
+            "/api/network/coordinator/start-dry-run",
+            "/api/network/coordinator/stop-dry-run",
+            "/api/network/worker/start-dry-run",
+            "/api/network/worker/stop-dry-run",
+            "/api/network/coordinator/start",
+            "/api/network/coordinator/stop",
+            "/api/network/worker/start",
+            "/api/network/worker/stop",
+        )
+
+        self.assertIn("function networkLifecycleRouteRow", source)
+        self.assertIn("route?.network_lifecycle", source)
+        self.assertIn("function networkLifecycleRoutePath", source)
+        self.assertIn("apiPost(route, request)", source)
+        self.assertIn("function confirmNetworkLifecycleCommand", source)
+        self.assertIn("network-lifecycle-confirm-dialog", source)
+        self.assertIn("Confirmed lifecycle command was cancelled", source)
+        self.assertIn("confirm_start", source)
+        self.assertIn("confirm_stop", source)
+        for path in lifecycle_paths:
+            with self.subTest(path=path):
+                self.assertNotIn(path, source)
 
     def test_diagnostics_does_not_own_pipeline_control_mutations(self) -> None:
         diagnostics_view = _asset_sources()["diagnosticsView.js"]
@@ -184,13 +219,24 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('id="tdarr-matrix-audit-bucket-rows"', diagnostics_html)
         self.assertIn('id="tdarr-matrix-run-compare-rows"', diagnostics_html)
         self.assertIn('id="tdarr-matrix-audit-rerun-selected"', diagnostics_html)
-        self.assertIn('data-tdarr-matrix-audit-action="full"', diagnostics_html)
+        self.assertIn('id="tdarr-matrix-proof-pack-rows"', diagnostics_html)
+        self.assertIn('id="tdarr-matrix-proof-pack-status"', diagnostics_html)
+        self.assertIn('data-tdarr-matrix-audit-action="prepare-proof-pack"', diagnostics_html)
+        self.assertIn('data-tdarr-matrix-audit-action="smoke-pack"', diagnostics_html)
+        self.assertIn('data-tdarr-matrix-audit-action="proof-pack"', diagnostics_html)
+        self.assertIn('data-tdarr-matrix-audit-action="cleanup-plan"', diagnostics_html)
+        self.assertIn('data-tdarr-matrix-audit-action="cleanup-archive"', diagnostics_html)
+        self.assertIn('data-tdarr-matrix-audit-action="cleanup-delete"', diagnostics_html)
+        self.assertNotIn('data-tdarr-matrix-audit-action="full"', diagnostics_html)
         self.assertIn("function renderTdarrMatrixAuditFindings", diagnostics_view)
         self.assertIn("function renderTdarrMatrixBucketCoverage", diagnostics_view)
         self.assertIn("function renderTdarrMatrixRunComparison", diagnostics_view)
+        self.assertIn("function renderTdarrMatrixProofPackRows", diagnostics_view)
         self.assertIn("function requestTdarrMatrixEvidenceOpen", diagnostics_view)
         self.assertIn("function requestTdarrMatrixRerun", diagnostics_view)
-        self.assertIn('full: "Run 100% Matrix"', diagnostics_view)
+        self.assertIn('"proof-pack": "Proof Pack"', diagnostics_view)
+        self.assertIn('"cleanup-delete": "Delete Verified Full Matrix"', diagnostics_view)
+        self.assertNotIn('full: "Run 100% Matrix"', diagnostics_view)
         self.assertIn('checkbox.addEventListener("click"', diagnostics_view)
         self.assertIn('selectCell.addEventListener("click"', diagnostics_view)
         self.assertIn("/api/diagnostics/tdarr-matrix/latest", diagnostics_view)
@@ -200,25 +246,24 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("tdarr-matrix-audit-findings-rows", diagnostics_view)
         self.assertIn("tdarr-matrix-audit-findings-status", diagnostics_view)
 
-    def test_home_surfaces_tdarr_matrix_activity_without_run_controls(self) -> None:
+    def test_home_does_not_surface_tdarr_matrix_activity(self) -> None:
         home_html = HOME_PARTIAL.read_text(encoding="utf-8")
         app_js = _asset_sources()["app.js"]
         home_js = _asset_sources()["app/home.js"]
         home_readiness_js = _asset_sources()["app/homeReadiness.js"]
 
-        self.assertIn('id="home-tdarr-matrix-status"', home_html)
-        self.assertIn('id="home-tdarr-matrix-detail"', home_html)
-        self.assertIn('id="home-tdarr-matrix-panel-status"', home_html)
-        self.assertIn('id="home-tdarr-matrix-progress-bars"', home_html)
-        self.assertIn('id="home-tdarr-matrix-summary"', home_html)
-        self.assertIn('data-cross-page-target="diagnostics"', home_html)
+        self.assertNotIn('id="home-tdarr-matrix-status"', home_html)
+        self.assertNotIn('id="home-tdarr-matrix-detail"', home_html)
+        self.assertNotIn('id="home-tdarr-matrix-panel-status"', home_html)
+        self.assertNotIn('id="home-tdarr-matrix-progress-bars"', home_html)
+        self.assertNotIn('id="home-tdarr-matrix-summary"', home_html)
         self.assertNotIn("data-tdarr-matrix-audit-action", home_html)
-        self.assertIn('apiGet("/api/diagnostics/tdarr-matrix/latest?finding_limit=0")', app_js)
-        self.assertIn("function renderHomeTdarrMatrixStatus", home_js)
-        self.assertIn("function homeTdarrMatrixStatusModel", home_js)
-        self.assertIn("function homeTdarrMatrixProgressBars", home_js)
-        self.assertIn('renderProgressBarsInto("home-tdarr-matrix-progress-bars"', home_js)
-        self.assertIn("renderHomeTdarrMatrixStatus", home_readiness_js)
+        self.assertNotIn("function shouldRefreshTdarrMatrix", app_js)
+        self.assertNotIn('refreshGet("/api/diagnostics/tdarr-matrix/latest?finding_limit=0"', app_js)
+        self.assertNotIn("renderHomeTdarrMatrixStatus", home_js)
+        self.assertNotIn("homeTdarrMatrixStatusModel", home_js)
+        self.assertNotIn("homeTdarrMatrixProgressBars", home_js)
+        self.assertNotIn("renderHomeTdarrMatrixStatus", home_readiness_js)
         self.assertNotIn('apiPost("/api/diagnostics/tdarr-matrix', app_js)
 
     def test_live_run_progress_surfaces_are_read_only_shared_renderer(self) -> None:
@@ -256,23 +301,38 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('const UI_PREFERENCES_ROUTE = "/api/ui-preferences";', app_js)
         self.assertIn("const UI_PREFERENCE_KEY_RE = /^mediapipeline[-.]", app_js)
         self.assertIn("let uiPreferenceSyncPending = false;", app_js)
+        self.assertIn("let uiPreferenceLocalDirty = false;", app_js)
         self.assertIn('bootstrap.shellSurface || bootstrap.shell_surface || "webview"', app_js)
         self.assertIn('if (surface !== "tauri" && Object.keys(local).length)', app_js)
         self.assertIn("localStorage.removeItem(key)", app_js)
         self.assertIn("uiPreferenceSyncPending = true;", app_js)
+        self.assertIn("uiPreferenceLocalDirty = true;", app_js)
+        self.assertIn("function hasPendingSharedUiPreferenceWrite()", app_js)
+        self.assertIn("hasPendingSharedUiPreferenceWrite() && JSON.stringify(remoteStorage) !== localSerialized", app_js)
+        self.assertLess(
+            app_js.index("function hasPendingSharedUiPreferenceWrite()"),
+            app_js.index("async function restoreSharedUiPreferences"),
+        )
         self.assertIn("await restoreSharedUiPreferences();", app_js)
         self.assertIn("installSharedUiPreferenceStorageSync();", app_js)
         self.assertIn("startSharedUiPreferenceRemoteRefresh();", app_js)
         self.assertIn("function applySharedUiPreferenceRuntimeState()", app_js)
         self.assertIn("function applyStoredLayoutPreferences()", app_js)
-        self.assertLess(
-            app_js.index("await restoreSharedUiPreferences();"),
-            app_js.index("initLayoutManager();"),
-        )
-        self.assertLess(
-            app_js.index("initCompletedTabNav();"),
-            app_js.index("installSharedUiPreferenceStorageSync();"),
-        )
+        install_index = app_js.index("installSharedUiPreferenceStorageSync();")
+        self.assertLess(app_js.index("await restoreSharedUiPreferences();"), install_index)
+        for startup_call in [
+            "initNavigation();",
+            "initLayoutManager();",
+            "initAdvancedToggle();",
+            "initEvidenceToggle();",
+            "initThemeToggle();",
+            "initSettingsTabNav();",
+            "initDiagnosticsTabNav();",
+            "initCompletedTabNav();",
+            "startSharedUiPreferenceRemoteRefresh();",
+        ]:
+            with self.subTest(startup_call=startup_call):
+                self.assertLess(install_index, app_js.index(startup_call))
         self.assertIn('const result = await apiPost("/api/ui-preferences", payload', app_js)
         self.assertIn("if (result && result.ok === false)", app_js)
 
@@ -330,6 +390,9 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn('apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })', _asset_sources()["settingsView.js"])
         self.assertIn('apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })', _asset_sources()["settingsWizard.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
+        maintenance_js = _asset_sources()["maintenanceView.js"]
+        self.assertIn("confirm_create: true", maintenance_js)
+        self.assertIn("include_tauri_preview_binary", maintenance_js)
         completed_js = _asset_sources()["completed/promotionCommands.js"]
         self.assertIn("const request = { confirm_promote: true };", completed_js)
         self.assertIn("if (selectedRowKeys.length) request.row_keys = selectedRowKeys;", completed_js)
@@ -634,6 +697,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "window.__TAURI__",
             "eventApi.listen",
             "window.dispatchEvent(new CustomEvent",
+            "mediaPipelineTauriLifecycleBridge",
+            "replayLatestBackendLifecycleEvent",
         ]:
             with self.subTest(asset=ALLOWED_TAURI_EVENT_BRIDGE, snippet=snippet):
                 self.assertIn(snippet, bridge)
@@ -654,6 +719,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
         for snippet in [
             'window.addEventListener("mediapipeline:backend-lifecycle", handleTauriBackendLifecycleEvent)',
+            "window.mediaPipelineTauriLifecycleBridge?.replayLatestBackendLifecycleEvent?.()",
             "tauri-lifecycle-alert",
             "Open Diagnostics before starting, draining, saving, renaming, publishing, or closing.",
             "Recovery: refresh once, then inspect Diagnostics run logs",

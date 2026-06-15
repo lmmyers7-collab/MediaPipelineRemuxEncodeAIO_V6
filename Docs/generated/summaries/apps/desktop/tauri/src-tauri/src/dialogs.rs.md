@@ -3,9 +3,9 @@ file: apps/desktop/tauri/src-tauri/src/dialogs.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-04
+last_modified: 2026-06-13
 last_reviewed: 2026-06-04
-sha256: afc68e83ecb76e5a1c8adc542c07069d7e97d41735e56a5f6eab2602ddfee372
+sha256: 36109f35765206077b116bb1752ddba18e13fbb27a16735e2d59f6a0ec75cb8c
 ---
 # `apps/desktop/tauri/src-tauri/src/dialogs.rs`
 

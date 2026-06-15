@@ -47,7 +47,7 @@ function Resolve-BdpgsOcrLanguage {
 
     $normalized = Get-NormalizedSubtitleLanguage $Language
     $map = @{
-        'eng' = 'eng'; 'en' = 'eng'; 'und' = 'eng'; '' = 'eng'
+        'eng' = 'eng'; 'en' = 'eng'
         'jpn' = 'jpn'; 'ja' = 'jpn'
         'spa' = 'spa'; 'es' = 'spa'
         'fre' = 'fra'; 'fra' = 'fra'; 'fr' = 'fra'
@@ -318,6 +318,14 @@ function Convert-BdpgsToSrt {
         }
 
         $ocrLanguage = Resolve-BdpgsOcrLanguage -Language $StreamInfo.Lang
+        if ([string]::IsNullOrWhiteSpace([string]$ocrLanguage) -or [string]::Equals([string]$ocrLanguage, 'und', [System.StringComparison]::OrdinalIgnoreCase)) {
+            $reason = "BDPGS OCR language is unknown for stream $StreamIndex; refusing to default image-subtitle OCR to English."
+            Write-SubtitleTrackProgress -Kind 'bdpgs' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'BDPGS OCR setup failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $reason -Failed
+            return [pscustomobject]@{
+                Ok = $false; Path = $null; CueCount = 0; Reason = $reason
+                Failure = (New-BdpgsFailureRecord -Entry $StreamInfo -Reason $reason -ErrorCode 'SUBTITLE_BDPGS_OCR_LANGUAGE_UNKNOWN')
+            }
+        }
         $tessdata = Resolve-BdpgsOcrTessdataPath
         if (-not $tessdata.Ok) {
             Write-SubtitleTrackProgress -Kind 'bdpgs' -StreamIndex $StreamIndex -Stage 'convert_ocr' -Status 'BDPGS OCR setup failed' -StepIndex 2 -StepTotal 4 -Steps @('extract','convert_ocr','validate','sidecar_write') -Detail $tessdata.Reason -Failed

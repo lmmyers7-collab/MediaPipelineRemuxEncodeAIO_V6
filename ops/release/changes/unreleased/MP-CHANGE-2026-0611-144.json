@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0611-144",
+  "title": "FB-038 make finalize release rollback on generator failure",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Fix FR-051 by making release finalization recover packet and metadata state if a post-move generator fails.",
+  "reason": "Worker finding W11-004 showed finalize_release moves packets and updates version metadata before generator scripts complete, leaving partial release state when a generator fails.",
+  "affected_areas": [
+    "change-control tooling",
+    "release metadata"
+  ],
+  "behavior_before": "Generator failure after packet movement could leave packets under released/, remove unreleased packet files, and update VERSION/manifest state partially.",
+  "behavior_after": "Generator failure rolls moved packets and metadata outputs back to their pre-finalization state before re-raising the failure.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-144.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/change_control/finalize_release.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_change_control.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-144.json",
+    "src/mediapipeline/tools/change_control/finalize_release.py",
+    "tests/python/tooling/test_change_control.py"
+  ],
+  "tests_added": [
+    "tests.python.tooling.test_change_control.ChangeControlToolingTests.test_finalize_release_rolls_back_when_generator_fails"
+  ],
+  "manual_validation": [
+    "Full change-control tooling module passed: python -m unittest tests.python.tooling.test_change_control -q, 26 tests.",
+    "Targeted finalize rollback regression passed; full tests.python.tooling.test_change_control passed, 26 tests; py_compile passed for changed Python files.",
+    "Targeted rollback regression passed: python -m unittest tests.python.tooling.test_change_control.ChangeControlToolingTests.test_finalize_release_rolls_back_when_generator_fails -q.",
+    "py_compile passed for src/mediapipeline/tools/change_control/finalize_release.py and tests/python/tooling/test_change_control.py."
+  ],
+  "rollback_plan": "Restore the prior finalize_release implementation and remove the rollback regression test.",
+  "related_changes": [
+    "FB-038",
+    "FR-051",
+    "W11-004"
+  ],
+  "notes": "Tooling-only release finalization transaction fix."
+}

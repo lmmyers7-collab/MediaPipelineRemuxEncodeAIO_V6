@@ -30,7 +30,7 @@
   "manual_validation": [
     "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens tests.webview.test_webview_handbrake_settings_ui -q -> passed; 38 tests OK.",
     "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1 -> passed; 1 test OK.",
-    "Browser-backed Settings route target visual check via the repository CDP harness -> passed at a 1434x1100 viewport; rendered 3 range segments and 3 bucket cards, no old route table or wrapper, viewportOverflow=0, editorOverflow=0, overlaps=[], visibleNumberInputs=13; screenshot captured at C:\\Users\\lmmye\\AppData\\Local\\Temp\\mediapipeline-settings-route-target-bucket-editor.png.",
+    "Browser-backed Settings route target visual check via the repository CDP harness -> passed at a 1434x1100 viewport; rendered 3 range segments and 3 bucket cards, no old route table or wrapper, viewportOverflow=0, editorOverflow=0, overlaps=[], visibleNumberInputs=13; screenshot captured at <temp>\\mediapipeline-settings-route-target-bucket-editor.png.",
     "PYTHONPATH=src powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1 -> failed before save/preview completion because backend validation returned 'ConvertBdpgsToSrt requires BdpgsOcrToolPath'; this is outside the presentation-only route target change.",
     "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> passed; 73 packet(s) valid."
   ],

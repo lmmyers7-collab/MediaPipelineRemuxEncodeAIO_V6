@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-07
+last_modified: 2026-06-11
 last_reviewed: 2026-06-04
-sha256: 7d7a682c155f1f1e8f053f4e2a59cac98c2cd649391be57e69b37aa9d1e89bf1
+sha256: 141aeadeb61f0ee5490ba60a7e2a0710e0d0f85ae62276dd2f75be801ead8ff1
 ---
 # `ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1`
 

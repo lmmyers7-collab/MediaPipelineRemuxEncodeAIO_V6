@@ -126,14 +126,45 @@ class FolderPolicyContractTests(unittest.TestCase):
         self.assertEqual(result["files"], [])
         self.assertEqual(service.probed_paths, [])
 
-    def test_validate_folder_policy_persists_folder_relative_sample(self) -> None:
+    def test_validate_folder_policy_dry_run_leaves_sidecar_unchanged(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)
             folder = root / "Season 01"
             folder.mkdir()
             (folder / "Episode 01.mkv").write_bytes(b"placeholder")
             (folder / "Episode 02.mkv").write_bytes(b"placeholder")
-            (folder / FOLDER_POLICY_SIDECAR_NAME).write_text(
+            sidecar = folder / FOLDER_POLICY_SIDECAR_NAME
+            original_payload = {
+                "schema_version": FOLDER_POLICY_SCHEMA_VERSION,
+                "folder": str(folder),
+                "audio": {},
+                "subtitles": {},
+                "validation": {
+                    "sample_file": "Episode 01.mkv",
+                    "require_uniform_stream_topology": True,
+                },
+            }
+            original_text = json.dumps(original_payload)
+            sidecar.write_text(original_text, encoding="utf-8")
+
+            service = DummyFolderPolicyService()
+            result = service.validate_folder_policy(folder)
+            saved_payload = json.loads(sidecar.read_text(encoding="utf-8"))
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["saved_policy_path"], "")
+        self.assertEqual(saved_payload, original_payload)
+        self.assertEqual([path.name for path in service.probed_paths], ["Episode 01.mkv", "Episode 02.mkv"])
+
+    def test_validate_folder_policy_explicit_save_persists_folder_relative_sample(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            folder = root / "Season 01"
+            folder.mkdir()
+            (folder / "Episode 01.mkv").write_bytes(b"placeholder")
+            (folder / "Episode 02.mkv").write_bytes(b"placeholder")
+            sidecar = folder / FOLDER_POLICY_SIDECAR_NAME
+            sidecar.write_text(
                 json.dumps(
                     {
                         "schema_version": FOLDER_POLICY_SCHEMA_VERSION,
@@ -150,10 +181,11 @@ class FolderPolicyContractTests(unittest.TestCase):
             )
 
             service = DummyFolderPolicyService()
-            result = service.validate_folder_policy(folder)
-            saved_payload = json.loads((folder / FOLDER_POLICY_SIDECAR_NAME).read_text(encoding="utf-8"))
+            result = service.validate_folder_policy(folder, save=True)
+            saved_payload = json.loads(sidecar.read_text(encoding="utf-8"))
 
         self.assertTrue(result["ok"])
+        self.assertEqual(result["saved_policy_path"], str(sidecar))
         self.assertEqual(saved_payload["validation"]["sample_file"], "Episode 01.mkv")
         self.assertEqual(saved_payload["validation"]["checked_count"], 2)
         self.assertEqual([path.name for path in service.probed_paths], ["Episode 01.mkv", "Episode 02.mkv"])

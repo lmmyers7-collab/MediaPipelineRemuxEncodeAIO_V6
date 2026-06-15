@@ -180,7 +180,7 @@ What this proves: Queue, Completed, and Pending Publish 260-row payloads disclos
 
 ## Rung 4: Pipeline PowerShell Modules
 
-For changes to `ops\pipeline\engine\<domain>\*.ps1`, the temporary `Pipeline\Modules\*.ps1` compatibility shims, or `ops\pipeline\entrypoints\MediaPipeline.ps1`.
+For changes to `ops\pipeline\engine\<domain>\*.ps1` or `ops\pipeline\entrypoints\MediaPipeline.ps1`.
 
 ### Pipeline unit checks
 
@@ -250,7 +250,8 @@ This proves: Tauri lib.rs contains all required structural patterns for armed-wa
 ```powershell
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoLogo -NoProfile `
   -File .\apps\desktop\tauri\Test-TauriShell-PG1ActiveClose.ps1 `
-  -SourceFile '<absolute media source path>'
+  -SourceFile '<absolute media source path>' `
+  -ActiveJobsDir '<absolute temp LocalBase\State\ActiveJobs path>'
 ```
 
 This proves: a Tauri-owned backend can start a real app-owned pipeline child, unsafe close-readiness surfaces in the native Tauri close prompt, confirming the prompt asks the backend to force-clean app-owned work, the shell/backend/pipeline child exit, and ActiveJobs reaches a terminal force-close state. This is not part of routine release validation because it opens the GUI and intentionally interrupts real media work.

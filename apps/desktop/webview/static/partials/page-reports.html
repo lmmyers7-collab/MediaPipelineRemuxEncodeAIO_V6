@@ -64,10 +64,20 @@
           </div>
           <pre id="failure-summary" class="prose-block">No failure preview loaded.</pre>
           <div class="panel-heading panel-subheading">
-            <h3>Error Details</h3>
+            <h3>Failure Review Board</h3>
             <strong id="failure-review-status">Not loaded</strong>
           </div>
-          <pre id="failure-review-board" class="prose-block">No failure review board loaded.</pre>
+          <div id="failure-review-board" class="review-tile-board" aria-live="polite">
+            <section class="review-tile" data-tone="muted">
+              <span class="review-tile-label">Review State</span>
+              <strong class="review-tile-value">Not loaded</strong>
+              <span class="review-tile-detail">No failure preview has loaded.</span>
+            </section>
+          </div>
+          <details class="review-board-detail-disclosure">
+            <summary>Full failure review detail</summary>
+            <pre id="failure-review-board-detail" class="prose-block compact-text-block">No failure review board loaded.</pre>
+          </details>
           <label class="filter-field">
             Filter failures
             <input id="failure-filter" type="search" autocomplete="off" placeholder="Title, path, stage, code, reason">

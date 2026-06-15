@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0611-125",
+  "title": "FB-010 align rename apply scope evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-11",
+  "date_completed": "2026-06-11",
+  "summary": "Align WebView Rename apply-scope evidence with the active unchecked all-applicable apply behavior.",
+  "reason": "Worker finding FR-031 identified stale Rename Batch Safety copy that said no checked rows applies only the selected detail row while the active Apply path submits all applicable safe preview rows.",
+  "affected_areas": [
+    "rename",
+    "rename_apply",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Rename readiness panel, button, and active apply payload used all applicable safe preview rows when no rows were checked, but Batch Safety text still claimed unchecked Apply used only the selected detail row. A legacy exported apply helper also retained selected-row fallback semantics.",
+  "behavior_after": "Batch Safety, review-board, handoff, readiness, button text, and apply payload semantics all describe the same scope: checked rows narrow selected_sources, and no checked rows applies all applicable safe preview rows. The legacy exported apply helper delegates to the active workbench path.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/rename/preview.js",
+    "apps/desktop/webview/static/assets/renameView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/rename/preview.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/renameView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0611-125.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_rename_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_rename_readiness_smoke.py.md",
+    "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
+    "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0611-125.json",
+    "tests/webview/test_webview_browser_rename_smoke.py",
+    "tests/webview/test_webview_rename_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_rename_smoke.py",
+    "tests/webview/test_webview_rename_readiness_smoke.py"
+  ],
+  "manual_validation": [
+    "Bundled Python with PYTHONPATH=src: mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed only for unrelated uncovered dirty files docs/implementation/encoder-breadth-av1-plan.md and docs/reviews/function-module-audit-2026-06-11/workers/worker-08-webview-pages.md.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.python.desktop.test_application_facade_rename -q passed, 8 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.webview.test_webview_browser_rename_smoke -q passed, 1 browser-backed test.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.webview.test_webview_frontend_mutation_boundary -q passed, 21 tests.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.webview.test_webview_rename_readiness_smoke -q failed before the production copy fix on stale selected-detail-row Batch Safety text.",
+    "Bundled Python with PYTHONPATH=src: python -m unittest tests.webview.test_webview_rename_readiness_smoke -q passed, 1 test.",
+    "Bundled Python with PYTHONPATH=src: refresh_summaries --paths for FB-010 files wrote 5 summaries."
+  ],
+  "rollback_plan": "Revert the WebView rename scope copy/helper changes and the added rename smoke assertions, then rerun rename readiness, browser rename, frontend boundary, and backend rename tests.",
+  "related_changes": [
+    "FB-010",
+    "FR-031",
+    "W08-001"
+  ],
+  "notes": "High-risk boundary: rename apply is a filesystem mutation surface; this batch changes WebView evidence and public helper alignment only, not backend rename policy."
+}

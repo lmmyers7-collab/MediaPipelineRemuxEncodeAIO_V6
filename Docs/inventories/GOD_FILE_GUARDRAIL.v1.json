@@ -3,14 +3,14 @@
   "description": "Line-count guardrail for source files. Existing large files warn by default; new oversized files fail unless explicitly allowlisted.",
   "defaults": {
     "include_globs": [
-      "app/**/*.py",
-      "DesktopApp/**/*.py",
+      "src/mediapipeline/**/*.py",
       "tests/**/*.py",
-      "scripts/*.py",
-      "scripts/**/*.py",
-      "Pipeline/**/*.ps1",
       "ops/pipeline/engine/**/*.ps1",
-      "ops/scripts/smoke/**/*.ps1",
+      "ops/pipeline/entrypoints/*.ps1",
+      "ops/pipeline/entrypoints/**/*.ps1",
+      "ops/pipeline/tests/*.ps1",
+      "ops/pipeline/tests/**/*.ps1",
+      "ops/scripts/**/*.ps1",
       "apps/desktop/webview/static/assets/*.js",
       "apps/desktop/webview/static/assets/**/*.js",
       "apps/desktop/tauri/src-tauri/src/**/*.rs"
@@ -34,8 +34,7 @@
     {
       "id": "python-app",
       "path_globs": [
-        "DesktopApp/**/*.py",
-        "app/**/*.py"
+        "src/mediapipeline/**/*.py"
       ],
       "warn_lines": 450,
       "max_lines": 800,
@@ -67,9 +66,12 @@
     {
       "id": "powershell-engine",
       "path_globs": [
-        "Pipeline/**/*.ps1",
         "ops/pipeline/engine/**/*.ps1",
-        "ops/scripts/smoke/**/*.ps1"
+        "ops/pipeline/entrypoints/*.ps1",
+        "ops/pipeline/entrypoints/**/*.ps1",
+        "ops/pipeline/tests/*.ps1",
+        "ops/pipeline/tests/**/*.ps1",
+        "ops/scripts/**/*.ps1"
       ],
       "warn_lines": 450,
       "max_lines": 800,

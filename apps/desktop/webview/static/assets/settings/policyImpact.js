@@ -1122,7 +1122,7 @@ function settingsPolicyDeltaRows(entries) {
     posture: nextNetworkRole !== "standalone" || nextWorkerOverrides ? "review" : (settingsPolicyDeltaChangedLabels(entries, networkKeys).length ? "preview required" : "unchanged"),
     current: `role=${formatSettingsChoiceLabel(settingsPatchCurrentText("NetworkRole", "standalone"))}; worker=${settingsPatchCurrentText("WorkerName", "(not set)") || "(not set)"}; overrides=${settingsPatchCurrentText("WorkerConfigOverrides", "") ? "present" : "none"}`,
     candidate: `role=${formatSettingsChoiceLabel(nextNetworkRole)}; worker=${settingsPatchCandidateText(entries, "WorkerName", "(not set)") || "(not set)"}; coordinator=${settingsPatchCandidateText(entries, "WorkerCoordinatorUrl", "(not set)") || "(not set)"}; overrides=${nextWorkerOverrides ? "present" : "none"}`,
-    check: `${settingsPolicyDeltaChangedText(entries, networkKeys)} WebView network lifecycle controls remain read-only/backend-owned during transition.`,
+    check: `${settingsPolicyDeltaChangedText(entries, networkKeys)} WebView network lifecycle controls remain backend-owned; WorkerConfigOverrides is currently ignored by backend encode policy.`,
   });
 
   rows.push({

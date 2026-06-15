@@ -379,7 +379,7 @@ function Invoke-ParkPendingPush {
             output_size            = $transaction.OutputSize
         } | Out-Null
     }
-    return $true
+    return $transaction
 }
 
 # Re-attempt every parked push. Called at the start of each main-loop

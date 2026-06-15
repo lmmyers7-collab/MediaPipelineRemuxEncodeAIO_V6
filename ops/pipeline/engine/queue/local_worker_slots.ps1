@@ -11,6 +11,111 @@
 . (Join-Path $PSScriptRoot 'worker_process.ps1')
 . (Join-Path $PSScriptRoot 'worker_progress.ps1')
 . (Join-Path $PSScriptRoot 'worker_claim_store.ps1')
+
+function Resolve-MediaPipelineLocalWorkerSlotCompletion {
+    param(
+        [int] $ExitCode,
+        $Result = $null,
+        [bool] $ResultFileExists = $false,
+        [string] $ResultReadError = '',
+        [Parameter(Mandatory)] $Claim,
+        [Parameter(Mandatory)] [string] $OwnerRunId
+    )
+
+    $resultReason = ''
+    if ($Result -and $Result.PSObject.Properties['Reason']) {
+        $resultReason = [string]$Result.Reason
+    }
+    $resultStatus = ''
+    if ($Result -and $Result.PSObject.Properties['Status']) {
+        $resultStatus = [string]$Result.Status
+    }
+
+    if ($ExitCode -ne 0) {
+        return [pscustomobject]@{
+            Status                = 'failed'
+            Reason                = if (-not [string]::IsNullOrWhiteSpace($resultReason)) { $resultReason } else { "worker exit code $ExitCode" }
+            ApplyCounters         = ($null -ne $Result)
+            CountSyntheticFailure = $false
+        }
+    }
+
+    if (-not $ResultFileExists) {
+        return [pscustomobject]@{
+            Status                = 'failed_result_missing'
+            Reason                = 'worker exited 0 but worker_result.json is missing'
+            ApplyCounters         = $false
+            CountSyntheticFailure = $true
+        }
+    }
+
+    if (-not $Result) {
+        $reason = if ([string]::IsNullOrWhiteSpace($ResultReadError)) {
+            'worker exited 0 but worker_result.json was empty or unreadable'
+        } else {
+            "worker exited 0 but worker_result.json could not be read: $ResultReadError"
+        }
+        return [pscustomobject]@{
+            Status                = 'failed_result_invalid'
+            Reason                = $reason
+            ApplyCounters         = $false
+            CountSyntheticFailure = $true
+        }
+    }
+
+    if (-not $Result.PSObject.Properties['SchemaVersion'] -or [string]$Result.SchemaVersion -ne 'local_worker_result.v1') {
+        return [pscustomobject]@{
+            Status                = 'failed_result_invalid'
+            Reason                = 'worker exited 0 but worker_result.json schema is not local_worker_result.v1'
+            ApplyCounters         = $false
+            CountSyntheticFailure = $true
+        }
+    }
+
+    if (-not $Result.PSObject.Properties['WorkerClaimId'] -or [string]$Result.WorkerClaimId -ne [string]$Claim.claim_id) {
+        return [pscustomobject]@{
+            Status                = 'failed_result_invalid'
+            Reason                = 'worker exited 0 but worker_result.json claim id does not match the active claim'
+            ApplyCounters         = $false
+            CountSyntheticFailure = $true
+        }
+    }
+
+    if (-not $Result.PSObject.Properties['WorkerRunId'] -or [string]$Result.WorkerRunId -ne [string]$OwnerRunId) {
+        return [pscustomobject]@{
+            Status                = 'failed_result_invalid'
+            Reason                = 'worker exited 0 but worker_result.json run id does not match the controller run'
+            ApplyCounters         = $false
+            CountSyntheticFailure = $true
+        }
+    }
+
+    if (-not $Result.PSObject.Properties['Success'] -or $Result.Success -isnot [bool]) {
+        return [pscustomobject]@{
+            Status                = 'failed_result_invalid'
+            Reason                = 'worker exited 0 but worker_result.json does not contain a boolean Success field'
+            ApplyCounters         = $false
+            CountSyntheticFailure = $true
+        }
+    }
+
+    if (-not [bool]$Result.Success) {
+        return [pscustomobject]@{
+            Status                = 'failed'
+            Reason                = if (-not [string]::IsNullOrWhiteSpace($resultReason)) { $resultReason } else { 'worker result reported Success=false after exit 0' }
+            ApplyCounters         = $true
+            CountSyntheticFailure = ($resultStatus -ne 'failed')
+        }
+    }
+
+    return [pscustomobject]@{
+        Status                = 'completed'
+        Reason                = if (-not [string]::IsNullOrWhiteSpace($resultReason)) { $resultReason } else { 'worker result confirmed success' }
+        ApplyCounters         = $true
+        CountSyntheticFailure = $false
+    }
+}
+
 function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
     param(
         [Parameter(Mandatory)] $QueuePlan,
@@ -45,10 +150,27 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                 Write-Log "Local worker slots: skipped duplicate active claim for $($entry.File.FullName)" 'WARN'
                 continue
             }
+            $proc = $null
             try {
                 $proc = Start-MediaPipelineLocalWorkerChild -Entry $entry -Claim $claim -SlotLayout $slotLayout -ScriptPath $ScriptPath -ConfigPath $ConfigPath -PowerShellPath $PowerShellPath -OwnerRunId $script:PipelineRunId
-                Update-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Updates @{ status = 'running'; worker_pid = [int]$proc.Id; started_at = Get-MediaPipelineLocalWorkerTimestamp } | Out-Null
+                $workerStartTime = Get-MediaPipelineProcessStartTimeUtcText -ProcessId $proc.Id
+                if (Test-Path -LiteralPath $slotLayout.MetadataFile -PathType Leaf) {
+                    try {
+                        $metadata = Read-MediaPipelineJsonFile -Path $slotLayout.MetadataFile
+                        if ($metadata) {
+                            $metadata | Add-Member -NotePropertyName worker_pid -NotePropertyValue ([int]$proc.Id) -Force
+                            $metadata | Add-Member -NotePropertyName worker_start_time -NotePropertyValue $workerStartTime -Force
+                            $metadata | Add-Member -NotePropertyName started_at -NotePropertyValue (Get-MediaPipelineLocalWorkerTimestamp) -Force
+                            Write-MediaPipelineJsonAtomic -Path $slotLayout.MetadataFile -InputObject $metadata -Depth 5 | Out-Null
+                        }
+                    } catch {
+                        Write-Log "Local worker slot $slotId metadata update failed after launch: $_" 'WARN'
+                    }
+                }
+                Update-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Updates @{ status = 'running'; worker_pid = [int]$proc.Id; worker_start_time = $workerStartTime; worker_metadata_path = [string]$slotLayout.MetadataFile; started_at = Get-MediaPipelineLocalWorkerTimestamp } | Out-Null
                 $claim | Add-Member -NotePropertyName worker_pid -NotePropertyValue ([int]$proc.Id) -Force
+                $claim | Add-Member -NotePropertyName worker_start_time -NotePropertyValue $workerStartTime -Force
+                $claim | Add-Member -NotePropertyName worker_metadata_path -NotePropertyValue ([string]$slotLayout.MetadataFile) -Force
                 $claim | Add-Member -NotePropertyName status -NotePropertyValue 'running' -Force
                 $active[[string]$slotId] = [pscustomobject]@{
                     SlotLayout = $slotLayout
@@ -61,7 +183,19 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
                 Write-Log "Local worker slot $slotId started PID $($proc.Id): $($entry.File.Name)"
             } catch {
                 Write-Log "Local worker slot $slotId failed to start for $($entry.File.FullName): $_" 'ERROR'
-                Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Status 'failed_start' -Reason ([string]$_) | Out-Null
+                $releaseStatus = 'failed_start'
+                $releaseReason = [string]$_
+                if ($null -ne $proc -and -not $proc.HasExited) {
+                    Stop-MediaPipelineLocalWorkerProcess -Job ([pscustomobject]@{
+                        SlotLayout = $slotLayout
+                        Claim      = $claim
+                        Entry      = $entry
+                        Process    = $proc
+                    })
+                    $releaseStatus = 'failed_start_child_stopped'
+                    $releaseReason = "spawned child stopped after claim update failure: $_"
+                }
+                Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$claim.claim_id) -Status $releaseStatus -Reason $releaseReason | Out-Null
             }
         }
 
@@ -72,16 +206,31 @@ function Invoke-MediaQueuePhasePlanLocalWorkerSlots {
             if (-not $job.Process.HasExited) { continue }
             $exitCode = $job.Process.ExitCode
             $result = $null
+            $resultFileExists = Test-Path -LiteralPath $job.SlotLayout.ResultFile -PathType Leaf
+            $resultReadError = ''
             try {
-                if (Test-Path -LiteralPath $job.SlotLayout.ResultFile -PathType Leaf) {
+                if ($resultFileExists) {
                     $result = Read-MediaPipelineJsonFile -Path $job.SlotLayout.ResultFile
                 }
             } catch {
+                $resultReadError = [string]$_
                 Write-Log "Local worker slot $($job.SlotLayout.SlotId) result read failed: $_" 'WARN'
             }
-            $status = if ($exitCode -eq 0) { 'completed' } else { 'failed' }
-            $reason = if ($result -and $result.PSObject.Properties['Reason']) { [string]$result.Reason } else { "worker exit code $exitCode" }
-            Update-MediaPipelineParentCountersFromWorkerResult -Result $result -IsTV:([bool]$job.Entry.IsTV)
+            $completion = Resolve-MediaPipelineLocalWorkerSlotCompletion `
+                -ExitCode $exitCode `
+                -Result $result `
+                -ResultFileExists:$resultFileExists `
+                -ResultReadError $resultReadError `
+                -Claim $job.Claim `
+                -OwnerRunId $script:PipelineRunId
+            $status = [string]$completion.Status
+            $reason = [string]$completion.Reason
+            if ([bool]$completion.ApplyCounters) {
+                Update-MediaPipelineParentCountersFromWorkerResult -Result $result -IsTV:([bool]$job.Entry.IsTV)
+            }
+            if ([bool]$completion.CountSyntheticFailure) {
+                $script:totalFailed = [int]$script:totalFailed + 1
+            }
             Release-MediaPipelineLocalWorkerClaim -ClaimStorePath $claimStorePath -ClaimId ([string]$job.Claim.claim_id) -Status $status -Reason $reason | Out-Null
             Write-Log "Local worker slot $($job.SlotLayout.SlotId) finished exit=$exitCode status=$status source=$($job.Claim.source_path)"
             $active.Remove($slotKey)

@@ -56,7 +56,7 @@ def _runtime_is_failed(row: dict[str, Any]) -> bool:
 
 
 def _benign_trust_flags(row: dict[str, Any]) -> set[str]:
-    benign = {"encoded", "remuxed", "size_policy_within_limit"}
+    benign = {"encoded", "remuxed", "size_policy_within_limit", "quality_within_threshold"}
     size_delta = _size_delta_percent(row)
     if size_delta is not None and abs(size_delta) <= COMPLETED_TRUST_NEUTRAL_SIZE_DELTA_PERCENT:
         benign.add("size_growth")

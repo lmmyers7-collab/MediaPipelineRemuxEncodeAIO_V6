@@ -207,7 +207,7 @@ class FinalLibraryPromotionServiceMixin:
                 target=self._final_library_promotion_worker,
                 args=(resolved, run_id, eligible_items, settings.to_mapping()),
                 name=f"FinalLibraryPromotion-{run_id}",
-                daemon=True,
+                daemon=False,
             )
             self._final_library_promotion_active["thread"] = thread
             self._write_final_library_active_locked(resolved)

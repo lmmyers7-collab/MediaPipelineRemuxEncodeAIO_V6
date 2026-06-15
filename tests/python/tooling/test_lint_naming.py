@@ -4,6 +4,8 @@ import importlib.util
 import sys
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -99,6 +101,22 @@ class NamingLintTests(unittest.TestCase):
             ],
         )
         self.assertEqual(staged[0].path, "src/mediapipeline/desktop/application/facade_new.py")
+
+    def test_git_diff_candidates_uses_three_dot_merge_base_range(self) -> None:
+        calls: list[list[str]] = []
+
+        def fake_run(args: list[str], **_kwargs: object) -> SimpleNamespace:
+            calls.append(args)
+            return SimpleNamespace(stdout="A\tsrc/mediapipeline/desktop/service_new.py\n")
+
+        with patch.object(lint_naming.subprocess, "run", side_effect=fake_run):
+            candidates = lint_naming.git_diff_candidates("origin/main")
+
+        self.assertEqual(
+            calls[0],
+            ["git", "diff", "--name-status", "--diff-filter=ACR", "origin/main...HEAD"],
+        )
+        self.assertEqual(candidates[0].path, "src/mediapipeline/desktop/service_new.py")
 
 
 if __name__ == "__main__":

@@ -13,6 +13,8 @@ def is_unauthorized_http_error(error_text: str) -> bool:
 def claim_failure_status_message(error_text: str, reason_preview: str, base_url: str) -> tuple[str, bool]:
     """Return the operator-facing status text and whether to log an auth event."""
     if is_unauthorized_http_error(error_text):
+        if "clock_skew" in error_text:
+            return "Auth error - coordinator/worker clock skew exceeds five minutes", True
         return "⚠ Auth error — token does not match coordinator", True
     if "timed out" in error_text.lower() or "refused" in error_text.lower():
         return f"⚠ Cannot reach coordinator ({base_url})", False

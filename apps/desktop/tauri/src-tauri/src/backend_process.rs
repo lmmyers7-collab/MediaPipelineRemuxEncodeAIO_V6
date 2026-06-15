@@ -57,6 +57,7 @@ pub(crate) enum BackendShutdownMode {
 pub(crate) enum BackendShutdownOutcome {
     Requested,
     Blocked,
+    Failed,
 }
 
 #[derive(Debug, Deserialize)]
@@ -107,40 +108,43 @@ impl BackendProcess {
         }
     }
 
-    fn shutdown(&self, mode: BackendShutdownMode) {
+    pub(crate) fn shutdown(&self, mode: BackendShutdownMode) -> BackendShutdownOutcome {
         if let Ok(mut guard) = self.child.lock() {
             if guard.is_none() {
-                return;
+                return BackendShutdownOutcome::Requested;
             }
             match request_backend_shutdown(&self.url, &self.token, mode) {
                 Ok(BackendShutdownOutcome::Requested) => {}
+                Ok(BackendShutdownOutcome::Failed) => {}
                 Ok(BackendShutdownOutcome::Blocked) => {
                     eprintln!(
                         "[mediapipeline-shell] backend shutdown request blocked by close-readiness"
                     );
                     if mode == BackendShutdownMode::SafeOnly {
-                        return;
+                        return BackendShutdownOutcome::Blocked;
                     }
                 }
                 Err(error) => {
                     eprintln!("[mediapipeline-shell] backend shutdown request failed: {error}");
                     if mode == BackendShutdownMode::SafeOnly {
-                        return;
+                        return BackendShutdownOutcome::Failed;
                     }
                 }
             }
             let Some(mut child) = guard.take() else {
-                return;
+                return BackendShutdownOutcome::Requested;
             };
             drop(guard);
             if wait_for_child_exit(&mut child, Duration::from_secs(3)) {
-                return;
+                return BackendShutdownOutcome::Requested;
             }
             eprintln!(
-                "[mediapipeline-shell] backend did not exit within grace period; terminating process"
+                "[mediapipeline-shell] backend did not exit within grace period; terminating process tree"
             );
             terminate_child(&mut child);
+            return BackendShutdownOutcome::Requested;
         }
+        BackendShutdownOutcome::Failed
     }
 }
 
@@ -153,9 +157,11 @@ impl Drop for BackendProcess {
 pub(crate) fn shutdown_backend_state(
     manager: &impl Manager<tauri::Wry>,
     mode: BackendShutdownMode,
-) {
+) -> BackendShutdownOutcome {
     if let Some(backend) = manager.try_state::<BackendProcess>() {
-        backend.shutdown(mode);
+        backend.shutdown(mode)
+    } else {
+        BackendShutdownOutcome::Requested
     }
 }
 
@@ -410,11 +416,43 @@ fn spawn_pipe_drain(reader: impl Read + Send + 'static, stream_name: &'static st
 }
 
 fn terminate_child(child: &mut Child) {
+    terminate_process_tree(child);
+    if let Err(error) = child.wait() {
+        eprintln!(
+            "[mediapipeline-shell] backend process wait after tree termination failed: {error}"
+        );
+    }
+}
+
+#[cfg(windows)]
+fn terminate_process_tree(child: &mut Child) {
+    let pid = child.id().to_string();
+    let status = Command::new("taskkill")
+        .args(["/PID", &pid, "/T", "/F"])
+        .status();
+    match status {
+        Ok(status) if status.success() => {}
+        Ok(status) => {
+            eprintln!("[mediapipeline-shell] taskkill /T failed with status {status}; falling back to direct kill");
+            terminate_process_direct(child);
+        }
+        Err(error) => {
+            eprintln!(
+                "[mediapipeline-shell] taskkill /T failed: {error}; falling back to direct kill"
+            );
+            terminate_process_direct(child);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn terminate_process_tree(child: &mut Child) {
+    terminate_process_direct(child);
+}
+
+fn terminate_process_direct(child: &mut Child) {
     if let Err(error) = child.kill() {
         eprintln!("[mediapipeline-shell] backend process kill failed: {error}");
-    }
-    if let Err(error) = child.wait() {
-        eprintln!("[mediapipeline-shell] backend process wait after kill failed: {error}");
     }
 }
 
@@ -610,23 +648,47 @@ pub(crate) fn bootstrap_error(
 #[cfg(test)]
 mod tests {
     use super::{
-        backend_shutdown_request_body, parse_backend_shutdown_outcome, BackendProcess,
-        BackendProcessExit, BackendShutdownMode, BackendShutdownOutcome,
+        backend_shutdown_request_body, parse_backend_shutdown_outcome, terminate_child,
+        BackendProcess, BackendProcessExit, BackendShutdownMode, BackendShutdownOutcome,
     };
     use std::{
+        fs,
+        io::{Read, Write},
+        net::TcpListener,
         process::{Child, Command, Stdio},
         sync::Mutex,
         thread,
-        time::{Duration, Instant},
+        time::{Duration, Instant, SystemTime, UNIX_EPOCH},
     };
 
     fn backend_for_child(child: Option<Child>) -> BackendProcess {
+        backend_for_child_and_url(child, "http://127.0.0.1:1")
+    }
+
+    fn backend_for_child_and_url(child: Option<Child>, url: &str) -> BackendProcess {
         BackendProcess {
             child: Mutex::new(child),
-            url: "http://127.0.0.1:1".to_string(),
+            url: url.to_string(),
             token: "test-token".to_string(),
             startup_warnings: Vec::new(),
         }
+    }
+
+    fn serve_once(response: &'static str) -> String {
+        let listener = TcpListener::bind("127.0.0.1:0").expect("bind test backend");
+        let address = listener.local_addr().expect("test backend local addr");
+        thread::spawn(move || {
+            let (mut stream, _) = listener.accept().expect("accept test backend request");
+            stream
+                .set_read_timeout(Some(Duration::from_secs(2)))
+                .expect("set test backend read timeout");
+            let mut buffer = [0_u8; 4096];
+            let _ = stream.read(&mut buffer);
+            stream
+                .write_all(response.as_bytes())
+                .expect("write test backend response");
+        });
+        format!("http://{address}")
     }
 
     #[test]
@@ -701,6 +763,55 @@ mod tests {
             .expect("spawn sleeping PowerShell child")
     }
 
+    #[cfg(windows)]
+    fn unique_temp_path(name: &str) -> std::path::PathBuf {
+        let nanos = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .expect("system time after epoch")
+            .as_nanos();
+        std::env::temp_dir().join(format!(
+            "mediapipeline-tauri-{name}-{}-{nanos}.txt",
+            std::process::id()
+        ))
+    }
+
+    #[cfg(windows)]
+    fn powershell_literal(value: &std::path::Path) -> String {
+        value.to_string_lossy().replace('\'', "''")
+    }
+
+    #[cfg(windows)]
+    fn process_exists(pid: u32) -> bool {
+        Command::new("powershell")
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!(
+                    "if (Get-Process -Id {pid} -ErrorAction SilentlyContinue) {{ exit 0 }} else {{ exit 1 }}"
+                ),
+            ])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|status| status.success())
+            .unwrap_or(false)
+    }
+
+    #[cfg(windows)]
+    fn wait_for_process_absent(pid: u32) -> bool {
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if !process_exists(pid) {
+                return true;
+            }
+            if Instant::now() >= deadline {
+                return false;
+            }
+            thread::sleep(Duration::from_millis(100));
+        }
+    }
+
     #[cfg(unix)]
     fn spawn_child_that_exits(code: i32) -> Child {
         Command::new("/bin/sh")
@@ -745,6 +856,69 @@ mod tests {
             process.try_take_exited().expect("inspect taken child"),
             BackendProcessExit::NoChild
         );
+    }
+
+    #[test]
+    fn safe_only_shutdown_blocked_retains_backend_child() {
+        let url = serve_once(
+            "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nConnection: close\r\n\r\n{\"schema_version\":\"desktop_command_result.v1\",\"ok\":false}",
+        );
+        let process = backend_for_child_and_url(Some(spawn_sleeping_child()), &url);
+
+        assert_eq!(
+            process.shutdown(BackendShutdownMode::SafeOnly),
+            BackendShutdownOutcome::Blocked
+        );
+        assert_eq!(
+            process.try_take_exited().expect("inspect retained child"),
+            BackendProcessExit::Running
+        );
+
+        let mut child = process
+            .child
+            .lock()
+            .expect("lock retained child")
+            .take()
+            .expect("retained child should remain available");
+        terminate_child(&mut child);
+    }
+
+    #[test]
+    #[cfg(windows)]
+    fn terminate_child_removes_windows_process_tree() {
+        let child_pid_file = unique_temp_path("child-pid");
+        let command = format!(
+            "$child = Start-Process -FilePath powershell -ArgumentList @('-NoProfile','-Command','Start-Sleep -Seconds 60') -PassThru; Set-Content -LiteralPath '{}' -Value $child.Id; Start-Sleep -Seconds 60",
+            powershell_literal(&child_pid_file)
+        );
+        let mut parent = Command::new("powershell")
+            .args(["-NoProfile", "-Command", &command])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .expect("spawn parent PowerShell process");
+        let deadline = Instant::now() + Duration::from_secs(5);
+        while !child_pid_file.exists() {
+            assert!(Instant::now() < deadline, "child pid file was not written");
+            thread::sleep(Duration::from_millis(100));
+        }
+        let child_pid = fs::read_to_string(&child_pid_file)
+            .expect("read child pid")
+            .trim()
+            .parse::<u32>()
+            .expect("parse child pid");
+
+        terminate_child(&mut parent);
+        let child_absent = wait_for_process_absent(child_pid);
+        if !child_absent {
+            let _ = Command::new("taskkill")
+                .args(["/PID", &child_pid.to_string(), "/T", "/F"])
+                .status();
+        }
+        let _ = fs::remove_file(&child_pid_file);
+
+        assert!(child_absent, "descendant process should be terminated");
     }
 
     #[test]

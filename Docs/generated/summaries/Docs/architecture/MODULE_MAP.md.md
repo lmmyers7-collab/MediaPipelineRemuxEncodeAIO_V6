@@ -3,9 +3,9 @@ file: docs/architecture/MODULE_MAP.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-11
 last_reviewed: 2026-06-02
-sha256: 48567e690fec34520863b0afd3687130c2d35429e204ec3dcd232cf488ab8ace
+sha256: 5bd66f0dbeb120a1a263e56de936e6c481262fe5caafb46b4cbb76373f3c40f5
 ---
 # `docs/architecture/MODULE_MAP.md`
 

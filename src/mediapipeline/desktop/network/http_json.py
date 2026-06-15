@@ -7,6 +7,8 @@ import urllib.error
 import urllib.parse
 import urllib.request
 
+from mediapipeline.core.network.url_policy import redact_url
+
 from .json_policy import loads_strict_json
 
 
@@ -36,14 +38,14 @@ def _request_json(url: str, request: urllib.request.Request, *, timeout_seconds:
                 return loads_strict_json(body)
             except Exception as exc:
                 preview = _json_error_preview(body)
-                raise RuntimeError(f"Invalid JSON from {url}: {preview}") from exc
+                raise RuntimeError(f"Invalid JSON from {redact_url(url)}: {preview}") from exc
     except urllib.error.HTTPError as exc:
         body = ""
         try:
             body = _json_error_preview(http_read_capped(exc))
         except Exception as body_exc:
             body = f"<failed to read error body: {body_exc}>"
-        raise RuntimeError(f"HTTP {exc.code} from {url}: {body}") from exc
+        raise RuntimeError(f"HTTP {exc.code} from {redact_url(url)}: {body}") from exc
 
 
 def http_get_json(

@@ -61,6 +61,7 @@ from mediapipeline.core.config.metadata import CONFIG_MANAGED_KEYS
 from .settings_risk_policy_rules import (
     changed_key_risk_item,
     list_setting_values,
+    quality_metric_threshold_risk_items,
     removed_key_item,
     risk_warning_messages,
     source_mutation_setting,
@@ -93,6 +94,7 @@ def build_settings_patch_risk_summary(
         item = changed_key_risk_item(key, merged.get(key))
         if item:
             items.append(item)
+    items.extend(quality_metric_threshold_risk_items(merged))
 
     counts, highest = summarize_risk_items(items)
     return {
@@ -115,6 +117,7 @@ def build_current_settings_risk_summary(config: dict[str, Any]) -> dict[str, Any
         if item.get("code") == "path_root_changed":
             continue
         items.append(item)
+    items.extend(quality_metric_threshold_risk_items(config))
 
     counts, highest = summarize_risk_items(items)
     return {
