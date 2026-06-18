@@ -7,9 +7,9 @@ from typing import Any, Literal
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 
-SUBTITLE_QA_RESULT_SCHEMA_VERSION = "subtitle_qa_result.v1"
-SUBTITLE_TRACK_INVENTORY_SCHEMA_VERSION = "subtitle_track_inventory.v1"
-SUBTITLE_SYNC_REVIEW_SCHEMA_VERSION = "subtitle_sync_review.v1"
+SUBTITLE_QA_RESULT_SCHEMA_VERSION: Literal["subtitle_qa_result.v1"] = "subtitle_qa_result.v1"
+SUBTITLE_TRACK_INVENTORY_SCHEMA_VERSION: Literal["subtitle_track_inventory.v1"] = "subtitle_track_inventory.v1"
+SUBTITLE_SYNC_REVIEW_SCHEMA_VERSION: Literal["subtitle_sync_review.v1"] = "subtitle_sync_review.v1"
 
 
 class SubtitleContractModel(BaseModel):

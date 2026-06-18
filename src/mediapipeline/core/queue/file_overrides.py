@@ -69,7 +69,11 @@ CLEARABLE_FILE_OVERRIDE_FIELDS: frozenset[str] = frozenset(
     {
         "audio.keepTracks",
         "audio.dropTracks",
+        "audio.renameTracks",
         "audio.maxChannels",
+        "audio.downmixMode",
+        "audio.transcodeCodec",
+        "audio.transcodeBitrate",
         "audio.preferDefaultLanguage",
         "subtitles.keepTracks",
         "subtitles.dropTracks",
@@ -86,7 +90,11 @@ CLEARABLE_FILE_OVERRIDE_FIELDS: frozenset[str] = frozenset(
 _CLEARABLE_FIELD_KEYS: dict[str, tuple[str, str]] = {
     "audio.keepTracks": ("audio", "keepTracks"),
     "audio.dropTracks": ("audio", "dropTracks"),
+    "audio.renameTracks": ("audio", "renameTracks"),
     "audio.maxChannels": ("audio", "maxChannels"),
+    "audio.downmixMode": ("audio", "downmixMode"),
+    "audio.transcodeCodec": ("audio", "transcodeCodec"),
+    "audio.transcodeBitrate": ("audio", "transcodeBitrate"),
     "audio.preferDefaultLanguage": ("audio", "preferDefaultLanguage"),
     "subtitles.keepTracks": ("subtitles", "keepTracks"),
     "subtitles.dropTracks": ("subtitles", "dropTracks"),
@@ -101,7 +109,16 @@ _CLEARABLE_FIELD_KEYS: dict[str, tuple[str, str]] = {
 }
 SUPPORTED_FILE_OVERRIDE_TOP_LEVEL_KEYS: frozenset[str] = frozenset({"audio", "subtitles", "routing", "video"})
 SUPPORTED_FILE_OVERRIDE_AUDIO_KEYS: frozenset[str] = frozenset(
-    {"keepTracks", "dropTracks", "maxChannels", "preferDefaultLanguage"}
+    {
+        "keepTracks",
+        "dropTracks",
+        "renameTracks",
+        "maxChannels",
+        "downmixMode",
+        "transcodeCodec",
+        "transcodeBitrate",
+        "preferDefaultLanguage",
+    }
 )
 SUPPORTED_FILE_OVERRIDE_SUBTITLE_KEYS: frozenset[str] = frozenset(
     {"keepTracks", "dropTracks", "burnTrack", "stripAll"}
@@ -125,6 +142,7 @@ SUPPORTED_FILE_OVERRIDE_ROUTE_PROFILES: frozenset[str] = frozenset(
     }
 )
 SAFE_OVERRIDE_SCALAR_RE = re.compile(r"^[A-Za-z0-9_.-]+$")
+AUDIO_TRANSCODE_BITRATE_RE = re.compile(r"^[1-9]\d*k$")
 
 
 class FileOverrideValidationError(ValueError):
@@ -144,9 +162,12 @@ SUPPORTED_FILE_OVERRIDE_VIDEO_CODECS: frozenset[str] = _literal_choices("VideoCo
 SUPPORTED_FILE_OVERRIDE_OUTPUT_CONTAINERS: frozenset[str] = _literal_choices("OutputContainer")
 SUPPORTED_FILE_OVERRIDE_ENCODE_PRESETS: frozenset[str] = _literal_choices("EncodeTuningPreset")
 SUPPORTED_FILE_OVERRIDE_ENCODE_LADDERS: frozenset[str] = _literal_choices("EncodeLadder")
+SUPPORTED_FILE_OVERRIDE_AUDIO_TRANSCODE_CODECS: frozenset[str] = _literal_choices("AudioTranscodeCodec")
+SUPPORTED_FILE_OVERRIDE_AUDIO_DOWNMIX_MODES: frozenset[str] = _literal_choices("AudioDownmixMode")
 SUPPORTED_AUDIO_TRACK_SELECTOR_KEYS: frozenset[str] = frozenset(
     {"streamIndex", "language", "codec", "channels", "title"}
 )
+SUPPORTED_AUDIO_RENAME_TRACK_KEYS: frozenset[str] = frozenset({"language", "channels", "newTitle"})
 SUPPORTED_SUBTITLE_TRACK_SELECTOR_KEYS: frozenset[str] = frozenset(
     {"streamIndex", "language", "codec", "forced", "title"}
 )
@@ -409,8 +430,26 @@ def validate_file_override_payload(data: dict) -> list[str]:
         for key in ("keepTracks", "dropTracks"):
             if key in audio:
                 _validate_track_selector_list(errors, f"audio.{key}", audio.get(key), kind="audio")
+        if "renameTracks" in audio:
+            _validate_audio_rename_track_list(errors, audio.get("renameTracks"))
         if "maxChannels" in audio:
             _validate_audio_max_channels(errors, audio.get("maxChannels"))
+        if "downmixMode" in audio:
+            _validate_enum_scalar(
+                errors,
+                "audio.downmixMode",
+                audio.get("downmixMode"),
+                SUPPORTED_FILE_OVERRIDE_AUDIO_DOWNMIX_MODES,
+            )
+        if "transcodeCodec" in audio:
+            _validate_enum_scalar(
+                errors,
+                "audio.transcodeCodec",
+                audio.get("transcodeCodec"),
+                SUPPORTED_FILE_OVERRIDE_AUDIO_TRANSCODE_CODECS,
+            )
+        if "transcodeBitrate" in audio:
+            _validate_audio_transcode_bitrate(errors, audio.get("transcodeBitrate"))
         if "preferDefaultLanguage" in audio:
             _validate_language_scalar(errors, "audio.preferDefaultLanguage", audio.get("preferDefaultLanguage"))
 
@@ -518,6 +557,36 @@ def _validate_track_selector_list(errors: list[str], field_path: str, value: Any
         _validate_track_selector_object(errors, selector_path, selector, kind=kind)
 
 
+def _validate_audio_rename_track_list(errors: list[str], value: Any) -> None:
+    field_path = "audio.renameTracks"
+    if not isinstance(value, list):
+        errors.append(f"'{field_path}' must be a list of audio rename rule objects.")
+        return
+    if not value:
+        errors.append(f"'{field_path}' must contain at least one audio rename rule; omit the field to inherit.")
+        return
+    for index, rule in enumerate(value):
+        rule_path = f"{field_path}[{index}]"
+        if not isinstance(rule, dict):
+            errors.append(f"'{rule_path}' must be an object with supported audio rename fields.")
+            continue
+        _append_unknown_key_errors(
+            errors,
+            path=rule_path,
+            keys=rule.keys(),
+            supported=SUPPORTED_AUDIO_RENAME_TRACK_KEYS,
+        )
+        if not any(key in rule for key in ("language", "channels")):
+            errors.append(f"'{rule_path}' must contain language or channels so the runtime can resolve the target track.")
+        _validate_optional_track_selector_string(errors, rule_path, rule, "language")
+        if "channels" in rule:
+            _validate_selector_channels(errors, f"{rule_path}.channels", rule.get("channels"))
+        if "newTitle" not in rule:
+            errors.append(f"'{rule_path}.newTitle' is required for audio rename rules.")
+        else:
+            _validate_optional_track_selector_string(errors, rule_path, rule, "newTitle")
+
+
 def _validate_track_selector_object(errors: list[str], selector_path: str, selector: Any, *, kind: str) -> None:
     supported = SUPPORTED_AUDIO_TRACK_SELECTOR_KEYS if kind == "audio" else SUPPORTED_SUBTITLE_TRACK_SELECTOR_KEYS
     if not isinstance(selector, dict):
@@ -588,6 +657,18 @@ def _validate_audio_max_channels(errors: list[str], value) -> None:
     if value not in SUPPORTED_FILE_OVERRIDE_MAX_CHANNELS:
         allowed = ", ".join(str(item) for item in sorted(SUPPORTED_FILE_OVERRIDE_MAX_CHANNELS))
         errors.append(f"'audio.maxChannels' must be one of: {allowed}.")
+
+
+def _validate_audio_transcode_bitrate(errors: list[str], value) -> None:
+    if not isinstance(value, str):
+        errors.append("'audio.transcodeBitrate' must be a string.")
+        return
+    text = value.strip()
+    if not text:
+        errors.append("'audio.transcodeBitrate' must not be empty; omit the field to inherit.")
+        return
+    if not AUDIO_TRANSCODE_BITRATE_RE.fullmatch(text):
+        errors.append("'audio.transcodeBitrate' must match /^[1-9]\\d*k$/.")
 
 
 def _validate_language_scalar(errors: list[str], field_path: str, value) -> None:

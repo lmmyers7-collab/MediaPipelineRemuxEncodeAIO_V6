@@ -41,10 +41,11 @@
     };
   }
 
-  function collectRerunStartRequest() {
+  function collectRerunStartRequest(options = {}) {
+    const dryRun = typeof options === "boolean" ? options : Boolean(options.dry_run);
     return {
       csv_path: byId("rerun-start-csv-path")?.value || "",
-      dry_run: false,
+      dry_run: dryRun,
       stage_mode: "copy",
       original_mode: "keep",
       return_mode: "park",

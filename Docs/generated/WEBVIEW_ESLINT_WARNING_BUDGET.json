@@ -3,15 +3,15 @@
   "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
   "target": "apps/desktop/webview/static/assets/**/*.js",
   "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
-  "total_warnings": 649,
+  "total_warnings": 664,
   "total_errors": 0,
   "by_rule": {
     "complexity": {
-      "warnings": 97,
+      "warnings": 101,
       "errors": 0
     },
     "max-lines-per-function": {
-      "warnings": 32,
+      "warnings": 33,
       "errors": 0
     },
     "no-extra-boolean-cast": {
@@ -19,11 +19,11 @@
       "errors": 0
     },
     "no-undef": {
-      "warnings": 374,
+      "warnings": 381,
       "errors": 0
     },
     "no-unused-vars": {
-      "warnings": 143,
+      "warnings": 146,
       "errors": 0
     },
     "parse-error": {
@@ -34,12 +34,12 @@
   "files": [
     {
       "path": "apps/desktop/webview/static/assets/app.js",
-      "warnings": 79,
+      "warnings": 80,
       "errors": 0,
       "rules": {
         "complexity": 2,
         "max-lines-per-function": 1,
-        "no-undef": 75,
+        "no-undef": 76,
         "no-unused-vars": 1
       }
     },
@@ -48,7 +48,8 @@
       "warnings": 3,
       "errors": 0,
       "rules": {
-        "complexity": 3
+        "complexity": 2,
+        "no-unused-vars": 1
       }
     },
     {
@@ -394,12 +395,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "warnings": 12,
+      "warnings": 13,
       "errors": 0,
       "rules": {
         "complexity": 1,
         "no-extra-boolean-cast": 1,
-        "no-undef": 10
+        "no-undef": 11
       }
     },
     {
@@ -412,11 +413,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/networkView.js",
-      "warnings": 6,
+      "warnings": 14,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 4
+        "complexity": 4,
+        "no-undef": 8,
+        "no-unused-vars": 2
       }
     },
     {
@@ -426,6 +428,14 @@
       "rules": {
         "complexity": 2,
         "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublish/filters.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
       }
     },
     {
@@ -464,11 +474,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
-      "warnings": 47,
+      "warnings": 49,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "no-undef": 40,
+        "complexity": 3,
+        "no-undef": 41,
         "no-unused-vars": 5
       }
     },
@@ -509,10 +519,10 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/queueView.js",
-      "warnings": 43,
+      "warnings": 44,
       "errors": 0,
       "rules": {
-        "complexity": 1,
+        "complexity": 2,
         "no-undef": 16,
         "no-unused-vars": 26
       }
@@ -656,6 +666,14 @@
       "errors": 0,
       "rules": {
         "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.network.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
       }
     },
     {

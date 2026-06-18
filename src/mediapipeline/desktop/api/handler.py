@@ -7,11 +7,14 @@ from urllib.parse import parse_qs, urlsplit
 
 from .handler_policy import (
     not_found_payload,
+    route_exception_journal_payload,
     options_response_headers,
     route_exception_payload,
     route_validation_error_payload,
     route_validation_journal_payload,
     should_record_command_payload,
+    should_record_route_exception_journal,
+    should_record_validation_failure_journal,
     unauthorized_payload,
 )
 from .http_helpers import QueryValidationError, discard_request_body, read_json_body, send_bytes
@@ -89,6 +92,7 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 self._discard_request_body()
                 self._send_json(unauthorized_payload(), status=401)
                 return
+            body: dict[str, Any] | None = None
             try:
                 spec = POST_ROUTE_HANDLERS.get(route)
                 if spec is None:
@@ -102,16 +106,22 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                     try:
                         body = validate_payload(route, body)
                     except Exception as exc:
-                        try:
-                            owner._record_command_journal(route_validation_journal_payload(route, exc), request=body)
-                        except Exception as journal_exc:
-                            owner.logger.warning("Could not record local API validation failure for %s: %s", route, journal_exc)
+                        if should_record_validation_failure_journal(route):
+                            try:
+                                owner._record_command_journal(route_validation_journal_payload(route, exc), request=body)
+                            except Exception as journal_exc:
+                                owner.logger.warning("Could not record local API validation failure for %s: %s", route, journal_exc)
                         self._send_json(route_validation_error_payload(route, exc), status=400)
                         return
                 self._send_json(getattr(owner, spec.method_name)(body), journal_request=body)
             except Exception as exc:
                 payload = route_exception_payload(route, exc)
                 owner.logger.exception("local API route failed: %s error_id=%s", route, payload.get("error_id"))
+                if should_record_route_exception_journal(route):
+                    try:
+                        owner._record_command_journal(route_exception_journal_payload(route, payload), request=body)
+                    except Exception as journal_exc:
+                        owner.logger.warning("Could not record local API route exception for %s: %s", route, journal_exc)
                 self._send_json(payload, status=500)
 
         def _read_json_body(self) -> dict[str, Any] | None:
@@ -151,7 +161,14 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
                 owner._record_command_journal(payload, request=journal_request)
             self._send_bytes(body, status=status, content_type="application/json; charset=utf-8")
 
-        def _send_bytes(self, body: bytes, *, status: int = 200, content_type: str = "application/octet-stream") -> None:
-            send_bytes(self, body, status=status, content_type=content_type)
+        def _send_bytes(
+            self,
+            body: bytes,
+            *,
+            status: int = 200,
+            content_type: str = "application/octet-stream",
+            extra_headers: list[tuple[str, str]] | None = None,
+        ) -> None:
+            send_bytes(self, body, status=status, content_type=content_type, extra_headers=extra_headers)
 
     return _Handler

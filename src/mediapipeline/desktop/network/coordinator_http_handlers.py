@@ -1,6 +1,7 @@
 """Coordinator HTTP endpoint handlers."""
 from __future__ import annotations
 
+import json
 import logging
 import uuid
 from datetime import datetime
@@ -8,6 +9,7 @@ from pathlib import Path
 
 from mediapipeline.core.network.url_policy import redact_network_secret_text
 
+from .cluster_log import redact_cluster_log_entry_fields
 from .coordinator_policy import RETRY_AFTER_ACTIVE_SECONDS as _RETRY_AFTER_ACTIVE_SECONDS
 from .coordinator_queue import _coerce_record_estimated_size_gb, _coerce_record_priority
 from .coordinator_queue import _scan_for_next_record_for_claim
@@ -198,6 +200,34 @@ class CoordinatorHttpHandlersMixin:
             handler._send_json({"error": "claim unavailable"}, 500)
             return
 
+        response = ClaimResponse(
+            status            = "ok",
+            job_id            = job_id,
+            source_path       = source_path,
+            library_id         = library_id,
+            relative_path      = relative_path,
+            priority          = priority,
+            estimated_size_gb = size_gb,
+            encode_config     = encode_config,
+            retry_on_failure  = retry_on_failure,
+        )
+        try:
+            response_payload = response.to_dict()
+            json.dumps(response_payload, allow_nan=False)
+        except Exception as exc:
+            safe_exc = redact_network_secret_text(exc)
+            _log.warning("Claim response for job %s could not be serialized; rolling back claim: %s", job_id[:8], safe_exc)
+            try:
+                self._registry.rollback_claim(job_id, worker_id)
+            except Exception as release_exc:
+                _log.warning(
+                    "Failed to rollback claim %s after response serialization failure: %s",
+                    job_id[:8],
+                    redact_network_secret_text(release_exc),
+                )
+            handler._send_json({"error": "claim unavailable"}, 500)
+            return
+
         try:
             self._registry.save(self._inflight_state_path())
         except Exception as exc:
@@ -245,18 +275,19 @@ class CoordinatorHttpHandlersMixin:
             job_id=job_id,
             source_path=source_path,
         )
-        response = ClaimResponse(
-            status            = "ok",
-            job_id            = job_id,
-            source_path       = source_path,
-            library_id         = library_id,
-            relative_path      = relative_path,
-            priority          = priority,
-            estimated_size_gb = size_gb,
-            encode_config     = encode_config,
-            retry_on_failure  = retry_on_failure,
-        )
-        handler._send_json(response.to_dict())
+        try:
+            handler._send_json(response_payload)
+        except Exception:
+            try:
+                self._registry.rollback_claim(job_id, worker_id)
+                self._registry.save(self._inflight_state_path())
+            except Exception as rollback_exc:
+                _log.warning(
+                    "Failed to persist rollback for undelivered claim %s: %s",
+                    job_id[:8],
+                    redact_network_secret_text(rollback_exc),
+                )
+            raise
 
     def _http_done(self, handler: _CoordHandler, body: bytes) -> None:
         """Handle ``POST /api/done``."""
@@ -267,11 +298,9 @@ class CoordinatorHttpHandlersMixin:
             _log.warning("Rejected /api/done with invalid JSON body: %s", exc)
             handler._send_json({"error": "Invalid JSON body"}, 400)
             return
-        # N13 — same identity validation as /api/claim. Empty worker_id
-        # is allowed here because crash-recovery callers may not know
-        # their previous worker_id; ownership is still enforced
-        # downstream by the registry's worker_id check (N2/N3).
-        if req.worker_id and not is_valid_worker_id(req.worker_id):
+        # External done/release reports must carry an explicit owner identity.
+        # Internal ownerless transitions stay inside the dispatcher helpers.
+        if not req.worker_id or not is_valid_worker_id(req.worker_id):
             _log.warning("Rejected /api/done with invalid worker_id=%r", req.worker_id[:80])
             handler._send_json({"error": "invalid worker_id"}, 400)
             return
@@ -284,10 +313,14 @@ class CoordinatorHttpHandlersMixin:
             # Worker is shutting down cleanly — release without failure count.
             # N3 — pass worker_id so a foreign worker can't release a job
             # it doesn't own. Distinguish "not found" from "wrong worker".
+            rollback_snapshot = None
             try:
                 with self._registry._lock:
                     _existing = self._registry._jobs.get(req.job_id)
                     _existing_owner = _existing.worker_id if _existing else None
+                snapshotter = getattr(self._registry, "rollback_snapshot", None)
+                if callable(snapshotter):
+                    rollback_snapshot = snapshotter()
                 job = self._registry.unclaim(req.job_id, req.worker_id)
             except Exception as exc:
                 _log.exception("Failed to process /api/done release for job %s from worker %s: %s", req.job_id, req.worker_id, exc)
@@ -327,6 +360,9 @@ class CoordinatorHttpHandlersMixin:
             except Exception as exc:
                 safe_exc = redact_network_secret_text(exc)
                 _log.warning("Failed to save inflight state after worker release: %s", safe_exc)
+                restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+                if rollback_snapshot is not None and callable(restorer):
+                    restorer(rollback_snapshot)
                 self._safe_log_cluster_event(
                     "inflight-save-failed",
                     level="WARN",
@@ -338,6 +374,8 @@ class CoordinatorHttpHandlersMixin:
                     job_id=req.job_id,
                     source_path=job.source_path,
                 )
+                handler._send_json({"error": "done state unavailable"}, 503)
+                return
             handler._send_json({"status": "ok"})
             return
 
@@ -345,10 +383,14 @@ class CoordinatorHttpHandlersMixin:
         # 403 vs 404 to the worker.  Without this peek a worker can't
         # tell whether its job_id was stale or whether the coordinator
         # is rejecting it for ownership reasons.
+        rollback_snapshot = None
         try:
             with self._registry._lock:
                 _existing = self._registry._jobs.get(req.job_id)
                 _existing_owner = _existing.worker_id if _existing else None
+            snapshotter = getattr(self._registry, "rollback_snapshot", None)
+            if callable(snapshotter):
+                rollback_snapshot = snapshotter()
 
             final_reason_code, final_reason = classify_failure_reason(
                 success=bool(req.success),
@@ -376,6 +418,36 @@ class CoordinatorHttpHandlersMixin:
 
         if job is None:
             if _existing is None:
+                recorder = getattr(self._registry, "record_late_terminal_report", None)
+                late_report = None
+                if callable(recorder):
+                    late_report = recorder(req)
+                if late_report is not None:
+                    try:
+                        self._registry.save(self._inflight_state_path())
+                    except Exception as exc:
+                        safe_exc = redact_network_secret_text(exc)
+                        _log.warning("Failed to save late terminal report for job %s: %s", req.job_id[:8], safe_exc)
+                        handler._send_json({"error": "done state unavailable"}, 503)
+                        return
+                    self._safe_log_cluster_event(
+                        "late-terminal-recorded",
+                        level="WARN",
+                        event="late_terminal_recorded",
+                        message="Worker reported terminal status after stale reclaim; evidence recorded.",
+                        worker_id=req.worker_id,
+                        role="coordinator",
+                        job_id=req.job_id,
+                        source_path=str(late_report.get("source_path", "") or ""),
+                    )
+                    handler._send_json(
+                        {
+                            "status": "late_recorded",
+                            "job_id": req.job_id,
+                            "source_path": str(late_report.get("source_path", "") or ""),
+                        }
+                    )
+                    return
                 _log.warning(
                     "Done report for unknown job %s from worker '%s' "
                     "(likely already reclaimed or completed).",
@@ -411,22 +483,35 @@ class CoordinatorHttpHandlersMixin:
         # W1 — both paths (HTTP and local mark_done) share this helper so
         # cluster.log, queue-record removal, and the inflight-state save
         # all happen consistently regardless of dispatch source.
-        self._emit_done_outcome(
-            job               = job,
-            success           = req.success,
-            worker_id         = req.worker_id,
-            elapsed_seconds   = req.elapsed_seconds,
-            output_size_bytes = req.output_size_bytes,
-            completion_status = req.completion_status or "",
-            publish_state     = req.publish_state or "",
-            publish_mode      = req.publish_mode or "",
-            error_message     = req.error_message or "",
-            queue_terminal    = bool(req.queue_terminal),
-            retry_on_failure  = bool(req.retry_on_failure),
-            output_path       = req.output_path or "",
-            reason_code       = final_reason_code,
-            reason            = final_reason,
-        )
+        try:
+            self._emit_done_outcome(
+                job               = job,
+                success           = req.success,
+                worker_id         = req.worker_id,
+                elapsed_seconds   = req.elapsed_seconds,
+                output_size_bytes = req.output_size_bytes,
+                completion_status = req.completion_status or "",
+                publish_state     = req.publish_state or "",
+                publish_mode      = req.publish_mode or "",
+                error_message     = req.error_message or "",
+                queue_terminal    = bool(req.queue_terminal),
+                retry_on_failure  = bool(req.retry_on_failure),
+                output_path       = req.output_path or "",
+                reason_code       = final_reason_code,
+                reason            = final_reason,
+            )
+        except Exception as exc:
+            restorer = getattr(self._registry, "restore_rollback_snapshot", None)
+            if rollback_snapshot is not None and callable(restorer):
+                restorer(rollback_snapshot)
+            _log.warning(
+                "Done report for job %s from worker %s was not accepted because state persistence failed: %s",
+                req.job_id[:8],
+                req.worker_id[:32],
+                redact_network_secret_text(exc),
+            )
+            handler._send_json({"error": "done state unavailable"}, 503)
+            return
 
         handler._send_json({"status": "ok"})
 
@@ -532,9 +617,15 @@ class CoordinatorHttpHandlersMixin:
         raw_message = entry.message or ""
         sanitize_log_entry_fields(entry)
         if raw_worker_id and not entry.worker_id:
-            _log.warning("Sanitized /api/log invalid worker_id=%r before appending cluster log entry.", raw_worker_id[:80])
+            _log.warning(
+                "Sanitized /api/log invalid worker_id=%r before appending cluster log entry.",
+                redact_network_secret_text(raw_worker_id)[:80],
+            )
         if raw_job_id and not entry.job_id:
-            _log.warning("Sanitized /api/log invalid job_id=%r before appending cluster log entry.", raw_job_id[:80])
+            _log.warning(
+                "Sanitized /api/log invalid job_id=%r before appending cluster log entry.",
+                redact_network_secret_text(raw_job_id)[:80],
+            )
         if raw_event and entry.event != raw_event:
             _log.warning("Truncated /api/log event field from %d to %d characters.", len(raw_event), len(entry.event))
         if raw_message and entry.message != raw_message:
@@ -557,6 +648,7 @@ class CoordinatorHttpHandlersMixin:
                 exc,
             )
         entry.timestamp = coord_now
+        redact_cluster_log_entry_fields(entry)
         try:
             self._append_cluster_log(entry)
         except Exception as exc:

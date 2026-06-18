@@ -23,6 +23,7 @@ from ..config_keys import (
     KEY_VIDEO_QUALITY,
     KEY_WORKER_CONFIG_OVERRIDES,
 )
+from .processing_policy import COORDINATOR_PROCESSING_POLICY_KEY, build_coordinator_processing_policy
 
 
 _log = logging.getLogger(__name__)
@@ -48,8 +49,14 @@ ENCODE_CONFIG_KEYS = (
 )
 
 
-def snapshot_encode_config(config: Mapping[str, object], worker_name: str = "") -> dict[str, object]:
+def snapshot_encode_config(
+    config: Mapping[str, object],
+    worker_name: str = "",
+    record: object | None = None,
+) -> dict[str, object]:
     snapshot = {key: config.get(key) for key in ENCODE_CONFIG_KEYS if key in config}
+    if record is not None:
+        snapshot[COORDINATOR_PROCESSING_POLICY_KEY] = build_coordinator_processing_policy(config, record)
     worker = str(worker_name or "").casefold()
     if not worker:
         return snapshot

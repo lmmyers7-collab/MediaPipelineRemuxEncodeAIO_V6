@@ -137,6 +137,8 @@ function Test-SidecarRoundTripValid {
         'tx3g_srt_failures',
         'bdpgs_srt_failures',
         'vobsub_srt_failures',
+        'converted_srt_sidecar_candidates',
+        'subtitle_output_reduction',
         'tx3g_embedded_srt_tracks',
         'bdpgs_embedded_srt_tracks',
         'vobsub_embedded_srt_tracks'
@@ -184,7 +186,7 @@ function Write-Sidecar {
         output_file      = Split-Path $OutputPath -Leaf
     }
     foreach ($k in $Extra.Keys) { $payload[$k] = $Extra[$k] }
-    foreach ($requiredArray in @('tx3g_srt_tracks', 'tx3g_srt_failures', 'bdpgs_srt_failures', 'vobsub_srt_failures', 'tx3g_embedded_srt_tracks', 'bdpgs_embedded_srt_tracks', 'vobsub_embedded_srt_tracks')) {
+    foreach ($requiredArray in @('tx3g_srt_tracks', 'tx3g_srt_failures', 'bdpgs_srt_failures', 'vobsub_srt_failures', 'converted_srt_sidecar_candidates', 'subtitle_output_reduction', 'tx3g_embedded_srt_tracks', 'bdpgs_embedded_srt_tracks', 'vobsub_embedded_srt_tracks')) {
         if (-not $payload.Contains($requiredArray)) { $payload[$requiredArray] = @() }
     }
     # S1 — Depth 5 was silently truncating route_plan.decision_trace[].data,

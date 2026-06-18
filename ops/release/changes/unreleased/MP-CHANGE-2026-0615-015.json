@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0615-015",
+  "title": "Network coordinator worker Batch 4 path-map read DTO safety",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-15",
+  "date_completed": "2026-06-15",
+  "summary": "Batch 4 closes network coordinator/worker path-map and read-DTO findings by preserving order-sensitive manual maps, hardening Windows path-map parsing/application, separating manual/auto/effective path-map drift evidence, and surfacing malformed or stale worker_state.json evidence in Network workers DTOs.",
+  "reason": "The audit found that overlapping manual path-map prefixes could be reordered, unsafe mapped paths could escape intended worker roots, auto-derived library maps could appear as saved-config drift, malformed worker_state.json rows looked clean, and stale active worker state could be reported as a clean stopped runtime.",
+  "affected_areas": [
+    "generated-summaries",
+    "network-coordinator-worker",
+    "path-map",
+    "read-dto"
+  ],
+  "behavior_before": "Worker join import serialized WorkerSourcePathMap with key sorting, manual/legacy path-map fallback accepted unsafe roots/tails, drift detection compared saved manual maps against effective running maps, malformed worker_state.json only emitted a global warning, and active worker_state.json plus stopped lifecycle memory could show Runtime: Stopped (match).",
+  "behavior_after": "Worker join import preserves manual map order; path-map parsing rejects relative, drive-relative, and parent-traversal roots; mapped claim tails with parent traversal are released as unstartable; auto maps remain separate from manual drift comparison; malformed worker_state.json state rows are unreadable with bounded redacted errors; stopped lifecycle with active worker_state.json reports stale-claim warning status.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/network/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/join.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/library_roots.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/path_map.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_drift_descriptor.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_join.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_path_auto_map.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_worker_runtime.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0615-015.json",
+    "src/mediapipeline/core/network/facade.py",
+    "src/mediapipeline/core/network/join.py",
+    "src/mediapipeline/desktop/network/library_roots.py",
+    "src/mediapipeline/desktop/network/path_map.py",
+    "src/mediapipeline/desktop/network/worker.py",
+    "tests/python/desktop/test_application_facade_network.py",
+    "tests/python/desktop/test_network_drift_descriptor.py",
+    "tests/python/desktop/test_network_join.py",
+    "tests/python/desktop/test_network_path_auto_map.py",
+    "tests/python/desktop/test_network_worker_runtime.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_network.py::ApplicationFacadeNetworkTests::test_network_workers_marks_malformed_worker_state_row_unreadable",
+    "tests/python/desktop/test_application_facade_network.py::ApplicationFacadeNetworkTests::test_network_workers_warns_on_active_worker_state_with_stopped_lifecycle",
+    "tests/python/desktop/test_network_drift_descriptor.py::NetworkWorkerDriftDescriptorTests::test_network_workers_does_not_report_auto_library_path_map_as_saved_drift",
+    "tests/python/desktop/test_network_join.py::NetworkJoinTests::test_worker_join_preserves_manual_path_map_order_for_overlapping_prefixes",
+    "tests/python/desktop/test_network_path_auto_map.py::NetworkPathAutoMapTests::test_manual_path_map_handles_unc_case_and_exact_prefix_boundaries",
+    "tests/python/desktop/test_network_path_auto_map.py::NetworkPathAutoMapTests::test_manual_path_map_rejects_parent_traversal_in_roots_and_claim_tail",
+    "tests/python/desktop/test_network_path_auto_map.py::NetworkPathAutoMapTests::test_manual_path_map_rejects_relative_and_drive_relative_replacements",
+    "tests/python/desktop/test_network_worker_runtime.py::NetworkWorkerRuntimeTests::test_worker_poll_loop_releases_hostile_mapped_claim_without_starting_work"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_network_join.py tests/python/desktop/test_network_path_auto_map.py tests/python/desktop/test_network_worker_runtime.py tests/python/desktop/test_network_drift_descriptor.py tests/python/desktop/test_application_facade_network.py -> 74 passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_network_library_relative_claim.py -> 7 passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> passed (317 packet(s) valid; no uncovered dirty files reported)"
+  ],
+  "rollback_plan": "Revert the scoped changes in the listed path-map, join import, worker runtime descriptor, network facade DTO, tests, and generated summaries. Then rerun the same targeted pytest commands plus change-control validation.",
+  "related_changes": [],
+  "notes": "Batch 4 scoped to NCW-P2-09, NCW-P2-10, NCW-P2-13, NCW-P2-14, NCW-P2-15: path-map ordering/safety, library auto-map evidence, and Network read DTO stale/malformed worker-state evidence.\nBatch 4 implementation touch set: path-map order/safety, auto-map drift evidence, malformed/stale worker-state DTO evidence, and focused regressions for NCW-P2-09/10/13/14/15.\nBatch 4 NCW-P2-09/10/13/14/15 implementation and targeted validation complete on 2026-06-15."
+}

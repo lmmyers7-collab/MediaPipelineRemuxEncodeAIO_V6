@@ -3,9 +3,9 @@ file: .github/workflows/phase1-drift.yml
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-03
-sha256: 5c70f51c46bdafefa1ff638aa775d12d5a6b6449b6a4dcfc366528aeac3e80db
+sha256: 5b06e6fc9511ed3c53deb417f889defd5c76939eb2a51a919178ad82ab0e71d1
 ---
 # `.github/workflows/phase1-drift.yml`
 

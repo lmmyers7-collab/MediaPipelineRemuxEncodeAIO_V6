@@ -168,6 +168,8 @@ KEY_WORKER_NAME: Final = "WorkerName"
 KEY_WORKER_AUTH_TOKEN: Final = "WorkerAuthToken"
 KEY_WORKER_POLL_INTERVAL_SECS: Final = "WorkerPollIntervalSecs"
 KEY_WORKER_SOURCE_PATH_MAP: Final = "WorkerSourcePathMap"
+KEY_WORKER_ENCODER_MAP: Final = "WorkerEncoderMap"
+KEY_WORKER_HONOR_COORDINATOR_POLICY: Final = "WorkerHonorCoordinatorPolicy"
 KEY_WORKER_CONFIG_OVERRIDES: Final = "WorkerConfigOverrides"
 
 __all__ = tuple(name for name in globals() if name.startswith("KEY_"))

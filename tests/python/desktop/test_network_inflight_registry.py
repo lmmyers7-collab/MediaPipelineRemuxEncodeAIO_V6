@@ -15,6 +15,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher
 from mediapipeline.desktop.network.encode_config_snapshot import snapshot_encode_config
+from mediapipeline.desktop.network.failure_policy import source_has_prior_failure
 from mediapipeline.desktop.network.path_map import parse_source_path_map
 from mediapipeline.desktop.network.protocol import DoneRequest
 from mediapipeline.desktop.network.registry import InFlightRegistry
@@ -125,6 +126,138 @@ class NetworkInFlightRegistryTests(unittest.TestCase):
 
             self.assertTrue(path.exists())
             self.assertIn("Invalid estimated_size_gb for claimed job", "\n".join(logs.output))
+
+    def test_inflight_registry_rejects_duplicate_job_id_without_mutating_original(self) -> None:
+        registry = InFlightRegistry()
+
+        self.assertTrue(
+            registry.claim(
+                job_id="job-1",
+                worker_id="worker-1",
+                worker_name="Worker One",
+                source_path=r"C:\Media\first.mkv",
+                encode_config={"quality": "first"},
+            )
+        )
+        self.assertFalse(
+            registry.claim(
+                job_id="job-1",
+                worker_id="worker-2",
+                worker_name="Worker Two",
+                source_path=r"C:\Media\second.mkv",
+                encode_config={"quality": "second"},
+            )
+        )
+
+        rows = registry.snapshot()
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0].worker_id, "worker-1")
+        self.assertEqual(rows[0].current_file, r"C:\Media\first.mkv")
+        self.assertFalse(registry.is_in_flight(r"C:\Media\second.mkv"))
+
+    def test_inflight_registry_normalizes_source_identity_for_claims_and_failures(self) -> None:
+        registry = InFlightRegistry()
+
+        self.assertTrue(
+            registry.claim(
+                job_id="job-1",
+                worker_id="worker-1",
+                worker_name="Worker",
+                source_path=r"C:\Media\Movie.mkv",
+                encode_config={},
+            )
+        )
+        self.assertFalse(
+            registry.claim(
+                job_id="job-2",
+                worker_id="worker-2",
+                worker_name="Worker Two",
+                source_path="c:/media/movie.mkv",
+                encode_config={},
+            )
+        )
+        self.assertTrue(registry.is_in_flight("c:/media/movie.mkv"))
+
+        registry.complete(
+            "job-1",
+            "worker-1",
+            success=False,
+            reason_code="SOURCE_NOT_FOUND",
+            reason="missing",
+        )
+        blocked = registry.claim_blocked_by_failure(
+            worker_id="worker-1",
+            source_path="c:/media/movie.mkv",
+            max_retries=1,
+        )
+        self.assertIsNotNone(blocked)
+
+        failure_records = [SimpleNamespace(source_path_text=r"C:\Media\Movie.mkv")]
+        self.assertTrue(source_has_prior_failure("c:/media/movie.mkv", failure_records))
+
+    def test_inflight_registry_load_rejects_duplicate_source_identity_variants(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "inflight_registry.json"
+            path.write_text(
+                json.dumps(
+                    {
+                        "jobs": [
+                            {
+                                "job_id": "job-1",
+                                "worker_id": "worker-1",
+                                "worker_name": "Worker",
+                                "source_path": r"C:\Media\Movie.mkv",
+                                "claimed_at": "2026-06-15T00:00:00+00:00",
+                                "last_heartbeat": "2026-06-15T00:00:00+00:00",
+                            },
+                            {
+                                "job_id": "job-2",
+                                "worker_id": "worker-2",
+                                "worker_name": "Worker Two",
+                                "source_path": "c:/media/movie.mkv",
+                                "claimed_at": "2026-06-15T00:00:00+00:00",
+                                "last_heartbeat": "2026-06-15T00:00:00+00:00",
+                            },
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+            registry = InFlightRegistry()
+
+            with self.assertLogs("mediapipeline.desktop.network.registry", level="ERROR") as logs:
+                loaded = registry.load(path)
+
+        self.assertFalse(loaded)
+        self.assertIn("duplicate in-flight source_path", "\n".join(logs.output))
+
+    def test_inflight_registry_persists_reclaim_ledger_for_late_done_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "inflight_registry.json"
+            registry = InFlightRegistry()
+            self.assertTrue(
+                registry.claim(
+                    job_id="job-stale",
+                    worker_id="worker-1",
+                    worker_name="Worker",
+                    source_path=r"C:\Media\stale.mkv",
+                    encode_config={},
+                )
+            )
+            with registry._lock:
+                registry._jobs["job-stale"].last_heartbeat = "2026-01-01T00:00:00+00:00"
+
+            reclaimed = registry.reclaim_stale(0.01)
+            self.assertEqual([job.job_id for job in reclaimed], ["job-stale"])
+            registry.save(path)
+
+            restored = InFlightRegistry()
+            self.assertTrue(restored.load(path))
+
+        ledger = restored.reclaim_ledger_snapshot()
+        self.assertEqual(len(ledger), 1)
+        self.assertEqual(ledger[0]["job_id"], "job-stale")
+        self.assertEqual(ledger[0]["source_path"], r"C:\Media\stale.mkv")
 
     def test_inflight_registry_persists_idle_worker_seen_before_any_claim(self) -> None:
         with tempfile.TemporaryDirectory() as td:

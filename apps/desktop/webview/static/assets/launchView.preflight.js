@@ -739,9 +739,13 @@
       `Stage mode: ${request.stage_mode}`,
       `Original mode: ${request.original_mode}`,
       `Return mode: ${request.return_mode}`,
+      `Dry run: ${request.dry_run ? "yes - preview only" : "no - live rerun start"}`,
     ];
     if (!csv) lines.push("Input warning: CSV path is required before CSV rerun can start.");
-    lines.push("Safety policy: copy to scratch, keep originals, and park returned outputs.");
+    lines.push(request.dry_run
+      ? "Safety policy: dry-run preview should produce backend evidence without staging, moving, publishing, or touching media."
+      : "Safety policy: live rerun copies to scratch, keeps originals, and parks returned outputs."
+    );
     if (request.show_console) lines.push("Console: visible rerun process window requested.");
     lines.push("", ...launchSettingsRiskLines(request));
     lines.push(...launchRealMediaReadinessLines("CSV rerun"));
@@ -793,6 +797,7 @@
     const action = data.action || request.action || command.split(".").pop() || "unknown";
     const bits = [`action=${action}`];
     if (data.flag_path) bits.push(`flag=${data.flag_path}`);
+    if (data.force_stop_scope?.scope_label) bits.push(`scope=${data.force_stop_scope.scope_label}`);
     if (raw.refresh_hint) bits.push(`refresh=${raw.refresh_hint}`);
     if (typeof commandHistoryCompactEvidenceLine === "function") {
       return commandHistoryCompactEvidenceLine(entry, {

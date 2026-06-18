@@ -27,6 +27,35 @@ function Join-MediaPipelineProcessArgument {
     return '"' + ($text -replace '\\(?=")', '\\' -replace '"', '\"') + '"'
 }
 
+function Save-MediaPipelineLocalWorkerResultDiagnostic {
+    param(
+        [string] $ResultPath = '',
+        [string] $ClaimId = '',
+        [string] $Reason = ''
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ResultPath) -or -not (Test-Path -LiteralPath $ResultPath -PathType Leaf)) {
+        return [pscustomobject]@{ Archived = $false; Path = ''; Error = ''; Reason = [string]$Reason }
+    }
+
+    try {
+        $resultDir = Split-Path -Parent $ResultPath
+        if ([string]::IsNullOrWhiteSpace($resultDir)) {
+            return [pscustomobject]@{ Archived = $false; Path = ''; Error = 'result path has no parent directory'; Reason = [string]$Reason }
+        }
+        $archiveDir = Join-Path $resultDir 'ResultArchive'
+        New-Item -ItemType Directory -Path $archiveDir -Force | Out-Null
+        $safeClaim = ([string]$ClaimId -replace '[^A-Za-z0-9._-]+', '-').Trim('.-_')
+        if ([string]::IsNullOrWhiteSpace($safeClaim)) { $safeClaim = 'unclaimed' }
+        $stamp = (Get-Date).ToUniversalTime().ToString('yyyyMMddTHHmmssfffffffZ')
+        $archivePath = Join-Path $archiveDir "$stamp-$safeClaim-worker_result.json"
+        Copy-Item -LiteralPath $ResultPath -Destination $archivePath -Force
+        return [pscustomobject]@{ Archived = $true; Path = $archivePath; Error = ''; Reason = [string]$Reason }
+    } catch {
+        return [pscustomobject]@{ Archived = $false; Path = ''; Error = [string]$_; Reason = [string]$Reason }
+    }
+}
+
 function Start-MediaPipelineLocalWorkerChild {
     param(
         [Parameter(Mandatory)] $Entry,
@@ -39,6 +68,10 @@ function Start-MediaPipelineLocalWorkerChild {
     )
 
     Initialize-MediaPipelineWorkerSlotLayout -SlotLayout $SlotLayout | Out-Null
+    Save-MediaPipelineLocalWorkerResultDiagnostic `
+        -ResultPath ([string]$SlotLayout.ResultFile) `
+        -ClaimId ([string]$Claim.claim_id) `
+        -Reason 'slot reuse before worker child start' | Out-Null
     foreach ($path in @($SlotLayout.ResultFile, $SlotLayout.StdoutLog, $SlotLayout.StderrLog)) {
         Remove-Item -LiteralPath $path -Force -ErrorAction SilentlyContinue
     }

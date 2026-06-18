@@ -32,6 +32,19 @@ function Write-AuditLog {
     param([string] $Message, [string] $Level = 'INFO')
 }
 
+function Invoke-RecursivePathScan {
+    param(
+        [string] $Path,
+        [string] $ItemType = 'File',
+        [int] $TimeoutSeconds = 300,
+        [string] $Label = 'scan'
+    )
+    if ($ItemType -eq 'Directory') {
+        return @(Get-ChildItem -LiteralPath $Path -Directory -Recurse -Force | ForEach-Object { $_.FullName })
+    }
+    return @(Get-ChildItem -LiteralPath $Path -File -Recurse -Force | ForEach-Object { $_.FullName })
+}
+
 function Resolve-RobocopyPath {
     return 'robocopy.exe'
 }
@@ -64,6 +77,44 @@ function Set-OldTestItem {
 
     $item = Get-Item -LiteralPath $Path -Force
     $item.LastWriteTime = (Get-Date).AddHours(-25)
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    $script:CleanupStaleAgeHours = 1
+    $script:CleanupScanTimeoutSeconds = 30
+    $script:CleanupRemoteStaging = $true
+
+    $copyPartial = Join-Path $Root.FullName ('Movie.mkv.mp-partial.' + ('a' * 32))
+    $publishPartial = Join-Path $Root.FullName ('.Movie.mkv.mp-publish-partial.' + ('b' * 32))
+    $publishBackup = Join-Path $Root.FullName ('.Movie.mkv.mp-publish-backup.' + ('c' * 32))
+    $userOwnedMatchingName = Join-Path $Root.FullName 'Movie.mp-partial-cut.mkv'
+    $uncertainPublishPartial = Join-Path $Root.FullName '.Movie.mkv.mp-publish-partial.tx-test'
+    $freshCopyPartial = Join-Path $Root.FullName ('Fresh.mkv.mp-partial.' + ('d' * 32))
+
+    foreach ($path in @($copyPartial, $publishPartial, $publishBackup, $userOwnedMatchingName, $uncertainPublishPartial, $freshCopyPartial)) {
+        [System.IO.File]::WriteAllText($path, 'fixture', [System.Text.UTF8Encoding]::new($false))
+    }
+    foreach ($path in @($copyPartial, $publishPartial, $publishBackup, $userOwnedMatchingName, $uncertainPublishPartial)) {
+        Set-OldTestItem -Path $path
+    }
+
+    $oldStaging = Join-Path (Join-Path $Root.FullName 'old-stage') '.mediapipeline-staging'
+    $freshStaging = Join-Path (Join-Path $Root.FullName 'fresh-stage') '.mediapipeline-staging'
+    [System.IO.Directory]::CreateDirectory($oldStaging) | Out-Null
+    [System.IO.Directory]::CreateDirectory($freshStaging) | Out-Null
+    Set-OldTestItem -Path $oldStaging
+
+    Clear-StalePartialFiles -Roots @($Root.FullName)
+
+    Assert-True (-not (Test-Path -LiteralPath $copyPartial -ErrorAction SilentlyContinue)) 'Generated copy partial should be removed when stale.'
+    Assert-True (-not (Test-Path -LiteralPath $publishPartial -ErrorAction SilentlyContinue)) 'Generated publish partial should be removed when stale.'
+    Assert-True (-not (Test-Path -LiteralPath $publishBackup -ErrorAction SilentlyContinue)) 'Generated publish backup should be removed when stale.'
+    Assert-True (Test-Path -LiteralPath $userOwnedMatchingName -PathType Leaf) 'User-owned files that merely contain mp-partial text must be preserved.'
+    Assert-True (Test-Path -LiteralPath $uncertainPublishPartial -PathType Leaf) 'Publish-looking files without generated transaction ids must be preserved.'
+    Assert-True (Test-Path -LiteralPath $freshCopyPartial -PathType Leaf) 'Fresh generated partial files must be preserved.'
+    Assert-True (-not (Test-Path -LiteralPath $oldStaging -ErrorAction SilentlyContinue)) 'Old publish staging directories should still be removed.'
+    Assert-True (Test-Path -LiteralPath $freshStaging -PathType Container) 'Fresh publish staging directories must be preserved.'
 }
 
 Invoke-WithTempRoot {
@@ -235,6 +286,79 @@ Invoke-WithTempRoot {
     Assert-True (-not [bool]$copied) 'Copy-FileRobocopy should reject destinations outside configured roots.'
     Assert-Equal $script:LastCopyFileRobocopyResult.ReasonCode 'COPY_DESTINATION_ROOT_UNTRUSTED' 'Untrusted copy destination should report the root-boundary reason.'
     Assert-True (-not (Test-Path -LiteralPath $destinationParent -ErrorAction SilentlyContinue)) 'Copy-FileRobocopy must not create destination parents before root-boundary approval.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Remove-Variable -Name LocalBase -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name processingDir -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LocalPendingPush -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LocalRemuxTemp -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name Outsource -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LibraryProfiles -Scope Script -ErrorAction SilentlyContinue
+
+    $script:LocalEncoded = Join-Path $Root.FullName 'local-output'
+    [System.IO.Directory]::CreateDirectory($script:LocalEncoded) | Out-Null
+    $sourceDir = Join-Path $Root.FullName 'source'
+    [System.IO.Directory]::CreateDirectory($sourceDir) | Out-Null
+    $source = Join-Path $sourceDir 'source.mkv'
+    [System.IO.File]::WriteAllBytes($source, (New-Object byte[] 1024))
+    $destination = Join-Path $script:LocalEncoded 'Movie\Movie.mkv'
+    $stagingRoot = Join-Path (Split-Path -Parent $destination) '.mediapipeline-staging'
+
+    $script:TestDestinationFreeGB = 0.01
+    $script:RobocopyInvoked = $false
+    $script:StopRequested = $false
+    $StopFlag = Join-Path $Root.FullName 'stop.flag'
+    $RobocopyFlags = @()
+    function Get-FreeSpaceGBAny { param([string] $Path) return [double]$script:TestDestinationFreeGB }
+    function Invoke-NativeCommand { $script:RobocopyInvoked = $true; throw 'robocopy should not run during low-space preflight' }
+    function Start-StopAwareSleep { param([int] $Seconds) return $false }
+
+    $copied = Copy-FileRobocopy -Source $source -Destination $destination -MaxRetries 1
+    Assert-True (-not [bool]$copied) 'Copy should fail closed on low destination space.'
+    Assert-Equal $script:LastCopyFileRobocopyResult.ReasonCode 'OUTPUT_DESTINATION_LOW_SPACE' 'Low-space preflight should report low-space reason.'
+    Assert-True (-not $script:RobocopyInvoked) 'Robocopy must not run when destination free space is too low.'
+    Assert-True (-not (Test-Path -LiteralPath $stagingRoot -ErrorAction SilentlyContinue)) 'Low-space preflight should not leave an empty staging root.'
+
+    Remove-Variable -Name LocalEncoded -Scope Script -ErrorAction SilentlyContinue
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Remove-Variable -Name LocalBase -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name processingDir -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LocalPendingPush -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LocalRemuxTemp -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name Outsource -Scope Script -ErrorAction SilentlyContinue
+    Remove-Variable -Name LibraryProfiles -Scope Script -ErrorAction SilentlyContinue
+
+    $script:LocalEncoded = Join-Path $Root.FullName 'local-output'
+    [System.IO.Directory]::CreateDirectory($script:LocalEncoded) | Out-Null
+    $sourceDir = Join-Path $Root.FullName 'source'
+    [System.IO.Directory]::CreateDirectory($sourceDir) | Out-Null
+    $source = Join-Path $sourceDir 'source.mkv'
+    [System.IO.File]::WriteAllBytes($source, (New-Object byte[] 1024))
+    $destination = Join-Path $script:LocalEncoded 'Movie\Movie.mkv'
+    $stagingRoot = Join-Path (Split-Path -Parent $destination) '.mediapipeline-staging'
+
+    $script:TestDestinationFreeGB = 100
+    $script:RobocopyInvoked = $false
+    $script:StopRequested = $true
+    $StopFlag = Join-Path $Root.FullName 'stop.flag'
+    $RobocopyFlags = @()
+    function Get-FreeSpaceGBAny { param([string] $Path) return [double]$script:TestDestinationFreeGB }
+    function Invoke-NativeCommand { $script:RobocopyInvoked = $true; throw 'robocopy should not run after stop was requested' }
+    function Start-StopAwareSleep { param([int] $Seconds) return $false }
+
+    $copied = Copy-FileRobocopy -Source $source -Destination $destination -MaxRetries 1
+    Assert-True (-not [bool]$copied) 'Copy should stop before the first attempt when stop was requested.'
+    Assert-Equal $script:LastCopyFileRobocopyResult.ReasonCode 'COPY_STOP_REQUESTED' 'Stop-before-attempt should report stop-requested reason.'
+    Assert-True (-not $script:RobocopyInvoked) 'Robocopy must not run after stop was requested.'
+    Assert-True (-not (Test-Path -LiteralPath $stagingRoot -ErrorAction SilentlyContinue)) 'Stop-before-attempt should not leave an empty staging root.'
+
+    $script:StopRequested = $false
+    Remove-Variable -Name LocalEncoded -Scope Script -ErrorAction SilentlyContinue
 }
 
 Invoke-WithTempRoot {

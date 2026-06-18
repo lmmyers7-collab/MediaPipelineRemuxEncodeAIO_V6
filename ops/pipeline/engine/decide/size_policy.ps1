@@ -278,16 +278,20 @@ function Test-MediaEncodeOutputSizePolicy {
 
     try {
         if (-not (Test-Path -LiteralPath $SourcePath) -or -not (Test-Path -LiteralPath $OutputPath)) {
-            $metadata.message = 'encode output size guard skipped because source or output was unavailable'
-            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+            $metadata.message = 'encode output size guard could not verify because source or output was unavailable'
+            $inspectionFailureBlocks = ($mode -in @('strict','fallback_remux'))
+            $metadata.enforced = [bool]$inspectionFailureBlocks
+            return [pscustomobject]@{ Ok = (-not $inspectionFailureBlocks); Exceeded = $false; ShouldBlock = [bool]$inspectionFailureBlocks; ShouldFallbackRemux = $false; Severity = if ($inspectionFailureBlocks) { 'error' } else { 'warn' }; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
         }
         $sourceSize = [long](Get-Item -LiteralPath $SourcePath).Length
         $outputSize = [long](Get-Item -LiteralPath $OutputPath).Length
         $metadata.source_size_bytes = $sourceSize
         $metadata.output_size_bytes = $outputSize
         if ($sourceSize -le 0 -or $outputSize -le 0) {
-            $metadata.message = 'encode output size guard skipped because source or output size was zero'
-            return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+            $metadata.message = 'encode output size guard could not verify because source or output size was zero'
+            $inspectionFailureBlocks = ($mode -in @('strict','fallback_remux'))
+            $metadata.enforced = [bool]$inspectionFailureBlocks
+            return [pscustomobject]@{ Ok = (-not $inspectionFailureBlocks); Exceeded = $false; ShouldBlock = [bool]$inspectionFailureBlocks; ShouldFallbackRemux = $false; Severity = if ($inspectionFailureBlocks) { 'error' } else { 'warn' }; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
         }
         $ratio = [math]::Round(([double]$outputSize / [double]$sourceSize), 4)
         $metadata.ratio = $ratio
@@ -322,6 +326,8 @@ function Test-MediaEncodeOutputSizePolicy {
         }
     } catch {
         $metadata.message = "encode output size guard failed to inspect file sizes: $($_.Exception.Message)"
-        return [pscustomobject]@{ Ok = $true; Exceeded = $false; ShouldBlock = $false; ShouldFallbackRemux = $false; Severity = 'warn'; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
+        $inspectionFailureBlocks = ($mode -in @('strict','fallback_remux'))
+        $metadata.enforced = [bool]$inspectionFailureBlocks
+        return [pscustomobject]@{ Ok = (-not $inspectionFailureBlocks); Exceeded = $false; ShouldBlock = [bool]$inspectionFailureBlocks; ShouldFallbackRemux = $false; Severity = if ($inspectionFailureBlocks) { 'error' } else { 'warn' }; Message = $metadata.message; Metadata = [pscustomobject]$metadata }
     }
 }

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_api_http_helpers.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 49855c1366144b39becfb5e9027e99961b11214791f6887e11e8f47079c496e4
+sha256: 67495133346513bf1ea89c109bdd8fb95405303f703cebe61005594183cde167
 ---
 # `tests/python/desktop/test_api_http_helpers.py`
 

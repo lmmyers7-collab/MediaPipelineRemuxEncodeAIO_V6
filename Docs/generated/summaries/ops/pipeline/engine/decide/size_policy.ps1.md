@@ -3,9 +3,9 @@ file: ops/pipeline/engine/decide/size_policy.ps1
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-13
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: cda52717316e6e054253f3c7bbb5fb6b46bf5078040947fe154116e4498733ed
+sha256: c9bb23d2aed04f3d7abaf49831bde94e3af5c6bff363286c219c56bfb375fad3
 ---
 # `ops/pipeline/engine/decide/size_policy.ps1`
 

@@ -220,6 +220,8 @@ class ConfigKeyRegistryTests(unittest.TestCase):
             config_keys.KEY_WORKER_AUTH_TOKEN,
             config_keys.KEY_WORKER_POLL_INTERVAL_SECS,
             config_keys.KEY_WORKER_SOURCE_PATH_MAP,
+            config_keys.KEY_WORKER_ENCODER_MAP,
+            config_keys.KEY_WORKER_HONOR_COORDINATOR_POLICY,
             config_keys.KEY_WORKER_CONFIG_OVERRIDES,
         )
         encode_override_keys = (
@@ -248,6 +250,7 @@ class ConfigKeyRegistryTests(unittest.TestCase):
             "mediapipeline.desktop/network/coordinator.py",
             "mediapipeline.desktop/network/coordinator_policy.py",
             "mediapipeline.desktop/network/encode_config_snapshot.py",
+            "mediapipeline.desktop/network/processing_policy.py",
             "mediapipeline.desktop/network/worker.py",
             "mediapipeline.desktop/controllers/network_controller.py",
         )

@@ -25,7 +25,7 @@ C:\MediaPipelineReleases\2026.06.04.001\
 Recommended candidate folder:
 
 ```text
-C:\MediaPipelineReleases\2026.06.04.001\MediaPipelineRemuxEncodeAIO.0.0_Portable_<YYYYMMDD_HHMMSS>\
+C:\MediaPipelineReleases\2026.06.04.001\MediaPipelineRemuxEncodeAIO.6.0_Portable_<YYYYMMDD_HHMMSS>\
 ```
 
 ## Prerequisites
@@ -65,7 +65,7 @@ npm run build
 Pop-Location
 
 .\ops\scripts\release\build.ps1 `
-  -DestinationRoot C:\MediaPipelineReleases\2026.06.04.001\MediaPipelineRemuxEncodeAIO.0.0_Portable_<YYYYMMDD_HHMMSS> `
+  -DestinationRoot C:\MediaPipelineReleases\2026.06.04.001\MediaPipelineRemuxEncodeAIO.6.0_Portable_<YYYYMMDD_HHMMSS> `
   -Zip `
   -Verify `
   -IncludeTauriPreviewBinary
@@ -81,7 +81,7 @@ Minimum:
 ```powershell
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass `
   -File .\ops\scripts\release\test.ps1 `
-  -BundleRoot C:\MediaPipelineReleases\2026.06.04.001\MediaPipelineRemuxEncodeAIO.0.0_Portable_<YYYYMMDD_HHMMSS>
+  -BundleRoot C:\MediaPipelineReleases\2026.06.04.001\MediaPipelineRemuxEncodeAIO.6.0_Portable_<YYYYMMDD_HHMMSS>
 .\apps\desktop\runtime\Python\python.exe .\src\mediapipeline\tools\change_control\validate_changes.py --require-worktree-coverage
 ```
 
@@ -103,5 +103,3 @@ Package/open/close validation is Phase 5.
 - The release self-test passes against the candidate.
 - The phase report states the candidate is not accepted until Phase 5 passes
   for the same folder.
-
-

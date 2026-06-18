@@ -3,9 +3,9 @@ file: apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-14
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 92afbf9024a3c1102e6b70750911df93332603bbd54a8a98f20712eb5b6d1af8
+sha256: 62642d5ddbfd37e904a566df133ca7d78d370c335aebd02c2c665fd3f66c4298
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs`
 

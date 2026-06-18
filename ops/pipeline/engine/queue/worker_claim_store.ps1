@@ -27,6 +27,7 @@ function New-MediaPipelineWorkerSlotLayout {
     $logs = Join-Path $root 'Logs'
     $progress = Join-Path $root 'Progress'
     $failures = Join-Path $root 'Failures'
+    $resultArchive = Join-Path $root 'ResultArchive'
     return [pscustomobject]@{
         SlotId           = [int]$SlotId
         Root             = $root
@@ -42,6 +43,7 @@ function New-MediaPipelineWorkerSlotLayout {
         ProgressFile     = Join-Path $progress 'pipeline_progress.json'
         EventLogFile     = Join-Path $progress 'pipeline_events.jsonl'
         ResultFile       = Join-Path $root 'worker_result.json'
+        ResultArchive    = $resultArchive
         MetadataFile     = Join-Path $root 'worker_metadata.json'
         Failures         = $failures
         FailureArtifacts = Join-Path $failures 'Artifacts'
@@ -60,6 +62,7 @@ function Initialize-MediaPipelineWorkerSlotLayout {
         $SlotLayout.RemuxTemp,
         $SlotLayout.Logs,
         $SlotLayout.Progress,
+        $SlotLayout.ResultArchive,
         $SlotLayout.Failures,
         $SlotLayout.FailureArtifacts,
         $SlotLayout.FailureReports
@@ -205,12 +208,24 @@ function Repair-MediaPipelineLocalWorkerClaims {
             if ($identityVerified) { continue }
 
             if (-not [string]::IsNullOrWhiteSpace($resultPath) -and (Test-Path -LiteralPath $resultPath -PathType Leaf)) {
+                $archive = $null
+                if (Get-Command Save-MediaPipelineLocalWorkerResultDiagnostic -ErrorAction SilentlyContinue) {
+                    $archive = Save-MediaPipelineLocalWorkerResultDiagnostic `
+                        -ResultPath $resultPath `
+                        -ClaimId ([string]$claim.claim_id) `
+                        -Reason 'stale claim repair before source release'
+                }
                 $releasedAt = Get-MediaPipelineLocalWorkerTimestamp
                 $claim.status = 'released_stale_result'
                 $claim | Add-Member -NotePropertyName released_at -NotePropertyValue $releasedAt -Force
                 $claim | Add-Member -NotePropertyName updated_at -NotePropertyValue $releasedAt -Force
                 $claim | Add-Member -NotePropertyName release_reason -NotePropertyValue 'released stale worker claim with no live worker process; prior result file remains available for diagnostics' -Force
                 $claim | Add-Member -NotePropertyName recovery_note -NotePropertyValue 'released because no current controller can finalize the prior worker result; source may be claimed again' -Force
+                if ($archive -and [bool]$archive.Archived) {
+                    $claim | Add-Member -NotePropertyName stale_result_archive_path -NotePropertyValue ([string]$archive.Path) -Force
+                } elseif ($archive -and -not [string]::IsNullOrWhiteSpace([string]$archive.Error)) {
+                    $claim | Add-Member -NotePropertyName stale_result_archive_error -NotePropertyValue ([string]$archive.Error) -Force
+                }
                 $changed = $true
                 continue
             }

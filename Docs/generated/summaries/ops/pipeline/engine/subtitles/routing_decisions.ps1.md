@@ -3,9 +3,9 @@ file: ops/pipeline/engine/subtitles/routing_decisions.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-13
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: a48849851c4fbb551828a9a7d5407edcc96255804c7d20f9ffaab4f94172093d
+sha256: 48bfd8f0227509a7514f8fdc446752c23f3ae75f9e715f6994ddb1cbe94018a9
 ---
 # `ops/pipeline/engine/subtitles/routing_decisions.ps1`
 

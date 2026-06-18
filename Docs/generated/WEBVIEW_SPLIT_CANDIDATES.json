@@ -31,11 +31,12 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 667,
-            "end": 953,
-            "line_count": 287
+            "start": 665,
+            "end": 957,
+            "line_count": 293
           },
           "functions_to_move": [
+            "refreshGet",
             "refreshAll",
             "refreshCurrentOutputStatus",
             "refreshAllNow"
@@ -45,6 +46,7 @@
             "refreshAllNow"
           ],
           "dependencies_to_resolve": [
+            "AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS",
             "attachRefreshMetadata",
             "bootstrap",
             "lastCloseReadiness",
@@ -72,7 +74,6 @@
             "renderHomeReadiness",
             "renderHomeRecentCompleted",
             "renderHomeStorageHealth",
-            "renderHomeTdarrMatrixStatus",
             "renderRefreshHealth",
             "renderRefreshInProgress"
           ],
@@ -88,28 +89,7 @@
             "setTopbarPendingLaunch",
             "showPage"
           ],
-          "api_routes": [
-            "/api/audit-controls",
-            "/api/backend/close-readiness",
-            "/api/commands?limit=20",
-            "/api/completed?limit=100",
-            "/api/contract",
-            "/api/diagnostics",
-            "/api/diagnostics/state-summary",
-            "/api/diagnostics/tdarr-matrix/latest?finding_limit=0",
-            "/api/health",
-            "/api/libraries/route-map",
-            "/api/metrics",
-            "/api/network/workers",
-            "/api/pending-publish",
-            "/api/queue",
-            "/api/sample-validation?limit=10",
-            "/api/schedule",
-            "/api/settings/workspace",
-            "/api/snapshot",
-            "/api/telemetry",
-            "/api/watch-folders/status"
-          ],
+          "api_routes": [],
           "dom_ids_touched": [
             "audit-preview-priority-only",
             "failure-source-markers",
@@ -118,6 +98,7 @@
           "event_types": [],
           "dependency_classification": {
             "parent_state_reads": [
+              "AUTOMATIC_OPTIONAL_GET_TIMEOUT_MS",
               "bootstrap",
               "lastCloseReadiness",
               "lastSchedule",
@@ -144,7 +125,6 @@
               "renderHomeReadiness",
               "renderHomeRecentCompleted",
               "renderHomeStorageHealth",
-              "renderHomeTdarrMatrixStatus",
               "renderRefreshHealth",
               "renderRefreshInProgress",
               "renderSnapshot",
@@ -156,28 +136,7 @@
               "failure-source-markers",
               "state-pill"
             ],
-            "api_dependencies": [
-              "/api/audit-controls",
-              "/api/backend/close-readiness",
-              "/api/commands?limit=20",
-              "/api/completed?limit=100",
-              "/api/contract",
-              "/api/diagnostics",
-              "/api/diagnostics/state-summary",
-              "/api/diagnostics/tdarr-matrix/latest?finding_limit=0",
-              "/api/health",
-              "/api/libraries/route-map",
-              "/api/metrics",
-              "/api/network/workers",
-              "/api/pending-publish",
-              "/api/queue",
-              "/api/sample-validation?limit=10",
-              "/api/schedule",
-              "/api/settings/workspace",
-              "/api/snapshot",
-              "/api/telemetry",
-              "/api/watch-folders/status"
-            ],
+            "api_dependencies": [],
             "window_dependencies": [
               "window.mediaPipelineAppRefresh",
               "window.mediaPipelineCommandHistory",
@@ -200,6 +159,7 @@
               "Boolean",
               "Date",
               "Error",
+              "Number",
               "Promise",
               "String",
               "window"
@@ -252,7 +212,6 @@
             "assessment_reasons": [
               "depends on several parent/local helper functions",
               "reads several parent-owned top-level state values",
-              "touches settings-owned backend routes",
               "uses unresolved ordered-script globals"
             ]
           },
@@ -269,9 +228,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 982,
-            "end": 1243,
-            "line_count": 262
+            "start": 986,
+            "end": 1267,
+            "line_count": 282
           },
           "functions_to_move": [
             "initSettingsTabNav",
@@ -294,6 +253,7 @@
             "uiPreferenceSyncInFlight",
             "uiPreferenceSyncPending",
             "uiPreferenceApplyingRemote",
+            "uiPreferenceLocalDirty",
             "uiPreferenceLastSerialized",
             "isSharedUiPreferenceKey",
             "collectSharedUiPreferences",
@@ -302,6 +262,7 @@
             "sharedUiPreferencePayload",
             "persistSharedUiPreferencesNow",
             "applySharedUiPreferenceStorage",
+            "hasPendingSharedUiPreferenceWrite",
             "scheduleSharedUiPreferenceSync",
             "restoreSharedUiPreferences",
             "startSharedUiPreferenceRemoteRefresh",
@@ -367,6 +328,7 @@
               "window.setTimeout"
             ],
             "browser_globals": [
+              "Boolean",
               "Error",
               "JSON",
               "Object",
@@ -398,8 +360,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 87,
-            "end": 339,
+            "start": 89,
+            "end": 341,
             "line_count": 253
           },
           "functions_to_move": [
@@ -542,8 +504,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 547,
-            "end": 665,
+            "start": 545,
+            "end": 663,
             "line_count": 119
           },
           "functions_to_move": [
@@ -727,8 +689,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1240,
-            "end": 1827,
+            "start": 1241,
+            "end": 1828,
             "line_count": 588
           },
           "functions_to_move": [
@@ -1024,8 +986,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.policyImpact.js",
           "topic": "settings-final-library",
           "line_range": {
-            "start": 685,
-            "end": 851,
+            "start": 686,
+            "end": 852,
             "line_count": 167
           },
           "functions_to_move": [
@@ -1228,8 +1190,8 @@
           "topic": "settings-core",
           "line_range": {
             "start": 379,
-            "end": 529,
-            "line_count": 151
+            "end": 530,
+            "line_count": 152
           },
           "functions_to_move": [
             "renderSubtitleSettingsBuilderGuidance",
@@ -1452,7 +1414,8 @@
               "window.__settingsViewNetworkBuilderModule",
               "window.__settingsViewPendingPublishBuilderModule",
               "window.__settingsViewQueueBuilderModule",
-              "window.__settingsViewRuntimeBuilderModule"
+              "window.__settingsViewRuntimeBuilderModule",
+              "window.mediaPipelineNetworkView"
             ],
             "browser_globals": [
               "window"
@@ -1466,6 +1429,7 @@
               "formatSettingsListValue",
               "makeRowSelectable",
               "parseSettingsListText",
+              "runNetworkWorkerTestConnection",
               "setText",
               "updateTableStatusLegend"
             ],

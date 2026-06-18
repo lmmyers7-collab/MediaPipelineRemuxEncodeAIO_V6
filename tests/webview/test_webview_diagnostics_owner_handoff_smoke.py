@@ -123,6 +123,7 @@ def _node_runner_source() -> str:
             appendChild(child) { this.children.push(child); child.parentNode = this; return child; },
             append(...children) { children.forEach((child) => this.appendChild(child)); },
             replaceChildren(...children) { this.children = []; children.forEach((child) => this.appendChild(child)); },
+            insertAdjacentElement(_position, child) { return this.appendChild(child); },
             querySelectorAll(selector) { return queryDescendants(this, selector); },
             querySelector(selector) { return queryDescendants(this, selector)[0] || null; },
             closest() { return null; },

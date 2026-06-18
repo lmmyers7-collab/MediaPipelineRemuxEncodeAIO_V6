@@ -3,9 +3,9 @@ file: tests/python/desktop/test_watch_folder_manager.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-13
+last_modified: 2026-06-14
 last_reviewed: 2026-06-11
-sha256: aeac2c2e4a84f0285843cf93d7eb17d8185fb8b9b0987ed378608c94dde75b19
+sha256: 359c13491c62440a313bb27416cfd0615bfba2fedfc3baec1487b2db7469296b
 ---
 # `tests/python/desktop/test_watch_folder_manager.py`
 

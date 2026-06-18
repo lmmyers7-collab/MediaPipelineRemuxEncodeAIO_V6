@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-SrtValidationChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: d1511787b723ad8acdfce5f1561fb2ca2bf0a5f8f79ba4a359e1d9459316f92e
+sha256: 374e2c630d3700f0f145af0ee2f7cc52e0d32845bec3d813b6b1d8c7f8b874ae
 ---
 # `ops/pipeline/tests/Unit/Invoke-SrtValidationChecks.ps1`
 

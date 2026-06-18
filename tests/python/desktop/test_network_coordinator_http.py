@@ -366,6 +366,36 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
             self.assertIn(f"Rejected {endpoint}", output)
             self.assertIn(expected_log, output)
 
+    def test_coordinator_rejects_missing_done_worker_id_before_registry_mutation(self) -> None:
+        cases = (
+            ("success", {"job_id": "job-1", "success": True}),
+            ("failure", {"job_id": "job-1", "worker_id": "", "success": False}),
+            ("terminal_failure", {"job_id": "job-1", "success": False, "queue_terminal": True}),
+            ("release", {"job_id": "job-1", "released": True}),
+        )
+
+        for name, payload in cases:
+            with self.subTest(name=name):
+                dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+                dispatcher._registry = SimpleNamespace(
+                    _lock=threading.Lock(),
+                    _jobs={"job-1": SimpleNamespace(worker_id="worker-1")},
+                    complete=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("complete called")),
+                    unclaim=lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("unclaim called")),
+                )
+                sent: list[tuple[dict[str, object], int]] = []
+                handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+
+                with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+                    CoordinatorDispatcher._http_done(
+                        dispatcher,
+                        handler,
+                        json.dumps(payload).encode("utf-8"),
+                    )
+
+                self.assertEqual(sent, [({"error": "invalid worker_id"}, 400)])
+                self.assertIn("Rejected /api/done with invalid worker_id", "\n".join(logs.output))
+
     def test_coordinator_heartbeat_registry_failure_returns_logged_500(self) -> None:
         sent: list[tuple[dict[str, object], int]] = []
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
@@ -471,6 +501,80 @@ class NetworkCoordinatorHttpTests(unittest.TestCase):
 
         self.assertEqual(sent, [({"error": "event field is required"}, 400)])
         self.assertIn("Rejected /api/log without required event field", "\n".join(logs.output))
+
+    def test_format_cluster_log_line_redacts_every_rendered_field(self) -> None:
+        entry = LogEntryRequest(
+            timestamp="2026-06-15T10:00:00-04:00 token=timestamp-secret",
+            worker_id="token=worker-id-secret",
+            worker_name="worker token=worker-name-secret",
+            role="worker token=role-secret",
+            level="warn token=level-secret",
+            event="job_done token=event-secret",
+            message="finished token=message-secret",
+            job_id="token=job-secret",
+            source_path=r"C:\Media\token=source-secret.mkv",
+        )
+        entry._worker_ts = "2026-06-15T10:00:01-04:00 token=worker-ts-secret"  # type: ignore[attr-defined]
+
+        line = format_cluster_log_line(entry)
+
+        for secret in (
+            "timestamp-secret",
+            "worker-id-secret",
+            "worker-name-secret",
+            "role-secret",
+            "level-secret",
+            "event-secret",
+            "message-secret",
+            "job-secret",
+            "source-secret",
+            "worker-ts-secret",
+        ):
+            with self.subTest(secret=secret):
+                self.assertNotIn(secret, line)
+        self.assertIn("<redacted>", line)
+
+    def test_coordinator_http_log_redacts_every_worker_supplied_field_before_append(self) -> None:
+        sent: list[tuple[dict[str, object], int]] = []
+        appended: list[LogEntryRequest] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._append_cluster_log = lambda entry: appended.append(entry)  # type: ignore[method-assign]
+        handler = SimpleNamespace(_send_json=lambda response, status=200: sent.append((response, status)))
+        payload = {
+            "timestamp": "2026-06-15T10:00:00-04:00 token=timestamp-secret",
+            "worker_id": "token=worker-id-secret",
+            "worker_name": "worker token=worker-name-secret",
+            "role": "worker token=role-secret",
+            "level": "warn token=level-secret",
+            "event": "job_done token=event-secret",
+            "message": "finished token=message-secret",
+            "job_id": "token=job-secret",
+            "source_path": r"C:\Media\token=source-secret.mkv",
+        }
+
+        with self.assertLogs("mediapipeline.desktop.network.coordinator", level="WARNING") as logs:
+            CoordinatorDispatcher._http_log(dispatcher, handler, json.dumps(payload).encode("utf-8"))  # type: ignore[arg-type]
+
+        self.assertEqual(sent, [({"status": "ok"}, 200)])
+        self.assertEqual(len(appended), 1)
+        rendered = format_cluster_log_line(appended[0])
+        appended_payload = json.dumps(appended[0].__dict__, sort_keys=True, default=str)
+        log_output = "\n".join(logs.output)
+        for secret in (
+            "timestamp-secret",
+            "worker-id-secret",
+            "worker-name-secret",
+            "role-secret",
+            "level-secret",
+            "event-secret",
+            "message-secret",
+            "job-secret",
+            "source-secret",
+        ):
+            with self.subTest(secret=secret):
+                self.assertNotIn(secret, rendered)
+                self.assertNotIn(secret, appended_payload)
+                self.assertNotIn(secret, log_output)
 
     def test_coordinator_logs_cluster_log_field_sanitization(self) -> None:
         sent: list[tuple[dict[str, object], int]] = []

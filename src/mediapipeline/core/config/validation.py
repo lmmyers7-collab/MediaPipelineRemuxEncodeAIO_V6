@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import re
 from typing import Any
 
@@ -44,6 +43,7 @@ from mediapipeline.core.config.path_warnings import (
 )
 from mediapipeline.core.config.numeric_policy import validate_required_and_numeric_config
 from mediapipeline.core.config.preset_migration import FRIENDLY_LABEL_PERSISTED_KEY_ALIASES
+from mediapipeline.core.validation.strict_json import loads_strict_json
 
 EVIDENCE_ONLY_CONFIG_KEYS = {
     "library_effective_settings",
@@ -106,29 +106,33 @@ def canonical_config_key_spelling_errors(values: dict[str, Any]) -> list[str]:
     return errors
 
 
-def _canonical_config_contract_errors(values: dict[str, Any]) -> list[str]:
+def _config_contract_error_messages(exc: ValidationError) -> list[str]:
+    errors: list[str] = []
+    for item in exc.errors():
+        ctx = item.get("ctx") if isinstance(item, dict) else None
+        ctx_error = ctx.get("error") if isinstance(ctx, dict) else None
+        if ctx_error is not None:
+            message = str(ctx_error)
+        else:
+            message = str(item.get("msg") or "Config contract validation failed.")
+            if message.startswith("Value error, "):
+                message = message.removeprefix("Value error, ")
+        loc = item.get("loc") if isinstance(item, dict) else None
+        if loc:
+            errors.append(f"{'.'.join(str(part) for part in loc)}: {message}")
+        else:
+            errors.append(message)
+    return errors
+
+
+def _validated_config_contract_values(values: dict[str, Any]) -> tuple[dict[str, Any] | None, list[str]]:
     from mediapipeline.contracts.config import Config
 
     try:
-        Config.model_validate(values)
+        config = Config.model_validate(values)
     except ValidationError as exc:
-        errors: list[str] = []
-        for item in exc.errors():
-            ctx = item.get("ctx") if isinstance(item, dict) else None
-            ctx_error = ctx.get("error") if isinstance(ctx, dict) else None
-            if ctx_error is not None:
-                message = str(ctx_error)
-            else:
-                message = str(item.get("msg") or "Config contract validation failed.")
-                if message.startswith("Value error, "):
-                    message = message.removeprefix("Value error, ")
-            loc = item.get("loc") if isinstance(item, dict) else None
-            if loc:
-                errors.append(f"{'.'.join(str(part) for part in loc)}: {message}")
-            else:
-                errors.append(message)
-        return errors
-    return []
+        return None, _config_contract_error_messages(exc)
+    return config.model_dump(mode="python"), []
 
 
 def _unique_strings(values: list[str]) -> list[str]:
@@ -200,7 +204,7 @@ def _coerce_promotion_rules(raw: Any) -> list[dict[str, Any]]:
         text = raw.strip()
         if not text:
             return []
-        raw = json.loads(text)
+        raw = loads_strict_json(text)
     if isinstance(raw, dict):
         raw = [raw]
     if not isinstance(raw, list):
@@ -270,11 +274,16 @@ def validate_config_values(
     raw_errors: list[str] = []
     raw_errors.extend(canonical_config_key_spelling_errors(raw_values))
     validate_raw_library_profile_override_groups(raw_values, raw_errors)
+    _raw_contract_values, raw_contract_errors = _validated_config_contract_values(raw_values)
+    raw_errors.extend(raw_contract_errors)
     values = normalize_library_profile_config_values(raw_values)
     values = mirror_legacy_keys_from_library_profiles(values)
     errors: list[str] = list(raw_errors)
     warnings: list[str] = []
-    errors.extend(_canonical_config_contract_errors(values))
+    contract_values, contract_errors = _validated_config_contract_values(values)
+    errors.extend(contract_errors)
+    if contract_values is not None:
+        values = contract_values
 
     for key in sorted(set(raw_values) & set(FRIENDLY_LABEL_PERSISTED_KEY_ALIASES)):
         persisted_key = FRIENDLY_LABEL_PERSISTED_KEY_ALIASES[key]

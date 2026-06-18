@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-06-15
 last_reviewed: 2026-06-10
-sha256: dfbea0b447fd0c48b13c3888e708d526367c4c66806356eba088af8b86f4de58
+sha256: ee5084d2c50cfad2f27406d88c9bc21e2a8b1c8cf586a8c4ebc2fe00702ad761
 ---
 # `ops/pipeline/tests/Unit/Invoke-LocalWorkerClaimLifecycleChecks.ps1`
 

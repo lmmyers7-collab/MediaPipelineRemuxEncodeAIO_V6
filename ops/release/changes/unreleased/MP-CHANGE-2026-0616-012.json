@@ -1,0 +1,167 @@
+{
+  "id": "MP-CHANGE-2026-0616-012",
+  "title": "Harden command journal failure evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Implements verified command journal and Command History evidence trust fixes for route exceptions, persistence degradation visibility, and duplicate local failure display.",
+  "reason": "The command journal close-readiness review found that route exceptions were not durable command evidence, journal persistence degradation was invisible, and repeated identical local-only failures could be collapsed in Command History.",
+  "affected_areas": [
+    "command_journal",
+    "local_api",
+    "command_history_webview",
+    "diagnostics"
+  ],
+  "risk_boundaries": [
+    "command journal",
+    "close-readiness",
+    "Tauri lifecycle",
+    "Diagnostics/Command History trust"
+  ],
+  "behavior_before": "Unexpected command route exceptions returned sanitized 500 responses without persisted command-result rows; non-strict JSON or SQLite journal persistence failures were log-only; repeated identical local Command History failures could be deduped into one row.",
+  "behavior_after": "Unexpected command route exceptions are converted into sanitized desktop_command_result.v1 journal rows before the 500 response is sent; /api/commands includes journal_persistence metadata for JSON and SQLite mirror status; local Command History rows receive unique local identities so repeated identical local failures remain visible until matching backend evidence replaces them.",
+  "files_touched": [
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-012.json",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/09-implementation-ledger.md",
+    "src/mediapipeline/desktop/api/handler.py",
+    "src/mediapipeline/desktop/api/handler_policy.py",
+    "src/mediapipeline/desktop/api/command_journal.py",
+    "apps/desktop/webview/static/assets/commandHistory.js",
+    "tests/python/desktop/test_api_handler_policy.py",
+    "tests/python/desktop/test_application_facade_core_contracts.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/webview/test_webview_command_evidence_smoke.py",
+    "Docs/generated/summaries/src/mediapipeline/desktop/api/handler.py.md",
+    "Docs/generated/summaries/src/mediapipeline/desktop/api/handler_policy.py.md",
+    "Docs/generated/summaries/src/mediapipeline/desktop/api/command_journal.py.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/commandHistory.js.md",
+    "Docs/generated/summaries/tests/python/desktop/test_api_handler_policy.py.md",
+    "Docs/generated/summaries/tests/python/desktop/test_application_facade_core_contracts.py.md",
+    "Docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_command_evidence_smoke.py.md",
+    "Docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-012.json.md"
+  ],
+  "implementation_ledger": [
+    {
+      "issue_id": "CJ-001",
+      "source_markdown_file": "docs/reviews/command-journal-close-readiness-2026-06-16/05-findings.md",
+      "severity": "high",
+      "affected_files_or_modules": [
+        "src/mediapipeline/desktop/api/handler.py",
+        "src/mediapipeline/desktop/api/handler_policy.py",
+        "tests/python/desktop/test_application_facade_local_api.py",
+        "tests/python/desktop/test_api_handler_policy.py"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "command journal, Diagnostics/Command History trust",
+      "required_tests": [
+        "route exception journal policy unit test",
+        "local API route exception command journal integration test"
+      ],
+      "implementation_status": "validated",
+      "notes": "POST route exceptions now record a sanitized local_api.route_exception command-result journal row when the route policy allows journaling; secret-transfer and explicitly unjournaled routes remain suppressed."
+    },
+    {
+      "issue_id": "CJ-002",
+      "source_markdown_file": "docs/reviews/command-journal-close-readiness-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_or_modules": [
+        "src/mediapipeline/desktop/api/command_journal.py",
+        "tests/python/desktop/test_application_facade_core_contracts.py"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "command journal, Diagnostics/Command History trust",
+      "required_tests": [
+        "JSON save failure persistence metadata test",
+        "SQLite mirror failure persistence metadata test"
+      ],
+      "implementation_status": "validated",
+      "notes": "CommandJournal tracks JSON save and SQLite mirror status and exposes journal_persistence metadata from /api/commands without weakening non-strict recording semantics."
+    },
+    {
+      "issue_id": "CH-001",
+      "source_markdown_file": "docs/reviews/command-journal-close-readiness-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_or_modules": [
+        "apps/desktop/webview/static/assets/commandHistory.js",
+        "tests/webview/test_webview_command_evidence_smoke.py"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "Diagnostics/Command History trust",
+      "required_tests": [
+        "WebView command history local duplicate smoke test"
+      ],
+      "implementation_status": "validated",
+      "notes": "Command History local rows now carry unique local_id values; empty backend refreshes preserve repeated local failures, and matching backend evidence still replaces local-only rows."
+    },
+    {
+      "issue_id": "VAL-001",
+      "source_markdown_file": "docs/reviews/command-journal-close-readiness-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_or_modules": [
+        "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+        "apps/desktop/tauri/src-tauri/src/lib.rs",
+        "tests/python/desktop/test_tauri_pg1_close_adversarial_scaffold.py"
+      ],
+      "claim_status": "confirmed_coverage_gap",
+      "risk_boundary_touched": "close-readiness, Tauri lifecycle, active encode/process detection",
+      "required_tests": [
+        "live Tauri active-work close test"
+      ],
+      "implementation_status": "blocked",
+      "blocked_reason": "No live Tauri GUI harness or safe long-running encode fixture is available in this workspace; no source bug was confirmed."
+    }
+  ],
+  "invalid_or_already_fixed_findings": [],
+  "blocked_findings": [
+    "VAL-001"
+  ],
+  "tests_added_or_updated": [
+    "Route exception journal payload policy test",
+    "Secret-transfer route exception/validation journal suppression policy test",
+    "Local API route exception command journal integration test",
+    "JSON save failure journal_persistence metadata test",
+    "SQLite mirror failure journal_persistence metadata test",
+    "WebView command history repeated local failure smoke assertion"
+  ],
+  "tests_added": [
+    "Route exception journal payload policy test",
+    "Secret-transfer route exception/validation journal suppression policy test",
+    "Local API route exception command journal integration test",
+    "JSON save failure journal_persistence metadata test",
+    "SQLite mirror failure journal_persistence metadata test",
+    "WebView command history repeated local failure smoke assertion"
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest tests.python.desktop.test_api_handler_policy tests.python.desktop.test_application_facade_core_contracts.ApplicationFacadeCoreContractTests.test_command_journal_logs_temp_cleanup_failure_after_save_failure tests.python.desktop.test_application_facade_core_contracts.ApplicationFacadeCoreContractTests.test_command_journal_surfaces_sqlite_mirror_failure tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_route_exception_is_recorded_in_command_journal -q - passed: 11 tests.",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest tests.webview.test_webview_command_evidence_smoke.WebViewCommandEvidenceSmokeTests.test_backend_served_webview_command_evidence_renders_owner_issue_lines -q - passed: 1 test.",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest tests.python.desktop.test_api_handler_policy tests.python.desktop.test_application_facade_core_contracts tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_process_commands_require_token_before_side_effects tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_route_exception_is_recorded_in_command_journal -q - passed: 24 tests.",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors -q - passed: 1 test.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [command journal touched files] - passed: 9 written, 0 unchanged."
+  ],
+  "validation_not_run": [
+    "Live Tauri active-work close test is blocked pending an operator-provided GUI harness and controlled long-running process fixture."
+  ],
+  "strict_change_control_coverage": {
+    "status": "failed_external_worktree_state",
+    "command": "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+    "result": "Packet schema passed after adding tests_added, and the added subtitle/network ledger files are covered by their packets. Final strict worktree coverage still failed because 12 pre-existing changed paths are not listed in any unreleased change packet: artifacts/dependency-boundary-current.txt, 9 source-scratch review Markdown files under docs/reviews/source-scratch-output-file-handling-2026-06-16, src/mediapipeline/core/queue/source_path_policy.py, and tests/webview/test_webview_diagnostics_owner_handoff_smoke.py."
+  },
+  "rollback_plan": "Revert the listed local API, command journal, WebView command history, test, generated-summary, ledger, and packet changes. Do not modify source media, runtime state, personal config, release packages, or archived rollback evidence.",
+  "related_review_files": [
+    "docs/reviews/command-journal-close-readiness-2026-06-16/00-review-scope.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/01-code-map.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/02-invariants-and-boundaries.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/03-risk-review.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/04-test-coverage-review.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/05-findings.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/06-remediation-plan.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/07-validation-plan.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/08-final-review-summary.md"
+  ],
+  "related_changes": [],
+  "notes": "High-validation rules apply because command evidence trust and close-readiness are safety boundaries."
+}

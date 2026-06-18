@@ -58,6 +58,8 @@
     ["WorkerName", "settings-network-worker-name", "text"],
     ["WorkerPollIntervalSecs", "settings-network-worker-poll", "number_positive"],
     ["WorkerSourcePathMap", "settings-network-path-map", "json_text"],
+    ["WorkerEncoderMap", "settings-network-worker-encoder-map", "json_text"],
+    ["WorkerHonorCoordinatorPolicy", "settings-network-honor-coordinator-policy", "bool"],
     ["WorkerConfigOverrides", "settings-network-worker-overrides", "json_text"],
   ];
 

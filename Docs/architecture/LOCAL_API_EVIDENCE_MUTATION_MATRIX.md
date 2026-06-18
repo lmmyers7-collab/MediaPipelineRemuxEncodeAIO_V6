@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 112 (46 read, 66 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 116 (46 read, 70 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -226,6 +226,15 @@ Writes and atomically reloads the live config PSD1 through backend-owned setting
 |---|---|---|---|
 | `POST /api/settings/save-patch` | `config-write` | Frontend cannot write PSD1 directly | `confirm_save` required; backend validates, backs up, writes, and reloads |
 | `POST /api/settings/wizard/save` | `config-write` | Frontend cannot write PSD1 directly | `confirm_save` required; backend uses normal settings save path |
+| `POST /api/network/worker/join-cluster` | `config-write` | Frontend cannot import worker URL/token/path-map directly | `confirm_import` required; backend decodes the secret-safe join blob, saves worker settings through the normal settings path, then runs read-only test-connection |
+
+### secret-transfer (high risk, setup only)
+
+Returns a secret-bearing setup blob without journaling the secret. It must not start lifecycle, claim work, launch processing, publish, drain, or touch media.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/network/coordinator/join-blob` | `secret-transfer` | Frontend cannot mint or log worker auth secrets directly | Requires `confirm_create`; token rotation additionally requires `confirm_rotate`; response rendering must stay token/blob safe |
 
 ### filesystem-mutation (high risk)
 
@@ -254,6 +263,12 @@ Initiates guarded backend lifecycle operations. Network lifecycle routes are pro
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/backend/shutdown` | `backend-lifecycle` | Shell must not decide shutdown safety unilaterally | Requires safe close-readiness unless `force_active_work_shutdown` is literal JSON boolean `true`; backend controls shutdown sequence |
+| `POST /api/network/coordinator/start-dry-run` | `none` | Frontend cannot decide lifecycle readiness directly | Dry-run evidence only; reports coordinator start preconditions and `would_not_touch` evidence |
+| `POST /api/network/coordinator/stop-dry-run` | `none` | Frontend cannot decide lifecycle readiness directly | Dry-run evidence only; reports stop preconditions and state preservation evidence |
+| `POST /api/network/worker/start-dry-run` | `none` | Frontend cannot start worker queue scanning directly | Dry-run evidence only; reports worker coordinator URL/path-map/pending-done posture |
+| `POST /api/network/worker/stop-dry-run` | `none` | Frontend cannot abort worker work directly | Dry-run evidence only; reports worker stop and pending done posture |
+| `POST /api/network/worker/test-connection` | `none` | Frontend cannot probe TCP/auth/path policy directly | Read-only worker preflight only; no lifecycle, claim, queue, settings, publish, drain, or media mutation |
+| `POST /api/network/worker/discover-coordinators` | `none` | Frontend cannot scan/choose coordinator state outside backend policy | Read-only mDNS discovery; selecting a result only stages Settings patch values until backend preview/save |
 | `POST /api/network/coordinator/start` | `backend-lifecycle` | Frontend cannot start coordinator runtime directly | Requires `confirm_start`; backend preconditions and provider availability must pass; no local file processing unless real lifecycle provider supports it |
 | `POST /api/network/coordinator/stop` | `backend-lifecycle` | Frontend cannot force-release active claims or delete state | Requires `confirm_stop`; preserves `coordinator_inflight.json`, `worker_state.json`, and `cluster.log` |
 | `POST /api/network/worker/start` | `backend-lifecycle` | Frontend cannot start worker queue scanning or claim work directly | Requires `confirm_start`; worker lifecycle provider claims only coordinator-assigned work one file at a time |

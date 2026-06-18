@@ -27,6 +27,8 @@ pub(crate) struct BackendRoute {
     #[serde(default)]
     pub(crate) frontend_exposed: Option<bool>,
     #[serde(default)]
+    pub(crate) journaled: Option<bool>,
+    #[serde(default)]
     pub(crate) network_lifecycle: Option<NetworkLifecycleRoute>,
 }
 

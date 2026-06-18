@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 112 (46 read, 66 command).
+Total routes: 116 (46 read, 70 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -262,7 +262,7 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 62 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview, Network lifecycle dry-runs) | None |
+| `none` | 64 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/maintenance/dependency-atlas/open-folder` | OS open only; no file mutation |
@@ -282,7 +282,8 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `control-flag-write` | `POST /api/pipeline/control` | Pause/stop/rescan signal or backend-owned emergency kill cleanup only |
 | `validation-log-write` | `POST /api/sample-validation/append` | Appends to operator evidence log only |
 | `app-state-write` | `POST /api/schedule/save` | Writes desktop app schedule keys only |
-| `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/wizard/save` | Writes and reloads PSD1 config |
+| `secret-transfer` | `POST /api/network/coordinator/join-blob` | Returns an unjournaled setup blob containing the worker auth secret; no media or lifecycle mutation |
+| `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/wizard/save`, `POST /api/network/worker/join-cluster` | Writes and reloads PSD1 config |
 | `filesystem-mutation` | `POST /api/rename/apply`, `POST /api/final-library-promotion/promote-queue` | Renames files or promotes completed outputs through backend-owned file operations |
 | `process-launch` | `POST /api/pipeline/start`, `POST /api/audit/start`, `POST /api/rerun/start` | Spawns backend processes |
 | `backend-lifecycle` | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` | Initiates guarded backend lifecycle operations; forced active-work cleanup requires literal boolean `true` for shutdown, and Network lifecycle start/stop requires confirmation plus provider preconditions |

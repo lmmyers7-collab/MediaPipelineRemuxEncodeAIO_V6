@@ -1,0 +1,201 @@
+{
+  "id": "MP-CHANGE-2026-0616-009",
+  "title": "Harden release package gates and package-scope validation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Implements confirmed release/package gate findings from the release-package review packet, including personal-config zip prevention, PG3 report ignore hygiene, release traversal pruning, package-scope exclusions, and recursive Tauri asset syntax coverage.",
+  "reason": "Release packaging is a no-touch boundary because accidental live config, logs, state, personal paths, stale launchers, or unvalidated package behavior can ship private operator data or unverifiable artifacts.",
+  "affected_areas": [
+    "release-packaging",
+    "tauri-shell",
+    "package-hygiene",
+    "generated-summaries",
+    "tests",
+    "change-control"
+  ],
+  "behavior_before": "KeepPersonalConfig could be combined with Zip; PG3 reports were package-excluded but not gitignored; release build enumerated excluded trees before applying policy; Tauri JS syntax checks were non-recursive; package-scope helpers only modeled omitted tests.",
+  "behavior_after": "Release builder rejects zipped personal mirrors, prunes unconditional excluded directories before traversal, PG3 reports are ignored by Git/search rules, package-scope helpers model always-omitted and optional package omissions, and the Tauri build checker recurses through nested WebView JavaScript assets.",
+  "files_touched": [
+    ".gitignore",
+    ".rgignore",
+    "apps/desktop/tauri/Test-TauriShell-Build.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1",
+    "ops/scripts/release/build.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0615-022.json",
+    "src/mediapipeline/tools/dev/release_package_scope.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py",
+    "tests/python/tooling/test_release_package_scope.py",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-009.json",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1.md",
+    "Docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0615-022.json.md",
+    "Docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-009.json.md",
+    "Docs/generated/summaries/ops/scripts/release/build.ps1.md",
+    "Docs/generated/summaries/src/mediapipeline/tools/dev/release_package_scope.py.md",
+    "Docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "Docs/generated/summaries/tests/python/tooling/test_release_package_scope.py.md"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1: personal-config zip rejection, pruned release traversal, PG3 ignore-rule assertions",
+    "tests/python/desktop/test_tauri_shell_scaffold.py::TauriShellScaffoldTests::test_tauri_build_checker_validates_webview_javascript_syntax: recursive asset coverage",
+    "tests/python/tooling/test_release_package_scope.py::ReleasePackageScopeTests::test_manifest_flags_return_optional_package_omissions",
+    "tests/python/tooling/test_release_package_scope.py::ReleasePackageScopeTests::test_manifest_flags_return_always_omitted_package_roots"
+  ],
+  "manual_validation": [
+    "Read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md before source edits.",
+    "Ingested the provided release/package review artifacts from the external review workspace and verified each Markdown claim against current source before changing release/package files.",
+    "Verified RPG-001 as invalid for current source: active release-foundation docs and MP-CHANGE-2026-0615-013 require Tauri semver 6.0.0 while the backend release label remains 2026.06.04.001.",
+    "Redacted a validation-discovered local workstation path from unrelated in-progress change packet MP-CHANGE-2026-0615-022.json because it blocked the release package local-path leak gate.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.tooling.test_release_package_scope -q - passed: 7 tests.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_tauri_shell_scaffold -q - passed: 90 tests.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_versioning tests.python.desktop.test_tauri_shell_scaffold tests.python.tooling.test_release_package_scope -q - passed: 99 tests.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/build.ps1 -DestinationRoot $env:TEMP/mediapipeline-personal-zip-guard -KeepPersonalConfig -Zip -DryRun - failed as expected with the personal-config zip guard.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/build.ps1 -DestinationRoot $env:TEMP/mediapipeline-review-dryrun-pruned -DryRun - passed without copying files.",
+    "git check-ignore -v docs/PG3CleanMachineReports/review-probe.md - passed via .gitignore docs/PG3CleanMachineReports/ rule.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1 - passed, including release dry-run package policy validation.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File apps/desktop/tauri/Test-TauriShell-Build.ps1 -SkipLinkCheck - JavaScript syntax, npm check, and cargo check phases passed; cargo test is blocked by unrelated current Rust compile error missing field journaled in BackendRoute initializer at apps/desktop/tauri/src-tauri/src/lib.rs:367.",
+    "refresh_summaries --check --paths for this packet's summary-covered source/test/change-packet files passed: 7 source files current and no orphan summaries.",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed on unrelated existing change-control issues: MP-CHANGE-2026-0615-021 lacks required high/critical notes or rollback detail, and 19 changed files outside this packet are not listed in any unreleased packet."
+  ],
+  "rollback_plan": "Revert only the files listed in files_touched. For MP-CHANGE-2026-0615-022.json, restore only the single redacted manual_validation string if explicitly required. Do not revert unrelated dirty worktree files, source media, runtime state, personal config, release packages, or archived rollback evidence.",
+  "related_changes": [
+    "MP-CHANGE-2026-0615-013"
+  ],
+  "implementation_ledger": [
+    {
+      "issue_id": "RPG-001",
+      "source_markdown_file": "05-findings.md",
+      "severity": "high",
+      "affected_files_modules": [
+        "apps/desktop/tauri/package.json",
+        "apps/desktop/tauri/package-lock.json",
+        "apps/desktop/tauri/src-tauri/Cargo.toml",
+        "apps/desktop/tauri/src-tauri/Cargo.lock",
+        "apps/desktop/tauri/src-tauri/tauri.conf.json",
+        "tests/python/desktop/test_tauri_shell_scaffold.py"
+      ],
+      "verification_status": "invalid",
+      "required_tests": [
+        "tests.python.desktop.test_tauri_shell_scaffold",
+        "tests.python.desktop.test_versioning"
+      ],
+      "risk_boundary_touched": "Tauri package identity and release version provenance",
+      "implementation_status": "no_code_change_active_phase1_semver_identity"
+    },
+    {
+      "issue_id": "RPG-002",
+      "source_markdown_file": "05-findings.md",
+      "severity": "high",
+      "affected_files_modules": [
+        "ops/scripts/release/build.ps1",
+        "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1"
+      ],
+      "risk_boundary_touched": "Release package live config exclusion",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "RPG-003",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium_high",
+      "affected_files_modules": [
+        ".gitignore",
+        ".rgignore",
+        "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "git check-ignore -v docs/PG3CleanMachineReports/review-probe.md",
+        "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1"
+      ],
+      "risk_boundary_touched": "Operator report personal path and machine identity hygiene",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "RPG-004",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "Docs/generated/summaries",
+        "Docs/generated/PROJECT_INDEX.md",
+        "Docs/generated/DEPENDENCY_GRAPH.md"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "refresh_summaries",
+        "generate_project_index",
+        "ops/scripts/release/test.ps1"
+      ],
+      "risk_boundary_touched": "Generated artifact freshness gate",
+      "implementation_status": "fixed_for_touched_files_global_generated_freshness_not_claimed_due_unrelated_dirty_generated_state"
+    },
+    {
+      "issue_id": "RPG-005",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "ops/scripts/release/build.ps1",
+        "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1",
+        "ops/scripts/release/build.ps1 -DryRun"
+      ],
+      "risk_boundary_touched": "Release package logs/state/runtime traversal hygiene",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "RPG-006",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "ops/scripts/release/test.ps1",
+        "apps/desktop/tauri/Test-TauriShell-Launch.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "package-mode Tauri validation from a copied package"
+      ],
+      "risk_boundary_touched": "Package-mode Tauri validation",
+      "implementation_status": "blocked_requires_candidate_package_and_gui_open_close_validation"
+    },
+    {
+      "issue_id": "RPG-007",
+      "source_markdown_file": "05-findings.md",
+      "severity": "low_medium",
+      "affected_files_modules": [
+        "apps/desktop/tauri/Test-TauriShell-Build.ps1",
+        "tests/python/desktop/test_tauri_shell_scaffold.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.python.desktop.test_tauri_shell_scaffold"
+      ],
+      "risk_boundary_touched": "Tauri/WebView asset validation",
+      "implementation_status": "fixed_validated_full_tauri_build_test_blocked_by_unrelated_rust_compile_error"
+    },
+    {
+      "issue_id": "RPG-008",
+      "source_markdown_file": "05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "src/mediapipeline/tools/dev/release_package_scope.py",
+        "tests/python/tooling/test_release_package_scope.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.python.tooling.test_release_package_scope"
+      ],
+      "risk_boundary_touched": "Package-aware generated/tooling checks",
+      "implementation_status": "fixed_validated"
+    }
+  ],
+  "notes": "No source media, runtime state, personal config, release package, zip artifact, or archived rollback evidence is in scope. RPG-006 remains blocked because package-mode Tauri validation requires a specific candidate package plus GUI open/close validation. Full Tauri shell build validation is blocked by an unrelated Rust BackendRoute initializer compile error in the pre-existing dirty Tauri source. Strict change-control coverage remains blocked by unrelated existing packet/detail and uncovered-file issues outside this packet."
+}

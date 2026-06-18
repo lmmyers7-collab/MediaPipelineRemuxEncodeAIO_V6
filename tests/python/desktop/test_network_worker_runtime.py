@@ -236,6 +236,68 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
             "\n".join(logs.output),
         )
 
+    def test_worker_local_cluster_log_mirror_redacts_token_assignment(self) -> None:
+        class NoopThread:
+            def __init__(self, *, target, **_kwargs) -> None:
+                self._target = target
+
+            def start(self) -> None:
+                return None
+
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._worker_id = "worker-1"
+        worker._worker_name = "Worker"
+        worker._http_post = lambda *_args, **_kwargs: None
+
+        with (
+            patch("mediapipeline.desktop.network.worker.threading.Thread", NoopThread),
+            self.assertLogs("mediapipeline.desktop.network.worker", level="INFO") as logs,
+        ):
+            worker.log_cluster_event(
+                level="INFO",
+                event="job_started",
+                message="claim token=super-secret WorkerAuthToken=also-secret",
+                job_id="job-token=job-secret",
+            )
+
+        output = "\n".join(logs.output)
+        self.assertIn("token=<redacted>", output)
+        self.assertIn("WorkerAuthToken=<redacted>", output)
+        self.assertNotIn("super-secret", output)
+        self.assertNotIn("also-secret", output)
+        self.assertNotIn("job-secret", output)
+
+    def test_worker_local_cluster_log_mirror_redacts_url_query_fragment_userinfo(self) -> None:
+        class NoopThread:
+            def __init__(self, *, target, **_kwargs) -> None:
+                self._target = target
+
+            def start(self) -> None:
+                return None
+
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._worker_id = "worker-1"
+        worker._worker_name = "Worker"
+        worker._http_post = lambda *_args, **_kwargs: None
+
+        with (
+            patch("mediapipeline.desktop.network.worker.threading.Thread", NoopThread),
+            self.assertLogs("mediapipeline.desktop.network.worker", level="INFO") as logs,
+        ):
+            worker.log_cluster_event(
+                level="INFO",
+                event="job_started",
+                message="failed http://user:pass@coord.test:7830/api/log?token=url-secret#frag",
+                source_path="http://user:pass@coord.test:7830/media/Movie.mkv?token=source-secret#frag",
+            )
+
+        output = "\n".join(logs.output)
+        self.assertIn("http://coord.test:7830/api/log", output)
+        self.assertNotIn("user:pass", output)
+        self.assertNotIn("url-secret", output)
+        self.assertNotIn("source-secret", output)
+        self.assertNotIn("#frag", output)
+
     def test_worker_cluster_log_post_failure_warns_with_event_context(self) -> None:
         class InlineThread:
             def __init__(self, *, target, **_kwargs) -> None:
@@ -447,6 +509,33 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
         self.assertTrue(worker._poll_stop.is_set())
         self.assertEqual(released, [job])
         self.assertIn("Failed to emit worker-stopped cluster event", "\n".join(logs.output))
+
+    def test_worker_shutdown_preserve_active_job_keeps_claim_and_heartbeat(self) -> None:
+        class StoppedPollThread:
+            def is_alive(self) -> bool:
+                return False
+
+        released: list[object] = []
+        heartbeat_stops: list[bool] = []
+        job = SimpleNamespace(job_id="job-1")
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._worker_name = "Worker"
+        worker._poll_stop = threading.Event()
+        worker._active_job_lock = threading.Lock()
+        worker._active_job = job
+        worker._poll_thread = StoppedPollThread()
+        worker.release = lambda active_job: released.append(active_job)  # type: ignore[method-assign]
+        worker._stop_heartbeat = lambda: heartbeat_stops.append(True)  # type: ignore[method-assign]
+        worker.log_cluster_event = lambda **_kwargs: None  # type: ignore[method-assign]
+
+        with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+            WorkerDispatcher.shutdown(worker, release_active_job=False, preserve_active_job=True)
+
+        self.assertTrue(worker._poll_stop.is_set())
+        self.assertEqual(released, [])
+        self.assertEqual(heartbeat_stops, [])
+        self.assertIs(worker._active_job, job)
+        self.assertIn("shutdown preserved active job job-1", "\n".join(logs.output))
 
     def test_worker_auth_poll_cluster_log_failure_keeps_poll_loop_alive(self) -> None:
         statuses: list[str] = []
@@ -1008,6 +1097,63 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
         self.assertNotIn("tail-marker", statuses[0])
         self.assertNotIn("tail-marker", "\n".join(logs.output))
 
+    def test_worker_malformed_claim_release_post_failure_saves_pending_release(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "worker_state.json"
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = state_path
+            worker._worker_id = "worker-1"
+            worker._http_post = lambda _path, _payload: (_ for _ in ()).throw(RuntimeError("coordinator offline"))  # type: ignore[method-assign]
+            worker._notify_status = statuses.append  # type: ignore[method-assign]
+            worker.log_cluster_event = lambda **_kwargs: None  # type: ignore[method-assign]
+
+            released = WorkerDispatcher._release_malformed_claim_response(
+                worker,
+                {"status": "ok", "job_id": "job-1", "source_path": r"C:\Media\movie.mkv"},
+                "bad encode_config",
+            )
+
+            state = load_worker_state(state_path)
+
+        self.assertTrue(released)
+        self.assertEqual(statuses, ["⚠ Release report queued for retry: coordinator offline"])
+        self.assertEqual(state["job_id"], "job-1")
+        self.assertTrue(state["pending_done_report"]["released"])
+
+    def test_worker_poll_loop_rejects_ok_claim_missing_source_without_release_or_launch(self) -> None:
+        class StopAfterOneLoop:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def is_set(self) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        posts: list[tuple[str, dict]] = []
+        statuses: list[str] = []
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._poll_interval = 1.0
+        worker._poll_stop = StopAfterOneLoop()
+        worker._active_job_lock = threading.Lock()
+        worker._active_job = None
+        worker._worker_id = "worker-1"
+        worker._worker_name = "Worker"
+        worker._base_url = "http://coordinator.test:7830"
+        worker._http_get = lambda _path, _params: {"status": "ok", "job_id": "job-1"}  # type: ignore[method-assign]
+        worker._http_post = lambda path, payload: posts.append((path, payload)) or {}  # type: ignore[method-assign]
+        worker._notify_status = statuses.append  # type: ignore[method-assign]
+        worker._wait_interruptible = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+
+        with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+            WorkerDispatcher._poll_loop(worker)
+
+        self.assertEqual(posts, [])
+        self.assertIsNone(worker._active_job)
+        self.assertIn("ok claim response requires non-empty job_id and source_path", "\n".join(logs.output))
+        self.assertIn("Worker claim request failed", "\n".join(logs.output))
+        self.assertEqual(len(statuses), 1)
+
     def test_worker_poll_loop_releases_claim_when_path_map_fails(self) -> None:
         class StopAfterOneLoop:
             def __init__(self) -> None:
@@ -1049,6 +1195,97 @@ class NetworkWorkerRuntimeTests(unittest.TestCase):
         joined = "\n".join(logs.output)
         self.assertIn("Source path map failed for claimed job job-1: bad path map", joined)
         self.assertIn("Failed to emit path-map-failure cluster event for job job-1", joined)
+
+    def test_worker_poll_loop_releases_hostile_mapped_claim_without_starting_work(self) -> None:
+        class StopAfterOneLoop:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def is_set(self) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        posts: list[tuple[str, dict]] = []
+        statuses: list[str] = []
+        started: list[object] = []
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker.app = SimpleNamespace(_worker_start_single_file=started.append)
+        worker._poll_interval = 1.0
+        worker._poll_stop = StopAfterOneLoop()
+        worker._active_job_lock = threading.Lock()
+        worker._active_job = None
+        worker._base_url = "http://coordinator.test:7830"
+        worker._auth_token = "worker-token"
+        worker._worker_id = "worker-1"
+        worker._worker_name = "Worker"
+        worker._source_path_map = parse_source_path_map(json.dumps({r"C:\Media": r"D:\WorkerMedia"}))
+        worker._accessible_library_ids = lambda: []  # type: ignore[method-assign]
+        worker._flush_pending_done_report = lambda: True  # type: ignore[method-assign]
+        worker._maybe_refresh_library_auto_map = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+        worker._http_get = lambda _path, _params: {  # type: ignore[method-assign]
+            "status": "ok",
+            "job_id": "job-1",
+            "source_path": r"C:\Media\..\Secret\movie.mkv",
+            "estimated_size_gb": 1.0,
+        }
+        worker._http_post = lambda path, payload: posts.append((path, payload)) or {}  # type: ignore[method-assign]
+        worker._notify_status = statuses.append  # type: ignore[method-assign]
+        worker.log_cluster_event = lambda **_kwargs: None  # type: ignore[method-assign]
+        worker._wait_interruptible = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+        worker._save_worker_state = lambda _job: self.fail("unsafe mapped claim reached worker_state save")  # type: ignore[method-assign]
+
+        with self.assertLogs("mediapipeline.desktop.network.worker", level="ERROR") as logs:
+            WorkerDispatcher._poll_loop(worker)
+
+        self.assertEqual(started, [])
+        self.assertEqual(posts[0][0], "/api/done")
+        self.assertEqual(posts[0][1]["job_id"], "job-1")
+        self.assertTrue(posts[0][1]["released"])
+        self.assertEqual(
+            statuses,
+            ["⚠ Released unstartable claim: path map failed: WorkerSourcePathMap mapped tail contains parent traversal."],
+        )
+        self.assertIn("Source path map failed for claimed job job-1", "\n".join(logs.output))
+
+    def test_worker_path_map_release_post_failure_saves_pending_release(self) -> None:
+        class StopAfterOneLoop:
+            def __init__(self) -> None:
+                self.calls = 0
+
+            def is_set(self) -> bool:
+                self.calls += 1
+                return self.calls > 1
+
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "worker_state.json"
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = state_path
+            worker._poll_interval = 1.0
+            worker._poll_stop = StopAfterOneLoop()
+            worker._active_job_lock = threading.Lock()
+            worker._active_job = None
+            worker._worker_id = "worker-1"
+            worker._worker_name = "Worker"
+            worker._http_get = lambda _path, _params: {  # type: ignore[method-assign]
+                "status": "ok",
+                "job_id": "job-1",
+                "source_path": r"C:\Media\movie.mkv",
+                "estimated_size_gb": 1.0,
+            }
+            worker._http_post = lambda _path, _payload: (_ for _ in ()).throw(RuntimeError("coordinator offline"))  # type: ignore[method-assign]
+            worker._apply_path_map = lambda _path: (_ for _ in ()).throw(RuntimeError("bad path map"))  # type: ignore[method-assign]
+            worker._notify_status = statuses.append  # type: ignore[method-assign]
+            worker.log_cluster_event = lambda **_kwargs: None  # type: ignore[method-assign]
+            worker._wait_interruptible = lambda *_args, **_kwargs: None  # type: ignore[method-assign]
+
+            WorkerDispatcher._poll_loop(worker)
+
+            state = load_worker_state(state_path)
+
+        self.assertEqual(statuses, ["⚠ Release report queued for retry: coordinator offline"])
+        self.assertEqual(state["job_id"], "job-1")
+        self.assertTrue(state["pending_done_report"]["released"])
 
     def test_worker_heartbeat_sanitizes_snapshot_progress_before_post(self) -> None:
         class OneShotStop:

@@ -47,6 +47,16 @@ function Do-Encode {
             return $false
         }
 
+        $videoStreamPolicy = Test-SourceVideoStreamPublishPolicy -FilePath $localIn -Route 'encode'
+        if (-not [bool]$videoStreamPolicy.Allowed) {
+            $reason = [string]$videoStreamPolicy.Reason
+            $errorCode = [string]$videoStreamPolicy.ErrorCode
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $reason -Stage 'video-stream-policy' -ErrorCode $errorCode -SuggestedAction 'Use a source with one real video stream or add per-stream routing and output-manifest validation before processing multi-video sources.'
+            Write-Log "ENCODE: $reason" "ERROR"
+            $localIn = $null
+            return $false
+        }
+
         try {
             $hdrState = Get-HDRState $localIn
             if (-not [bool]$hdrState.Known) {
@@ -353,6 +363,13 @@ function Do-Encode {
                     # case the prior holder times out and releases.
                     $cpuMutexLock = Acquire-CpuEncodeMutex -TimeoutSeconds $script:FFmpegCpuEncodeTimeoutSeconds
                 }
+                if (-not $cpuMutexLock.Acquired) {
+                    $reason = "ENCODE-CPU: CPU encode mutex was not acquired after waiting $($script:FFmpegCpuEncodeTimeoutSeconds) seconds; refusing to start overlapping CPU fallback"
+                    Write-Log $reason "ERROR"
+                    $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason $reason -Stage 'encode-cpu-mutex' -ErrorCode 'ENCODE_CPU_MUTEX_UNAVAILABLE' -SuggestedAction 'Wait for the existing CPU encode to finish, inspect stale mutex ownership if no encode is running, then retry.'
+                    $localIn = $null
+                    return $false
+                }
                 Set-ProgressStage -Stage 'encode_cpu' -Status $cpuStatusText -Route 'encode-cpu-fallback' -Percent 0 -SaveNow
                 $script:pipelineStatus = $cpuStatusText
                 try {
@@ -496,8 +513,20 @@ function Do-Encode {
             $qualityOutcome = [string]$qualityRecord['outcome']
             Write-PipelineEvent -EventType 'quality_verification' -Stage 'encode-quality-verify' -Route $verifyRoute -Status $qualityOutcome -SourcePath $file.FullName -Data $qualityRecord | Out-Null
             if ([bool]$qualityRecord['block_publish']) {
+                $qualityErrorCode = 'ENCODE_QUALITY_BELOW_FLOOR'
+                $qualitySuggestedAction = 'Compare the recorded quality score and metric against the configured thresholds; review the encode settings or thresholds before re-encoding or accepting the output.'
                 $qualityReason = "ENCODE quality score $($qualityRecord['score']) $($qualityRecord['metric']) is below fail threshold $($qualityRecord['fail_threshold']); output rejected before publish"
-                $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $qualityReason -Stage 'encode-quality-verify' -ErrorCode 'ENCODE_QUALITY_BELOW_FLOOR' -SuggestedAction 'Compare the recorded quality score and metric against the configured thresholds; review the encode settings or thresholds before re-encoding or accepting the output.'
+                if ($qualityOutcome -in @('error', 'stopped')) {
+                    $qualityErrorCode = 'ENCODE_QUALITY_VERIFICATION_FAILED'
+                    $toolError = [string]$qualityRecord['tool_error']
+                    $qualityReason = if ([string]::IsNullOrWhiteSpace($toolError)) {
+                        "ENCODE quality verification $qualityOutcome with no score; output rejected before publish"
+                    } else {
+                        "ENCODE quality verification $qualityOutcome with no score; output rejected before publish: $toolError"
+                    }
+                    $qualitySuggestedAction = 'Inspect the quality verifier ffprobe/ffmpeg logs and metric configuration. In block_review mode, verifier errors must be resolved or the mode changed intentionally before publish.'
+                }
+                $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $qualityReason -Stage 'encode-quality-verify' -ErrorCode $qualityErrorCode -SuggestedAction $qualitySuggestedAction
                 $localIn = $null
                 Write-Log "ENCODE QUALITY: $qualityReason`: $safeName" "ERROR"
                 return $false
@@ -578,7 +607,7 @@ function Do-Encode {
         $route = if ($usingCpu) { "encode-cpu-fallback" } elseif ($usingSafeRetry) { "encode-safe-retry" } else { "encode" }
         $routeReasonCode = [string]$script:CurrentRouteReasonCode
         $routeReason     = [string]$script:CurrentRouteReason
-        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route $route -ProgressRoute 'encode' -StagePrefix 'encode' -Context "ENCODE: " -RouteReasonCode $routeReasonCode -RouteReason $routeReason -Tx3gTracks @($subResult.Tx3gTracks) -BdpgsTracks @($subResult.BdpgsTracks) -VobSubTracks @($subResult.VobSubTracks)
+        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route $route -ProgressRoute 'encode' -StagePrefix 'encode' -Context "ENCODE: " -RouteReasonCode $routeReasonCode -RouteReason $routeReason -Tx3gTracks @($subResult.Tx3gTracks) -BdpgsTracks @($subResult.BdpgsTracks) -VobSubTracks @($subResult.VobSubTracks) -ConvertedSrtSidecarCandidates @($subResult.ConvertedSrtSidecarCandidates) -SubtitleOutputReduction @($subResult.SubtitleOutputReduction)
         $script:LastPublishResult = $publishResult
         if ($publishResult.DeleteLocalOutput) { $pushOk = $true }
         if ($publishResult.KeepScratchInput) { $localIn = $null }

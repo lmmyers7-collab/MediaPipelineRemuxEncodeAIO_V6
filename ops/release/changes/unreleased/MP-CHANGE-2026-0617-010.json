@@ -1,0 +1,35 @@
+{
+  "id": "MP-CHANGE-2026-0617-010",
+  "title": "Document HandBrake parity analysis",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Create a report-only HandBrake parity analysis comparing the project's queue, preset/profile, source analysis, title and track selection, remux/encode, quality, audio, subtitle, preview, batch, retry, progress, logging, naming, library, source-safety, and distributed-worker capabilities against HandBrake-like expectations.",
+  "reason": "The operator requested a source-backed audit of encoding/remux architecture and operator capabilities against HandBrake-style expectations, with gaps, intentional differences, future parity improvements, and validation requirements.",
+  "affected_areas": [
+    "HandBrake parity audit",
+    "change control",
+    "docs"
+  ],
+  "behavior_before": "No 2026-06-17 HandBrake parity analysis existed under docs/ai-audits for the promoted workspace.",
+  "behavior_after": "A docs-only audit report records HandBrake parity, gaps, intentional differences, future parity improvements, and validation requirements without changing runtime behavior.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-handbrake-parity-analysis.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-010.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-010.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "ASCII check for report - passed",
+    "Final validate_changes --require-worktree-coverage - passed: 356 packets valid",
+    "Required report section check - passed",
+    "Scoped refresh_summaries for report and packet - passed; generated packet summary",
+    "validate_changes --require-worktree-coverage - passed: 355 packets valid"
+  ],
+  "rollback_plan": "Delete docs/ai-audits/2026-06-17-handbrake-parity-analysis.md, ops/release/changes/unreleased/MP-CHANGE-2026-0617-010.json, and docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-010.json.md.",
+  "related_changes": [],
+  "notes": "Report-only audit. No media policy, FFmpeg command generation, subtitle conversion, audio routing, preset defaults, queue state, pending-publish behavior, source/scratch/output movement, Local API route behavior, WebView controls, Tauri lifecycle behavior, scripts, generated contracts, schemas, tests, launchers, operator workflows, or configs are intentionally changed. Any suggested FFmpeg, subtitle, audio, publish, source movement, cleanup, remux/encode, or media-policy improvement must be treated as high validation and require representative real-media validation before implementation.\nStatic report-only HandBrake parity audit completed without media behavior edits.\nGenerated summary file added to packet coverage.\nFinal strict coverage validation passed before closing the report-only audit packet.\nFinal validation was rerun after rollback-plan and summary updates."
+}

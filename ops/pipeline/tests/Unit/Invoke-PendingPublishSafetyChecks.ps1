@@ -265,6 +265,8 @@ function Set-TestPipelineRoots {
 
 $pendingPushPath = Join-Path $repoRoot 'ops\pipeline\engine\publish\pending_push.ps1'
 $pendingPushText = Get-Content -LiteralPath $pendingPushPath -Raw
+$mainPath = Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1'
+$mainText = Get-Content -LiteralPath $mainPath -Raw
 foreach ($requiredFunction in @(
     'function Get-PendingDrainSummaryPath',
     'function Write-PendingDrainSummary',
@@ -281,6 +283,8 @@ Assert-True (
 ) 'Pending drain summary item helper must be defined before Invoke-RetryPendingPushes.'
 Assert-True ($pendingPushText.Contains('Complete-PendingDrainSummary -Summary $summary -Items $summaryItems')) 'Pending drain completion must pass the mutable summary-items list directly.'
 Assert-True (-not $pendingPushText.Contains('Complete-PendingDrainSummary -Summary $summary -Items @($summaryItems)')) 'Pending drain completion must not wrap the mutable summary-items list as a new array.'
+Assert-True ($pendingPushText.Contains('function Get-PendingDrainSummaryLogLine')) 'Pending drain summary log helper must be defined for operator-visible drain counts.'
+Assert-True ($mainText.Contains('Get-PendingDrainSummaryLogLine')) 'DrainPendingPushes entrypoint must log attempted/recovered/already-published/failed/skipped counts from the durable summary.'
 
 Invoke-WithTempRoot {
     param($Root)
@@ -399,6 +403,12 @@ Invoke-WithTempRoot {
     Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Legacy manifest retry moved or deleted the parked payload.'
     Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Legacy manifest retry deleted the manifest.'
     Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Legacy manifest retry published output.'
+    $summaryLogLine = Get-PendingDrainSummaryLogLine -RecoveredCount 99 -RemainingFallback 99
+    Assert-MatchText $summaryLogLine 'recovered 0 file\(s\)' 'Pending drain log line did not include recovered count.'
+    Assert-MatchText $summaryLogLine 'attempted 1' 'Pending drain log line did not include attempted count from durable summary.'
+    Assert-MatchText $summaryLogLine 'failed 1' 'Pending drain log line did not include failed count from durable summary.'
+    Assert-MatchText $summaryLogLine 'skipped 0' 'Pending drain log line did not include skipped count from durable summary.'
+    Assert-MatchText $summaryLogLine 'remaining queued: [0-9]+' 'Pending drain log line did not include remaining queued count from durable summary.'
 }
 
 Invoke-WithTempRoot {

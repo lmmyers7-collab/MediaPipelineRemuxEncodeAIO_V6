@@ -262,8 +262,78 @@ class CompletedFacadePolicyTests(unittest.TestCase):
         row = completed_record_to_row(record)
 
         self.assertEqual(row["audio_decision_count"], 1)
+        self.assertEqual(
+            row["audio_decision_details"],
+            [
+                {
+                    "kind": "audio",
+                    "track_label": "a:?",
+                    "language": "eng",
+                    "source_codec": "ac3",
+                    "action": "copy",
+                    "reason": "",
+                    "summary": "a:? eng ac3 -> copy",
+                }
+            ],
+        )
         self.assertEqual(row["subtitle_decision_count"], 1)
+        self.assertEqual(
+            row["subtitle_decision_details"],
+            [
+                {
+                    "kind": "subtitle",
+                    "track_label": "s:?",
+                    "language": "eng",
+                    "source_codec": "ass",
+                    "action": "convertass",
+                    "reason": "",
+                    "summary": "s:? eng ass -> convertass",
+                }
+            ],
+        )
         self.assertEqual(row["subtitle_decision_preview"], ["s:? eng ass -> convertass"])
+
+    def test_completed_row_exposes_full_track_decision_details_without_preview_truncation(self) -> None:
+        record = _record()
+        record.payload["audio_decisions"] = [
+            {
+                "audio_ordinal": index,
+                "language": "eng" if index == 0 else "jpn",
+                "source_codec": "aac",
+                "action": "copy" if index < 5 else "drop",
+                "reason": "compatible" if index < 5 else "extra_track",
+            }
+            for index in range(6)
+        ]
+        record.payload["subtitle_decisions"] = [
+            {
+                "subtitle_ordinal": 0,
+                "language": "eng",
+                "source_codec": "ass",
+                "action": "srt",
+                "reason": "plex_srt",
+            },
+            {
+                "subtitle_ordinal": 1,
+                "language": "jpn",
+                "source_codec": "pgs",
+                "action": "drop",
+                "reason": "not_preferred",
+            },
+        ]
+
+        row = completed_record_to_row(record)
+
+        self.assertEqual(row["audio_decision_count"], 6)
+        self.assertEqual(len(row["audio_decision_preview"]), 5)
+        self.assertEqual(len(row["audio_decision_details"]), 6)
+        self.assertEqual(row["audio_decision_details"][5]["track_label"], "a:5")
+        self.assertEqual(row["audio_decision_details"][5]["action"], "drop")
+        self.assertEqual(row["audio_decision_details"][5]["reason"], "extra_track")
+        self.assertEqual(row["audio_decision_details"][5]["summary"], "a:5 jpn aac -> drop (extra_track)")
+        self.assertEqual(row["subtitle_decision_count"], 2)
+        self.assertEqual(row["subtitle_decision_preview"], ["s:0 eng ass -> srt (plex_srt)", "s:1 jpn pgs -> drop (not_preferred)"])
+        self.assertEqual(row["subtitle_decision_details"][1]["summary"], "s:1 jpn pgs -> drop (not_preferred)")
 
     def test_completed_quality_fields_are_defensive(self) -> None:
         unavailable = completed_quality_fields({})

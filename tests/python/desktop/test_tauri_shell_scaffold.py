@@ -105,6 +105,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("object-src 'none'", csp)
         self.assertIn("frame-ancestors 'none'", csp)
         self.assertIn("form-action 'none'", csp)
+        self.assertNotIn("'unsafe-eval'", csp)
+        self.assertEqual(config["bundle"]["targets"], ["msi", "nsis"])
 
     def test_tauri_package_lock_matches_package_identity(self) -> None:
         package = json.loads((TAURI_ROOT / "package.json").read_text(encoding="utf-8"))
@@ -115,6 +117,20 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertEqual(package_lock["version"], package["version"])
         self.assertEqual(root_package["name"], package["name"])
         self.assertEqual(root_package["version"], package["version"])
+
+    def test_tauri_release_semver_matches_publication_identity(self) -> None:
+        package = json.loads((TAURI_ROOT / "package.json").read_text(encoding="utf-8"))
+        config = json.loads((TAURI_ROOT / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+        cargo = tomllib.loads((TAURI_ROOT / "src-tauri" / "Cargo.toml").read_text(encoding="utf-8"))
+        lock_text = (TAURI_ROOT / "src-tauri" / "Cargo.lock").read_text(encoding="utf-8")
+
+        for version in (package["version"], config["version"], cargo["package"]["version"]):
+            self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+            self.assertNotIn("dirty", version)
+        self.assertEqual(package["version"], "6.0.0")
+        self.assertEqual(config["version"], package["version"])
+        self.assertEqual(cargo["package"]["version"], package["version"])
+        self.assertIn('name = "mediapipeline-tauri-shell"\nversion = "6.0.0"', lock_text)
 
     def test_tauri_rust_manifest_declares_backend_launcher_dependencies(self) -> None:
         cargo = tomllib.loads((TAURI_ROOT / "src-tauri" / "Cargo.toml").read_text(encoding="utf-8"))
@@ -296,6 +312,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("startupWarnings", source)
         self.assertIn("Backend WebView asset validation warning", source)
         self.assertIn("web_ui_validation_error_is_fatal", source)
+        self.assertIn("Any failure means the shell cannot safely trust the UI surface.", source)
+        self.assertNotIn("assert!(!web_ui_validation_error_is_fatal", source)
         self.assertIn('"/assets/app.js"', source)
         self.assertIn('"/assets/crossPageContextView.js"', source)
         self.assertIn('"/assets/crossPageContextView.conflict.js"', source)
@@ -336,7 +354,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn('"/assets/pendingPublishView.drain.js"', source)
         self.assertIn('"/assets/pendingPublishView.confidence.js"', source)
         self.assertIn('"/assets/diagnosticsStateSummaryView.js"', source)
-        self.assertIn("window.MEDIA_PIPELINE_BOOTSTRAP = Object.assign(", source)
+        self.assertIn('id=\\"media-pipeline-bootstrap\\"', source)
         self.assertIn("Backend WebView index leaked the bearer token", source)
         self.assertIn("id=\\\"cross-page-real-media-status\\\"", source)
         self.assertIn("id=\\\"cross-page-real-media-rows\\\"", source)
@@ -430,6 +448,21 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Backend WebView launch script is missing required fragment", source)
         self.assertIn("Backend WebView diagnostics state script is missing required fragment", source)
 
+    def test_debug_webview_automation_is_debug_build_only(self) -> None:
+        source = (TAURI_SRC_ROOT / "debug_webview.rs").read_text(encoding="utf-8")
+
+        self.assertIn("#[cfg(debug_assertions)]\npub(crate) fn maybe_write_debug_backend_auth_capture", source)
+        self.assertIn(
+            "#[cfg(not(debug_assertions))]\npub(crate) fn maybe_write_debug_backend_auth_capture(_backend_url: &str, _token: &str) {}",
+            source,
+        )
+        self.assertIn("#[cfg(debug_assertions)]\npub(crate) fn maybe_schedule_debug_webview_autolaunch", source)
+        self.assertIn(
+            "#[cfg(not(debug_assertions))]\npub(crate) fn maybe_schedule_debug_webview_autolaunch(_window: &tauri::WebviewWindow) {}",
+            source,
+        )
+        self.assertIn("window.eval(&script)", source)
+
     def test_tauri_shell_required_routes_match_python_local_api_contract(self) -> None:
         source = _tauri_rust_source()
         match = re.search(
@@ -469,6 +502,9 @@ class TauriShellScaffoldTests(unittest.TestCase):
             "/api/network/coordinator/stop-dry-run",
             "/api/network/worker/start-dry-run",
             "/api/network/worker/stop-dry-run",
+            "/api/network/worker/discover-coordinators",
+            "/api/network/coordinator/join-blob",
+            "/api/network/worker/join-cluster",
             "/api/network/coordinator/start",
             "/api/network/coordinator/stop",
             "/api/network/worker/start",
@@ -480,13 +516,16 @@ class TauriShellScaffoldTests(unittest.TestCase):
             "requires_confirmation",
             "owner",
             "frontend_exposed",
+            "journaled",
             "network_lifecycle",
             "dry_run",
         ):
             self.assertIn(semantic_field, route_contract_rs)
             self.assertIn(semantic_field, types_rs)
         self.assertIn("Backend contract network lifecycle metadata drifted", route_contract_rs)
+        self.assertIn("Backend contract network setup metadata drifted", route_contract_rs)
         self.assertIn("REQUIRED_NETWORK_LIFECYCLE_ROUTES", route_contract_rs)
+        self.assertIn("REQUIRED_NETWORK_SETUP_ROUTES", route_contract_rs)
 
     def test_tauri_shell_checks_close_readiness_before_shutdown(self) -> None:
         source = _tauri_rust_source()
@@ -800,7 +839,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("API Browser Launcher Token Policy", source)
         self.assertIn("apps\\desktop\\launchers\\Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1", source)
         self.assertIn("\\[switch\\]\\$NoTokenDevMode", source)
-        self.assertIn("Token auth: enabled \\(browser receives a per-run bootstrap token\\)", source)
+        self.assertIn("Token auth: enabled \\(browser receives a same-origin HttpOnly auth cookie\\)", source)
         self.assertIn("Token auth: DISABLED by explicit -NoTokenDevMode", source)
         self.assertIn("API browser launcher keeps token auth enabled by default.", source)
         self.assertIn("Test-ApiBrowserLauncherTokenPolicy", source)
@@ -913,7 +952,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
         self.assertIn("function Test-JavaScriptSyntax", source)
         self.assertIn("webview\\static", source)
-        self.assertIn("Get-ChildItem -LiteralPath $assetRoot -Filter '*.js' -File", source)
+        self.assertIn("Get-ChildItem -LiteralPath $assetRoot -Filter '*.js' -File -Recurse", source)
+        self.assertIn("Sort-Object FullName", source)
         self.assertIn("& $NodePath --check $script.FullName", source)
         self.assertIn("JavaScript syntax check failed", source)
         self.assertIn("Test-JavaScriptSyntax -NodePath $node -StaticRoot $staticRoot", source)
@@ -1042,7 +1082,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertFalse(root_launcher.exists())
         self.assertIn("Launch-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.ps1", canonical_text)
         self.assertIn("[switch]$NoTokenDevMode", shell_text)
-        self.assertIn("Token auth: enabled (browser receives a per-run bootstrap token)", shell_text)
+        self.assertIn("Token auth: enabled (browser receives a same-origin HttpOnly auth cookie)", shell_text)
         self.assertIn("Token auth: DISABLED by explicit -NoTokenDevMode", shell_text)
         self.assertIn("if ($NoTokenDevMode)", shell_text)
         self.assertIn("$apiArgs += '--no-token'", shell_text)
@@ -2152,7 +2192,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
             text = script.read_text(encoding="utf-8")
             self.assertIn("MEDIA_PIPELINE_TAURI_TEST_TOKEN_CAPTURE_FILE", text)
             self.assertIn("Wait-BackendTokenCapture", text)
-            self.assertIn("Object\\.assign", text)
+            self.assertIn("media-pipeline-bootstrap", text)
+            self.assertIn("tokenSource", text)
             self.assertIn("Backend WebView bootstrap leaked the bearer token in Tauri mode.", text)
             self.assertNotIn("Backend bootstrap did not expose a bearer token", text)
 

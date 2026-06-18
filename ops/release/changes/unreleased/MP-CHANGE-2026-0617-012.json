@@ -1,0 +1,32 @@
+{
+  "id": "MP-CHANGE-2026-0617-012",
+  "title": "Document future feature readiness audit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Create a report-only future feature readiness audit assessing architectural readiness for AI upscaling, distributed workers, capability-based assignment, cloud sync, remote management, mobile dashboard, plugin architecture, notification integrations, richer preset management, multi-operator access, hardware capability scheduling, and remote queue control.",
+  "reason": "The operator requested a repository-evidence-backed audit of likely future capabilities, including current enablers, blockers, ownership conflicts, state/config/API/UI/worker/security/validation impacts, prerequisite refactors, risk, and sequencing.",
+  "affected_areas": [
+    "change control",
+    "docs",
+    "future feature readiness audit"
+  ],
+  "behavior_before": "No 2026-06-17 future feature readiness audit existed under docs/ai-audits for the promoted workspace.",
+  "behavior_after": "A docs-only audit report records readiness, risks, prerequisites, and sequencing for future feature areas without changing runtime behavior.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-future-feature-readiness-audit.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-012.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-012.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "2026-06-17: record_change_touch accepted MP-CHANGE-2026-0617-012 coverage for the report, packet, and generated packet summary.",
+    "2026-06-17: validate_changes --require-worktree-coverage passed with 356 packet(s) valid."
+  ],
+  "rollback_plan": "Delete docs/ai-audits/2026-06-17-future-feature-readiness-audit.md, docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-012.json.md, and ops/release/changes/unreleased/MP-CHANGE-2026-0617-012.json.",
+  "related_changes": [],
+  "notes": "Report-only audit. No media policy, FFmpeg command generation, subtitle conversion, audio routing, preset defaults, queue state, distributed-worker behavior, network lifecycle behavior, pending-publish behavior, source/scratch/output movement, Local API route behavior, WebView controls, Tauri lifecycle behavior, scripts, generated contracts, schemas, tests, launchers, operator workflows, or configs are intentionally changed. Any suggested AI upscaling, distributed execution, cloud sync, remote management, multi-operator, notification, preset, scheduling, or remote queue-control work must be implemented separately with the validation rung appropriate to the touched runtime surface."
+}

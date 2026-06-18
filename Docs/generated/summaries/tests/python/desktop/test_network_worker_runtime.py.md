@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_worker_runtime.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-14
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: d5ffaccb5f0a325b2e6b1122a0ecd9e3c567bca408d9f6284fd12d9ef47f1c9c
+sha256: c9a57e16ca1d1c68d09b56edce0b1aa09eb416c678e2793d0ea106a463ef8b3b
 ---
 # `tests/python/desktop/test_network_worker_runtime.py`
 

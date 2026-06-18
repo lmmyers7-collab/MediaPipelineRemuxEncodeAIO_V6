@@ -990,6 +990,25 @@
       return item.size_delta_label || item.size_reduction_text || "unknown";
     }
 
+    function completedSelectedFormatBytes(value) {
+      const number = Number(value);
+      if (!Number.isFinite(number) || number < 0) return "";
+      if (number === 0) return "0 B";
+      const units = ["B", "KB", "MB", "GB", "TB"];
+      let size = number;
+      let unitIndex = 0;
+      while (size >= 1024 && unitIndex < units.length - 1) {
+        size /= 1024;
+        unitIndex += 1;
+      }
+      const precision = unitIndex === 0 ? 0 : size >= 10 ? 1 : 2;
+      return `${size.toFixed(precision).replace(/\.0+$/, "").replace(/(\.\d*[1-9])0+$/, "$1")} ${units[unitIndex]}`;
+    }
+
+    function completedSelectedSizeText(value, fallback) {
+      return completedSelectedFormatBytes(value) || fallback || "not reported";
+    }
+
     function completedSelectedRuntimeLabel(item) {
       if (!item) return "none reported";
       return [
@@ -1003,6 +1022,147 @@
     function completedSelectedPolicyLabel(item) {
       if (!item) return "not reported";
       return [item.route_reason_code, item.route_reason, item.route_decision_summary].filter(Boolean).join(" - ") || "not reported";
+    }
+
+    function completedSelectedSignalLine(label, value) {
+      const text = value === null || value === undefined ? "" : String(value).trim();
+      return text ? `${label}: ${text}` : "";
+    }
+
+    function completedSelectedRouteEvidenceLines(item) {
+      return Array.isArray(item?.route_evidence_lines) ? item.route_evidence_lines.filter(Boolean).map(String) : [];
+    }
+
+    function completedSelectedDecisionRows(item, key, previewKey) {
+      const details = Array.isArray(item?.[key]) ? item[key].filter((entry) => entry && typeof entry === "object") : [];
+      if (details.length) {
+        return details.map((entry) => {
+          const parts = [
+            entry.summary,
+            !entry.summary && entry.track_label ? entry.track_label : "",
+            !entry.summary && entry.language ? entry.language : "",
+            !entry.summary && entry.source_codec ? entry.source_codec : "",
+            !entry.summary && entry.action ? `-> ${entry.action}` : "",
+            !entry.summary && entry.reason ? `(${entry.reason})` : "",
+          ].filter(Boolean);
+          return parts.join(" ").replace(/\s+/g, " ").trim();
+        }).filter(Boolean);
+      }
+      return Array.isArray(item?.[previewKey]) ? item[previewKey].filter(Boolean).map(String) : [];
+    }
+
+    function completedSelectedSizeDetailLines(item) {
+      if (!item) return ["Select a completed row to see source size, output size, and delta evidence."];
+      const sourceSize = completedSelectedSizeText(item.source_size_bytes);
+      const outputSize = item.output_size_text || completedSelectedSizeText(item.output_size_bytes);
+      const sourceBytes = item.source_size_bytes !== null && item.source_size_bytes !== undefined ? `${item.source_size_bytes} bytes` : "";
+      const outputBytes = item.output_size_bytes !== null && item.output_size_bytes !== undefined ? `${item.output_size_bytes} bytes` : "";
+      const lines = [
+        `Source to output: ${sourceSize} -> ${outputSize}`,
+        sourceBytes || outputBytes ? `Bytes: source=${sourceBytes || "not reported"}; output=${outputBytes || "not reported"}` : "",
+        completedSelectedSignalLine("Delta", completedSelectedSizeLabel(item)),
+        completedSelectedSignalLine("Reduction text", item.size_reduction_text),
+        completedSelectedSignalLine("Size bucket", item.size_bucket),
+        completedSelectedSignalLine("Output health", item.output_health || (item.output_exists === false ? "missing output" : "")),
+      ].filter(Boolean);
+      return lines.length ? lines : ["No source/output size evidence was reported for this row."];
+    }
+
+    function completedSelectedRouteDetailLines(item) {
+      if (!item) return ["Select a completed row to see route and encoder evidence."];
+      const evidence = completedSelectedRouteEvidenceLines(item);
+      const lines = [
+        completedSelectedSignalLine("Route", completedSelectedRouteLabel(item)),
+        completedSelectedSignalLine("Route decision", item.route_decision_summary),
+        completedSelectedSignalLine("Encoder", item.encoder || item.encoder_kind),
+        completedSelectedSignalLine("GPU", item.gpu_device),
+        completedSelectedSignalLine("Publish", item.publish || item.publish_state),
+        evidence.length ? "Route evidence:" : "",
+        ...evidence.map((line) => `- ${line}`),
+      ].filter(Boolean);
+      return lines.length ? lines : ["No route evidence was reported for this row."];
+    }
+
+    function completedSelectedTriggerDetailLines(item) {
+      if (!item) return ["Select a completed row to see route trigger evidence."];
+      const lines = [
+        completedSelectedSignalLine("Reason code", item.route_reason_code),
+        completedSelectedSignalLine("Reason", item.route_reason),
+        completedSelectedSignalLine("Decision summary", item.route_decision_summary),
+      ].filter(Boolean);
+      return lines.length ? lines : ["No route reason was reported for this row."];
+    }
+
+    function completedSelectedSizePolicyDetailLines(item) {
+      if (!item) return ["Select a completed row to see size-policy evidence."];
+      const lines = [
+        completedSelectedSignalLine("Policy", completedSelectedSizePolicyLabel(item)),
+        completedSelectedSignalLine("Status", item.size_policy_status),
+        completedSelectedSignalLine("Mode", item.size_policy_mode),
+        completedSelectedSignalLine("Routing profile", item.size_policy_routing_profile),
+        completedSelectedSignalLine("Route reason code", item.size_policy_route_reason_code),
+        item.size_policy_max_growth_percent !== null && item.size_policy_max_growth_percent !== undefined
+          ? `Max growth: +${item.size_policy_max_growth_percent}%`
+          : "",
+        item.size_policy_limit_ratio !== null && item.size_policy_limit_ratio !== undefined
+          ? `Limit ratio: ${item.size_policy_limit_ratio}x`
+          : "",
+        item.size_policy_ratio !== null && item.size_policy_ratio !== undefined
+          ? `Observed ratio: ${item.size_policy_ratio}x`
+          : "",
+        item.size_policy_delta_vs_limit_percent !== null && item.size_policy_delta_vs_limit_percent !== undefined
+          ? `Delta versus limit: ${item.size_policy_delta_vs_limit_percent}%`
+          : "",
+        item.size_policy_enforced ? "Enforcement: strict/blocking" : "",
+        completedSelectedSignalLine("Message", item.size_policy_message),
+      ].filter(Boolean);
+      return lines.length ? lines : ["No backend size_policy was recorded for this row."];
+    }
+
+    function completedSelectedRuntimeDetailLines(item) {
+      if (!item) return ["Select a completed row to see runtime/log evidence."];
+      const lines = [
+        completedSelectedSignalLine("Status", item.runtime_outcome_status),
+        completedSelectedSignalLine("Event type", item.runtime_outcome_event_type),
+        completedSelectedSignalLine("Event at", item.runtime_outcome_at),
+        item.runtime_outcome_age_text || item.runtime_outcome_freshness_status
+          ? `History age: ${item.runtime_outcome_age_text || "unknown"} (${item.runtime_outcome_freshness_status || "unknown"})`
+          : "",
+        item.runtime_outcome_stage || item.runtime_outcome_route
+          ? `Stage/route: ${item.runtime_outcome_stage || "unknown"} / ${item.runtime_outcome_route || "unknown"}`
+          : "",
+        completedSelectedSignalLine("Error code", item.runtime_outcome_error_code),
+        completedSelectedSignalLine("Reason", item.runtime_outcome_reason),
+        item.runtime_outcome_publish_state || item.runtime_outcome_publish_mode
+          ? `Publish: ${item.runtime_outcome_publish_state || "unknown"} / ${item.runtime_outcome_publish_mode || "unknown"}`
+          : "",
+        completedSelectedSignalLine("Runtime output", item.runtime_outcome_output_path),
+        completedSelectedSignalLine("Runtime match", item.runtime_outcome_match),
+      ].filter(Boolean);
+      return lines.length ? lines : ["No runtime outcome was reported for this row."];
+    }
+
+    function completedSelectedAudioSubtitleDetailLines(item) {
+      if (!item) return ["Select a completed row to see audio and subtitle decision evidence."];
+      const audioRows = completedSelectedDecisionRows(item, "audio_decision_details", "audio_decision_preview");
+      const subtitleRows = completedSelectedDecisionRows(item, "subtitle_decision_details", "subtitle_decision_preview");
+      const lines = [
+        `Audio decisions: ${item.audio_decision_count || 0}`,
+        ...(audioRows.length ? audioRows.map((line) => `audio: ${line}`) : ["audio: no decision rows reported"]),
+        `Subtitle decisions: ${item.subtitle_decision_count || 0}`,
+        ...(subtitleRows.length ? subtitleRows.map((line) => `subtitle: ${line}`) : ["subtitle: no decision rows reported"]),
+      ];
+      return lines;
+    }
+
+    function completedSelectedSignalDetailLines(signalKey, item) {
+      const key = String(signalKey || "");
+      if (key === "route") return completedSelectedRouteDetailLines(item);
+      if (key === "trigger-route-reason") return completedSelectedTriggerDetailLines(item);
+      if (key === "size-policy") return completedSelectedSizePolicyDetailLines(item);
+      if (key === "runtime-log-evidence") return completedSelectedRuntimeDetailLines(item);
+      if (key === "audio-subtitles") return completedSelectedAudioSubtitleDetailLines(item);
+      return completedSelectedSizeDetailLines(item);
     }
 
     function completedSelectedSizeDeltaPercent(item) {
@@ -1137,12 +1297,12 @@
 
     function completedSelectedKeySignals(item) {
       return [
-        ["Size change", completedSelectedSizeLabel(item)],
-        ["Route", completedSelectedRouteLabel(item)],
-        ["Trigger / route reason", completedSelectedPolicyLabel(item)],
-        ["Size policy", completedSelectedSizePolicyLabel(item)],
-        ["Runtime/log evidence", completedSelectedRuntimeLabel(item)],
-        ["Audio/Subtitles", `${item?.audio_decision_count || 0} audio / ${item?.subtitle_decision_count || 0} subtitle tracks`],
+        { key: "size-change", label: "Size change", value: completedSelectedSizeLabel(item) },
+        { key: "route", label: "Route", value: completedSelectedRouteLabel(item) },
+        { key: "trigger-route-reason", label: "Trigger / route reason", value: completedSelectedPolicyLabel(item) },
+        { key: "size-policy", label: "Size policy", value: completedSelectedSizePolicyLabel(item) },
+        { key: "runtime-log-evidence", label: "Runtime/log evidence", value: completedSelectedRuntimeLabel(item) },
+        { key: "audio-subtitles", label: "Audio/Subtitles", value: `${item?.audio_decision_count || 0} audio / ${item?.subtitle_decision_count || 0} subtitle tracks` },
       ];
     }
 
@@ -1153,12 +1313,59 @@
       return node;
     }
 
-    function completedSelectedSignalItem(label, value, tone) {
-      const item = completedSelectedNode("div", "completed-selected-signal");
-      item.dataset.tone = tone || "info";
-      item.appendChild(completedSelectedNode("span", "completed-selected-label", label));
-      item.appendChild(completedSelectedNode("strong", "completed-selected-signal-value", value || "not reported"));
+    function completedSelectedSignalItem(signal, selected, rowItem) {
+      const item = completedSelectedNode("button", "completed-selected-signal");
+      item.type = "button";
+      item.dataset.tone = signal.tone || "info";
+      item.dataset.signalKey = signal.key;
+      item.setAttribute("aria-pressed", selected ? "true" : "false");
+      item.setAttribute("aria-controls", "completed-selected-signal-detail");
+      item.title = `Show ${signal.label} details`;
+      if (selected) item.classList.add("is-selected");
+      item.addEventListener("click", () => {
+        selectCompletedSignal(signal.key, rowItem);
+      });
+      item.appendChild(completedSelectedNode("span", "completed-selected-label", signal.label));
+      item.appendChild(completedSelectedNode("strong", "completed-selected-signal-value", signal.value || "not reported"));
       return item;
+    }
+
+    function completedSelectedActiveSignal(signals) {
+      if (!signals.length) return null;
+      const selectedKey = String(state.selectedCompletedSignalKey || "");
+      const selected = signals.find((signal) => signal.key === selectedKey) || signals[0];
+      state.selectedCompletedSignalKey = selected.key;
+      return selected;
+    }
+
+    function selectCompletedSignal(signalKey, item) {
+      const scrollSnapshot = captureCompletedReviewSelectionScroll();
+      state.selectedCompletedSignalKey = signalKey || "size-change";
+      renderCompletedSelectedAtAGlance(item || null);
+      const summary = byId("completed-selected-summary");
+      const selectedButton = summary
+        ? Array.from(summary.querySelectorAll("[data-signal-key]")).find((node) => node.dataset.signalKey === state.selectedCompletedSignalKey)
+        : null;
+      if (selectedButton && typeof selectedButton.focus === "function") {
+        selectedButton.focus({ preventScroll: true });
+      }
+      restoreCompletedReviewSelectionScroll(scrollSnapshot);
+    }
+
+    function completedSelectedSignalDetailPanel(signal, item) {
+      const panel = completedSelectedNode("section", "completed-selected-signal-detail");
+      panel.id = "completed-selected-signal-detail";
+      panel.dataset.signalKey = signal?.key || "size-change";
+      panel.setAttribute("role", "region");
+      panel.setAttribute("aria-live", "polite");
+      panel.setAttribute("aria-label", `${signal?.label || "Size change"} detail`);
+      panel.appendChild(completedSelectedNode("span", "completed-selected-label", `${signal?.label || "Size change"} detail`));
+      const list = completedSelectedNode("ul", "completed-selected-signal-detail-list");
+      completedSelectedSignalDetailLines(signal?.key || "size-change", item).forEach((line) => {
+        list.appendChild(completedSelectedNode("li", "", line));
+      });
+      panel.appendChild(list);
+      return panel;
     }
 
     function completedSelectedListBlock(title, items, className) {
@@ -1212,8 +1419,13 @@
       diagnosis.appendChild(completedSelectedNode("p", "completed-selected-diagnosis-text", completedSelectedDiagnosisLine(item)));
 
       const evidenceGrid = completedSelectedNode("div", "completed-selected-signal-grid");
-      completedSelectedKeySignals(item).forEach(([label, value]) => {
-        evidenceGrid.appendChild(completedSelectedSignalItem(label, value, completedSelectedSignalTone(label, item)));
+      const signals = completedSelectedKeySignals(item).map((signal) => ({
+        ...signal,
+        tone: completedSelectedSignalTone(signal.label, item),
+      }));
+      const activeSignal = completedSelectedActiveSignal(signals);
+      signals.forEach((signal) => {
+        evidenceGrid.appendChild(completedSelectedSignalItem(signal, activeSignal?.key === signal.key, item));
       });
 
       const why = completedSelectedNode("div", "completed-selected-meaning");
@@ -1234,7 +1446,7 @@
           : "Authority: this summary is read-only. Completed history is proof to inspect, not acceptance or cleanup authority.",
       );
 
-      return [strip, diagnosis, evidenceGrid, why, gapBlock, checks, completedSelectedPaths(item), authority].filter(Boolean);
+      return [strip, diagnosis, evidenceGrid, completedSelectedSignalDetailPanel(activeSignal, item), why, gapBlock, checks, completedSelectedPaths(item), authority].filter(Boolean);
     }
 
     function completedSelectedAtAGlanceLines(item) {
@@ -1558,6 +1770,8 @@
       completedSelectedAtAGlanceState,
       completedSelectedAtAGlanceStatus,
       completedSelectedAtAGlanceLines,
+      completedSelectedKeySignals,
+      completedSelectedSignalDetailLines,
       renderCompletedSelectedAtAGlance,
       completedRowIssueDigestLines,
       completedRowCombinedReviewPlanLines,

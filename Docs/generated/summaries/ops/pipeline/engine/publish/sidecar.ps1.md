@@ -3,9 +3,9 @@ file: ops/pipeline/engine/publish/sidecar.ps1
 pipeline_stage: publish
 token_priority: medium
 owner_domain: publish
-last_modified: 2026-06-02
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 8ddc6d829b2ec771a0650ca3f22f96fda767d1792fb25cde6e43797bd45f7a38
+sha256: 78f2dc9c12819016f28e02ba50d9800dcac9709e4733c6ff0b55dd5f7c2fd069
 ---
 # `ops/pipeline/engine/publish/sidecar.ps1`
 

@@ -280,6 +280,7 @@ def _node_runner_source() -> str:
             children: [],
             classList: makeClassList(),
             appendChild(child) { this.children.push(child); return child; },
+            insertAdjacentElement(_position, child) { this.children.push(child); return child; },
             replaceChildren(...children) { this.children = children; },
             querySelectorAll() { return []; },
             querySelector() { return null; },
@@ -508,6 +509,43 @@ def _node_runner_source() -> str:
         const finalPlacementResolutionDetail = context.commandHistoryResolutionDetailLines(finalPlacementResolution).join("\\n");
         if (!finalPlacementResolutionDetail.includes("Completed/Pending final-placement handoff:") || !finalPlacementResolutionDetail.includes("drain-proof=1")) {
           throw new Error("final-placement resolution detail missing expected evidence:\\n" + finalPlacementResolutionDetail);
+        }
+
+        const localFailure = {
+          command: "diagnostics.open",
+          ok: false,
+          severity: "error",
+          message: "Local fetch failed before backend evidence arrived.",
+          errors: ["fetch failed"],
+        };
+        context.appendCommandResult(localFailure);
+        context.appendCommandResult(localFailure);
+        let localFailures = context.getCommandHistory().filter((entry) => entry.local === true && entry.command === "diagnostics.open" && entry.raw?.message === localFailure.message);
+        if (localFailures.length !== 2) {
+          throw new Error(`expected two identical local failures before backend evidence, saw ${localFailures.length}`);
+        }
+        if (localFailures[0].local_id === localFailures[1].local_id) {
+          throw new Error("local command failures did not receive unique local identities");
+        }
+        context.renderCommandHistoryPayload({ entries: [] });
+        localFailures = context.getCommandHistory().filter((entry) => entry.local === true && entry.command === "diagnostics.open" && entry.raw?.message === localFailure.message);
+        if (localFailures.length !== 2) {
+          throw new Error(`expected empty backend refresh to preserve both local failures, saw ${localFailures.length}`);
+        }
+        context.renderCommandHistoryPayload({
+          entries: [{
+            at: "2026-05-14T12:14:00-04:00",
+            command: "diagnostics.open",
+            ok: false,
+            severity: "error",
+            message: localFailure.message,
+            errors: ["fetch failed"],
+          }],
+        });
+        const backendConfirmedFailures = context.getCommandHistory().filter((entry) => entry.local !== true && entry.command === "diagnostics.open" && entry.raw?.message === localFailure.message);
+        localFailures = context.getCommandHistory().filter((entry) => entry.local === true && entry.command === "diagnostics.open" && entry.raw?.message === localFailure.message);
+        if (backendConfirmedFailures.length !== 1 || localFailures.length !== 0) {
+          throw new Error(`expected backend evidence to replace local duplicates, saw backend=${backendConfirmedFailures.length} local=${localFailures.length}`);
         }
 
         if (errors.length) {

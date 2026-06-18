@@ -6,7 +6,11 @@
 # ==============================================================================
 
 function Get-MediaPipelineVideoCodecNames {
-    return @('hevc_nvenc','libx265','h264_nvenc','libx264','av1_nvenc')
+    return @(
+        'hevc_nvenc','hevc_qsv','hevc_amf','libx265',
+        'h264_nvenc','h264_qsv','h264_amf','libx264',
+        'av1_nvenc','av1_qsv','av1_amf','libaom-av1'
+    )
 }
 
 function Get-MediaPipelineVideoPresetNames {
@@ -362,6 +366,7 @@ function Get-MediaPipelineRenameMovieFilterCategoryNames {
         'editions',
         'file_size',
         'services_containers',
+        'languages_subs_dubs',
         'release_groups'
     )
 }

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_path_auto_map.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-14
+last_modified: 2026-06-15
 last_reviewed: 2026-06-14
-sha256: e2d757a68a0e2c0b595cc05791ba34cf07b805a3a744345d33e7c48c6cd16d2a
+sha256: da7833349af1c8ccb212e04b5e1cdcbfb627ad5c34095b6efb09eea3c114127d
 ---
 # `tests/python/desktop/test_network_path_auto_map.py`
 

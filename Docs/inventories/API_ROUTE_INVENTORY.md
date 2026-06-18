@@ -4,7 +4,7 @@ Date: 2026-06-13
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 112 routes — 46 GET (read) + 66 POST (command).
+Total: 116 routes — 46 GET (read) + 70 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
@@ -87,7 +87,7 @@ Network lifecycle start/stop now has backend-owned dry-run and confirmed command
 
 ---
 
-## POST Routes (Command — 66 routes)
+## POST Routes (Command — 70 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
@@ -283,7 +283,7 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 62 | All non-probing GET routes + preview/validate/reload POSTs + Network lifecycle dry-runs |
+| `none` (read-only) | 64 | All non-probing GET routes + preview/validate/reload POSTs + Network lifecycle dry-runs + worker test-connection/discovery |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
 | `read-only-preview` | 4 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` |
 | `shell-open` | 6 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open`, `diagnostics/tdarr-matrix/evidence/open`, `maintenance/dependency-atlas/open-folder` |
@@ -303,7 +303,8 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `control-flag-write` | 1 | `POST /api/pipeline/control` |
 | `validation-log-write` | 1 | `POST /api/sample-validation/append` |
 | `app-state-write` | 1 | `POST /api/schedule/save` |
-| `config-write` | 2 | `POST /api/settings/save-patch`, `settings/wizard/save` |
+| `secret-transfer` | 1 | `POST /api/network/coordinator/join-blob` |
+| `config-write` | 3 | `POST /api/settings/save-patch`, `settings/wizard/save`, `network/worker/join-cluster` |
 | `filesystem-mutation` | 2 | `POST /api/rename/apply`, `final-library-promotion/promote-queue` |
 | `process-launch` | 3 | `POST /api/pipeline/start`, `audit/start`, `rerun/start` |
 | `backend-lifecycle` | 5 | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` |

@@ -3,9 +3,9 @@ file: apps/desktop/tauri/Test-TauriShell-PG2WebViewLaunch.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-11
+last_modified: 2026-06-16
 last_reviewed: 2026-06-04
-sha256: 76de84a05ce2cbd13d94ee6532f55a35531c3d0c477ac8345e5c8e134f92d6ee
+sha256: d22184291a6352112c1722ccc6008b20c5ba581c17317d9e15422320dad70228
 ---
 # `apps/desktop/tauri/Test-TauriShell-PG2WebViewLaunch.ps1`
 

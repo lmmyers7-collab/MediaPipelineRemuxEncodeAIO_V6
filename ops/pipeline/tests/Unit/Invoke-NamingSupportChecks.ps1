@@ -91,17 +91,21 @@ try {
         editions = $true
         file_size = $true
         services_containers = $true
+        languages_subs_dubs = $true
         release_groups = $true
     }
     $script:RenameMovieFilterTerms = @{
         release_groups = @('SupaCvnt', 'BYNDR')
         services_containers = @('MA')
+        languages_subs_dubs = @('ita', 'eng', 'sub', 'dub')
     }
     $script:RenameMovieRemoveTerms = @('sample', 'trailer', 'extras', 'featurette', 'deleted scenes', 'behind the scenes')
     $ironLungPlan = New-PlexMovieDestinationPlan -OriginalName 'Iron.Lung.2026.1080p.WEBRip.x265.6CH-SupaCvnt.mkv' -Extension 'mkv'
     $hoppersPlan = New-PlexMovieDestinationPlan -OriginalName 'Hoppers.2026.2160p.MA.WEB-DL.DDP5.1.Atmos.DV.HDR.H.265-BYNDR.mkv' -Extension 'mkv'
+    $languageTagPlan = New-PlexMovieDestinationPlan -OriginalName 'Cinema.Paradiso.1988.Ita.Eng.Sub.Dub.1080p.BluRay.x264.mkv' -Extension 'mkv'
     Assert-Equal $ironLungPlan.FileName 'Iron Lung (2026).mkv' 'Saved rename filter policy should remove custom Iron Lung release group terms.'
     Assert-Equal $hoppersPlan.FileName 'Hoppers (2026).mkv' 'Saved rename filter policy should remove custom Hoppers service and release-group terms.'
+    Assert-Equal $languageTagPlan.FileName 'Cinema Paradiso (1988).mkv' 'Saved rename filter policy should remove language and sub-dub release tags.'
     Remove-Variable -Name RenameMovieFilterOptions -Scope Script -ErrorAction SilentlyContinue
     Remove-Variable -Name RenameMovieFilterTerms -Scope Script -ErrorAction SilentlyContinue
     Remove-Variable -Name RenameMovieRemoveTerms -Scope Script -ErrorAction SilentlyContinue

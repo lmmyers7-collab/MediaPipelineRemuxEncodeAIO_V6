@@ -6,10 +6,13 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
+from mediapipeline.contracts.config import Config
 from mediapipeline.core.config.service import ConfigProfileServiceMixin
 from mediapipeline.core.config.validation import (
     config_path_overlap_warning,
@@ -56,6 +59,7 @@ def _valid_config_values() -> dict:
         "BdpgsOcrTimeoutSeconds": 1800,
         "VobSubOcrTimeoutSeconds": 1800,
         "TransientFailureRetryLimit": 3,
+        "CoordinatorMaxJobRetries": 3,
         "SourceScanIntervalSeconds": 60,
         "ProcessedIndexRefreshSeconds": 120,
         "RobocopyTimeoutSeconds": 3600,
@@ -188,7 +192,12 @@ class ServiceConfigValidationTests(unittest.TestCase):
         self.assertIn("ConsoleLogLevel must be one of: ERROR, WARN, INFO, DEBUG, or blank.", errors)
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)
         self.assertTrue(any(error.startswith("RoutingProfile must be one of:") for error in errors))
-        self.assertIn("VideoCodec must be one of: av1_nvenc, h264_nvenc, hevc_nvenc, libx264, libx265.", errors)
+        self.assertIn(
+            "VideoCodec must be one of: av1_amf, av1_nvenc, av1_qsv, h264_amf, "
+            "h264_nvenc, h264_qsv, hevc_amf, hevc_nvenc, hevc_qsv, libaom-av1, "
+            "libx264, libx265.",
+            errors,
+        )
         self.assertIn("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.", errors)
         self.assertEqual(warnings, [])
 
@@ -249,6 +258,79 @@ class ServiceConfigValidationTests(unittest.TestCase):
         )
 
         self.assertEqual(errors, [])
+
+    def test_validate_config_values_materializes_defaulted_network_numeric_keys(self) -> None:
+        values = _valid_config_values()
+        values.pop("CoordinatorMaxJobRetries")
+
+        errors, warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertEqual(errors, [])
+        self.assertEqual(warnings, [])
+
+    def test_validate_config_values_rejects_explicit_invalid_network_retry_count(self) -> None:
+        values = _valid_config_values()
+        values["CoordinatorMaxJobRetries"] = 0
+
+        errors, _warnings = validate_config_values(
+            values,
+            normalized_path_key=_path_key,
+            path_within_root=_path_within_root,
+        )
+
+        self.assertIn("CoordinatorMaxJobRetries must be >= 1.", errors)
+
+    def test_config_contract_rejects_strict_rename_filter_json_text(self) -> None:
+        cases = [
+            (
+                "RenameMovieFilterOptions",
+                '{"sample": true, "sample": false}',
+                "duplicate JSON object key: sample",
+            ),
+            (
+                "RenameMovieFilterOptions",
+                '{"sample": NaN}',
+                "non-finite JSON value is not allowed: NaN",
+            ),
+            (
+                "RenameMovieFilterTerms",
+                '{"sample": ["alpha"], "sample": ["beta"]}',
+                "duplicate JSON object key: sample",
+            ),
+        ]
+        for key, raw, expected in cases:
+            with self.subTest(key=key, raw=raw):
+                with self.assertRaises(ValidationError) as raised:
+                    Config.model_validate({**_valid_config_values(), key: raw})
+                self.assertIn(expected, str(raised.exception))
+
+    def test_validate_config_values_rejects_strict_promotion_rule_json_text(self) -> None:
+        cases = [
+            (
+                '[{"id": "first", "id": "second"}]',
+                "duplicate JSON object key: id",
+            ),
+            (
+                '[{"id": "rule-a", "enabled": Infinity}]',
+                "non-finite JSON value is not allowed: Infinity",
+            ),
+        ]
+        for raw, expected in cases:
+            with self.subTest(raw=raw):
+                values = _valid_config_values()
+                values["FinalLibraryPromotionRules"] = raw
+
+                errors, _warnings = validate_config_values(
+                    values,
+                    normalized_path_key=_path_key,
+                    path_within_root=_path_within_root,
+                )
+
+                self.assertTrue(any(expected in error for error in errors), errors)
 
     def test_config_path_overlap_warning_reports_same_source_roots(self) -> None:
         warning = config_path_overlap_warning(

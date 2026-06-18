@@ -94,8 +94,22 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
         errors.append(f"DynamicHdrPolicy must be one of: {', '.join(DYNAMIC_HDR_POLICY_NAMES)}.")
 
     video_codec = str(values.get(KEY_VIDEO_CODEC, "") or "").strip().lower()
-    if video_codec and video_codec not in {"hevc_nvenc", "libx265", "h264_nvenc", "libx264", "av1_nvenc"}:
-        errors.append("VideoCodec must be one of: av1_nvenc, h264_nvenc, hevc_nvenc, libx264, libx265.")
+    allowed_video_codecs = {
+        "hevc_nvenc",
+        "hevc_qsv",
+        "hevc_amf",
+        "libx265",
+        "h264_nvenc",
+        "h264_qsv",
+        "h264_amf",
+        "libx264",
+        "av1_nvenc",
+        "av1_qsv",
+        "av1_amf",
+        "libaom-av1",
+    }
+    if video_codec and video_codec not in allowed_video_codecs:
+        errors.append(f"VideoCodec must be one of: {', '.join(sorted(allowed_video_codecs))}.")
     video_preset = str(values.get(KEY_VIDEO_PRESET, "") or "").strip().lower()
     if video_preset and video_preset not in {"p1", "p2", "p3", "p4", "p5", "p6", "p7"}:
         errors.append("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.")

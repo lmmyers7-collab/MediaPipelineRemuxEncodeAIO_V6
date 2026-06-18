@@ -664,10 +664,17 @@
       "default": "hevc_nvenc",
       "enum": [
         "hevc_nvenc",
+        "hevc_qsv",
+        "hevc_amf",
         "libx265",
         "h264_nvenc",
+        "h264_qsv",
+        "h264_amf",
         "libx264",
-        "av1_nvenc"
+        "av1_nvenc",
+        "av1_qsv",
+        "av1_amf",
+        "libaom-av1"
       ],
       "title": "Videocodec",
       "type": "string"

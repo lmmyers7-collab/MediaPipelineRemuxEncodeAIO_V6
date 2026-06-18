@@ -21,6 +21,10 @@ $buildScriptPath = Join-Path $repoRoot 'ops\scripts\release\build.ps1'
 $backupScriptPath = Join-Path $repoRoot 'ops\scripts\release\Backup-PreOverhaul.ps1'
 $setupLauncherPath = Join-Path $repoRoot 'ops\scripts\dev\setup.bat'
 $runLauncherPath = Join-Path $repoRoot 'ops\scripts\dev\run.bat'
+$gitignorePath = Join-Path $repoRoot '.gitignore'
+$rgignorePath = Join-Path $repoRoot '.rgignore'
+$releaseManifestPath = Join-Path $repoRoot 'release_manifest.json'
+$inReleasePackage = Test-Path -LiteralPath $releaseManifestPath -PathType Leaf
 
 function Assert-True {
     param(
@@ -138,7 +142,50 @@ function Assert-MapContainsKey {
     }
 }
 
-function Assert-StandardRenameFilterConfig {
+function Get-SortedMapKeys {
+    param($Map)
+
+    if ($null -eq $Map) { return @() }
+    try {
+        return @($Map.Keys | ForEach-Object { [string]$_ } | Sort-Object)
+    } catch {
+        return @()
+    }
+}
+
+function Get-CustomRenameFilterBaseline {
+    param(
+        [string] $RelativePath,
+        [string] $Label
+    )
+
+    $path = Join-Path $repoRoot $RelativePath
+    Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "$Label must be present: $RelativePath"
+    $config = Import-PowerShellDataFile -Path $path
+    foreach ($key in @('RenameMovieFilterOptions', 'RenameMovieFilterTerms', 'RenameMovieRemoveTerms')) {
+        Assert-MapContainsKey -Map $config -Key $key -Message "$Label must keep packaged custom rename filter key '$key'."
+    }
+
+    $options = $config['RenameMovieFilterOptions']
+    $terms = $config['RenameMovieFilterTerms']
+    $categories = @(Get-SortedMapKeys -Map $options)
+    Assert-True ($categories.Count -gt 0) "$Label RenameMovieFilterOptions must include at least one packaged custom category."
+    Assert-SequenceEqual -Actual (Get-SortedMapKeys -Map $terms) -Expected $categories -Label "$Label RenameMovieFilterTerms categories"
+    foreach ($category in $categories) {
+        Assert-True ($options[$category] -is [bool]) "$Label RenameMovieFilterOptions.$category must be a boolean."
+        Assert-MapContainsKey -Map $terms -Key $category -Message "$Label RenameMovieFilterTerms missing category '$category'."
+        Assert-True (@(ConvertTo-StringArray -Value $terms[$category]).Count -gt 0) "$Label RenameMovieFilterTerms.$category must keep the packaged custom term list."
+    }
+
+    return [pscustomobject]@{
+        Categories = $categories
+        Options = $options
+        Terms = $terms
+        RemoveTerms = @(ConvertTo-StringArray -Value $config['RenameMovieRemoveTerms'])
+    }
+}
+
+function Assert-CustomRenameFilterConfig {
     param(
         [string] $RelativePath,
         [string] $Label,
@@ -152,11 +199,13 @@ function Assert-StandardRenameFilterConfig {
     Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "$Label must be present: $RelativePath"
     $config = Import-PowerShellDataFile -Path $path
     foreach ($key in @('RenameMovieFilterOptions', 'RenameMovieFilterTerms', 'RenameMovieRemoveTerms')) {
-        Assert-MapContainsKey -Map $config -Key $key -Message "$Label must keep standard rename filter key '$key'."
+        Assert-MapContainsKey -Map $config -Key $key -Message "$Label must keep packaged custom rename filter key '$key'."
     }
 
     $options = $config['RenameMovieFilterOptions']
     $terms = $config['RenameMovieFilterTerms']
+    Assert-SequenceEqual -Actual (Get-SortedMapKeys -Map $options) -Expected $ExpectedCategories -Label "$Label RenameMovieFilterOptions categories"
+    Assert-SequenceEqual -Actual (Get-SortedMapKeys -Map $terms) -Expected $ExpectedCategories -Label "$Label RenameMovieFilterTerms categories"
     foreach ($category in $ExpectedCategories) {
         Assert-MapContainsKey -Map $options -Key $category -Message "$Label RenameMovieFilterOptions missing category '$category'."
         Assert-True ($options[$category] -is [bool]) "$Label RenameMovieFilterOptions.$category must be a boolean."
@@ -174,13 +223,34 @@ Assert-True (Test-Path -LiteralPath $buildScriptPath -PathType Leaf) 'build.ps1 
 Assert-True (Test-Path -LiteralPath $backupScriptPath -PathType Leaf) 'Backup-PreOverhaul.ps1 is missing.'
 Assert-True (Test-Path -LiteralPath $setupLauncherPath -PathType Leaf) 'ops\scripts\dev\setup.bat is missing.'
 Assert-True (Test-Path -LiteralPath $runLauncherPath -PathType Leaf) 'ops\scripts\dev\run.bat is missing.'
+if ($inReleasePackage) {
+    Assert-True (-not (Test-Path -LiteralPath $gitignorePath -PathType Leaf)) '.gitignore must be omitted from release packages as source-control metadata.'
+} else {
+    Assert-True (Test-Path -LiteralPath $gitignorePath -PathType Leaf) '.gitignore is missing.'
+}
+Assert-True (Test-Path -LiteralPath $rgignorePath -PathType Leaf) '.rgignore is missing.'
 
 $buildScriptText = Get-Content -LiteralPath $buildScriptPath -Raw
 Assert-Contains $buildScriptText 'Test-ReleaseDestinationHasInProgressMarker' 'Release builder must recognize interrupted package destinations.'
 Assert-Contains $buildScriptText 'mediapipeline_release_in_progress.v1' 'Release builder must write a schema-versioned in-progress marker.'
 Assert-Contains $buildScriptText 'Remove-Item -LiteralPath $inProgressMarkerPath' 'Release builder must remove the in-progress marker after writing the final manifest.'
+Assert-Contains $buildScriptText 'KeepPersonalConfig cannot be combined with -Zip' 'Release builder must reject zipped personal mirrors.'
+Assert-Contains $buildScriptText '[switch]$AllowTestlessVerify' 'Release builder must expose an explicit dev-only testless verify escape hatch.'
+Assert-Contains $buildScriptText 'Release verification requires -IncludeTests' 'Release builder must require included tests for verified release packages by default.'
+Assert-Contains $buildScriptText 'This is not release acceptance.' 'Release builder must label testless verification as non-release acceptance.'
+Assert-Contains $buildScriptText 'Test-ReleaseTraversalDirectoryPruned' 'Release builder must prune known excluded directories before recursive package traversal.'
+Assert-Contains $buildScriptText 'Get-ReleaseSourceFileItems' 'Release builder must use the pruned release source traversal helper.'
+Assert-True (-not $buildScriptText.Contains('Get-ChildItem -LiteralPath $script:SourceRoot -Recurse -File -Force')) 'Release builder must not recurse through every source file before applying package exclusions.'
+
+$rgignoreText = Get-Content -LiteralPath $rgignorePath -Raw
+if (-not $inReleasePackage) {
+    $gitignoreText = Get-Content -LiteralPath $gitignorePath -Raw
+    Assert-Contains $gitignoreText 'docs/PG3CleanMachineReports/' 'Git ignore rules must exclude generated PG-3 clean-machine reports.'
+}
+Assert-Contains $rgignoreText 'docs/PG3CleanMachineReports/' 'Search ignore rules must exclude generated PG-3 clean-machine reports.'
 
 $backupScriptText = Get-Content -LiteralPath $backupScriptPath -Raw
+Assert-Contains $backupScriptText '-Verify -Zip -IncludeTests' 'Backup helper release build must include tests when verification is requested.'
 Assert-Contains $backupScriptText 'GetFullPath($Destination)' 'Backup helper must resolve Destination with System.IO.Path.GetFullPath.'
 foreach ($needle in @(
     'Test-Path -LiteralPath $Destination',
@@ -205,30 +275,23 @@ try {
 
 . $releasePolicyPath
 
-$choiceRegistryPath = Join-Path $repoRoot 'ops\pipeline\engine\config\choice_registry.ps1'
-$defaultValuesPath = Join-Path $repoRoot 'ops\pipeline\engine\config\default_values.ps1'
-Assert-True (Test-Path -LiteralPath $choiceRegistryPath -PathType Leaf) 'config choice_registry.ps1 is missing.'
-Assert-True (Test-Path -LiteralPath $defaultValuesPath -PathType Leaf) 'config default_values.ps1 is missing.'
-. $choiceRegistryPath
-. $defaultValuesPath
-$expectedRenameFilterCategories = @(Get-MediaPipelineRenameMovieFilterCategoryNames)
-$expectedRenameFilterOptions = Get-MediaPipelineRenameMovieFilterOptionsDefault
-$expectedRenameFilterTerms = Get-MediaPipelineRenameMovieFilterTermsDefault
-$expectedRenameRemoveTerms = @(Get-MediaPipelineRenameMovieRemoveTermsDefault)
-Assert-StandardRenameFilterConfig `
+$customRenameFilterBaseline = Get-CustomRenameFilterBaseline `
+    -RelativePath 'ops\pipeline\config\MediaPipeline_config_template.psd1' `
+    -Label 'Config template'
+Assert-CustomRenameFilterConfig `
     -RelativePath 'ops\pipeline\config\MediaPipeline_config_template.psd1' `
     -Label 'Config template' `
-    -ExpectedOptions $expectedRenameFilterOptions `
-    -ExpectedTerms $expectedRenameFilterTerms `
-    -ExpectedRemoveTerms $expectedRenameRemoveTerms `
-    -ExpectedCategories $expectedRenameFilterCategories
-Assert-StandardRenameFilterConfig `
+    -ExpectedOptions $customRenameFilterBaseline.Options `
+    -ExpectedTerms $customRenameFilterBaseline.Terms `
+    -ExpectedRemoveTerms $customRenameFilterBaseline.RemoveTerms `
+    -ExpectedCategories $customRenameFilterBaseline.Categories
+Assert-CustomRenameFilterConfig `
     -RelativePath 'ops\pipeline\config\profiles\Default.psd1' `
     -Label 'Default config profile' `
-    -ExpectedOptions $expectedRenameFilterOptions `
-    -ExpectedTerms $expectedRenameFilterTerms `
-    -ExpectedRemoveTerms $expectedRenameRemoveTerms `
-    -ExpectedCategories $expectedRenameFilterCategories
+    -ExpectedOptions $customRenameFilterBaseline.Options `
+    -ExpectedTerms $customRenameFilterBaseline.Terms `
+    -ExpectedRemoveTerms $customRenameFilterBaseline.RemoveTerms `
+    -ExpectedCategories $customRenameFilterBaseline.Categories
 
 Assert-ReleaseExclusion -RelativePath '.github\workflows\ci.yml' -ExpectedReason 'source-control metadata'
 Assert-ReleaseExclusion -RelativePath '.gitattributes' -ExpectedReason 'source-control metadata'
@@ -289,6 +352,11 @@ Assert-True ($policyManifest.schema_version -eq 'mediapipeline_release_policy.v1
 Assert-True ($policyManifest.hygiene_rule_count -eq $hygieneRules.Count) 'Release policy manifest hygiene rule count drifted.'
 
 $repoParent = Split-Path -Parent $repoRoot
+$personalZipDestination = Join-Path ([System.IO.Path]::GetTempPath()) ('mediapipeline-release-policy-personal-zip-{0}' -f ([guid]::NewGuid().ToString('N')))
+Assert-ThrowsContaining `
+    -Action { & $buildScriptPath -DestinationRoot $personalZipDestination -KeepPersonalConfig -Zip -DryRun } `
+    -ExpectedText 'KeepPersonalConfig cannot be combined with -Zip' `
+    -Message 'Release builder should reject personal-config zip packages.'
 Assert-ReleaseBuildRejectsDestination -DestinationRoot $repoRoot -ExpectedText 'source folder or a child'
 Assert-ReleaseBuildRejectsDestination -DestinationRoot (Join-Path $repoRoot 'release-test') -ExpectedText 'source folder or a child'
 Assert-ReleaseBuildRejectsDestination -DestinationRoot $repoParent -ExpectedText 'ancestor of the source folder'

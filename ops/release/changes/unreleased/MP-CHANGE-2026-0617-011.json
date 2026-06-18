@@ -1,0 +1,33 @@
+{
+  "id": "MP-CHANGE-2026-0617-011",
+  "title": "Document Make Me Nervous maintainer audit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Create a report-only Make Me Nervous audit that ranks the top 50 maintainer risks with repository evidence, first safe next steps, and validation requirements.",
+  "reason": "The operator requested a responsible-maintainer risk audit biased toward data safety, source mutation risk, file movement risk, coordinator correctness, recovery, media policy, FFmpeg/subtitle/audio edge cases, config drift, ownership boundaries, startup fragility, hidden coupling, god files, stale docs, test gaps, release validation, reliability, operator confusion, and scalability blockers.",
+  "affected_areas": [
+    "change control",
+    "docs",
+    "maintainer risk audit"
+  ],
+  "behavior_before": "No 2026-06-17 Make Me Nervous maintainer-risk audit existed under docs/ai-audits for the promoted workspace.",
+  "behavior_after": "A docs-only audit report records ranked maintainer risks and validation requirements without changing runtime behavior.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-make-me-nervous.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-011.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-011.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Parsed MP-CHANGE-2026-0617-011.json as JSON and confirmed the title is Document Make Me Nervous maintainer audit.",
+    "Strict change-control validation command failed because two unrelated files were uncovered: docs/ai-audits/2026-06-17-user-journey-audit.md and docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-012.json.md.",
+    "Verified report structure contains exactly 50 ranked findings; report-only audit; no runtime behavior changed."
+  ],
+  "rollback_plan": "Delete docs/ai-audits/2026-06-17-make-me-nervous.md and ops/release/changes/unreleased/MP-CHANGE-2026-0617-011.json.",
+  "related_changes": [],
+  "notes": "Report-only audit. No media policy, FFmpeg command generation, subtitle conversion, audio routing, queue state, pending-publish behavior, source/scratch/output movement, Local API route behavior, WebView controls, Tauri lifecycle behavior, scripts, generated contracts, schemas, tests, launchers, operator workflows, or configs are intentionally changed. Any suggested FFmpeg, subtitle, audio, publish, source movement, cleanup, remux/encode, queue/coordinator, or media-policy remediation must be treated as high validation and require representative real-media validation before implementation."
+}

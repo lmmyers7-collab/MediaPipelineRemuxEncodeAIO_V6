@@ -35,6 +35,7 @@ def start_pipeline_for_service(
     show_config: bool,
     sleep_seconds: int,
     extra_args: str,
+    extra_argv: list[str] | tuple[str, ...] | None = None,
     show_console: bool,
     single_file: str | None = None,
 ) -> subprocess.Popen[Any]:
@@ -44,6 +45,7 @@ def start_pipeline_for_service(
         show_config=show_config,
         sleep_seconds=sleep_seconds,
         extra_args=extra_args,
+        extra_argv=extra_argv,
         single_file=single_file,
     )
     return service._spawn(

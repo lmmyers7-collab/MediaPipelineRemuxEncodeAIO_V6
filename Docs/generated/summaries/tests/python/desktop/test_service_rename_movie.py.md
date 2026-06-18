@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_rename_movie.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 4508b13c372ccf2fa4d32da021ef3b25dd4a8d6724b6492b109ccd44ff69618f
+sha256: ee15efdda3007b4559d5b7c3cefb10c411693d414b9c1a232e49e9c97a48df1e
 ---
 # `tests/python/desktop/test_service_rename_movie.py`
 

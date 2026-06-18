@@ -84,6 +84,18 @@ def _unique_strings(values: list[str]) -> list[str]:
     return unique
 
 
+def _preserved_unknown_config_keys(values: dict[str, Any]) -> list[str]:
+    keys: list[str] = []
+    for raw_key in values:
+        key = str(raw_key or "").strip()
+        if not key or key in REGISTERED_CONFIG_KEYS:
+            continue
+        if canonical_config_key_spelling_error(key) is not None:
+            continue
+        keys.append(key)
+    return sorted(set(keys))
+
+
 
 
 
@@ -139,6 +151,7 @@ class SettingsPatchCandidateFacadeMixin:
             return {"fatal_result": fatal_result}
         base_config = dict(resolved.config_data or {})
         merged = dict(base_config)
+        preserved_unknown_keys = _preserved_unknown_config_keys(base_config)
         errors: list[str] = []
         warnings: list[str] = []
         changed_keys: list[str] = []
@@ -222,6 +235,9 @@ class SettingsPatchCandidateFacadeMixin:
             except Exception as exc:
                 warnings.append(f"Library profile inheritance evidence unavailable: {exc}")
 
+        for key in preserved_unknown_keys:
+            warnings.append(f"Existing unknown config key {key} is preserved but not validated.")
+
         if not changed_keys and not removed_keys and not errors:
             warnings.append("No settings changes were proposed.")
 
@@ -256,6 +272,7 @@ class SettingsPatchCandidateFacadeMixin:
             "diff_lines": diff_lines,
             "risk_summary": risk_summary,
             "library_profile_state": library_profile_state,
+            "preserved_unknown_keys": preserved_unknown_keys,
         }
 
 

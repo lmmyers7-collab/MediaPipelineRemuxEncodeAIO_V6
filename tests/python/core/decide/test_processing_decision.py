@@ -468,6 +468,28 @@ class ProcessingDecisionTests(unittest.TestCase):
         self.assertEqual(mp4_summary["audio_output_codec"], "eac3")
         self.assertEqual(mp4_summary["dropped_audio_count"], 2)
 
+    def test_mp4_audio_selection_uses_fidelity_ahead_of_source_default_flag(self) -> None:
+        raw = json.loads((FIXTURE_ROOT / "multi_audio_tracks.json").read_text(encoding="utf-8"))
+        raw["streams"] = [
+            stream
+            for stream in raw["streams"]
+            if stream.get("codec_type") == "video" or stream.get("index") in {1, 3}
+        ]
+        for stream in raw["streams"]:
+            if stream.get("index") == 1:
+                stream["disposition"] = {"default": 0, "forced": 0}
+            if stream.get("index") == 3:
+                stream["tags"] = {"language": "eng", "title": "English AAC default"}
+                stream["disposition"] = {"default": 1, "forced": 0}
+        source = source_media_from_ffprobe(raw)
+
+        decision = build_processing_decision(source, EffectiveDecisionPolicy(output_container="mp4"))
+        actions = {stream.stream_index: stream.action for stream in decision.stream_actions.audio}
+
+        self.assertEqual(actions[1], "transcode")
+        self.assertEqual(actions[3], "drop")
+        self.assertEqual(decision.planned_output_summary["mp4_compatibility"]["selected_audio_streams"], [1])
+
     def test_video_filter_setting_forces_video_encode_with_planned_output(self) -> None:
         decision = build_processing_decision(
             load_source("tv_h264_1080p_12mbps_mkv.json"),
@@ -508,14 +530,25 @@ class ProcessingDecisionTests(unittest.TestCase):
     def test_audio_policy_transcode_does_not_force_video_encode(self) -> None:
         decision = build_processing_decision(
             load_source("multi_audio_tracks.json"),
-            EffectiveDecisionPolicy(audio_max_channels=6),
+            EffectiveDecisionPolicy(audio_force_transcode=True),
         )
 
         self.assertEqual(decision.route_summary, "REMUX")
         self.assertEqual(decision.stream_actions.video.action, "copy")
         self.assertEqual(decision.stream_actions.audio[0].action, "transcode")
-        self.assertEqual(decision.planned_encode_output.audio.transcode_streams, [1])
+        self.assertEqual(decision.planned_encode_output.audio.transcode_streams, [1, 2, 3])
         self.assertFalse(decision.planned_encode_output.video.active)
+
+    def test_audio_channel_cap_does_not_transcode_compatible_passthrough(self) -> None:
+        decision = build_processing_decision(
+            load_source("multi_audio_tracks.json"),
+            EffectiveDecisionPolicy(audio_max_channels=6),
+        )
+
+        self.assertEqual(decision.route_summary, "REMUX")
+        self.assertEqual([stream.action for stream in decision.stream_actions.audio], ["copy", "copy", "copy"])
+        self.assertEqual(decision.planned_encode_output.audio.transcode_streams, [])
+        self.assertEqual(decision.planned_encode_output.audio.passthrough_streams, [1, 2, 3])
 
 
 if __name__ == "__main__":

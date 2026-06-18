@@ -4,6 +4,7 @@ from __future__ import annotations
 import logging
 import threading
 from pathlib import Path
+from typing import Any
 
 from mediapipeline.core.network.url_policy import redact_network_secret_text
 
@@ -218,9 +219,40 @@ class CoordinatorLifecycleMixin:
             )
         _log.info("CoordinatorDispatcher shut down.")
 
+    def begin_drain(self) -> None:
+        """Stop new claims while keeping reporting routes available."""
+        self._accepting_claims = False
+        try:
+            active_count: int | str = self._registry.active_count
+        except Exception as exc:
+            _log.warning("Coordinator active-count lookup failed during drain start: %s", exc)
+            active_count = "unknown"
+        self._safe_log_cluster_event(
+            "coordinator-drain-started",
+            level="INFO",
+            event="coordinator_drain_started",
+            message=f"Coordinator drain started (active={active_count})",
+        )
+        try:
+            self._registry.save(self._inflight_state_path())
+        except Exception as exc:
+            safe_exc = redact_network_secret_text(exc)
+            _log.warning("Coordinator in-flight registry save failed during drain start: %s", safe_exc)
+            self._safe_log_cluster_event(
+                "inflight-save-failed",
+                level="WARN",
+                event="inflight_save_failed",
+                message=f"Failed to save in-flight registry during coordinator drain start: {safe_exc}",
+                role="coordinator",
+            )
+
     def workers_snapshot(self) -> list[WorkerEntry]:
         """Return a point-in-time copy of all in-flight jobs (for the UI)."""
         return self._registry.snapshot()
+
+    def active_claims_snapshot(self) -> list[dict[str, Any]]:
+        """Return token-safe active claim evidence for lifecycle decisions."""
+        return self._registry.active_claims_snapshot()
 
     def idle_workers_snapshot(self) -> list[WorkerEntry]:
         """Return workers that have session stats but are not currently encoding.

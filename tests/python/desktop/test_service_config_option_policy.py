@@ -19,6 +19,21 @@ from mediapipeline.core.config.constants import (
     SIZE_GUARD_MODE_NAMES,
 )
 
+VIDEO_CODEC_VALUES = (
+    "hevc_nvenc",
+    "hevc_qsv",
+    "hevc_amf",
+    "libx265",
+    "h264_nvenc",
+    "h264_qsv",
+    "h264_amf",
+    "libx264",
+    "av1_nvenc",
+    "av1_qsv",
+    "av1_amf",
+    "libaom-av1",
+)
+
 
 def _metadata_by_key() -> dict[str, dict[str, object]]:
     return {str(field["key"]): field for field in CONFIG_FIELD_DEFINITIONS}
@@ -79,7 +94,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
             "RoutingProfile": ROUTING_PROFILE_NAMES,
             "RouteThresholdMode": ROUTE_THRESHOLD_MODE_NAMES,
             "SizeGuardMode": SIZE_GUARD_MODE_NAMES,
-            "VideoCodec": ("hevc_nvenc", "libx265", "h264_nvenc", "libx264", "av1_nvenc"),
+            "VideoCodec": VIDEO_CODEC_VALUES,
             "VideoPreset": ("p1", "p2", "p3", "p4", "p5", "p6", "p7"),
             "FinalLibraryPromotionVerificationMode": ("cautious", "fast"),
             "AudioPassthroughProfile": AUDIO_PASSTHROUGH_PROFILE_NAMES,
@@ -123,7 +138,12 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)
         self.assertIn("ValidExtensions entries must start with a dot and contain only extension-safe characters.", errors)
         self.assertIn("RobocopyFlags entries must be non-empty robocopy switches beginning with '/'.", errors)
-        self.assertIn("VideoCodec must be one of: av1_nvenc, h264_nvenc, hevc_nvenc, libx264, libx265.", errors)
+        self.assertIn(
+            "VideoCodec must be one of: av1_amf, av1_nvenc, av1_qsv, h264_amf, "
+            "h264_nvenc, h264_qsv, hevc_amf, hevc_nvenc, hevc_qsv, libaom-av1, "
+            "libx264, libx265.",
+            errors,
+        )
         self.assertIn("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.", errors)
         self.assertEqual(warnings, [])
 
@@ -175,4 +195,3 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

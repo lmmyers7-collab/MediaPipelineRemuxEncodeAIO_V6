@@ -181,6 +181,33 @@
     return values.length ? values.join(", ") : "none";
   }
 
+  function homeNetworkPolicyDivergencePayload(drift = {}) {
+    const payload = drift?.policy_divergence;
+    return payload && typeof payload === "object" ? payload : {};
+  }
+
+  function homeNetworkPolicyDivergenceFieldsText(drift = {}) {
+    const payload = homeNetworkPolicyDivergencePayload(drift);
+    const labels = Array.isArray(payload.field_labels) ? payload.field_labels : [];
+    const fields = Array.isArray(payload.fields) ? payload.fields : [];
+    const values = (labels.length ? labels : fields)
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return values.length ? values.join(", ") : "none";
+  }
+
+  function homeNetworkPolicyDivergenceStatusText(drift = {}) {
+    const payload = homeNetworkPolicyDivergencePayload(drift);
+    const status = String(payload.status || "not_loaded").trim().toLowerCase();
+    if (status === "review") return `review (${homeNetworkPolicyDivergenceFieldsText(drift)})`;
+    if (status === "ready") return "ready";
+    return status || "not loaded";
+  }
+
+  function homeNetworkPolicyDivergenceActive(drift = {}) {
+    return String(homeNetworkPolicyDivergencePayload(drift).status || "").trim().toLowerCase() === "review";
+  }
+
   function dailyDriverRows(context = {}) {
     const failures = Array.isArray(context.failures) ? context.failures : [];
     const requiredFailures = failures.filter((item) => item.required);
@@ -198,7 +225,7 @@
     const commandIssues = dailyDriverCommandIssues();
     const diagnosticCounts = dailyDriverDiagnosticsCounts(diagnostics);
     const rows = [];
-  
+
     rows.push(dailyDriverRow(
       "Refresh payloads",
       requiredFailures.length ? "blocked" : optionalFailures.length ? "review" : "ready",
@@ -209,7 +236,7 @@
           ? "Use Diagnostics for supporting read issues; avoid unattended runs until important panels refresh cleanly."
           : "Core payload refresh is clean.",
     ));
-  
+
     rows.push(dailyDriverRow(
       "Close / active work",
       !snapshot || !closeReadiness ? "unknown" : closeReadiness.safe_to_close === false || closeReadiness.active_work ? "review" : "ready",
@@ -218,7 +245,7 @@
         ? "Monitor progress, ActiveJobs, and logs before closing or starting more work."
         : "No active-work block is currently reported.",
     ));
-  
+
     const settingsStatus = dailyDriverSettingsStatus(settings);
     rows.push(dailyDriverRow(
       "Saved settings",
@@ -232,7 +259,7 @@
           ? "Review Settings trust and staged patch handoff before unattended work."
           : "Saved settings posture is clean in the loaded workspace.",
     ));
-  
+
     rows.push(dailyDriverRow(
       "External dependencies",
       dependencyStatus === "blocked" ? "blocked" : dependencyStatus === "review" || dependencyStatus === "unknown" ? "review" : "ready",
@@ -243,7 +270,7 @@
           ? "Review Settings OCR and Maintenance toolchain evidence before long unattended processing."
           : "No external dependency blocker is visible in loaded Settings/Diagnostics/Maintenance evidence.",
     ));
-  
+
     rows.push(dailyDriverRow(
       "Queue",
       queue.error ? "review" : String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale" || dailyDriverCount(queue.invalid_row_count) || dailyDriverCount(queue.blocked_row_count) ? "review" : "ready",
@@ -254,7 +281,7 @@
           ? "Refresh Queue before Launch because stale snapshots can disagree with current state."
           : "Use Launch only after Queue row guidance and schedule/settings preflight look correct.",
     ));
-  
+
     rows.push(dailyDriverRow(
       "Completed proof",
       completed.error || dailyDriverCount(completed.missing_output_count) ? "review" : dailyDriverCount(completed.size_policy_exceeded_count) ? "review" : "ready",
@@ -265,7 +292,7 @@
           ? "Review rows that exceeded recorded backend size_policy before treating recent encodes as intentional."
           : "Completed proof has no loaded blocker.",
     ));
-  
+
     rows.push(dailyDriverRow(
       "Pending Publish",
       pending.error || dailyDriverCount(pending.issue_count) || dailyDriverCount(pending.health_count) ? "review" : "ready",
@@ -274,9 +301,9 @@
         ? "Review Pending Publish diagnostics/recovery before draining, rerunning, or cleaning outputs."
         : "Pending Publish has no loaded drain blocker.",
     ));
-  
+
     rows.push(dailyDriverRealMediaProofRow({ queue, completed, pending, diagnosticCounts }));
-  
+
     rows.push(dailyDriverRow(
       "Diagnostics",
       dailyDriverCount(diagnosticCounts.error) ? "review" : dailyDriverCount(diagnosticCounts.warning) ? "review" : "ready",
@@ -285,7 +312,7 @@
         ? "Open Diagnostics Investigation Trail and inspect read-first evidence before unattended operation."
         : "No warning/error diagnostics are visible in the loaded payload.",
     ));
-  
+
     rows.push(dailyDriverRow(
       "Recent commands",
       commandIssues.length ? "review" : "ready",
@@ -294,7 +321,7 @@
         ? "Inspect Command Results or Diagnostics Command Result Drilldown before repeating actions."
         : "Recent command history has no visible warning/error result.",
     ));
-  
+
     const scheduleEnabled = Boolean(schedule.enabled);
     const allowedNow = schedule.evaluation?.allowed_now !== false;
     rows.push(dailyDriverRow(
@@ -305,24 +332,29 @@
         ? "Use Launch timing trust before outside-window testing; schedule bypass must be deliberate."
         : "Launch timing does not show a schedule-window block in the loaded payload.",
     ));
-  
+
     const role = String(settings?.config?.NetworkRole || "").trim().toLowerCase() || "standalone";
     const workerRows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows.length : 0;
     const workerDrift = homeNetworkDriftPayload(networkWorkers);
     const workerDriftStatus = String(workerDrift.status || "not_loaded").toLowerCase();
     const workerDriftActive = workerDriftStatus === "drift";
     const workerDriftFields = homeNetworkDriftFieldsText(workerDrift);
+    const workerPolicyReviewActive = homeNetworkPolicyDivergenceActive(workerDrift);
+    const workerPolicyStatus = homeNetworkPolicyDivergenceStatusText(workerDrift);
+    const workerPolicyFields = homeNetworkPolicyDivergenceFieldsText(workerDrift);
     rows.push(dailyDriverRow(
       "Network visibility",
-      workerDriftActive || (role && role !== "standalone") ? "review" : "ready",
-      `role=${role}; persisted worker rows=${workerRows}; running_vs_saved=${workerDriftStatus}; drift_fields=${workerDriftFields}`,
+      workerDriftActive || workerPolicyReviewActive || (role && role !== "standalone") ? "review" : "ready",
+      `role=${role}; persisted worker rows=${workerRows}; running_vs_saved=${workerDriftStatus}; drift_fields=${workerDriftFields}; policy_authority=${workerPolicyStatus}`,
       workerDriftActive
         ? `Open Network Workers and restart worker polling so the live dispatcher uses saved settings (${workerDriftFields}).`
+        : workerPolicyReviewActive
+        ? `Open Network Workers and decide WorkerHonorCoordinatorPolicy plus WorkerEncoderMap before policy-authoritative network claims (${workerPolicyFields}).`
         : role && role !== "standalone"
         ? "Network mode remains read-only in WebView; use backend-owned coordinator/worker lifecycle controls."
         : "Standalone mode is visible; Network page remains read-only.",
     ));
-  
+
     return rows.sort((left, right) => dailyDriverStatusRank(left.status) - dailyDriverStatusRank(right.status));
   }
 

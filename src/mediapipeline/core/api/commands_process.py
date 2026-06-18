@@ -4,6 +4,7 @@ from pathlib import Path
 import threading
 from typing import Any
 
+from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
 from mediapipeline.desktop.api.path_dialogs import select_windows_paths_with_dialog
 from mediapipeline.desktop.application.dto import CommandResult
 
@@ -23,6 +24,9 @@ def _validate_pipeline_single_file_browse_path(raw_path: str) -> dict[str, Any]:
         "exists": False,
         "is_file": False,
         "is_absolute": False,
+        "media_suffix": "",
+        "media_suffix_supported": False,
+        "supported_suffixes": sorted(MEDIA_FILE_SUFFIXES),
         "status_state": "blocked",
         "message": "No file was selected.",
     }
@@ -31,6 +35,8 @@ def _validate_pipeline_single_file_browse_path(raw_path: str) -> dict[str, Any]:
     try:
         candidate = Path(path_text)
         validation["is_absolute"] = candidate.is_absolute()
+        validation["media_suffix"] = candidate.suffix.casefold()
+        validation["media_suffix_supported"] = validation["media_suffix"] in MEDIA_FILE_SUFFIXES
         validation["exists"] = candidate.exists()
         validation["is_file"] = candidate.is_file()
     except OSError as exc:
@@ -43,9 +49,12 @@ def _validate_pipeline_single_file_browse_path(raw_path: str) -> dict[str, Any]:
         validation["message"] = "Selected single-file path does not exist."
     elif not validation["is_file"]:
         validation["message"] = "Selected single-file path exists but is not a file."
+    elif not validation["media_suffix_supported"]:
+        suffix = validation["media_suffix"] or "(none)"
+        validation["message"] = f"Selected single-file path uses unsupported media suffix {suffix}."
     else:
         validation["status_state"] = "ready"
-        validation["message"] = "Selected single-file path exists. Review start readiness before launching."
+        validation["message"] = "Selected single-file path is a supported media file. Review start readiness before launching."
     return validation
 
 
@@ -98,7 +107,7 @@ class LocalApiProcessCommandPayloadMixin:
             "selection_mode": "files",
             "initial_path": initial_path,
             "dialog_title": "Select one media file for Pipeline single-file mode",
-            "file_filter": "Media files (*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv;*.ts;*.m2ts)|*.mkv;*.mp4;*.m4v;*.avi;*.mov;*.wmv;*.ts;*.m2ts|All files (*.*)|*.*",
+            "file_filter": "Media files (*.mkv;*.mp4;*.m4v;*.mov;*.avi;*.ts;*.m2ts;*.webm)|*.mkv;*.mp4;*.m4v;*.mov;*.avi;*.ts;*.m2ts;*.webm|All files (*.*)|*.*",
         }
         if callable(picker):
             result = picker(**picker_kwargs)

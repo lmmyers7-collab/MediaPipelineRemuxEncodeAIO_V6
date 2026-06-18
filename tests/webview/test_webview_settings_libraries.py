@@ -446,10 +446,6 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "SourceMovies",
             "SourceTV",
             "Outsource",
-            "FinalLibraryPromotionRules",
-            "const promotionEnabled = libraryProfiles.some((profile) => profile.enabled && profile.promotion_enabled);",
-            "patch.FinalLibraryPromotionEnabled = promotionEnabled;",
-            "patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles);",
             "Default Editor Overrides",
             "Default Video / Media Overrides",
             "Default Subtitle Overrides",
@@ -516,7 +512,14 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             self.assertIn(token, js)
         self.assertIn("<details", js)
         self.assertIn('hidden disabled"}>Reset to inherited</button>', js)
-        self.assertNotIn("generatedPromotionRules(libraryProfiles, config().FinalLibraryPromotionRules)", js)
+        build_patch_body = js[js.index("function buildPatchFromLibraries") : js.index("function currentSettingsPatchKeys")]
+        self.assertIn("LibraryProfiles: libraryProfiles", build_patch_body)
+        self.assertNotIn("patch.SourceMovies", build_patch_body)
+        self.assertNotIn("patch.SourceTV", build_patch_body)
+        self.assertNotIn("patch.Outsource", build_patch_body)
+        self.assertNotIn("patch.FinalLibraryPromotionEnabled", build_patch_body)
+        self.assertNotIn("patch.FinalLibraryPromotionRules", build_patch_body)
+        self.assertNotIn("generatedPromotionRules", js)
         self.assertNotIn('["movie", "tv", "mixed", "custom"]', js)
         self.assertNotIn("editor_overrides:", js)
         self.assertNotIn("media_overrides:", js)
@@ -734,5 +737,3 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-

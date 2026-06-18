@@ -63,6 +63,8 @@
       "settings-network-worker-poll": "What it means: seconds between worker claim checks. Suggested: 10 to 15 seconds; use 5 only when you need faster pickup.",
       "settings-network-coordinator-local-encode": "What it means: lets the coordinator also process local encode work. Suggested: off for a dedicated coordinator; on when this computer should help encode.",
       "settings-network-path-map": "What it means: rows that rewrite coordinator source paths to paths visible on this worker, saved as the WorkerSourcePathMap JSON object. Suggested: {} when paths match; otherwise map each source root, for example From D:/Source to //SERVER/Source.",
+      "settings-network-worker-encoder-map": "What it means: worker-owned hardware map from coordinator codec families to local encoders, for example {\"hevc\":\"hevc_nvenc\",\"h264\":\"h264_nvenc\",\"av1\":\"av1_nvenc\"}. Suggested: use supported local hardware encoders on this worker; leave blank only for CPU fallback.",
+      "settings-network-honor-coordinator-policy": "What it means: makes this worker apply coordinator cluster-authoritative per-library codec family, quality tier, output container, routing, audio, and subtitle policy. Suggested: leave disabled until real-media validation proves this worker's encoder map and output policy.",
       "settings-network-worker-overrides": "What it means: JSON object with optional per-worker config overrides. Suggested: {} unless a specific worker needs tuning, for example {\"BEAST-PC\":{\"VideoPreset\":\"p4\"}}.",
     };
 
@@ -411,8 +413,8 @@
       const data = result?.data && typeof result.data === "object" ? result.data : {};
       const layers = data.layers && typeof data.layers === "object" ? data.layers : {};
       const l3 = layers.l3_paths && typeof layers.l3_paths === "object" ? layers.l3_paths : {};
-      if (!Object.keys(l3).length) return "Backend path preflight unavailable.";
-      return `Backend path preflight: ${l3.ok ? "accessible yes" : "accessible no"} (${l3.status || "unknown"}).`;
+      if (!Object.keys(l3).length) return "Generic saved-config backend preflight unavailable.";
+      return `Generic saved-config backend preflight: path layer ${l3.ok ? "reported pass" : "reported review"} (${l3.status || "unknown"}).`;
     }
 
     async function testPathMapRow(config, row) {
@@ -428,11 +430,11 @@
         return;
       }
       const lines = [
-        `Sample: ${resolved.samplePath}`,
-        `Resolved: ${resolved.resolvedPath}`,
+        `Local rewrite sample: ${resolved.samplePath}`,
+        `Local rewrite result: ${resolved.resolvedPath}`,
       ];
       if (output) output.textContent = "Testing backend path layer...";
-      setText(config.resultId, [...lines, "Backend preflight: running..."].join("\n"));
+      setText(config.resultId, [...lines, "Generic saved-config backend preflight: running..."].join("\n"));
       const runner = typeof runNetworkWorkerTestConnection === "function"
         ? runNetworkWorkerTestConnection
         : (options) => window.mediaPipelineNetworkView?.runNetworkWorkerTestConnection?.(options);
@@ -441,7 +443,7 @@
         lines.push(pathLayerStatus(result));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        lines.push(`Backend path preflight unavailable: ${message}`);
+        lines.push(`Generic saved-config backend preflight unavailable: ${message}`);
       }
       if (output) output.textContent = lines.slice(1).join("\n");
       setText(config.resultId, lines.join("\n"));
@@ -519,7 +521,7 @@
         return ["CoordinatorPort", "CoordinatorBindAddress", "CoordinatorHeartbeatTimeoutMins"].includes(key);
       }
       if (role === "worker") {
-        return ["WorkerCoordinatorUrl", "WorkerName", "WorkerPollIntervalSecs", "WorkerSourcePathMap"].includes(key);
+        return ["WorkerCoordinatorUrl", "WorkerName", "WorkerPollIntervalSecs", "WorkerSourcePathMap", "WorkerEncoderMap", "WorkerHonorCoordinatorPolicy"].includes(key);
       }
       return false;
     }
@@ -548,6 +550,8 @@
       setNetworkFieldVisible("settings-network-worker-name", workerMode);
       setNetworkFieldVisible("settings-network-worker-poll", workerMode);
       setNetworkFieldVisible("settings-network-path-map", workerMode);
+      setNetworkFieldVisible("settings-network-worker-encoder-map", workerMode);
+      setNetworkFieldVisible("settings-network-honor-coordinator-policy", workerMode);
       setNetworkFieldVisible("settings-network-worker-overrides", false);
       validateNetworkWorkerUrlFields({ show: true });
     }
@@ -564,6 +568,8 @@
       setNetworkBuilderControl("settings-network-worker-poll", "WorkerPollIntervalSecs", "number_positive", 10);
       setNetworkBuilderControl("settings-network-path-map", "WorkerSourcePathMap", "json_text", "");
       renderPathMapEditor("settings-network-path-map");
+      setNetworkBuilderControl("settings-network-worker-encoder-map", "WorkerEncoderMap", "json_text", "");
+      setNetworkBuilderControl("settings-network-honor-coordinator-policy", "WorkerHonorCoordinatorPolicy", "bool", false);
       setNetworkBuilderControl("settings-network-worker-overrides", "WorkerConfigOverrides", "json_text", "");
       networkSettingsBuilderState.initialized = true;
       networkSettingsBuilderState.dirty = false;
@@ -821,7 +827,7 @@
       } else if (role === "coordinator_local") {
         lines.push("Coordinator + local worker setup: confirm the coordinator endpoint and heartbeat timeout. Local work starts only from Network lifecycle controls.");
       } else if (role === "worker") {
-        lines.push("Worker only setup: confirm the coordinator URL, worker name, poll interval, and source path map.");
+        lines.push("Worker only setup: confirm the coordinator URL, worker name, poll interval, source path map, and worker-owned hardware encoder map.");
         const workerUrlIssue = validateNetworkWorkerUrlFields({ show: false });
         if (workerUrlIssue) lines.push(`Worker URL needs attention: ${workerUrlIssue}`);
       } else {
@@ -836,6 +842,8 @@
           valueText = byId(id)?.checked ? "enabled" : "disabled";
         } else if (key === "WorkerSourcePathMap") {
           valueText = pathMapSummaryText(id);
+        } else if (key === "WorkerEncoderMap") {
+          valueText = settingsBuilderInputValue(id) || "(not set; CPU fallback)";
         } else {
           valueText = settingsBuilderInputValue(id) || "(not set)";
         }
@@ -843,6 +851,12 @@
         if (field?.help) lines.push(`  ${field.help}`);
         if (key === "WorkerSourcePathMap" && valueText !== "(not set)") {
           lines.push("  Validate path rewrites on the worker before running unattended network claims.");
+        }
+        if (key === "WorkerHonorCoordinatorPolicy") {
+          lines.push("  When enabled, coordinator policy wins for non-hardware encode, routing, audio, and subtitle settings.");
+        }
+        if (key === "WorkerEncoderMap") {
+          lines.push("  This is the only worker-local encode policy input; unsupported or blank families fall back to CPU encoders.");
         }
       });
       setText("settings-network-guidance", lines.join("\n") || "No network guidance loaded.");

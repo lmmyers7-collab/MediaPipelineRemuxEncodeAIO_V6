@@ -56,6 +56,7 @@
         '-tune',
         'hq'
     )
+    AudioPassthroughProfile = 'plex_balanced'
     CompatibleAudioCodecs = @(
         'aac',
         'ac3',
@@ -64,10 +65,7 @@
         'opus',
         'vorbis',
         'truehd',
-        'mlp',
-        'flac',
-        'dts',
-        'dts-hd'
+        'mlp'
     )
     SubKeepLanguages = @(
         'eng',
@@ -182,8 +180,8 @@
         audio_channels = @('truehd', 'atmos', 'flac', 'opus', 'eac3', 'ac3', 'aac', 'dd', 'dd+', 'ddp', 'dts', 'dts hd', 'dts-x', 'dtsx', 'dtshd', 'lpcm', 'pcm', 'mp3', 'mp2', '1.0', '2.0', '5.1', '7.1', 'stereo', 'mono', '6ch', '6 ch', '8ch', '8 ch')
         editions = @('imax', 'proper', 'repack', 'rerip', 'extended', 'remastered', 'remaster', 'restored', 'restoration', 'unrated', 'theatrical', 'criterion', 'director cut', 'directors cut', "director's cut", 'dc', 'final cut', 'open matte', 'redux', 'special edition', 'se', 'anniversary', 'collectors edition', 'supercut')
         file_size = @('500mb', '700mb', '1400mb', '1gb', '1.5gb', '2gb', '3gb', '4.7gb', '5gb', '6gb', '8gb', '10gb', '15gb', '20gb', '25gb', '30gb')
-        services_containers = @('amzn', 'nf', 'dsnp', 'hmax', 'hulu', 'itunes', 'appletv', 'atvp', 'peacock', 'pck', 'vudu', 'stan', 'sho', 'mkv', 'mp4', 'm4v', 'avi', 'mov', 'wmv')
-        release_groups = @('rarbg', 'rbg', 'yify', 'yts', 'yts lt', 'galaxyrg', 'bone', 'psa', 'tigole', 'kris', 'sparks', 'ntb', 'evo', 'tepes', 'flux', 'framestor', 'cmrg', 'neonoir')
+        services_containers = @('amzn', 'nf', 'dsnp', 'hmax', 'hulu', 'itunes', 'appletv', 'atvp', 'peacock', 'pck', 'vudu', 'stan', 'sho', 'mkv', 'mp4', 'm4v', 'avi', 'mov', 'wmv', 'MA')
+        release_groups = @('rarbg', 'rbg', 'yify', 'yts', 'yts lt', 'galaxyrg', 'bone', 'psa', 'tigole', 'kris', 'sparks', 'ntb', 'evo', 'tepes', 'flux', 'framestor', 'cmrg', 'neonoir', 'supaCvnt', 'BYNDR', 'Kira')
     }
     RenameMovieRemoveTerms = @(
         'sample',
@@ -191,7 +189,19 @@
         'extras',
         'featurette',
         'deleted scenes',
-        'behind the scenes'
+        'behind the scenes',
+        '01',
+        '02',
+        '03',
+        '04',
+        '05',
+        '06',
+        '07',
+        '08',
+        '09',
+        '10',
+        '11',
+        '12'
     )
     ValidExtensions = @(
         '.mkv',

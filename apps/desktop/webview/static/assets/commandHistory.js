@@ -2,6 +2,7 @@
   let commandHistory = [];
   let selectedCommandKey = "";
   let selectedCommandResolutionKey = "";
+  let commandHistoryLocalSequence = 0;
   const COMMAND_RESULT_LIST_LIMIT = 5;
   const COMMAND_RESULT_ITEM_CHARS = 240;
   void COMMAND_RESULT_LIST_LIMIT;
@@ -504,6 +505,11 @@
     updateTableStatusLegend("diagnostics-command-resolution-legend", tbody, "Command failure resolution rows");
   }
 
+  function nextCommandHistoryLocalId() {
+    commandHistoryLocalSequence += 1;
+    return `local-${Date.now()}-${commandHistoryLocalSequence}`;
+  }
+
   function appendCommandResult(result) {
     const payload = result && typeof result === "object" ? result : {
       command: "unknown",
@@ -521,6 +527,7 @@
       warnings: commandResultList(payload.warnings),
       errors: commandResultList(payload.errors),
       local: true,
+      local_id: nextCommandHistoryLocalId(),
       raw: payload,
     });
     while (commandHistory.length > 20) commandHistory.pop();
@@ -546,7 +553,7 @@
     renderCommandHistory();
   }
 
-  function commandHistorySignature(item) {
+  function commandHistoryRemoteSignature(item) {
     return [
       item?.command || "",
       item?.result || "",
@@ -554,13 +561,29 @@
     ].join("\u001f");
   }
 
+  function commandHistorySignature(item) {
+    if (item?.local === true) {
+      return [
+        "local",
+        item?.local_id || "",
+        item?.at || "",
+        item?.command || "",
+        item?.result || "",
+        item?.message || "",
+      ].join("\u001f");
+    }
+    return commandHistoryRemoteSignature(item);
+  }
+
   function mergeCommandHistory(localEntries, remoteEntries) {
-    const seen = new Set(remoteEntries.map((entry) => commandHistorySignature(entry)));
+    const remoteSeen = new Set(remoteEntries.map((entry) => commandHistoryRemoteSignature(entry)));
+    const localSeen = new Set();
     const merged = [];
     localEntries.forEach((entry) => {
+      if (remoteSeen.has(commandHistoryRemoteSignature(entry))) return;
       const signature = commandHistorySignature(entry);
-      if (seen.has(signature)) return;
-      seen.add(signature);
+      if (localSeen.has(signature)) return;
+      localSeen.add(signature);
       merged.push(entry);
     });
     remoteEntries.forEach((entry) => merged.push(entry));

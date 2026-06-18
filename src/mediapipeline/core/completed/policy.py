@@ -133,29 +133,43 @@ def completed_decision_value(value: Any, *keys: str) -> str:
     return ""
 
 
-def completed_audio_decision_preview(decisions: Iterable[dict[str, Any]], *, limit: int = 5) -> list[str]:
-    lines: list[str] = []
-    for item in list(decisions)[:limit]:
-        ordinal = completed_decision_value(item, "audio_ordinal", "stream_index", "index") or "?"
+def completed_decision_detail_rows(decisions: Iterable[dict[str, Any]], *, kind: str) -> list[dict[str, str]]:
+    prefix = "s" if kind == "subtitle" else "a"
+    ordinal_key = "subtitle_ordinal" if kind == "subtitle" else "audio_ordinal"
+    rows: list[dict[str, str]] = []
+    for item in list(decisions):
+        ordinal = completed_decision_value(item, ordinal_key, "stream_index", "index") or "?"
         language = completed_decision_value(item, "language", "lang") or "und"
         source_codec = completed_decision_value(item, "source_codec", "codec") or "unknown"
         action = completed_decision_value(item, "action", "decision") or "unknown"
         reason = completed_decision_value(item, "reason", "route_reason")
         suffix = f" ({reason})" if reason else ""
-        lines.append(f"a:{ordinal} {language} {source_codec} -> {action}{suffix}")
+        track_label = f"{prefix}:{ordinal}"
+        rows.append(
+            {
+                "kind": "subtitle" if kind == "subtitle" else "audio",
+                "track_label": track_label,
+                "language": language,
+                "source_codec": source_codec,
+                "action": action,
+                "reason": reason,
+                "summary": f"{track_label} {language} {source_codec} -> {action}{suffix}",
+            }
+        )
+    return rows
+
+
+def completed_audio_decision_preview(decisions: Iterable[dict[str, Any]], *, limit: int = 5) -> list[str]:
+    lines: list[str] = []
+    for item in completed_decision_detail_rows(decisions, kind="audio")[:limit]:
+        lines.append(item["summary"])
     return lines
 
 
 def completed_subtitle_decision_preview(decisions: Iterable[dict[str, Any]], *, limit: int = 5) -> list[str]:
     lines: list[str] = []
-    for item in list(decisions)[:limit]:
-        ordinal = completed_decision_value(item, "subtitle_ordinal", "stream_index", "index") or "?"
-        language = completed_decision_value(item, "language", "lang") or "und"
-        source_codec = completed_decision_value(item, "source_codec", "codec") or "unknown"
-        action = completed_decision_value(item, "action", "decision") or "unknown"
-        reason = completed_decision_value(item, "reason", "route_reason")
-        suffix = f" ({reason})" if reason else ""
-        lines.append(f"s:{ordinal} {language} {source_codec} -> {action}{suffix}")
+    for item in completed_decision_detail_rows(decisions, kind="subtitle")[:limit]:
+        lines.append(item["summary"])
     return lines
 
 
@@ -391,8 +405,10 @@ def completed_record_to_row(record: CompletedJobRecord) -> dict[str, Any]:
         "encoder_kind": record.encode_selected_encoder_kind,
         "gpu_device": record.encode_selected_gpu_device,
         "audio_decision_count": len(audio_decisions),
+        "audio_decision_details": completed_decision_detail_rows(audio_decisions, kind="audio"),
         "audio_decision_preview": completed_audio_decision_preview(audio_decisions),
         "subtitle_decision_count": len(subtitle_decisions),
+        "subtitle_decision_details": completed_decision_detail_rows(subtitle_decisions, kind="subtitle"),
         "subtitle_decision_preview": completed_subtitle_decision_preview(subtitle_decisions),
         "ready_for_promotion": False,
         "no_destination_rule": False,

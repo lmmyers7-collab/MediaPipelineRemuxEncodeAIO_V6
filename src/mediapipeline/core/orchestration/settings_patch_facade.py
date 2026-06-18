@@ -2,12 +2,13 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, TypeAlias
 
 from pydantic import ValidationError
 
 from mediapipeline.core.config.rollout import planner_comparison_from_decision_snapshot, resolve_planner_rollout_config
 from mediapipeline.core.config.settings_patch_policy import (
+    _command_result,
     settings_patch_preview_result,
     settings_save_busy_result,
     settings_save_config_blocked_result,
@@ -23,14 +24,12 @@ from mediapipeline.contracts.source_media import SourceMediaInfo
 from mediapipeline.core.orchestration.planner import build_pipeline_plan_from_preset
 from mediapipeline.desktop.models import ResolvedPaths
 
-if TYPE_CHECKING:
-    from mediapipeline.desktop.application.dto_commands import CommandResult
-
 
 _PIPELINE_PLAN_PREVIEW_AUTHORITY = "python_preview_legacy_execution_still_authoritative"
 _PIPELINE_PLAN_PREVIEW_WARNING = (
     "Settings PipelinePlan preview is dry-run only; production execution still uses the legacy PowerShell path until cutover."
 )
+CommandResult: TypeAlias = Any
 
 
 class SettingsPatchFacadeMixin:
@@ -56,12 +55,10 @@ class SettingsPatchFacadeMixin:
 
     def preview_settings_pipeline_plan(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Preview the Python planner result from strict source facts without saving settings."""
-        from mediapipeline.desktop.application.dto_commands import CommandResult
-
         try:
             source = SourceMediaInfo.model_validate(request.get("source_media"))
         except ValidationError as exc:
-            return CommandResult(
+            return _command_result(
                 command="settings.pipeline_plan_preview",
                 ok=False,
                 severity="error",
@@ -85,7 +82,7 @@ class SettingsPatchFacadeMixin:
             return patch["fatal_result"]
         warnings = list(patch["warnings"])
         if patch["errors"]:
-            return CommandResult(
+            return _command_result(
                 command="settings.pipeline_plan_preview",
                 ok=False,
                 severity="error",
@@ -108,7 +105,7 @@ class SettingsPatchFacadeMixin:
         try:
             plan = build_pipeline_plan_from_preset(source, patch["merged"])
         except ValidationError as exc:
-            return CommandResult(
+            return _command_result(
                 command="settings.pipeline_plan_preview",
                 ok=False,
                 severity="error",
@@ -154,7 +151,7 @@ class SettingsPatchFacadeMixin:
         }
         warnings.append(_PIPELINE_PLAN_PREVIEW_WARNING)
         warnings.extend(rollout_state.warnings)
-        return CommandResult(
+        return _command_result(
             command="settings.pipeline_plan_preview",
             ok=True,
             severity="warning",
@@ -259,7 +256,3 @@ class SettingsPatchFacadeMixin:
 __all__ = [
     "SettingsPatchFacadeMixin",
 ]
-
-
-
-

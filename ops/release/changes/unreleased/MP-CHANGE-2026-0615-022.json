@@ -1,0 +1,208 @@
+{
+  "id": "MP-CHANGE-2026-0615-022",
+  "title": "Harden remux and encode validation gates",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-15",
+  "date_completed": "2026-06-15",
+  "summary": "Implements verified findings from the FFmpeg remux/encode command-generation and stream-mapping review where safe in a scoped batch, with remaining full-manifest validation explicitly tracked.",
+  "reason": "The review identified paths where primary-video-only routing, warning-success muxing, fail-open verification, and CPU fallback concurrency could publish or trust media that was not fully vetted. These areas touch FFmpeg command generation, audio routing, output verification, and publish safety boundaries.",
+  "affected_areas": [
+    "ffmpeg-command-generation",
+    "remux-routing",
+    "encode-routing",
+    "stream-validation",
+    "mkvmerge-warning-classification",
+    "audio-default-disposition",
+    "size-guard",
+    "quality-verification",
+    "cpu-fallback-concurrency",
+    "tests",
+    "generated-summaries",
+    "change-control"
+  ],
+  "behavior_before": "Primary-only video facts could lead remux/encode commands that map all real video streams; remux could continue after risky mkvmerge warning text or ambiguous audio default-track TID probing; strict/fallback size guard inspection failures returned Ok=true; block_review quality verification still fail-opened on tool/probe errors; CPU fallback could proceed after a timed mutex wait without confirming acquisition.",
+  "behavior_after": "The pipeline fails closed on multi-real-video inputs until per-stream routing/output validation exists; risky mkvmerge warnings, ambiguous remux audio TID mapping, strict/fallback size-guard inspection failures, block_review quality verifier errors, and failed CPU mutex acquisition block processing before publish.",
+  "files_touched": [
+    "ops/pipeline/engine/probe/media_probe.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/engine/process/ffmpeg_progress.ps1",
+    "ops/pipeline/engine/decide/size_policy.ps1",
+    "ops/pipeline/engine/verify/quality.ps1",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-QualityVerificationChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeSizeGuardInspectionChecks.ps1",
+    "ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1",
+    "Docs/generated/summaries/ops/pipeline/engine/probe/media_probe.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/remux.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/engine/process/ffmpeg_progress.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/engine/decide/size_policy.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/engine/verify/quality.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-QualityVerificationChecks.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeSizeGuardInspectionChecks.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0615-022.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0615-022.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1: multi-real-video and missing-video stream policy",
+    "ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1: benign versus blocking mkvmerge warning classification",
+    "ops/pipeline/tests/Unit/Invoke-EncodeSizeGuardInspectionChecks.ps1: strict/fallback size guard inspection failures",
+    "ops/pipeline/tests/Unit/Invoke-QualityVerificationChecks.ps1: block_review quality verifier errors block publish",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1: CPU fallback mutex timeout blocks encode",
+    "ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1: new emitted outcome codes are registered",
+    "ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1: static reliability contracts for mkvmerge warning handling and failure-code registry"
+  ],
+  "manual_validation": [
+    "Read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md before source edits.",
+    "Ingested 00-review-scope.md through 08-final-review-summary.md from an external review workspace.",
+    "Verified all eight deduplicated findings against the current dirty source checkout before edits.",
+    "Focused PowerShell 7 tests passed: Invoke-MediaVerificationSafetyChecks.ps1, Invoke-FFmpegProgressChecks.ps1, Invoke-EncodeSizeGuardInspectionChecks.ps1, Invoke-QualityVerificationChecks.ps1, Invoke-EncodeFlagPolicyChecks.ps1, Invoke-FailureCodeRegistryChecks.ps1.",
+    "Adjacent PowerShell 7 tests passed: Invoke-AudioPolicyChecks.ps1, Invoke-PipelinePlanExecutorChecks.ps1, Invoke-ToolIntegrationChecks.ps1.",
+    "Reliability sweep passed: ops/pipeline/tests/Invoke-WebViewReliabilityChecks.ps1.",
+    "Generated summaries refreshed for touched source, tests, and this change packet.",
+    "Full real-media validation remains operator-run because this environment did not provide a media corpus covering multi-video, risky mkvmerge warnings, ambiguous audio TID probing, strict/fallback size guard inspection failures, quality-verifier tool failures, and MP4 compatibility exclusions."
+  ],
+  "rollback_plan": "Revert only the files listed in files_touched plus generated summaries from this packet. Do not revert unrelated dirty worktree files, operator review artifacts, source media, runtime state, personal config, release packages, or archived rollback evidence.",
+  "related_changes": [],
+  "implementation_ledger": [
+    {
+      "issue_id": "F-01",
+      "source_markdown_file": "05-findings.md",
+      "severity": "high",
+      "affected_files_modules": [
+        "ops/pipeline/engine/probe/media_probe.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline/encode.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1"
+      ],
+      "risk_boundary_touched": "FFmpeg command generation and stream mapping",
+      "implementation_status": "implemented_fail_closed_multi_video"
+    },
+    {
+      "issue_id": "F-02",
+      "source_markdown_file": "05-findings.md",
+      "severity": "high",
+      "affected_files_modules": [
+        "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+        "ops/pipeline/engine/probe/media_probe.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1",
+        "real-media validation after media behavior changes"
+      ],
+      "risk_boundary_touched": "Production publish validation and real-media trust",
+      "implementation_status": "partially_implemented_multi_video_block_remaining_manifest_blocked_for_separate_design",
+      "blocked_reason": "A generalized expected-stream manifest must define per-container expected outputs for audio, subtitle, attachment, and intentional exclusion evidence before it can safely become a publish gate.",
+      "safe_next_step": "Design the expected-stream manifest contract and validate it against a real-media matrix before enforcing it at publish."
+    },
+    {
+      "issue_id": "F-03",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "ops/pipeline/engine/process/ffmpeg_progress.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline/remux.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1"
+      ],
+      "risk_boundary_touched": "mkvmerge warning-success and publish safety",
+      "implementation_status": "implemented"
+    },
+    {
+      "issue_id": "F-04",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "ops/pipeline/entrypoints/MediaPipeline/remux.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1"
+      ],
+      "risk_boundary_touched": "Audio routing and default-track disposition",
+      "implementation_status": "implemented"
+    },
+    {
+      "issue_id": "F-05",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "ops/pipeline/engine/decide/size_policy.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-EncodeSizeGuardInspectionChecks.ps1"
+      ],
+      "risk_boundary_touched": "Strict/fallback encode size guard",
+      "implementation_status": "implemented"
+    },
+    {
+      "issue_id": "F-06",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "ops/pipeline/engine/verify/quality.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-QualityVerificationChecks.ps1"
+      ],
+      "risk_boundary_touched": "Quality verification publish gate",
+      "implementation_status": "implemented"
+    },
+    {
+      "issue_id": "F-07",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+        "ops/pipeline/engine/subtitles/builders.ps1",
+        "src/mediapipeline/core/decide/routing.py"
+      ],
+      "verification_status": "confirmed_intentional_policy_exclusion",
+      "required_tests": [
+        "stream-manifest validation with MP4 exclusions",
+        "real-media MP4 compatibility validation"
+      ],
+      "risk_boundary_touched": "MP4 compatibility stream exclusion evidence",
+      "implementation_status": "blocked_requires_full_expected_stream_manifest_design",
+      "blocked_reason": "MP4 compatibility intentionally excludes unsupported streams, so enforcing stream-count parity without a manifest would break valid policy. The missing requirement is explicit publish evidence for intentional exclusions.",
+      "safe_next_step": "Add manifest evidence for expected drops/preserves per container, then run MP4 real-media validation before making it a blocking publish gate."
+    },
+    {
+      "issue_id": "F-08",
+      "source_markdown_file": "05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "ops/pipeline/entrypoints/MediaPipeline/encode.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1"
+      ],
+      "risk_boundary_touched": "CPU fallback concurrency and progress/failure classification",
+      "implementation_status": "implemented"
+    }
+  ],
+  "notes": "High-validation media-policy change. Full generalized expected-stream manifest validation, including MP4 intentional exclusions and subtitle/attachment evidence, is tracked as blocked for separate design plus real-media validation; this packet implements fail-closed guards for the highest silent-publish paths that can be made safe in a focused batch."
+}

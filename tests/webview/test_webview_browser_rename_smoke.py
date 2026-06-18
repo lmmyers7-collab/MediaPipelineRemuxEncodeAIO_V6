@@ -155,6 +155,7 @@ def _browser_rename_runner_source() -> str:
             localStorage.removeItem("mediapipeline.rename.cleaningFilters.v1");
             setValue("settings-patch-json", "{}");
             setValue("settings-rename-filter-release-groups", "rarbg, yify, codexrg, neonoir");
+            setValue("settings-rename-filter-languages-subs-dubs", "eng, ita, sub, dub, multisub");
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', false);
             click("#settings-save-header-save-button", "main settings save");
             await new Promise((resolve) => setTimeout(resolve, 150));
@@ -168,6 +169,9 @@ def _browser_rename_runner_source() -> str:
             }
             if (!String(storedRenameFilters?.movie_filter_terms_text?.release_groups || "").includes("codexrg")) {
               throw new Error("release-group terms were not saved: " + JSON.stringify(storedRenameFilters?.movie_filter_terms_text));
+            }
+            if (!String(storedRenameFilters?.movie_filter_terms_text?.languages_subs_dubs || "").includes("multisub")) {
+              throw new Error("language/sub-dub terms were not saved: " + JSON.stringify(storedRenameFilters?.movie_filter_terms_text));
             }
             setValue("settings-rename-filter-release-groups", "temporary lost value");
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
@@ -233,6 +237,9 @@ def _browser_rename_runner_source() -> str:
             }
             if (!String((stagedChanges.RenameMovieFilterTerms.release_groups || []).join(",")).includes("codexrg")) {
               throw new Error("rename filter staging omitted edited release group terms: " + JSON.stringify(stagedChanges.RenameMovieFilterTerms));
+            }
+            if (!String((stagedChanges.RenameMovieFilterTerms.languages_subs_dubs || []).join(",")).includes("multisub")) {
+              throw new Error("rename filter staging omitted language/sub-dub terms: " + JSON.stringify(stagedChanges.RenameMovieFilterTerms));
             }
             if (localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") === null) {
               throw new Error("rename filter staging should retain browser draft storage");
@@ -647,7 +654,3 @@ class WebViewBrowserRenameSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

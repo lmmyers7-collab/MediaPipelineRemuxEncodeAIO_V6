@@ -114,7 +114,7 @@ function Test-SubtitleTitleMatchesAnyKeyword {
     if ([string]::IsNullOrWhiteSpace($TitleLower) -or -not $Keywords) { return $false }
     foreach ($kw in @($Keywords)) {
         if ([string]::IsNullOrWhiteSpace([string]$kw)) { continue }
-        if ($TitleLower -like "*$kw*") { return $true }
+        if (([string]$TitleLower).IndexOf([string]$kw, [System.StringComparison]::OrdinalIgnoreCase) -ge 0) { return $true }
     }
     return $false
 }
@@ -151,4 +151,3 @@ function Get-SubtitleLanguagePolicy {
     }
     return @($SubKeepLanguages)
 }
-

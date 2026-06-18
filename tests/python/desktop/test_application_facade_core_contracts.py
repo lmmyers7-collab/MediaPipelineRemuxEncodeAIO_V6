@@ -207,12 +207,55 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
                         "message": "blocked",
                     }
                 )
+                payload = journal.to_mapping()
 
         combined = "\n".join(logs.output)
         self.assertIn("Could not remove temporary local API command journal", combined)
         self.assertIn("cleanup denied", combined)
         self.assertIn("Could not save local API command journal", combined)
         self.assertIn("replace denied", combined)
+        persistence = payload["journal_persistence"]
+        self.assertTrue(persistence["degraded"])
+        self.assertEqual(persistence["json"]["status"], "failed")
+        self.assertIn("replace denied", persistence["json"]["last_error"])
+        self.assertTrue(any("JSON command journal persistence failed" in warning for warning in persistence["warnings"]))
+
+    def test_command_journal_surfaces_sqlite_mirror_failure(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            path = root / "RunLogs" / "local_api_command_history.json"
+            state_root = root / "State"
+            logger_name = "test.command_journal.sqlite"
+            journal = CommandJournal(
+                path=path,
+                state_db_root=state_root,
+                max_entries=2,
+                logger=logging.getLogger(logger_name),
+            )
+
+            with (
+                patch("mediapipeline.core.storage.db.open_state_db", side_effect=RuntimeError("sqlite denied")),
+                self.assertLogs(logger_name, level="WARNING") as logs,
+            ):
+                journal.record(
+                    {
+                        "schema_version": "desktop_command_result.v1",
+                        "command": "pipeline.start",
+                        "ok": False,
+                        "severity": "warning",
+                        "message": "blocked",
+                    }
+                )
+
+            payload = journal.to_mapping()
+
+        self.assertIn("Could not mirror local API command journal to SQLite", "\n".join(logs.output))
+        persistence = payload["journal_persistence"]
+        self.assertTrue(persistence["degraded"])
+        self.assertEqual(persistence["json"]["status"], "ok")
+        self.assertEqual(persistence["sqlite_mirror"]["status"], "failed")
+        self.assertIn("sqlite denied", persistence["sqlite_mirror"]["last_error"])
+        self.assertTrue(any("SQLite command journal mirror failed" in warning for warning in persistence["warnings"]))
 
     def test_command_journal_rejects_nonfinite_json_and_cleans_temp_file(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -355,7 +398,7 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
             assets = root / "assets"
             assets.mkdir()
             (root / "index.html").write_text(
-                "window.MEDIA_PIPELINE_BOOTSTRAP = __MEDIA_PIPELINE_BOOTSTRAP__;",
+                '<script type="application/json" id="media-pipeline-bootstrap">__MEDIA_PIPELINE_BOOTSTRAP__</script>',
                 encoding="utf-8",
             )
             (assets / "app.js").write_text("console.log('ok');", encoding="utf-8")
@@ -366,7 +409,8 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
             missing_response = read_static_asset(root, "/assets/../secret.txt")
 
         self.assertEqual(index_response.status, 200)
-        self.assertIn(b"secret-token", index_response.body)
+        self.assertNotIn(b"secret-token", index_response.body)
+        self.assertIn(b"http-only-cookie", index_response.body)
         self.assertIn(b"v5-test", index_response.body)
         self.assertEqual(asset_response.content_type, "text/javascript; charset=utf-8")
         self.assertIn(b"console.log", asset_response.body)
@@ -467,4 +511,3 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

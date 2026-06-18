@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+from collections.abc import Mapping
 from typing import Any
 import uuid
 
 from .command_journal_policy import COMMAND_RESULT_SCHEMA_VERSION
+from .contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT
 from .http_helpers import LOCAL_API_CONTENT_SECURITY_POLICY
 
 LOCAL_API_SECURITY_RESPONSE_HEADERS = [
@@ -12,6 +14,12 @@ LOCAL_API_SECURITY_RESPONSE_HEADERS = [
     ("X-Content-Type-Options", "nosniff"),
     ("Referrer-Policy", "no-referrer"),
 ]
+
+_COMMAND_ROUTE_BY_PATH = {
+    str(row.get("path") or ""): row
+    for row in LOCAL_API_COMMAND_ROUTE_CONTRACT
+    if isinstance(row, dict)
+}
 
 
 def options_response_headers(allowed_origin: str = "http://127.0.0.1") -> list[tuple[str, str]]:
@@ -50,6 +58,25 @@ def route_exception_payload(route: str, exc: Exception) -> dict[str, Any]:
     return {"error": "internal route error", "path": route, "error_id": uuid.uuid4().hex[:12]}
 
 
+def route_exception_journal_payload(route: str, response_payload: Mapping[str, Any]) -> dict[str, Any]:
+    path = bounded_error_text(response_payload.get("path") or route, limit=500)
+    error_id = bounded_error_text(response_payload.get("error_id"), limit=80)
+    return {
+        "schema_version": COMMAND_RESULT_SCHEMA_VERSION,
+        "command": "local_api.route_exception",
+        "ok": False,
+        "severity": "error",
+        "message": f"Command route failed for {path}.",
+        "errors": ["Internal route error."],
+        "refresh_hint": "diagnostics",
+        "data": {
+            "path": path,
+            "status": 500,
+            "error_id": error_id,
+        },
+    }
+
+
 def route_validation_error_payload(route: str, exc: Exception) -> dict[str, Any]:
     return {"error": bounded_error_text(exc), "path": route}
 
@@ -68,6 +95,21 @@ def route_validation_journal_payload(route: str, exc: Exception) -> dict[str, An
             "status": 400,
         },
     }
+
+
+def should_record_validation_failure_journal(route: str) -> bool:
+    metadata = _COMMAND_ROUTE_BY_PATH.get(str(route or ""))
+    if not isinstance(metadata, dict):
+        return True
+    if metadata.get("journaled") is False:
+        return False
+    if str(metadata.get("effect") or "").casefold() == "secret-transfer":
+        return False
+    return True
+
+
+def should_record_route_exception_journal(route: str) -> bool:
+    return should_record_validation_failure_journal(route)
 
 
 def should_record_command_payload(status: int) -> bool:

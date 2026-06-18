@@ -97,6 +97,10 @@ function Invoke-StaleResultReadyClaimReleasesForRetryCheck {
         $oldClaim = @($repaired.claims)[0]
         Assert-Equal ([string]$oldClaim.status) 'released_stale_result' 'Dead result_ready claim should be released to a non-active status.'
         Assert-True ([string]$oldClaim.release_reason -like '*stale worker claim*') 'Released stale result should keep a diagnostic reason.'
+        Assert-True ($null -ne $oldClaim.PSObject.Properties['stale_result_archive_path']) 'Released stale result should record an archived result path.'
+        Assert-True (Test-Path -LiteralPath ([string]$oldClaim.stale_result_archive_path) -PathType Leaf) 'Archived stale result should remain readable after repair.'
+        $archived = Read-MediaPipelineJsonFile -Path ([string]$oldClaim.stale_result_archive_path)
+        Assert-Equal ([string]$archived.SchemaVersion) 'local_worker_result.v1' 'Archived stale result should preserve the worker result payload.'
 
         $newClaim = Invoke-MediaPipelineLocalWorkerClaim `
             -ClaimStorePath $claimStorePath `

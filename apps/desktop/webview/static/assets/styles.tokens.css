@@ -113,6 +113,8 @@
   --semantic-interactive-panel-border: var(--blue-500);
   --semantic-interactive-panel-bg: var(--grey-800);
   --semantic-overlay-bg: hsl(220 15% 0% / 0.64);
+  --live-run-strip-inline-bg: hsl(220 15% 100% / 0.025);
+  --live-run-chip-bg: hsl(220 15% 0% / 0.16);
 
   /* ===== TYPE SCALE ===== */
   --text-2xs:  10px;
@@ -266,6 +268,8 @@ body.light-mode {
   --semantic-interactive-panel-border: var(--blue-500);
   --semantic-interactive-panel-bg: var(--grey-900);
   --semantic-overlay-bg: hsl(220 15% 10% / 0.35);
+  --live-run-strip-inline-bg: hsl(220 15% 100% / 0.58);
+  --live-run-chip-bg: hsl(220 15% 100% / 0.74);
 
   /* Evidence panel tint - purple in both themes so evidence never looks like active action */
   --evidence-bg: var(--semantic-evidence-panel-bg);

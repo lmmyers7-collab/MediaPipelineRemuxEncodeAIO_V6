@@ -171,6 +171,8 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     WorkerAuthToken = 'WorkerAuthToken'
     WorkerPollIntervalSecs = 'WorkerPollIntervalSecs'
     WorkerSourcePathMap = 'WorkerSourcePathMap'
+    WorkerEncoderMap = 'WorkerEncoderMap'
+    WorkerHonorCoordinatorPolicy = 'WorkerHonorCoordinatorPolicy'
     WorkerConfigOverrides = 'WorkerConfigOverrides'
 }
 
@@ -187,6 +189,8 @@ $script:MediaPipelineNetworkConfigKeys = @(
     'WorkerAuthToken',
     'WorkerPollIntervalSecs',
     'WorkerSourcePathMap',
+    'WorkerEncoderMap',
+    'WorkerHonorCoordinatorPolicy',
     'WorkerConfigOverrides'
 )
 

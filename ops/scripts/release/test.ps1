@@ -399,7 +399,88 @@ function Test-ReleaseStringArrayEquals {
     return $true
 }
 
-function Test-ReleaseRenameFilterConfigMatchesDefaults {
+function Get-ReleaseSortedMapKeys {
+    param($Map)
+
+    if ($null -eq $Map) { return @() }
+    try {
+        return @($Map.Keys | ForEach-Object { [string]$_ } | Sort-Object)
+    } catch {
+        return @()
+    }
+}
+
+function Get-ReleaseRenameFilterDeploymentBaseline {
+    param(
+        [Parameter(Mandatory = $true)][string]$ConfigPath,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+
+    if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
+        Write-Fail "$Label missing from release package: $ConfigPath"
+        $script:Failed = $true
+        return $null
+    }
+
+    try {
+        $config = Import-PowerShellDataFile -Path $ConfigPath
+    } catch {
+        Write-Fail "$Label could not be parsed as a PowerShell data file: $($_.Exception.Message)"
+        $script:Failed = $true
+        return $null
+    }
+
+    $ok = $true
+    foreach ($key in @('RenameMovieFilterOptions', 'RenameMovieFilterTerms', 'RenameMovieRemoveTerms')) {
+        if (-not (Test-ReleaseMapContainsKey -Map $config -Key $key)) {
+            Write-Fail "$Label must include packaged custom rename filter key '$key'."
+            $script:Failed = $true
+            $ok = $false
+        }
+    }
+    if (-not $ok) { return $null }
+
+    $options = $config['RenameMovieFilterOptions']
+    $terms = $config['RenameMovieFilterTerms']
+    $categories = @(Get-ReleaseSortedMapKeys -Map $options)
+    if ($categories.Count -eq 0) {
+        Write-Fail "$Label RenameMovieFilterOptions must include at least one packaged custom category."
+        $script:Failed = $true
+        $ok = $false
+    }
+
+    $termCategories = @(Get-ReleaseSortedMapKeys -Map $terms)
+    if (-not (Test-ReleaseStringArrayEquals -Actual $termCategories -Expected $categories -Label "$Label RenameMovieFilterTerms categories")) {
+        $ok = $false
+    }
+
+    foreach ($category in $categories) {
+        if ($options[$category] -isnot [bool]) {
+            Write-Fail "$Label RenameMovieFilterOptions.$category must be a boolean."
+            $script:Failed = $true
+            $ok = $false
+        }
+        if (-not (Test-ReleaseMapContainsKey -Map $terms -Key $category)) {
+            Write-Fail "$Label RenameMovieFilterTerms missing category '$category'."
+            $script:Failed = $true
+            $ok = $false
+        } elseif (@(ConvertTo-ReleaseStringArray -Value $terms[$category]).Count -eq 0) {
+            Write-Fail "$Label RenameMovieFilterTerms.$category must keep the packaged custom term list."
+            $script:Failed = $true
+            $ok = $false
+        }
+    }
+    if (-not $ok) { return $null }
+
+    return [pscustomobject]@{
+        Categories = $categories
+        Options = $options
+        Terms = $terms
+        RemoveTerms = @(ConvertTo-ReleaseStringArray -Value $config['RenameMovieRemoveTerms'])
+    }
+}
+
+function Test-ReleaseRenameFilterConfigMatchesExpected {
     param(
         [Parameter(Mandatory = $true)][string]$ConfigPath,
         [Parameter(Mandatory = $true)][string]$Label,
@@ -426,7 +507,7 @@ function Test-ReleaseRenameFilterConfigMatchesDefaults {
 
     foreach ($key in @('RenameMovieFilterOptions', 'RenameMovieFilterTerms', 'RenameMovieRemoveTerms')) {
         if (-not (Test-ReleaseMapContainsKey -Map $config -Key $key)) {
-            Write-Fail "$Label must include standard rename filter key '$key'."
+            Write-Fail "$Label must include packaged custom rename filter key '$key'."
             $script:Failed = $true
             $ok = $false
         }
@@ -435,6 +516,15 @@ function Test-ReleaseRenameFilterConfigMatchesDefaults {
 
     $options = $config['RenameMovieFilterOptions']
     $terms = $config['RenameMovieFilterTerms']
+    $actualOptionCategories = @(Get-ReleaseSortedMapKeys -Map $options)
+    $actualTermCategories = @(Get-ReleaseSortedMapKeys -Map $terms)
+    if (-not (Test-ReleaseStringArrayEquals -Actual $actualOptionCategories -Expected $ExpectedCategories -Label "$Label RenameMovieFilterOptions categories")) {
+        $ok = $false
+    }
+    if (-not (Test-ReleaseStringArrayEquals -Actual $actualTermCategories -Expected $ExpectedCategories -Label "$Label RenameMovieFilterTerms categories")) {
+        $ok = $false
+    }
+
     foreach ($category in $ExpectedCategories) {
         if (-not (Test-ReleaseMapContainsKey -Map $options -Key $category)) {
             Write-Fail "$Label RenameMovieFilterOptions missing category '$category'."
@@ -468,58 +558,36 @@ function Test-ReleaseRenameFilterConfigMatchesDefaults {
     }
 
     if ($ok) {
-        Write-Ok "$Label keeps standard rename filters."
+        Write-Ok "$Label keeps packaged custom rename filters."
     }
     return $ok
 }
 
-function Test-ReleaseStandardRenameFilterRetention {
-    Write-Section 'Standard Rename Filters'
+function Test-ReleaseCustomRenameFilterRetention {
+    Write-Section 'Custom Rename Filters'
 
-    $choiceRegistryPath = Join-Path $script:BundleRoot 'ops\pipeline\engine\config\choice_registry.ps1'
-    $defaultValuesPath = Join-Path $script:BundleRoot 'ops\pipeline\engine\config\default_values.ps1'
-    foreach ($entry in @(
-        @{ Label = 'config choice registry'; Path = $choiceRegistryPath },
-        @{ Label = 'config default values'; Path = $defaultValuesPath }
-    )) {
-        if (-not (Test-Path -LiteralPath $entry.Path -PathType Leaf)) {
-            Write-Fail "Cannot verify standard rename filters; $($entry.Label) is missing: $($entry.Path)"
-            $script:Failed = $true
-            return
-        }
-    }
-
-    try {
-        . $choiceRegistryPath
-        . $defaultValuesPath
-        $expectedCategories = @(Get-MediaPipelineRenameMovieFilterCategoryNames)
-        $expectedOptions = Get-MediaPipelineRenameMovieFilterOptionsDefault
-        $expectedTerms = Get-MediaPipelineRenameMovieFilterTermsDefault
-        $expectedRemoveTerms = @(Get-MediaPipelineRenameMovieRemoveTermsDefault)
-    } catch {
-        Write-Fail "Cannot load standard rename filter defaults: $($_.Exception.Message)"
-        $script:Failed = $true
-        return
-    }
+    $templatePath = Join-Path $script:BundleRoot 'ops\pipeline\config\MediaPipeline_config_template.psd1'
+    $baseline = Get-ReleaseRenameFilterDeploymentBaseline -ConfigPath $templatePath -Label 'Config template'
+    if ($null -eq $baseline) { return }
 
     $allOk = $true
     foreach ($configFile in @(
-        @{ Label = 'Config template'; Path = (Join-Path $script:BundleRoot 'ops\pipeline\config\MediaPipeline_config_template.psd1') },
+        @{ Label = 'Config template'; Path = $templatePath },
         @{ Label = 'Default config profile'; Path = (Join-Path $script:BundleRoot 'ops\pipeline\config\profiles\Default.psd1') }
     )) {
-        if (-not (Test-ReleaseRenameFilterConfigMatchesDefaults `
+        if (-not (Test-ReleaseRenameFilterConfigMatchesExpected `
             -ConfigPath $configFile.Path `
             -Label $configFile.Label `
-            -ExpectedOptions $expectedOptions `
-            -ExpectedTerms $expectedTerms `
-            -ExpectedRemoveTerms $expectedRemoveTerms `
-            -ExpectedCategories $expectedCategories)) {
+            -ExpectedOptions $baseline.Options `
+            -ExpectedTerms $baseline.Terms `
+            -ExpectedRemoveTerms $baseline.RemoveTerms `
+            -ExpectedCategories $baseline.Categories)) {
             $allOk = $false
         }
     }
 
     if ($allOk) {
-        Write-Ok 'Standard rename filter deployment baseline retained.'
+        Write-Ok 'Custom rename filter deployment baseline retained.'
     }
 }
 
@@ -645,7 +713,7 @@ function Test-ApiBrowserLauncherTokenPolicy {
 
     $requiredPatterns = @(
         @{ Pattern = '\[switch\]\$NoTokenDevMode'; Label = 'dev-only NoTokenDevMode switch' },
-        @{ Pattern = 'Token auth: enabled \(browser receives a per-run bootstrap token\)'; Label = 'default token-enabled operator banner' },
+        @{ Pattern = 'Token auth: enabled \(browser receives a same-origin HttpOnly auth cookie\)'; Label = 'default token-enabled operator banner' },
         @{ Pattern = 'Token auth: DISABLED by explicit -NoTokenDevMode'; Label = 'explicit no-token warning banner' },
         @{ Pattern = 'if \(\$NoTokenDevMode\)[\s\S]+?\$apiArgs \+= ''--no-token'''; Label = 'no-token argument gated by NoTokenDevMode' },
         @{ Pattern = 'MEDIAPIPELINE_ALLOW_NO_TOKEN_DEV'; Label = 'explicit backend no-token environment gate' }
@@ -947,7 +1015,7 @@ foreach ($entry in @(
 }
 
 Test-ReleaseManifestHygiene -ManifestPath $releaseManifest
-Test-ReleaseStandardRenameFilterRetention
+Test-ReleaseCustomRenameFilterRetention
 Test-WebStaticAssetReferences -StaticRoot (Join-Path $script:BundleRoot 'apps\desktop\webview\static')
 Test-ApiBrowserLauncherTokenPolicy
 

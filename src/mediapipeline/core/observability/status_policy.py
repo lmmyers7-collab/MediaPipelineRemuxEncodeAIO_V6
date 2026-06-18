@@ -77,7 +77,7 @@ def application_capabilities() -> list[str]:
 
 def int_from_mapping(mapping: Mapping[str, Any], *keys: str) -> int:
     for key in keys:
-        raw = mapping.get(key)
+        raw: Any = mapping.get(key)
         try:
             if raw not in (None, ""):
                 return int(float(raw))
@@ -88,7 +88,7 @@ def int_from_mapping(mapping: Mapping[str, Any], *keys: str) -> int:
 
 def nullable_int_from_mapping(mapping: Mapping[str, Any], *keys: str) -> int | None:
     for key in keys:
-        raw = mapping.get(key)
+        raw: Any = mapping.get(key)
         try:
             if raw not in (None, ""):
                 value = int(float(raw))
@@ -135,7 +135,7 @@ def text_from_mapping(mapping: Mapping[str, Any], *keys: str) -> str:
 
 def float_from_mapping(mapping: Mapping[str, Any], *keys: str) -> float | None:
     for key in keys:
-        raw = mapping.get(key)
+        raw: Any = mapping.get(key)
         if raw in (None, ""):
             continue
         try:
@@ -201,7 +201,7 @@ def progress_bar(
     stale: bool = False,
     steps: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    payload = {
+    payload: dict[str, Any] = {
         "id": bar_id,
         "label": label,
         "mode": mode or progress_mode(percent, status),

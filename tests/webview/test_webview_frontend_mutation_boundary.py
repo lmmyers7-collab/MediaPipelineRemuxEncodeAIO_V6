@@ -80,6 +80,9 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/settings/wizard/validate-workers": {"settingsWizard.js"},
     "/api/settings/wizard/preview": {"settingsWizard.js"},
     "/api/settings/wizard/save": {"settingsWizard.js"},
+    "/api/network/worker/test-connection": {"networkView.js"},
+    "/api/network/coordinator/join-blob": {"networkView.js"},
+    "/api/network/worker/join-cluster": {"networkView.js"},
 }
 REPAIR_RECONCILE_ROUTE_TERMS = ("repair", "reconcile", "reconciliation")
 ALLOWED_TAURI_EVENT_BRIDGE = "tauriLifecycleBridge.js"
@@ -152,11 +155,9 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             if len(literal_matches) != len(all_calls):
                 if (
                     name == "networkView.js"
-                    and len(all_calls) - len(literal_matches) == 2
+                    and len(all_calls) - len(literal_matches) == 1
                     and "function postNetworkLifecycleRoute" in source
-                    and "function networkWorkerTestConnectionRoute" in source
                     and "apiPost(route, request)" in source
-                    and "apiPost(route, {})" in source
                 ):
                     continue
                 unexpected.append(f"{name}: apiPost call must use a literal documented route")

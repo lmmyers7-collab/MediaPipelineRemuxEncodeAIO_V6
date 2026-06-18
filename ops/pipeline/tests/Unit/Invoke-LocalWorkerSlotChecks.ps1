@@ -5,6 +5,7 @@ $script:TestRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 $repoRoot = Split-Path -Parent (Split-Path -Parent $script:TestRoot)
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\queue\local_worker_slots.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\process\worker_result.ps1')
 
 function Assert-True {
     param(
@@ -19,6 +20,12 @@ function Assert-Equal {
     if ($Actual -ne $Expected) {
         throw "$Message Expected '$Expected' but got '$Actual'."
     }
+}
+
+function Write-Log {
+    param([string] $Message, [string] $Level = 'INFO')
+    $null = $Message
+    $null = $Level
 }
 
 $previousMutexSuffix = $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
@@ -151,6 +158,8 @@ try {
         Reason        = 'ok'
         WorkerClaimId = 'claim-1'
         WorkerRunId   = 'unit-run'
+        QueueTerminal = $false
+        Retryable     = $true
     }
 
     $missingResult = Resolve-MediaPipelineLocalWorkerSlotCompletion -ExitCode 0 -Result $null -ResultFileExists:$false -Claim $resultClaim -OwnerRunId 'unit-run'
@@ -191,6 +200,67 @@ try {
     Assert-Equal ([string]$validCompletion.Status) 'completed' 'Exit 0 with matching successful worker result should complete the claim.'
     Assert-True ([bool]$validCompletion.ApplyCounters) 'Valid worker result should update parent counters.'
     Assert-True (-not [bool]$validCompletion.CountSyntheticFailure) 'Valid worker result should not add a synthetic failure.'
+
+    $script:WorkerChild = $true
+    $script:WorkerSlotId = 1
+    $script:WorkerRunId = 'unit-run'
+    $script:WorkerClaimId = 'claim-1'
+    $script:WorkerResultPath = Join-Path $root 'worker_result_schema.json'
+    Write-MediaPipelineWorkerChildResult `
+        -SourcePath $file.FullName `
+        -ProcessResult ([pscustomobject]@{
+            Success = $false
+            Status = 'failed'
+            Reason = 'terminal'
+            ErrorCode = 'ENCODE_ERROR'
+            QueueTerminal = $true
+            Retryable = $false
+        }) | Out-Null
+    $schemaResult = Read-MediaPipelineJsonFile -Path $script:WorkerResultPath
+    Assert-True ($schemaResult.PSObject.Properties['QueueTerminal'] -and $schemaResult.QueueTerminal -is [bool]) 'Worker result schema must emit boolean QueueTerminal.'
+    Assert-True ($schemaResult.PSObject.Properties['Retryable'] -and $schemaResult.Retryable -is [bool]) 'Worker result schema must emit boolean Retryable.'
+    Assert-True ([bool]$schemaResult.QueueTerminal) 'Worker result should preserve QueueTerminal=true.'
+    Assert-True (-not [bool]$schemaResult.Retryable) 'Worker result should preserve Retryable=false.'
+
+    $reuseSlot = Initialize-MediaPipelineWorkerSlotLayout -SlotLayout (New-MediaPipelineWorkerSlotLayout -StateLayout $script:LocalStateLayout -SlotId 2)
+    Set-Content -LiteralPath $reuseSlot.ResultFile -Value '{"SchemaVersion":"local_worker_result.v1","Success":true,"Status":"processed","WorkerClaimId":"old-claim","WorkerRunId":"old-run","QueueTerminal":false,"Retryable":true}' -Encoding UTF8
+    $reuseClaim = [pscustomobject]@{
+        claim_id    = 'claim-reuse'
+        source_path = $file.FullName
+    }
+    $script:CapturedStartProcess = $null
+    function Start-Process {
+        param(
+            [string] $FilePath,
+            [string] $ArgumentList,
+            [string] $WorkingDirectory,
+            [string] $RedirectStandardOutput,
+            [string] $RedirectStandardError,
+            [object] $WindowStyle,
+            [switch] $PassThru
+        )
+        $script:CapturedStartProcess = [pscustomobject]@{
+            FilePath = $FilePath
+            ArgumentList = $ArgumentList
+            WorkingDirectory = $WorkingDirectory
+            RedirectStandardOutput = $RedirectStandardOutput
+            RedirectStandardError = $RedirectStandardError
+        }
+        return [pscustomobject]@{ Id = 4242; HasExited = $false }
+    }
+    Start-MediaPipelineLocalWorkerChild `
+        -Entry $entry `
+        -Claim $reuseClaim `
+        -SlotLayout $reuseSlot `
+        -ScriptPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline.ps1') `
+        -ConfigPath (Join-Path $repoRoot 'ops\pipeline\config\MediaPipeline_config.psd1') `
+        -PowerShellPath 'pwsh.exe' `
+        -OwnerRunId 'unit-run' | Out-Null
+    Assert-True (-not (Test-Path -LiteralPath $reuseSlot.ResultFile -PathType Leaf)) 'Slot reuse should clear the fixed result file before the new child starts.'
+    $archivedResults = @(Get-ChildItem -LiteralPath $reuseSlot.ResultArchive -Filter '*worker_result.json' -File)
+    Assert-Equal $archivedResults.Count 1 'Slot reuse should archive the stale worker result before deleting it.'
+    $archivedResult = Read-MediaPipelineJsonFile -Path $archivedResults[0].FullName
+    Assert-Equal ([string]$archivedResult.WorkerClaimId) 'old-claim' 'Archived stale result should preserve the previous claim id.'
 
     Assert-Equal (Join-MediaPipelineProcessArgument -Value 'C:\Path With Spaces\script.ps1') '"C:\Path With Spaces\script.ps1"' 'Process argument quoting should remain stable.'
 

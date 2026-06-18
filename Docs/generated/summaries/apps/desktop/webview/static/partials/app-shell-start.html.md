@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/app-shell-start.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-11
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 67edd3d3d87d6cc60c71c0bde8b90224ccc4293fdda0335c96f59b9f2686dcc7
+sha256: 89f44dda5a6dc0782a230254dc73536f0da5a9ac6ff6b6d99353cb33bccd4793
 ---
 # `apps/desktop/webview/static/partials/app-shell-start.html`
 

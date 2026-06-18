@@ -1791,24 +1791,6 @@
     return profileCardsFromDom().map((card, index) => profileFromCard(card, index + 1));
   }
 
-  function generatedPromotionRules(libraryProfiles) {
-    const rules = [];
-    libraryProfiles.forEach((profile) => {
-      if (!profile.enabled || !profile.promotion_enabled || !profile.source_path || !profile.promotion_destination) return;
-      rules.push({
-        id: `library-profile-${profile.id}`,
-        label: `${profile.name} promotion`,
-        enabled: true,
-        source_root: profile.source_path,
-        output_root: profile.output_path,
-        destination_root: profile.promotion_destination,
-        library_id: profile.id,
-        designation: profile.designation,
-      });
-    });
-    return rules;
-  }
-
   function collectLibraryProfileResetsFromDom() {
     return profileCardsFromDom().map((card) => {
       const request = { library_id: card.dataset.libraryId || "" };
@@ -1851,23 +1833,15 @@
   function buildPatchFromLibraries() {
     try {
       const libraryProfiles = collectProfilesFromDom();
-      const movie = libraryProfiles.find((profile) => profile.designation === "movie" && profile.enabled) || libraryProfiles[0];
-      const tv = libraryProfiles.find((profile) => profile.designation === "tv" && profile.enabled);
       const patch = {
         LibraryProfiles: libraryProfiles,
       };
-      if (movie && movie.source_path) patch.SourceMovies = movie.source_path;
-      if (tv && tv.source_path) patch.SourceTV = tv.source_path;
-      if (movie && movie.output_path) patch.Outsource = movie.output_path;
-      const promotionEnabled = libraryProfiles.some((profile) => profile.enabled && profile.promotion_enabled);
-      patch.FinalLibraryPromotionEnabled = promotionEnabled;
-      patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles);
       lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
       if (typeof window.writeSettingsPatchJson === "function") {
-        window.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Preview/Save will validate paths, overrides, and mirrored Movie/TV compatibility keys.");
+        window.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Backend Preview/Save will validate paths, overrides, and mirrored compatibility keys.");
       }
       profiles = libraryProfiles;
-      renderLibraryWarningSummary(patch);
+      renderLibraryWarningSummary();
       setText("settings-libraries-status", `${libraryProfiles.length} library profile(s) staged`);
       return patch;
     } catch (error) {

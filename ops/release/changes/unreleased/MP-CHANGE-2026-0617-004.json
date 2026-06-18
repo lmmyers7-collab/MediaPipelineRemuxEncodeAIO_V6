@@ -1,0 +1,33 @@
+{
+  "id": "MP-CHANGE-2026-0617-004",
+  "title": "Document long-running memory and resource leak risks",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Create a report-only audit of potential memory and resource leaks in long-running WebView, Local API, Tauri, network, process, queue, log, cache, and watcher surfaces.",
+  "reason": "Thirty-day unattended operation needs a focused inventory of leak-prone long-lived resources, cleanup evidence, missing proof, validation strategy, and remediation recommendations.",
+  "affected_areas": [
+    "docs",
+    "memory-leak-audit",
+    "operability"
+  ],
+  "behavior_before": "No current 2026-06-17 report inventories long-running memory and resource leak risks across the promoted WebView/Tauri and backend surfaces.",
+  "behavior_after": "A docs-only audit report records leak risks, triggers, symptoms, severity, likelihood, cleanup evidence, missing evidence, proof strategy, and remediation roadmap.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-memory-leak-investigation.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-004.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-004.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "2026-06-17 .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed: 347 packet(s) valid.",
+    "2026-06-17 .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/ai-audits/2026-06-17-memory-leak-investigation.md ops/release/changes/unreleased/MP-CHANGE-2026-0617-004.json - passed: Summaries: 1 written, 0 unchanged. Source files: 1.",
+    "2026-06-17 static report-only audit completed: read AGENTS.md, current-state docs, open-work checklist, project index, generated summaries where available, then inspected WebView, Local API, network coordinator/worker, process, watch-folder, Tauri, diagnostics, completed-manifest, and PowerShell process surfaces."
+  ],
+  "rollback_plan": "Delete docs/ai-audits/2026-06-17-memory-leak-investigation.md, docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-004.json.md, and this unreleased change packet.",
+  "related_changes": [],
+  "notes": "Report-only audit. No source behavior, media policy, FFmpeg command generation, subtitle conversion, audio routing, queue state, pending-publish, source/scratch/output movement, Local API route behavior, WebView controls, Tauri lifecycle behavior, scripts, or configs are intentionally changed. A path-scoped generated summary refresh updated only this packet's generated summary."
+}

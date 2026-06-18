@@ -43,10 +43,15 @@ def build_completion_done_request(
     publish_mode: str | None = None,
     route: str | None = None,
     queue_terminal: bool = False,
+    retry_on_failure: bool | None = None,
     reason_code: str | None = None,
     reason: str | None = None,
 ) -> DoneRequest:
-    retry = bool(getattr(job, "encode_config", {}).get("__retry_on_failure", True)) and not bool(queue_terminal)
+    if retry_on_failure is None:
+        retry = bool(getattr(job, "encode_config", {}).get("__retry_on_failure", True))
+    else:
+        retry = bool(retry_on_failure)
+    retry = retry and not bool(queue_terminal)
     record = getattr(job, "record", None)
     source_path = str(getattr(record, "source_path", "") or "")
     final_reason_code, final_reason = classify_failure_reason(

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launchView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-08
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 9690dc5ee674fcd5c7f146d3aa0acd6fc1689b2f02ec4bbd847c1388cc1ee852
+sha256: f54736e613876adea632893721701e0c2f85076fe78cf992bfc02fb63b1b5ff0
 ---
 # `apps/desktop/webview/static/assets/launchView.js`
 

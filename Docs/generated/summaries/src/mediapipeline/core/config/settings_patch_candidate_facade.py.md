@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/settings_patch_candidate_facade.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-14
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 5a37491509431216f688f51d1b43825e7db0a6939f70d0c8f34cc15b66db8dec
+sha256: f97600b83692c04827cc82ef0e767f4a248aaa3c7ce42101c02e31cf5ea6ca90
 ---
 # `src/mediapipeline/core/config/settings_patch_candidate_facade.py`
 

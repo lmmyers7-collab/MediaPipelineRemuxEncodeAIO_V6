@@ -20,6 +20,8 @@ SENSITIVE_COMMAND_EVIDENCE_TERMS = (
     "apikey",
     "authorization",
     "credential",
+    "join_blob",
+    "joinblob",
     "password",
     "secret",
     "token",

@@ -88,7 +88,7 @@
     launchPreflightRequestMatches = function () { return false; },
     collectPipelineStartRequest = function () { return { mode: "validate", sleep_seconds: 30, show_config: false, show_console: false, schedule_override: "" }; },
     collectAuditStartRequest = function () { return { library_root: "", include_sidecars: false, show_console: false }; },
-    collectRerunStartRequest = function () { return { csv_path: "", dry_run: false, stage_mode: "copy", original_mode: "keep", return_mode: "park", show_console: false }; },
+    collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), stage_mode: "copy", original_mode: "keep", return_mode: "park", show_console: false }; },
   } = launchStartRequest;
 
   const launchStatusRenderModule = window.__launchStatusRenderModule || {};
@@ -1413,9 +1413,11 @@
     }
   }
 
-  async function startRerunFromForm() {
+  async function startRerunFromForm(options = {}) {
     if (rejectLaunchCommandWhileBusy("rerun.start", "rerun-launch-status", "rerun-launch-detail")) return;
-    const request = collectRerunStartRequest();
+    const dryRun = typeof options === "boolean" ? options : Boolean(options.dry_run);
+    const request = collectRerunStartRequest({ dry_run: dryRun });
+    const actionLabel = request.dry_run ? "CSV rerun dry run" : "CSV rerun";
     renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(request));
     if (!request.csv_path.trim()) {
       const missing = {
@@ -1429,12 +1431,16 @@
       setText("rerun-launch-detail", missing.message);
       return;
     }
-    if (!window.confirm("Start CSV rerun with copy / keep / park policy?")) {
+    if (!window.confirm(request.dry_run
+      ? "Preview CSV rerun as a dry run? This should produce backend evidence without staging, moving, publishing, or touching media."
+      : "Start live CSV rerun with copy / keep / park policy?"
+    )) {
       const canceled = {
         command: "rerun.start",
         ok: false,
         severity: "info",
-        message: "CSV rerun start canceled.",
+        message: `${actionLabel} canceled.`,
+        data: { dry_run: Boolean(request.dry_run) },
       };
       appendCommandResult(canceled);
       setText("rerun-launch-status", "Canceled");
@@ -1442,11 +1448,13 @@
       return;
     }
     setLaunchCommandBusy(true);
-    setText("rerun-launch-status", "Starting...");
+    setText("rerun-launch-status", request.dry_run ? "Previewing..." : "Starting...");
     renderJsonDetail("rerun-launch-detail", {
       label: "Submitted request",
       value: request,
-      intro: "CSV rerun request confirmed by the operator and about to be submitted.",
+      intro: request.dry_run
+        ? "CSV rerun dry-run request confirmed by the operator and about to be submitted."
+        : "Live CSV rerun request confirmed by the operator and about to be submitted.",
     });
     try {
       const result = await apiPost("/api/rerun/start", request);

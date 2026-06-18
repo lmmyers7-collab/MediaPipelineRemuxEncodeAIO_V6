@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/movie.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 6c59eefcdc9b568e34a00d50a516aac72a771d29008156b1b326d9e51dab5737
+sha256: 5f8ed9e335f35159d46d082164e6576146ce12299e362bf238e7f7d38d224078
 ---
 # `src/mediapipeline/core/rename/movie.py`
 

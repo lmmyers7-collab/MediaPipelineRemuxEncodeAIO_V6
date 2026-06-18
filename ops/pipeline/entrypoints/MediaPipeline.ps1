@@ -166,6 +166,8 @@ function Write-MediaPipelineEarlyWorkerChildFailureResult {
         RouteReason         = ''
         PublishState        = ''
         PublishMode         = ''
+        QueueTerminal       = $false
+        Retryable           = $true
         OutputPath          = ''
         OutputSizeBytes     = 0
         WorkerSlotId        = [int]$WorkerSlotId
@@ -571,7 +573,8 @@ if ($DrainPendingPushes) {
     Refresh-PendingPublishIndex | Out-Null
     $pendingPushesRecovered = Invoke-RetryPendingPushes -Force
     Refresh-PendingPublishIndex | Out-Null
-    Write-Log "DRAIN PENDING PUSHES: recovered $pendingPushesRecovered file(s); remaining queued: $($script:PendingPublishIndex.Count)"
+    $pendingDrainSummaryLogLine = Get-PendingDrainSummaryLogLine -RecoveredCount $pendingPushesRecovered -RemainingFallback ([int]$script:PendingPublishIndex.Count)
+    Write-Log "DRAIN PENDING PUSHES: $pendingDrainSummaryLogLine"
     Set-ProgressStage -Stage 'idle' -Status 'Idle' -Percent $null -SaveNow
     Write-Log "PIPELINE SHUTDOWN CLEANLY"
     & $Script:ExitCleanup

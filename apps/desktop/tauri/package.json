@@ -1,7 +1,7 @@
 {
   "name": "mediapipeline-tauri-shell",
   "private": true,
-  "version": "0.0.0+2026.06.04.001.g103b74414ba7.dirty",
+  "version": "6.0.0",
   "type": "module",
   "scripts": {
     "dev": "tauri dev",

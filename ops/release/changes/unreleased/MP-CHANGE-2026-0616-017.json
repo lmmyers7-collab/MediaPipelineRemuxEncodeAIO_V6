@@ -1,0 +1,35 @@
+{
+  "id": "MP-CHANGE-2026-0616-017",
+  "title": "Restore post-module-move validation evidence summary",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Restore the non-sensitive post-module-move real-media evidence summary referenced by the active real-media validation README.",
+  "reason": "The active real-media validation README referenced docs/RealMediaValidationRuns/post-module-move-evidence-2026-05-29.md, but the file was absent from the checkout. The missing document made historical validation evidence harder to audit and weakened release-readiness traceability.",
+  "affected_areas": [
+    "docs",
+    "real-media-validation",
+    "release-readiness"
+  ],
+  "behavior_before": "The real-media validation README pointed to a missing post-module-move evidence summary.",
+  "behavior_after": "The referenced evidence summary exists and clearly distinguishes historical 2026-05-29 evidence from fresh real-media validation required for later high-risk media behavior changes.",
+  "files_touched": [
+    "docs/RealMediaValidationRuns/post-module-move-evidence-2026-05-29.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-017.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-017.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "check_active_doc_references - passed",
+    "Test-Path docs/RealMediaValidationRuns/post-module-move-evidence-2026-05-29.md - passed"
+  ],
+  "rollback_plan": "Delete docs/RealMediaValidationRuns/post-module-move-evidence-2026-05-29.md and this unreleased change packet, then rerun active doc reference and change-control validation.",
+  "related_changes": [],
+  "notes": "Docs-only release-readiness remediation. No media behavior, FFmpeg command generation, subtitle conversion, audio routing, source/scratch/output movement, pending-publish, queue, Local API, or desktop launcher behavior changed."
+}

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/naming/movie_cleanup.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: naming
-last_modified: 2026-06-04
+last_modified: 2026-06-14
 last_reviewed: 2026-06-04
-sha256: 2309bc04a2d0ce72b39cbdf397141f0eded3a57b2f301ff4d96a560f7974a3df
+sha256: 1e55da74be88607f46d3aa9af4bdd11a6d3d66640150b3211d08b75a7788c232
 ---
 # `ops/pipeline/engine/naming/movie_cleanup.ps1`
 

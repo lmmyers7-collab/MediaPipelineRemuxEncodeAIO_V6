@@ -56,6 +56,20 @@ class ServiceConfigPreviewTests(unittest.TestCase):
         self.assertGreater(len(preview.merged_config["CompatibleAudioCodecs"]), 1)
         self.assertIn("aac", preview.merged_config["CompatibleAudioCodecs"])
 
+    def test_preview_reconciles_audio_codecs_when_only_profile_is_managed(self) -> None:
+        preview = build_config_preview(
+            {"AudioPassthroughProfile": "custom_codec_list", "CompatibleAudioCodecs": ["flac", "dts"]},
+            {"AudioPassthroughProfile": "compatibility"},
+            ["AudioPassthroughProfile"],
+            validate_values=lambda _values: ([], []),
+            serialize_document=lambda _data: "preview",
+        )
+
+        self.assertEqual(
+            preview.merged_config["CompatibleAudioCodecs"],
+            ["aac", "ac3", "eac3", "mp3", "opus", "vorbis"],
+        )
+
     def test_preview_preserves_custom_audio_passthrough_codecs(self) -> None:
         preview = build_config_preview(
             {"CompatibleAudioCodecs": ["aac"]},

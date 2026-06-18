@@ -2,14 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Callable
 import errno
+from http.cookies import SimpleCookie
 import http.server
 import ipaddress
-import json
 import os
 import secrets
 from pathlib import Path
 from typing import Any
+from urllib.parse import quote, unquote
 from urllib.parse import urlsplit
+
+from mediapipeline.core.validation.strict_json import loads_strict_json
 
 
 JsonSender = Callable[[dict[str, Any], int], None]
@@ -29,7 +32,7 @@ CLIENT_DISCONNECT_ERRNOS = frozenset(
 
 LOCAL_API_CONTENT_SECURITY_POLICY = (
     "default-src 'self'; "
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "script-src 'self'; "
     "style-src 'self' 'unsafe-inline'; "
     "img-src 'self' data:; "
     "connect-src 'self'; "
@@ -39,14 +42,11 @@ LOCAL_API_CONTENT_SECURITY_POLICY = (
     "frame-ancestors 'none'; "
     "form-action 'none'"
 )
+LOCAL_API_AUTH_COOKIE_NAME = "MediaPipelineAuth"
 
 
 class QueryValidationError(ValueError):
     """Raised when a GET query parameter fails route validation."""
-
-
-def _reject_json_constant(value: str) -> None:
-    raise ValueError(f"non-finite JSON value is not allowed: {value}")
 
 
 def is_client_disconnect_error(exc: BaseException) -> bool:
@@ -85,8 +85,8 @@ def query_json_object(query: dict[str, list[str]], name: str) -> dict[str, Any]:
     if not raw:
         return {}
     try:
-        value = json.loads(raw, parse_constant=_reject_json_constant)
-    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        value = loads_strict_json(raw)
+    except (TypeError, ValueError) as exc:
         raise QueryValidationError(f"invalid query parameter {name}: {exc}") from exc
     if not isinstance(value, dict):
         raise QueryValidationError(f"query parameter {name} must be a JSON object")
@@ -108,7 +108,43 @@ def request_authorized(
     authorization = str(headers.get("Authorization") or "")
     if authorization.casefold().startswith("bearer "):
         candidates.append(authorization[7:].strip())
+    cookie_token = local_api_auth_cookie_value(str(headers.get("Cookie") or ""))
+    if cookie_token:
+        candidates.append(cookie_token)
     return any(candidate and secrets.compare_digest(candidate, token) for candidate in candidates)
+
+
+def local_api_auth_cookie_value(cookie_header: str) -> str:
+    if not cookie_header:
+        return ""
+    try:
+        cookies = SimpleCookie()
+        cookies.load(cookie_header)
+    except Exception:
+        return ""
+    morsel = cookies.get(LOCAL_API_AUTH_COOKIE_NAME)
+    if morsel is None:
+        return ""
+    try:
+        return unquote(str(morsel.value or ""))
+    except Exception:
+        return str(morsel.value or "")
+
+
+def local_api_auth_cookie_header(
+    *,
+    token: str,
+    require_token: bool,
+    shell_surface: str,
+) -> str | None:
+    if not require_token:
+        return None
+    if str(shell_surface or "").casefold() == "tauri":
+        return None
+    value = quote(str(token or ""), safe="")
+    if not value:
+        return None
+    return f"{LOCAL_API_AUTH_COOKIE_NAME}={value}; HttpOnly; SameSite=Strict; Path=/"
 
 
 def _strip_host_brackets(value: str) -> str:
@@ -234,8 +270,8 @@ def read_json_body(
         return None
     raw_body = handler.rfile.read(length) if length else b"{}"
     try:
-        payload = json.loads(raw_body.decode("utf-8") or "{}", parse_constant=_reject_json_constant)
-    except (UnicodeDecodeError, json.JSONDecodeError, ValueError) as exc:
+        payload = loads_strict_json(raw_body, default_text="{}")
+    except ValueError as exc:
         send_json({"error": f"invalid json body: {exc}"}, 400)
         return None
     if not isinstance(payload, dict):
@@ -287,6 +323,7 @@ def send_bytes(
     *,
     status: int = 200,
     content_type: str = "application/octet-stream",
+    extra_headers: list[tuple[str, str]] | None = None,
 ) -> None:
     try:
         handler.send_response(status)
@@ -296,6 +333,8 @@ def send_bytes(
         handler.send_header("Content-Security-Policy", LOCAL_API_CONTENT_SECURITY_POLICY)
         handler.send_header("X-Content-Type-Options", "nosniff")
         handler.send_header("Referrer-Policy", "no-referrer")
+        for name, value in extra_headers or []:
+            handler.send_header(name, value)
         handler.end_headers()
         handler.wfile.write(body)
     except OSError as exc:

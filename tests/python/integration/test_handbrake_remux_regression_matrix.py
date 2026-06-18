@@ -147,8 +147,12 @@ class HandBrakeRemuxRegressionMatrixTests(unittest.TestCase):
                 "policy": EffectiveDecisionPolicy(output_container="mp4"),
                 "route": {"REMUX"},
                 "video": "copy",
-                "audio_actions": ["transcode", "copy", "copy"],
-                "reasons": {"AUDIO_CODEC_INCOMPATIBLE_WITH_CONTAINER", "AUDIO_TRANSCODE_REQUIRED"},
+                "audio_actions": ["drop", "copy", "drop"],
+                "reasons": {
+                    "AUDIO_CODEC_INCOMPATIBLE_WITH_CONTAINER",
+                    "AUDIO_TRANSCODE_REQUIRED",
+                    "MP4_COMPATIBILITY_SINGLE_AUDIO_TRACK",
+                },
                 "forbidden_steps": {"encode_video"},
             },
             {

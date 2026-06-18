@@ -348,8 +348,8 @@ class WorkerLoopMixin:
                 _log.warning("Worker heartbeat thread did not stop within 5 seconds; continuing cleanup.")
         self._heartbeat_thread = None
 
-    def shutdown(self, *, release_active_job: bool = True) -> None:
-        """Stop background threads and optionally release an active job."""
+    def shutdown(self, *, release_active_job: bool = True, preserve_active_job: bool = False) -> None:
+        """Stop polling and optionally preserve or release an active job."""
         _log.info("WorkerDispatcher shutting down.")
         self._safe_log_cluster_event(
             "worker-stopped",
@@ -363,7 +363,12 @@ class WorkerLoopMixin:
         with self._active_job_lock:
             job = self._active_job
         if job is not None:
-            if release_active_job:
+            if preserve_active_job:
+                _log.warning(
+                    "WorkerDispatcher shutdown preserved active job %s; heartbeat and done reporting remain active.",
+                    getattr(job, "job_id", "")[:8],
+                )
+            elif release_active_job:
                 self.release(job)
             else:
                 _log.warning(

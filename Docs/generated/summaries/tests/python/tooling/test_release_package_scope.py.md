@@ -3,9 +3,9 @@ file: tests/python/tooling/test_release_package_scope.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-06-15
 last_reviewed: 2026-06-12
-sha256: 9cd4723b121ef2984378ee1c9cbcd0770f3522441c2b85e1ae4c0a1a3070a71e
+sha256: e26697b83edde20d21eee1825b22ac781fc89edb4bb68aceff18614605b69cf4
 ---
 # `tests/python/tooling/test_release_package_scope.py`
 

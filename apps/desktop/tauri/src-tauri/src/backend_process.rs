@@ -298,11 +298,10 @@ fn python_path_with_src_root(src_root: &Path) -> OsString {
     python_path
 }
 
-pub(crate) fn web_ui_validation_error_is_fatal(detail: &str) -> bool {
-    detail.contains("Backend WebView index leaked the bearer token")
-        || detail.contains("Backend WebView index still contains the raw bootstrap placeholder")
-        || detail
-            .contains("Backend WebView index is missing required fragment 'bootstrap assignment'")
+pub(crate) fn web_ui_validation_error_is_fatal(_detail: &str) -> bool {
+    // Backend-served WebView validation checks authority-boundary and guardrail
+    // fragments. Any failure means the shell cannot safely trust the UI surface.
+    true
 }
 
 fn redact_validation_detail(detail: &str, token: &str) -> String {

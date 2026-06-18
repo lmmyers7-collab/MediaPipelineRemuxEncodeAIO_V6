@@ -1,6 +1,6 @@
 # Network Worker/Coordinator Hardening & Multi-Library Plan
 
-- Status: DRAFT (not started)
+- Status: Implementation plan with Phases A-D complete and Phase E code complete/pending operator real-media validation as of 2026-06-15
 - Created: 2026-06-14
 - Origin: live debugging of the LAN coordinator(layne-server)/worker(GamingPC) cluster on 2026-06-14
 - Related: Docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md, NETWORK_MODE_READ_ONLY_DOCUMENTATION.md
@@ -34,10 +34,10 @@ Library roots (THE multi-library problem in one table):
 Current manual bridge on the worker (the thing to make automatic):
   WorkerSourcePathMap = '{"C:\\Users\\Layne\\Videos\\Encode": "\\\\LAYNE-SERVER\\Users\\Layne\\Videos\\Encode"}'
 
-Network config keys (in MediaPipeline_config.psd1): NetworkRole, CoordinatorPort, CoordinatorBindAddress, CoordinatorAuthToken, CoordinatorAlsoEncodeLocally, CoordinatorHeartbeatTimeoutMins, WorkerCoordinatorUrl, WorkerAuthToken, WorkerName, WorkerPollIntervalSecs, WorkerSourcePathMap, WorkerConfigOverrides. Key constants live in src\mediapipeline\desktop\config_keys.py (e.g. KEY_COORDINATOR_AUTH_TOKEN, KEY_WORKER_AUTH_TOKEN); confirm exact symbol names there before referencing.
+Network config keys (in MediaPipeline_config.psd1): NetworkRole, CoordinatorPort, CoordinatorBindAddress, CoordinatorAuthToken, CoordinatorAlsoEncodeLocally, CoordinatorHeartbeatTimeoutMins, WorkerCoordinatorUrl, WorkerAuthToken, WorkerName, WorkerPollIntervalSecs, WorkerSourcePathMap, WorkerEncoderMap, WorkerHonorCoordinatorPolicy, CoordinatorMaxJobRetries, and WorkerConfigOverrides (compatibility-only/backend-disabled). Key constants live in src\mediapipeline\desktop\config_keys.py (e.g. KEY_COORDINATOR_AUTH_TOKEN, KEY_WORKER_AUTH_TOKEN); confirm exact symbol names there before referencing.
 
 Key code locations (file : symbol):
-- src\mediapipeline\desktop\network\protocol.py:52  -> class ClaimResponse {job_id, source_path, estimated_size_gb, retry_after_seconds}  (NO library_id / relative_path today)
+- src\mediapipeline\desktop\network\protocol.py:52  -> class ClaimResponse includes strict job/source metadata, library_id/relative_path, accessible_library_ids, retry_after_seconds, and strict boolean/integer parsing.
 - src\mediapipeline\desktop\network\path_map.py:18  -> parse_source_path_map(raw)  ; :48 apply_source_path_map(path, mappings)  (prefix, case-insensitive)
 - src\mediapipeline\desktop\network\worker.py:98 reads token ; :242 _parse_source_path_map ; :245 _apply_path_map ; :254 update_source_path_map ; :270 update_auth_token ; :152 "WorkerDispatcher started ... path_map_entries=%d"
 - src\mediapipeline\desktop\network\worker_loops.py  -> _poll_loop ; GET /api/claim ; _apply_path_map(claim.source_path) ; logs "Path map rewrote A -> B"
@@ -52,7 +52,7 @@ Key code locations (file : symbol):
 - src\mediapipeline\core\kernel\models.py:112 class QueueRecord {source_path, is_priority, relative_path(:121), size_gb}  (relative_path ALREADY exists)
 - Auth scheme: src\mediapipeline\desktop\network\auth.py HMAC-SHA256, X-MediaPipeline-* headers, +/-300s skew, nonce replay cache.
 
-Endpoints today (coordinator HTTP, default :7830, all auth-required except where noted): /api/claim (GET), /api/heartbeat (POST), /api/done (POST), /api/log (POST). Worker local API (127.0.0.1, per-run token): /api/health (public), /api/network/worker/{start,stop,start-dry-run,stop-dry-run} (POST, token).
+Endpoints today (coordinator HTTP, default :7830, all auth-required except where noted): /api/ping (GET), /api/libraries (GET), /api/claim (GET), /api/heartbeat (POST), /api/done (POST), and /api/log (POST). Worker local API (127.0.0.1, per-run token) includes /api/health (public), setup/test routes such as /api/network/worker/test-connection, /api/network/worker/discover-coordinators, /api/network/coordinator/join-blob, /api/network/worker/join-cluster, and provider-guarded lifecycle routes /api/network/{worker,coordinator}/{start,stop,start-dry-run,stop-dry-run}.
 
 Three failure modes observed and fixed on 2026-06-14 (the motivation):
 1. Stale dispatcher URL (ran 192.168.1.50, saved Layne-Server) -> all-timeout, no claims. Fixed by worker restart.
@@ -176,11 +176,11 @@ Status 2026-06-14: implementation complete in change packet MP-CHANGE-2026-0614-
 ### C3 (#4) - Path-map row editor UI
 Depends-on: none (complements C1/C2) | Effort: S | Risk: low | §7: no
 Problem: WorkerSourcePathMap is a raw JSON string with backslash escaping (operator-hostile: '{"C:\\\\Users..." : "\\\\\\\\LAYNE-SERVER..."}').
-Target: A table editor: rows of {From prefix, To prefix} + a "Test" button that resolves a sample claimed path and shows accessible yes/no; serializes to the same JSON the backend expects.
+Target: A table editor: rows of {From prefix, To prefix} + a "Test" button that resolves a sample claimed path locally and clearly labels the backend check as a generic saved-config preflight; serializes to the same JSON the backend expects.
 Files: ui_web network/worker settings component; serialize to WorkerSourcePathMap; reuse A2 path check for "Test".
 Acceptance: operator adds two rows without typing JSON; saved value parses via parse_source_path_map; Test shows accessibility per row.
 
-Status 2026-06-14: complete in change packet MP-CHANGE-2026-0614-012. Implemented a WebView row editor for WorkerSourcePathMap in the Network settings panel and Worker setup dialog, backed by the existing hidden JSON setting so backend parsing/persistence remains unchanged. Rows collect From prefix, To prefix, and sample claimed path; staging serializes complete rows to WorkerSourcePathMap JSON and blocks partial rows; row Test resolves the sample path and invokes the existing backend-owned worker test-connection preflight for path-layer accessibility evidence. Validation passed for targeted WebView/static Local API tests, npm WebView asset/lint checks, the WebView Network browser smoke, the Settings builder browser smoke, and an in-app Browser sanity check against the backend-served Network setup dialog.
+Status 2026-06-14: complete in change packet MP-CHANGE-2026-0614-012. Implemented a WebView row editor for WorkerSourcePathMap in the Network settings panel and Worker setup dialog, backed by the existing hidden JSON setting so backend parsing/persistence remains unchanged. Rows collect From prefix, To prefix, and sample claimed path; staging serializes complete rows to WorkerSourcePathMap JSON and blocks partial rows; row Test shows a local rewrite preview plus the existing backend-owned saved-config preflight, not row-specific accessibility proof. Validation passed for targeted WebView/static Local API tests, npm WebView asset/lint checks, the WebView Network browser smoke, the Settings builder browser smoke, and an in-app Browser sanity check against the backend-served Network setup dialog.
 
 ### C4 (#3) - (Alternative) UNC-canonical addressing on the coordinator
 Depends-on: none | Effort: M | Risk: med-high | §7: YES (coordinator path identity)
@@ -231,3 +231,70 @@ A1, A2 independent. A3 -> A2. A4 -> A3. B1 -> A1. C1 -> A2. C2 -> C1. C3 indepen
 - C2 vs C4: prefer per-worker library roots (C1+C2) or one UNC-canonical scheme (C4)? (Recommended: C1+C2.)
 - CoordinatorMaxJobRetries default (proposed 3) and quarantine behavior (block job vs flag worker)?
 - Should outputs also be library-relative (publish to worker-local output root vs coordinator-canonical output)?
+
+---
+
+## Phase E - Coordinator as source of truth (centralized processing policy)
+
+Added 2026-06-14 per operator direction: the coordinator should be the single source of truth for HOW media is processed; workers should contribute ONLY hardware-specific execution.
+
+Principle - split POLICY from HARDWARE EXECUTION:
+- POLICY (coordinator-authoritative, per library): target codec FAMILY (hevc/av1/h264), quality tier, output container, routing profile + thresholds, size guards, audio policy, subtitle policy, naming/output structure, promotion.
+- HARDWARE EXECUTION (worker-only): which local encoder implements the family (hevc_nvenc / hevc_qsv / hevc_amf / libx265), encoder-specific preset, hardware decode, concurrency/resource limits.
+
+Current state (the inversion to fix): the worker IGNORES the claim encode_config and runs `start_pipeline(resolved=worker_config, single_file=...)` (`application/network_lifecycle_provider.py:574`). `snapshot_encode_config` (`network/encode_config_snapshot.py:51`) ships only GLOBAL keys and the coordinator LITERAL codec; per-library overrides are not captured. So each worker decides everything from its own config. Verified 2026-06-14: worker GamingPC global `VideoCodec=hevc_nvenc`, movies+tv inherit it; coordinator `VideoCodec=libx265`, `CoordinatorAlsoEncodeLocally=$false`.
+
+CRITICAL design constraint: do NOT ship the coordinator literal codec for the worker to apply verbatim. The coordinator is `libx265` (CPU); applying that on the NVIDIA worker would FORCE CPU x265 and lose NVENC. Codec MUST travel as a hardware-neutral FAMILY and be mapped to an encoder per worker.
+
+### E1 (#13) - Coordinator ships per-library RESOLVED, hardware-neutral policy
+Depends-on: C1, C2 | Effort: M | Risk: HIGH | §7: YES (settings schema + claim contract)
+Problem: `snapshot_encode_config` captures only global keys and a literal encoder string; per-library coordinator settings never reach the worker.
+Target: when building a claim, resolve the claimed file's library policy via `core/config/library_profile_normalization.py:307 library_profiles_from_config` (effective per-library values) and ship a hardware-neutral policy block: `target_codec_family`, `quality_tier`, `output_container`, `routing_profile`, route thresholds, size guards, audio/subtitle policy, with a `policy_schema_version`.
+Files: `network/encode_config_snapshot.py` (per-library resolve + family mapping), `network/coordinator_http_handlers.py` claim build (already calls `claim_library_fields_for_record`; add the policy), `network/protocol.py` ClaimResponse.encode_config documented shape.
+Codec family map (literal -> family): {libx265, hevc_nvenc, hevc_qsv, hevc_amf -> hevc}; {libaom-av1, av1_nvenc, av1_qsv -> av1}; {libx264, h264_nvenc, h264_qsv -> h264}.
+Acceptance: a claim for a movies file carries `target_codec_family=hevc` (+ quality tier, container, routing) derived from the coordinator movies library, regardless of which literal encoder the coordinator is set to.
+
+Status 2026-06-15: agent implementation complete in change packet MP-CHANGE-2026-0614-018. `snapshot_encode_config` now attaches a versioned `__coordinator_policy` block resolved from coordinator library profiles, with hardware-neutral codec family, quality tier, output container, routing thresholds, size guards, audio policy, and subtitle policy. Targeted unit coverage proves library-resolved hardware-neutral claims; representative real-media validation remains required before enabling this broadly.
+
+### E2 (#14) - Worker applies coordinator policy + maps family -> local encoder
+Depends-on: E1, E3 | Effort: M-L | Risk: HIGHEST | §7: YES (FFmpeg command generation + routing)
+Problem: `network_lifecycle_provider.py:574` ignores `job.encode_config`; the worker uses its own full config.
+Target: build an EFFECTIVE per-job config = coordinator policy overlaid on a minimal worker hardware profile. Resolve `target_codec_family` -> local encoder via E3 map, translate `quality_tier` -> encoder param via E4, then run `start_pipeline` with that effective config (write a per-job effective config file or pass overrides) instead of the worker full own config.
+Files: `network_lifecycle_provider._start_network_claimed_job` (consume `job.encode_config`), new effective-config builder, `service.start_pipeline` override path.
+Precedence: coordinator policy wins for ALL non-hardware settings; worker supplies ONLY encoder impl + encoder-specific preset + concurrency/resource limits.
+Acceptance: with coordinator movies policy `target_codec_family=hevc, quality_tier=T, container=mkv`, the NVIDIA worker encodes with `hevc_nvenc` at the translated quality and mkv; a CPU-only worker fulfills the SAME policy with `libx265`. Changing the policy on the coordinator changes both workers' output without touching either worker config.
+
+Status 2026-06-15: agent implementation complete in change packet MP-CHANGE-2026-0614-018. Worker launch now materializes a per-job effective PSD1 only when `WorkerHonorCoordinatorPolicy` is enabled; otherwise it keeps the original per-worker config as the mixed-version fallback. The effective config overlays coordinator policy for non-hardware media settings and leaves worker hardware execution local. Representative real-media validation remains required because this touches encode behavior.
+
+### E3 (#15) - Worker hardware-encoder capability map (the only per-worker encode setting)
+Depends-on: none | Effort: M | Risk: med | §7: settings schema
+Target: a worker config block (+ optional auto-detect) declaring per-family local encoders, e.g. `WorkerEncoderMap = {"hevc":"hevc_nvenc","av1":"av1_nvenc","h264":"h264_nvenc"}`; CPU fallback `{"hevc":"libx265",...}`. Optional detection via `ffmpeg -encoders` + `nvidia-smi`. Coordinator (Intel) would map hevc->hevc_qsv/libx265 but never encodes (`CoordinatorAlsoEncodeLocally=$false`).
+Acceptance: worker resolves each family to a supported local encoder; unknown/unsupported family falls back to CPU with a logged warning.
+
+Status 2026-06-15: agent implementation complete in change packet MP-CHANGE-2026-0614-018. Added `WorkerEncoderMap` as the worker-local hardware map with CPU fallback for unsupported, missing, or unparsable entries; runtime drift evidence fingerprints the map without exposing raw encoder text.
+
+### E4 (#16) - Quality-tier translation across encoders
+Depends-on: E1 | Effort: M | Risk: med-high | §7: YES (encode quality)
+Problem: CRF (libx265) and CQ (nvenc) scales are not interchangeable; a raw number is not portable across encoders.
+Target: coordinator expresses quality as a TIER (or per-family target); worker translates tier -> encoder-specific param via a documented table, with optional per-worker fine-tune.
+Acceptance: the same coordinator quality tier yields visually comparable output on nvenc vs libx265; mapping table documented and unit-tested.
+
+Quality tier translation table:
+| Coordinator tier | CPU encoder value (CRF-style) | Hardware encoder value (CQ-style) |
+|------------------|-------------------------------|-----------------------------------|
+| very_high        | 18                            | 17                                |
+| high             | 20                            | 19                                |
+| standard         | 22                            | 21                                |
+| compact          | 26                            | 25                                |
+
+Status 2026-06-15: agent implementation complete in change packet MP-CHANGE-2026-0614-018. The worker translates coordinator quality tiers through the table above and unit tests cover both hardware and CPU fallback values. Visual comparability still requires representative real-media validation.
+
+### E5 (#17) - UI authority cues + drift
+Depends-on: E1, E2, E3 | Effort: S-M | Risk: low | §7: no
+Target: coordinator Settings marks per-library processing policy as "cluster-authoritative (applies to all workers)"; worker Settings shows only the hardware encoder map as locally-owned and that other settings come from the coordinator; extend the A1 drift banner to flag when a worker would diverge from coordinator policy.
+
+Status 2026-06-15: agent implementation complete in change packet MP-CHANGE-2026-0614-018. Network/Home drift evidence now includes a policy-divergence payload; the WebView Network page surfaces coordinator policy authority, worker-local execution ownership, the worker hardware-map control, and the guarded `WorkerHonorCoordinatorPolicy` control. Default-off policy remains a review cue until operator validation enables it intentionally.
+
+Rollout / safety: gate behind `WorkerHonorCoordinatorPolicy` (default OFF). With the flag off, current behavior (worker uses its own config) persists, so this ships safely and is reversible. This is the LARGEST §7 change in the plan (FFmpeg command generation + settings schema + routing) - additive, version-bumped, real-media validated per AGENTS §5/§8, with a mixed-version fallback to per-worker config.
+
+Dependencies: E1 -> (C1,C2). E2 -> (E1,E3). E4 -> E1. E5 -> (E1,E2,E3). E3 independent.

@@ -8,13 +8,7 @@
   <link rel="stylesheet" href="/assets/styles.css">
 </head>
 <body>
-  <script>
-    window.MEDIA_PIPELINE_BOOTSTRAP = Object.assign(
-      {},
-      __MEDIA_PIPELINE_BOOTSTRAP__,
-      window.MEDIA_PIPELINE_TAURI_BOOTSTRAP || {}
-    );
-  </script>
+  <script type="application/json" id="media-pipeline-bootstrap">__MEDIA_PIPELINE_BOOTSTRAP__</script>
   <!-- mp-include: partials/app-shell-start.html -->
       <!-- mp-include: partials/page-home.html -->
 

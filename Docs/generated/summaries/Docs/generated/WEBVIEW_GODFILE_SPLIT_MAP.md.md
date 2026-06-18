@@ -3,9 +3,9 @@ file: docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-11
+last_modified: 2026-06-16
 last_reviewed: 2026-06-02
-sha256: fab23b8eed3613d71ddecd6a47470e229a221b77ff51a4d9213f976fd2925689
+sha256: a7c5200ecd79d780d1eb3dd77b6d31de660d7cc7177e17cf4964071a8d9a2a38
 ---
 # `docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md`
 

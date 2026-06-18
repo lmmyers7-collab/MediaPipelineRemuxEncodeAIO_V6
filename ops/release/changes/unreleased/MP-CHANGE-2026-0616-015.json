@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0616-015",
+  "title": "Restore Local API security surface doc",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Restore the active Local API security-surface architecture document referenced by current project docs and the production-readiness audit.",
+  "reason": "Current active docs referenced docs/architecture/LOCAL_API_SECURITY_SURFACE.md, but the file was missing. The missing reference made security-boundary review harder and was not caught by the existing active-doc reference guard.",
+  "affected_areas": [
+    "docs",
+    "local-api",
+    "production-readiness",
+    "security"
+  ],
+  "behavior_before": "Active docs referenced a Local API security-surface document that was absent from the workspace.",
+  "behavior_after": "The Local API security-surface document exists and records the localhost bind, token, Host/Origin, CORS, static asset, strict JSON, response-header, journaling, and mutation-boundary posture.",
+  "files_touched": [
+    "docs/architecture/LOCAL_API_SECURITY_SURFACE.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-015.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-015.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "check_active_doc_references - passed",
+    "check_dependency_boundaries --root . --max-internal-imports 1 - passed: 0 unallowlisted hard findings, 0 unused allowlist entries",
+    "generate_feature_file_map - refreshed after new change packet",
+    "generate_project_index - passed; no content diff for generated project index/dependency graph",
+    "ops/pipeline/tests/Unit/Invoke-ReleasePackagePolicyChecks.ps1 - passed after redacting local temp path from change packet",
+    "ops/scripts/release/build.ps1 -DestinationRoot %TEMP%/mediapipeline-release-readiness-fix-20260616093614 -Zip -Verify -IncludeTests - passed; copied 15647 files, wrote release_manifest.json, package-mode release self-test passed, zip created",
+    "ops/scripts/release/test.ps1 -RequireTests - passed after packet path redaction; only source/dev release_manifest warning",
+    "ops/scripts/release/test.ps1 -RequireTests - passed; source/dev release self-test green, warning only for absent release_manifest.json in source/dev folder",
+    "python -m unittest discover -s tests -q - passed: 2462 tests, 1 skipped",
+    "python -m unittest tests.python.tooling.test_active_doc_references -v - passed: 9 tests",
+    "python -m unittest tests.python.tooling.test_dependency_boundaries -v - passed: 10 tests",
+    "refresh_summaries --paths docs/architecture/LOCAL_API_SECURITY_SURFACE.md ops/release/changes/unreleased/MP-CHANGE-2026-0616-015.json - passed",
+    "refresh_summaries --paths docs/architecture/LOCAL_API_SECURITY_SURFACE.md ops/release/changes/unreleased/MP-CHANGE-2026-0616-015.json - passed; generated change-packet summary"
+  ],
+  "rollback_plan": "Delete docs/architecture/LOCAL_API_SECURITY_SURFACE.md and this unreleased change packet, then rerun active doc reference and change-control validation.",
+  "related_changes": [],
+  "notes": "Documentation-only production-readiness remediation; no Local API behavior, route contract, media policy, command handling, or filesystem mutation behavior changed.\nRestored the active Local API security surface architecture document.\nGenerated summary coverage for the new change packet.\nFocused release-readiness tooling checks are green after restoring the Local API security doc.\nAdded generated packet summary and feature-map coverage before strict production-readiness coverage.\nValidated the previously red release and Python unit gates now pass in the current workspace.\nDisposable package build and package-mode verifier passed at %TEMP%\\mediapipeline-release-readiness-fix-20260616093614.\nRedacted local workstation temp path from package-build validation note.\nFinal source release self-test passed after packet path redaction."
+}

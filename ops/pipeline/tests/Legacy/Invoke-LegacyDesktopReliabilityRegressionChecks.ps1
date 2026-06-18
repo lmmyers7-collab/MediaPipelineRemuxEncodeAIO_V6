@@ -620,7 +620,7 @@ $regressionText = Get-Content -LiteralPath $PSCommandPath -Raw
 Assert-True ($diskText -match 'function Copy-FileRobocopy' -and $diskText -match '\.mediapipeline-staging' -and $mainText -notmatch 'function Copy-FileRobocopy') "Copy-FileRobocopy must live in Modules\\Disk.ps1 and copy through a staging directory."
 Assert-True ($pathHelpersText -match 'function Test-MediaPipelinePathIsEqualOrChild' -and $pathHelpersText -match 'function Get-MediaPipelineRelativePath' -and $diskText -match 'Test-MediaPipelinePathIsEqualOrChild -Path \$Destination -Root \$Outsource' -and $queuePlanText -match 'Get-MediaPipelineRelativePath' -and $folderPolicyText -match 'Test-MediaPipelinePathIsEqualOrChild') "Path containment, output reserve checks, queue relative paths, and folder-policy search must use boundary-aware path helpers instead of raw string prefixes."
 Assert-True ($diskText -match 'LastCopyFileRobocopyResult' -and $diskText -match 'OUTPUT_DESTINATION_LOW_SPACE' -and $diskText -match 'OUTPUT_DESTINATION_SPACE_UNKNOWN' -and $publishCompletionText -match 'output-space-deferred') "Publish completion must distinguish output destination low-space/unknown-space parking from real publish failures."
-Assert-True ($diskText -match 'function Clear-StalePartialFiles' -and $diskText -match '\*\.mp-partial\*' -and $diskText -match '\*\.mp-publish-partial\.\*' -and $diskText -match '\.mediapipeline-staging' -and $mainText -notmatch 'function Clear-StalePartialFiles') "Stale publish partial/staging cleanup must live in Modules\\Disk.ps1."
+Assert-True ($diskText -match 'function Clear-StalePartialFiles' -and $diskText -match 'function Test-MediaPipelineStalePartialArtifactName' -and $diskText -match '\.mp-partial\\\.' -and $diskText -match '\.mp-publish-\(partial\|backup\)' -and $diskText -match '\.mediapipeline-staging' -and $mainText -notmatch 'function Clear-StalePartialFiles') "Stale publish partial/staging cleanup must live in Modules\\Disk.ps1 and use exact generated artifact-name checks."
 Assert-True ($mainText -notmatch 'Get-Random' -and $mainText -match "NewGuid\(\)\.ToString\('N'\)") "Scratch fingerprints and media temp outputs must use GUID-based names instead of collision-prone Get-Random names."
 Assert-True ($pipelineText -notmatch '\@\(\\?\$srcDir,\s*\\?\$dstDir,\s*\\?\$srcFile\)') "Robocopy must not target the final destination directory directly."
 Assert-True ($pipelineText -match 'RobocopyTimeoutSeconds' -and $diskText -match 'function Resolve-RobocopyPath' -and $diskText -match 'System32\\robocopy\.exe' -and $diskText -match 'Invoke-NativeCommand -FilePath \$robocopyPath -ArgumentList \$rcArgs -TimeoutSeconds \$script:RobocopyTimeoutSeconds') "Robocopy must resolve to System32 and run through a bounded timeout."
@@ -1849,13 +1849,25 @@ $script:CleanupScanTimeoutSeconds = 30
 $script:CleanupRemoteStaging = $true
 try {
     New-Item -ItemType Directory -Path $root -Force | Out-Null
-    $oldPartial = Join-Path $root 'movie.mkv.mp-partial.old'
-    $freshPartial = Join-Path $root 'movie.mkv.mp-partial.fresh'
+    $oldPartial = Join-Path $root ('movie.mkv.mp-partial.' + ('a' * 32))
+    $oldPublishPartial = Join-Path $root ('.movie.mkv.mp-publish-partial.' + ('b' * 32))
+    $oldPublishBackup = Join-Path $root ('.movie.mkv.mp-publish-backup.' + ('c' * 32))
+    $oldUserMatchingName = Join-Path $root 'movie.mp-partial-cut.mkv'
+    $oldUncertainPublishPartial = Join-Path $root '.movie.mkv.mp-publish-partial.tx-test'
+    $freshPartial = Join-Path $root ('movie.mkv.mp-partial.' + ('d' * 32))
     $unrelated = Join-Path $root 'old-but-unrelated.tmp'
     Set-Content -LiteralPath $oldPartial -Value 'old' -Encoding UTF8
+    Set-Content -LiteralPath $oldPublishPartial -Value 'old' -Encoding UTF8
+    Set-Content -LiteralPath $oldPublishBackup -Value 'old' -Encoding UTF8
+    Set-Content -LiteralPath $oldUserMatchingName -Value 'user' -Encoding UTF8
+    Set-Content -LiteralPath $oldUncertainPublishPartial -Value 'uncertain' -Encoding UTF8
     Set-Content -LiteralPath $freshPartial -Value 'fresh' -Encoding UTF8
     Set-Content -LiteralPath $unrelated -Value 'keep' -Encoding UTF8
     (Get-Item -LiteralPath $oldPartial).LastWriteTime = (Get-Date).AddHours(-3)
+    (Get-Item -LiteralPath $oldPublishPartial).LastWriteTime = (Get-Date).AddHours(-3)
+    (Get-Item -LiteralPath $oldPublishBackup).LastWriteTime = (Get-Date).AddHours(-3)
+    (Get-Item -LiteralPath $oldUserMatchingName).LastWriteTime = (Get-Date).AddHours(-3)
+    (Get-Item -LiteralPath $oldUncertainPublishPartial).LastWriteTime = (Get-Date).AddHours(-3)
     (Get-Item -LiteralPath $freshPartial).LastWriteTime = Get-Date
     (Get-Item -LiteralPath $unrelated).LastWriteTime = (Get-Date).AddHours(-3)
 
@@ -1870,6 +1882,10 @@ try {
 
     Clear-StalePartialFiles -Roots @($root)
     if (Test-Path -LiteralPath $oldPartial) { throw 'stale partial file was not removed' }
+    if (Test-Path -LiteralPath $oldPublishPartial) { throw 'stale publish partial file was not removed' }
+    if (Test-Path -LiteralPath $oldPublishBackup) { throw 'stale publish backup file was not removed' }
+    if (-not (Test-Path -LiteralPath $oldUserMatchingName)) { throw 'old user-owned matching filename should not be removed' }
+    if (-not (Test-Path -LiteralPath $oldUncertainPublishPartial)) { throw 'old uncertain publish-looking filename should not be removed' }
     if (-not (Test-Path -LiteralPath $freshPartial)) { throw 'fresh partial file should not be removed' }
     if (-not (Test-Path -LiteralPath $unrelated)) { throw 'unrelated stale file should not be removed' }
     if (Test-Path -LiteralPath $oldStaging) { throw 'stale publish staging directory was not removed' }

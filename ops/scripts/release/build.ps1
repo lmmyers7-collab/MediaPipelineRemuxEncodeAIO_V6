@@ -10,6 +10,7 @@ param(
     [switch]$IncludeTauriPreviewBinary,
     [switch]$KeepPersonalConfig,
     [switch]$Verify,
+    [switch]$AllowTestlessVerify,
     [switch]$DryRun
 )
 
@@ -36,6 +37,69 @@ function Get-DeployExclusionReason {
         -IncludeOptionalTools:$([bool]$IncludeOptionalTools) `
         -IncludeToolDocs:$([bool]$IncludeToolDocs) `
         -KeepPersonalConfig:$([bool]$KeepPersonalConfig)
+}
+
+function ConvertTo-ReleaseRelativeDirectory {
+    param([Parameter(Mandatory)][string]$RelativePath)
+
+    return $RelativePath.Replace('/', '\').Trim('\')
+}
+
+function Test-ReleaseTraversalDirectoryPruned {
+    param([Parameter(Mandatory)][string]$RelativePath)
+
+    $relative = ConvertTo-ReleaseRelativeDirectory -RelativePath $RelativePath
+    if (-not $relative) { return $false }
+
+    foreach ($excludedRoot in @(
+        '.git',
+        '.github',
+        '.codex',
+        '.codex-plugin',
+        '.mypy_cache',
+        '.pytest_cache',
+        '__pycache__',
+        'CodexVerification',
+        'LocalBase',
+        'RunLogs',
+        'node_modules',
+        'apps\desktop\runlogs',
+        'apps\desktop\tauri\node_modules',
+        'apps\desktop\tauri\src-tauri\gen',
+        'apps\desktop\tauri\src-tauri\target',
+        'docs\PG3CleanMachineReports',
+        'docs\reviews',
+        'ops\pipeline\config\backups'
+    )) {
+        if (
+            $relative.Equals($excludedRoot, [System.StringComparison]::OrdinalIgnoreCase) -or
+            $relative.StartsWith($excludedRoot + '\', [System.StringComparison]::OrdinalIgnoreCase)
+        ) {
+            return $true
+        }
+    }
+
+    return $false
+}
+
+function Get-ReleaseSourceFileItems {
+    param([Parameter(Mandatory)][string]$Root)
+
+    $queue = [System.Collections.Generic.Queue[System.IO.DirectoryInfo]]::new()
+    $queue.Enqueue((Get-Item -LiteralPath $Root))
+    while ($queue.Count -gt 0) {
+        $directory = $queue.Dequeue()
+        foreach ($file in @(Get-ChildItem -LiteralPath $directory.FullName -File -Force -ErrorAction SilentlyContinue)) {
+            $file
+        }
+        foreach ($childDirectory in @(Get-ChildItem -LiteralPath $directory.FullName -Directory -Force -ErrorAction SilentlyContinue)) {
+            $relative = Get-RelativePathText -BasePath $Root -FullPath $childDirectory.FullName
+            if (Test-ReleaseTraversalDirectoryPruned -RelativePath $relative) {
+                continue
+            }
+            $queue.Enqueue($childDirectory)
+        }
+    }
 }
 
 function Get-FileVersionText {
@@ -236,13 +300,19 @@ if (-not (Test-Path -LiteralPath $releasePolicyModule -PathType Leaf)) {
     throw "Release policy module is missing: $releasePolicyModule"
 }
 . $releasePolicyModule
+if ($KeepPersonalConfig -and $Zip) {
+    throw 'KeepPersonalConfig cannot be combined with -Zip. Build personal mirrors as directories only, or omit -KeepPersonalConfig for a distributable zip.'
+}
+if ($Verify -and -not $IncludeTests -and -not $AllowTestlessVerify) {
+    throw 'Release verification requires -IncludeTests. Use -AllowTestlessVerify only for local/dev package smoke checks that must not be treated as release acceptance.'
+}
 if (-not $DestinationRoot) {
     $releaseLabel = Get-MediaPipelineReleaseLabel
     $DestinationRoot = Join-Path (Split-Path -Parent $script:SourceRoot) ("MediaPipelineRemuxEncodeAIO_{0}_Portable_{1}" -f $releaseLabel, (Get-Date -Format 'yyyyMMdd_HHmmss'))
 }
 $destinationFull = Assert-ReleaseDestinationPathAllowed -DestinationPath $DestinationRoot -SourceRoot $script:SourceRoot
 
-$allFiles = @(Get-ChildItem -LiteralPath $script:SourceRoot -Recurse -File -Force)
+$allFiles = @(Get-ReleaseSourceFileItems -Root $script:SourceRoot)
 $copyPlan = [System.Collections.Generic.List[object]]::new()
 $excludePlan = [System.Collections.Generic.List[object]]::new()
 
@@ -292,6 +362,7 @@ $summary = [ordered]@{
     tauri_preview_binary_included = [bool]$IncludeTauriPreviewBinary
     zip_requested = [bool]$Zip
     verify_requested = [bool]$Verify
+    testless_verify_allowed = [bool]$AllowTestlessVerify
     copied_file_count = $copyPlan.Count
     excluded_file_count = $excludePlan.Count
     copied_bytes = [int64](($copyPlan | Measure-Object -Property bytes -Sum).Sum)
@@ -350,7 +421,7 @@ $manifest = [ordered]@{
     config_policy = if ($KeepPersonalConfig) {
         'ops\pipeline\config\MediaPipeline_config.psd1 (and legacy ops\pipeline\config\MediaPipeline_config_chatgpt.psd1) were copied as-is.'
     } else {
-        'ops\pipeline\config\MediaPipeline_config.psd1 and legacy ops\pipeline\config\MediaPipeline_config_chatgpt.psd1 were excluded. New users should run setup; ops\pipeline\config\MediaPipeline_config_template.psd1 and ops\pipeline\config\profiles\Default.psd1 are included with the standard RenameMovieFilterOptions, RenameMovieFilterTerms, and RenameMovieRemoveTerms baseline.'
+        'ops\pipeline\config\MediaPipeline_config.psd1 and legacy ops\pipeline\config\MediaPipeline_config_chatgpt.psd1 were excluded. New users should run setup; ops\pipeline\config\MediaPipeline_config_template.psd1 and ops\pipeline\config\profiles\Default.psd1 are included with the packaged custom RenameMovieFilterOptions, RenameMovieFilterTerms, and RenameMovieRemoveTerms deployment baseline.'
     }
     tool_policy = if ($IncludeOptionalTools) {
         'Optional bundled tool binaries and GUI assets were included.'
@@ -410,6 +481,8 @@ if ($Verify) {
     ))
     if ($IncludeTests) {
         $verifyArgs.Add('-RequireTests')
+    } elseif ($AllowTestlessVerify) {
+        Write-Warning 'Release verification is running without tests because -AllowTestlessVerify was supplied. This is not release acceptance.'
     }
 
     Write-Host "Verify      : $releaseVerifier"

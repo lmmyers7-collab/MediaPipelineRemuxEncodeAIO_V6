@@ -173,6 +173,40 @@ class SummaryIntegrityTests(unittest.TestCase):
             )
         )
 
+    def test_existing_nonstandard_extension_summary_can_be_refreshed_explicitly(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            source = root / ".github" / "workflows" / "ci.yml"
+            summary = root / "docs" / "generated" / "summaries" / ".github" / "workflows" / "ci.yml.md"
+            source.parent.mkdir(parents=True)
+            source.write_text("name: ci\n", encoding="utf-8")
+            summary.parent.mkdir(parents=True)
+            summary.write_text(_summary_text(".github/workflows/ci.yml"), encoding="utf-8")
+
+            old_root = refresh_summaries.REPO_ROOT
+            old_summary = refresh_summaries.SUMMARY_ROOT
+            old_roots = refresh_summaries.SOURCE_ROOTS
+            old_root_files = refresh_summaries.ROOT_SOURCE_FILES
+            try:
+                refresh_summaries.REPO_ROOT = root
+                refresh_summaries.SUMMARY_ROOT = root / "docs" / "generated" / "summaries"
+                refresh_summaries.SOURCE_ROOTS = ["src/mediapipeline/core"]
+                refresh_summaries.ROOT_SOURCE_FILES = set()
+                args = type(
+                    "Args",
+                    (),
+                    {"paths": [".github/workflows/ci.yml"], "changed": False, "staged": False},
+                )()
+
+                self.assertEqual(refresh_summaries.collect_sources(args), [source])
+                self.assertEqual(refresh_summaries.cmd_generate([source]), 0)
+                self.assertEqual(refresh_summaries.existing_summary_sha(summary), _sha(source))
+            finally:
+                refresh_summaries.REPO_ROOT = old_root
+                refresh_summaries.SUMMARY_ROOT = old_summary
+                refresh_summaries.SOURCE_ROOTS = old_roots
+                refresh_summaries.ROOT_SOURCE_FILES = old_root_files
+
     def test_project_index_skips_self_referential_generated_nav_summaries(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

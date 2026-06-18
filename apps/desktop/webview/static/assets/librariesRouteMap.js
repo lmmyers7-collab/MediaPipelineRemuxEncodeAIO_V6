@@ -169,7 +169,14 @@
       container.innerHTML = '<p class="empty-state">No route nodes are available.</p>';
       return;
     }
-    container.innerHTML = nodes.map((node, index) => `
+    const decisionRows = Array.isArray(profile?.decision_matrix) ? profile.decision_matrix : [];
+    container.innerHTML = `
+      <div class="settings-library-route-map-node" data-state="${decisionRows.length ? "current" : "review"}">
+        <span>evidence</span>
+        <strong>Decision matrix</strong>
+        <em>${decisionRows.length} row${decisionRows.length === 1 ? "" : "s"}</em>
+      </div>
+    ` + nodes.map((node, index) => `
       <div class="settings-library-route-map-node" data-state="${escapeHtml(statusText(node.status))}">
         <span>${escapeHtml(node.type || `node ${index + 1}`)}</span>
         <strong>${escapeHtml(node.label)}</strong>

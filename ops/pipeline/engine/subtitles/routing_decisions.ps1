@@ -86,7 +86,7 @@ function Resolve-SubtitleStreamPolicy {
     $isVobSub    = Test-IsVobSubSubtitleStream -Stream $Stream
     $isAss       = ($codec -in (Get-MediaSubtitleCodecAssNames))
     $rawLang     = if ($Stream.tags.language)     { ([string]$Stream.tags.language).ToLowerInvariant() } else { "" }
-    $lang        = if ($isTx3g -or $isBdpgs -or $isVobSub) { Get-NormalizedSubtitleLanguage $rawLang } else { $rawLang }
+    $lang        = Get-NormalizedSubtitleLanguage $rawLang
     $titleLower  = if ($Stream.tags.title)        { ([string]$Stream.tags.title).ToLowerInvariant() } else { "" }
     $rawTitle    = if ($Stream.tags.title)        { [string]$Stream.tags.title } else { "" }
     $isForced    = ($Stream.disposition.forced -eq 1)

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_pending_publish.py
 pipeline_stage: publish
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 81f5f14038887954efaba6edd3ef682b0fb8da663720787a47da5b13f903fbb8
+sha256: b7ad88b10ae8257c47302c2e266acfeada1c4860bc44e6bf2604a1c1a4023f2d
 ---
 # `tests/python/desktop/test_application_facade_pending_publish.py`
 

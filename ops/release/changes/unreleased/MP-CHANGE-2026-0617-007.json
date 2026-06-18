@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0617-007",
+  "title": "Audit dead and superseded code surfaces",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Create a report-only dead-code audit covering Python, WebView JavaScript, PowerShell, API routes, configuration, docs, tests, scripts, compatibility shims, generated artifacts, and obsolete references.",
+  "reason": "The promoted workspace needs a current evidence-backed inventory of unused, obsolete, unreachable, duplicated, and superseded surfaces before any cleanup work is attempted.",
+  "affected_areas": [
+    "audit",
+    "change_control",
+    "docs",
+    "dead-code"
+  ],
+  "behavior_before": "No 2026-06-17 dead-code audit report existed under docs/ai-audits.",
+  "behavior_after": "A docs-only audit report records dead-code candidates, duplicate and superseded implementations, stale configuration and settings surfaces, stale docs/tests/scripts, risk ranking, cleanup roadmap, validation recommendations, and search appendix.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-dead-code-audit.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-007.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-007.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "2026-06-17 static report-only audit completed: read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, generated summaries where available, then inspected Python, WebView JavaScript, PowerShell, Local API route, config/settings, docs, tests, script, compatibility-shim, generated-artifact, and obsolete-launcher evidence.",
+    "2026-06-17 .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/ai-audits/2026-06-17-dead-code-audit.md ops/release/changes/unreleased/MP-CHANGE-2026-0617-007.json - passed: Summaries: 1 written, 0 unchanged. Source files: 1.",
+    "2026-06-17 .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed: 349 packet(s) valid."
+  ],
+  "rollback_plan": "Delete docs/ai-audits/2026-06-17-dead-code-audit.md and this unreleased change packet.",
+  "related_changes": [],
+  "notes": "Report-only audit. No source behavior, media policy, FFmpeg command generation, subtitle conversion, audio routing, queue state, pending-publish, source/scratch/output movement, Local API route behavior, WebView controls, Tauri lifecycle behavior, scripts, configs, tests, schemas, or generated contracts are intentionally changed."
+}

@@ -75,6 +75,31 @@ def _browser_maintenance_reports_runner_source() -> str:
                 };
               }
               if (String(path || "").includes("/api/failures/clear") && body?.confirm_clear === true) {
+                if (body?.scope === "all_markers") {
+                  return {
+                    command: "failures.clear",
+                    ok: true,
+                    severity: "info",
+                    message: "Failure marker clear moved 2 marker(s).",
+                    errors: [],
+                    data: {
+                      scope: body.scope,
+                      dry_run: false,
+                      markers: 2,
+                      planned: [
+                        { path: "C:/State/Failures/Markers/marker-1.json" },
+                        { path: "C:/State/Failures/Markers/marker-2.json" },
+                      ],
+                      skipped: [],
+                      errors: [],
+                      manifest_path: "C:/State/Failures/ClearManifests/failure_clear.json",
+                      archive_dir: "C:/State/Failures/ClearManifests/ClearedMarkers/failure_clear",
+                      writes_failure_markers: true,
+                      touches_media: false,
+                      safe_next_action: "Failure markers were moved; rerun only after reviewing refreshed marker evidence.",
+                    },
+                  };
+                }
                 return {
                   command: "failures.clear",
                   ok: false,
@@ -901,7 +926,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             const latestWarningClearPost = posts.find((entry) => Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json"));
             if (latestWarningClearPost.body.scope !== "selected") throw new Error("latest-json warning clear did not use selected scope");
             if (latestWarningClearPost.body.marker_paths.length !== 2) throw new Error("latest-json warning clear did not post every marker path");
-            window.mediaPipelineReportsView.renderFailurePreview({
+            const markerFailurePreview = {
               source: "C:/State/Failures/Markers",
               source_kind: "markers",
               count: 2,
@@ -961,7 +986,8 @@ def _browser_maintenance_reports_runner_source() -> str:
                   unavailable_reason: "",
                 },
               }],
-            });
+            };
+            window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
             window.initReportsViewEvents();
             window.mediaPipelineReportsView.initReportsViewEvents();
             const firstClearErrorButton = Array.from(document.querySelectorAll('#failure-rows button'))
@@ -981,43 +1007,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (rowClearPost.body.marker_paths[0] !== "C:/State/Failures/Markers/marker-1.json") {
               throw new Error("row clear posted the wrong marker path");
             }
-            window.mediaPipelineReportsView.renderFailurePreview({
-              source: "C:/State/Failures/Markers",
-              source_kind: "markers",
-              count: 2,
-              operator_required_count: 0,
-              permanent_count: 0,
-              transient_count: 2,
-              rows: [{
-                source_json: "C:/State/Failures/Markers/marker-1.json",
-                source_path: "C:/Source/Retry One.mkv",
-                lookup_title: "Retry One",
-                media_type: "movie",
-                classification: "transient",
-                error_code: "SOURCE_LOCKED",
-                stage: "scratch-copy",
-                reason: "Source was locked.",
-                suggested_action: "Retry after the lock clears.",
-                retry_count: 1,
-                retry_limit: 5,
-                recorded_at: "2026-05-14T23:00:00-04:00",
-                clear_error: { available: true, marker_path: "C:/State/Failures/Markers/marker-1.json", unavailable_reason: "" },
-              }, {
-                source_json: "C:/State/Failures/Markers/marker-2.json",
-                source_path: "C:/Source/Retry Two.mkv",
-                lookup_title: "Retry Two",
-                media_type: "movie",
-                classification: "transient",
-                error_code: "NETWORK_TEMPORARY",
-                stage: "publish",
-                reason: "Destination was unavailable.",
-                suggested_action: "Retry after the share is online.",
-                retry_count: 0,
-                retry_limit: 5,
-                recorded_at: "2026-05-14T23:05:00-04:00",
-                clear_error: { available: true, marker_path: "C:/State/Failures/Markers/marker-2.json", unavailable_reason: "" },
-              }],
-            });
+            window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
             byId("failure-preview-all-clear-button").click();
             await waitFor(() => text("failure-clear-status").includes("Preview ready"), "failure marker clear dry-run preview");
             const markerDryRunPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true);
@@ -1033,6 +1023,34 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Planned marker clears: 2",
               "Touches media: no",
             ]);
+            window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
+            const originalRefreshAllForClear = window.refreshAll;
+            let bulkRefreshStarted = false;
+            let releaseBulkRefresh = () => {};
+            window.refreshAll = () => new Promise((resolve) => {
+              bulkRefreshStarted = true;
+              releaseBulkRefresh = resolve;
+            });
+            try {
+              byId("failure-clear-all-button").click();
+              await waitFor(() => text("failure-clear-status").includes("Cleared"), "failure marker clear all success");
+              if (!bulkRefreshStarted) throw new Error("clear-all did not request the authoritative refresh");
+              requireText("failure-summary", [
+                "Source type: markers",
+                "Rows: 0",
+                "No failure rows found for the selected source",
+              ]);
+              requireText("failure-rows", ["No failure rows found for the selected source"]);
+              if (text("failure-rows").includes("Retry One") || text("failure-rows").includes("Retry Two")) {
+                throw new Error("clear-all left stale marker rows visible before refresh completed");
+              }
+              if (text("failure-status") !== "0 / 0 rows") {
+                throw new Error("clear-all did not update the visible failure row count immediately: " + text("failure-status"));
+              }
+            } finally {
+              releaseBulkRefresh();
+              window.refreshAll = originalRefreshAllForClear;
+            }
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
             window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
@@ -1325,7 +1343,7 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
 
         browser_result = result["result"]
         posts = browser_result["posts"]
-        self.assertEqual(len(posts), 5)
+        self.assertEqual(len(posts), 6)
         audit_start_post = next(post for post in posts if post["path"] == "/api/audit/start")
         score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
         latest_warning_clear = next(
@@ -1338,7 +1356,8 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
             for post in posts
             if post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
         )
-        bulk_preview = next(post for post in posts if post["body"].get("scope") == "all_markers")
+        bulk_preview = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is True)
+        bulk_clear = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is False)
         self.assertEqual(audit_start_post["body"]["library_root"], "C:/Reports/Library")
         self.assertTrue(audit_start_post["body"]["include_sidecars"])
         self.assertFalse(audit_start_post["body"]["show_console"])
@@ -1363,6 +1382,11 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertTrue(bulk_preview["body"]["dry_run"])
         self.assertFalse(bulk_preview["body"]["confirm_clear"])
         self.assertNotIn("marker_paths", bulk_preview["body"])
+        self.assertEqual(bulk_clear["path"], "/api/failures/clear")
+        self.assertEqual(bulk_clear["body"]["scope"], "all_markers")
+        self.assertFalse(bulk_clear["body"]["dry_run"])
+        self.assertTrue(bulk_clear["body"]["confirm_clear"])
+        self.assertNotIn("marker_paths", bulk_clear["body"])
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["audio-default-policy-mismatch"], 222)
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 40)
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})

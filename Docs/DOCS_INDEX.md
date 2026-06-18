@@ -69,7 +69,7 @@ No active standalone fix-checklist redirect remains; use
 - `architecture/LOCAL_API_SECURITY_SURFACE.md`: localhost API, token bootstrap, security headers, and WebView/Tauri authority boundary.
 - `architecture/LOGGING_CONVENTION.md`: logging and structured-artifact conventions for PowerShell, Python, and WebView work.
 - `architecture/MODULE_MAP.md`: codebase layer map and feature-placement guide.
-- `architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`: design-only lifecycle command gates for future Network commands.
+- `architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`: backend-owned Network lifecycle/setup route contract, including provider-guarded dry-run/start/stop routes, discovery, test-connection, and join/import setup boundaries.
 - `architecture/NETWORK_MODE_READ_ONLY_DOCUMENTATION.md`: current read-only Network page boundaries.
 - `architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`: design-only gates for future Completed/Pending repair routes.
 - `architecture/SETTINGS_RAW_KEY_TRIAGE.md`: settings builder/raw-key coverage and intentionally hidden auth keys.
@@ -171,4 +171,3 @@ These folders currently exist but contain no Markdown/text documentation files:
 - `archive/docs-housekeeping/2026-06-04-completed-md-pass/`: completed or superseded historical audits, dependency-refactor tracker docs, and UX remediation tracker docs moved out of active topic folders.
 
 Do not use quarantined docs as active guidance unless a current doc explicitly points to one for historical evidence. Use `ARCHIVED_MD_INDEX.md` for the archive inventory.
-

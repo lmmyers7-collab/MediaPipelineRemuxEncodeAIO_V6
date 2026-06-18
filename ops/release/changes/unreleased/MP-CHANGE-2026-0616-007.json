@@ -1,0 +1,123 @@
+{
+  "id": "MP-CHANGE-2026-0616-007",
+  "title": "Harden stale output cleanup and copy staging preflight cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Implement confirmed source/scratch/output file handling review findings for provenance-aware stale partial cleanup and empty staging-root cleanup on copy preflight exits.",
+  "reason": "The operator requested implementation of verified actionable findings from the source/scratch/output file-handling review. Output-root cleanup and copy staging are high-validation file movement boundaries.",
+  "affected_areas": [
+    "source-scratch-output",
+    "storage",
+    "cleanup",
+    "copy-preflight",
+    "tests",
+    "docs",
+    "change-control"
+  ],
+  "behavior_before": "Stale partial cleanup could delete old user-owned files under output roots based only on broad filename patterns, and low-space or pre-attempt stop paths could leave an empty .mediapipeline-staging directory.",
+  "behavior_after": "Stale partial cleanup only removes old files with exact pipeline-generated partial or publish partial/backup artifact names, preserving uncertain user-owned matching filenames; low-space and stop-before-attempt copy exits remove the empty staging root when no attempt ran.",
+  "files_touched": [
+    "docs/reviews/source-scratch-output-file-handling-2026-06-16/09-implementation-ledger.md",
+    "ops/pipeline/engine/storage/disk.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1",
+    "ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1",
+    "Docs/generated/summaries/ops/pipeline/engine/storage/disk.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-007.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-007.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1: stale cleanup removes only exact generated partial/publish artifacts and preserves user-owned or uncertain matching filenames",
+    "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1: low-space preflight does not leave an empty .mediapipeline-staging root",
+    "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1: stop-before-attempt does not leave an empty .mediapipeline-staging root",
+    "ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1: stale cleanup behavior assertions updated to exact generated artifact-name checks"
+  ],
+  "manual_validation": [
+    "Read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md before source edits.",
+    "Ingested provided source/scratch/output review Markdown files 00-review-scope.md through 08-final-review-summary.md.",
+    "Read generated summaries for ops/pipeline/engine/storage/disk.ps1, ops/pipeline/entrypoints/MediaPipeline.ps1, ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1, ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1, and ops/pipeline/engine/publish/publish_partial.ps1 before opening full source.",
+    "Verified F-001 against current ops/pipeline/engine/storage/disk.ps1: Clear-StalePartialFiles still matches broad stale partial patterns under cleanup roots.",
+    "Verified F-002 against current ops/pipeline/engine/storage/disk.ps1: low-space and stop-before-attempt returns do not call the existing empty staging-root cleanup closure.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-PathBoundaryGuardChecks.ps1 - passed.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-PendingPublishSafetyChecks.ps1 - passed.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Legacy\\Invoke-LegacyDesktopReliabilityRegressionChecks.ps1 - failed before changed assertions because the harness resolved deployability checklist candidates under ops\\docs.",
+    "Targeted static check for the updated legacy stale-cleanup assertion passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/storage/disk.ps1 ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1 ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0616-007.json - passed: 4 written.",
+    "git diff --check for the touched tracked files reported only existing LF-to-CRLF normalization warnings.",
+    "PowerShell ConvertFrom-Json parse for ops/release/changes/unreleased/MP-CHANGE-2026-0616-007.json passed.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes failed on unrelated existing packets: MP-CHANGE-2026-0615-021 lacks high/critical notes or rollback detail, and MP-CHANGE-2026-0616-004 has invalid type 'fix'.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed on the same unrelated packet errors plus unrelated uncovered worktree files outside this batch."
+  ],
+  "rollback_plan": "Revert only the files listed in files_touched and any generated summaries added to this packet. Do not revert unrelated dirty worktree files or pre-existing review/change packets.",
+  "related_changes": [
+    "MP-CHANGE-2026-0616-002"
+  ],
+  "implementation_ledger": [
+    {
+      "issue_id": "F-001",
+      "source_markdown_file": "docs/reviews/source-scratch-output-file-handling-2026-06-16/05-findings.md",
+      "severity": "high",
+      "affected_files_modules": [
+        "ops/pipeline/engine/storage/disk.ps1",
+        "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1",
+        "ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1"
+      ],
+      "risk_boundary_touched": "Source/scratch/output cleanup and output-root delete path",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "F-002",
+      "source_markdown_file": "docs/reviews/source-scratch-output-file-handling-2026-06-16/05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "ops/pipeline/engine/storage/disk.ps1",
+        "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1",
+        "ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1"
+      ],
+      "risk_boundary_touched": "Source/scratch/output copy preflight and temporary staging cleanup",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "G-004",
+      "source_markdown_file": "docs/reviews/source-scratch-output-file-handling-2026-06-16/04-test-coverage-review.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "ops/pipeline/engine/publish"
+      ],
+      "verification_status": "blocked",
+      "required_tests": [
+        "Separate pending publish helper misuse tests"
+      ],
+      "risk_boundary_touched": "Pending publish/drain mutation path",
+      "implementation_status": "blocked_deferred_scope"
+    },
+    {
+      "issue_id": "G-005",
+      "source_markdown_file": "docs/reviews/source-scratch-output-file-handling-2026-06-16/04-test-coverage-review.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "ops/pipeline/engine/failures/failure_state.ps1"
+      ],
+      "verification_status": "blocked",
+      "required_tests": [
+        "Separate failure artifact boundary tests"
+      ],
+      "risk_boundary_touched": "Failure artifact scratch/state movement",
+      "implementation_status": "blocked_deferred_scope"
+    }
+  ],
+  "notes": "No source media, runtime state, personal config, release package, or archived rollback evidence is intentionally modified. Real-media validation is not expected for these focused unit-level cleanup changes unless operator requests it. Strict change-control coverage for this batch is recorded but cannot pass until unrelated pre-existing packet validation and unrelated uncovered worktree files are resolved."
+}

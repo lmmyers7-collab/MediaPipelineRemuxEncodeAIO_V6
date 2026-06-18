@@ -1,0 +1,172 @@
+{
+  "id": "MP-CHANGE-2026-0616-005",
+  "title": "Harden pending publish recovery, drain proof, and command ownership",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Implements verified findings from the pending publish, drain, parked output, manifest, carry-forward, and repair/reconcile review packet.",
+  "reason": "Pending publish drain and recovery cross final output, manifest integrity, backend-owned launch, and proof-of-output boundaries. Wrong-destination movement, manifest corruption, and bypassing park/drain proof are treated as critical safety failures.",
+  "affected_areas": [
+    "pending-publish",
+    "drain-pending-pushes",
+    "parked-output-proof",
+    "manifest-reconciliation",
+    "webview-command-ownership",
+    "operator-logging",
+    "tests",
+    "generated-summaries",
+    "change-control"
+  ],
+  "behavior_before": "Invalid pending recovery scan results could raise NameError instead of returning a fail-closed command result; the pending drain button did not mirror the guard's disabled state; several Network page backend command posts used dynamic route variables outside the lifecycle command dispatcher; the drain-pending-pushes entrypoint logged only recovered and remaining queued counts instead of the durable drain summary counts.",
+  "behavior_after": "Invalid recovery scan results return the documented fail-closed message; blocked drain guard state disables the visible drain button and exposes aria-disabled; non-lifecycle Network page command posts use documented literal backend routes while lifecycle commands remain backend-contract dispatched; drain-pending-pushes logs recovered, attempted, succeeded, already-published, failed, skipped, and remaining counts from the durable summary when present.",
+  "files_touched": [
+    "src/mediapipeline/core/publish/pending_recovery.py",
+    "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+    "apps/desktop/webview/static/assets/networkView.js",
+    "ops/pipeline/engine/publish/pending_push.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "tests/python/desktop/test_facade_pending_publish_policy.py",
+    "tests/python/desktop/test_application_facade_pending_publish.py",
+    "tests/webview/test_webview_browser_pending_drain_guard_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+    "Docs/generated/summaries/src/mediapipeline/core/publish/pending_recovery.py.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.confidence.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "Docs/generated/summaries/ops/pipeline/engine/publish/pending_push.ps1.md",
+    "Docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline.ps1.md",
+    "Docs/generated/summaries/tests/python/desktop/test_facade_pending_publish_policy.py.md",
+    "Docs/generated/summaries/tests/python/desktop/test_application_facade_pending_publish.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_browser_pending_drain_guard_smoke.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "Docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-005.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-005.json"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_facade_pending_publish_policy.PendingPublishFacadePolicyTests.test_pending_publish_recovery_invalid_scan_result_is_fail_closed",
+    "tests.python.desktop.test_application_facade_pending_publish.ApplicationFacadePendingPublishTests.test_pending_publish_recovery_plan_rejects_invalid_scan_result",
+    "tests.webview.test_webview_browser_pending_drain_guard_smoke.WebViewBrowserPendingDrainGuardSmoke.test_real_browser_refreshes_guard_after_blocked_recovery_plan_and_blocks_drain_post: disabled/aria-disabled drain button assertions",
+    "tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_api_post_calls_are_literal_documented_command_routes: Network route literal ownership coverage",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1: pending drain summary log helper static and runtime assertions"
+  ],
+  "manual_validation": [
+    "Read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md before source edits.",
+    "Ingested 00-review-scope.md through 08-final-review-summary.md from the provided pending publish/drain review workspace.",
+    "Inspected generated summaries for pending_recovery.py, pending_facade.py, pendingPublishView.confidence.js, networkView.js, MediaPipeline.ps1, and reconciliation_policy.py before opening source.",
+    "Verified F-01 with python -c pending_publish_recovery_plan_invalid_scan_result().to_mapping(), which failed with NameError before the fix.",
+    "Verified F-05 with tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_api_post_calls_are_literal_documented_command_routes, which failed before the route-literal fix.",
+    "Verified F-06 with ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1, which failed before the drain-summary log helper existed.",
+    "Focused backend tests passed: python -m unittest tests.python.desktop.test_facade_pending_publish_policy.PendingPublishFacadePolicyTests.test_pending_publish_recovery_invalid_scan_result_is_fail_closed tests.python.desktop.test_application_facade_pending_publish.ApplicationFacadePendingPublishTests.test_pending_publish_recovery_plan_rejects_invalid_scan_result -q.",
+    "Frontend ownership tests passed: python -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_api_post_calls_are_literal_documented_command_routes tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_api_post_command_ownership_stays_page_specific tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_network_lifecycle_dispatch_uses_backend_contract_routes_and_confirmation_prompt -q.",
+    "Browser pending-drain smoke passed: python -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q.",
+    "PowerShell pending publish safety checks passed: powershell -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-PendingPublishSafetyChecks.ps1.",
+    "Broader pending publish backend tests passed: python -m unittest tests.python.desktop.test_facade_pending_publish_policy tests.python.desktop.test_application_facade_pending_publish -q.",
+    "Full frontend mutation-boundary suite passed: python -m unittest tests.webview.test_webview_frontend_mutation_boundary -q.",
+    "Pending publish service/manifest tests passed: python -m unittest tests.python.desktop.test_pending_publish_service tests.python.desktop.test_service_pending_publish_manifest_rows tests.python.desktop.test_service_pending_publish_manifest -q.",
+    "Generated summaries refreshed for 11 touched files: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched files>.",
+    "tests.python.desktop.test_final_library_promotion -q was run as adjacent validation and failed in a pre-existing unrelated settings libraries assertion about FinalLibraryPromotionEnabled.",
+    "Targeted whitespace check passed: git diff --check -- <touched tracked files>; Git reported only LF-to-CRLF normalization warnings.",
+    "Normal change-control validation failed only on unrelated packets ops/release/changes/unreleased/MP-CHANGE-2026-0616-004.json and MP-CHANGE-2026-0616-006.json using invalid type 'code'.",
+    "Strict change-control coverage failed on the unrelated 0616-004 and 0616-006 packets plus 9 uncovered pre-existing source-scratch-output review Markdown files outside this batch."
+  ],
+  "rollback_plan": "Revert only the files listed in files_touched plus their generated summaries from this change. Do not revert unrelated dirty worktree files or pre-existing change packets.",
+  "related_changes": [],
+  "implementation_ledger": [
+    {
+      "issue_id": "F-01",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "src/mediapipeline/core/publish/pending_recovery.py",
+        "tests/python/desktop/test_facade_pending_publish_policy.py",
+        "tests/python/desktop/test_application_facade_pending_publish.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.python.desktop.test_facade_pending_publish_policy",
+        "tests.python.desktop.test_application_facade_pending_publish"
+      ],
+      "risk_boundary_touched": "Pending publish repair/recovery fail-closed behavior",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "F-02",
+      "source_markdown_file": "05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "tests/webview/test_webview_browser_pending_drain_guard_smoke.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.webview.test_webview_browser_pending_drain_guard_smoke"
+      ],
+      "risk_boundary_touched": "Pending drain proof presentation and display-filter/backend-scope ownership",
+      "implementation_status": "validated_current_guard_fail_closed"
+    },
+    {
+      "issue_id": "F-03",
+      "source_markdown_file": "05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+        "tests/webview/test_webview_browser_pending_drain_guard_smoke.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.webview.test_webview_browser_pending_drain_guard_smoke"
+      ],
+      "risk_boundary_touched": "Pending drain visible command guard",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "F-04",
+      "source_markdown_file": "04-test-coverage-review.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "tests/python/desktop/test_application_facade_pending_publish.py"
+      ],
+      "verification_status": "already_fixed",
+      "required_tests": [
+        "tests.python.desktop.test_application_facade_pending_publish"
+      ],
+      "risk_boundary_touched": "Completed-output proof and drain-summary reconciliation",
+      "implementation_status": "validated_existing_coverage"
+    },
+    {
+      "issue_id": "F-05",
+      "source_markdown_file": "05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "apps/desktop/webview/static/assets/networkView.js",
+        "tests/webview/test_webview_frontend_mutation_boundary.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.webview.test_webview_frontend_mutation_boundary"
+      ],
+      "risk_boundary_touched": "Frontend/backend command ownership",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "F-06",
+      "source_markdown_file": "05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "ops/pipeline/engine/publish/pending_push.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline.ps1",
+        "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1"
+      ],
+      "risk_boundary_touched": "Drain summary operator evidence",
+      "implementation_status": "fixed_validated"
+    }
+  ],
+  "notes": "No source media, runtime state, personal config, release package, or archived rollback evidence was intentionally modified. Real-media/network-share validation was not run."
+}

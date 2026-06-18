@@ -188,6 +188,159 @@ function Get-SourceVideoCodec {
     return "unknown"
 }
 
+function Test-SourceVideoStreamAttachedPicture {
+    param([Parameter(Mandatory)] $Stream)
+
+    $disposition = $Stream.disposition
+    if ($null -ne $disposition -and @($disposition.PSObject.Properties.Name) -contains 'attached_pic') {
+        $attachedPicValue = ([string]$disposition.attached_pic).Trim()
+        if ($attachedPicValue -eq '1' -or $attachedPicValue -eq 'True') {
+            return $true
+        }
+    }
+
+    $tags = $Stream.tags
+    if ($null -eq $tags) {
+        return $false
+    }
+
+    $tagNames = @($tags.PSObject.Properties.Name)
+    $mimetype = ''
+    if ($tagNames -contains 'mimetype') {
+        $mimetype = ([string]$tags.mimetype).Trim().ToLowerInvariant()
+    }
+    if ($mimetype.StartsWith('image/')) {
+        return $true
+    }
+
+    $filename = ''
+    if ($tagNames -contains 'filename') {
+        $filename = ([string]$tags.filename).Trim().ToLowerInvariant()
+    }
+    if ([string]::IsNullOrWhiteSpace($filename)) {
+        return $false
+    }
+
+    $imageExtensions = @('.jpg', '.jpeg', '.png', '.webp', '.gif', '.bmp', '.tif', '.tiff')
+    $imageCodecs = @('mjpeg', 'png', 'webp', 'gif', 'bmp', 'tiff', 'jpeg2000')
+    $extension = [System.IO.Path]::GetExtension($filename).ToLowerInvariant()
+    $codec = ([string]$Stream.codec_name).Trim().ToLowerInvariant()
+    return (($imageExtensions -contains $extension) -and ($imageCodecs -contains $codec))
+}
+
+function Get-SourceVideoStreamInventory {
+    param([string]$FilePath)
+
+    $empty = {
+        param(
+            [bool]$Ok,
+            [string]$ErrorCode,
+            [string]$Reason
+        )
+        return [pscustomobject][ordered]@{
+            Ok                   = [bool]$Ok
+            ErrorCode            = [string]$ErrorCode
+            Reason               = [string]$Reason
+            RealVideoStreams     = @()
+            AttachedPicStreams   = @()
+            RealVideoStreamCount = 0
+            AttachedPicCount     = 0
+        }
+    }
+
+    $r = Invoke-FFprobeCommand -ArgumentList @(
+        "-v","error","-select_streams","v",
+        "-show_entries","stream=index,codec_name,width,height,disposition:stream_tags=filename,mimetype",
+        "-of","json","--",$FilePath
+    ) -TimeoutSeconds 30 -Stage 'source-video-stream-inventory'
+    if ([int]$r.ExitCode -ne 0 -or [bool]$r.TimedOut -or [bool]$r.Stopped) {
+        $reason = if (-not [string]::IsNullOrWhiteSpace([string]$r.Error)) { [string]$r.Error } else { "ffprobe exited with code $([int]$r.ExitCode)" }
+        return & $empty $false 'SOURCE_VIDEO_STREAM_PROBE_FAILED' $reason
+    }
+
+    try {
+        $json = $r.Output | ConvertFrom-Json -ErrorAction Stop
+        $streams = @($json.streams)
+        $realVideo = @()
+        $attachedPics = @()
+        $videoOrdinal = 0
+
+        foreach ($stream in $streams) {
+            $attached = Test-SourceVideoStreamAttachedPicture -Stream $stream
+            $ordinal = if ($attached) { -1 } else { [int]$videoOrdinal }
+            $record = [pscustomobject][ordered]@{
+                Index           = [int]$stream.index
+                VideoOrdinal    = [int]$ordinal
+                Codec           = ([string]$stream.codec_name).Trim().ToLowerInvariant()
+                Width           = [int]$stream.width
+                Height          = [int]$stream.height
+                AttachedPicture = [bool]$attached
+            }
+            if ($attached) {
+                $attachedPics = @($attachedPics) + @($record)
+            } else {
+                $realVideo = @($realVideo) + @($record)
+                $videoOrdinal++
+            }
+        }
+
+        return [pscustomobject][ordered]@{
+            Ok                   = $true
+            ErrorCode            = ''
+            Reason               = ''
+            RealVideoStreams     = @($realVideo)
+            AttachedPicStreams   = @($attachedPics)
+            RealVideoStreamCount = [int]$realVideo.Count
+            AttachedPicCount     = [int]$attachedPics.Count
+        }
+    } catch {
+        return & $empty $false 'SOURCE_VIDEO_STREAM_PROBE_FAILED' ([string]$_.Exception.Message)
+    }
+}
+
+function Test-SourceVideoStreamPublishPolicy {
+    param(
+        [Parameter(Mandatory)] [string] $FilePath,
+        [string] $Route = ''
+    )
+
+    $inventory = Get-SourceVideoStreamInventory -FilePath $FilePath
+    if (-not [bool]$inventory.Ok) {
+        return [pscustomobject][ordered]@{
+            Allowed   = $false
+            ErrorCode = [string]$inventory.ErrorCode
+            Reason    = "could not verify source video stream inventory before $Route publish: $($inventory.Reason)"
+            Inventory = $inventory
+        }
+    }
+
+    $count = [int]$inventory.RealVideoStreamCount
+    if ($count -le 0) {
+        return [pscustomobject][ordered]@{
+            Allowed   = $false
+            ErrorCode = 'SOURCE_VIDEO_STREAM_MISSING'
+            Reason    = "source has no probeable real video stream; refusing $Route publish"
+            Inventory = $inventory
+        }
+    }
+    if ($count -gt 1) {
+        $details = (@($inventory.RealVideoStreams) | ForEach-Object { "index $($_.Index) codec $($_.Codec)" }) -join '; '
+        return [pscustomobject][ordered]@{
+            Allowed   = $false
+            ErrorCode = 'SOURCE_VIDEO_STREAMS_UNVETTED'
+            Reason    = "source has $count real video streams ($details); current routing validates only the primary stream, so $Route is blocked until per-stream routing and output validation exist"
+            Inventory = $inventory
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        Allowed   = $true
+        ErrorCode = ''
+        Reason    = 'exactly one real video stream is eligible for current publish validation'
+        Inventory = $inventory
+    }
+}
+
 # Returns the language tag of the audio stream marked default, falling back
 # to the first audio stream, then to "und". Lower-cased ISO-639-2/B code.
 #

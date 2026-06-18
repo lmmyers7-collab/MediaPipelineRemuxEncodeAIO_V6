@@ -351,6 +351,8 @@
           </div>
           <p class="note">These controls stage saved config values only. Runtime lifecycle controls above remain backend-owned and normal Launch stays blocked in network modes.</p>
           <p class="note">If backend Python files were updated while the app/API was already running, restart the app/API before using lifecycle controls.</p>
+          <p class="note">Coordinator policy authority: per-library codec family, quality tier, output container, routing, audio, and subtitle settings are cluster-authoritative for workers that honor coordinator policy.</p>
+          <p class="note">Worker-local execution ownership: this worker only owns Worker Encoder Map plus access, path, and lifecycle settings when coordinator policy is honored.</p>
           <div class="form-grid launch-form-grid">
             <label>
               Network role
@@ -389,6 +391,9 @@
             <label class="check-row launch-check-row">
               <input id="settings-network-coordinator-local-encode" type="checkbox"> Coordinator also encodes locally
             </label>
+            <label class="check-row launch-check-row">
+              <input id="settings-network-honor-coordinator-policy" type="checkbox"> Honor coordinator policy
+            </label>
           </div>
           <div class="full-field network-path-map-editor" id="settings-network-path-map-editor" data-path-map-editor="settings-network-path-map" aria-labelledby="settings-network-path-map-label">
             <div class="network-path-map-heading">
@@ -420,6 +425,10 @@
             </div>
             <pre id="settings-network-path-map-test-result" class="prose-block network-path-map-test-result">No path map row tested.</pre>
           </div>
+          <label class="full-field">
+            Worker encoder map JSON
+            <textarea id="settings-network-worker-encoder-map" rows="3" spellcheck="false" placeholder='{"hevc":"hevc_nvenc","h264":"h264_nvenc","av1":"av1_nvenc"}'></textarea>
+          </label>
           <label class="full-field">
             Per-worker config overrides JSON (backend-disabled)
             <textarea id="settings-network-worker-overrides" rows="3" spellcheck="false" placeholder='{"BEAST-PC": {"VideoPreset": "p4"}}'></textarea>
@@ -482,6 +491,9 @@
                     Worker poll interval s
                     <input id="network-role-setup-worker-poll" type="number" min="5" step="1" data-role-setup-source="settings-network-worker-poll">
                   </label>
+                  <label class="check-row launch-check-row">
+                    <input id="network-role-setup-honor-coordinator-policy" type="checkbox" data-role-setup-source="settings-network-honor-coordinator-policy"> Honor coordinator policy
+                  </label>
                 </div>
                 <div class="full-field network-path-map-editor" id="network-role-setup-path-map-editor" data-path-map-editor="network-role-setup-path-map" aria-labelledby="network-role-setup-path-map-label">
                   <div class="network-path-map-heading">
@@ -513,6 +525,10 @@
                   </div>
                   <pre id="network-role-setup-path-map-test-result" class="prose-block network-path-map-test-result">No path map row tested.</pre>
                 </div>
+                <label class="full-field">
+                  Worker encoder map JSON
+                  <textarea id="network-role-setup-worker-encoder-map" rows="3" spellcheck="false" placeholder='{"hevc":"hevc_nvenc","h264":"h264_nvenc","av1":"av1_nvenc"}' data-role-setup-source="settings-network-worker-encoder-map"></textarea>
+                </label>
                 <label class="full-field">
                   Per-worker config overrides JSON
                   <textarea id="network-role-setup-worker-overrides" rows="3" spellcheck="false" placeholder='{"BEAST-PC": {"VideoPreset": "p4"}}' data-role-setup-source="settings-network-worker-overrides"></textarea>

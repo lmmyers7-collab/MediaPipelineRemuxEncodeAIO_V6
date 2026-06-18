@@ -15,8 +15,9 @@ from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher
 from mediapipeline.desktop.network.library_roots import (
     auto_source_path_map_from_libraries,
     libraries_response_from_config,
+    merge_manual_and_auto_path_maps,
 )
-from mediapipeline.desktop.network.path_map import parse_source_path_map
+from mediapipeline.desktop.network.path_map import apply_source_path_map, parse_source_path_map
 from mediapipeline.desktop.network.worker import WorkerDispatcher
 
 
@@ -55,6 +56,59 @@ def _worker(config: dict[str, object], manual_map: str = "") -> WorkerDispatcher
 
 
 class NetworkPathAutoMapTests(unittest.TestCase):
+    def test_manual_path_map_rejects_relative_and_drive_relative_replacements(self) -> None:
+        for replacement in (r"Relative\WorkerRoot", r"D:WorkerRoot", r"\WorkerRoot"):
+            with self.subTest(replacement=replacement):
+                mappings = parse_source_path_map(json.dumps({r"C:\Coordinator": replacement}))
+
+                self.assertEqual(mappings, [])
+
+    def test_manual_path_map_rejects_parent_traversal_in_roots_and_claim_tail(self) -> None:
+        self.assertEqual(
+            parse_source_path_map(json.dumps({r"C:\Coordinator\..\Secret": r"D:\Worker"})),
+            [],
+        )
+        self.assertEqual(
+            parse_source_path_map(json.dumps({r"C:\Coordinator": r"D:\Worker\..\Secret"})),
+            [],
+        )
+
+        mappings = parse_source_path_map(json.dumps({r"C:\Coordinator": r"D:\Worker"}))
+
+        with self.assertRaisesRegex(ValueError, "parent traversal"):
+            apply_source_path_map(r"C:\Coordinator\..\Secret\Movie.mkv", mappings)
+
+    def test_manual_path_map_handles_unc_case_and_exact_prefix_boundaries(self) -> None:
+        mappings = parse_source_path_map(json.dumps({r"\\SERVER\Share\Media": r"D:\WorkerMedia"}))
+
+        self.assertEqual(
+            apply_source_path_map(r"\\server\share\media\Show\S01E01.mkv", mappings),
+            r"D:\WorkerMedia\Show\S01E01.mkv",
+        )
+        self.assertEqual(
+            apply_source_path_map(r"\\server\share\media-extra\Movie.mkv", mappings),
+            r"\\server\share\media-extra\Movie.mkv",
+        )
+
+    def test_auto_path_maps_sort_deepest_prefix_after_manual_precedence(self) -> None:
+        merged = merge_manual_and_auto_path_maps(
+            [(r"C:\Coord\Shows", r"X:\ManualShows")],
+            [
+                (r"C:\Coord", r"D:\Broad"),
+                (r"C:\Coord\Shows", r"D:\AutoShows"),
+                (r"C:\Coord\Shows\Anime", r"D:\Anime"),
+            ],
+        )
+
+        self.assertEqual(
+            merged,
+            [
+                (r"C:\Coord\Shows", r"X:\ManualShows"),
+                (r"C:\Coord\Shows\Anime", r"D:\Anime"),
+                (r"C:\Coord", r"D:\Broad"),
+            ],
+        )
+
     def test_coordinator_libraries_response_exposes_enabled_library_roots(self) -> None:
         config = _config(
             movies=r"C:\Coord\Movies",

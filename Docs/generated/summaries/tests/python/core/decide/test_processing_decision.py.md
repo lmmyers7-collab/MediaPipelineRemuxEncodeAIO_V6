@@ -3,9 +3,9 @@ file: tests/python/core/decide/test_processing_decision.py
 pipeline_stage: decide
 token_priority: high
 owner_domain: tests
-last_modified: 2026-06-07
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 5ec40f40f9d69b4d3c9cf1c8ac4bfb785dcc442f1d699ccf434bc7d82b6514db
+sha256: f08e63057390161697f0eff03f1860d89b72015543ef092dc74037139ec64e73
 ---
 # `tests/python/core/decide/test_processing_decision.py`
 

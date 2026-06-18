@@ -70,7 +70,7 @@ No P0 promotion gates remain unresolved. Local source/dev gates are tracked as c
 
 - [x] **Tauri production-hardening lifecycle** — Closed on 2026-05-19 for the WebView/Tauri shell: spawn/bootstrap resilience remains bounded, Tauri now emits backend health/crash lifecycle events, WebView renders a visible read-only recovery banner through an event-only Tauri bridge, a per-user Windows mutex rejects second Tauri shell instances before backend startup, ActiveJobs orphan reconciliation remains backend-owned and guarded, and `Test-TauriShell-ProductionSurface.ps1` checks no production devtools flags, no token-adjacent runtime logging, one dynamic main window, the single-instance guard, and event-only bridge posture. Representative real-media validation was later closed by operator attestation on 2026-05-28, and default-launcher promotion was closed by operator confirmation on 2026-05-30. Source: `TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`.
 
-- [x] **Network page lifecycle controls** — Closed as a backend-contract gate, not as WebView buttons. WebView Network remains read-only; `/api/contract` now publishes design-only Network lifecycle contracts for coordinator start, coordinator stop, and worker polling lifecycle, `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` records the dry-run/cleanup/journal/source-policy gates, and static/API tests prove no Network lifecycle POST route or WebView control is exposed yet. Future controls still require backend dry-run routes, command journaling, cleanup/orphan tests, browser no-mutation coverage, and inventory updates.
+- [x] **Network page lifecycle controls** — Closed as a backend-owned route gate, not as frontend process ownership. WebView Network may call provider-guarded Local API routes for lifecycle dry-runs, confirmed lifecycle start/stop, worker test-connection, coordinator discovery, coordinator join-blob creation, and worker join import. `/api/contract` and `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` record the dry-run/cleanup/journal/source-policy gates, and static/API/browser tests prove the frontend does not implement lifecycle, claim, done-report, queue, settings-save, publish, rename, or media mutation logic directly.
 
 - [x] **Repair/reconcile mutation contract** — Completed/Pending repair/reconcile remains design-only, but `/api/contract` now defines explicit dry-run, rollback, source-file, and route-exposure gates before any backend mutation route or WebView control can be added. Source: `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` + archived active-fix evidence.
 
@@ -95,4 +95,3 @@ No P0 promotion gates remain unresolved. Local source/dev gates are tracked as c
 | Medium | 0 |
 | Low | 0 |
 | **Total Open** | **0** |
-

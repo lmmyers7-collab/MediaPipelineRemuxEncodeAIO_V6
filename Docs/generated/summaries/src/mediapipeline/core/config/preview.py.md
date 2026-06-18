@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/preview.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-04
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: e2f91b2ac45a176d21a15471361d0df1472bfc015cec2dbd7328bde919ae93d3
+sha256: 98a976f9bdb01390f56d6cc7c88413443afc537a42e9c5aabe3fd535e16b4a2a
 ---
 # `src/mediapipeline/core/config/preview.py`
 

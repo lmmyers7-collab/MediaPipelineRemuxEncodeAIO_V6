@@ -3,9 +3,9 @@ file: tests/webview/test_webview_api_client_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-11
+last_modified: 2026-06-16
 last_reviewed: 2026-06-11
-sha256: 41cba53b7a0f0bc8b59b52a2f119000ebfae30e6713d35a42a144fdf1ffcc259
+sha256: e5129e09356da9e9d53ea1d87fd7910b618037cb455d087a3a4e6b4bb780152f
 ---
 # `tests/webview/test_webview_api_client_smoke.py`
 

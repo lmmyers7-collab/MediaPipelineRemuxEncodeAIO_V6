@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import sys
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 
@@ -196,17 +197,19 @@ class WorkerPendingDoneFlushTests(unittest.TestCase):
             worker = self._make_worker(Path(td) / "worker_state.json", [], [])
             self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
 
-    def test_flush_keeps_active_claim_record_without_pending_report(self) -> None:
+    def test_flush_blocks_claims_for_active_claim_record_without_pending_report(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "worker_state.json"
             save_worker_state(path, job_id="job-1", source_path=r"C:\Media\movie.mkv")
             posts: list[tuple[str, dict]] = []
             worker = self._make_worker(path, posts, [])
 
-            self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                self.assertFalse(WorkerDispatcher._flush_pending_done_report(worker))
 
             self.assertEqual(posts, [])
             self.assertTrue(path.exists())
+            self.assertIn("unresolved active job job-1", "\n".join(logs.output))
 
     def test_flush_delivers_pending_report_and_clears_state(self) -> None:
         with tempfile.TemporaryDirectory() as td:
@@ -248,7 +251,7 @@ class WorkerPendingDoneFlushTests(unittest.TestCase):
             self.assertTrue(path.exists())
             self.assertIn("holding new claims", "\n".join(logs.output))
 
-    def test_flush_discards_pending_report_unknown_to_coordinator(self) -> None:
+    def test_flush_holds_pending_report_unknown_to_coordinator(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             path = Path(td) / "worker_state.json"
             save_worker_state(
@@ -262,7 +265,56 @@ class WorkerPendingDoneFlushTests(unittest.TestCase):
             )
 
             with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
-                self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
+                self.assertFalse(WorkerDispatcher._flush_pending_done_report(worker))
+
+            self.assertTrue(path.exists())
+            self.assertIn("holding new claims", "\n".join(logs.output))
+
+    def test_flush_clears_pending_report_after_late_recorded_response(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            save_worker_state(
+                path,
+                job_id="job-1",
+                source_path=r"C:\Media\movie.mkv",
+                pending_done_report={"job_id": "job-1", "success": True},
+            )
+            posts: list[tuple[str, dict]] = []
+            events: list[dict] = []
+            worker = self._make_worker(path, posts, events)
+            worker._http_post = lambda post_path, payload: posts.append((post_path, payload)) or {"status": "late_recorded"}  # type: ignore[method-assign]
+
+            self.assertTrue(WorkerDispatcher._flush_pending_done_report(worker))
 
             self.assertFalse(path.exists())
-            self.assertIn("no longer known to the coordinator", "\n".join(logs.output))
+            self.assertEqual(events[0]["event"], "pending_done_recovered")
+
+    def test_poll_loop_does_not_claim_with_unresolved_active_state(self) -> None:
+        class StopAfterWait:
+            def __init__(self) -> None:
+                self.stopped = False
+
+            def is_set(self) -> bool:
+                return self.stopped
+
+        with tempfile.TemporaryDirectory() as td:
+            path = Path(td) / "worker_state.json"
+            save_worker_state(path, job_id="job-1", source_path=r"C:\Media\movie.mkv")
+            stop = StopAfterWait()
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = path
+            worker._worker_id = "worker-1"
+            worker._poll_interval = 1.0
+            worker._poll_stop = stop
+            worker._active_job_lock = threading.Lock()
+            worker._active_job = None
+            worker._notify_status = statuses.append  # type: ignore[method-assign]
+            worker._http_get = lambda *_args, **_kwargs: (_ for _ in ()).throw(AssertionError("claim called"))  # type: ignore[method-assign]
+            worker._wait_interruptible = lambda *_args, **_kwargs: setattr(stop, "stopped", True)  # type: ignore[method-assign]
+
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING"):
+                WorkerDispatcher._poll_loop(worker)
+
+        self.assertEqual(len(statuses), 1)
+        self.assertIn("crash recovery unresolved", statuses[0])

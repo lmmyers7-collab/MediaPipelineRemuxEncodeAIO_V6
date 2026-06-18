@@ -114,6 +114,15 @@ function Get-PipelinePlanAudioMaxChannels {
     return ConvertTo-PipelinePlanInt -Value $channels -Default 6
 }
 
+function Get-PipelinePlanAllowNoAudio {
+    param([Parameter(Mandatory)] $Plan)
+    $value = Get-PipelinePlanNestedProperty -Value $Plan -Path @('effectivePresetSnapshot','presetV2','audio','allowNoAudio') -Default $null
+    if ($null -eq $value) {
+        $value = Get-PipelinePlanEffectivePolicyValue -Plan $Plan -Name 'allow_no_audio' -Default $false
+    }
+    return ConvertTo-PipelinePlanBool -Value $value -Default $false
+}
+
 function Get-PipelinePlanIsTV {
     param([Parameter(Mandatory)] $Plan)
     $mediaType = [string](Get-PipelinePlanNestedProperty -Value $Plan -Path @('decisionSnapshot','sourceFactsUsed','media_type') -Default '')
@@ -149,7 +158,8 @@ function New-PipelinePlanExecutorAudioArgumentList {
     $outOrdinal = 0
     $bitrate = Get-PipelinePlanTranscodeBitrate -Plan $Plan
     $maxChannels = Get-PipelinePlanAudioMaxChannels -Plan $Plan
-    foreach ($action in @(Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'audio' | Sort-Object { [int]$_.streamIndex })) {
+    $audioActions = @(Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'audio' | Sort-Object { [int]$_.streamIndex })
+    foreach ($action in $audioActions) {
         $sourceIndex = ConvertTo-PipelinePlanInt -Value $action.streamIndex -Default -1
         if ($sourceIndex -lt 0) {
             throw 'PipelinePlan validation failed: audio stream action requires a non-negative streamIndex.'
@@ -174,8 +184,12 @@ function New-PipelinePlanExecutorAudioArgumentList {
         }
         $outOrdinal++
     }
-    if ($outOrdinal -eq 0 -and @(Get-PipelinePlanStreamActions -Plan $Plan -StreamType 'audio').Count -gt 0) {
-        $args.Add('-an')
+    if ($outOrdinal -eq 0 -and $audioActions.Count -gt 0) {
+        if (Get-PipelinePlanAllowNoAudio -Plan $Plan) {
+            $args.Add('-an')
+        } else {
+            throw 'PipelinePlan validation failed: all planned audio streams are dropped but allowNoAudio is not enabled.'
+        }
     }
     return @($args.ToArray())
 }

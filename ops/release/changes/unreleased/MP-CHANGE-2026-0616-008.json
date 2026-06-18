@@ -1,0 +1,161 @@
+{
+  "id": "MP-CHANGE-2026-0616-008",
+  "title": "Implement Tauri WebView backend lifecycle authority findings",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Verified and implemented actionable Tauri/WebView/backend lifecycle authority findings from the review packet. WebView validation now fails closed in Tauri startup, active network stops report preserved work instead of false stopped authority, bootstrap bearer tokens are scrubbed from global WebView state after API client capture, eval is removed from CSP, bundle targets are Windows-only, and debug automation release fencing now has regression coverage.",
+  "reason": "The operator requested end-to-end implementation of confirmed actionable code issues extracted from the Tauri/WebView/backend lifecycle authority Markdown review packet.",
+  "affected_areas": [
+    "tauri-shell",
+    "webview",
+    "local-api",
+    "network-lifecycle",
+    "route-contracts",
+    "release-packaging",
+    "tests",
+    "docs",
+    "change-control"
+  ],
+  "behavior_before": "Tauri startup could continue after non-bootstrap WebView validation failures; confirmed network stop could report/commit stopped while active work remained preserved; WebView bootstrap token remained in global objects; Local API and Tauri CSP allowed unsafe-eval; Tauri bundle target was all; debug automation release fencing lacked explicit regression coverage.",
+  "behavior_after": "Tauri startup treats every backend-served WebView validation failure as fatal; confirmed network stop returns and commits active_work_preserved with backend active-work evidence when local jobs or remote claims remain; WebView bootstrap globals are rewritten without bearer tokens after the API client captures the token in closure state; Local API and Tauri CSP no longer allow unsafe-eval; Tauri bundle targets are msi/nsis; debug automation cfg release no-ops are covered by scaffold tests. Removing unsafe-inline remains blocked pending a separate nonce/hash or external bootstrap redesign.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "apps/desktop/tauri/src-tauri/tauri.conf.json",
+    "apps/desktop/webview/static/assets/apiClient.js",
+    "apps/desktop/webview/static/assets/networkView.js",
+    "src/mediapipeline/core/network/lifecycle_facade.py",
+    "src/mediapipeline/desktop/api/http_helpers.py",
+    "tests/python/desktop/test_api_http_helpers.py",
+    "tests/python/desktop/test_network_lifecycle_fixes.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py",
+    "tests/webview/test_webview_api_client_smoke.py",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-008.json.md",
+    "docs/reviews/tauri-webview-backend-lifecycle-authority-2026-06-16/09-implementation-ledger.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-008.json"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_network_lifecycle_fixes.py",
+    "tests/python/desktop/test_api_http_helpers.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py",
+    "tests/webview/test_webview_api_client_smoke.py",
+    "tests/webview/test_webview_browser_network_smoke.py"
+  ],
+  "manual_validation": [
+    "Read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md before source edits.",
+    "Ingested provided Tauri/WebView/backend lifecycle authority review Markdown files 00-review-scope.md through 08-final-review-summary.md.",
+    "Read generated summaries for primary Tauri, WebView, network lifecycle, and test files before opening full source where summaries were insufficient.",
+    "Static WebView asset scan found no browser-side eval/new Function usage in served WebView assets; Tauri debug eval remains cfg(debug_assertions)-gated.",
+    "$env:PYTHONPATH='src'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_network_lifecycle_fixes tests.python.desktop.test_api_http_helpers tests.python.desktop.test_tauri_shell_scaffold tests.webview.test_webview_api_client_smoke -q -> 128 tests passed.",
+    "cargo test web_ui_validation_treats_all_asset_validation_failures_as_fatal --quiet -> passed.",
+    "cargo test capability_and_route_samples_are_bounded --quiet -> passed.",
+    "$env:PYTHONPATH='src'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_network_smoke -q -> 1 test passed.",
+    "npm --prefix apps\\desktop\\tauri run check -> cargo check passed.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched source/test/packet paths> -> 11 written, 1 unchanged.",
+    "Batch strict change-control coverage via mediapipeline.tools.change_control.packet_coverage.coverage_for_paths for MP-CHANGE-2026-0616-008 -> 15 changed paths, 15 covered, 0 uncovered.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes -> blocked by unrelated pre-existing packets MP-CHANGE-2026-0615-021 and MP-CHANGE-2026-0616-011.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> blocked by the same unrelated packet errors plus 17 unrelated worktree paths not covered by any unreleased packet."
+  ],
+  "rollback_plan": "Revert only the files listed in files_touched for this packet after confirming no unrelated pre-existing edits in those files should be preserved. Do not revert source media, runtime state, personal config, release packages, archived rollback evidence, or unrelated dirty worktree files from other packets.",
+  "related_changes": [
+    "MP-CHANGE-2026-0616-002",
+    "MP-CHANGE-2026-0616-007"
+  ],
+  "implementation_ledger": [
+    {
+      "issue_id": "F-01",
+      "source_markdown_file": "docs/reviews/tauri-webview-backend-lifecycle-authority-2026-06-16/05-findings.md",
+      "severity": "high",
+      "affected_files_modules": [
+        "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+        "apps/desktop/tauri/src-tauri/src/lib.rs",
+        "tests/python/desktop/test_tauri_shell_scaffold.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.python.desktop.test_tauri_shell_scaffold",
+        "cargo test web_ui_validation_treats_all_asset_validation_failures_as_fatal",
+        "npm --prefix apps/desktop/tauri run check"
+      ],
+      "risk_boundary_touched": "Tauri lifecycle, WebView validation, close-readiness/operator trust",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "F-02",
+      "source_markdown_file": "docs/reviews/tauri-webview-backend-lifecycle-authority-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "src/mediapipeline/core/network/lifecycle_facade.py",
+        "apps/desktop/webview/static/assets/networkView.js",
+        "tests/python/desktop/test_network_lifecycle_fixes.py",
+        "tests/webview/test_webview_browser_network_smoke.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.python.desktop.test_network_lifecycle_fixes",
+        "tests.webview.test_webview_browser_network_smoke"
+      ],
+      "risk_boundary_touched": "Network lifecycle state evidence and operator trust",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "F-03",
+      "source_markdown_file": "docs/reviews/tauri-webview-backend-lifecycle-authority-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_modules": [
+        "apps/desktop/webview/static/assets/apiClient.js",
+        "apps/desktop/tauri/src-tauri/tauri.conf.json",
+        "src/mediapipeline/desktop/api/http_helpers.py",
+        "tests/webview/test_webview_api_client_smoke.py",
+        "tests/python/desktop/test_api_http_helpers.py",
+        "tests/python/desktop/test_tauri_shell_scaffold.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.webview.test_webview_api_client_smoke",
+        "tests.python.desktop.test_api_http_helpers",
+        "tests.python.desktop.test_tauri_shell_scaffold",
+        "npm --prefix apps/desktop/tauri run check"
+      ],
+      "risk_boundary_touched": "Local API token authority, CSP, WebView command authority",
+      "implementation_status": "fixed_validated_for_global_token_and_unsafe_eval; blocked_for_unsafe_inline_pending_bootstrap_redesign"
+    },
+    {
+      "issue_id": "F-04",
+      "source_markdown_file": "docs/reviews/tauri-webview-backend-lifecycle-authority-2026-06-16/05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "apps/desktop/tauri/src-tauri/tauri.conf.json",
+        "tests/python/desktop/test_tauri_shell_scaffold.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.python.desktop.test_tauri_shell_scaffold",
+        "npm --prefix apps/desktop/tauri run check"
+      ],
+      "risk_boundary_touched": "Single-instance ownership and release packaging target",
+      "implementation_status": "fixed_validated"
+    },
+    {
+      "issue_id": "F-05",
+      "source_markdown_file": "docs/reviews/tauri-webview-backend-lifecycle-authority-2026-06-16/05-findings.md",
+      "severity": "low",
+      "affected_files_modules": [
+        "apps/desktop/tauri/src-tauri/src/debug_webview.rs",
+        "tests/python/desktop/test_tauri_shell_scaffold.py"
+      ],
+      "verification_status": "already_fixed_source; coverage_gap_confirmed",
+      "required_tests": [
+        "tests.python.desktop.test_tauri_shell_scaffold"
+      ],
+      "risk_boundary_touched": "Debug automation and operator confirmation boundary",
+      "implementation_status": "regression_coverage_added_validated"
+    }
+  ],
+  "notes": "No source media, runtime state, personal config, release package, or archived rollback evidence was intentionally modified. Existing dirty worktree files from other packets were preserved; several touched files already contained unrelated pre-existing edits before this packet. Residual blocked item: CSP still includes unsafe-inline because the current inline bootstrap and Tauri startup injection require a separate nonce/hash or external bootstrap redesign. Full worktree change-control validation is blocked by unrelated packet/schema coverage problems outside this packet; MP-CHANGE-2026-0616-008 batch coverage is complete."
+}

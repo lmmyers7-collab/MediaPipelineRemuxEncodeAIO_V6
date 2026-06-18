@@ -1,0 +1,29 @@
+{
+  "id": "MP-CHANGE-2026-0614-024",
+  "title": "W09 network coordinator worker review",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-14",
+  "summary": "Added the W09 review-only worker audit report for network join blobs, coordinator discovery, test connection probing, path mapping, and library-root resolution.",
+  "reason": "The network coordinator/worker mode review packet requested an independent W09 audit artifact with findings, evidence, validation, and scoped follow-up prompts.",
+  "affected_areas": [
+    "docs",
+    "network-review"
+  ],
+  "behavior_before": "No W09 worker report existed under the 2026-06-15 network coordinator/worker mode review directory.",
+  "behavior_after": "The W09 worker report documents reviewed scope, required reads, validation evidence, three findings, coverage gaps, boundary risks, and follow-up prompts without changing source behavior.",
+  "files_touched": [
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W09-join-discovery-test-connection-paths.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-024.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_network_join.py tests/python/desktop/test_network_mdns.py tests/python/desktop/test_network_test_connection.py tests/python/desktop/test_network_path_auto_map.py tests/python/desktop/test_network_library_relative_claim.py tests/python/desktop/test_network_local_ip.py tests/python/desktop/test_network_drift_descriptor.py tests/webview/test_webview_network_read_only_boundary.py - 52 passed in 6.49s"
+  ],
+  "rollback_plan": "Delete docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W09-join-discovery-test-connection-paths.md and this change packet if the review artifact must be withdrawn.",
+  "related_changes": [],
+  "notes": "Review-only W09 network join/discovery/test-connection/path mapping worker report.\nCompleted review-only W09 worker report; no source, config, state, media, generated summaries, or aggregate review files edited."
+}

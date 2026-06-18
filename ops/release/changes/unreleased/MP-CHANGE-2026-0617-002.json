@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0617-002",
+  "title": "Treat Matroska cover image streams as attached pictures",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Classify Matroska cover image streams as attached pictures when ffprobe exposes them as video streams with image attachment tags but no attached_pic disposition.",
+  "reason": "Ascendance of a Bookworm S03 files include a single H.264 episode stream plus cover.jpg as an MJPEG image attachment. MediaInfo reports VideoCount=1 and ImageCount=1, but the existing ffprobe inventory counted the tagged cover image as a second real video stream and blocked encode with SOURCE_VIDEO_STREAMS_UNVETTED.",
+  "affected_areas": [
+    "media-policy",
+    "probe"
+  ],
+  "behavior_before": "Get-SourceVideoStreamInventory relied on ffprobe disposition.attached_pic to separate cover art from real video. When ffprobe omitted that JSON disposition for a Matroska cover image, the MJPEG cover stream was counted as real video and encode/remux failed closed as multi-video.",
+  "behavior_after": "The video inventory probe asks ffprobe for filename/mimetype stream tags and treats image attachments as attached pictures when either attached_pic is set or the stream carries image mimetype/filename evidence. True multi-real-video sources still fail closed.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/probe/media_probe.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-002.json.md",
+    "ops/pipeline/engine/probe/media_probe.ps1",
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-002.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1 tagged-cover case"
+  ],
+  "manual_validation": [
+    "Live read-only Test-SourceVideoStreamPublishPolicy probe against copied failure artifact returned Allowed=true, RealVideoStreamCount=1, AttachedPicCount=1",
+    "Read-only ffmpeg mapping check confirmed -map 0:V copies only stream 0:0 while -map 0:v includes cover stream 0:5",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/probe/media_probe.ps1 ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0617-002.json - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0617-002.json - passed",
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1 - passed after final packet summary regeneration",
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1 - passed after summary regeneration"
+  ],
+  "rollback_plan": "Revert the Test-SourceVideoStreamAttachedPicture helper/tag-based classification and the tagged-cover regression case, then rerun Invoke-MediaVerificationSafetyChecks.ps1.",
+  "related_changes": [],
+  "notes": "SOURCE_VIDEO_STREAMS_UNVETTED reproduced on Matroska cover art: ffprobe JSON reports cover.jpg as mjpeg video with image/jpeg tags but no attached_pic disposition; ffmpeg -map 0:V excludes it.\nOld failure markers remain historical UI state; clear the marker and rerun affected sources after updating the pipeline code."
+}

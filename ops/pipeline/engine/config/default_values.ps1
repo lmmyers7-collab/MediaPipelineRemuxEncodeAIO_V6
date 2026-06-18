@@ -94,6 +94,11 @@ function Get-MediaPipelineRenameMovieFilterTermsDefault {
         services_containers = @(
             'amzn','nf','dsnp','hmax','hulu','itunes','appletv','atvp','peacock','pck','vudu','stan','sho','mkv','mp4','m4v','avi','mov','wmv'
         )
+        languages_subs_dubs = @(
+            'eng','ita','fre','fra','ger','deu','spa','esp','jpn','jap','kor','chi','zho','rus','por','dut','nld','swe','dan','nor',
+            'fin','pol','cze','ces','hun','gre','ell','tur','ara','hin','tha','vie','ukr','sub','subs','subbed','dub','dubs',
+            'dubbed','multi','multi audio','dual audio','dual-audio','vostfr','vose'
+        )
         release_groups = @(
             'rarbg','rbg','yify','yts','yts lt','galaxyrg','bone','psa','tigole','kris','sparks','ntb','evo','tepes','flux','framestor','cmrg','neonoir'
         )

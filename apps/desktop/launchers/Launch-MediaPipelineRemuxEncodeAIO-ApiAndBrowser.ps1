@@ -9,7 +9,7 @@ param(
     [string]$Browser = '',
 
     # Development escape hatch only. The normal browser launcher keeps API token
-    # checks enabled; the backend injects the per-run token into the local page.
+    # checks enabled; the backend sets the per-run token in an HttpOnly cookie.
     [switch]$NoTokenDevMode,
 
     # Skip the health-poll and open the browser immediately after launching the API.
@@ -131,14 +131,14 @@ if ($NoTokenDevMode) {
     Write-Host "Token auth: DISABLED by explicit -NoTokenDevMode" -ForegroundColor Red
     Write-Host "Warning  : dev-only bypass; do not use for normal local operation or packages." -ForegroundColor Red
 } else {
-    Write-Host "Token auth: enabled (browser receives a per-run bootstrap token)"
+    Write-Host "Token auth: enabled (browser receives a same-origin HttpOnly auth cookie)"
 }
 Write-Host ''
 
 # ---------------------------------------------------------------------------
 # Start the API in a detached console window so it keeps running after this
 # script exits.  Normal browser mode keeps API token checks enabled; the public
-# local HTML bootstrap provides the page with the per-run token for API calls.
+# local HTML response sets a same-origin HttpOnly cookie for API calls.
 # ---------------------------------------------------------------------------
 $ready = Test-ApiHealth -HealthUrl $healthUrl -TimeoutSec 1
 if ($ready) {

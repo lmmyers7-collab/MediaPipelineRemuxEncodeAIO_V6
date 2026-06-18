@@ -29,7 +29,16 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
         disabled = local_api_bootstrap(token="secret", require_token=False, app_version="v5-test", shell_surface="tauri")
         tauri = local_api_bootstrap(token="secret", require_token=True, app_version="v5-test", shell_surface="tauri")
 
-        self.assertEqual(required, {"apiBase": "", "token": "secret", "appVersion": "v5-test", "shellSurface": "webview"})
+        self.assertEqual(
+            required,
+            {
+                "apiBase": "",
+                "token": "",
+                "appVersion": "v5-test",
+                "shellSurface": "webview",
+                "tokenSource": "http-only-cookie",
+            },
+        )
         self.assertEqual(disabled, {"apiBase": "", "token": "", "appVersion": "v5-test", "shellSurface": "tauri"})
         self.assertEqual(
             tauri,
@@ -44,23 +53,24 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
 
     def test_render_index_html_replaces_bootstrap_placeholder(self) -> None:
         body = render_index_html(
-            f"window.MEDIA_PIPELINE_BOOTSTRAP = {STATIC_INDEX_BOOTSTRAP_PLACEHOLDER};",
-            {"token": "secret", "appVersion": "v5-test"},
+            f'<script type="application/json" id="media-pipeline-bootstrap">{STATIC_INDEX_BOOTSTRAP_PLACEHOLDER}</script>',
+            local_api_bootstrap(token="secret", require_token=True, app_version="v5-test"),
         ).decode("utf-8")
 
-        self.assertIn('"token": "secret"', body)
+        self.assertNotIn("secret", body)
+        self.assertIn('"tokenSource": "http-only-cookie"', body)
         self.assertIn('"appVersion": "v5-test"', body)
         self.assertNotIn(STATIC_INDEX_BOOTSTRAP_PLACEHOLDER, body)
 
     def test_render_index_html_escapes_script_breakout_json(self) -> None:
         body = render_index_html(
-            f"<script>window.MEDIA_PIPELINE_BOOTSTRAP = {STATIC_INDEX_BOOTSTRAP_PLACEHOLDER};</script>",
+            f'<script type="application/json" id="media-pipeline-bootstrap">{STATIC_INDEX_BOOTSTRAP_PLACEHOLDER}</script>',
             {"token": "</script><img src=x onerror=alert(1)>", "line": "\u2028"},
         ).decode("utf-8")
 
         self.assertNotIn("</script><img", body)
         self.assertIn("\\u003c/script\\u003e", body)
-        json_text = body.split(" = ", 1)[1].split(";</script>", 1)[0]
+        json_text = body.split(">", 1)[1].split("</script>", 1)[0]
         parsed = json.loads(json_text)
         self.assertEqual(parsed["token"], "</script><img src=x onerror=alert(1)>")
 
@@ -81,17 +91,18 @@ class LocalApiStaticFilesPolicyTests(unittest.TestCase):
             partials.mkdir()
             (partials / "shell.html").write_text(
                 "<div id=\"app-version\">2026.06.04.001</div>\n"
-                f"window.MEDIA_PIPELINE_BOOTSTRAP = {STATIC_INDEX_BOOTSTRAP_PLACEHOLDER};",
+                f'<script type="application/json" id="media-pipeline-bootstrap">{STATIC_INDEX_BOOTSTRAP_PLACEHOLDER}</script>',
                 encoding="utf-8",
             )
             (root / "index.html").write_text("<!-- mp-include: partials/shell.html -->", encoding="utf-8")
 
-            response = render_index(root, {"token": "secret", "appVersion": "v5-test"})
+            response = render_index(root, local_api_bootstrap(token="secret", require_token=True, app_version="v5-test"))
 
         self.assertEqual(response.status, 200)
         body = response.body.decode("utf-8")
         self.assertIn('id="app-version"', body)
-        self.assertIn('"token": "secret"', body)
+        self.assertNotIn("secret", body)
+        self.assertIn('"tokenSource": "http-only-cookie"', body)
         self.assertNotIn("mp-include", body)
         self.assertNotIn(STATIC_INDEX_BOOTSTRAP_PLACEHOLDER, body)
 

@@ -22,6 +22,26 @@ from mediapipeline.core.decide.routing_profiles import _h264_plex_compatible, _p
 from mediapipeline.core.decide.routing_trace import _DecisionBuilder, _legacy_reason_for_actions, _source_facts
 from mediapipeline.core.decide.stream_actions import audio_action, container_action, subtitle_action
 
+_AUDIO_CODEC_FIDELITY_RANKS: dict[str, int] = {
+    "truehd": 130,
+    "mlp": 125,
+    "dts-hd": 120,
+    "dts_hd_ma": 120,
+    "flac": 115,
+    "alac": 112,
+    "pcm_s24le": 110,
+    "pcm_s24be": 110,
+    "pcm_s16le": 108,
+    "pcm_s16be": 108,
+    "dts": 100,
+    "eac3": 90,
+    "ac3": 82,
+    "opus": 76,
+    "aac": 72,
+    "vorbis": 68,
+    "mp3": 60,
+}
+
 
 def build_processing_decision(
     source: SourceMediaInfo,
@@ -159,7 +179,7 @@ def _select_mp4_audio_stream(audio_streams: list[SourceAudioStream], policy: Eff
     if not preferred:
         preferred = ["eng"]
 
-    def rank(stream: SourceAudioStream) -> tuple[int, int, int, int, int]:
+    def rank(stream: SourceAudioStream) -> tuple[int, int, int, int]:
         language = _normalize_language(stream.language)
         try:
             preference_rank = preferred.index(language)
@@ -168,11 +188,16 @@ def _select_mp4_audio_stream(audio_streams: list[SourceAudioStream], policy: Eff
         title = str(stream.title or "").lower()
         commentary_penalty = 1 if any(token in title for token in ("commentary", "director", "descriptive")) else 0
         codec_penalty = 0 if normalize_codec(stream.codec) == "eac3" else 1
-        default_penalty = 0 if stream.default else 1
-        return (preference_rank, commentary_penalty, codec_penalty, default_penalty, -int(stream.channels or 0))
+        return (preference_rank, commentary_penalty, codec_penalty, -_audio_fidelity_score(stream))
 
     selected = sorted(audio_streams, key=lambda item: (*rank(item), int(item.stream_index)))[0]
     return int(selected.stream_index)
+
+
+def _audio_fidelity_score(stream: SourceAudioStream) -> int:
+    codec_rank = _AUDIO_CODEC_FIDELITY_RANKS.get(normalize_codec(stream.codec), 50)
+    channels = min(max(int(stream.channels or 0), 0), 16)
+    return (codec_rank * 1000) + (channels * 10)
 
 
 def _normalize_language(value: object) -> str:

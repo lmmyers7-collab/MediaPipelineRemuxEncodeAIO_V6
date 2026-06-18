@@ -111,3 +111,4 @@ vlc-help.txt
 **/State/Validation/sample_validation_log.jsonl
 docs/RealMediaValidationRuns/*.md
 !docs/RealMediaValidationRuns/README.md
+docs/PG3CleanMachineReports/

@@ -46,7 +46,12 @@ class WebViewApiClientSmokeTests(unittest.TestCase):
               MEDIA_PIPELINE_BOOTSTRAP: {
                 apiBase: "http://127.0.0.1:8765",
                 token: "test-token",
+                shellSurface: "webview",
               },
+              MEDIA_PIPELINE_TAURI_BOOTSTRAP: Object.freeze({
+                token: "test-token",
+                tokenSource: "tauri-startup",
+              }),
               async fetch(url, options = {}) {
                 fetchCalls.push({ url: String(url), options });
                 if (!fetchQueue.length) throw new Error("fetch called without an enqueued response");
@@ -79,6 +84,16 @@ class WebViewApiClientSmokeTests(unittest.TestCase):
               if (!client || typeof client.apiGet !== "function" || typeof client.apiPost !== "function") {
                 throw new Error("API client globals were not exported");
               }
+              if (!client.tokenPresent) throw new Error("API client did not report an available auth channel");
+              if (Object.prototype.hasOwnProperty.call(context.MEDIA_PIPELINE_BOOTSTRAP, "token")) {
+                throw new Error("MEDIA_PIPELINE_BOOTSTRAP retained the bearer token");
+              }
+              if (Object.prototype.hasOwnProperty.call(context.MEDIA_PIPELINE_TAURI_BOOTSTRAP, "token")) {
+                throw new Error("MEDIA_PIPELINE_TAURI_BOOTSTRAP retained the bearer token");
+              }
+              if (context.MEDIA_PIPELINE_BOOTSTRAP.shellSurface !== "webview") {
+                throw new Error("bootstrap token scrubber removed non-secret bootstrap fields");
+              }
 
               enqueueResponse({ ok: true, status: 200, body: "<html>not-json</html>" });
               await requireRejects(client.apiGet("/api/health"), [
@@ -108,6 +123,7 @@ class WebViewApiClientSmokeTests(unittest.TestCase):
               const getCall = fetchCalls.find((call) => call.url.endsWith("/api/health"));
               if (!getCall) throw new Error("apiGet did not call fetch for /api/health");
               if (getCall.options.cache !== "no-store") throw new Error("apiGet must keep cache disabled");
+              if (getCall.options.credentials !== "same-origin") throw new Error("apiGet must send same-origin auth cookies");
               if (getCall.options.headers.Authorization !== "Bearer test-token") {
                 throw new Error("apiGet did not send the bootstrap bearer token");
               }

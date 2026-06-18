@@ -6,6 +6,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
@@ -114,6 +116,7 @@ def _base_config() -> dict:
         "PriorityMarkers": ["[NOW]"],
         "SourceScanIntervalSeconds": 300,
         "ProcessedIndexRefreshSeconds": 900,
+        "CoordinatorMaxJobRetries": 3,
         "TransientFailureRetryLimit": 3,
         "RobocopyTimeoutSeconds": 3600,
         "SourceScanTimeoutSeconds": 300,
@@ -1500,6 +1503,40 @@ class LibraryProfileTests(unittest.TestCase):
         )
 
         self.assertEqual(config.LibraryProfiles[0]["id"], "movies")
+
+    def test_config_contract_rejects_strict_library_profile_json_text(self) -> None:
+        cases = [
+            (
+                "LibraryProfiles",
+                '[{"id": "movies", "id": "shadow"}]',
+                "duplicate JSON object key: id",
+            ),
+            (
+                "LibraryProfiles",
+                '[{"id": "movies", "enabled": NaN}]',
+                "non-finite JSON value is not allowed: NaN",
+            ),
+            (
+                "LibraryProfiles",
+                '[{"id": "movies", "enabled": Infinity}]',
+                "non-finite JSON value is not allowed: Infinity",
+            ),
+            (
+                "FinalLibraryPromotionRules",
+                '[{"id": "rule-a", "id": "rule-b"}]',
+                "duplicate JSON object key: id",
+            ),
+            (
+                "FinalLibraryPromotionRules",
+                '[{"id": "rule-a", "enabled": NaN}]',
+                "non-finite JSON value is not allowed: NaN",
+            ),
+        ]
+        for key, raw, expected in cases:
+            with self.subTest(key=key, raw=raw):
+                with self.assertRaises(ValidationError) as raised:
+                    Config.model_validate({**_base_config(), key: raw})
+                self.assertIn(expected, str(raised.exception))
 
     def test_preview_save_validation_accepts_library_profiles_and_warns_mirror(self) -> None:
         values = _base_config()

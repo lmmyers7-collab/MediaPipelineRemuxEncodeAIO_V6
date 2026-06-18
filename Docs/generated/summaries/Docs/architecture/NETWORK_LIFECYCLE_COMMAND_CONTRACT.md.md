@@ -3,9 +3,9 @@ file: docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-15
 last_reviewed: 2026-06-02
-sha256: e862610acd37217108e18b2270f4b280d8a4b1cfeaa8684ae4727fa5966daec9
+sha256: b830c4a685304ebfb3383ea4b12db1d83ad7745be888a2b8326ebc1ca5d29490
 ---
 # `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`
 

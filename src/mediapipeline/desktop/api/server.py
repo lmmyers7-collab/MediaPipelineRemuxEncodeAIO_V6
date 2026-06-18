@@ -4,6 +4,7 @@ from collections.abc import Callable
 import http.server
 import logging
 import secrets
+import sys
 import threading
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,14 @@ from ..models import ResolvedPaths, Snapshot
 from .command_journal import CommandJournal
 from mediapipeline.core.api.command_handlers import LocalApiCommandHandlerMixin
 from .handler import build_local_api_handler_class
-from .http_helpers import host_header_authorized, local_api_allowed_origins, origin_header_authorized, request_authorized
+from .http_helpers import (
+    host_header_authorized,
+    is_client_disconnect_error,
+    local_api_allowed_origins,
+    local_api_auth_cookie_header,
+    origin_header_authorized,
+    request_authorized,
+)
 from .read_payloads import LocalApiReadPayloadMixin
 from .static_files import default_static_root, local_api_bootstrap, read_static_asset, render_index
 
@@ -23,6 +31,19 @@ ResolvedReload = Callable[[], ResolvedPaths | None]
 SnapshotProvider = Callable[[], Snapshot | None]
 AuditRootProvider = Callable[[], str]
 ShutdownRequest = Callable[[], None]
+
+
+class _LocalApiThreadingHTTPServer(http.server.ThreadingHTTPServer):
+    def __init__(self, *args: Any, logger: logging.Logger, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._logger = logger
+
+    def handle_error(self, request: Any, client_address: Any) -> None:
+        exc = sys.exc_info()[1]
+        if exc is not None and is_client_disconnect_error(exc):
+            self._logger.debug("Local API client disconnected before request completed: %s", client_address)
+            return
+        super().handle_error(request, client_address)
 
 
 class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
@@ -89,7 +110,7 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         if self._server is not None:
             return
         handler_cls = build_local_api_handler_class(self)
-        server = http.server.ThreadingHTTPServer((self.host, self.requested_port), handler_cls)
+        server = _LocalApiThreadingHTTPServer((self.host, self.requested_port), handler_cls, logger=self.logger)
         # Command handlers own cleanup/journaling; do not abandon them during backend shutdown.
         server.daemon_threads = False
         self._server = server
@@ -194,7 +215,20 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
             ),
             logger=self.logger,
         )
-        handler._send_bytes(response.body, status=response.status, content_type=response.content_type)  # type: ignore[attr-defined]
+        extra_headers: list[tuple[str, str]] = []
+        cookie = local_api_auth_cookie_header(
+            token=self.token,
+            require_token=self.require_token,
+            shell_surface=self.shell_surface,
+        )
+        if response.status == 200 and cookie:
+            extra_headers.append(("Set-Cookie", cookie))
+        handler._send_bytes(  # type: ignore[attr-defined]
+            response.body,
+            status=response.status,
+            content_type=response.content_type,
+            extra_headers=extra_headers,
+        )
 
     def _send_static(self, handler: http.server.BaseHTTPRequestHandler, route: str) -> None:
         response = read_static_asset(self.static_root, route, logger=self.logger)

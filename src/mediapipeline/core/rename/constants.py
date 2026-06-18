@@ -7,6 +7,7 @@ RENAME_MOVIE_FILTER_OPTION_KEYS = (
     "editions",
     "file_size",
     "services_containers",
+    "languages_subs_dubs",
     "release_groups",
 )
 RENAME_TOOL_SIDECAR_SCHEMA_VERSION = "rename_tool.v1"

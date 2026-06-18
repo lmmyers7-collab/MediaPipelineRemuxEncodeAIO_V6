@@ -1,0 +1,101 @@
+{
+  "id": "MP-CHANGE-2026-0615-018",
+  "title": "Network coordinator worker remaining remediation implementation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-15",
+  "date_completed": "2026-06-15",
+  "summary": "Implement the remaining Network Worker/Coordinator remediation plans for cooperative coordinator drain, provider startup cleanup, worker-state recovery preservation, strict integer parsing, worker local log redaction, WebView stop copy, and focused regressions.",
+  "reason": "The post-hardening audit found that Network Worker/Coordinator was still not production-safe because coordinator lifecycle evidence ignored remote active claims, ordinary coordinator stop could close HTTP while workers still needed done/heartbeat/log routes, provider startup failures could leave stale runtime state, unreadable worker_state.json could be deleted at startup, selected integer fields still coerced hostile values, worker local cluster-log mirror text was not redacted before local logging, and WebView stop copy implied active work abort.",
+  "affected_areas": [
+    "auth-redaction",
+    "lifecycle",
+    "network-coordinator-worker",
+    "tests",
+    "webview",
+    "worker-state"
+  ],
+  "behavior_before": "Remote in-flight coordinator claims were not lifecycle active-work evidence, ordinary coordinator stop could tear down coordinator HTTP during remote active work, worker/coordinator partial startup failures were not fully cleaned, unreadable worker state could be removed during startup, selected integer fields accepted coerced values, worker local mirror logs could carry unredacted secret text, and stop copy described possible abort semantics.",
+  "behavior_after": "Coordinator lifecycle evidence includes local active jobs and remote in-flight claims, coordinator stop enters cooperative drain when active work exists, provider startup failures clean partial dispatcher/runtime state, unreadable worker_state.json is preserved so claim polling remains blocked, present wrong-type worker-result and done/heartbeat integer fields are rejected, worker local cluster-log mirror text is redacted before local logging, and WebView stop copy describes cooperative stop semantics.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0615-018.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/lifecycle_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/network_lifecycle_provider.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/coordinator_lifecycle.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/protocol.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/registry.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/network/worker_state.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_crash_recovery.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_lifecycle_fixes.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_protocol_runtime.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_network_worker_runtime.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0615-018.json",
+    "src/mediapipeline/core/network/lifecycle_facade.py",
+    "src/mediapipeline/desktop/application/network_lifecycle_provider.py",
+    "src/mediapipeline/desktop/network/coordinator_lifecycle.py",
+    "src/mediapipeline/desktop/network/protocol.py",
+    "src/mediapipeline/desktop/network/registry.py",
+    "src/mediapipeline/desktop/network/worker.py",
+    "src/mediapipeline/desktop/network/worker_state.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_network_crash_recovery.py",
+    "tests/python/desktop/test_network_lifecycle_fixes.py",
+    "tests/python/desktop/test_network_protocol_runtime.py",
+    "tests/python/desktop/test_network_worker_runtime.py",
+    "tests/webview/test_webview_network_read_only_boundary.py",
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/09-implementation-ledger.md"
+  ],
+  "tests_added": [
+    "test_coordinator_stop_dry_run_reports_remote_active_claims",
+    "test_coordinator_start_dry_run_blocks_with_preserved_remote_claims",
+    "test_confirmed_coordinator_stop_with_remote_claim_enters_drain_without_http_shutdown",
+    "test_coordinator_drain_finalizes_shutdown_after_registry_idle",
+    "test_worker_start_polling_failure_cleans_runtime_entry",
+    "test_coordinator_start_loop_failure_shuts_down_partial_dispatcher",
+    "test_crash_recover_preserves_unreadable_state_and_does_not_post_done",
+    "test_done_request_rejects_coerced_integer_fields",
+    "test_heartbeat_request_rejects_coerced_integer_fields",
+    "result-artifact strict integer subcases in test_worker_provider_result_artifact_failure_paths_and_field_propagation",
+    "test_worker_local_cluster_log_mirror_redacts_token_assignment",
+    "test_worker_local_cluster_log_mirror_redacts_url_query_fragment_userinfo",
+    "WebView static assertion for cooperative lifecycle stop copy"
+  ],
+  "manual_validation": [
+    {
+      "command": "$env:PYTHONPATH=(Resolve-Path 'src').Path; apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_network_lifecycle_fixes tests.python.desktop.test_network_worker_runtime tests.python.desktop.test_network_worker_state tests.python.desktop.test_network_crash_recovery tests.python.desktop.test_network_protocol_runtime tests.python.desktop.test_application_facade_process_launch tests.webview.test_webview_network_read_only_boundary",
+      "result": "pass: 161 tests OK"
+    },
+    {
+      "command": "$env:PYTHONPATH=(Resolve-Path 'src').Path; apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_application_facade_network tests.python.desktop.test_network_lifecycle_fixes tests.python.desktop.test_network_worker_runtime tests.python.desktop.test_network_worker_state tests.python.desktop.test_network_crash_recovery tests.python.desktop.test_network_workflow tests.python.desktop.test_network_protocol_runtime tests.python.desktop.test_network_security tests.python.desktop.test_network_drift_descriptor tests.python.desktop.test_watch_folder_manager tests.python.desktop.test_api_command_contracts tests.python.desktop.test_api_contract_payload tests.python.desktop.test_tauri_shell_scaffold tests.webview.test_webview_network_read_only_boundary",
+      "result": "pass: 405 tests OK"
+    },
+    {
+      "command": "$env:PYTHONPATH=(Resolve-Path 'src').Path; apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_network_smoke.py -q",
+      "result": "pass: 1 passed"
+    },
+    {
+      "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\ops\\scripts\\smoke\\Test-WebViewBrowserNetworkSmoke.ps1",
+      "result": "pass: Ran 1 test OK"
+    },
+    {
+      "command": "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched paths>",
+      "result": "pass: 15 summaries written"
+    },
+    {
+      "command": "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+      "result": "pass: Change validation passed: 320 packet(s) valid"
+    }
+  ],
+  "rollback_plan": "Revert the scoped lifecycle, coordinator, worker-state, protocol/result strictness, WebView copy, focused test, generated summary, and change packet updates made for MP-CHANGE-2026-0615-018. Then rerun the targeted Network lifecycle/worker/security/WebView tests and strict change-control validation.",
+  "related_changes": [
+    "MP-CHANGE-2026-0615-017"
+  ],
+  "notes": "Implementation packet for REM-NCW-01 through REM-NCW-09. No media-policy, FFmpeg, subtitle/audio, publish/drain, queue semantics, source/scratch/output movement, or cleanup behavior changes are intended."
+}

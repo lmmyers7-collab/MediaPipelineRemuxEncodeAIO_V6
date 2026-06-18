@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/subtitles.py
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: contracts
-last_modified: 2026-06-05
+last_modified: 2026-06-16
 last_reviewed: 2026-06-05
-sha256: 810fdf4383d2663ef7002aa31fbe01a43447083dd78385b8f6ef816a3472f46b
+sha256: 2f9b361b64cd2a134fd1982841cb329f335e7e47b91b4b7e0405201d41ed20bb
 ---
 # `src/mediapipeline/contracts/subtitles.py`
 

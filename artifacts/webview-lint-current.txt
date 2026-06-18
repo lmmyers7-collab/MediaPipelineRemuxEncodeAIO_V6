@@ -1,0 +1,825 @@
+
+> webview:lint
+> node ops/scripts/dev/run-eslint.mjs "apps/desktop/webview/static/assets/**/*.js"
+
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\app.js
+   114:5    warning  'renderProgressBars' is not defined                                                           no-undef
+   116:3    warning  'renderProgressDetails' is not defined                                                        no-undef
+   118:5    warning  'renderProgressEvidence' is not defined                                                       no-undef
+   127:3    warning  'renderPipelineEvents' is not defined                                                         no-undef
+   129:66   warning  'getLastSettings' is not defined                                                              no-undef
+   130:56   warning  'renderLaunchAuditProgress' is not defined                                                    no-undef
+   133:5    warning  'renderLaunchReadiness' is not defined                                                        no-undef
+   133:123  warning  'getLastSettings' is not defined                                                              no-undef
+   306:7    warning  'renderLaunchReadiness' is not defined                                                        no-undef
+   306:125  warning  'getLastSettings' is not defined                                                              no-undef
+   322:5    warning  'renderLaunchReadiness' is not defined                                                        no-undef
+   322:123  warning  'getLastSettings' is not defined                                                              no-undef
+   382:78   warning  'getCommandHistory' is not defined                                                            no-undef
+   448:10   warning  'rowOpenActionGroup' is defined but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+   710:1    warning  Async function 'refreshAllNow' has too many lines (242). Maximum allowed is 220               max-lines-per-function
+   710:1    warning  Async function 'refreshAllNow' has a complexity of 165. Maximum allowed is 35                 complexity
+   774:27   warning  'renderDiagnostics' is not defined                                                            no-undef
+   781:21   warning  'renderQueue' is not defined                                                                  no-undef
+   784:25   warning  'renderCompleted' is not defined                                                              no-undef
+   804:34   warning  'renderPendingPublish' is not defined                                                         no-undef
+   808:5    warning  'renderSchedule' is not defined                                                               no-undef
+   820:5    warning  'renderSettings' is not defined                                                               no-undef
+   822:68   warning  'getLastSettings' is not defined                                                              no-undef
+   836:36   warning  'getLastSettings' is not defined                                                              no-undef
+   852:34   warning  'getLastSettings' is not defined                                                              no-undef
+   854:61   warning  'getLastMaintenance' is not defined                                                           no-undef
+   858:5    warning  'renderLaunchReadiness' is not defined                                                        no-undef
+   862:36   warning  'getLastSettings' is not defined                                                              no-undef
+   867:5    warning  'renderHomeActiveWork' is not defined                                                         no-undef
+   879:5    warning  'renderProgressEvidence' is not defined                                                       no-undef
+   894:36   warning  'getLastSettings' is not defined                                                              no-undef
+   898:5    warning  'renderCrossPageContext' is not defined                                                       no-undef
+   911:36   warning  'getLastSettings' is not defined                                                              no-undef
+   913:63   warning  'getLastMaintenance' is not defined                                                           no-undef
+   920:5    warning  'renderDiagnosticsInvestigationTrail' is not defined                                          no-undef
+   929:36   warning  'getLastSettings' is not defined                                                              no-undef
+   939:34   warning  'getLastSettings' is not defined                                                              no-undef
+   941:61   warning  'getLastMaintenance' is not defined                                                           no-undef
+  1510:56   warning  Async arrow function has a complexity of 98. Maximum allowed is 35                            complexity
+  1528:54   warning  'applyDiagnosticCallouts' is not defined                                                      no-undef
+  1547:108  warning  'refreshRenamePreview' is not defined                                                         no-undef
+  1549:80   warning  'refreshRenamePreview' is not defined                                                         no-undef
+  1578:84   warning  'applyRenameSelectedOverride' is not defined                                                  no-undef
+  1580:86   warning  'clearRenameSelectedOverride' is not defined                                                  no-undef
+  1584:90   warning  'checkApplicableRenameRows' is not defined                                                    no-undef
+  1586:82   warning  'clearCheckedRenameRows' is not defined                                                       no-undef
+  1588:92   warning  'moveCheckedRenamePaths' is not defined                                                       no-undef
+  1590:96   warning  'moveCheckedRenamePaths' is not defined                                                       no-undef
+  1592:82   warning  'naturalSortRenamePaths' is not defined                                                       no-undef
+  1595:5    warning  'renderRenameBulkEditor' is not defined                                                       no-undef
+  1596:5    warning  'syncRenameCommandButtons' is not defined                                                     no-undef
+  1599:78   warning  'stageRenameBulkEdit' is not defined                                                          no-undef
+  1601:90   warning  'usePipelineNamesForRenameScope' is not defined                                               no-undef
+  1603:84   warning  'setRenameBulkForce' is not defined                                                           no-undef
+  1605:94   warning  'setRenameBulkForce' is not defined                                                           no-undef
+  1607:78   warning  'clearRenameBulkOverrides' is not defined                                                     no-undef
+  1612:3    warning  'initSettingsViewEvents' is not defined                                                       no-undef
+  1620:3    warning  'initLaunchViewEvents' is not defined                                                         no-undef
+  1622:52   warning  'initReportsViewEvents' is not defined                                                        no-undef
+  1623:53   warning  'initScheduleViewEvents' is not defined                                                       no-undef
+  1624:3    warning  'initDiagnosticsViewEvents' is not defined                                                    no-undef
+  1625:3    warning  'initNetworkViewEvents' is not defined                                                        no-undef
+  1626:3    warning  'initContractViewEvents' is not defined                                                       no-undef
+  1627:56   warning  'initMaintenanceViewEvents' is not defined                                                    no-undef
+  1628:61   warning  'initSampleValidationViewEvents' is not defined                                               no-undef
+  1630:74   warning  'startPipelineFromForm' is not defined                                                        no-undef
+  1632:68   warning  'startAuditFromForm' is not defined                                                           no-undef
+  1634:76   warning  'startRerunFromForm' is not defined                                                           no-undef
+  1636:74   warning  'startRerunFromForm' is not defined                                                           no-undef
+  1640:108  warning  'requestPendingRecoveryPlan' is not defined                                                   no-undef
+  1642:98   warning  'requestPendingRecoveryPlan' is not defined                                                   no-undef
+  1644:84   warning  'refreshMaintenance' is not defined                                                           no-undef
+  1646:74   warning  'runReleaseDryRun' is not defined                                                             no-undef
+  1650:76   warning  'runBackfillDryRun' is not defined                                                            no-undef
+  1662:82   warning  'resetQueueFilters' is not defined                                                            no-undef
+  1672:90   warning  'resetCompletedFilters' is not defined                                                        no-undef
+  1710:62   warning  'renderFailureRows' is not defined                                                            no-undef
+  1714:72   warning  'renderAuditRows' is not defined                                                              no-undef
+  1718:44   warning  'requestPipelineControl' is not defined                                                       no-undef
+  1721:44   warning  'requestDiagnosticsOpen' is not defined                                                       no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\app\home.js
+    1:141  warning  'renderProgressBarsInto' is defined but never used                               no-unused-vars
+  211:3    warning  Function 'dailyDriverRows' has a complexity of 98. Maximum allowed is 35         complexity
+  873:3    warning  Function 'externalDependencyRows' has a complexity of 59. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\app\lifecycle.js
+  763:12  warning  'showCompletedOutputTab' is defined but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\commandHistory.js
+   239:3   warning  Function 'commandHistoryResolutionRows' has a complexity of 53. Maximum allowed is 35         complexity
+   767:3   warning  Function 'commandHistoryOwnerLiveStateSummary' has a complexity of 46. Maximum allowed is 35  complexity
+   821:20  warning  'getLastQueueRows' is not defined                                                             no-undef
+   822:67  warning  'getLastQueuePayload' is not defined                                                          no-undef
+   830:20  warning  'getLastCompletedRows' is not defined                                                         no-undef
+   831:71  warning  'getLastCompletedPayload' is not defined                                                      no-undef
+   840:23  warning  'getLastPendingPublishPayload' is not defined                                                 no-undef
+   843:68  warning  'pendingDrainGuardState' is not defined                                                       no-undef
+   852:95  warning  'getLastLaunchBackendPreflightPayloads' is not defined                                        no-undef
+   854:79  warning  'launchSettingsIntentStatus' is not defined                                                   no-undef
+   855:79  warning  'queueLaunchDecisionStatus' is not defined                                                    no-undef
+   862:78  warning  'settingsPatchHasUnsavedChanges' is not defined                                               no-undef
+   863:65  warning  'getLastSettings' is not defined                                                              no-undef
+   917:25  warning  'diagnosticsBridgeHandoffLines' is not defined                                                no-undef
+  1000:12  warning  'getLastDiagnosticsLogRows' is not defined                                                    no-undef
+  1110:57  warning  'requestDiagnosticsTail' is not defined                                                       no-undef
+  1113:55  warning  'requestDiagnosticsOpen' is not defined                                                       no-undef
+  1122:9   warning  'diagnosticsBridgeActions' is not defined                                                     no-undef
+  1125:7   warning  'appendDiagnosticsBridgeGroupedButtons' is not defined                                        no-undef
+  1135:13  warning  'diagnosticsBridgeActionLabel' is not defined                                                 no-undef
+  1145:7   warning  'appendDiagnosticsBridgeButton' is not defined                                                no-undef
+  1155:9   warning  'diagnosticsBridgeActions' is not defined                                                     no-undef
+  1158:7   warning  'appendDiagnosticsBridgeGroupedButtons' is not defined                                        no-undef
+  1169:11  warning  'diagnosticsBridgeActionLabel' is not defined                                                 no-undef
+  1267:59  warning  'renderLaunchCommandHistory' is not defined                                                   no-undef
+  1268:68  warning  'renderLaunchSettingsIntentChecklist' is not defined                                          no-undef
+  1269:58  warning  'renderPendingDrainHistory' is not defined                                                    no-undef
+  1270:65  warning  'renderPendingRecoveryPlanHistory' is not defined                                             no-undef
+  1271:68  warning  'renderPendingDrainDecisionChecklist' is not defined                                          no-undef
+  1272:56  warning  'renderPendingDrainGuard' is not defined                                                      no-undef
+  1273:63  warning  'renderMaintenanceDryRunHistory' is not defined                                               no-undef
+  1274:61  warning  'renderSettingsCommandHistory' is not defined                                                 no-undef
+  1275:55  warning  'renderQueueOpenHistory' is not defined                                                       no-undef
+  1276:67  warning  'renderQueueLaunchDecisionChecklist' is not defined                                           no-undef
+  1277:59  warning  'renderCompletedOpenHistory' is not defined                                                   no-undef
+  1278:64  warning  'renderCompletedOutputAcceptance' is not defined                                              no-undef
+  1279:58  warning  'renderCompletedFinalTrust' is not defined                                                    no-undef
+  1280:67  warning  'renderCompletedPilotEvidencePacket' is not defined                                           no-undef
+  1281:57  warning  'renderPendingOpenHistory' is not defined                                                     no-undef
+  1282:61  warning  'renderDiagnosticsOpenHistory' is not defined                                                 no-undef
+  1283:57  warning  'renderRenameApplyHistory' is not defined                                                     no-undef
+  1284:61  warning  'renderPipelineControlHistory' is not defined                                                 no-undef
+  1285:56  warning  'renderReportOpenHistory' is not defined                                                      no-undef
+  1286:57  warning  'renderNetworkOpenHistory' is not defined                                                     no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\commandHistory\diagnostics.js
+   1:1  warning  Unused eslint-disable directive (no problems were reported from 'complexity' or 'max-lines-per-function')
+  11:5  warning  'commandHistoryPendingPublishSuggestedAction' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\commandHistory\formatters.js
+    1:1   warning  Unused eslint-disable directive (no problems were reported from 'max-lines-per-function')
+  417:77  warning  'getLastCompletedPendingProofRows' is not defined                                          no-undef
+  424:25  warning  'getLastCompletedPayload' is not defined                                                   no-undef
+  425:29  warning  'getLastCompletedRows' is not defined                                                      no-undef
+  426:76  warning  'getLastPendingPublishPayload' is not defined                                              no-undef
+  427:14  warning  'completedPendingProofRows' is not defined                                                 no-undef
+  442:86  warning  'completedPendingProofIsFinalPlacementReviewSignal' is not defined                         no-undef
+  539:81  warning  'completedPendingProofSignalLabel' is not defined                                          no-undef
+  540:82  warning  'completedPendingProofEvidenceText' is not defined                                         no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completedView.evidence.js
+    2:3  warning  Function 'createCompletedEvidenceModule' has too many lines (1098). Maximum allowed is 220  max-lines-per-function
+    2:3  warning  Function 'createCompletedEvidenceModule' has a complexity of 38. Maximum allowed is 35      complexity
+  380:5  warning  Function 'completedPendingProofDataStatus' has a complexity of 36. Maximum allowed is 35    complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completedView.js
+    2:2   warning  Function has a complexity of 280. Maximum allowed is 35                                                                       complexity
+  298:84  warning  'filterRowsByInvestigation' is not defined                                                                                    no-undef
+  299:70  warning  'filterRowsByStatus' is not defined                                                                                           no-undef
+  312:78  warning  'tableStatusFilterLabel' is not defined                                                                                       no-undef
+  322:5   warning  'completedAcceptanceSelectedOrFirst' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+  332:5   warning  'selectedCompletedAcceptanceRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u             no-unused-vars
+  333:5   warning  'selectCompletedAcceptanceRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u               no-unused-vars
+  337:5   warning  'completedRouteAgreementQueueSourcePath' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u     no-unused-vars
+  338:5   warning  'completedRouteAgreementQueueRowLabel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u       no-unused-vars
+  339:5   warning  'completedRouteAgreementRouteEvidenceCount' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  340:5   warning  'completedRouteAgreementQueueIndexes' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u        no-unused-vars
+  346:5   warning  'selectedCompletedRouteAgreementRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+  347:5   warning  'selectCompletedRouteAgreementRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+  349:5   warning  'completedProofRows' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                         no-unused-vars
+  351:5   warning  'completedProofDrainSummaryItems' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u            no-unused-vars
+  352:5   warning  'completedProofNormalizePath' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  353:5   warning  'completedProofPathLooksAbsolute' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u            no-unused-vars
+  354:5   warning  'completedProofLeaf' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                         no-unused-vars
+  355:5   warning  'completedProofFirstValue' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                   no-unused-vars
+  359:5   warning  'completedProofPendingDestinationPath' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u       no-unused-vars
+  360:5   warning  'completedProofPendingSourcePath' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u            no-unused-vars
+  361:5   warning  'completedProofPendingLocalPath' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u             no-unused-vars
+  364:5   warning  'completedProofPendingLabel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                 no-unused-vars
+  365:5   warning  'completedProofDrainItemLabel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u               no-unused-vars
+  373:5   warning  'completedPendingProofSelectedRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+  381:5   warning  'publishReconciliationStatusLabel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+  382:5   warning  'publishReconciliationTableStatus' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+  385:5   warning  'publishReconciliationSelectedRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+  389:5   warning  'setPublishReconciliationBusy' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u               no-unused-vars
+  454:61  warning  'requestDiagnosticsOpen' is not defined                                                                                       no-undef
+  461:61  warning  'requestDiagnosticsTail' is not defined                                                                                       no-undef
+  496:94  warning  'diagnosticsBridgeRowTrustLines' is not defined                                                                               no-undef
+  509:82  warning  'tableStatusMatchesFilter' is not defined                                                                                     no-undef
+  510:78  warning  'tableStatusFilterLabel' is not defined                                                                                       no-undef
+  782:3   warning  Function 'renderCompletedTrustDecision' has a complexity of 53. Maximum allowed is 35                                         complexity
+  853:3   warning  Function 'renderCompleted' has a complexity of 46. Maximum allowed is 35                                                      complexity
+  867:70  warning  'getCommandHistory' is not defined                                                                                            no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completedView.proof.js
+    2:3  warning  Function 'createCompletedProofModule' has too many lines (1168). Maximum allowed is 220          max-lines-per-function
+  145:5  warning  Function 'completedPolicyAlignmentOutputEvidence' has a complexity of 44. Maximum allowed is 35  complexity
+  214:5  warning  Function 'completedRealMediaProofRows' has a complexity of 123. Maximum allowed is 35            complexity
+  472:9  warning  'renderCompletedDetail' is not defined                                                           no-undef
+  473:9  warning  'renderCompletedRows' is not defined                                                             no-undef
+  474:9  warning  'renderCompletedReviewDigest' is not defined                                                     no-undef
+  475:9  warning  'renderCompletedSizeReview' is not defined                                                       no-undef
+  520:5  warning  Function 'completedFinalTrustRows' has a complexity of 111. Maximum allowed is 35                complexity
+  752:9  warning  'renderCompletedDetail' is not defined                                                           no-undef
+  753:9  warning  'renderCompletedRows' is not defined                                                             no-undef
+  754:9  warning  'renderCompletedReviewDigest' is not defined                                                     no-undef
+  755:9  warning  'renderCompletedSizeReview' is not defined                                                       no-undef
+  819:5  warning  Function 'completedPilotEvidencePacketRows' has a complexity of 165. Maximum allowed is 35       complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completedView.review.js
+     2:3   warning  Function 'createCompletedReviewModule' has too many lines (1682). Maximum allowed is 220                                     max-lines-per-function
+     2:3   warning  Function 'createCompletedReviewModule' has a complexity of 43. Maximum allowed is 35                                         complexity
+     7:7   warning  'completedAcceptanceProofRowsForItem' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u       no-unused-vars
+    19:7   warning  'completedProofRowMissingOutput' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u            no-unused-vars
+   147:7   warning  'completedRowHasBasicHealthyEvidence' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u       no-unused-vars
+   150:7   warning  'completedRuntimeAlreadyProcessedIsBenign' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+   313:5   warning  Function 'completedSizeEvidenceRows' has a complexity of 56. Maximum allowed is 35                                           complexity
+   769:5   warning  Function 'completedValidationChecklistLines' has a complexity of 44. Maximum allowed is 35                                   complexity
+   836:5   warning  Function 'completedRowReviewChecklistLines' has a complexity of 42. Maximum allowed is 35                                    complexity
+   906:74  warning  'backendRowStatusState' is not defined                                                                                       no-undef
+  1633:5   warning  Function 'completedRowTrustSummaryLines' has a complexity of 44. Maximum allowed is 35                                       complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completed\filters.js
+  10:3  warning  Function 'createCompletedFiltersModule' has too many lines (249). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completed\promotionCommands.js
+  165:5  warning  Function 'renderFinalLibraryPromotion' has a complexity of 51. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completed\review\integrity.js
+  7:12  warning  'noop' is defined but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completed\review\reviewRows.js
+    7:12  warning  'noopRows' is defined but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  121:74  warning  'backendRowStatusState' is not defined                                              no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completed\selection.js
+  74:5  warning  Function 'renderCompletedDetail' has a complexity of 96. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\completed\table.js
+  179:3  warning  Function 'completedEvidenceText' has a complexity of 37. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\crossPageContextView.conflict.js
+  16:3  warning  Function 'createCrossPageConflictModule' has too many lines (277). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\crossPageContextView.js
+    1:2   warning  Function has a complexity of 169. Maximum allowed is 35                                                                          complexity
+  198:5   warning  'crossPageConflictScope' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                        no-unused-vars
+  199:5   warning  'crossPageSelectConflict' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                       no-unused-vars
+  299:54  warning  'refreshAll' is not defined                                                                                                      no-undef
+  307:5   warning  'crossPageSamplePageStrength' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                   no-unused-vars
+  308:5   warning  'crossPageWorksheetRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                         no-unused-vars
+  313:5   warning  'crossPageRealMediaWorksheetDetailLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u        no-unused-vars
+  315:5   warning  'sampleValidationProofStrength' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                 no-unused-vars
+  316:5   warning  'sampleValidationPath' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                          no-unused-vars
+  317:5   warning  'sampleValidationEvidence' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                      no-unused-vars
+  318:5   warning  'sampleValidationChecks' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                        no-unused-vars
+  319:5   warning  'sampleValidationChecksFromUi' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                  no-unused-vars
+  320:5   warning  'sampleValidationMergedChecks' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                  no-unused-vars
+  322:5   warning  'syncSampleValidationCheckControls' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u             no-unused-vars
+  323:5   warning  'sampleValidationCheckedSummary' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  324:5   warning  'sampleValidationLogSummaryLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u               no-unused-vars
+  325:5   warning  'sampleValidationAuditPayload' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                  no-unused-vars
+  326:5   warning  'sampleValidationAuditSummaryLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u             no-unused-vars
+  327:5   warning  'sampleValidationPolicyAlignmentPayload' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u        no-unused-vars
+  328:5   warning  'sampleValidationPolicyAlignmentSummaryLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u   no-unused-vars
+  329:5   warning  'sampleValidationReadinessLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  330:5   warning  'sampleValidationReconciliationLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+  333:5   warning  'sampleValidationGapState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                      no-unused-vars
+  340:5   warning  'sampleValidationRunbookState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                  no-unused-vars
+  346:5   warning  'sampleValidationPilotPlanLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  347:5   warning  'sampleValidationCutoverPayload' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  349:5   warning  'sampleValidationCutoverState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                  no-unused-vars
+  354:5   warning  'sampleValidationSampleSetPayload' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u              no-unused-vars
+  356:5   warning  'sampleValidationSampleSetState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  362:5   warning  'selectSampleValidationSampleSetRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u            no-unused-vars
+  363:5   warning  'selectedSampleValidationSampleSet' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u             no-unused-vars
+  365:5   warning  'sampleValidationCategorySummaryState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u          no-unused-vars
+  369:5   warning  'selectedSampleValidationCategorySummaryRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u    no-unused-vars
+  374:5   warning  'sampleValidationExecutionState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  376:5   warning  'sampleValidationExecutionSummaryLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+  377:5   warning  'sampleValidationExecutionDetailLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u          no-unused-vars
+  379:5   warning  'sampleValidationWorksheetPayload' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u              no-unused-vars
+  381:5   warning  'sampleValidationPathToken' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                     no-unused-vars
+  383:5   warning  'sampleValidationWorksheetStatus' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u               no-unused-vars
+  392:5   warning  'sampleValidationRecordDecisionIsAccepted' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u      no-unused-vars
+  393:5   warning  'sampleValidationRecordReviewCandidate' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+  394:5   warning  'sampleValidationRecordReviewRowStatus' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+  399:5   warning  'selectedSampleValidationRecordReviewRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u       no-unused-vars
+  403:5   warning  'sampleValidationSummaryLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                  no-unused-vars
+  404:5   warning  'sampleValidationStatus' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                        no-unused-vars
+  406:5   warning  'sampleValidationRecordCurrentEvidenceLabel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u    no-unused-vars
+  407:5   warning  'sampleValidationRecordGapLabel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  408:5   warning  'sampleValidationRecordRowState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  409:5   warning  'renderSampleValidationRecords' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                 no-unused-vars
+  411:5   warning  'sampleValidationCompletedPacketPostureStatus' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  418:5   warning  'selectedSampleValidationCompletedPacketRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u    no-unused-vars
+  420:5   warning  'sampleValidationAcceptanceCheckLabels' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+  421:5   warning  'sampleValidationAcceptanceGateRowStatus' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u       no-unused-vars
+  426:5   warning  'selectedSampleValidationAcceptanceGateRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u     no-unused-vars
+  429:5   warning  'sampleValidationResultLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                   no-unused-vars
+  430:5   warning  'previewSampleValidationRecord' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                 no-unused-vars
+  431:5   warning  'appendSampleValidationRecord' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                  no-unused-vars
+  541:11  warning  'conflictRows' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                                  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\crossPageContextView.sample.js
+  16:3  warning  Function 'createCrossPageSampleModule' has too many lines (322). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\crossPageContextView.sampleValidation.js
+    2:3  warning  Function 'createCrossPageSampleValidationModule' has too many lines (748). Maximum allowed is 220  max-lines-per-function
+    2:3  warning  Function 'createCrossPageSampleValidationModule' has a complexity of 114. Maximum allowed is 35    complexity
+  463:5  warning  Function 'sampleValidationResultLines' has a complexity of 102. Maximum allowed is 35              complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\crossPageContextView.sampleValidation.records.js
+    9:3  warning  Function 'createCrossPageSvRecordsModule' has too many lines (897). Maximum allowed is 220   max-lines-per-function
+  143:5  warning  Function 'sampleValidationRecordReviewRows' has a complexity of 65. Maximum allowed is 35    complexity
+  649:5  warning  Function 'sampleValidationAcceptanceGateRows' has a complexity of 68. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\crossPageContextView.sampleValidation.runbook.js
+  9:3  warning  Function 'createCrossPageSvRunbookModule' has too many lines (440). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\crossPageContextView.sampleValidation.worksheet.js
+    9:3  warning  Function 'createCrossPageSvWorksheetModule' has too many lines (770). Maximum allowed is 220  max-lines-per-function
+   43:5  warning  Function 'crossPageSampleValidationEvidence' has a complexity of 43. Maximum allowed is 35    complexity
+  101:5  warning  Function 'crossPageRealMediaWorksheetRows' has a complexity of 54. Maximum allowed is 35      complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\diagnosticsStateSummaryView.js
+  53:65  warning  'backendRowStatusState' is not defined  no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\diagnosticsTailView.js
+  139:71  warning  'normalizeBackendStatusState' is not defined  no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\diagnosticsView.activejobs.js
+  67:72  warning  'backendRowStatusState' is not defined  no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\diagnosticsView.investigation.js
+    2:3    warning  Function 'createDiagnosticsInvestigationModule' has too many lines (693). Maximum allowed is 220   max-lines-per-function
+   65:130  warning  'getCommandHistory' is not defined                                                                 no-undef
+  196:3    warning  Function 'diagnosticsCompletedFinalTrustStepForRow' has a complexity of 37. Maximum allowed is 35  complexity
+  668:14   warning  'commandHistoryCompactEvidenceLine' is not defined                                                 no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\diagnosticsView.js
+     1:2   warning  Function has a complexity of 82. Maximum allowed is 35                                                                complexity
+   530:3   warning  Function 'renderTdarrMatrixConsole' has a complexity of 39. Maximum allowed is 35                                     complexity
+   846:7   warning  'activeJobRowsStatusText' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u            no-unused-vars
+   913:7   warning  'diagnosticsInvestigationAddAction' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  1125:3   warning  Function 'diagnosticsSamplePolicyReconciliation' has a complexity of 38. Maximum allowed is 35                        complexity
+  1174:3   warning  Function 'diagnosticsFirstResponseRows' has a complexity of 63. Maximum allowed is 35                                 complexity
+  1201:11  warning  'closeState' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                         no-unused-vars
+  1379:3   warning  Function 'diagnosticsFirstResponseDetailLines' has a complexity of 45. Maximum allowed is 35                          complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\diagnosticsView.log.js
+    2:3   warning  Function 'createDiagnosticsLogModule' has too many lines (300). Maximum allowed is 220  max-lines-per-function
+  293:7   warning  'renderCommandDiagnosticsEvidence' is not defined                                       no-undef
+  293:88  warning  'getSelectedCommandEntry' is not defined                                                no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\domHelpers.js
+  1:2  warning  Function has a complexity of 46. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launchHistoryView.js
+   33:14  warning  'commandHistoryCompactEvidenceLine' is not defined       no-undef
+   45:64  warning  'commandHistoryIssueLevel' is not defined                no-undef
+   60:65  warning  'commandHistoryRequestData' is not defined               no-undef
+   68:69  warning  'commandHistorySuggestedAction' is not defined           no-undef
+  103:21  warning  'launchBackendPreflightPayloadForTarget' is not defined  no-undef
+  114:9   warning  'launchBackendPreflightRows' is not defined              no-undef
+  147:14  warning  'launchSettingsIntentRows' is not defined                no-undef
+  182:65  warning  'getCommandHistory' is not defined                       no-undef
+  183:14  warning  'queueLaunchDecisionRows' is not defined                 no-undef
+  196:11  warning  'queueLaunchDecisionPostureStatus' is not defined        no-undef
+  261:75  warning  'commandHistoryDiagnosticsActions' is not defined        no-undef
+  282:7   warning  'requestCommandDiagnosticsAction' is not defined         no-undef
+  288:57  warning  'requestDiagnosticsTail' is not defined                  no-undef
+  291:55  warning  'requestDiagnosticsOpen' is not defined                  no-undef
+  330:70  warning  'diagnosticsBridgeActions' is not defined                no-undef
+  332:7   warning  'appendDiagnosticsBridgeGroupedButtons' is not defined   no-undef
+  342:13  warning  'diagnosticsBridgeActionLabel' is not defined            no-undef
+  352:7   warning  'appendDiagnosticsBridgeButton' is not defined           no-undef
+  361:96  warning  'commandHistoryRefreshTarget' is not defined             no-undef
+  363:59  warning  'commandHistoryRowKey' is not defined                    no-undef
+  453:66  warning  'selectCommandEntry' is not defined                      no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launchReadinessView.js
+    7:69  warning  'settingsOperatorTrustStatus' is not defined                                     no-undef
+   38:62  warning  'scheduleWatcherSummary' is not defined                                          no-undef
+   45:64  warning  'scheduleDisplayValue' is not defined                                            no-undef
+  120:3   warning  Function 'launchReadinessLines' has a complexity of 50. Maximum allowed is 35    complexity
+  143:75  warning  'scheduleDisplayValue' is not defined                                            no-undef
+  144:76  warning  'scheduleDisplayValue' is not defined                                            no-undef
+  187:70  warning  'scheduleCurrentLaunchSelection' is not defined                                  no-undef
+  199:65  warning  'scheduleTimingTrustStatus' is not defined                                       no-undef
+  210:3   warning  Function 'launchTimingTrustLines' has a complexity of 36. Maximum allowed is 35  complexity
+  219:75  warning  'schedulePipelineModeLabel' is not defined                                       no-undef
+  220:75  warning  'scheduleOverrideLabel' is not defined                                           no-undef
+  241:21  warning  'scheduleTimingTrustLines' is not defined                                        no-undef
+  265:7   warning  'renderLaunchSettingsIntentChecklist' is not defined                             no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launchView.js
+     1:2    warning  Function has a complexity of 289. Maximum allowed is 35  complexity
+   101:88   warning  'commandResultDisplayMessage' is not defined             no-undef
+   104:90   warning  'launchCommandCorrelationRows' is not defined            no-undef
+   105:94   warning  'launchCommandCorrelationStatus' is not defined          no-undef
+   106:96   warning  'launchCommandDiagnosticsActions' is not defined         no-undef
+   204:59   warning  'updatePagePanelEmptyStates' is not defined              no-undef
+   641:177  warning  'formatSettingsChoiceLabel' is not defined               no-undef
+   642:159  warning  'getCommandHistory' is not defined                       no-undef
+   643:207  warning  'getLastLaunchReadinessPayload' is not defined           no-undef
+   644:155  warning  'getLastQueueRows' is not defined                        no-undef
+   645:151  warning  'getLastSettings' is not defined                         no-undef
+   650:169  warning  'queueCurrentFilterScope' is not defined                 no-undef
+   651:185  warning  'queueFilterScopeDetailLines' is not defined             no-undef
+   652:74   warning  'scheduleDisplayValue' is not defined                    no-undef
+   654:181  warning  'settingsCommandHistoryLine' is not defined              no-undef
+   655:173  warning  'settingsLaunchImpactRows' is not defined                no-undef
+   656:181  warning  'settingsLaunchImpactStatus' is not defined              no-undef
+   657:185  warning  'settingsOperatorTrustStatus' is not defined             no-undef
+   658:221  warning  'settingsPatchEffectiveChangedEntries' is not defined    no-undef
+   659:165  warning  'settingsPatchIsTouched' is not defined                  no-undef
+   660:169  warning  'settingsPolicyDeltaRows' is not defined                 no-undef
+   661:177  warning  'settingsPolicyDeltaStatus' is not defined               no-undef
+   779:173  warning  'commandHistoryIssueLevel' is not defined                no-undef
+   780:159  warning  'getCommandHistory' is not defined                       no-undef
+   783:167  warning  'getLastQueuePayload' is not defined                     no-undef
+   784:155  warning  'getLastQueueRows' is not defined                        no-undef
+   792:169  warning  'launchCommandReviewRows' is not defined                 no-undef
+   793:177  warning  'launchCommandReviewStatus' is not defined               no-undef
+   794:201  warning  'launchCommandReviewSummaryLines' is not defined         no-undef
+   815:70   warning  'launchTimingStatus' is not defined                      no-undef
+   816:78   warning  'launchTimingTrustLines' is not defined                  no-undef
+   819:169  warning  'queueCurrentFilterScope' is not defined                 no-undef
+   820:185  warning  'queueFilterScopeDetailLines' is not defined             no-undef
+   821:205  warning  'queueLaunchDecisionPostureStatus' is not defined        no-undef
+   822:169  warning  'queueLaunchDecisionRows' is not defined                 no-undef
+   823:177  warning  'queueLaunchDecisionStatus' is not defined               no-undef
+   824:201  warning  'queueLaunchDecisionSummaryLines' is not defined         no-undef
+   825:74   warning  'scheduleDisplayValue' is not defined                    no-undef
+   826:78   warning  'scheduleWatcherSummary' is not defined                  no-undef
+   885:155  warning  'getLastQueueRows' is not defined                        no-undef
+   886:167  warning  'getSelectedQueueRow' is not defined                     no-undef
+   935:209  warning  'commandHistoryCompactEvidenceLine' is not defined       no-undef
+   936:159  warning  'getCommandHistory' is not defined                       no-undef
+   937:167  warning  'getLastQueuePayload' is not defined                     no-undef
+   938:155  warning  'getLastQueueRows' is not defined                        no-undef
+   940:167  warning  'getSelectedQueueRow' is not defined                     no-undef
+   967:169  warning  'queueLaunchDecisionRows' is not defined                 no-undef
+   968:177  warning  'queueLaunchDecisionStatus' is not defined               no-undef
+   969:169  warning  'renderAuditProgressInto' is not defined                 no-undef
+   976:169  warning  'renderLaunchTimingTrust' is not defined                 no-undef
+   977:213  warning  'renderQueueLaunchDecisionChecklist' is not defined      no-undef
+   978:177  warning  'renderScheduleTimingTrust' is not defined               no-undef
+  1116:15   warning  'refreshAll' is not defined                              no-undef
+  1259:15   warning  'refreshAll' is not defined                              no-undef
+  1262:27   warning  'refreshAll' is not defined                              no-undef
+  1263:27   warning  'refreshAll' is not defined                              no-undef
+  1264:27   warning  'refreshAll' is not defined                              no-undef
+  1289:66   warning  'pendingDrainGuardState' is not defined                  no-undef
+  1303:86   warning  'pendingDrainGuardLines' is not defined                  no-undef
+  1304:58   warning  'renderPendingDrainGuard' is not defined                 no-undef
+  1345:15   warning  'refreshAll' is not defined                              no-undef
+  1395:15   warning  'refreshAll' is not defined                              no-undef
+  1464:15   warning  'refreshAll' is not defined                              no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launchView.preflight.js
+    2:3   warning  Function 'createLaunchPreflightModule' has too many lines (811). Maximum allowed is 220             max-lines-per-function
+    2:3   warning  Function 'createLaunchPreflightModule' has a complexity of 56. Maximum allowed is 35                complexity
+   15:7   warning  'getLastSnapshot' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  124:3   warning  Function 'launchPilotRunReadinessRows' has a complexity of 52. Maximum allowed is 35                complexity
+  126:11  warning  'request' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u          no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launchView.realmedia.js
+    2:3  warning  Function 'createLaunchRealMediaModule' has too many lines (873). Maximum allowed is 220            max-lines-per-function
+  217:3  warning  Function 'launchPolicyAlignmentQueueIntentEvidence' has a complexity of 46. Maximum allowed is 35  complexity
+  445:3  warning  Function 'launchSampleValidationRecordEvidence' has a complexity of 38. Maximum allowed is 35      complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launchView.risk.js
+    2:3  warning  Function 'createLaunchRiskModule' has too many lines (611). Maximum allowed is 220                                         max-lines-per-function
+    2:3  warning  Function 'createLaunchRiskModule' has a complexity of 80. Maximum allowed is 35                                            complexity
+   57:7  warning  'launchRouteMaxHeightFromUpperTolerance' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+   58:7  warning  'launchRouteMinHeightFromLowerTolerance' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  132:7  warning  'launchPolicyCurrentValue' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                no-unused-vars
+  133:7  warning  'launchPolicyCandidateValue' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u              no-unused-vars
+  338:3  warning  Function 'launchSettingsIntentRows' has a complexity of 86. Maximum allowed is 35                                          complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launchView.scope.js
+    2:3  warning  Function 'createLaunchScopeModule' has too many lines (959). Maximum allowed is 220      max-lines-per-function
+    2:3  warning  Function 'createLaunchScopeModule' has a complexity of 57. Maximum allowed is 35         complexity
+  117:3  warning  Function 'launchScopeReconciliationRows' has a complexity of 100. Maximum allowed is 35  complexity
+  469:3  warning  Function 'launchStartDecisionRows' has a complexity of 51. Maximum allowed is 35         complexity
+  806:3  warning  Function 'launchCompactGateRows' has a complexity of 68. Maximum allowed is 35           complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launch\commandButtons.js
+  21:7  warning  'pipelineSingleFileValue' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launch\risk\policyBoundary.js
+  5:7  warning  'launchPolicyBoundaryRowsFallback' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launch\risk\riskRows.js
+  9:7  warning  'launchSettingsNumber' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\launch\scopeControls.js
+  7:7  warning  'setPipelineSingleFileBrowseStatus' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\maintenanceView.js
+   405:7   warning  'renderProgressBarsInto' is not defined                                             no-undef
+   454:9   warning  'requestDiagnosticsTail' is not defined                                             no-undef
+   462:7   warning  'requestDiagnosticsOpen' is not defined                                             no-undef
+   479:7   warning  'appendDiagnosticsBridgeGroupedButtons' is not defined                              no-undef
+   483:7   warning  'appendDiagnosticsBridgeButton' is not defined                                      no-undef
+   508:21  warning  'diagnosticsBridgeRowTrustLines' is not defined                                     no-undef
+   751:14  warning  'commandHistoryCompactEvidenceLine' is not defined                                  no-undef
+   828:52  warning  Redundant Boolean call                                                              no-extra-boolean-cast
+  1037:7   warning  'renderProgressBarsInto' is not defined                                             no-undef
+  1078:3   warning  Function 'renderReleaseDryRunResult' has a complexity of 36. Maximum allowed is 35  complexity
+  1137:5   warning  'renderProgressBarsInto' is not defined                                             no-undef
+  1312:5   warning  'renderProgressBarsInto' is not defined                                             no-undef
+  1355:5   warning  'renderProgressBarsInto' is not defined                                             no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\metricsView.js
+   29:59  warning  'updatePagePanelEmptyStates' is not defined  no-undef
+  127:59  warning  'refreshAllNow' is not defined               no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\networkView.js
+    25:7   warning  'activeNetworkTab' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+    71:51  warning  'configValue' is not defined                                                                         no-undef
+   488:59  warning  'updatePagePanelEmptyStates' is not defined                                                          no-undef
+   536:12  warning  'networkSourceKeysFromRow' is defined but never used. Allowed unused vars must match /^_|Module$/u   no-unused-vars
+   767:3   warning  Function 'networkWorkerOverviewModel' has a complexity of 47. Maximum allowed is 35                  complexity
+  1325:3   warning  Function 'networkLifecycleCommandResultLines' has a complexity of 54. Maximum allowed is 35          complexity
+  1719:45  warning  'refreshAll' is not defined                                                                          no-undef
+  1870:45  warning  'refreshAll' is not defined                                                                          no-undef
+  1904:47  warning  'refreshAll' is not defined                                                                          no-undef
+  2011:14  warning  'commandHistoryCompactEvidenceLine' is not defined                                                   no-undef
+  2142:3   warning  Function 'networkLifecycleRows' has a complexity of 50. Maximum allowed is 35                        complexity
+  2399:3   warning  Function 'networkEvidenceRows' has a complexity of 71. Maximum allowed is 35                         complexity
+  3061:7   warning  'renderProgressBarsInto' is not defined                                                              no-undef
+  3260:75  warning  'getCommandHistory' is not defined                                                                   no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublishView.confidence.js
+    2:3  warning  Function 'createPendingPublishConfidenceModule' has too many lines (983). Maximum allowed is 220  max-lines-per-function
+    2:3  warning  Function 'createPendingPublishConfidenceModule' has a complexity of 47. Maximum allowed is 35     complexity
+   85:3  warning  Function 'pendingPostDrainTrustRows' has a complexity of 63. Maximum allowed is 35                complexity
+  416:3  warning  Function 'pendingDrainConfidenceRows' has a complexity of 64. Maximum allowed is 35               complexity
+  628:3  warning  Function 'pendingDrainDecisionRows' has a complexity of 52. Maximum allowed is 35                 complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublishView.diagnostics.js
+  2:3  warning  Function 'createPendingPublishDiagnosticsModule' has too many lines (267). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublishView.drain.js
+    2:3  warning  Function 'createPendingPublishDrainModule' has too many lines (762). Maximum allowed is 220  max-lines-per-function
+   78:3  warning  Function 'pendingBackendDrainScopeRows' has a complexity of 48. Maximum allowed is 35        complexity
+  670:3  warning  Function 'pendingDrainCorrelationLines' has a complexity of 42. Maximum allowed is 35        complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublishView.js
+     1:2    warning  Function has a complexity of 167. Maximum allowed is 35                                                           complexity
+    48:9    warning  'pendingRecoveryFallbackRows' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u    no-unused-vars
+   168:3    warning  Function 'renderPendingPublish' has a complexity of 65. Maximum allowed is 35                                     complexity
+   216:76   warning  'getCommandHistory' is not defined                                                                                no-undef
+   217:75   warning  'getCommandHistory' is not defined                                                                                no-undef
+   218:83   warning  'getCommandHistory' is not defined                                                                                no-undef
+   221:114  warning  'getCommandHistory' is not defined                                                                                no-undef
+   222:112  warning  'getCommandHistory' is not defined                                                                                no-undef
+   223:119  warning  'getCommandHistory' is not defined                                                                                no-undef
+   224:122  warning  'getCommandHistory' is not defined                                                                                no-undef
+   225:120  warning  'getCommandHistory' is not defined                                                                                no-undef
+   226:108  warning  'getCommandHistory' is not defined                                                                                no-undef
+   346:63   warning  'shortenPath' is not defined                                                                                      no-undef
+   497:143  warning  'getCommandHistory' is not defined                                                                                no-undef
+   498:141  warning  'getCommandHistory' is not defined                                                                                no-undef
+   611:3    warning  Function 'renderPendingActionCenter' has a complexity of 47. Maximum allowed is 35                                complexity
+   614:101  warning  'getCommandHistory' is not defined                                                                                no-undef
+   659:101  warning  'getCommandHistory' is not defined                                                                                no-undef
+   810:67   warning  'filterRowsByStatus' is not defined                                                                               no-undef
+   811:68   warning  'filterRowsByInvestigation' is not defined                                                                        no-undef
+   821:41   warning  'filterResultSummaryLines' is not defined                                                                         no-undef
+   840:142  warning  'getCommandHistory' is not defined                                                                                no-undef
+   841:145  warning  'getCommandHistory' is not defined                                                                                no-undef
+   842:143  warning  'getCommandHistory' is not defined                                                                                no-undef
+   843:134  warning  'getCommandHistory' is not defined                                                                                no-undef
+   844:131  warning  'getCommandHistory' is not defined                                                                                no-undef
+   853:68   warning  'shortenPath' is not defined                                                                                      no-undef
+   854:68   warning  'shortenPath' is not defined                                                                                      no-undef
+   878:140  warning  'getCommandHistory' is not defined                                                                                no-undef
+   879:143  warning  'getCommandHistory' is not defined                                                                                no-undef
+   880:141  warning  'getCommandHistory' is not defined                                                                                no-undef
+   881:132  warning  'getCommandHistory' is not defined                                                                                no-undef
+   882:129  warning  'getCommandHistory' is not defined                                                                                no-undef
+   911:92   warning  'appendDiagnosticsBridgeButton' is not defined                                                                    no-undef
+   912:108  warning  'appendDiagnosticsBridgeGroupedButtons' is not defined                                                            no-undef
+   914:209  warning  'commandHistoryCompactEvidenceLine' is not defined                                                                no-undef
+   918:78   warning  'requestDiagnosticsOpen' is not defined                                                                           no-undef
+   919:78   warning  'requestDiagnosticsTail' is not defined                                                                           no-undef
+   943:209  warning  'commandHistoryCompactEvidenceLine' is not defined                                                                no-undef
+   946:84   warning  'filterRowsByInvestigation' is not defined                                                                        no-undef
+   947:70   warning  'filterRowsByStatus' is not defined                                                                               no-undef
+   970:78   warning  'tableStatusFilterLabel' is not defined                                                                           no-undef
+  1010:3    warning  'pendingDrainCommandData' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u        no-unused-vars
+  1011:3    warning  'pendingDrainCommandRequest' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u     no-unused-vars
+  1049:209  warning  'commandHistoryCompactEvidenceLine' is not defined                                                                no-undef
+  1051:159  warning  'getCommandHistory' is not defined                                                                                no-undef
+  1084:3    warning  'pendingRecoveryPlanResultData' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  1085:3    warning  'pendingRecoveryPlanRowLabel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u    no-unused-vars
+  1109:159  warning  'getCommandHistory' is not defined                                                                                no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublishView.recovery.js
+  2:3  warning  Function 'createPendingPublishRecoveryModule' has too many lines (359). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublish\details.js
+    2:3  warning  Function 'createPendingPublishDetailsModule' has too many lines (619). Maximum allowed is 220  max-lines-per-function
+  488:1  warning  Function 'pendingRowTrustSummaryLines' has a complexity of 40. Maximum allowed is 35           complexity
+  529:1  warning  Function 'renderPendingDetail' has a complexity of 50. Maximum allowed is 35                   complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublish\filters.js
+  39:1  warning  Function 'pendingMatchesInvestigationFilter' has a complexity of 44. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\pendingPublish\summary.js
+  2:3  warning  Function 'createPendingPublishSummaryModule' has too many lines (539). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\progressView.js
+   530:3   warning  Function 'auditProgressSummaryLines' has a complexity of 40. Maximum allowed is 35        complexity
+  1076:3   warning  Function 'progressEvidenceRows' has a complexity of 112. Maximum allowed is 35            complexity
+  1643:3   warning  Function 'liveRunStripItems' has a complexity of 64. Maximum allowed is 35                complexity
+  1649:11  warning  'state' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\queueView.detail.js
+    2:3   warning  Function 'createQueueDetailModule' has too many lines (544). Maximum allowed is 220               max-lines-per-function
+    6:11  warning  'queueListText' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+    7:11  warning  'queueRowKey' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u    no-unused-vars
+   20:5   warning  Function 'queueRowReviewChecklistLines' has a complexity of 36. Maximum allowed is 35             complexity
+  174:5   warning  Function 'queueRowTrustSummaryLines' has a complexity of 39. Maximum allowed is 35                complexity
+  351:5   warning  Function 'renderQueueDetail' has a complexity of 92. Maximum allowed is 35                        complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\queueView.js
+     1:2   warning  Function has a complexity of 157. Maximum allowed is 35                                                                   complexity
+     4:7   warning  'lastQueueHiddenSidecarRows' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u             no-unused-vars
+    15:9   warning  'QUEUE_PRIORITY_ROUTE' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                   no-unused-vars
+    17:9   warning  'QUEUE_FILE_OVERRIDES_ROUTE' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u             no-unused-vars
+    45:74  warning  'getCommandHistory' is not defined                                                                                        no-undef
+    76:5   warning  'queuePathExtension' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                     no-unused-vars
+    77:5   warning  'queueRowExtension' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                      no-unused-vars
+    79:5   warning  'queueIncrementCount' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                    no-unused-vars
+    80:5   warning  'queueCountRowsBy' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                       no-unused-vars
+    81:5   warning  'queueCountRowsByExtension' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u              no-unused-vars
+    82:5   warning  'queueIsMovieRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                        no-unused-vars
+    83:5   warning  'queueIsTvRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                           no-unused-vars
+    84:5   warning  'queueBlockedRows' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                       no-unused-vars
+    85:5   warning  'queueVisibleRunnableCount' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u              no-unused-vars
+    87:5   warning  'queueDisplayProgressForVisibleRows' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u     no-unused-vars
+   159:5   warning  'queueSelectedVisibilitySummary' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+   199:56  warning  'shortenPath' is not defined                                                                                              no-undef
+   238:5   warning  'queueRowCombinedReviewPlanLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u        no-unused-vars
+   242:5   warning  'queueAddDiagnosticsAction' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u              no-unused-vars
+   244:5   warning  'queueDiagnosticsActionStatusText' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u       no-unused-vars
+   246:5   warning  'queueRouteReasoningLines' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u               no-unused-vars
+   261:68  warning  'getCommandHistory' is not defined                                                                                        no-undef
+   295:5   warning  'queueLaunchCommandIssueLevel' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+   296:5   warning  'queueLaunchDecisionAdd' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u                 no-unused-vars
+   298:5   warning  'queueLaunchBackendPreflightRows' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u        no-unused-vars
+   300:5   warning  'queueLaunchDecisionSelectedRowSummary' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+   315:5   warning  'selectedQueueLaunchDecisionRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u         no-unused-vars
+   316:5   warning  'selectQueueLaunchDecisionRow' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u           no-unused-vars
+   646:3   warning  Function 'queueSourceInventoryTileModel' has a complexity of 42. Maximum allowed is 35                                    complexity
+   781:12  warning  'queueTableElement' is defined but never used. Allowed unused vars must match /^_|Module$/u                               no-unused-vars
+   830:15  warning  'refreshAll' is not defined                                                                                               no-undef
+   857:70  warning  'getCommandHistory' is not defined                                                                                        no-undef
+  1201:15  warning  'requestDiagnosticsTail' is not defined                                                                                   no-undef
+  1209:13  warning  'requestDiagnosticsOpen' is not defined                                                                                   no-undef
+  1255:67  warning  'filterRowsByStatus' is not defined                                                                                       no-undef
+  1256:62  warning  'filterRowsByInvestigation' is not defined                                                                                no-undef
+  1273:9   warning  'filterResultSummaryLines' is not defined                                                                                 no-undef
+  1299:72  warning  'getCommandHistory' is not defined                                                                                        no-undef
+  1321:70  warning  'getCommandHistory' is not defined                                                                                        no-undef
+  1370:15  warning  'refreshAll' is not defined                                                                                               no-undef
+  1596:12  warning  'queuePriorityBadgeLabel' is defined but never used. Allowed unused vars must match /^_|Module$/u                         no-unused-vars
+  1780:74  warning  'refreshAll' is not defined                                                                                               no-undef
+  1799:74  warning  'refreshAll' is not defined                                                                                               no-undef
+  1858:74  warning  'refreshAll' is not defined                                                                                               no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\queueView.launch.js
+    8:3   warning  Function 'createQueueLaunchModule' has too many lines (717). Maximum allowed is 220  max-lines-per-function
+   99:66  warning  'commandHistoryIssueLevel' is not defined                                            no-undef
+  120:16  warning  'launchBackendPreflightPayloadForTarget' is not defined                              no-undef
+  123:26  warning  'getLastLaunchBackendPreflightPayloads' is not defined                               no-undef
+  132:68  warning  'launchBackendPreflightRows' is not defined                                          no-undef
+  161:92  warning  'getLastLaunchBackendPreflightRefreshInfo' is not defined                            no-undef
+  258:69  warning  'filterRowsByStatus' is not defined                                                  no-undef
+  259:77  warning  'filterRowsByInvestigation' is not defined                                           no-undef
+  272:69  warning  'tableStatusFilterLabel' is not defined                                              no-undef
+  459:5   warning  Function 'queueLaunchDecisionRows' has a complexity of 82. Maximum allowed is 35     complexity
+  757:9   warning  'renderLaunchScopeReconciliation' is not defined                                     no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\queueView.review.js
+    8:3    warning  Function 'createQueueReviewModule' has too many lines (429). Maximum allowed is 220       max-lines-per-function
+  151:74   warning  'backendRowStatusState' is not defined                                                    no-undef
+  176:5    warning  Function 'queueMatchesInvestigationFilter' has a complexity of 40. Maximum allowed is 35  complexity
+  211:78   warning  'tableStatusMatchesFilter' is not defined                                                 no-undef
+  217:104  warning  'tableStatusFilterLabel' is not defined                                                   no-undef
+  222:152  warning  'tableStatusFilterLabel' is not defined                                                   no-undef
+  261:74   warning  'backendRowStatusState' is not defined                                                    no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\queueView.summary.js
+    8:3  warning  Function 'createQueueSummaryModule' has too many lines (469). Maximum allowed is 220  max-lines-per-function
+  292:5  warning  Function 'renderQueueSummary' has a complexity of 46. Maximum allowed is 35           complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\queue\fileOverrides.drawer.form.js
+  674:3  warning  Function 'buildOverridePayload' has a complexity of 40. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\renameHistoryView.js
+  19:14  warning  'commandHistoryCompactEvidenceLine' is not defined  no-undef
+  32:7   warning  'renderRenameApplyResult' is not defined            no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\renameView.js
+  1255:3  warning  Function 'syncRenameCommandButtons' has a complexity of 46. Maximum allowed is 35  complexity
+  1562:3  warning  Function 'renameOpenResultDialog' has a complexity of 38. Maximum allowed is 35    complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\rename\applyReadiness.js
+  120:5  warning  Function 'renameApplyReadinessRows' has a complexity of 47. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\rename\applyResult.js
+  86:5  warning  Function 'renameApplyOutcomeRows' has a complexity of 40. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\reportsView.js
+    53:59  warning  'updatePagePanelEmptyStates' is not defined                                                       no-undef
+   151:14  warning  'commandHistoryCompactEvidenceLine' is not defined                                                no-undef
+   252:48  warning  'requestDiagnosticsOpen' is not defined                                                           no-undef
+   436:7   warning  'renderAuditProgressInto' is not defined                                                          no-undef
+   458:74  warning  'getCommandHistory' is not defined                                                                no-undef
+   603:12  warning  'failureClearMarkerPath' is defined but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+   642:3   warning  Function 'failureRetryStateFromRow' has a complexity of 48. Maximum allowed is 35                 complexity
+   893:12  warning  'allFailureMarkerPaths' is defined but never used. Allowed unused vars must match /^_|Module$/u   no-unused-vars
+   997:53  warning  'refreshAll' is not defined                                                                       no-undef
+  1087:5   warning  'diagnosticsBridgeActions' is not defined                                                         no-undef
+  1091:28  warning  'diagnosticsBridgeActionLabel' is not defined                                                     no-undef
+  1097:61  warning  'requestDiagnosticsTail' is not defined                                                           no-undef
+  1100:48  warning  'requestDiagnosticsOpen' is not defined                                                           no-undef
+  1105:7   warning  'appendDiagnosticsBridgeButton' is not defined                                                    no-undef
+  1140:9   warning  'diagnosticsBridgeHandoffLines' is not defined                                                    no-undef
+  2314:9   warning  'diagnosticsBridgeHandoffLines' is not defined                                                    no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\scheduleView.js
+   280:11  warning  'watcher' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  1004:17  warning  'refreshAllNow' is not defined                                                              no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsCommandHistory.js
+  43:14  warning  'commandHistoryCompactEvidenceLine' is not defined  no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsLibraries.js
+   863:3  warning  Function 'renderLibraryRouteOverrideField' has a complexity of 38. Maximum allowed is 35  complexity
+  1068:3  warning  Function 'renderOverrideField' has a complexity of 41. Maximum allowed is 35              complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsView.builders.audio.js
+  122:60  warning  Arrow function has a complexity of 46. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsView.builders.file_safety.js
+  149:65  warning  Arrow function has a complexity of 45. Maximum allowed is 35  complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsView.builders.network.js
+  2:3  warning  Function 'createNetworkSettingsBuilder' has too many lines (808). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsView.builders.subtitle.js
+    2:3   warning  Function 'createSubtitleSettingsBuilder' has too many lines (303). Maximum allowed is 220  max-lines-per-function
+  238:63  warning  Arrow function has a complexity of 50. Maximum allowed is 35                               complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsView.js
+     1:2   warning  Function has a complexity of 159. Maximum allowed is 35                                                complexity
+   267:5   warning  'formatSettingsListValue' is not defined                                                               no-undef
+   268:5   warning  'parseSettingsListText' is not defined                                                                 no-undef
+   297:5   warning  'formatSettingsListValue' is not defined                                                               no-undef
+   298:5   warning  'parseSettingsListText' is not defined                                                                 no-undef
+   351:5   warning  'formatSettingsListValue' is not defined                                                               no-undef
+   353:5   warning  'parseSettingsListText' is not defined                                                                 no-undef
+   386:5   warning  'formatSettingsListValue' is not defined                                                               no-undef
+   387:5   warning  'parseSettingsListText' is not defined                                                                 no-undef
+   436:5   warning  'formatSettingsListValue' is not defined                                                               no-undef
+   437:5   warning  'parseSettingsListText' is not defined                                                                 no-undef
+   460:5   warning  'formatSettingsListValue' is not defined                                                               no-undef
+   461:5   warning  'parseSettingsListText' is not defined                                                                 no-undef
+   837:13  warning  'refreshAll' is not defined                                                                            no-undef
+  1000:66  warning  'getCommandHistory' is not defined                                                                     no-undef
+  1102:66  warning  'getCommandHistory' is not defined                                                                     no-undef
+  1105:5   warning  'formatSettingsListValue' is not defined                                                               no-undef
+  1112:5   warning  'parseSettingsListText' is not defined                                                                 no-undef
+  1218:10  warning  'settingsProfileSummaryLines' is defined but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  1300:58  warning  'renderAllLaunchPreflights' is not defined                                                             no-undef
+  1380:3   warning  Async function 'previewSettingsPatch' has a complexity of 44. Maximum allowed is 35                    complexity
+  1390:58  warning  'renderAllLaunchPreflights' is not defined                                                             no-undef
+  1500:1   warning  Async function 'saveSettingsPatch' has a complexity of 62. Maximum allowed is 35                       complexity
+  1509:56  warning  'renderAllLaunchPreflights' is not defined                                                             no-undef
+  1574:58  warning  'renderAllLaunchPreflights' is not defined                                                             no-undef
+  1610:58  warning  'renderAllLaunchPreflights' is not defined                                                             no-undef
+  1681:13  warning  'refreshAll' is not defined                                                                            no-undef
+  1722:13  warning  'refreshAll' is not defined                                                                            no-undef
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settingsView.rawTriage.js
+  2:3  warning  Function 'createSettingsRawTriageModule' has too many lines (455). Maximum allowed is 220  max-lines-per-function
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settings\backendResult.js
+    2:3  warning  Function 'createSettingsBackendResultModule' has too many lines (441). Maximum allowed is 220  max-lines-per-function
+   93:5  warning  Function 'settingsBackendResultRows' has a complexity of 71. Maximum allowed is 35             complexity
+  253:5  warning  Function 'settingsBackendResultDetailLines' has a complexity of 52. Maximum allowed is 35      complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settings\patchReview.js
+     2:3   warning  Function 'createSettingsPatchReviewModule' has too many lines (2017). Maximum allowed is 220                                   max-lines-per-function
+    52:11  warning  'finalLibraryPromotionSettingsBuilderFields' is assigned a value but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  1286:5   warning  Function 'renderSettings' has a complexity of 44. Maximum allowed is 35                                                        complexity
+  1723:5   warning  Function 'settingsPatchSaveReadinessIssues' has a complexity of 78. Maximum allowed is 35                                      complexity
+  1860:5   warning  Function 'settingsSaveReviewRows' has a complexity of 43. Maximum allowed is 35                                                complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\settings\policyImpact.js
+    2:3   warning  Function 'createSettingsPolicyImpactModule' has too many lines (1357). Maximum allowed is 220                   max-lines-per-function
+   97:10  warning  'settingsPatchHasCandidatePercentKeys' is defined but never used. Allowed unused vars must match /^_|Module$/u  no-unused-vars
+  122:1   warning  Function 'settingsMediaPolicyRows' has a complexity of 71. Maximum allowed is 35                                complexity
+  230:1   warning  Function 'settingsActiveMediaPolicyRows' has a complexity of 63. Maximum allowed is 35                          complexity
+  385:1   warning  Function 'settingsEffectivePolicyRows' has a complexity of 48. Maximum allowed is 35                            complexity
+  918:1   warning  Function 'settingsPolicyDeltaRows' has a complexity of 68. Maximum allowed is 35                                complexity
+
+C:\Users\lmmye\Documents\Codex\2026-04-20-files-mentioned-by-the-user-ass\MediaPipelineRemuxEncodeAIO_V6\apps\desktop\webview\static\assets\telemetryView.js
+  457:9  warning  'formatMemoryMb' is not defined  no-undef
+
+✖ 664 problems (0 errors, 664 warnings)
+  0 errors and 3 warnings potentially fixable with the `--fix` option.

@@ -7,6 +7,7 @@
   let lastCompletedPendingProofRows = [];
   let lastPublishReconciliationPayload = {};
   let selectedCompletedRowKey = "";
+  let selectedCompletedSignalKey = "";
   let selectedCompletedPendingProofKey = "";
   let selectedCompletedSizeEvidenceKey = "";
   let selectedCompletedAcceptanceKey = "";
@@ -117,6 +118,8 @@
     set selectedCompletedPendingProofKey(value) { selectedCompletedPendingProofKey = value; },
     get selectedCompletedRowKey() { return selectedCompletedRowKey; },
     set selectedCompletedRowKey(value) { selectedCompletedRowKey = value; },
+    get selectedCompletedSignalKey() { return selectedCompletedSignalKey; },
+    set selectedCompletedSignalKey(value) { selectedCompletedSignalKey = value; },
     get lastCompletedEmptyMessage() { return lastCompletedEmptyMessage; },
     set lastCompletedEmptyMessage(value) { lastCompletedEmptyMessage = value; },
     get completedSizeColumnMode() { return completedSizeColumnMode; },

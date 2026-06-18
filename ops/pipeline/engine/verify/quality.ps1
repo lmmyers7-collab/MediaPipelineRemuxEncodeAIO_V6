@@ -472,6 +472,7 @@ function Resolve-MediaQualityOutcome {
 
     if (-not [string]::IsNullOrWhiteSpace($toolError) -or -not $hasScore) {
         $outcome = if ($currentOutcome -eq 'stopped') { 'stopped' } else { 'error' }
+        $block = ($failActionText -eq 'block_review')
     } elseif ($belowFail) {
         $outcome = 'fail'
         $block = ($failActionText -eq 'block_review')

@@ -6,6 +6,8 @@ import re
 from collections.abc import Iterable, Mapping
 from typing import Any
 
+from mediapipeline.core.validation.strict_json import loads_strict_json
+
 from mediapipeline.core.kernel.config_keys import (
     KEY_LIBRARY_PROFILES,
     KEY_OUTSOURCE,
@@ -57,9 +59,9 @@ def _coerce_mapping(value: Any, *, field_name: str) -> dict[str, Any]:
         if not text:
             return {}
         try:
-            value = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"{field_name} must be JSON object data.") from exc
+            value = loads_strict_json(text)
+        except ValueError as exc:
+            raise ValueError(f"{field_name} must be JSON object data: {exc}") from exc
     if not isinstance(value, Mapping):
         raise TypeError(f"{field_name} must be an object.")
     return {str(key): _jsonable(item) for key, item in value.items()}
@@ -120,9 +122,9 @@ def coerce_library_profiles(raw: Any) -> list[dict[str, Any]]:
         if not text:
             return []
         try:
-            raw = json.loads(text)
-        except json.JSONDecodeError as exc:
-            raise ValueError("LibraryProfiles must be JSON object/array data.") from exc
+            raw = loads_strict_json(text)
+        except ValueError as exc:
+            raise ValueError(f"LibraryProfiles must be JSON object/array data: {exc}") from exc
     if isinstance(raw, Mapping):
         raw = [raw]
     if not isinstance(raw, Iterable) or isinstance(raw, (bytes, bytearray, str)):

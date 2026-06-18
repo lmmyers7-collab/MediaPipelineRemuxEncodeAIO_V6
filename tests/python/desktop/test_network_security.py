@@ -22,6 +22,7 @@ from mediapipeline.desktop.network.auth import (
     validate_signed_request_result,
 )
 from mediapipeline.core.network.url_policy import redact_network_secret_text, redact_url
+from mediapipeline.desktop.config_keys import KEY_COORDINATOR_AUTH_TOKEN
 from mediapipeline.desktop.network.coordinator import CoordinatorDispatcher, _CoordHandler
 from mediapipeline.desktop.network.identity import (
     LOG_MESSAGE_TRUNCATION_SUFFIX,
@@ -208,6 +209,60 @@ class NetworkSecurityTests(unittest.TestCase):
         CoordinatorDispatcher.update_auth_token(dispatcher, new_token)
         self.assertEqual(dispatcher._auth_token, new_token)
         self.assertEqual(saved, [{"coordinator_auth_token": new_token}])
+
+    def test_load_or_generate_token_rejects_short_configured_token_without_leaking_it(self) -> None:
+        weak_token = "weak-token"
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._config = lambda: {KEY_COORDINATOR_AUTH_TOKEN: weak_token}  # type: ignore[assignment]
+        dispatcher._app = SimpleNamespace(service=SimpleNamespace(load_app_state=lambda: {}))
+
+        with self.assertNoLogs("mediapipeline.desktop.network.coordinator", level="WARNING"):
+            with self.assertRaises(ValueError) as exc_info:
+                CoordinatorDispatcher._load_or_generate_token(dispatcher)
+
+        self.assertIn("Configured coordinator auth token is too short", str(exc_info.exception))
+        self.assertNotIn(weak_token, str(exc_info.exception))
+
+    def test_load_or_generate_token_accepts_strong_configured_token(self) -> None:
+        strong_token = "configured-token-0123456789"
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._config = lambda: {KEY_COORDINATOR_AUTH_TOKEN: strong_token}  # type: ignore[assignment]
+        dispatcher._app = SimpleNamespace(
+            service=SimpleNamespace(load_app_state=lambda: (_ for _ in ()).throw(AssertionError("state should not load")))
+        )
+
+        self.assertEqual(CoordinatorDispatcher._load_or_generate_token(dispatcher), strong_token)
+
+    def test_load_or_generate_token_blank_config_falls_back_to_generated_token(self) -> None:
+        saved: list[dict] = []
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._config = lambda: {KEY_COORDINATOR_AUTH_TOKEN: "   "}  # type: ignore[assignment]
+        dispatcher._app = SimpleNamespace(
+            service=SimpleNamespace(
+                load_app_state=lambda: {},
+                save_app_state=lambda data: saved.append(dict(data)),
+            ),
+        )
+
+        with patch("mediapipeline.desktop.network.coordinator_auth.generate_token", return_value="generated-token-123456"):
+            token = CoordinatorDispatcher._load_or_generate_token(dispatcher)
+
+        self.assertEqual(token, "generated-token-123456")
+        self.assertEqual(saved, [{"coordinator_auth_token": "generated-token-123456"}])
+
+    def test_load_or_generate_token_rejects_short_persisted_token_without_leaking_it(self) -> None:
+        weak_token = "weak-state"
+        dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)
+        dispatcher._config = lambda: {}  # type: ignore[assignment]
+        dispatcher._app = SimpleNamespace(
+            service=SimpleNamespace(load_app_state=lambda: {"coordinator_auth_token": weak_token})
+        )
+
+        with self.assertRaises(ValueError) as exc_info:
+            CoordinatorDispatcher._load_or_generate_token(dispatcher)
+
+        self.assertIn("Persisted coordinator auth token is too short", str(exc_info.exception))
+        self.assertNotIn(weak_token, str(exc_info.exception))
 
     def test_rotated_auth_token_persistence_failure_is_not_logged_as_persisted(self) -> None:
         dispatcher = CoordinatorDispatcher.__new__(CoordinatorDispatcher)

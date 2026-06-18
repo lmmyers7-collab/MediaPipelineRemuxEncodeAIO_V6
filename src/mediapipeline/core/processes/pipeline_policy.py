@@ -20,6 +20,9 @@ PIPELINE_NETWORK_MODE_BLOCK_ERROR = (
     "Normal Launch is disabled while NetworkRole is coordinator or worker, or when NetworkRole is invalid. "
     "Use Network/Workers controls or switch NetworkRole back to standalone."
 )
+PIPELINE_SINGLE_FILE_BLOCK_ERROR = (
+    "Single-file launch must target an existing supported media file under a configured source root."
+)
 NETWORK_ROLES = frozenset({"standalone", "coordinator", "worker"})
 
 
@@ -112,8 +115,9 @@ def pipeline_start_success_data(
     pid: int,
     launch_prep_messages: list[str],
     launch_logs: str,
+    single_file_validation: Any | None = None,
 ) -> dict[str, Any]:
-    return {
+    data = {
         "mode": actual_mode,
         "requested_mode": requested_mode,
         "schedule": schedule_data,
@@ -121,6 +125,9 @@ def pipeline_start_success_data(
         "launch_prep": launch_prep_messages,
         "logs": launch_logs,
     }
+    if single_file_validation:
+        data["single_file_validation"] = _json_safe(single_file_validation)
+    return data
 
 
 def pipeline_start_unsupported_mode_result() -> "CommandResult":
@@ -150,6 +157,19 @@ def pipeline_start_extra_args_error_result() -> "CommandResult":
         message="Extra pipeline arguments are disabled for the local API start command.",
         severity="error",
         errors=[PIPELINE_EXTRA_ARGS_ERROR],
+    )
+
+
+def pipeline_start_single_file_blocked_result(data: dict[str, Any]) -> "CommandResult":
+    message = str(data.get("message") or PIPELINE_SINGLE_FILE_BLOCK_ERROR)
+    return _command_result(
+        command=PIPELINE_START_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=[message],
+        refresh_hint="queue",
+        data=_json_safe(data),
     )
 
 
@@ -247,6 +267,7 @@ def pipeline_start_success_result(
     pid: int,
     launch_prep_messages: list[str],
     launch_logs: str,
+    single_file_validation: Any | None = None,
 ) -> "CommandResult":
     return _command_result(
         command=PIPELINE_START_COMMAND,
@@ -261,6 +282,7 @@ def pipeline_start_success_result(
             pid=pid,
             launch_prep_messages=launch_prep_messages,
             launch_logs=launch_logs,
+            single_file_validation=single_file_validation,
         ),
     )
 
@@ -271,6 +293,7 @@ __all__ = [
     "PIPELINE_SLEEP_SECONDS_ERROR",
     "PIPELINE_EXTRA_ARGS_ERROR",
     "PIPELINE_NETWORK_MODE_BLOCK_ERROR",
+    "PIPELINE_SINGLE_FILE_BLOCK_ERROR",
     "NETWORK_ROLES",
     "coordinator_also_encode_locally_enabled",
     "configured_network_role",
@@ -289,6 +312,7 @@ __all__ = [
     "pipeline_start_unsupported_mode_result",
     "pipeline_start_sleep_error_result",
     "pipeline_start_extra_args_error_result",
+    "pipeline_start_single_file_blocked_result",
     "pipeline_start_network_mode_blocked_result",
     "pipeline_start_schedule_gate_result",
     "pipeline_start_active_work_result",

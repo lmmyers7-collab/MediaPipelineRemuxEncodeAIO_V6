@@ -39,7 +39,9 @@ def build_config_preview(
     if encode_tuning != "custom_legacy_flags" and "ExtraVideoFlags" in managed_keys:
         merged["ExtraVideoFlags"] = []
     audio_profile = str(merged.get("AudioPassthroughProfile", AUDIO_PASSTHROUGH_PROFILE_DEFAULT) or AUDIO_PASSTHROUGH_PROFILE_DEFAULT).strip().lower()
-    if audio_profile in AUDIO_PASSTHROUGH_PROFILE_CODECS and "CompatibleAudioCodecs" in managed_keys:
+    audio_profile_managed = "AudioPassthroughProfile" in managed_keys or "AudioPassthroughProfile" in managed_values
+    audio_codecs_managed = "CompatibleAudioCodecs" in managed_keys
+    if audio_profile in AUDIO_PASSTHROUGH_PROFILE_CODECS and (audio_profile_managed or audio_codecs_managed):
         merged["CompatibleAudioCodecs"] = list(AUDIO_PASSTHROUGH_PROFILE_CODECS[audio_profile])
 
     merged = mirror_legacy_keys_from_library_profiles(merged, require_profiles=True)

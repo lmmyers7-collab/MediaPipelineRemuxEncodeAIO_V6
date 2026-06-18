@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping
 from typing import Any
+
+from mediapipeline.core.validation.strict_json import loads_strict_json
 
 from mediapipeline.core.kernel.config_keys import (
     KEY_FINAL_LIBRARY_PROMOTION_RULES,
@@ -45,8 +46,8 @@ def promotion_rules_from_library_profiles(
     if include_existing:
         existing = config.get(KEY_FINAL_LIBRARY_PROMOTION_RULES)
         try:
-            existing_rules = existing if isinstance(existing, list) else json.loads(existing) if isinstance(existing, str) and existing.strip() else []
-        except json.JSONDecodeError:
+            existing_rules = existing if isinstance(existing, list) else loads_strict_json(existing) if isinstance(existing, str) and existing.strip() else []
+        except ValueError:
             existing_rules = []
         profile_source_roots = {
             _text(rule.get("source_root")).rstrip("\\/").casefold()

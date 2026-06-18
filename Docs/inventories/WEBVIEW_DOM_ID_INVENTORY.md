@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-11
+Date: 2026-06-16
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1594. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1708. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -589,11 +589,11 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 ---
 
-## Machine-Generated Full DOM ID Manifest - 2026-06-11
+## Machine-Generated Full DOM ID Manifest - 2026-06-16
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1594
+Count: 1708
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -732,6 +732,7 @@ completed-pilot-evidence-markdown
 completed-pilot-evidence-rows
 completed-pilot-evidence-status
 completed-pilot-evidence-summary
+completed-raw-detail
 completed-real-media-proof-detail
 completed-real-media-proof-legend
 completed-real-media-proof-rows
@@ -896,6 +897,7 @@ failure-preview-all-clear-button
 failure-preview-selected-clear-button
 failure-preview-visible-clear-button
 failure-review-board
+failure-review-board-detail
 failure-review-status
 failure-rows
 failure-source-markers
@@ -1015,11 +1017,6 @@ home-scratch-storage-detail
 home-scratch-storage-status
 home-settings-trust-status
 home-settings-trust-summary
-home-tdarr-matrix-detail
-home-tdarr-matrix-panel-status
-home-tdarr-matrix-progress-bars
-home-tdarr-matrix-status
-home-tdarr-matrix-summary
 launch-backend-preflight-detail
 launch-backend-preflight-legend
 launch-backend-preflight-refresh-button
@@ -1152,6 +1149,7 @@ maintenance-toolchain-status
 maintenance-total-count
 maintenance-warning-count
 maintenance-warnings
+media-pipeline-bootstrap
 metrics-attention-rows
 metrics-attention-status
 metrics-backfill-button
@@ -1212,6 +1210,20 @@ metrics-worker-status
 metrics-worker-warnings
 network-api-status
 network-api-summary
+network-coordinator-active-rows
+network-coordinator-active-status
+network-coordinator-join-copy
+network-coordinator-join-create
+network-coordinator-join-output
+network-coordinator-join-result
+network-coordinator-join-rotate
+network-coordinator-join-status
+network-coordinator-join-url
+network-coordinator-overview-status
+network-coordinator-overview-summary
+network-coordinator-overview-tiles
+network-coordinator-queue-rows
+network-coordinator-queue-status
 network-coordinator-target
 network-evidence-detail
 network-evidence-legend
@@ -1220,6 +1232,17 @@ network-evidence-status
 network-evidence-summary
 network-lifecycle-boundary-status
 network-lifecycle-boundary-summary
+network-lifecycle-command-result
+network-lifecycle-confirm-cancel
+network-lifecycle-confirm-designation
+network-lifecycle-confirm-detail
+network-lifecycle-confirm-dialog
+network-lifecycle-confirm-submit
+network-lifecycle-confirm-summary
+network-lifecycle-confirm-title
+network-lifecycle-control-buttons
+network-lifecycle-control-status
+network-lifecycle-control-summary
 network-lifecycle-detail
 network-lifecycle-legend
 network-lifecycle-rows
@@ -1232,6 +1255,37 @@ network-open-history-status
 network-readiness-status
 network-readiness-summary
 network-role
+network-role-coordinator-setup-button
+network-role-setup-bind-address
+network-role-setup-close-button
+network-role-setup-coordinator-fields
+network-role-setup-coordinator-port
+network-role-setup-designation
+network-role-setup-dialog
+network-role-setup-guardrail
+network-role-setup-heartbeat-timeout
+network-role-setup-honor-coordinator-policy
+network-role-setup-local-encode
+network-role-setup-path-map
+network-role-setup-path-map-add-row
+network-role-setup-path-map-editor
+network-role-setup-path-map-label
+network-role-setup-path-map-rows
+network-role-setup-path-map-status
+network-role-setup-path-map-test-result
+network-role-setup-preview-button
+network-role-setup-save-button
+network-role-setup-stage-button
+network-role-setup-summary
+network-role-setup-title
+network-role-setup-worker-encoder-map
+network-role-setup-worker-fields
+network-role-setup-worker-name
+network-role-setup-worker-overrides
+network-role-setup-worker-poll
+network-role-setup-worker-url
+network-role-setup-worker-url-error
+network-role-worker-setup-button
 network-route-summary
 network-route-summary-status
 network-settings-control-status
@@ -1246,19 +1300,51 @@ network-state-files-rows
 network-state-files-status
 network-state-files-summary
 network-status
+network-status-banner
+network-status-banner-detail
+network-status-banner-lines
+network-status-banner-title
 network-summary
+network-worker-claim-rows
+network-worker-claim-status
 network-worker-detail
+network-worker-discover
+network-worker-discovery-list
+network-worker-discovery-result
+network-worker-discovery-status
 network-worker-filter
 network-worker-filter-summary
+network-worker-join-blob
+network-worker-join-import
+network-worker-join-result
+network-worker-join-status
+network-worker-overview-status
+network-worker-overview-summary
+network-worker-overview-tiles
 network-worker-poll
 network-worker-progress-bars
 network-worker-progress-status
 network-worker-progress-summary
+network-worker-remote-queue-status
+network-worker-remote-queue-summary
 network-worker-rows
 network-worker-status
 network-worker-status-filter
 network-worker-summary
 network-worker-table-legend
+pending-action-blocked-count
+pending-action-blockers-button
+pending-action-detail
+pending-action-drain-button
+pending-action-evidence-count
+pending-action-feedback
+pending-action-primary
+pending-action-ready-count
+pending-action-reason
+pending-action-refresh-button
+pending-action-review-count
+pending-action-status
+pending-action-subtitle
 pending-backend-scope-legend
 pending-backend-scope-rows
 pending-backend-scope-status
@@ -1483,6 +1569,9 @@ release-build-button
 release-build-detail
 release-build-force
 release-build-progress-bars
+release-build-state-chip
+release-build-state-hint
+release-build-state-value
 release-build-status
 release-dry-run-button
 release-dry-run-destination
@@ -1491,11 +1580,16 @@ release-dry-run-dev-docs
 release-dry-run-keep-config
 release-dry-run-optional-tools
 release-dry-run-progress-bars
+release-dry-run-state-chip
+release-dry-run-state-hint
+release-dry-run-state-value
 release-dry-run-status
+release-dry-run-tauri-binary
 release-dry-run-tests
 release-dry-run-tool-docs
 release-dry-run-verify
 release-dry-run-zip
+release-package-status-strip
 rename-add-path-button
 rename-add-path-input
 rename-apply-button
@@ -1616,6 +1710,7 @@ report-triage-warning-count
 report-warning-count
 report-warning-rows
 report-warning-status
+rerun-dry-run-button
 rerun-launch-detail
 rerun-launch-preflight
 rerun-launch-status
@@ -1807,6 +1902,13 @@ settings-command-history
 settings-command-history-status
 settings-container-size-container
 settings-count
+settings-deployment-action-detail
+settings-deployment-action-status
+settings-deployment-launch-button
+settings-deployment-path-panel
+settings-deployment-repair-button
+settings-deployment-start-button
+settings-deployment-verify-button
 settings-effective-policy-detail
 settings-effective-policy-legend
 settings-effective-policy-rows
@@ -1886,13 +1988,22 @@ settings-network-coordinator-local-encode
 settings-network-coordinator-port
 settings-network-guidance
 settings-network-heartbeat-timeout
+settings-network-honor-coordinator-policy
 settings-network-path-map
+settings-network-path-map-add-row
+settings-network-path-map-editor
+settings-network-path-map-label
+settings-network-path-map-rows
+settings-network-path-map-status
+settings-network-path-map-test-result
 settings-network-reset-button
 settings-network-role
+settings-network-worker-encoder-map
 settings-network-worker-name
 settings-network-worker-overrides
 settings-network-worker-poll
 settings-network-worker-url
+settings-network-worker-url-error
 settings-open-wizard-button
 settings-overview-rows
 settings-overview-status
@@ -1954,6 +2065,7 @@ settings-rename-cleaning-filters-save-button
 settings-rename-filter-audio-channels
 settings-rename-filter-editions
 settings-rename-filter-file-size
+settings-rename-filter-languages-subs-dubs
 settings-rename-filter-release-groups
 settings-rename-filter-services-containers
 settings-rename-filter-video-source
@@ -2141,6 +2253,8 @@ tdarr-matrix-compare-left
 tdarr-matrix-compare-refresh
 tdarr-matrix-compare-right
 tdarr-matrix-console-summary
+tdarr-matrix-proof-pack-rows
+tdarr-matrix-proof-pack-status
 tdarr-matrix-run-compare-rows
 tdarr-matrix-run-compare-status
 telemetry-kpi-cpu-value

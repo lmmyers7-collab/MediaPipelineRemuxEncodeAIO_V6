@@ -46,6 +46,8 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("all backend failure markers", source)
         self.assertIn("function setFailureMarkerSourceMode(enabled)", source)
         self.assertIn("setFailureMarkerSourceMode(true);", source)
+        self.assertIn("function applyLocalFailureMarkerClear(request, result)", source)
+        self.assertIn("renderFailurePreview(nextPreview);", source)
 
     def test_audit_review_status_is_case_normalized_for_investigation_gate(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")

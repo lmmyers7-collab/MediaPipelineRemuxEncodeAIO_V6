@@ -3,9 +3,9 @@ file: docs/inventories/COMMAND_OWNERSHIP_MATRIX.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-08
+last_modified: 2026-06-14
 last_reviewed: 2026-05-31
-sha256: 2ed2c1794b5574963b50cb9feab00d8fea3eb4040bd51de9675b44c512377ff5
+sha256: 5c2d226cbb9d419d6d939e9a037aff5d2e38714b257c0e10568e1bca55efacd1
 ---
 # `docs/inventories/COMMAND_OWNERSHIP_MATRIX.md`
 

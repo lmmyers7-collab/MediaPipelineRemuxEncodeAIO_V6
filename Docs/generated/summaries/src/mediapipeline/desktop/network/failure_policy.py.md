@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/failure_policy.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-09
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 3f166c82c44b0de16cd6430dfb94ba6405b82fca9daeb8659cab04cd72ad8235
+sha256: e7e2372fa4f1f3118c8e2ad582a7c95283ef4b5f9c10876a46b96c747f53d259
 ---
 # `src/mediapipeline/desktop/network/failure_policy.py`
 

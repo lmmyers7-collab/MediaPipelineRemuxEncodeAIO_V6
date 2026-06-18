@@ -293,7 +293,7 @@ mod tests {
     }
 
     #[test]
-    fn web_ui_validation_only_treats_bootstrap_security_failures_as_fatal() {
+    fn web_ui_validation_treats_all_asset_validation_failures_as_fatal() {
         assert!(web_ui_validation_error_is_fatal(
             "Backend WebView index leaked the bearer token instead of relying on Tauri shell injection."
         ));
@@ -301,12 +301,12 @@ mod tests {
             "Backend WebView index still contains the raw bootstrap placeholder."
         ));
         assert!(web_ui_validation_error_is_fatal(
-            "Backend WebView index is missing required fragment 'bootstrap assignment'."
+            "Backend WebView index is missing required fragment 'bootstrap data block'."
         ));
-        assert!(!web_ui_validation_error_is_fatal(
+        assert!(web_ui_validation_error_is_fatal(
             "Backend WebView settings script is missing required fragment 'settings backend readiness guardrail'."
         ));
-        assert!(!web_ui_validation_error_is_fatal(
+        assert!(web_ui_validation_error_is_fatal(
             "Backend request did not return HTTP 200: HTTP/1.0 404 Not Found"
         ));
     }
@@ -370,6 +370,7 @@ mod tests {
                 auth_required: true,
                 effect: None,
                 requires_confirmation: None,
+                journaled: None,
                 owner: None,
                 frontend_exposed: None,
                 network_lifecycle: None,
@@ -674,7 +675,7 @@ mod tests {
     #[test]
     fn validate_backend_web_ui_requires_index_and_real_media_assets_without_leaking_token() {
         let index = r#"<!doctype html>
-<script>window.MEDIA_PIPELINE_BOOTSTRAP = Object.assign({}, {"apiBase":"","token":"","appVersion":"2026.06.04.001","shellSurface":"tauri","tokenSource":"tauri-initialization-script"}, window.MEDIA_PIPELINE_TAURI_BOOTSTRAP || {});</script>
+<script type="application/json" id="media-pipeline-bootstrap">{"apiBase":"","token":"","appVersion":"2026.06.04.001","shellSurface":"tauri","tokenSource":"tauri-initialization-script"}</script>
 <section data-page-panel="home">
   <strong id="cross-page-real-media-status">Not loaded</strong>
   <tbody id="cross-page-real-media-rows"></tbody>
@@ -1073,7 +1074,7 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
     #[test]
     fn validate_backend_web_ui_reports_missing_fragments_without_token() {
         let index = r#"<!doctype html>
-<script>window.MEDIA_PIPELINE_BOOTSTRAP = Object.assign({}, {"apiBase":"","token":"","appVersion":"2026.06.04.001","shellSurface":"tauri","tokenSource":"tauri-initialization-script"}, window.MEDIA_PIPELINE_TAURI_BOOTSTRAP || {});</script>
+<script type="application/json" id="media-pipeline-bootstrap">{"apiBase":"","token":"","appVersion":"2026.06.04.001","shellSurface":"tauri","tokenSource":"tauri-initialization-script"}</script>
 <section data-page-panel="home">
   <strong id="cross-page-real-media-status">Not loaded</strong>
   <tbody id="cross-page-real-media-rows"></tbody>

@@ -260,11 +260,48 @@
     return [networkWorkerDriftStatusText(drift)];
   }
 
+  function networkWorkerPolicyDivergencePayload(drift) {
+    const payload = drift?.policy_divergence;
+    return payload && typeof payload === "object" ? payload : {};
+  }
+
+  function networkWorkerPolicyDivergenceText(drift) {
+    const payload = networkWorkerPolicyDivergencePayload(drift);
+    const labels = Array.isArray(payload.field_labels) ? payload.field_labels : [];
+    const fields = Array.isArray(payload.fields) ? payload.fields : [];
+    const values = (labels.length ? labels : fields)
+      .map((item) => String(item || "").trim())
+      .filter(Boolean);
+    return values.length ? values.join(", ") : "ready";
+  }
+
+  function networkWorkerPolicyDivergenceStatusText(drift) {
+    const payload = networkWorkerPolicyDivergencePayload(drift);
+    const status = String(payload.status || "").trim().toLowerCase();
+    if (status === "review") return `Review (${networkWorkerPolicyDivergenceText(drift)})`;
+    if (status === "ready") return "Ready";
+    return status || "Not loaded";
+  }
+
+  function networkWorkerPolicyDivergenceActive(drift) {
+    const status = String(networkWorkerPolicyDivergencePayload(drift).status || "").trim().toLowerCase();
+    return status === "review" || status === "warning" || status === "blocked";
+  }
+
+  function networkWorkerPolicyDivergenceSummaryLines(drift) {
+    const payload = networkWorkerPolicyDivergencePayload(drift);
+    if (Array.isArray(payload.summary_lines) && payload.summary_lines.length) {
+      return payload.summary_lines.map((line) => String(line || "").trim()).filter(Boolean);
+    }
+    return [networkWorkerPolicyDivergenceStatusText(drift)];
+  }
+
   function renderNetworkStatusBanner(payload = {}, config = {}) {
     const networkWorkers = payload.networkWorkers || {};
     const runtime = networkRuntimeStatus(networkWorkers, config);
     const drift = networkWorkerDriftPayload(networkWorkers);
     const driftActive = String(drift.status || "").toLowerCase() === "drift";
+    const policyReviewActive = networkWorkerPolicyDivergenceActive(drift);
     const modeLabel = visibleNetworkModeLabel(config);
     const target = coordinatorTarget(config, networkWorkers);
     const mode = visibleNetworkMode(config);
@@ -272,12 +309,15 @@
       ? "Normal Launch available"
       : "Normal Launch blocked; use Network Lifecycle";
     const banner = byId("network-status-banner");
-    if (banner) banner.dataset.status = driftActive ? "warning" : (runtime.severity || "unknown");
-    setText("network-status-banner-title", `${modeLabel} - ${driftActive ? "Running settings drift" : runtime.label}`);
+    if (banner) banner.dataset.status = (driftActive || policyReviewActive) ? "warning" : (runtime.severity || "unknown");
+    const bannerStatus = driftActive ? "Running settings drift" : policyReviewActive ? "Coordinator policy review" : runtime.label;
+    setText("network-status-banner-title", `${modeLabel} - ${bannerStatus}`);
     setText(
       "network-status-banner-detail",
       driftActive
         ? `${launchReason}. Running worker differs from saved: ${networkWorkerDriftFieldText(drift)}.`
+        : policyReviewActive
+          ? `${launchReason}. Coordinator policy authority needs review: ${networkWorkerPolicyDivergenceText(drift)}.`
         : `${launchReason}. Coordinator target: ${target || "not configured"}.`
     );
     const summaryLines = Array.isArray(networkWorkers.operator_summary_lines)
@@ -290,6 +330,9 @@
         ];
     if (driftActive && !summaryLines.some((line) => line.toLowerCase().includes("worker settings drift"))) {
       summaryLines.push(...networkWorkerDriftSummaryLines(drift));
+    }
+    if (policyReviewActive && !summaryLines.some((line) => line.toLowerCase().includes("coordinator policy authority"))) {
+      summaryLines.push(...networkWorkerPolicyDivergenceSummaryLines(drift));
     }
     setText("network-status-banner-lines", summaryLines.join("\n"));
   }
@@ -744,6 +787,7 @@
       ["Worker coordinator URL", coordinatorTarget(config, payload)],
       ["Running vs saved", networkWorkerDriftStatusText(drift)],
       ["Drift fields", networkWorkerDriftFieldText(drift)],
+      ["Coordinator policy authority", networkWorkerPolicyDivergenceStatusText(drift)],
       ["Poll interval", `${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")} second(s)`],
       ["Lifecycle routes", routeStatus],
       ["Current job", workerState.job_id || "(none)"],
@@ -764,6 +808,7 @@
         networkReviewTile("Pending Done", pendingDone ? "Yes" : "No", "from worker_state", pendingDone ? "blocked" : "match"),
         networkReviewTile("Coordinator", coordinatorTarget(config, payload), "backend/saved target evidence", role === "worker" ? "warning" : "match"),
         networkReviewTile("Settings Drift", driftActive ? "Drift" : "OK", networkWorkerDriftFieldText(drift), driftActive ? "warning" : "match"),
+        networkReviewTile("Policy Authority", networkWorkerPolicyDivergenceActive(drift) ? "Review" : "Ready", networkWorkerPolicyDivergenceText(drift), networkWorkerPolicyDivergenceActive(drift) ? "warning" : "match"),
         networkReviewTile("Poll", `${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")}s`, "saved worker interval", "match"),
         networkReviewTile("Lifecycle", routeStatus, "contract evidence", routeStatus.includes("missing") ? "warning" : "match"),
         networkReviewTile("State Files", `${presentFiles}/${stateFiles.length}`, problemFiles ? `${problemFiles} review` : "present", problemFiles ? "warning" : "match"),
@@ -773,9 +818,10 @@
         `Local claim: ${hasClaim ? "present" : "none"}; pending done report=${pendingDone ? "yes" : "no"}; file=${currentFile ? networkBasename(currentFile) : "none"}.`,
         `Worker coordinator URL: ${coordinatorTarget(config, payload)}; poll interval=${displayConfigValue(config, "WorkerPollIntervalSecs", "not configured")} second(s).`,
         `Running vs saved: ${networkWorkerDriftStatusText(drift)}.`,
+        `Coordinator policy authority: ${networkWorkerPolicyDivergenceStatusText(drift)}.`,
         `Lifecycle route status: ${routeStatus}; state-file evidence=${presentFiles}/${stateFiles.length} present.`,
         "Remote coordinator queue: Phase 2. Worker-side full coordinator queue visibility requires a read-only backend coordinator queue contract and is not inferred by this WebView.",
-        "Mutation guardrail: this dashboard does not start/stop workers, send done reports, mutate queue state, rewrite state files, or touch media files.",
+        "Mutation guardrail: this dashboard uses backend-owned Network lifecycle routes only; it does not send done reports, mutate queue state, rewrite state files, or touch media files.",
       ],
       remoteQueueSummary: [
         "Phase 2 placeholder:",
@@ -1241,7 +1287,7 @@
         button.title = dryRun
           ? `${modeLabel}: check ${buttonRole} ${action}; effect=none.`
           : action === "stop"
-            ? `${modeLabel}: stop through backend lifecycle route. Stopping may abort active worker work.`
+            ? `${modeLabel}: stop polling/new claims through backend lifecycle route; active work is preserved for done reporting.`
             : `${modeLabel}: start through backend lifecycle route.`;
       } else if (!roleApplies) {
         button.title = "This lifecycle control does not apply to the saved network mode.";
@@ -1282,6 +1328,8 @@
     const blocked = preconditions.filter((row) => String(row?.status || "").toLowerCase() === "blocked");
     const passed = preconditions.filter((row) => String(row?.status || "").toLowerCase() === "pass");
     const isDryRun = data.dry_run_only === true;
+    const stateAfterStatus = String(data.state_after?.status || "").toLowerCase();
+    const activeWorkPreserved = data.active_work_preserved === true || stateAfterStatus === "active_work_preserved";
     const lines = isDryRun
       ? [
           "Check complete. This was a dry-run only.",
@@ -1289,7 +1337,9 @@
           "No files, queue, scratch, output, pending publish, or lifecycle state changed.",
         ]
       : [
-          result?.ok
+          activeWorkPreserved
+            ? "Stop requested. Active work is preserved for done reporting; backend command journal evidence was required before runtime state changed."
+            : result?.ok
             ? "Confirmed command completed. Backend command journal evidence was required before runtime state changed."
             : "Confirmed command was blocked or failed. No fallback to normal Launch was attempted.",
         ];
@@ -1310,6 +1360,24 @@
     if (blocked.length) {
       lines.push("", "Blocked preconditions:");
       blocked.slice(0, 8).forEach((row) => lines.push(`- ${row.key || "precondition"}: ${row.evidence || ""}`));
+    }
+    const activeWork = activeWorkPreserved
+      ? data.post_action_active_work || data.state_after?.active_work || {}
+      : {};
+    if (activeWorkPreserved && activeWork && typeof activeWork === "object") {
+      const activeJobs = Array.isArray(activeWork.active_jobs) ? activeWork.active_jobs : [];
+      lines.push(
+        "",
+        "Active work preserved:",
+        `- Active jobs: ${activeWork.active_job_count || activeJobs.length || 0}`,
+        `- Local active jobs: ${activeWork.local_active_job_count || 0}`,
+        `- Remote active claims: ${activeWork.remote_active_claim_count || 0}`,
+        "- Effect: stopped polling/new claims; preserved active work must finish and report done through backend lifecycle."
+      );
+      activeJobs.slice(0, 5).forEach((job) => {
+        const label = job.source_name || job.job_id || "active job";
+        lines.push(`- ${label}: ${job.source || "backend evidence"}`);
+      });
     }
     const errors = Array.isArray(result?.errors) ? result.errors : [];
     if (errors.length) {
@@ -1589,7 +1657,7 @@
     setText("network-coordinator-join-status", "Creating");
     setText("network-coordinator-join-result", `Submitting ${route}...`);
     try {
-      const result = await apiPost(route, request);
+      const result = await apiPost("/api/network/coordinator/join-blob", request);
       if (output) output.value = result?.ok ? String(result?.data?.join_blob || "") : "";
       setText("network-coordinator-join-status", result.ok ? "Blob ready" : "Blocked");
       setText("network-coordinator-join-result", networkJoinBlobResultLines(result).join("\n"));
@@ -1641,7 +1709,7 @@
     setText("network-worker-join-status", "Importing");
     setText("network-worker-join-result", `Submitting ${route}...`);
     try {
-      const result = await apiPost(route, {
+      const result = await apiPost("/api/network/worker/join-cluster", {
         join_blob: blob,
         confirm_import: true,
       });
@@ -1672,7 +1740,7 @@
     setText("network-worker-discovery-result", `Submitting ${route}...`);
     renderNetworkCoordinatorDiscoveryList(null);
     try {
-      const result = await apiPost(route, { timeout_seconds: 2 });
+      const result = await postNetworkRoute(route, { timeout_seconds: 2 });
       setText("network-worker-discovery-status", result.ok ? "Discovery complete" : "Review");
       setText("network-worker-discovery-result", networkCoordinatorDiscoveryResultLines(result).join("\n"));
       renderNetworkCoordinatorDiscoveryList(result);
@@ -1697,7 +1765,7 @@
     const currentClaim = workerState.job_id || workerState.source_file || "none";
     const lastDryRun = byId("network-lifecycle-command-result")?.textContent || "No recent dry-run result on this page.";
     const stopImpact = action === "stop"
-      ? "Stopping may abort active worker work. Verify active claims before confirming."
+      ? "Stop polling/new claims; active work is preserved for done reporting. Verify active claims before confirming."
       : "Starting begins backend-owned coordinator or worker lifecycle work.";
     return [
       `Role: ${role}`,
@@ -1748,10 +1816,14 @@
     });
   }
 
+  async function postNetworkRoute(route, request) {
+    if (route) return apiPost(route, request);
+    throw new Error("Unsupported Network route.");
+  }
+
   async function postNetworkLifecycleRoute(contract, role, action, dryRun, request) {
     const route = networkLifecycleRoutePath(contract, role, action, dryRun);
-    if (route) return apiPost(route, request);
-    throw new Error("Unsupported Network lifecycle route.");
+    return postNetworkRoute(route, request);
   }
 
   async function runNetworkLifecycleCommand(button) {
@@ -1829,7 +1901,7 @@
       setText("network-lifecycle-command-result", "Submitting worker test-connection preflight...");
     }
     try {
-      const result = await apiPost(route, {});
+      const result = await apiPost("/api/network/worker/test-connection", {});
       if (render) {
         setText("network-lifecycle-command-result", networkTestConnectionResultLines(result).join("\n"));
         setText("network-lifecycle-control-status", result.ok ? "Connection passed" : "Connection review");
@@ -2978,7 +3050,7 @@
       "Safe interpretation:",
       "- Active bars reflect last reported persisted coordinator/worker runtime state, not a lifecycle command surface.",
       "- Stale or blocked bars should be cross-checked with Cluster Log, ActiveJobs, Run Logs, and Last Stderr before retries.",
-      "Mutation guardrail: this panel does not start/stop workers, reclaim jobs, release claims, send done reports, mutate queue state, or touch media files."
+      "Mutation guardrail: this panel uses backend-owned Network lifecycle routes only; it does not reclaim jobs, release claims, send done reports, mutate queue state, or touch media files."
     );
     return lines;
   }

@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/check_risky_file_registry.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 9ee1fe5080ad7e0438c65821e76480dc14967080926d1f8b7ed16d7021c1d1a4
+sha256: a4808f901b72ac1e70dd86fca0fcdd6b37dc770bca3b1891c9666a2eeb0a7cbb
 ---
 # `src/mediapipeline/tools/dev/check_risky_file_registry.py`
 

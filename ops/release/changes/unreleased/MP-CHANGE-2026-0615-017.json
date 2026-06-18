@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0615-017",
+  "title": "Network coordinator worker remediation planning docs",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-15",
+  "date_completed": "2026-06-15",
+  "summary": "Create standalone remediation planning documents for the remaining Network Worker/Coordinator reliability, recovery, redaction, UI-contract, and validation issues found in the post-hardening audit.",
+  "reason": "The review found that the feature is mostly wired but still needs a sequenced implementation plan for coordinator drain semantics, provider partial-failure cleanup, worker-state recovery, result/DTO strictness, worker local redaction, stale UI copy, and acceptance validation.",
+  "affected_areas": [
+    "docs",
+    "generated-summaries",
+    "network-coordinator-worker",
+    "planning"
+  ],
+  "behavior_before": "The review findings were available only in the audit response and were not captured as standalone, handoff-ready implementation plans.",
+  "behavior_after": "The review findings are captured in standalone planning documents with ordered tasks, file/function targets, regression tests, validation commands, rollback notes, and acceptance criteria.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0615-017.json.md",
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/REMEDIATION_MASTER_PLAN.md",
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/plans/01-lifecycle-drain-and-provider-cleanup.md",
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/plans/02-worker-state-and-result-strictness.md",
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/plans/03-auth-redaction-ui-contract-cleanup.md",
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/plans/04-acceptance-validation-runbook.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0615-017.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PowerShell Test-Path existence check for five remediation docs, change packet, and generated packet summary -> OK",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> passed (319 packet(s) valid)"
+  ],
+  "rollback_plan": "Remove the added remediation planning documents and this change packet. No runtime code or operator behavior is changed by this docs-only packet.",
+  "related_changes": [],
+  "notes": "Docs-only planning packet for the follow-up remediation work after the Network Worker/Coordinator audit.\nGenerated summary refreshed for the remediation planning change packet.\nRemediation planning docs complete; review Markdown files are outside refresh_summaries source scope, packet summary refreshed separately."
+}

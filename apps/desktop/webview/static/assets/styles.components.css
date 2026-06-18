@@ -326,7 +326,7 @@
   padding: var(--space-4);
   border: 1px solid var(--grey-700);
   border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.025);
+  background: var(--live-run-strip-inline-bg);
 }
 
 .live-run-strip {
@@ -343,7 +343,7 @@
   border: 1px solid var(--grey-700);
   border-left: 3px solid var(--semantic-info-accent);
   border-radius: var(--radius-xs);
-  background: rgba(0, 0, 0, 0.16);
+  background: var(--live-run-chip-bg);
 }
 
 .live-run-chip[data-status="ok"],
@@ -2101,8 +2101,10 @@ canvas {
 }
 
 .completed-selected-signal {
+  appearance: none;
   display: grid;
   gap: var(--space-1);
+  width: 100%;
   min-width: 0;
   min-height: 5.25rem;
   align-content: start;
@@ -2110,6 +2112,11 @@ canvas {
   border: 1px solid var(--grey-800);
   border-left: 3px solid var(--semantic-info-border);
   background: var(--grey-850, var(--grey-800));
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  text-align: left;
+  transition: border-color 150ms ease, background 150ms ease, box-shadow 150ms ease;
 }
 
 .completed-selected-signal[data-tone="success"] {
@@ -2126,6 +2133,22 @@ canvas {
 
 .completed-selected-signal[data-tone="muted"] {
   border-left-color: var(--grey-600);
+}
+
+.completed-selected-signal:hover,
+.completed-selected-signal:focus-visible,
+.completed-selected-signal.is-selected {
+  border-color: var(--semantic-interactive-panel-border);
+  background: var(--semantic-interactive-panel-bg);
+}
+
+.completed-selected-signal:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+
+.completed-selected-signal.is-selected {
+  box-shadow: inset 0 0 0 1px var(--semantic-interactive-panel-border);
 }
 
 .completed-selected-signal-value {
@@ -2146,6 +2169,28 @@ canvas {
 
 .completed-selected-signal[data-tone="danger"] .completed-selected-signal-value {
   color: var(--semantic-danger-text);
+}
+
+.completed-selected-signal-detail {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3);
+  background: var(--grey-850, var(--grey-800));
+  border: 1px solid var(--grey-800);
+  border-left: 3px solid var(--semantic-interactive-panel-border);
+}
+
+.completed-selected-signal-detail-list {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+  color: var(--grey-100);
+}
+
+.completed-selected-signal-detail-list li {
+  overflow-wrap: anywhere;
 }
 
 .completed-selected-meaning {

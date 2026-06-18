@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-QualityVerificationChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-11
+last_modified: 2026-06-15
 last_reviewed: 2026-06-11
-sha256: 5f5483cbc4fb3add1eb9e20aa920dbaf2cc6871c1110925508581db02d30eebe
+sha256: 4a658b6c2821aeb92d32bd9b45880395dffe0fec8b639ea624e7dc765b9a4dd2
 ---
 # `ops/pipeline/tests/Unit/Invoke-QualityVerificationChecks.ps1`
 

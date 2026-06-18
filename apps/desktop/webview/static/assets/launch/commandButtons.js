@@ -41,13 +41,14 @@
   const controlConfirmMessages = {
     rescan: "Request a queue rescan flag for the running pipeline? This does not start a new run or touch media, but it can change what the active loop sees next.",
     stop: "Request Stop After Current? The current file may finish; no new file should start. Use Force Stop only if the run is stalled.",
-    kill: "Force stop immediately? This terminates any active pipeline processes and resets stuck progress state to idle. The current file may be left partial in scratch; source media should not be touched.",
+    kill: "Force stop immediately? This terminates related pipeline, audit, and CSV rerun PowerShell process trees and resets stuck progress state to idle. The current file may be left partial in scratch; source media should not be touched.",
   };
 
   const launchCommandButtonIds = [
     "pipeline-start-button",
     "pending-drain-button",
     "audit-start-button",
+    "rerun-dry-run-button",
     "rerun-start-button",
   ];
   const pipelineStartBoundaryNote = "Backend start still re-checks queue, schedule, settings, and process locks; Queue tab display filters and row selection are not submitted.";
@@ -116,8 +117,8 @@
       if (targetGate.blocked) return targetGate;
       return targetGate;
     }
-    if (id === "rerun-start-button") {
-      const request = collectRerunStartRequest();
+    if (id === "rerun-start-button" || id === "rerun-dry-run-button") {
+      const request = collectRerunStartRequest({ dry_run: id === "rerun-dry-run-button" });
       const targetGate = launchTargetGate("rerun", request, {
         allowMissing: false,
         matchKeys: ["csv_path", "stage_mode", "original_mode", "return_mode"],
@@ -194,7 +195,7 @@
         pause: `${pauseLabel} the active backend pipeline.`,
         rescan: "Request a queue rescan flag for the running backend pipeline.",
         stop: "Request graceful Stop After Current for the active backend pipeline.",
-        kill: "Force stop: terminates active processes and resets stuck progress to idle.",
+        kill: "Force stop: terminates related pipeline, audit, and CSV rerun process trees and resets stuck progress to idle.",
       }[action] || "Backend-owned pipeline control.";
       const effective = action === "kill" ? killable : active;
       setButtonDisabledWithReason(button, disabled, state.controlCommandInFlight ? busyReason : (effective ? activeReason : idleReason));

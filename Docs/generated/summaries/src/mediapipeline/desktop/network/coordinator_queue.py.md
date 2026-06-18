@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/coordinator_queue.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-14
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 31b8f6bb26207c1318da2918c27f3d8b3c2e240bf5efaea34eada408b5d440d4
+sha256: 41e78794c793d0cf0a376b2ee148027befbb5c11cd3177a8c9ec36cbf5be0580
 ---
 # `src/mediapipeline/desktop/network/coordinator_queue.py`
 

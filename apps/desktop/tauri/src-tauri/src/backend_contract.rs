@@ -19,8 +19,8 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
     let index = request_backend_json(backend_url, "GET", "/", token, "")?;
     for (label, fragment) in [
         (
-            "bootstrap assignment",
-            "window.MEDIA_PIPELINE_BOOTSTRAP = Object.assign(",
+            "bootstrap data block",
+            "id=\"media-pipeline-bootstrap\"",
         ),
         ("home page", "data-page-panel=\"home\""),
         (

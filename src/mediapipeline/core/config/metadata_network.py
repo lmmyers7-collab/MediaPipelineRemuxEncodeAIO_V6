@@ -15,6 +15,8 @@ KEY_WORKER_NAME = "WorkerName"
 KEY_WORKER_AUTH_TOKEN = "WorkerAuthToken"
 KEY_WORKER_POLL_INTERVAL_SECS = "WorkerPollIntervalSecs"
 KEY_WORKER_SOURCE_PATH_MAP = "WorkerSourcePathMap"
+KEY_WORKER_ENCODER_MAP = "WorkerEncoderMap"
+KEY_WORKER_HONOR_COORDINATOR_POLICY = "WorkerHonorCoordinatorPolicy"
 KEY_WORKER_CONFIG_OVERRIDES = "WorkerConfigOverrides"
 
 
@@ -58,6 +60,10 @@ NETWORK_CONFIG_DEFAULTS: dict[str, object] = {
     # JSON object: prefix rewrites for coordinator-handed paths that this worker
     # cannot reach as-is.
     KEY_WORKER_SOURCE_PATH_MAP: "",
+    # JSON object: neutral codec family -> local encoder implementation.
+    KEY_WORKER_ENCODER_MAP: "",
+    # Phase E safety gate. False keeps legacy worker-local full-config behavior.
+    KEY_WORKER_HONOR_COORDINATOR_POLICY: False,
     # JSON object: per-worker-name encode config overrides applied at claim time.
     KEY_WORKER_CONFIG_OVERRIDES: "",
 }

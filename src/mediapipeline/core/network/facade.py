@@ -14,6 +14,10 @@ from typing import TYPE_CHECKING, Any
 from urllib.parse import urlsplit
 
 from mediapipeline.core.config.library_profiles import effective_library_profiles_from_config
+from mediapipeline.core.kernel.config_keys import (
+    KEY_WORKER_ENCODER_MAP,
+    KEY_WORKER_HONOR_COORDINATOR_POLICY,
+)
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.network.join import (
     NETWORK_JOIN_BLOB_RESULT_SCHEMA_VERSION,
@@ -385,7 +389,7 @@ def _network_worker_progress(
             f"Active worker bars: {active_count}",
             f"Blocked/stale worker bars: {blocked_count}",
             f"Warning worker bars: {warning_count}",
-            "Mutation guardrail: Network progress is read-only persisted runtime evidence; WebView does not start/stop workers, reclaim jobs, release claims, send done reports, mutate queue state, or touch media files.",
+            "Mutation guardrail: Network progress is read-only persisted runtime evidence; WebView lifecycle controls must use backend-owned Network lifecycle routes and must not reclaim jobs, release claims, send done reports, mutate queue state, or touch media files.",
         ],
         "read_only": True,
     }
@@ -407,10 +411,15 @@ def _safe_worker_state(path: Path, warnings: list[str]) -> dict[str, Any]:
     try:
         payload = load_worker_state(path)
     except Exception as exc:
-        safe_exc = redact_network_secret_text(exc)
+        safe_exc = f"{path.name}: {redact_network_secret_text(exc)}".strip()
+        if len(safe_exc) > 240:
+            safe_exc = safe_exc[:237] + "..."
         warnings.append(f"Worker state could not be read: {safe_exc}")
         _log.warning("Network worker_state read failed for %s: %s", path, safe_exc)
-        return {}
+        return {
+            "read_failed": True,
+            "read_error": safe_exc,
+        }
     source_path = str(payload.get("source_path") or "")
     return {
         "job_id": str(payload.get("job_id") or ""),
@@ -532,6 +541,8 @@ def _runtime_status_from_lifecycle(
     if status == "running":
         return "Running", "match"
     if status == "stopped":
+        if worker_state.get("job_id"):
+            return "Stopped with stale worker claim", "warning"
         return "Stopped", "warning" if warnings else "match"
     if status in {"starting", "stopping"}:
         return status.title(), "warning"
@@ -540,6 +551,21 @@ def _runtime_status_from_lifecycle(
     if status in {"unknown", ""}:
         return "Unknown", "warning"
     return str((role_state or {}).get("status") or "Unknown").title(), "warning"
+
+
+def _worker_state_stale_against_lifecycle(
+    *,
+    mode: str,
+    lifecycle_state: dict[str, Any],
+    worker_state: dict[str, Any],
+) -> bool:
+    if not worker_state.get("job_id"):
+        return False
+    if mode not in {"worker", "coordinator_local"}:
+        return False
+    runtime_role = "worker" if mode == "worker" else "coordinator"
+    role_state = lifecycle_state.get(runtime_role) if isinstance(lifecycle_state, dict) else {}
+    return str((role_state or {}).get("status") or "").strip().lower() == "stopped"
 
 
 def _token_posture(resolved: ResolvedPaths) -> dict[str, Any]:
@@ -592,10 +618,57 @@ def _path_map_fingerprint(mappings: list[tuple[str, str]]) -> str:
 
 def _path_map_descriptor(raw: Any) -> dict[str, Any]:
     mappings = parse_source_path_map(str(raw or "").strip())
+    fingerprint = _path_map_fingerprint(mappings)
     return {
+        "manual_path_map_entries": len(mappings),
+        "manual_path_map_fingerprint": fingerprint,
+        "auto_path_map_entries": 0,
+        "auto_path_map_fingerprint": "",
+        "auto_path_map_active": False,
+        "effective_path_map_entries": len(mappings),
+        "effective_path_map_fingerprint": fingerprint,
         "path_map_entries": len(mappings),
-        "path_map_fingerprint": _path_map_fingerprint(mappings),
+        "path_map_fingerprint": fingerprint,
     }
+
+
+def _config_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    return str(value or "").strip().casefold() in {"1", "true", "yes", "on"}
+
+
+def _worker_encoder_map_descriptor(raw: Any) -> dict[str, Any]:
+    text = str(raw or "").strip()
+    if not text:
+        return {
+            "worker_encoder_map_entries": 0,
+            "worker_encoder_map_fingerprint": "",
+            "worker_encoder_map_valid": True,
+        }
+    try:
+        import json
+
+        parsed = json.loads(text)
+        if not isinstance(parsed, dict):
+            raise ValueError("WorkerEncoderMap must be a JSON object.")
+        normalized = {
+            str(key or "").strip().casefold(): str(value or "").strip().casefold()
+            for key, value in parsed.items()
+            if str(key or "").strip() and str(value or "").strip()
+        }
+        material = json.dumps(normalized, sort_keys=True, separators=(",", ":"))
+        return {
+            "worker_encoder_map_entries": len(normalized),
+            "worker_encoder_map_fingerprint": _fingerprint_text(material),
+            "worker_encoder_map_valid": True,
+        }
+    except Exception:
+        return {
+            "worker_encoder_map_entries": 0,
+            "worker_encoder_map_fingerprint": _fingerprint_text(text),
+            "worker_encoder_map_valid": False,
+        }
 
 
 def _worker_url_compare_key(value: Any) -> str:
@@ -623,25 +696,62 @@ def _worker_runtime_descriptor(owner: object) -> tuple[dict[str, Any] | None, st
         if callable(descriptor_func):
             raw_descriptor = dict(descriptor_func() or {})
         else:
-            mappings = list(getattr(dispatcher, "_source_path_map", []) or [])
+            effective_mappings = list(getattr(dispatcher, "_source_path_map", []) or [])
+            manual_source = getattr(dispatcher, "_manual_source_path_map", None)
+            manual_mappings = list(manual_source if manual_source is not None else effective_mappings)
+            auto_mappings = list(getattr(dispatcher, "_auto_source_path_map", []) or [])
             raw_descriptor = {
                 "coordinator_url": str(getattr(dispatcher, "coordinator_url", "") or ""),
                 "token_fingerprint": _fingerprint_text(getattr(dispatcher, "_auth_token", "")),
-                "path_map_entries": len(mappings),
-                "path_map_fingerprint": _path_map_fingerprint(mappings),
+                "manual_path_map_entries": len(manual_mappings),
+                "manual_path_map_fingerprint": _path_map_fingerprint(manual_mappings),
+                "auto_path_map_entries": len(auto_mappings),
+                "auto_path_map_fingerprint": _path_map_fingerprint(auto_mappings),
+                "auto_path_map_active": bool(auto_mappings),
+                "effective_path_map_entries": len(effective_mappings),
+                "effective_path_map_fingerprint": _path_map_fingerprint(effective_mappings),
+                "path_map_entries": len(effective_mappings),
+                "path_map_fingerprint": _path_map_fingerprint(effective_mappings),
             }
     except Exception as exc:
         return None, redact_network_secret_text(exc)
 
+    def descriptor_int(name: str, fallback: Any = 0) -> int:
+        try:
+            return max(0, int(raw_descriptor.get(name, fallback) or 0))
+        except (TypeError, ValueError):
+            return 0
+
+    path_map_entries = descriptor_int("path_map_entries")
+    manual_path_map_entries = descriptor_int("manual_path_map_entries", path_map_entries)
+    auto_path_map_entries = descriptor_int("auto_path_map_entries")
+    effective_path_map_entries = descriptor_int("effective_path_map_entries", path_map_entries)
     try:
-        path_map_entries = int(raw_descriptor.get("path_map_entries") or 0)
+        worker_encoder_map_entries = int(raw_descriptor.get("worker_encoder_map_entries") or 0)
     except (TypeError, ValueError):
-        path_map_entries = 0
+        worker_encoder_map_entries = 0
+    manual_path_map_fingerprint = raw_descriptor.get("manual_path_map_fingerprint")
+    if manual_path_map_fingerprint is None:
+        manual_path_map_fingerprint = raw_descriptor.get("path_map_fingerprint")
+    effective_path_map_fingerprint = raw_descriptor.get("effective_path_map_fingerprint")
+    if effective_path_map_fingerprint is None:
+        effective_path_map_fingerprint = raw_descriptor.get("path_map_fingerprint")
     return {
         "coordinator_url": redact_url(raw_descriptor.get("coordinator_url")),
         "token_fingerprint": str(raw_descriptor.get("token_fingerprint") or ""),
+        "manual_path_map_entries": manual_path_map_entries,
+        "manual_path_map_fingerprint": str(manual_path_map_fingerprint or ""),
+        "auto_path_map_entries": auto_path_map_entries,
+        "auto_path_map_fingerprint": str(raw_descriptor.get("auto_path_map_fingerprint") or ""),
+        "auto_path_map_active": bool(raw_descriptor.get("auto_path_map_active")) or auto_path_map_entries > 0,
+        "effective_path_map_entries": effective_path_map_entries,
+        "effective_path_map_fingerprint": str(effective_path_map_fingerprint or ""),
         "path_map_entries": max(0, path_map_entries),
         "path_map_fingerprint": str(raw_descriptor.get("path_map_fingerprint") or ""),
+        "honor_coordinator_policy": bool(raw_descriptor.get("honor_coordinator_policy")),
+        "worker_encoder_map_entries": max(0, worker_encoder_map_entries),
+        "worker_encoder_map_fingerprint": str(raw_descriptor.get("worker_encoder_map_fingerprint") or ""),
+        "worker_encoder_map_valid": raw_descriptor.get("worker_encoder_map_valid") is not False,
     }, ""
 
 
@@ -650,17 +760,58 @@ def _field_label(field: str) -> str:
         "coordinator_url": "Coordinator URL",
         "worker_auth_token": "Worker auth token fingerprint",
         "source_path_map": "Worker source path map",
+        "coordinator_policy_flag": "Worker coordinator-policy flag",
+        "worker_encoder_map": "Worker encoder map",
+        "coordinator_policy_disabled": "Coordinator policy disabled",
+        "worker_encoder_map_invalid": "Worker encoder map invalid",
+        "worker_encoder_map_empty": "Worker encoder map empty",
     }.get(field, field.replace("_", " "))
+
+
+def _worker_policy_divergence(saved: dict[str, Any]) -> dict[str, Any]:
+    fields: list[str] = []
+    if not bool(saved.get("honor_coordinator_policy")):
+        fields.append("coordinator_policy_disabled")
+    if saved.get("worker_encoder_map_valid") is False:
+        fields.append("worker_encoder_map_invalid")
+    elif bool(saved.get("honor_coordinator_policy")) and int(saved.get("worker_encoder_map_entries") or 0) == 0:
+        fields.append("worker_encoder_map_empty")
+
+    labels = [_field_label(field) for field in fields]
+    if fields:
+        summary_lines = [
+            f"Coordinator policy authority: review ({', '.join(labels)}).",
+            "Worker may use local media-policy behavior or CPU fallback until the worker policy settings are saved and validated.",
+        ]
+        status = "review"
+    else:
+        summary_lines = [
+            "Coordinator policy authority: ready.",
+            "Worker is configured to honor coordinator claims and has a valid encoder map descriptor.",
+        ]
+        status = "ready"
+    return {
+        "schema_version": "desktop_network_worker_policy_divergence.v1",
+        "status": status,
+        "fields": fields,
+        "field_labels": labels,
+        "summary_lines": summary_lines,
+        "read_only": True,
+    }
 
 
 def _worker_running_vs_saved(owner: object, resolved: ResolvedPaths) -> dict[str, Any]:
     config = resolved.config_data or {}
     saved_map = _path_map_descriptor(config.get("WorkerSourcePathMap"))
+    saved_encoder_map = _worker_encoder_map_descriptor(config.get(KEY_WORKER_ENCODER_MAP))
     saved = {
         "coordinator_url": redact_url(config.get("WorkerCoordinatorUrl")),
         "token_fingerprint": _fingerprint_text(config.get("WorkerAuthToken")),
+        "honor_coordinator_policy": _config_bool(config.get(KEY_WORKER_HONOR_COORDINATOR_POLICY)),
         **saved_map,
+        **saved_encoder_map,
     }
+    policy_divergence = _worker_policy_divergence(saved)
     running, error = _worker_runtime_descriptor(owner)
     if error:
         return {
@@ -669,9 +820,11 @@ def _worker_running_vs_saved(owner: object, resolved: ResolvedPaths) -> dict[str
             "running": {},
             "saved": saved,
             "drift_fields": [],
+            "policy_divergence": policy_divergence,
             "summary_lines": [
                 "Worker settings drift: unavailable.",
                 f"Reason: {error}",
+                *policy_divergence["summary_lines"],
             ],
             "read_only": True,
         }
@@ -682,9 +835,11 @@ def _worker_running_vs_saved(owner: object, resolved: ResolvedPaths) -> dict[str
             "running": {},
             "saved": saved,
             "drift_fields": [],
+            "policy_divergence": policy_divergence,
             "summary_lines": [
                 "Worker settings drift: not running.",
                 "Saved worker settings will be used the next time worker polling starts.",
+                *policy_divergence["summary_lines"],
             ],
             "read_only": True,
         }
@@ -695,24 +850,42 @@ def _worker_running_vs_saved(owner: object, resolved: ResolvedPaths) -> dict[str
     if str(running.get("token_fingerprint") or "") != str(saved.get("token_fingerprint") or ""):
         drift_fields.append("worker_auth_token")
     if (
-        int(running.get("path_map_entries") or 0) != int(saved.get("path_map_entries") or 0)
-        or str(running.get("path_map_fingerprint") or "") != str(saved.get("path_map_fingerprint") or "")
+        int(running.get("manual_path_map_entries") or 0) != int(saved.get("manual_path_map_entries") or 0)
+        or str(running.get("manual_path_map_fingerprint") or "") != str(saved.get("manual_path_map_fingerprint") or "")
     ):
         drift_fields.append("source_path_map")
+    if bool(running.get("honor_coordinator_policy")) != bool(saved.get("honor_coordinator_policy")):
+        drift_fields.append("coordinator_policy_flag")
+    if (
+        int(running.get("worker_encoder_map_entries") or 0) != int(saved.get("worker_encoder_map_entries") or 0)
+        or str(running.get("worker_encoder_map_fingerprint") or "") != str(saved.get("worker_encoder_map_fingerprint") or "")
+        or bool(running.get("worker_encoder_map_valid")) != bool(saved.get("worker_encoder_map_valid"))
+    ):
+        drift_fields.append("worker_encoder_map")
 
+    auto_map_active = bool(running.get("auto_path_map_active")) or int(running.get("auto_path_map_entries") or 0) > 0
     if drift_fields:
         labels = ", ".join(_field_label(field) for field in drift_fields)
         summary_lines = [
             f"Worker settings drift: running worker differs from saved config ({labels}).",
             "Restart worker polling from Network Lifecycle to reconnect with saved settings.",
+            *policy_divergence["summary_lines"],
         ]
         status = "drift"
+        source_path_map_status = "drift" if "source_path_map" in drift_fields else "match"
     else:
+        path_map_line = (
+            "Worker settings drift: none (auto-derived library path map active)."
+            if auto_map_active
+            else "Worker settings drift: none."
+        )
         summary_lines = [
-            "Worker settings drift: none.",
-            "Running worker URL, auth-token fingerprint, and source path map match saved config.",
+            path_map_line,
+            "Running worker URL, auth-token fingerprint, manual source path map, coordinator-policy flag, and encoder map match saved config.",
+            *policy_divergence["summary_lines"],
         ]
         status = "match"
+        source_path_map_status = "auto-map-active" if auto_map_active else "match"
     return {
         "schema_version": "desktop_network_worker_running_vs_saved.v1",
         "status": status,
@@ -720,6 +893,8 @@ def _worker_running_vs_saved(owner: object, resolved: ResolvedPaths) -> dict[str
         "saved": saved,
         "drift_fields": drift_fields,
         "drift_field_labels": [_field_label(field) for field in drift_fields],
+        "source_path_map_status": source_path_map_status,
+        "policy_divergence": policy_divergence,
         "summary_lines": summary_lines,
         "read_only": True,
     }
@@ -1742,6 +1917,12 @@ class NetworkFacadeMixin:
                     item["status"] = "unreadable"
                     item["error"] = coordinator_state_error
                     break
+        if worker_state.get("read_failed"):
+            for item in state_files:
+                if item.get("key") == "worker_state":
+                    item["status"] = "unreadable"
+                    item["error"] = str(worker_state.get("read_error") or "worker_state.json could not be read")
+                    break
         unreadable = [item for item in state_files if item.get("status") == "unreadable"]
         for item in unreadable:
             warnings.append(f"{item.get('label') or item.get('key')} could not be inspected: {item.get('error')}")
@@ -1756,6 +1937,15 @@ class NetworkFacadeMixin:
             )
         token_posture = _token_posture(resolved)
         heartbeat_timeout_seconds = _heartbeat_timeout_seconds(resolved)
+        lifecycle_state = _lifecycle_state(self)
+        if _worker_state_stale_against_lifecycle(
+            mode=mode,
+            lifecycle_state=lifecycle_state,
+            worker_state=worker_state,
+        ):
+            warnings.append(
+                "Worker state contains an active claim while lifecycle memory is stopped; treat worker_state.json as stale claim evidence before trusting runtime status."
+            )
         diagnostic_layers = _network_diagnostic_layers(
             resolved=resolved,
             role=role,
@@ -1773,7 +1963,6 @@ class NetworkFacadeMixin:
             warnings=warnings,
             heartbeat_timeout_seconds=heartbeat_timeout_seconds,
         )
-        lifecycle_state = _lifecycle_state(self)
         runtime_status_label, runtime_status_severity = _runtime_status_from_lifecycle(
             mode=mode,
             lifecycle_state=lifecycle_state,

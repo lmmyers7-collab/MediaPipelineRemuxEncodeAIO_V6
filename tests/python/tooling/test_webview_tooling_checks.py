@@ -19,8 +19,14 @@ def _node() -> str:
     return node
 
 
+def _require_webview_tooling_dependencies() -> None:
+    if not (REPO_ROOT / "node_modules" / "@babel" / "parser").exists():
+        raise unittest.SkipTest("WebView Node dev dependencies are omitted from release packages.")
+
+
 class WebViewToolingCheckTests(unittest.TestCase):
     def test_shared_parse_script_fails_on_recoverable_parser_error(self) -> None:
+        _require_webview_tooling_dependencies()
         script = (
             "import { parseScript } from './ops/scripts/dev/webview-tooling-common.mjs';"
             "parseScript('let duplicate = 1; let duplicate = 2;', 'duplicate.js');"
@@ -39,6 +45,7 @@ class WebViewToolingCheckTests(unittest.TestCase):
         self.assertIn("duplicate.js", result.stderr)
 
     def test_godfile_analyzer_fails_on_recoverable_parser_error(self) -> None:
+        _require_webview_tooling_dependencies()
         with tempfile.TemporaryDirectory() as temp_dir:
             bad_script = Path(temp_dir) / "duplicate.js"
             bad_script.write_text("let duplicate = 1;\nlet duplicate = 2;\n", encoding="utf-8")

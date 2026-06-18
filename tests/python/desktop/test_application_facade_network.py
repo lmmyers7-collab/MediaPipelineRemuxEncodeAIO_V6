@@ -136,6 +136,55 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
         self.assertIn("Coordinator in-flight state could not be read", "\n".join(payload["warnings"]))
         self.assertEqual(payload["worker_progress"]["status"], "warning")
 
+    def test_network_workers_marks_malformed_worker_state_row_unreadable(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data["NetworkRole"] = "worker"
+            resolved.app_state_path = root / "State" / "App" / "desktop_app_state.json"
+            state_dir = resolved.app_state_path.parent
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "worker_state.json").write_text("{not valid json", encoding="utf-8")
+
+            payload = facade.get_network_workers(resolved).to_mapping()
+
+        state_files = {item["key"]: item for item in payload["state_files"]}
+        self.assertEqual(state_files["worker_state"]["status"], "unreadable")
+        self.assertIn("worker_state", state_files["worker_state"]["error"])
+        self.assertTrue(payload["worker_state"]["read_failed"])
+        self.assertEqual(payload["runtime_status_label"], "Blocked")
+        self.assertEqual(payload["runtime_status_severity"], "blocked")
+        self.assertIn("Worker state could not be read", "\n".join(payload["warnings"]))
+
+    def test_network_workers_warns_on_active_worker_state_with_stopped_lifecycle(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+            resolved.config_data["NetworkRole"] = "worker"
+            resolved.config_data["WorkerCoordinatorUrl"] = "http://coordinator.test:7830"
+            resolved.config_data["WorkerAuthToken"] = "worker-token"
+            resolved.app_state_path = root / "State" / "App" / "desktop_app_state.json"
+            state_dir = resolved.app_state_path.parent
+            state_dir.mkdir(parents=True, exist_ok=True)
+            (state_dir / "worker_state.json").write_text(
+                json.dumps({"job_id": "stale-job", "source_path": r"C:\Media\Movie.mkv"}),
+                encoding="utf-8",
+            )
+
+            payload = facade.get_network_workers(resolved).to_mapping()
+
+        self.assertEqual(payload["worker_state"]["job_id"], "stale-job")
+        self.assertEqual(payload["lifecycle_state"]["worker"]["status"], "stopped")
+        self.assertEqual(payload["runtime_status_label"], "Stopped with stale worker claim")
+        self.assertEqual(payload["runtime_status_severity"], "warning")
+        warning_text = "\n".join(payload["warnings"])
+        self.assertIn("stale claim evidence", warning_text)
+        self.assertIn("Runtime: Stopped with stale worker claim (warning).", "\n".join(payload["operator_summary_lines"]))
+
     def test_network_workers_warns_when_coordinator_bind_is_loopback_only(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

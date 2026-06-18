@@ -15,6 +15,7 @@ from .command_journal_policy import (
     COMMAND_RESULT_SCHEMA_VERSION,
     command_history_mapping,
     is_command_result_payload,
+    scalar_text,
     summarize_command_payload,
     valid_journal_entries,
 )
@@ -40,6 +41,10 @@ class CommandJournal:
         self.max_entries = max(1, int(max_entries))
         self.logger = logger or logging.getLogger(__name__)
         self._lock = threading.Lock()
+        self._last_json_save_ok: bool | None = None
+        self._last_json_save_error = ""
+        self._last_sqlite_mirror_ok: bool | None = None
+        self._last_sqlite_mirror_error = ""
         self._entries: list[dict[str, Any]] = self._load()
 
     def record(
@@ -65,7 +70,58 @@ class CommandJournal:
 
     def to_mapping(self, *, limit: int = 20) -> dict[str, Any]:
         with self._lock:
-            return command_history_mapping(self._entries, limit=limit, max_entries=self.max_entries)
+            payload = command_history_mapping(self._entries, limit=limit, max_entries=self.max_entries)
+            payload["journal_persistence"] = self._persistence_mapping_locked()
+            return payload
+
+    def _bounded_persistence_error(self, exc: Exception | str) -> str:
+        return scalar_text(exc if isinstance(exc, str) else f"{type(exc).__name__}: {exc}", limit=500)
+
+    def _persistence_mapping_locked(self) -> dict[str, Any]:
+        json_configured = self.path is not None
+        sqlite_configured = self.state_db_root is not None
+        if not json_configured:
+            json_status = "not_configured"
+        elif self._last_json_save_error:
+            json_status = "failed"
+        elif self._last_json_save_ok is True:
+            json_status = "ok"
+        else:
+            json_status = "not_attempted"
+        if not sqlite_configured:
+            sqlite_status = "not_configured"
+        elif self._last_sqlite_mirror_error:
+            sqlite_status = "failed"
+        elif self._last_sqlite_mirror_ok is True:
+            sqlite_status = "ok"
+        else:
+            sqlite_status = "not_attempted"
+
+        warnings: list[str] = []
+        if json_status == "not_configured":
+            warnings.append("JSON command journal path is not configured; entries are memory-only.")
+        elif json_status == "failed":
+            warnings.append("JSON command journal persistence failed; entries may be memory-only.")
+        if sqlite_status == "failed":
+            warnings.append("SQLite command journal mirror failed.")
+
+        return {
+            "schema_version": "desktop_command_journal_persistence.v1",
+            "degraded": bool(warnings),
+            "json": {
+                "configured": json_configured,
+                "path": str(self.path) if self.path is not None else "",
+                "status": json_status,
+                "last_error": self._last_json_save_error,
+            },
+            "sqlite_mirror": {
+                "configured": sqlite_configured,
+                "state_db_root": str(self.state_db_root) if self.state_db_root is not None else "",
+                "status": sqlite_status,
+                "last_error": self._last_sqlite_mirror_error,
+            },
+            "warnings": warnings,
+        }
 
     def _load(self) -> list[dict[str, Any]]:
         if self.path is None or not self.path.exists():
@@ -80,6 +136,8 @@ class CommandJournal:
 
     def _save_locked(self, *, strict: bool = False) -> None:
         if self.path is None:
+            self._last_json_save_ok = False
+            self._last_json_save_error = "Local API command journal path is not configured."
             if strict:
                 raise RuntimeError("Local API command journal path is not configured.")
             return
@@ -113,22 +171,32 @@ class CommandJournal:
                     time.sleep(delay_seconds)
                     delay_seconds = min(delay_seconds * 2, 1.0)
             tmp_path = None
+            self._last_json_save_ok = True
+            self._last_json_save_error = ""
         except (OSError, TypeError, ValueError) as exc:
             if tmp_path is not None:
                 try:
                     tmp_path.unlink(missing_ok=True)
                 except OSError as cleanup_exc:
                     self.logger.warning("Could not remove temporary local API command journal %s: %s", tmp_path, cleanup_exc)
+            self._last_json_save_ok = False
+            self._last_json_save_error = self._bounded_persistence_error(exc)
             self.logger.warning("Could not save local API command journal %s: %s", self.path, exc)
             if strict:
                 raise
 
     def _mirror_sqlite_locked(self, entry: Mapping[str, Any]) -> None:
         if self.state_db_root is None:
+            self._last_sqlite_mirror_ok = None
+            self._last_sqlite_mirror_error = ""
             return
         try:
             from mediapipeline.core.storage.db import open_state_db
 
             open_state_db(self.state_db_root).record_command(dict(entry))
+            self._last_sqlite_mirror_ok = True
+            self._last_sqlite_mirror_error = ""
         except Exception as exc:
+            self._last_sqlite_mirror_ok = False
+            self._last_sqlite_mirror_error = self._bounded_persistence_error(exc)
             self.logger.warning("Could not mirror local API command journal to SQLite: %s", exc)

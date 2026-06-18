@@ -1,0 +1,211 @@
+{
+  "id": "MP-CHANGE-2026-0616-011",
+  "title": "Subtitle handling review remediation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Implements verified fixes from the subtitle handling review for MP4 converted-SRT reduction evidence, completed/pending subtitle contract fields, ASS language normalization, path-safe subtitle validation tests, and literal supplemental-title keyword matching.",
+  "reason": "The subtitle review identified silent subtitle-loss and bad-publish risks around MP4 compatibility reduction, schema evidence gaps, language filtering drift, path-sensitive validation scripts, and wildcard keyword matching.",
+  "affected_areas": [
+    "subtitles",
+    "ffmpeg_command_planning",
+    "publish_completion",
+    "pending_publish",
+    "completed_sidecars",
+    "completed_job_schema",
+    "pending_manifest_schema",
+    "tests",
+    "generated_summaries"
+  ],
+  "risk_boundaries": [
+    "FFmpeg",
+    "subtitle",
+    "pending publish/drain",
+    "review routing",
+    "sidecar handling",
+    "source/scratch/output movement"
+  ],
+  "behavior_before": "MP4 compatibility selected one converted SRT sidecar and only logged the number of additional converted candidates, completed-job schema lacked VobSub and MP4 reduction fields, blank ASS language could bypass the normalized und language policy path, two subtitle validation scripts resolved the repository root as ops when launched from their test directory, and supplemental-title keyword matching used PowerShell wildcard semantics.",
+  "behavior_after": "MP4 compatibility records every converted SRT candidate, publishes selected/reduced evidence into completed sidecars and pending manifests, fails closed when forced/SDH/supplemental converted SRT candidates would be reduced, completed-job and pending-manifest schemas expose subtitle evidence arrays, all subtitle languages normalize through the same policy path, validation scripts resolve the repository root from stable markers, and supplemental-title keywords match literally.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-011.json.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/pending_park_transaction.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/publish/sidecar.ps1.md",
+    "ops/pipeline/config/schemas/media_pipeline_completed_job.schema.json",
+    "ops/pipeline/config/schemas/media_pipeline_pending_push_manifest.schema.json",
+    "ops/pipeline/engine/publish/pending_park_transaction.ps1",
+    "ops/pipeline/engine/publish/pending_push.ps1",
+    "ops/pipeline/engine/publish/publish_completion.ps1",
+    "ops/pipeline/engine/publish/sidecar.ps1",
+    "ops/pipeline/engine/subtitles/builders.ps1",
+    "ops/pipeline/engine/subtitles/language_policy.ps1",
+    "ops/pipeline/engine/subtitles/routing_decisions.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-FileOverrideSubtitleBurnChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-SrtValidationChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1",
+    "docs/reviews/subtitle-handling-2026-06-16/09-implementation-ledger.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-011.json"
+  ],
+  "implementation_ledger": [
+    {
+      "issue_id": "F-001",
+      "source_markdown_file": "docs/reviews/subtitle-handling-2026-06-16/05-findings.md",
+      "severity": "high",
+      "affected_files_or_modules": [
+        "ops/pipeline/engine/subtitles/builders.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+        "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+        "ops/pipeline/engine/publish/publish_completion.ps1",
+        "ops/pipeline/engine/publish/pending_push.ps1",
+        "ops/pipeline/engine/publish/pending_park_transaction.ps1",
+        "ops/pipeline/engine/publish/sidecar.ps1",
+        "ops/pipeline/config/schemas/media_pipeline_pending_push_manifest.schema.json"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "FFmpeg subtitle planning, pending publish, sidecar handling, review routing",
+      "required_tests": [
+        "Invoke-SubtitleBuilderDecisionChecks.ps1",
+        "Invoke-SidecarWriteSafetyChecks.ps1",
+        "Invoke-PendingPublishSafetyChecks.ps1",
+        "Invoke-PendingPublishOwnershipChecks.ps1",
+        "Invoke-ContractSchemaChecks.ps1"
+      ],
+      "implementation_status": "validated",
+      "notes": "MP4 converted SRT candidates are recorded with selected/reduced status and high-value reductions add SUBTITLE_MP4_CONVERTED_SRT_REDUCTION_BLOCKED failures before publish."
+    },
+    {
+      "issue_id": "F-002",
+      "source_markdown_file": "docs/reviews/subtitle-handling-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_or_modules": [
+        "ops/pipeline/config/schemas/media_pipeline_completed_job.schema.json",
+        "ops/pipeline/config/schemas/media_pipeline_pending_push_manifest.schema.json",
+        "ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "completed job schema, pending manifest schema, sidecar handling",
+      "required_tests": [
+        "Invoke-ContractSchemaChecks.ps1",
+        "Invoke-CompletedManifestBackfillDryRunChecks.ps1"
+      ],
+      "implementation_status": "validated",
+      "notes": "Completed-job schema now exposes VobSub arrays plus MP4 converted-SRT evidence arrays; pending manifest schema exposes MP4 reduction evidence arrays as optional fields for compatibility."
+    },
+    {
+      "issue_id": "F-003",
+      "source_markdown_file": "docs/reviews/subtitle-handling-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_or_modules": [
+        "ops/pipeline/engine/subtitles/routing_decisions.ps1",
+        "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "subtitle language filtering",
+      "required_tests": [
+        "Invoke-SubtitleBuilderDecisionChecks.ps1"
+      ],
+      "implementation_status": "validated",
+      "notes": "Routing now normalizes all subtitle languages, including ASS/SSA blanks, through Get-NormalizedSubtitleLanguage."
+    },
+    {
+      "issue_id": "F-004",
+      "source_markdown_file": "docs/reviews/subtitle-handling-2026-06-16/05-findings.md",
+      "severity": "medium",
+      "affected_files_or_modules": [
+        "ops/pipeline/tests/Unit/Invoke-SrtValidationChecks.ps1",
+        "ops/pipeline/tests/Unit/Invoke-FileOverrideSubtitleBurnChecks.ps1"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "subtitle validation tooling",
+      "required_tests": [
+        "Invoke-SrtValidationChecks.ps1 from repository root",
+        "Invoke-SrtValidationChecks.ps1 from ops/pipeline/tests/Unit",
+        "Invoke-FileOverrideSubtitleBurnChecks.ps1 from repository root",
+        "Invoke-FileOverrideSubtitleBurnChecks.ps1 from ops/pipeline/tests/Unit"
+      ],
+      "implementation_status": "validated",
+      "notes": "Both scripts now resolve the repository root from AGENTS.md and ops/pipeline/engine markers instead of producing ops/ops paths."
+    },
+    {
+      "issue_id": "F-005",
+      "source_markdown_file": "docs/reviews/subtitle-handling-2026-06-16/05-findings.md",
+      "severity": "low",
+      "affected_files_or_modules": [
+        "ops/pipeline/engine/subtitles/language_policy.ps1",
+        "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1"
+      ],
+      "claim_status": "confirmed",
+      "risk_boundary_touched": "supplemental subtitle classification",
+      "required_tests": [
+        "Invoke-SubtitleBuilderDecisionChecks.ps1"
+      ],
+      "implementation_status": "validated",
+      "notes": "Supplemental title keyword checks now use literal IndexOf matching instead of wildcard -like patterns."
+    }
+  ],
+  "invalid_or_already_fixed_findings": [],
+  "blocked_findings": [],
+  "tests_added_or_updated": [
+    "MP4 converted-SRT candidate/reduction evidence and fail-closed high-value reduction assertions",
+    "ASS blank-language normalization assertion",
+    "Literal supplemental keyword matching assertions",
+    "Completed-job and pending-manifest subtitle evidence schema assertions",
+    "Repository-root marker checks for SRT validation and file-override burn validation scripts"
+  ],
+  "tests_added": [
+    "MP4 converted-SRT candidate/reduction evidence and fail-closed high-value reduction assertions",
+    "ASS blank-language normalization assertion",
+    "Literal supplemental keyword matching assertions",
+    "Completed-job and pending-manifest subtitle evidence schema assertions",
+    "Repository-root marker checks for SRT validation and file-override burn validation scripts"
+  ],
+  "manual_validation": [
+    "pwsh -NoLogo -NoProfile -Command [PowerShell parser check for touched PS files] - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-SrtValidationChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File Invoke-SrtValidationChecks.ps1 from ops/pipeline/tests/Unit - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-FileOverrideSubtitleBurnChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File Invoke-FileOverrideSubtitleBurnChecks.ps1 from ops/pipeline/tests/Unit - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-ContractSchemaChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-SubtitleOcrPathResolutionChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-VobSubSubtitleChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-SidecarWriteSafetyChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-PendingPublishOwnershipChecks.ps1 - passed.",
+    "pwsh -NoLogo -NoProfile -File ops/pipeline/tests/Unit/Invoke-CompletedManifestBackfillDryRunChecks.ps1 - passed.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m pytest tests/python/core/subtitles/test_ass_to_srt_helpers.py -q - passed: 7 tests.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_subtitle_qa_feature -q - passed: 7 tests.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_config_validation tests.python.desktop.test_metadata_contract -q - passed: 38 tests.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [subtitle remediation touched files] - passed: 14 written, 0 unchanged."
+  ],
+  "validation_not_run": [
+    "Real-media OCR/playback validation was not run because no safe sample media set was provided in this workspace.",
+    "Two guessed manifest test names, Invoke-ManifestSchemaChecks.ps1 and Invoke-CompletedJobsManifestChecks.ps1, do not exist in ops/pipeline/tests/Unit; actual adjacent manifest checks were run instead."
+  ],
+  "strict_change_control_coverage": {
+    "status": "failed_external_worktree_state",
+    "command": "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+    "result": "Subtitle packet fields and touched generated summaries were accepted on the final run, but strict coverage still failed because unrelated MP-CHANGE-2026-0615-021.json lacks high/critical notes or rollback detail and 19 unrelated changed files are not listed in any unreleased packet."
+  },
+  "rollback_plan": "Revert the listed source, test, schema, generated-summary, and change-packet changes. Do not modify source media, runtime queue state, personal config, release packages, or archived rollback evidence.",
+  "related_review_files": [
+    "docs/reviews/subtitle-handling-2026-06-16/00-review-scope.md",
+    "docs/reviews/subtitle-handling-2026-06-16/01-code-map.md",
+    "docs/reviews/subtitle-handling-2026-06-16/02-invariants-and-boundaries.md",
+    "docs/reviews/subtitle-handling-2026-06-16/03-risk-review.md",
+    "docs/reviews/subtitle-handling-2026-06-16/04-test-coverage-review.md",
+    "docs/reviews/subtitle-handling-2026-06-16/05-findings.md",
+    "docs/reviews/subtitle-handling-2026-06-16/06-remediation-plan.md",
+    "docs/reviews/subtitle-handling-2026-06-16/07-validation-plan.md",
+    "docs/reviews/subtitle-handling-2026-06-16/08-final-review-summary.md"
+  ],
+  "related_changes": [],
+  "notes": "High-validation rules apply because this change touches subtitles, FFmpeg planning, publish/sidecar evidence, and pending publish manifests. The unrelated MP-CHANGE-2026-0616-004.json packet already contained audio-routing work, so this remediation uses MP-CHANGE-2026-0616-011.json."
+}

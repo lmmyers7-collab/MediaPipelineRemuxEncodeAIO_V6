@@ -3,9 +3,9 @@ file: docs/architecture/NETWORK_MODE_READ_ONLY_DOCUMENTATION.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-13
 last_reviewed: 2026-06-02
-sha256: 18f8c718c4e1af7e7a48fd19f3ef7ce087b9614d44ffb42d7caa02639c0503cc
+sha256: 93674aaaad161aa4893d7fa326da7c0c2bf1073ce5c15b9b64cac4ca06e39df5
 ---
 # `docs/architecture/NETWORK_MODE_READ_ONLY_DOCUMENTATION.md`
 

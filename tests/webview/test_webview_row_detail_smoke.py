@@ -126,6 +126,20 @@ def _node_runner_source() -> str:
               children.forEach((child) => this.appendChild(child));
               if (id) texts[id] = this.textContent;
             },
+            insertAdjacentElement(position, child) {
+              const normalized = String(position || "").toLowerCase();
+              if ((normalized === "afterend" || normalized === "beforebegin") && this.parentElement) {
+                const siblings = this.parentElement.children;
+                const currentIndex = siblings.indexOf(this);
+                const insertIndex = normalized === "beforebegin" ? currentIndex : currentIndex + 1;
+                siblings.splice(insertIndex < 0 ? siblings.length : insertIndex, 0, child);
+                child.parentNode = this.parentElement;
+                child.parentElement = this.parentElement;
+                if (this.parentElement.id) texts[this.parentElement.id] = this.parentElement.textContent;
+                return child;
+              }
+              return this.appendChild(child);
+            },
             querySelectorAll(selector) { return queryDescendants(this, selector); },
             querySelector(selector) { return queryDescendants(this, selector)[0] || null; },
             closest(selector) {
@@ -958,6 +972,9 @@ def _node_runner_source() -> str:
             consistency_status: "broken",
             consistency_issues: ["missing_sidecar", "output_path_missing"],
             size_growth_over_5: true,
+            source_size_bytes: 4096,
+            output_size_bytes: 8602,
+            output_size_text: "8.4 KB",
             size_delta_label: "+110%",
             operator_status: "completed proof conflict",
             operator_trust_state: "broken-output",
@@ -969,7 +986,19 @@ def _node_runner_source() -> str:
             primary_concern: "completed row points to a missing output",
             safe_next_action: "Read Completed Manifest and Pending Publish before rerun.",
             audio_decision_count: 2,
+            audio_decision_details: [
+              { kind: "audio", track_label: "a:0", language: "eng", source_codec: "aac", action: "copy", reason: "compatible", summary: "a:0 eng aac -> copy (compatible)" },
+              { kind: "audio", track_label: "a:1", language: "jpn", source_codec: "dts", action: "drop", reason: "not_preferred", summary: "a:1 jpn dts -> drop (not_preferred)" },
+            ],
+            audio_decision_preview: ["a:0 eng aac -> copy (compatible)", "a:1 jpn dts -> drop (not_preferred)"],
             subtitle_decision_count: 4,
+            subtitle_decision_details: [
+              { kind: "subtitle", track_label: "s:0", language: "eng", source_codec: "ass", action: "srt", reason: "plex_srt", summary: "s:0 eng ass -> srt (plex_srt)" },
+              { kind: "subtitle", track_label: "s:1", language: "jpn", source_codec: "pgs", action: "drop", reason: "not_preferred", summary: "s:1 jpn pgs -> drop (not_preferred)" },
+              { kind: "subtitle", track_label: "s:2", language: "eng", source_codec: "srt", action: "copy", reason: "external", summary: "s:2 eng srt -> copy (external)" },
+              { kind: "subtitle", track_label: "s:3", language: "und", source_codec: "tx3g", action: "drop", reason: "converted", summary: "s:3 und tx3g -> drop (converted)" },
+            ],
+            subtitle_decision_preview: ["s:0 eng ass -> srt (plex_srt)", "s:1 jpn pgs -> drop (not_preferred)", "s:2 eng srt -> copy (external)", "s:3 und tx3g -> drop (converted)"],
             proof_summary: ["completed manifest row exists", "output file is missing", "sidecar proof is missing"],
           })];
           context.renderCompleted(riskCompleted);
@@ -980,6 +1009,9 @@ def _node_runner_source() -> str:
             "Output is unavailable; resolve final placement or pending-publish proof before judging size or route differences.",
             "Size change",
             "+110%",
+            "Size change detail",
+            "Source to output: 4 KB -> 8.4 KB",
+            "Bytes: source=4096 bytes; output=8602 bytes",
             "Route",
             "Trigger / route reason",
             "Size policy",
@@ -1000,6 +1032,39 @@ def _node_runner_source() -> str:
             "Paths",
             "Authority: this summary is read-only",
           ]);
+          const selectedSummary = context.document.getElementById("completed-selected-summary");
+          const signalButtons = selectedSummary.querySelectorAll("button[data-signal-key]");
+          if (signalButtons.length !== 6) {
+            throw new Error(`expected six completed evidence tile buttons, got ${signalButtons.length}`);
+          }
+          const signalKeys = signalButtons.map((button) => button.dataset.signalKey).sort().join(",");
+          const expectedSignalKeys = "audio-subtitles,route,runtime-log-evidence,size-change,size-policy,trigger-route-reason";
+          if (signalKeys !== expectedSignalKeys) {
+            throw new Error(`unexpected completed evidence tile keys: ${signalKeys}`);
+          }
+          const sizeSignal = selectedSummary.querySelector('[data-signal-key="size-change"]');
+          if (!sizeSignal) throw new Error("missing Size change evidence tile button");
+          sizeSignal.click();
+          requireText("completed-selected-summary", [
+            "Size change detail",
+            "Source to output: 4 KB -> 8.4 KB",
+            "Delta: +110%",
+          ]);
+          const audioSubtitleSignal = selectedSummary.querySelector('[data-signal-key="audio-subtitles"]');
+          if (!audioSubtitleSignal) throw new Error("missing Audio/Subtitles evidence tile button");
+          audioSubtitleSignal.click();
+          requireText("completed-selected-summary", [
+            "Audio/Subtitles detail",
+            "Audio decisions: 2",
+            "audio: a:1 jpn dts -> drop (not_preferred)",
+            "Subtitle decisions: 4",
+            "subtitle: s:1 jpn pgs -> drop (not_preferred)",
+            "subtitle: s:3 und tx3g -> drop (converted)",
+          ]);
+          const activeAudioSignal = selectedSummary.querySelector('[data-signal-key="audio-subtitles"]');
+          if (!activeAudioSignal || activeAudioSignal.getAttribute("aria-pressed") !== "true") {
+            throw new Error("Audio/Subtitles tile should be selected after click");
+          }
           const rawDetail = context.document.getElementById("completed-raw-detail");
           if (!rawDetail || rawDetail.open) throw new Error("raw completed detail should default to collapsed");
           requireText("completed-detail", [

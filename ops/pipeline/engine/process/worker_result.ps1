@@ -49,6 +49,8 @@ function Write-MediaPipelineWorkerChildResult {
     $routeReasonText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'RouteReason' -Default '')
     $publishStateText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'PublishState' -Default $PublishState)
     $publishModeText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'PublishMode' -Default '')
+    $queueTerminalValue = [bool](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'QueueTerminal' -Default $false)
+    $retryableValue = [bool](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'Retryable' -Default $true)
     $outputPathText = [string](Get-MediaPipelineWorkerResultField -Result $ProcessResult -Name 'OutputPath' -Default '')
     $outputSizeBytes = 0L
     try {
@@ -73,6 +75,8 @@ function Write-MediaPipelineWorkerChildResult {
         RouteReason         = $routeReasonText
         PublishState        = $publishStateText
         PublishMode         = $publishModeText
+        QueueTerminal       = $queueTerminalValue
+        Retryable           = $retryableValue
         OutputPath          = $outputPathText
         OutputSizeBytes     = $outputSizeBytes
         WorkerSlotId        = [int]$WorkerSlotId

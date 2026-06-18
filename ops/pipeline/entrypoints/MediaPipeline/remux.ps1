@@ -126,6 +126,16 @@ function Do-Remux {
         $script:CurrentRouteReasonCode = [string]$codecRoutePlan.ReasonCode
         $script:CurrentRouteReason = [string]$codecRoutePlan.Reason
 
+        $videoStreamPolicy = Test-SourceVideoStreamPublishPolicy -FilePath $localIn -Route 'remux'
+        if (-not [bool]$videoStreamPolicy.Allowed) {
+            $reason = [string]$videoStreamPolicy.Reason
+            $errorCode = [string]$videoStreamPolicy.ErrorCode
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $reason -Stage 'video-stream-policy' -ErrorCode $errorCode -SuggestedAction 'Use a source with one real video stream or add per-stream routing and output-manifest validation before processing multi-video sources.'
+            Write-Log "REMUX: $reason" "ERROR"
+            $localIn = $null
+            return $false
+        }
+
         $remuxHdrKnown = $false
         $remuxIsHdr = $false
         $sourceProfile = $null
@@ -339,7 +349,11 @@ function Do-Remux {
                 $mkvArgs.AddRange([string[]]@("--default-track", "$($tid):$isDefault"))
             }
         } elseif ($script:LastAudioTrackCount -gt 0) {
-            Write-Log "REMUX: probed $($audioTids.Count) audio TIDs in temp_av but expected $($script:LastAudioTrackCount); skipping explicit default-track flags" "WARN"
+            $reason = "REMUX: probed $($audioTids.Count) audio TIDs in temp_av but expected $($script:LastAudioTrackCount); refusing to mux with ambiguous audio default-track flags"
+            Write-Log $reason "ERROR"
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason $reason -Stage 'remux-audio-default-track' -ErrorCode 'REMUX_AUDIO_TID_MAPPING_FAILED' -SuggestedAction 'Inspect temp AV stream layout and mkvmerge track-ID probing before retrying; the output was not published with ambiguous default audio flags.'
+            $localIn = $null
+            return $false
         }
         $mkvArgs.Add($tempAvFile)
         if ($subTracks.SourceTracks.Count -gt 0) {
@@ -371,16 +385,24 @@ function Do-Remux {
         # a frozen "remux mux" tile during multi-minute muxes.
         $mkv = Invoke-MkvmergeWithProgress -ArgumentList @($mkvArgs) -Label 'REMUX-MUX' -TimeoutSeconds $script:MkvmergeRemuxTimeoutSeconds -Stage 'remux-mkvmerge' -ProgressStage 'remux_mux' -ProgressRoute 'remux' -SaveReproOnFailure
         $mkvExitCode = [int]$mkv.ExitCode
-        $mkvFailed = ([bool]$mkv.TimedOut -or [bool]$mkv.Stopped -or $mkvExitCode -lt 0 -or $mkvExitCode -ge 2)
+        $mkvFailed = ([bool]$mkv.TimedOut -or [bool]$mkv.Stopped -or $mkvExitCode -lt 0 -or $mkvExitCode -ge 2 -or [bool]$mkv.MkvmergeWarningBlocking)
         if ($mkvFailed) {
             $reproPath = $mkv.ReproPath
             $mkvLog = $null
             $mkvErrorSummary = Get-ErrorTextSummary -ErrorText $mkv.Error
             $errorCode = Get-MkvmergeFailureCode -ErrorText $mkv.Error -ExitCode $mkvExitCode -TimedOut ([bool]$mkv.TimedOut) -Stopped ([bool]$mkv.Stopped)
+            if ([bool]$mkv.MkvmergeWarningBlocking) {
+                $errorCode = [string]$mkv.ToolErrorCode
+                if ([string]::IsNullOrWhiteSpace($mkvErrorSummary)) {
+                    $mkvErrorSummary = [string]$mkv.MkvmergeWarningMatchedText
+                }
+            }
             $reason = if ([bool]$mkv.TimedOut) {
                 if ($mkvErrorSummary) { "mkvmerge timed out after $($script:MkvmergeRemuxTimeoutSeconds)s: $mkvErrorSummary" } else { "mkvmerge timed out after $($script:MkvmergeRemuxTimeoutSeconds)s" }
             } elseif ([bool]$mkv.Stopped) {
                 if ($mkvErrorSummary) { "mkvmerge stopped by operator request: $mkvErrorSummary" } else { "mkvmerge stopped by operator request" }
+            } elseif ([bool]$mkv.MkvmergeWarningBlocking) {
+                if ($mkvErrorSummary) { "mkvmerge warning blocked publish: $mkvErrorSummary" } else { "mkvmerge warning blocked publish" }
             } elseif ($mkvErrorSummary) {
                 "mkvmerge failed with exit ${mkvExitCode}: $mkvErrorSummary"
             } else {
@@ -397,6 +419,7 @@ function Do-Remux {
             $suggestedAction = switch ($errorCode) {
                 'MKVMERGE_TIMEOUT' { "mkvmerge exceeded MkvmergeRemuxTimeoutSeconds=$($script:MkvmergeRemuxTimeoutSeconds). Inspect scratch/output disk speed and the saved repro command $reproPath, then retry or raise the timeout if the mux is legitimately slow."; break }
                 'MKVMERGE_STOPPED' { "mkvmerge was stopped by operator request. Confirm the pipeline is idle and retry the source if the stop was intentional."; break }
+                'MKVMERGE_WARNING_STREAM_LOSS' { "mkvmerge reported warning text that implies skipped, unsupported, dropped, unreadable, or invalid stream content. Inspect the warning text and saved repro command $reproPath before retrying."; break }
                 default {
                     if ($mkvLog) {
                         "Inspect mkvmerge stderr log $mkvLog and repro command $reproPath, then retry after fixing the subtitle/container issue."
@@ -439,7 +462,7 @@ function Do-Remux {
 
         Write-PlexCompatibilityReport -FilePath $paths.LocalOut -Context "REMUX: "
 
-        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route 'remux' -ProgressRoute 'remux' -StagePrefix 'remux' -Context "REMUX: " -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -Tx3gTracks @($subTracks.Tx3gTracks) -BdpgsTracks @($subTracks.BdpgsTracks) -VobSubTracks @($subTracks.VobSubTracks)
+        $publishResult = Complete-PipelineOutputPublish -SourceFile $file -ScratchPath $localIn -Paths $paths -Route 'remux' -ProgressRoute 'remux' -StagePrefix 'remux' -Context "REMUX: " -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -Tx3gTracks @($subTracks.Tx3gTracks) -BdpgsTracks @($subTracks.BdpgsTracks) -VobSubTracks @($subTracks.VobSubTracks) -ConvertedSrtSidecarCandidates @($subTracks.ConvertedSrtSidecarCandidates) -SubtitleOutputReduction @($subTracks.SubtitleOutputReduction)
         $script:LastPublishResult = $publishResult
         if ($publishResult.DeleteLocalOutput) { $pushOk = $true }
         if ($publishResult.KeepScratchInput) { $localIn = $null }

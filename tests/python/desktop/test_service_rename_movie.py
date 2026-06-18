@@ -98,14 +98,41 @@ class RenameMovieHelperTests(unittest.TestCase):
             "Hoppers (2026)",
         )
 
+    def test_language_sub_dub_filter_terms_clean_release_tags(self) -> None:
+        file_name = "Cinema.Paradiso.1988.Ita.Eng.Sub.Dub.1080p.BluRay.x264.mkv"
+
+        self.assertEqual(clean_pipeline_movie_name(file_name), "Cinema Paradiso (1988)")
+        self.assertEqual(
+            clean_pipeline_movie_name(
+                file_name,
+                movie_filter_options={"languages_subs_dubs": False},
+            ),
+            "Cinema Paradiso Ita Eng Sub Dub (1988)",
+        )
+
+    def test_symbol_only_custom_remove_terms_strip_plus_inside_title_token(self) -> None:
+        self.assertEqual(remove_movie_filter_terms("S03+SP", ["+"]), "S03 SP")
+        self.assertEqual(
+            clean_pipeline_movie_name(
+                "Ascendance.of.a.Bookworm.S03+SP.1080p.BluRay.x265.mkv",
+                remove_terms=["sp", "+"],
+            ),
+            "Ascendance of a Bookworm S03",
+        )
+
     def test_movie_filter_default_terms_include_backend_display_catalog(self) -> None:
         defaults = rename_movie_filter_default_terms()
 
         self.assertIn("video_source", defaults)
         self.assertIn("audio_channels", defaults)
+        self.assertIn("languages_subs_dubs", defaults)
         self.assertIn("release_groups", defaults)
         self.assertIn("1080p", defaults["video_source"])
         self.assertIn("ddp", defaults["audio_channels"])
+        self.assertIn("eng", defaults["languages_subs_dubs"])
+        self.assertIn("ita", defaults["languages_subs_dubs"])
+        self.assertIn("sub", defaults["languages_subs_dubs"])
+        self.assertIn("dub", defaults["languages_subs_dubs"])
         self.assertIn("cmrg", defaults["release_groups"])
         self.assertIn("neonoir", defaults["release_groups"])
 

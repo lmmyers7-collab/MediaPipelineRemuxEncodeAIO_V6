@@ -288,6 +288,12 @@ if ([string]$audioBitrateSchema.pattern -ne '^[1-9]\d*k$') {
 $vobSubOcrToolDefault = 'tools\SubtitleEditLegacy\SubtitleEdit.exe'
 $powershellDefaults = Get-MediaPipelineConfigDefaultValues
 $defaultProfileConfig = Import-PowerShellDataFile -Path (Join-Path $repoRoot 'ops\pipeline\config\profiles\Default.psd1')
+$expectedAudioPassthroughProfile = Get-MediaPipelineAudioPassthroughProfileDefault
+$expectedAudioPassthroughCodecs = @(Get-MediaPipelineAudioPassthroughProfileCodecs -Profile $expectedAudioPassthroughProfile)
+if ([string]$defaultProfileConfig['AudioPassthroughProfile'] -ne $expectedAudioPassthroughProfile) {
+    throw "Default profile AudioPassthroughProfile drifted. Actual='$($defaultProfileConfig['AudioPassthroughProfile'])' Expected='$expectedAudioPassthroughProfile'"
+}
+Assert-StringSequenceEqual -Actual @($defaultProfileConfig['CompatibleAudioCodecs']) -Expected $expectedAudioPassthroughCodecs -Label 'Default profile compatible audio codecs'
 $expectedDefaultRoots = [ordered]@{
     SourceMovies = 'C:\MediaPipeline\Incoming\Movies'
     SourceTV = 'C:\MediaPipeline\Incoming\TV'

@@ -914,6 +914,8 @@
     renderDiagnosticCallout("pending-drain-guard-summary", pendingDrainGuardLines(state));
     const button = byId("pending-drain-button");
     if (button) {
+      button.disabled = !state.allowed;
+      button.setAttribute("aria-disabled", state.allowed ? "false" : "true");
       button.title = state.allowed ? state.confirm_message : state.message;
       button.dataset.guardState = state.allowed ? (state.review_required ? "review" : "allowed") : "blocked";
     }

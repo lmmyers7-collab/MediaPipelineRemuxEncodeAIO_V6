@@ -10,7 +10,11 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
-from mediapipeline.desktop.api.queue_source_path_policy import validate_queue_source_path
+from mediapipeline.desktop.api.queue_source_path_policy import (
+    queue_source_file_validation,
+    validate_queue_source_file_path,
+    validate_queue_source_path,
+)
 
 
 def _resolved(root: Path) -> SimpleNamespace:
@@ -67,6 +71,27 @@ class QueueSourcePathPolicyTests(unittest.TestCase):
             error,
             "'folder_path' must be an absolute path under configured source roots (SourceMovies, SourceTV, or enabled LibraryProfiles source roots).",
         )
+
+    def test_validate_queue_source_file_path_accepts_configured_source_movies_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_movies = root / "ConfiguredMovies"
+            source_movies.mkdir()
+            source = source_movies / "Movie.mkv"
+            source.write_bytes(b"media")
+            resolved = _resolved(root)
+            resolved.source_movies = None
+            resolved.source_tv = None
+            resolved.config_data = {"SourceMovies": str(source_movies)}
+
+            source_path, error = validate_queue_source_file_path(resolved, source, field_name="single_file")
+            validation = queue_source_file_validation(resolved, source, field_name="single_file")
+
+        self.assertIsNone(error)
+        self.assertEqual(source_path, str(source))
+        self.assertTrue(validation["ok"])
+        self.assertEqual(validation["normalized_path"], str(source))
+        self.assertTrue(validation["under_source_root"])
 
 
 if __name__ == "__main__":

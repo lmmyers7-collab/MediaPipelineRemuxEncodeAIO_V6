@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: config
 last_modified: 2026-06-14
 last_reviewed: 2026-06-04
-sha256: 38a25a601215af60d98554379cb7185f5bcef0b9b807757d8078821f7e4efacf
+sha256: 6bc96b2ae1aea4241e85444afc273522acd5e207316c9f3d2b0088c35819eb98
 ---
 # `src/mediapipeline/core/config/metadata_network.py`
 

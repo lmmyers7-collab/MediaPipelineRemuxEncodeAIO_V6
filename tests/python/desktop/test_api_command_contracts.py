@@ -15,6 +15,8 @@ sys.path.insert(0, str(REPO_ROOT / "src"))
 from mediapipeline.contracts.api_commands import COMMAND_ROUTE_PAYLOAD_MODELS, validate_api_command_payload  # noqa: E402
 from mediapipeline.core.api.commands import COMMAND_ROUTE_METHODS  # noqa: E402
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload  # noqa: E402
+from mediapipeline.desktop.api.command_journal_policy import bounded_command_evidence  # noqa: E402
+from mediapipeline.desktop.api.handler_policy import should_record_validation_failure_journal  # noqa: E402
 from mediapipeline.desktop.api.routes_command import POST_ROUTE_HANDLERS  # noqa: E402
 
 
@@ -419,6 +421,29 @@ class ApiCommandContractsTests(unittest.TestCase):
             validate_api_payload("/api/network/coordinator/stop", {"confirm_start": True})
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/network/worker/stop", {"confirm_stop": "1"})
+
+    def test_secret_transfer_validation_failures_are_not_journaled(self) -> None:
+        self.assertFalse(should_record_validation_failure_journal("/api/network/coordinator/join-blob"))
+        self.assertFalse(should_record_validation_failure_journal("/api/network/worker/join-cluster"))
+        self.assertFalse(should_record_validation_failure_journal("/api/network/worker/test-connection"))
+        self.assertTrue(should_record_validation_failure_journal("/api/pipeline/control"))
+
+    def test_command_journal_evidence_redacts_join_blob_keys(self) -> None:
+        evidence = bounded_command_evidence(
+            {
+                "join_blob": "secret-blob-value",
+                "nested": {
+                    "JoinBlob": "secret-nested-value",
+                    "safe": "visible",
+                },
+            }
+        )
+
+        self.assertEqual(evidence["join_blob"], "<redacted>")
+        self.assertEqual(evidence["nested"]["JoinBlob"], "<redacted>")
+        self.assertEqual(evidence["nested"]["safe"], "visible")
+        self.assertNotIn("secret-blob-value", json.dumps(evidence, sort_keys=True))
+        self.assertNotIn("secret-nested-value", json.dumps(evidence, sort_keys=True))
 
     def test_backend_shutdown_force_cleanup_requires_strict_boolean(self) -> None:
         for value in ("true", "false", 1, 0):

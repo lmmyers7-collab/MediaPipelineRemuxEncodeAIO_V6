@@ -176,14 +176,11 @@ function Get-BackendBootstrapFromIndex {
     param([Parameter(Mandatory)][string]$BackendUrl)
 
     $html = (Invoke-WebRequest -UseBasicParsing -Uri "$BackendUrl/" -TimeoutSec 10).Content
-    if ($html -match '(?s)window\.MEDIA_PIPELINE_BOOTSTRAP\s*=\s*Object\.assign\(\s*\{\}\s*,\s*(\{.*?\})\s*,\s*window\.MEDIA_PIPELINE_TAURI_BOOTSTRAP\s*\|\|\s*\{\}\s*\);') {
-        return $Matches[1] | ConvertFrom-Json
-    }
-    if ($html -match '(?s)window\.MEDIA_PIPELINE_BOOTSTRAP\s*=\s*(\{.*?\});') {
+    if ($html -match '(?s)<script\s+type="application/json"\s+id="media-pipeline-bootstrap">\s*(\{.*?\})\s*</script>') {
         return $Matches[1] | ConvertFrom-Json
     }
     else {
-        throw "Could not find MEDIA_PIPELINE_BOOTSTRAP in backend index."
+        throw "Could not find media-pipeline-bootstrap in backend index."
     }
 }
 

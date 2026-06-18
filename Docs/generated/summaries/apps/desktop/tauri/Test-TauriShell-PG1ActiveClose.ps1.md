@@ -3,9 +3,9 @@ file: apps/desktop/tauri/Test-TauriShell-PG1ActiveClose.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-11
+last_modified: 2026-06-16
 last_reviewed: 2026-06-04
-sha256: 5d8015e33fb1a4240d51b91f0eeb655ca726587b572e1d27b730360a2c3d407b
+sha256: fc59f3bdf0b2042d127d4c4913b2bf65188b740659e7966b9dac80edddc7d575
 ---
 # `apps/desktop/tauri/Test-TauriShell-PG1ActiveClose.ps1`
 

@@ -243,6 +243,28 @@ Assert-DoesNotContainText $mp4Joined '-map 0:t?' 'MP4 REMUX should not map attac
 Assert-DoesNotContainText $mp4Joined '-map_metadata 0' 'MP4 REMUX should not preserve metadata.'
 Assert-DoesNotContainText $mp4Joined '-c:t copy' 'MP4 REMUX should not copy attachments/fonts.'
 
+$allAudioDroppedPlan = [pscustomobject]@{
+    streamActions = @(
+        [pscustomobject]@{ streamType = 'audio'; streamIndex = 1; action = 'drop'; inputCodec = 'aac'; outputCodec = ''; reasonCodes = @() },
+        [pscustomobject]@{ streamType = 'audio'; streamIndex = 2; action = 'drop'; inputCodec = 'eac3'; outputCodec = ''; reasonCodes = @() }
+    )
+    effectivePresetSnapshot = [pscustomobject]@{
+        presetV2 = [pscustomobject]@{
+            audio = [pscustomobject]@{ allowNoAudio = $false }
+        }
+    }
+}
+$allDroppedRejected = $false
+try {
+    New-PipelinePlanExecutorAudioArgumentList -Plan $allAudioDroppedPlan | Out-Null
+} catch {
+    $allDroppedRejected = ([string]$_.Exception.Message -like '*all planned audio streams are dropped but allowNoAudio is not enabled*')
+}
+Assert-True $allDroppedRejected 'Plan executor audio args must fail closed when every audio stream is dropped without allowNoAudio.'
+
+$allAudioDroppedPlan.effectivePresetSnapshot.presetV2.audio.allowNoAudio = $true
+Assert-SequenceEqual (New-PipelinePlanExecutorAudioArgumentList -Plan $allAudioDroppedPlan) @('-an') 'Plan executor audio args should emit -an only when allowNoAudio is enabled.'
+
 $textBurnPlan = [pscustomobject]@{
     streamActions = @(
         [pscustomobject]@{ streamType = 'video'; streamIndex = 0; action = 'encode'; inputCodec = 'h264'; outputCodec = 'hevc_nvenc'; reasonCodes = @() },

@@ -13,6 +13,8 @@ from ..metadata_network import (
     KEY_WORKER_AUTH_TOKEN,
     KEY_WORKER_CONFIG_OVERRIDES,
     KEY_WORKER_COORDINATOR_URL,
+    KEY_WORKER_ENCODER_MAP,
+    KEY_WORKER_HONOR_COORDINATOR_POLICY,
     KEY_WORKER_NAME,
     KEY_WORKER_POLL_INTERVAL_SECS,
     KEY_WORKER_SOURCE_PATH_MAP,
@@ -135,6 +137,33 @@ NETWORK_CONFIG_FIELD_DEFINITIONS = (
             'Each key is matched as a prefix against the incoming source_path; the '
             'first prefix that matches gets rewritten. Backslashes must be escaped. '
             r'Example: {"C:\\Users\\Operator\\Videos\\Encode": "\\\\MEDIA-SERVER\\Share\\Encode"}'
+        ),
+    },
+    {
+        "page": "Network",
+        "section": "Worker",
+        "key": KEY_WORKER_ENCODER_MAP,
+        "label": "Worker Encoder Map",
+        "kind": "string",
+        "default": "",
+        "help": (
+            "Worker-owned hardware map from coordinator codec families to local encoders. "
+            "Coordinator library policy remains cluster-authoritative; this setting only chooses "
+            'the local implementation, for example {"hevc":"hevc_nvenc","h264":"h264_nvenc"}. '
+            "Missing or unsupported entries fall back to CPU encoders with a worker log warning."
+        ),
+    },
+    {
+        "page": "Network",
+        "section": "Worker",
+        "key": KEY_WORKER_HONOR_COORDINATOR_POLICY,
+        "label": "Honor Coordinator Policy",
+        "kind": "bool",
+        "default": False,
+        "help": (
+            "When enabled, claimed network jobs use the coordinator's cluster-authoritative "
+            "per-library processing policy plus this worker's encoder map. Leave disabled until "
+            "real-media validation for the cluster policy rollout is complete."
         ),
     },
     {

@@ -151,6 +151,47 @@ try {
     $progressValues = @($script:CapturedProgress | Where-Object { $_.Stage -eq 'remux_mux' } | ForEach-Object { $_.Percent })
     Assert-True ($progressValues -contains 0) 'mkvmerge wrapper did not publish initial progress.'
     Assert-True ($progressValues -contains 100) 'mkvmerge warning exit should publish final 100 percent.'
+
+    $script:CapturedProgress = @()
+    $script:CapturedEvents = @()
+    $script:ReproSaves = 0
+    function Invoke-NativeProcess {
+        param(
+            [string]$FilePath,
+            [array]$ArgumentList,
+            [int]$TimeoutSeconds = 0,
+            [string]$StopFlagPath = '',
+            [string]$Label = '',
+            [int]$MaxStdoutChars = 0,
+            [int]$MaxStderrChars = 0,
+            [scriptblock]$StdoutLineHandler
+        )
+        return New-NativeCommandResult -ExitCode 1 -Stdout 'Warning: Skipping track ID 2 because the codec is unsupported.' -Stderr '' -TimedOut:$false -Stopped:$false -ErrorCode 'NATIVE_EXIT_1'
+    }
+
+    $blocked = Invoke-MkvmergeWithProgress `
+        -ArgumentList @('--output', 'out.mkv', 'in.mkv') `
+        -Label 'TEST-MKVMERGE-BLOCKING-WARN' `
+        -TimeoutSeconds 30 `
+        -Stage 'remux-mkvmerge' `
+        -ProgressStage 'remux_mux' `
+        -ProgressRoute 'remux' `
+        -SaveReproOnFailure
+
+    Assert-Equal ([int]$blocked.ExitCode) 1 'blocking mkvmerge warning should preserve native exit code evidence.'
+    Assert-Equal ([string]$blocked.ToolErrorCode) 'MKVMERGE_WARNING_STREAM_LOSS' 'risky mkvmerge warning text must block with a stream-loss code.'
+    Assert-True ([bool]$blocked.MkvmergeWarningBlocking) 'risky mkvmerge warning should be marked blocking.'
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$blocked.MkvmergeWarningMatchedText)) 'blocking warning should retain matched warning text.'
+    Assert-True (-not [string]::IsNullOrWhiteSpace([string]$blocked.ReproPath)) 'blocking warning should save a repro command.'
+    Assert-Equal $script:ReproSaves 1 'blocking warning should invoke Save-ReproCommand.'
+
+    $blockedCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' })[-1]
+    Assert-Equal ([string]$blockedCompleted.Status) 'failed' 'blocking mkvmerge warning should emit failed tool status.'
+    Assert-Equal ([string]$blockedCompleted.Data.error_code) 'MKVMERGE_WARNING_STREAM_LOSS' 'blocking mkvmerge warning event should carry stream-loss classification.'
+
+    $blockedProgressValues = @($script:CapturedProgress | Where-Object { $_.Stage -eq 'remux_mux' } | ForEach-Object { $_.Percent })
+    Assert-True ($blockedProgressValues -contains 0) 'blocking mkvmerge warning should still publish initial progress.'
+    Assert-True (-not ($blockedProgressValues -contains 100)) 'blocking mkvmerge warning must not publish final 100 percent.'
 } finally {
     Remove-Item -LiteralPath $StopFlag -Force -ErrorAction SilentlyContinue
 }

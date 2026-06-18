@@ -85,6 +85,7 @@ class ProcessLifecycleServiceMixin:
         extra_args: str,
         show_console: bool,
         single_file: str | None = None,
+        extra_argv: list[str] | tuple[str, ...] | None = None,
     ) -> subprocess.Popen[Any]:
         return start_pipeline_for_service(
             self,
@@ -93,6 +94,7 @@ class ProcessLifecycleServiceMixin:
             show_config=show_config,
             sleep_seconds=sleep_seconds,
             extra_args=extra_args,
+            extra_argv=extra_argv,
             show_console=show_console,
             single_file=single_file,
         )

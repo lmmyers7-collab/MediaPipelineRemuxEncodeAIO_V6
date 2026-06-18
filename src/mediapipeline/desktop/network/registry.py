@@ -12,8 +12,10 @@ Phase 1: full implementation.
 """
 from __future__ import annotations
 
+import copy
 import json
 import logging
+import ntpath
 import os
 import tempfile
 import threading
@@ -22,6 +24,8 @@ from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+from mediapipeline.core.network.url_policy import redact_network_secret_text
 
 from .failure_reasons import REASON_ENCODE_ERROR, bounded_failure_reason, normalize_failure_reason_code
 from .json_policy import loads_strict_json
@@ -34,6 +38,15 @@ from .protocol import (
 )
 
 _log = logging.getLogger(__name__)
+
+
+def normalize_source_identity(source_path: Any) -> str:
+    """Return the coordinator identity key for a Windows/UNC source path."""
+    text = str(source_path or "").strip()
+    if not text:
+        return ""
+    normalized = ntpath.normpath(text.replace("/", "\\"))
+    return ntpath.normcase(normalized)
 
 
 def _default_worker_stats(worker_id: str, worker_name: str = "") -> dict[str, Any]:
@@ -113,7 +126,7 @@ def _safe_snapshot_progress(worker_id: str, value: Any) -> float:
 
 
 def _failure_ledger_key(worker_id: str, source_path: str) -> str:
-    return f"{str(worker_id or '').strip()}\0{str(source_path or '').strip()}"
+    return f"{str(worker_id or '').strip()}\0{normalize_source_identity(source_path)}"
 
 
 def _safe_failure_reason_code(value: Any) -> str:
@@ -228,12 +241,14 @@ class InFlightRegistry:
     # thread to process the removal even under heavy load; older entries
     # are GC'd lazily by `is_in_flight` so the dict can't grow unbounded.
     _RECENT_COMPLETION_TTL_SECONDS = 30.0
+    _MAX_RECLAIM_LEDGER_ENTRIES = 128
+    _MAX_LATE_TERMINAL_REPORTS = 128
 
     def __init__(self) -> None:
         self._lock = threading.Lock()
         self._save_lock = threading.Lock()
         self._jobs: dict[str, InFlightJob] = {}        # job_id  → job
-        self._claimed_paths: dict[str, str] = {}       # source_path → job_id
+        self._claimed_paths: dict[str, str] = {}       # source identity → job_id
         # N10 — source_path → epoch-seconds completion time. Read by
         # is_in_flight() which lazy-prunes stale entries on access.
         self._recent_completions: dict[str, float] = {}
@@ -244,6 +259,9 @@ class InFlightRegistry:
         # Worker/source failure ledger used to suppress repeated same-reason
         # redispatch loops without mutating source media or queue records.
         self._failure_ledger: dict[str, dict[str, Any]] = {}
+        # Reclaim and late-terminal ledgers preserve evidence after stale takeover.
+        self._reclaim_ledger: dict[str, dict[str, Any]] = {}
+        self._late_terminal_reports: list[dict[str, Any]] = []
 
     # ------------------------------------------------------------------
     # Mutations
@@ -268,8 +286,23 @@ class InFlightRegistry:
         unclaimed record and try again.
         """
         now = datetime.now(timezone.utc).isoformat()
+        safe_job_id = str(job_id or "").strip()
+        safe_worker_id = str(worker_id or "").strip()
+        safe_source_path = str(source_path or "").strip()
+        source_identity = normalize_source_identity(safe_source_path)
+        if not safe_job_id or not safe_worker_id or not safe_source_path or not source_identity:
+            _log.warning(
+                "Rejecting claim with incomplete identity: job_id=%r worker_id=%r source_path=%r",
+                safe_job_id[:32],
+                safe_worker_id[:32],
+                safe_source_path[:120],
+            )
+            return False
         with self._lock:
-            if source_path in self._claimed_paths:
+            if safe_job_id in self._jobs:
+                _log.warning("Rejecting duplicate in-flight job_id %r for source %s", safe_job_id[:32], safe_source_path)
+                return False
+            if source_identity in self._claimed_paths:
                 return False
             try:
                 safe_estimated_size_gb = coerce_finite_float(
@@ -280,17 +313,17 @@ class InFlightRegistry:
             except Exception as exc:
                 _log.warning(
                     "Invalid estimated_size_gb for claimed job %s (%s); using 0.0: %s",
-                    job_id[:8],
-                    source_path,
+                    safe_job_id[:8],
+                    safe_source_path,
                     exc,
                 )
                 safe_estimated_size_gb = 0.0
             safe_library_ids = coerce_library_id_list(accessible_library_ids or [])
             job = InFlightJob(
-                job_id=job_id,
-                worker_id=worker_id,
+                job_id=safe_job_id,
+                worker_id=safe_worker_id,
                 worker_name=worker_name,
-                source_path=source_path,
+                source_path=safe_source_path,
                 claimed_at=now,
                 last_heartbeat=now,
                 encode_config=encode_config,
@@ -298,10 +331,9 @@ class InFlightRegistry:
                 estimated_size_gb=safe_estimated_size_gb,
                 accessible_library_ids=safe_library_ids,
             )
-            self._jobs[job_id] = job
-            self._claimed_paths[source_path] = job_id
+            self._jobs[safe_job_id] = job
+            self._claimed_paths[source_identity] = safe_job_id
 
-            safe_worker_id = str(worker_id or "").strip()
             if safe_worker_id:
                 stats = self._worker_stats.setdefault(
                     safe_worker_id,
@@ -410,7 +442,7 @@ class InFlightRegistry:
                 )
                 return None
             del self._jobs[job_id]
-            self._claimed_paths.pop(job.source_path, None)
+            self._claimed_paths.pop(normalize_source_identity(job.source_path), None)
             # N10 — quarantine the source path for the grace TTL so
             # is_in_flight() still says "yes" while the app callback
             # finishes removing this record from queue_records. Without
@@ -418,7 +450,7 @@ class InFlightRegistry:
             # walk the not-yet-pruned queue list, see is_in_flight()
             # return False (already cleared above), and re-claim the
             # same source.
-            self._recent_completions[job.source_path] = time.monotonic()
+            self._recent_completions[normalize_source_identity(job.source_path)] = time.monotonic()
             now = datetime.now(timezone.utc).isoformat()
             ledger_key = _failure_ledger_key(job.worker_id, job.source_path)
             if success:
@@ -509,12 +541,13 @@ class InFlightRegistry:
                 )
                 return None
             del self._jobs[job_id]
-            self._claimed_paths.pop(job.source_path, None)
+            source_identity = normalize_source_identity(job.source_path)
+            self._claimed_paths.pop(source_identity, None)
             # N10 — same grace quarantine as complete(). Released jobs
             # may be re-queued by the coordinator; the brief grace
             # window prevents the same machine's poll loop from
             # immediately re-picking the path it just released.
-            self._recent_completions[job.source_path] = time.monotonic()
+            self._recent_completions[source_identity] = time.monotonic()
         return job
 
     def rollback_claim(self, job_id: str, worker_id: str = "") -> "InFlightJob | None":
@@ -537,8 +570,9 @@ class InFlightRegistry:
                 )
                 return None
             del self._jobs[job_id]
-            self._claimed_paths.pop(job.source_path, None)
-            self._recent_completions.pop(job.source_path, None)
+            source_identity = normalize_source_identity(job.source_path)
+            self._claimed_paths.pop(source_identity, None)
+            self._recent_completions.pop(source_identity, None)
         return job
 
     def claim_blocked_by_failure(self, *, worker_id: str, source_path: str, max_retries: int) -> dict[str, Any] | None:
@@ -613,13 +647,68 @@ class InFlightRegistry:
                 if age > cutoff_secs:
                     stale.append(job)
                     del self._jobs[job_id]
-                    self._claimed_paths.pop(job.source_path, None)
+                    source_identity = normalize_source_identity(job.source_path)
+                    self._claimed_paths.pop(source_identity, None)
                     # Quarantine like complete()/unclaim() (N10): the
                     # silenced worker may still be running and writing
                     # output; the grace TTL absorbs its late done/release
                     # reports before the path can be claimed again.
-                    self._recent_completions[job.source_path] = time.monotonic()
+                    self._recent_completions[source_identity] = time.monotonic()
+                    self._record_reclaim_locked(job, timeout_mins=timeout_mins, reclaimed_at=now.isoformat())
         return stale
+
+    def _record_reclaim_locked(self, job: InFlightJob, *, timeout_mins: float, reclaimed_at: str) -> None:
+        self._reclaim_ledger[job.job_id] = {
+            "job_id": job.job_id,
+            "worker_id": job.worker_id,
+            "worker_name": job.worker_name,
+            "source_path": job.source_path,
+            "source_identity": normalize_source_identity(job.source_path),
+            "claimed_at": job.claimed_at,
+            "last_heartbeat": job.last_heartbeat,
+            "reclaimed_at": reclaimed_at,
+            "timeout_mins": float(timeout_mins),
+        }
+        while len(self._reclaim_ledger) > self._MAX_RECLAIM_LEDGER_ENTRIES:
+            self._reclaim_ledger.pop(next(iter(self._reclaim_ledger)), None)
+
+    def record_late_terminal_report(self, request: Any) -> dict[str, Any] | None:
+        """Persist terminal worker evidence for a job already reclaimed stale."""
+        job_id = str(getattr(request, "job_id", "") or "").strip()
+        worker_id = str(getattr(request, "worker_id", "") or "").strip()
+        if not job_id or not worker_id:
+            return None
+        now = datetime.now(timezone.utc).isoformat()
+        with self._lock:
+            reclaim = self._reclaim_ledger.get(job_id)
+            if not reclaim:
+                return None
+            report = {
+                "job_id": job_id,
+                "worker_id": worker_id,
+                "reclaimed_worker_id": str(reclaim.get("worker_id", "") or ""),
+                "source_path": str(reclaim.get("source_path", "") or ""),
+                "source_identity": str(reclaim.get("source_identity", "") or ""),
+                "reclaimed_at": str(reclaim.get("reclaimed_at", "") or ""),
+                "reported_at": now,
+                "success": bool(getattr(request, "success", False)),
+                "completion_status": str(getattr(request, "completion_status", "") or ""),
+                "publish_state": str(getattr(request, "publish_state", "") or ""),
+                "publish_mode": str(getattr(request, "publish_mode", "") or ""),
+                "route": str(getattr(request, "route", "") or ""),
+                "output_path": str(getattr(request, "output_path", "") or ""),
+                "output_size_bytes": int(getattr(request, "output_size_bytes", 0) or 0),
+                "reason_code": str(getattr(request, "reason_code", "") or ""),
+                "reason": bounded_failure_reason(
+                    getattr(request, "reason", "") or getattr(request, "error_message", "") or ""
+                ),
+                "queue_terminal": bool(getattr(request, "queue_terminal", False)),
+                "retry_on_failure": bool(getattr(request, "retry_on_failure", True)),
+            }
+            self._late_terminal_reports.append(report)
+            if len(self._late_terminal_reports) > self._MAX_LATE_TERMINAL_REPORTS:
+                self._late_terminal_reports = self._late_terminal_reports[-self._MAX_LATE_TERMINAL_REPORTS :]
+            return dict(report)
 
     # ------------------------------------------------------------------
     # Queries
@@ -645,18 +734,21 @@ class InFlightRegistry:
         would find the source still in the queue, see
         ``is_in_flight=False``, and re-claim it.
         """
+        source_identity = normalize_source_identity(source_path)
+        if not source_identity:
+            return False
         with self._lock:
-            if source_path in self._claimed_paths:
+            if source_identity in self._claimed_paths:
                 return True
             # Lazy-prune any expired grace entries while we're here.
             ttl = self._RECENT_COMPLETION_TTL_SECONDS
             if self._recent_completions:
                 now = time.monotonic()
-                if source_path in self._recent_completions:
-                    age = now - self._recent_completions[source_path]
+                if source_identity in self._recent_completions:
+                    age = now - self._recent_completions[source_identity]
                     if age <= ttl:
                         return True
-                    del self._recent_completions[source_path]
+                    del self._recent_completions[source_identity]
                 # Opportunistic prune of unrelated stale entries — keeps
                 # this dict small without needing a separate sweeper.
                 if len(self._recent_completions) > 64:
@@ -712,6 +804,42 @@ class InFlightRegistry:
             ))
         return entries
 
+    def active_claims_snapshot(self) -> list[dict[str, Any]]:
+        """Return token-safe evidence for active claims.
+
+        This is separate from ``snapshot()`` because lifecycle dry-runs need the
+        claim id and source identity while the worker-board DTO intentionally
+        stays UI-focused.
+        """
+        with self._lock:
+            jobs = list(self._jobs.values())
+
+        now = datetime.now(timezone.utc)
+        rows: list[dict[str, Any]] = []
+        for job in jobs:
+            heartbeat_age_seconds: int | None = None
+            last_heartbeat = str(job.last_heartbeat or "")
+            if last_heartbeat:
+                try:
+                    parsed = datetime.fromisoformat(last_heartbeat.replace("Z", "+00:00"))
+                    if parsed.tzinfo is None:
+                        parsed = parsed.replace(tzinfo=timezone.utc)
+                    heartbeat_age_seconds = max(0, int((now - parsed).total_seconds()))
+                except Exception:
+                    heartbeat_age_seconds = None
+            rows.append(
+                {
+                    "job_id": redact_network_secret_text(job.job_id),
+                    "worker_id": redact_network_secret_text(job.worker_id),
+                    "worker_name": redact_network_secret_text(job.worker_name),
+                    "source_path": redact_network_secret_text(job.source_path),
+                    "claimed_at": redact_network_secret_text(job.claimed_at),
+                    "last_heartbeat": redact_network_secret_text(last_heartbeat),
+                    "heartbeat_age_seconds": heartbeat_age_seconds,
+                }
+            )
+        return rows
+
     def idle_workers_snapshot(self) -> list[WorkerEntry]:
         """Return ``WorkerEntry`` objects for workers that have session stats
         but are NOT currently encoding (i.e. between jobs or done for the day).
@@ -763,6 +891,42 @@ class InFlightRegistry:
         with self._lock:
             return len(self._jobs)
 
+    def rollback_snapshot(self) -> dict[str, Any]:
+        """Return an in-memory snapshot for rolling back failed durable transitions."""
+        with self._lock:
+            return {
+                "jobs": copy.deepcopy(self._jobs),
+                "claimed_paths": copy.deepcopy(self._claimed_paths),
+                "recent_completions": copy.deepcopy(self._recent_completions),
+                "session_completed": self.session_completed,
+                "session_failed": self.session_failed,
+                "worker_stats": copy.deepcopy(self._worker_stats),
+                "failure_ledger": copy.deepcopy(self._failure_ledger),
+                "reclaim_ledger": copy.deepcopy(self._reclaim_ledger),
+                "late_terminal_reports": copy.deepcopy(self._late_terminal_reports),
+            }
+
+    def restore_rollback_snapshot(self, snapshot: dict[str, Any]) -> None:
+        """Restore a snapshot returned by :meth:`rollback_snapshot`."""
+        with self._lock:
+            self._jobs = copy.deepcopy(snapshot.get("jobs", {}))
+            self._claimed_paths = copy.deepcopy(snapshot.get("claimed_paths", {}))
+            self._recent_completions = copy.deepcopy(snapshot.get("recent_completions", {}))
+            self.session_completed = int(snapshot.get("session_completed", 0) or 0)
+            self.session_failed = int(snapshot.get("session_failed", 0) or 0)
+            self._worker_stats = copy.deepcopy(snapshot.get("worker_stats", {}))
+            self._failure_ledger = copy.deepcopy(snapshot.get("failure_ledger", {}))
+            self._reclaim_ledger = copy.deepcopy(snapshot.get("reclaim_ledger", {}))
+            self._late_terminal_reports = copy.deepcopy(snapshot.get("late_terminal_reports", []))
+
+    def reclaim_ledger_snapshot(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [dict(entry) for entry in self._reclaim_ledger.values()]
+
+    def late_terminal_reports_snapshot(self) -> list[dict[str, Any]]:
+        with self._lock:
+            return [dict(entry) for entry in self._late_terminal_reports]
+
     # ------------------------------------------------------------------
     # Persistence (crash recovery)
     # ------------------------------------------------------------------
@@ -776,6 +940,8 @@ class InFlightRegistry:
                 "session_failed":    self.session_failed,
                 "worker_stats":      dict(self._worker_stats),
                 "failure_ledger":    [dict(entry) for entry in self._failure_ledger.values()],
+                "reclaim_ledger":    [dict(entry) for entry in self._reclaim_ledger.values()],
+                "late_terminal_reports": [dict(entry) for entry in self._late_terminal_reports],
             }
         tmp_path: Path | None = None
         try:
@@ -835,14 +1001,15 @@ class InFlightRegistry:
                         f"duplicate in-flight job_id {job.job_id!r} at index {index}; "
                         "coordinator recovery requires unique job ownership"
                     )
-                if job.source_path in claimed_paths:
-                    owner = claimed_paths[job.source_path]
+                source_identity = normalize_source_identity(job.source_path)
+                if source_identity in claimed_paths:
+                    owner = claimed_paths[source_identity]
                     raise ValueError(
                         f"duplicate in-flight source_path {job.source_path!r} at index {index}; "
                         f"already claimed by job_id {owner!r}"
                     )
                 jobs[job.job_id] = job
-                claimed_paths[job.source_path] = job.job_id
+                claimed_paths[source_identity] = job.job_id
 
             worker_stats: dict[str, dict[str, Any]] = {}
             raw_stats = data.get("worker_stats", {})
@@ -889,6 +1056,57 @@ class InFlightRegistry:
                     continue
                 failure_ledger[_failure_ledger_key(entry["worker_id"], entry["source_path"])] = entry
 
+            reclaim_ledger: dict[str, dict[str, Any]] = {}
+            raw_reclaim = data.get("reclaim_ledger", [])
+            if isinstance(raw_reclaim, dict):
+                reclaim_items = list(raw_reclaim.values())
+            elif isinstance(raw_reclaim, list):
+                reclaim_items = raw_reclaim
+            else:
+                reclaim_items = []
+                _log.warning("Ignoring malformed reclaim_ledger in %s: expected array or object", path)
+            for index, raw_entry in enumerate(reclaim_items):
+                if not isinstance(raw_entry, dict):
+                    _log.warning("Skipping malformed reclaim ledger entry at index %d in %s", index, path)
+                    continue
+                job_id = str(raw_entry.get("job_id", "") or "").strip()
+                source_path = str(raw_entry.get("source_path", "") or "").strip()
+                if not job_id or not source_path:
+                    _log.warning("Skipping incomplete reclaim ledger entry at index %d in %s", index, path)
+                    continue
+                try:
+                    timeout_mins = coerce_finite_float(raw_entry.get("timeout_mins", 0.0), "timeout_mins", minimum=0.0)
+                except Exception:
+                    timeout_mins = 0.0
+                reclaim_ledger[job_id] = {
+                    "job_id": job_id,
+                    "worker_id": str(raw_entry.get("worker_id", "") or ""),
+                    "worker_name": str(raw_entry.get("worker_name", "") or ""),
+                    "source_path": source_path,
+                    "source_identity": normalize_source_identity(raw_entry.get("source_identity", "") or source_path),
+                    "claimed_at": str(raw_entry.get("claimed_at", "") or ""),
+                    "last_heartbeat": str(raw_entry.get("last_heartbeat", "") or ""),
+                    "reclaimed_at": str(raw_entry.get("reclaimed_at", "") or ""),
+                    "timeout_mins": timeout_mins,
+                }
+
+            late_terminal_reports: list[dict[str, Any]] = []
+            raw_late = data.get("late_terminal_reports", [])
+            if isinstance(raw_late, list):
+                late_items = raw_late[-self._MAX_LATE_TERMINAL_REPORTS :]
+            else:
+                late_items = []
+                if raw_late:
+                    _log.warning("Ignoring malformed late_terminal_reports in %s: expected array", path)
+            for index, raw_entry in enumerate(late_items):
+                if not isinstance(raw_entry, dict):
+                    _log.warning("Skipping malformed late terminal report at index %d in %s", index, path)
+                    continue
+                if not str(raw_entry.get("job_id", "") or "").strip() or not str(raw_entry.get("worker_id", "") or "").strip():
+                    _log.warning("Skipping incomplete late terminal report at index %d in %s", index, path)
+                    continue
+                late_terminal_reports.append(dict(raw_entry))
+
             try:
                 session_completed = coerce_nonnegative_int(data.get("session_completed", 0), "session_completed")
             except Exception as exc:
@@ -907,6 +1125,8 @@ class InFlightRegistry:
                 self.session_failed = session_failed
                 self._worker_stats = worker_stats
                 self._failure_ledger = failure_ledger
+                self._reclaim_ledger = reclaim_ledger
+                self._late_terminal_reports = late_terminal_reports
             _log.info("Restored %d in-flight job(s) from %s", len(self._jobs), path)
             return True
         except Exception:

@@ -50,6 +50,7 @@ def _numeric_baseline() -> dict:
         "BdpgsOcrTimeoutSeconds": 1800,
         "VobSubOcrTimeoutSeconds": 1800,
         "TransientFailureRetryLimit": 3,
+        "CoordinatorMaxJobRetries": 3,
         "SourceScanIntervalSeconds": 60,
         "ProcessedIndexRefreshSeconds": 120,
         "RobocopyTimeoutSeconds": 3600,
@@ -192,4 +193,3 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -1,8 +1,45 @@
 (function () {
-  const bootstrap = window.MEDIA_PIPELINE_BOOTSTRAP || {};
+  function readBootstrapElement() {
+    if (typeof document === "undefined" || typeof document.getElementById !== "function") return {};
+    const element = document.getElementById("media-pipeline-bootstrap");
+    if (!element) return {};
+    const raw = (element.textContent || "").trim();
+    if (!raw) return {};
+    try {
+      const value = JSON.parse(raw);
+      return value && typeof value === "object" ? value : {};
+    } catch (_error) {
+      return {};
+    }
+  }
+
+  const bootstrap = Object.assign(
+    {},
+    readBootstrapElement(),
+    window.MEDIA_PIPELINE_BOOTSTRAP || {},
+    window.MEDIA_PIPELINE_TAURI_BOOTSTRAP || {}
+  );
   const apiBase = bootstrap.apiBase || "";
   const token = bootstrap.token || "";
   const DEFAULT_GET_TIMEOUT_MS = 30000;
+
+  function bootstrapWithoutToken(value) {
+    if (!value || typeof value !== "object") return {};
+    const scrubbed = { ...value };
+    delete scrubbed.token;
+    return scrubbed;
+  }
+
+  function scrubBootstrapSecrets() {
+    window.MEDIA_PIPELINE_BOOTSTRAP = Object.freeze(bootstrapWithoutToken(bootstrap));
+    if (window.MEDIA_PIPELINE_TAURI_BOOTSTRAP && typeof window.MEDIA_PIPELINE_TAURI_BOOTSTRAP === "object") {
+      window.MEDIA_PIPELINE_TAURI_BOOTSTRAP = Object.freeze(
+        bootstrapWithoutToken(window.MEDIA_PIPELINE_TAURI_BOOTSTRAP)
+      );
+    }
+  }
+
+  scrubBootstrapSecrets();
 
   function apiHeaders(extraHeaders) {
     const headers = { ...(extraHeaders || {}) };
@@ -69,6 +106,7 @@
     const response = await fetchWithTimeout(`${apiBase}${path}`, {
       headers: apiHeaders(),
       cache: "no-store",
+      credentials: "same-origin",
     }, timeoutMs);
     return parseResponse(response, path);
   }
@@ -79,6 +117,7 @@
       method: "POST",
       headers: apiHeaders({ "Content-Type": "application/json" }),
       cache: "no-store",
+      credentials: "same-origin",
       body: JSON.stringify(payload || {}),
     }, timeoutMs);
     return parseResponse(response, path);
@@ -90,7 +129,7 @@
    */
   window.mediaPipelineApi = {
     apiBase,
-    tokenPresent: Boolean(token),
+    tokenPresent: Boolean(token || bootstrap.tokenSource === "http-only-cookie"),
     apiGet,
     apiPost,
   };

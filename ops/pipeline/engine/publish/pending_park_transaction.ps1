@@ -65,6 +65,8 @@ function New-PendingParkManifest {
         [array] $Tx3gSrtFailures = @(),
         [array] $BdpgsSrtFailures = @(),
         [array] $VobSubSrtFailures = @(),
+        [array] $ConvertedSrtSidecarCandidates = @(),
+        [array] $SubtitleOutputReduction = @(),
         [array] $Tx3gEmbeddedSrtTracks = @(),
         [array] $BdpgsEmbeddedSrtTracks = @(),
         [array] $VobSubEmbeddedSrtTracks = @(),
@@ -113,6 +115,8 @@ function New-PendingParkManifest {
         tx3g_srt_failures      = @($Tx3gSrtFailures)
         bdpgs_srt_failures     = @($BdpgsSrtFailures)
         vobsub_srt_failures    = @($VobSubSrtFailures)
+        converted_srt_sidecar_candidates = @($ConvertedSrtSidecarCandidates)
+        subtitle_output_reduction = @($SubtitleOutputReduction)
         tx3g_embedded_srt_tracks = @($Tx3gEmbeddedSrtTracks)
         bdpgs_embedded_srt_tracks = @($BdpgsEmbeddedSrtTracks)
         vobsub_embedded_srt_tracks = @($VobSubEmbeddedSrtTracks)
@@ -152,6 +156,8 @@ function Invoke-PendingParkTransaction {
         [array] $Tx3gSrtFailures = @(),
         [array] $BdpgsSrtFailures = @(),
         [array] $VobSubSrtFailures = @(),
+        [array] $ConvertedSrtSidecarCandidates = @(),
+        [array] $SubtitleOutputReduction = @(),
         [array] $Tx3gEmbeddedSrtTracks = @(),
         [array] $BdpgsEmbeddedSrtTracks = @(),
         [array] $VobSubEmbeddedSrtTracks = @(),
@@ -220,6 +226,8 @@ function Invoke-PendingParkTransaction {
             -Tx3gSrtFailures @($Tx3gSrtFailures) `
             -BdpgsSrtFailures @($BdpgsSrtFailures) `
             -VobSubSrtFailures @($VobSubSrtFailures) `
+            -ConvertedSrtSidecarCandidates @($ConvertedSrtSidecarCandidates) `
+            -SubtitleOutputReduction @($SubtitleOutputReduction) `
             -Tx3gEmbeddedSrtTracks @($Tx3gEmbeddedSrtTracks) `
             -BdpgsEmbeddedSrtTracks @($BdpgsEmbeddedSrtTracks) `
             -VobSubEmbeddedSrtTracks @($VobSubEmbeddedSrtTracks) `

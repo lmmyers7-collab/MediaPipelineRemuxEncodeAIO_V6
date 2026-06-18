@@ -303,8 +303,6 @@ def is_refreshable_source_path(
 ) -> bool:
     if not path.is_file():
         return False
-    if not is_source_file(path):
-        return False
     try:
         rel_path = path.relative_to(REPO_ROOT)
     except ValueError:
@@ -312,11 +310,14 @@ def is_refreshable_source_path(
     rel = rel_path.as_posix()
     if is_volatile_generated_summary_source(rel):
         return False
+    existing_summary = summary_path_for_source(rel, path.suffix).is_file()
+    if not is_source_file(path):
+        return allow_existing_summary and existing_summary
     if in_scope_roots(rel_path):
         return True
     if explicit and rel.startswith("ops/release/changes/") and path.suffix.lower() == ".json":
         return True
-    return allow_existing_summary and summary_path_for_source(rel, path.suffix).is_file()
+    return allow_existing_summary and existing_summary
 
 
 def iter_summary_files() -> Iterable[Path]:

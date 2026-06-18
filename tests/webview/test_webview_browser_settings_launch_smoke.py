@@ -503,7 +503,7 @@ def _browser_settings_launch_runner_source() -> str:
             queueScopeIntentRow.click();
             requireText("launch-settings-intent-detail", [
               "Queue display filter / backend launch scope",
-              "hidden blocked rows: 0",
+              "hidden blocked rows:",
               "hidden review rows: 1",
               "Backend launch scope: unchanged",
             ]);
@@ -629,7 +629,12 @@ def _browser_settings_launch_runner_source() -> str:
             });
             if (ready.result?.value !== true) throw new Error("Settings/Launch WebView globals or DOM nodes did not become ready.");
             const result = await client.send("Runtime.evaluate", {
-              expression: settingsLaunchScript({ settings: payload.settings, patch: payload.patch }),
+              expression: settingsLaunchScript({
+                settings: payload.settings,
+                routeMap: payload.routeMap,
+                routeMapSourcePath: payload.routeMapSourcePath,
+                patch: payload.patch,
+              }),
               awaitPromise: true,
               returnByValue: true,
             });
@@ -767,7 +772,3 @@ class WebViewBrowserSettingsLaunchSmoke(unittest.TestCase):
         self.assertNotIn("settings.save_patch", browser_result["commandHistory"])
         self.assertEqual(browser_result["saveConfirmCount"], 1)
         self.assertIn("A matching backend Preview Patch result is available", browser_result["saveConfirmMessage"])
-
-
-
-

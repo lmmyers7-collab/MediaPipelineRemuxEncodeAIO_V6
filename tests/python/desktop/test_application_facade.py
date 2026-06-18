@@ -352,6 +352,7 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
         extra_args: str,
         show_console: bool,
         single_file: str | None = None,
+        extra_argv: list[str] | tuple[str, ...] | None = None,
     ) -> DummyProc:
         self.started_pipeline = {
             "resolved": resolved,
@@ -359,6 +360,7 @@ class DummyWorkflowFacadeService(DummyFacadeService, QueueServiceMixin, RenameSe
             "show_config": show_config,
             "sleep_seconds": sleep_seconds,
             "extra_args": extra_args,
+            "extra_argv": [str(item) for item in (extra_argv or [])],
             "show_console": show_console,
             "single_file": single_file,
         }
@@ -424,5 +426,3 @@ def _resolved(root: Path) -> ResolvedPaths:
 
 if __name__ == "__main__":
     unittest.main()
-
-

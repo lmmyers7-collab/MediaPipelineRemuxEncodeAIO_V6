@@ -80,7 +80,7 @@ function Test-JavaScriptSyntax {
     if (-not (Test-Path -LiteralPath $assetRoot -PathType Container)) {
         throw "WebView asset folder was not found: $assetRoot"
     }
-    $scripts = Get-ChildItem -LiteralPath $assetRoot -Filter '*.js' -File | Sort-Object Name
+    $scripts = Get-ChildItem -LiteralPath $assetRoot -Filter '*.js' -File -Recurse | Sort-Object FullName
     if (-not $scripts) {
         throw "No WebView JavaScript assets were found in $assetRoot"
     }

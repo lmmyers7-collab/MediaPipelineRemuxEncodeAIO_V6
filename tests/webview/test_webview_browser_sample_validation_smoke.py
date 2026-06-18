@@ -535,12 +535,12 @@ def _browser_sample_validation_runner_source() -> str:
             if (previewPosts[0].body?.shell !== "webview") {
               throw new Error("preview POST did not default to webview shell surface: " + JSON.stringify(previewPosts[0].body));
             }
-            window.MEDIA_PIPELINE_BOOTSTRAP.shellSurface = "tauri";
+            window.MEDIA_PIPELINE_BOOTSTRAP = Object.freeze({ ...window.MEDIA_PIPELINE_BOOTSTRAP, shellSurface: "tauri" });
             const tauriShellRequest = window.mediaPipelineCrossPageContextView.buildSampleValidationRequest();
             if (tauriShellRequest.shell !== "tauri") {
               throw new Error("sample validation request did not honor Tauri shell surface: " + JSON.stringify(tauriShellRequest));
             }
-            window.MEDIA_PIPELINE_BOOTSTRAP.shellSurface = "webview";
+            window.MEDIA_PIPELINE_BOOTSTRAP = Object.freeze({ ...window.MEDIA_PIPELINE_BOOTSTRAP, shellSurface: "webview" });
             [
               "diagnostics_checked",
               "subtitle_checked",
@@ -879,4 +879,3 @@ class WebViewBrowserSampleValidationSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

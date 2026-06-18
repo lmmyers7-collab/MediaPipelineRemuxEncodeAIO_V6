@@ -34,6 +34,7 @@ from mediapipeline.core.processes.rerun_policy import (
 )
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_evidence
 from mediapipeline.core.processes.schedule_policy import continuous_schedule_stop_watcher_preflight_check
+from mediapipeline.core.processes.source_path_policy import SOURCE_ROOT_SCOPE_TEXT, queue_source_file_validation
 
 
 LAUNCH_PREFLIGHT_SCHEMA_VERSION = "desktop_launch_preflight.v1"
@@ -204,6 +205,40 @@ def _network_role_preflight_check(config: dict[str, Any]) -> dict[str, Any]:
         f"mode={mode_label}; NetworkRole={role or '(missing/empty)'}; valid={'yes' if valid else 'no'}",
         action,
         detail=[] if allowed else [PIPELINE_NETWORK_MODE_BLOCK_ERROR],
+    )
+
+
+def _single_file_scope_preflight_check(resolved: ResolvedPaths, single_file: str) -> dict[str, Any]:
+    if not single_file:
+        return _preflight_check(
+            "single_file_scope",
+            "Single-file source scope",
+            "ready",
+            "single_file not requested; backend launch will use normal queue scope.",
+            "Leave Single File blank for normal queue launches; Queue display filters and row selection are not submitted.",
+        )
+    validation = queue_source_file_validation(resolved, single_file, field_name="single_file")
+    evidence = (
+        f"single_file={validation.get('path') or '(empty)'}; "
+        f"normalized={validation.get('normalized_path') or '(none)'}; "
+        f"absolute={'yes' if validation.get('is_absolute') else 'no'}; "
+        f"under_source_root={'yes' if validation.get('under_source_root') else 'no'}; "
+        f"exists={'yes' if validation.get('exists') else 'no'}; "
+        f"is_file={'yes' if validation.get('is_file') else 'no'}; "
+        f"suffix={validation.get('media_suffix') or '(none)'}; "
+        f"supported_suffix={'yes' if validation.get('media_suffix_supported') else 'no'}"
+    )
+    return _preflight_check(
+        "single_file_scope",
+        "Single-file source scope",
+        "ready" if validation.get("ok") else "blocked",
+        evidence,
+        (
+            "Start route will pass this normalized single-file path to the backend pipeline."
+            if validation.get("ok")
+            else f"Choose one existing supported media file under {SOURCE_ROOT_SCOPE_TEXT}."
+        ),
+        detail=[json_safe(validation)],
     )
 
 
@@ -394,6 +429,12 @@ class ProcessFacadeMixin:
             "network_role": network_role,
             "network_mode_label": network_mode_label,
         }
+        single_file_check = _single_file_scope_preflight_check(resolved, normalized["single_file"])
+        normalized["single_file_validation"] = single_file_check["detail"][0] if single_file_check["detail"] else {
+            "ok": True,
+            "status": "ready",
+            "message": "single_file not requested; backend launch will use normal queue scope.",
+        }
         checks: list[dict[str, Any]] = [
             _network_role_preflight_check(config),
             _preflight_check(
@@ -420,6 +461,7 @@ class ProcessFacadeMixin:
                 "Keep local API launches on structured fields; extra pipeline arguments are not accepted by the Local API.",
                 detail=[] if extra_args_error is None else [PIPELINE_EXTRA_ARGS_ERROR],
             ),
+            single_file_check,
         ]
         if is_supported_pipeline_start_mode(mode):
             schedule_gate = self._resolve_pipeline_start_schedule_gate(mode, request)

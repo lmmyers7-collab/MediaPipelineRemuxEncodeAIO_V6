@@ -1,0 +1,29 @@
+{
+  "id": "MP-CHANGE-2026-0614-027",
+  "title": "W03 network coordinator claim registry retry review",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-15",
+  "summary": "Added the W03 worker review for coordinator claim selection, in-flight registry persistence, retry policy, and encode snapshot boundaries.",
+  "reason": "The network coordinator/worker mode review requires each worker to write a scoped Markdown audit file under docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/.",
+  "affected_areas": [
+    "docs-review"
+  ],
+  "behavior_before": "No W03 worker Markdown report existed for the 2026-06-15 network coordinator/worker audit in this workspace.",
+  "behavior_after": "The W03 worker Markdown report records required reads, coverage, three findings, test gaps, boundary risks, incomplete coverage, and follow-up prompts.",
+  "files_touched": [
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W03-coordinator-claim-registry-retry.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-027.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Manual source/test review only; no runtime tests run for this review-only docs change.",
+    "Read back docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W03-coordinator-claim-registry-retry.md after writing."
+  ],
+  "rollback_plan": "Remove docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W03-coordinator-claim-registry-retry.md and this change packet if the review needs to be regenerated.",
+  "related_changes": [],
+  "notes": "Review-only W03 network coordinator claim/registry/retry audit."
+}

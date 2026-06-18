@@ -45,8 +45,30 @@ function Invoke-WebViewBrowserSmokeUnittest {
         $env:PYTHONDONTWRITEBYTECODE = '1'
         $srcPath = Join-Path $ProjectRoot 'src'
         $env:PYTHONPATH = if ([string]::IsNullOrWhiteSpace($previousPythonPath)) { $srcPath } else { "$srcPath;$previousPythonPath" }
-        $output = & $python -m unittest $Module -q 2>&1 | ForEach-Object { [string]$_ }
-        $exitCode = $LASTEXITCODE
+        $processInfo = New-Object System.Diagnostics.ProcessStartInfo
+        $processInfo.FileName = $python
+        $processInfo.Arguments = "-m unittest $Module -q"
+        $processInfo.WorkingDirectory = $ProjectRoot
+        $processInfo.UseShellExecute = $false
+        $processInfo.RedirectStandardOutput = $true
+        $processInfo.RedirectStandardError = $true
+        $processInfo.EnvironmentVariables['PYTHONDONTWRITEBYTECODE'] = $env:PYTHONDONTWRITEBYTECODE
+        $processInfo.EnvironmentVariables['PYTHONPATH'] = $env:PYTHONPATH
+
+        $process = New-Object System.Diagnostics.Process
+        $process.StartInfo = $processInfo
+        [void]$process.Start()
+        $stdout = $process.StandardOutput.ReadToEnd()
+        $stderr = $process.StandardError.ReadToEnd()
+        $process.WaitForExit()
+        $exitCode = $process.ExitCode
+
+        $output = @()
+        foreach ($streamText in @($stdout, $stderr)) {
+            if (-not [string]::IsNullOrWhiteSpace($streamText)) {
+                $output += @($streamText -split "`r?`n" | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+            }
+        }
         $output | ForEach-Object { Write-Host $_ }
         if ($exitCode -ne 0) {
             exit $exitCode

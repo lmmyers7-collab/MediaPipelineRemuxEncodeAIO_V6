@@ -3,9 +3,9 @@ file: ops/pipeline/engine/verify/quality.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: verify
-last_modified: 2026-06-11
+last_modified: 2026-06-15
 last_reviewed: 2026-06-11
-sha256: 7f707e0b39ec206c959c46da399b0f14345e6552cf57e4901019b541387eb754
+sha256: ad47171db83955556bbac53ccab0cc1351a9355860874b9da60acf2c12b01f09
 ---
 # `ops/pipeline/engine/verify/quality.ps1`
 

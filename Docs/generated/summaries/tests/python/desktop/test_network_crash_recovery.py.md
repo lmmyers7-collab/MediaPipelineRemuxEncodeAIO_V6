@@ -3,9 +3,9 @@ file: tests/python/desktop/test_network_crash_recovery.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 57f17716ee568f61f225138bc4222dae6b936046391be7a55b47e42d5966dcc4
+sha256: c74d1c93c244157eee82b6cd32fad25327dedb5a50209e423ea26adb9d572f97
 ---
 # `tests/python/desktop/test_network_crash_recovery.py`
 

@@ -1630,8 +1630,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (pipelineStartButton) pipelineStartButton.addEventListener("click", startPipelineFromForm);
   const auditStartButton = byId("audit-start-button");
   if (auditStartButton) auditStartButton.addEventListener("click", startAuditFromForm);
+  const rerunDryRunButton = byId("rerun-dry-run-button");
+  if (rerunDryRunButton) rerunDryRunButton.addEventListener("click", () => startRerunFromForm({ dry_run: true }));
   const rerunStartButton = byId("rerun-start-button");
-  if (rerunStartButton) rerunStartButton.addEventListener("click", startRerunFromForm);
+  if (rerunStartButton) rerunStartButton.addEventListener("click", () => startRerunFromForm({ dry_run: false }));
   const pendingDrainButton = byId("pending-drain-button");
   if (pendingDrainButton) pendingDrainButton.addEventListener("click", () => window.mediaPipelineLaunchView?.startPendingPublishDrain?.());
   const pendingRecoveryPlanSelectedButton = byId("pending-recovery-plan-selected-button");

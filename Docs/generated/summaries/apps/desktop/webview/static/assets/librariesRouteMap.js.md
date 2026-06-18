@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/librariesRouteMap.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-11
+last_modified: 2026-06-16
 last_reviewed: 2026-06-07
-sha256: 49ef7d281374ff36ac9911741c5a2798ab99e27953371179b105752a2e3b4d97
+sha256: 5f4ac9bc6220c8e05241b9d3702b477b289eb056b722b1ac8c8d0a6a003f317c
 ---
 # `apps/desktop/webview/static/assets/librariesRouteMap.js`
 

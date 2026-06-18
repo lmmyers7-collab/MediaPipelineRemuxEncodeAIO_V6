@@ -7,12 +7,6 @@
   "violations": [],
   "route_owners": [
     {
-      "route": "/api/audit-controls",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
       "route": "/api/audit/export-rerun-csv",
       "files": [
         "apps/desktop/webview/static/assets/launchView.js",
@@ -41,25 +35,7 @@
       ]
     },
     {
-      "route": "/api/backend/close-readiness",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
       "route": "/api/backend/shutdown",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
-      "route": "/api/commands?limit=20",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
-      "route": "/api/completed?limit=100",
       "files": [
         "apps/desktop/webview/static/assets/app.js"
       ]
@@ -77,27 +53,9 @@
       ]
     },
     {
-      "route": "/api/contract",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
-      "route": "/api/diagnostics",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
       "route": "/api/diagnostics/open",
       "files": [
         "apps/desktop/webview/static/assets/diagnosticsView.js"
-      ]
-    },
-    {
-      "route": "/api/diagnostics/state-summary",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
@@ -110,12 +68,6 @@
       "route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "files": [
         "apps/desktop/webview/static/assets/diagnosticsView.js"
-      ]
-    },
-    {
-      "route": "/api/diagnostics/tdarr-matrix/latest?finding_limit=0",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
@@ -152,18 +104,6 @@
       "route": "/api/final-library-promotion/status",
       "files": [
         "apps/desktop/webview/static/assets/app/refresh.js"
-      ]
-    },
-    {
-      "route": "/api/health",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
-      "route": "/api/libraries/route-map",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
@@ -215,21 +155,21 @@
       ]
     },
     {
-      "route": "/api/metrics",
+      "route": "/api/network/coordinator/join-blob",
       "files": [
-        "apps/desktop/webview/static/assets/app.js"
+        "apps/desktop/webview/static/assets/networkView.js"
       ]
     },
     {
-      "route": "/api/network/workers",
+      "route": "/api/network/worker/join-cluster",
       "files": [
-        "apps/desktop/webview/static/assets/app.js"
+        "apps/desktop/webview/static/assets/networkView.js"
       ]
     },
     {
-      "route": "/api/pending-publish",
+      "route": "/api/network/worker/test-connection",
       "files": [
-        "apps/desktop/webview/static/assets/app.js"
+        "apps/desktop/webview/static/assets/networkView.js"
       ]
     },
     {
@@ -266,12 +206,6 @@
       "route": "/api/publish-reconciliation?limit=250",
       "files": [
         "apps/desktop/webview/static/assets/completedView.evidence.js"
-      ]
-    },
-    {
-      "route": "/api/queue",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
@@ -347,12 +281,6 @@
       ]
     },
     {
-      "route": "/api/sample-validation?limit=10",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
       "route": "/api/sample-validation/append",
       "files": [
         "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js"
@@ -362,12 +290,6 @@
       "route": "/api/sample-validation/preview",
       "files": [
         "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js"
-      ]
-    },
-    {
-      "route": "/api/schedule",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
       ]
     },
     {
@@ -413,31 +335,7 @@
       ]
     },
     {
-      "route": "/api/settings/workspace",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
-      "route": "/api/snapshot",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
-      "route": "/api/telemetry",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
       "route": "/api/ui-preferences",
-      "files": [
-        "apps/desktop/webview/static/assets/app.js"
-      ]
-    },
-    {
-      "route": "/api/watch-folders/status",
       "files": [
         "apps/desktop/webview/static/assets/app.js"
       ]

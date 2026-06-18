@@ -50,7 +50,7 @@ Each `network_lifecycle_contracts[]` item in `/api/contract` must include:
 
 The required dry-run result fields are:
 
-`schema_version`, `candidate_command`, `dry_run_only`, `role`, `requested_action`, `lifecycle_state`, `precondition_results`, `would_start_processes`, `would_stop_processes`, `would_write_state`, `would_not_touch`, `safe_to_apply`, and `operator_confirmation_scope`.
+`schema_version`, `candidate_command`, `dry_run_only`, `role`, `requested_action`, `lifecycle_state`, `precondition_results`, `would_start_processes`, `would_stop_processes`, `dry_run_writes`, `confirmed_route_would_write`, `would_not_touch`, `safe_to_apply`, and `operator_confirmation_scope`.
 
 ---
 

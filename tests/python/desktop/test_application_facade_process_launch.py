@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta
+import json
 import sys
 import tempfile
 import threading
@@ -15,6 +16,7 @@ from unittest.mock import patch
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.desktop.application.network_lifecycle_provider import _NetworkRuntimeApp
 from tests.python.desktop.test_application_facade import DummyProc, DummyWorkflowFacadeService, _resolved
 
 
@@ -25,6 +27,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
+            resolved.source_movies = root / "Movies"
+            resolved.source_movies.mkdir(parents=True)
+            sample = resolved.source_movies / "sample.mkv"
+            sample.write_bytes(b"media")
 
             result = facade.start_pipeline_process(
                 resolved,
@@ -33,7 +39,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                     "sleep_seconds": 5,
                     "show_config": True,
                     "show_console": False,
-                    "single_file": str(root / "sample.mkv"),
+                    "single_file": str(sample),
                 },
             ).to_mapping()
             rejected = facade.start_pipeline_process(resolved, {"mode": "once", "extra_args": "-Danger"}).to_mapping()
@@ -49,11 +55,77 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(result["data"]["pid"], 24680)
         self.assertEqual(service.started_pipeline["mode"], "validate")
         self.assertEqual(service.started_pipeline["sleep_seconds"], 5)
-        self.assertEqual(service.started_pipeline["single_file"], str(root / "sample.mkv"))
+        self.assertEqual(service.started_pipeline["single_file"], str(sample))
+        self.assertTrue(result["data"]["single_file_validation"]["ok"])
+        self.assertEqual(result["data"]["single_file_validation"]["normalized_path"], str(sample))
         self.assertFalse(rejected["ok"])
         self.assertIn("Extra pipeline arguments", rejected["message"])
         self.assertFalse(rejected_with_client_allow["ok"])
         self.assertIn("Extra pipeline arguments", rejected_with_client_allow["message"])
+
+    def test_pipeline_start_rejects_single_file_outside_configured_sources_or_invalid_media(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.source_movies = root / "Movies"
+            resolved.source_movies.mkdir(parents=True)
+            outside = root / "Downloads" / "sample.mkv"
+            outside.parent.mkdir(parents=True)
+            outside.write_bytes(b"media")
+            directory = resolved.source_movies / "Folder"
+            directory.mkdir()
+            unsupported = resolved.source_movies / "notes.txt"
+            unsupported.write_text("not media", encoding="utf-8")
+
+            outside_result = facade.start_pipeline_process(
+                resolved,
+                {
+                    "mode": "validate",
+                    "single_file": str(outside),
+                },
+            ).to_mapping()
+            missing_result = facade.start_pipeline_process(
+                resolved,
+                {"mode": "validate", "single_file": str(resolved.source_movies / "missing.mkv")},
+            ).to_mapping()
+            relative_result = facade.start_pipeline_process(
+                resolved,
+                {"mode": "validate", "single_file": "relative.mkv"},
+            ).to_mapping()
+            directory_result = facade.start_pipeline_process(
+                resolved,
+                {"mode": "validate", "single_file": str(directory)},
+            ).to_mapping()
+            unsupported_result = facade.start_pipeline_process(
+                resolved,
+                {"mode": "validate", "single_file": str(unsupported)},
+            ).to_mapping()
+            preflight = facade.get_launch_preflight(
+                resolved,
+                {"target": "pipeline", "mode": "validate", "single_file": str(outside)},
+            )
+
+        for result in (outside_result, missing_result, relative_result, directory_result, unsupported_result):
+            with self.subTest(message=result["message"]):
+                self.assertFalse(result["ok"])
+                self.assertEqual(result["severity"], "error")
+                self.assertEqual(result["data"]["schema_version"], "desktop_pipeline_single_file_launch_block.v1")
+                self.assertFalse(result["data"]["validation"]["ok"])
+                self.assertFalse(result["data"]["start_route_allowed"])
+        self.assertFalse(outside_result["data"]["validation"]["under_source_root"])
+        self.assertIn("outside", outside_result["data"]["validation"]["message"])
+        self.assertIn("does not exist", missing_result["message"])
+        self.assertIn("absolute path", relative_result["message"])
+        self.assertIn("not a file", directory_result["message"])
+        self.assertIn("unsupported media suffix", unsupported_result["message"])
+        self.assertEqual(preflight["status"], "blocked")
+        self.assertFalse(preflight["can_request_start"])
+        preflight_rows = {row["key"]: row for row in preflight["checks"]}
+        self.assertEqual(preflight_rows["single_file_scope"]["status"], "blocked")
+        self.assertFalse(preflight_rows["single_file_scope"]["detail"][0]["under_source_root"])
+        self.assertFalse(hasattr(service, "started_pipeline"))
 
     def test_pipeline_start_blocks_unverified_active_config(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -363,6 +435,35 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         class WorkerService(DummyWorkflowFacadeService):
             def start_pipeline(self, *args: object, **kwargs: object) -> ProcWithWait:  # type: ignore[override]
                 super().start_pipeline(*args, **kwargs)  # type: ignore[arg-type]
+                extra_argv = [str(item) for item in (kwargs.get("extra_argv") or [])]
+                result_path = Path(extra_argv[extra_argv.index("-WorkerResultPath") + 1])
+                result_path.parent.mkdir(parents=True, exist_ok=True)
+                run_id = extra_argv[extra_argv.index("-WorkerRunId") + 1]
+                claim_id = extra_argv[extra_argv.index("-WorkerClaimId") + 1]
+                result_path.write_text(
+                    json.dumps(
+                        {
+                            "SchemaVersion": "local_worker_result.v1",
+                            "Success": True,
+                            "Status": "processed",
+                            "Reason": "ok",
+                            "ErrorCode": "",
+                            "SourcePath": str(root / "Claimed.mkv"),
+                            "SourceName": "Claimed.mkv",
+                            "Route": "encode",
+                            "PublishState": "published",
+                            "PublishMode": "direct",
+                            "OutputPath": str(root / "Out" / "Claimed.mkv"),
+                            "OutputSizeBytes": 123,
+                            "QueueTerminal": False,
+                            "Retryable": True,
+                            "WorkerSlotId": 0,
+                            "WorkerRunId": run_id,
+                            "WorkerClaimId": claim_id,
+                        }
+                    ),
+                    encoding="utf-8",
+                )
                 return ProcWithWait()
 
         class FakeWorkerDispatcher:
@@ -428,9 +529,168 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertTrue(stopped["ok"])
         self.assertEqual(service.started_pipeline["single_file"], str(root / "Claimed.mkv"))
         self.assertEqual(service.started_pipeline["mode"], "once")
+        self.assertIn("-WorkerResultPath", service.started_pipeline["extra_argv"])
         self.assertTrue(dispatcher.done)
         self.assertTrue(dispatcher.done[0]["success"])
+        self.assertEqual(dispatcher.done[0]["completion_status"], "processed")
+        self.assertEqual(dispatcher.done[0]["publish_state"], "published")
+        self.assertEqual(dispatcher.done[0]["publish_mode"], "direct")
+        self.assertEqual(dispatcher.done[0]["output_path"], str(root / "Out" / "Claimed.mkv"))
+        self.assertEqual(dispatcher.done[0]["output_size_bytes"], 123)
+        self.assertEqual(dispatcher.done[0]["route"], "encode")
+        self.assertFalse(dispatcher.done[0]["queue_terminal"])
+        self.assertTrue(dispatcher.done[0]["retry_on_failure"])
         self.assertTrue(dispatcher.shutdown_called)
+
+    def test_worker_provider_result_artifact_failure_paths_and_field_propagation(self) -> None:
+        class ProcWithWait(DummyProc):
+            def __init__(self, return_code: int = 0) -> None:
+                super().__init__()
+                self._return_code = return_code
+
+            def wait(self) -> int:
+                return self._return_code
+
+        class Dispatcher:
+            def __init__(self) -> None:
+                self.done: list[dict[str, object]] = []
+
+            def mark_done(self, _job: object, **kwargs: object) -> None:
+                self.done.append(dict(kwargs))
+
+        cases: list[tuple[str, object, dict[str, object]]] = [
+            (
+                "pending_publish",
+                {
+                    "Success": True,
+                    "Status": "pending_publish",
+                    "Reason": "",
+                    "ErrorCode": "",
+                    "Route": "encode",
+                    "PublishState": "parked",
+                    "PublishMode": "pending_publish",
+                    "OutputPath": "D:/Pending/Movie.mkv",
+                    "OutputSizeBytes": 456,
+                    "QueueTerminal": False,
+                    "Retryable": True,
+                },
+                {
+                    "success": True,
+                    "completion_status": "pending_publish",
+                    "publish_state": "parked",
+                    "publish_mode": "pending_publish",
+                    "output_path": "D:/Pending/Movie.mkv",
+                    "output_size_bytes": 456,
+                    "retry_on_failure": True,
+                },
+            ),
+            (
+                "failure_terminal",
+                {
+                    "Success": False,
+                    "Status": "failed",
+                    "Reason": "ffmpeg failed",
+                    "ErrorCode": "ENCODE_ERROR",
+                    "Route": "encode",
+                    "PublishState": "",
+                    "PublishMode": "",
+                    "OutputPath": "",
+                    "OutputSizeBytes": 0,
+                    "QueueTerminal": True,
+                    "Retryable": False,
+                },
+                {
+                    "success": False,
+                    "completion_status": "failed",
+                    "reason_code": "ENCODE_ERROR",
+                    "reason": "ffmpeg failed",
+                    "queue_terminal": True,
+                    "retry_on_failure": False,
+                },
+            ),
+            ("missing", None, {"success": False, "completion_status": "failed_result_missing"}),
+            ("unreadable", "{not json", {"success": False, "completion_status": "failed_result_invalid"}),
+            (
+                "wrong_claim",
+                {"Success": True, "Status": "processed", "WorkerClaimId": "other-claim"},
+                {"success": False, "completion_status": "failed_result_invalid"},
+            ),
+            (
+                "wrong_run",
+                {"Success": True, "Status": "processed", "WorkerRunId": "other-run"},
+                {"success": False, "completion_status": "failed_result_invalid"},
+            ),
+            (
+                "string_output_size",
+                {"Success": True, "Status": "processed", "OutputSizeBytes": "456"},
+                {"success": False, "completion_status": "failed_result_invalid"},
+            ),
+            (
+                "float_output_size",
+                {"Success": True, "Status": "processed", "OutputSizeBytes": 4.5},
+                {"success": False, "completion_status": "failed_result_invalid"},
+            ),
+            (
+                "negative_output_size",
+                {"Success": True, "Status": "processed", "OutputSizeBytes": -1},
+                {"success": False, "completion_status": "failed_result_invalid"},
+            ),
+            (
+                "string_elapsed_seconds",
+                {"Success": True, "Status": "processed", "ElapsedSeconds": "12"},
+                {"success": False, "completion_status": "failed_result_invalid"},
+            ),
+        ]
+
+        for name, result_payload, expected in cases:
+            with self.subTest(name=name), tempfile.TemporaryDirectory() as raw_root:
+                root = Path(raw_root)
+
+                class WorkerService(DummyWorkflowFacadeService):
+                    def start_pipeline(self, *args: object, **kwargs: object) -> ProcWithWait:  # type: ignore[override]
+                        super().start_pipeline(*args, **kwargs)  # type: ignore[arg-type]
+                        extra_argv = [str(item) for item in (kwargs.get("extra_argv") or [])]
+                        result_path = Path(extra_argv[extra_argv.index("-WorkerResultPath") + 1])
+                        result_path.parent.mkdir(parents=True, exist_ok=True)
+                        run_id = extra_argv[extra_argv.index("-WorkerRunId") + 1]
+                        claim_id = extra_argv[extra_argv.index("-WorkerClaimId") + 1]
+                        if isinstance(result_payload, str):
+                            result_path.write_text(result_payload, encoding="utf-8")
+                        elif isinstance(result_payload, dict):
+                            payload = {
+                                "SchemaVersion": "local_worker_result.v1",
+                                "SourcePath": str(root / "Claimed.mkv"),
+                                "SourceName": "Claimed.mkv",
+                                "WorkerSlotId": 0,
+                                "WorkerRunId": run_id,
+                                "WorkerClaimId": claim_id,
+                                "QueueTerminal": False,
+                                "Retryable": True,
+                                "OutputSizeBytes": 0,
+                                **result_payload,
+                            }
+                            result_path.write_text(json.dumps(payload), encoding="utf-8")
+                        return ProcWithWait()
+
+                service = WorkerService(root)
+                facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+                resolved = _resolved(root)
+                app = _NetworkRuntimeApp(facade, resolved, role="worker")
+                dispatcher = Dispatcher()
+                app.dispatcher = dispatcher
+                job = SimpleNamespace(
+                    job_id="job-1",
+                    record=SimpleNamespace(source_path=root / "Claimed.mkv"),
+                )
+                app._worker_start_single_file(job)
+                deadline = time.time() + 2.0
+                while not dispatcher.done and time.time() < deadline:
+                    time.sleep(0.01)
+
+                self.assertTrue(dispatcher.done)
+                done = dispatcher.done[0]
+                for key, value in expected.items():
+                    self.assertEqual(done.get(key), value, key)
 
     def test_network_lifecycle_provider_signature_mismatch_fails_closed_without_retry(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -850,6 +1110,47 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertIn("still running from this bundle", second["message"])
         self.assertEqual(len(start_calls), 1)
 
+    def test_pipeline_start_stale_guard_cleanup_does_not_ignore_live_related_process(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            cleanup_calls: list[object] = []
+            service.cleanup_stale_launch_guards = lambda resolved_arg: cleanup_calls.append(resolved_arg)  # type: ignore[method-assign]
+            service.find_related_pipeline_processes = lambda _resolved_arg, *, job_kinds=None: [DummyProc(24681)]  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            blocked = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
+
+        self.assertEqual(cleanup_calls, [resolved])
+        self.assertFalse(blocked["ok"])
+        self.assertEqual(blocked["severity"], "warning")
+        self.assertIn("PID(s) 24681", blocked["message"])
+        self.assertFalse(hasattr(service, "started_pipeline"))
+
+    def test_pipeline_start_stop_requested_progress_still_uses_active_jobs_fallback(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            service.find_related_pipeline_processes = lambda _resolved_arg, *, job_kinds=None: []  # type: ignore[method-assign]
+            service.active_job_close_block_messages = (  # type: ignore[method-assign]
+                lambda _resolved_arg, *, job_kinds=None: [
+                    "ActiveJobs record pipeline.json reports pipeline validate as active."
+                ]
+            )
+            service.read_progress = lambda _resolved_arg: {"CurrentStage": "encode", "StopRequested": True}  # type: ignore[method-assign]
+            service.is_progress_stale = lambda _progress: False  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            blocked = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
+
+        self.assertFalse(blocked["ok"])
+        self.assertEqual(blocked["severity"], "warning")
+        self.assertIn("ActiveJobs still reports active work", blocked["message"])
+        self.assertIn("pipeline validate", blocked["message"])
+        self.assertFalse(hasattr(service, "started_pipeline"))
+
     def test_pipeline_start_blocked_by_active_work_does_not_cancel_existing_schedule_watcher(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -882,7 +1183,15 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             service = DummyWorkflowFacadeService(root)
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)
-            resolved.config_data = {"NetworkRole": "standalone", "Outsource": str(root / "Outsource")}
+            resolved.source_movies = root / "Movies"
+            resolved.source_movies.mkdir(parents=True)
+            sample = resolved.source_movies / "sample.mkv"
+            sample.write_bytes(b"media")
+            resolved.config_data = {
+                "NetworkRole": "standalone",
+                "Outsource": str(root / "Outsource"),
+                "SourceMovies": str(resolved.source_movies),
+            }
 
             pipeline = facade.get_launch_preflight(
                 resolved,
@@ -890,7 +1199,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                     "target": "pipeline",
                     "mode": "validate",
                     "sleep_seconds": 3,
-                    "single_file": str(root / "sample.mkv"),
+                    "single_file": str(sample),
                 },
             )
             invalid_mode = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "bad"})
@@ -907,7 +1216,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
 
         self.assertEqual(pipeline["schema_version"], "desktop_launch_preflight.v1")
         self.assertEqual(pipeline["target"], "pipeline")
-        self.assertEqual(pipeline["request"]["single_file"], str(root / "sample.mkv"))
+        self.assertEqual(pipeline["request"]["single_file"], str(sample))
         self.assertTrue(pipeline["can_request_start"])
         self.assertEqual(pipeline["start_route"], "/api/pipeline/start")
         self.assertEqual(pipeline["operator_readiness"]["schema_version"], "desktop_launch_readiness.v1")
@@ -917,6 +1226,9 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertIn("Launch readiness (backend-authored):", pipeline["operator_readiness"]["summary_lines"])
         self.assertTrue(any("Backend launch locking and gating remain the source of truth." in line for line in pipeline["operator_readiness"]["summary_lines"]))
         self.assertTrue(any(row["key"] == "runtime_prep_boundary" for row in pipeline["checks"]))
+        self.assertTrue(any(row["key"] == "single_file_scope" and row["status"] == "ready" for row in pipeline["checks"]))
+        self.assertTrue(pipeline["request"]["single_file_validation"]["ok"])
+        self.assertEqual(pipeline["request"]["single_file_validation"]["normalized_path"], str(sample))
         self.assertFalse(has_started_side_effects)
         self.assertEqual(invalid_mode["status"], "blocked")
         self.assertFalse(invalid_mode["can_request_start"])

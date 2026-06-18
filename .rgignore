@@ -29,6 +29,7 @@ ops/pipeline/config/backups/
 **/AuditReports/
 **/ProbeCache/
 **/RunLogs/
+docs/PG3CleanMachineReports/
 **/Failed/Reports/
 **/Failed/Artifacts/
 **/Failed/Markers/

@@ -7,7 +7,6 @@ instead of using snake_case aliases so round-trips do not need a key map.
 
 from __future__ import annotations
 
-import json
 from typing import Any, ClassVar, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
@@ -42,6 +41,7 @@ from mediapipeline.contracts.height_tolerance import (
 )
 from mediapipeline.core.rename.constants import RENAME_MOVIE_FILTER_OPTION_KEYS
 from mediapipeline.core.rename.movie import rename_movie_filter_default_terms
+from mediapipeline.core.validation.strict_json import loads_strict_json
 
 CONFIG_SCHEMA_VERSION: Literal[1] = 1
 
@@ -238,6 +238,8 @@ NETWORK_CONFIG_KEYS: tuple[str, ...] = (
     "WorkerAuthToken",
     "WorkerPollIntervalSecs",
     "WorkerSourcePathMap",
+    "WorkerEncoderMap",
+    "WorkerHonorCoordinatorPolicy",
     "WorkerConfigOverrides",
 )
 
@@ -772,7 +774,20 @@ class Config(BaseModel):
     FinalLibraryPromotionCleanupAfterVerified: bool = False
     FinalLibraryPromotionOverwriteExisting: bool = False
 
-    VideoCodec: Literal["hevc_nvenc", "libx265", "h264_nvenc", "libx264", "av1_nvenc"] = "hevc_nvenc"
+    VideoCodec: Literal[
+        "hevc_nvenc",
+        "hevc_qsv",
+        "hevc_amf",
+        "libx265",
+        "h264_nvenc",
+        "h264_qsv",
+        "h264_amf",
+        "libx264",
+        "av1_nvenc",
+        "av1_qsv",
+        "av1_amf",
+        "libaom-av1",
+    ] = "hevc_nvenc"
     VideoPreset: Literal["p1", "p2", "p3", "p4", "p5", "p6", "p7"] = "p7"
     VideoQuality: int = Field(default=22, ge=1, le=51)
     OutputContainer: Literal["mkv", "mp4"] = "mkv"
@@ -982,6 +997,8 @@ class Config(BaseModel):
     WorkerAuthToken: str = ""
     WorkerPollIntervalSecs: int = Field(default=10, ge=1)
     WorkerSourcePathMap: str = ""
+    WorkerEncoderMap: str = ""
+    WorkerHonorCoordinatorPolicy: bool = False
     WorkerConfigOverrides: str = ""
 
     @field_validator(*LIST_CONFIG_KEYS, mode="before")
@@ -1030,9 +1047,9 @@ class Config(BaseModel):
             if not raw:
                 return []
             try:
-                value = json.loads(raw)
-            except json.JSONDecodeError as exc:
-                raise ValueError("FinalLibraryPromotionRules must be JSON object/array data.") from exc
+                value = loads_strict_json(raw)
+            except ValueError as exc:
+                raise ValueError(f"FinalLibraryPromotionRules must be JSON object/array data: {exc}") from exc
         if isinstance(value, dict):
             value = [value]
         if not isinstance(value, (list, tuple)):
@@ -1054,9 +1071,9 @@ class Config(BaseModel):
             if not raw:
                 return []
             try:
-                value = json.loads(raw)
-            except json.JSONDecodeError as exc:
-                raise ValueError("LibraryProfiles must be JSON object/array data.") from exc
+                value = loads_strict_json(raw)
+            except ValueError as exc:
+                raise ValueError(f"LibraryProfiles must be JSON object/array data: {exc}") from exc
         if isinstance(value, dict):
             value = [value]
         if not isinstance(value, (list, tuple)):

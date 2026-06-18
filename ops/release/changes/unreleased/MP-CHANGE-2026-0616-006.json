@@ -1,0 +1,214 @@
+{
+  "id": "MP-CHANGE-2026-0616-006",
+  "title": "Harden settings schema persistence and backend policy ownership",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Implements verified settings schema/defaults/persistence review findings for defaulted network retry validation, duplicate-key strict JSON rejection, strict JSON-in-text config handling, backend-owned LibraryProfiles compatibility derivation, and explicit preserved-unknown-key preview/save evidence.",
+  "reason": "The operator requested implementation of verified actionable findings from the settings schema/defaults/persistence and backend-vs-WebView policy ownership review. Settings persistence, strict JSON handling, library profiles, and backend policy ownership are high-validation boundaries.",
+  "affected_areas": [
+    "settings-persistence",
+    "config-contracts",
+    "strict-json",
+    "library-profiles",
+    "webview-settings",
+    "local-api",
+    "tests",
+    "change-control"
+  ],
+  "behavior_before": "Settings preview/save validation could reject configs missing defaulted CoordinatorMaxJobRetries, API JSON parsing rejected non-finite numbers but silently collapsed duplicate object keys, JSON-in-text config fields accepted non-finite and duplicate-key JSON, the Library Profiles WebView derived backend compatibility and promotion-rule keys, and preserved unknown config keys were retained without explicit preview/save evidence.",
+  "behavior_after": "Settings validation materializes canonical Config defaults before numeric policy checks, API request/query parsing and config JSON-in-text parsing use duplicate-key and non-finite strict JSON handling, Library Profiles sends only LibraryProfiles and leaves mirrored compatibility/promotion keys to backend preview/save, and preview/save responses report preserved unknown config keys with warnings while still rejecting frontend attempts to mutate unknown keys.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-006.json.md",
+    "docs/generated/summaries/src/mediapipeline/contracts/config.py.md",
+    "docs/generated/summaries/src/mediapipeline/contracts/config_coercion.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/library_profile_normalization.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/library_profile_promotion.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_patch_candidate_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_patch_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/validation.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/validation/strict_json.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/http_helpers.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_http_helpers.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_settings_patch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_library_profiles.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_config_validation.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-006.json",
+    "src/mediapipeline/contracts/config.py",
+    "src/mediapipeline/contracts/config_coercion.py",
+    "src/mediapipeline/core/config/library_profile_normalization.py",
+    "src/mediapipeline/core/config/library_profile_promotion.py",
+    "src/mediapipeline/core/config/settings_patch_candidate_facade.py",
+    "src/mediapipeline/core/config/settings_patch_policy.py",
+    "src/mediapipeline/core/config/validation.py",
+    "src/mediapipeline/core/validation/strict_json.py",
+    "src/mediapipeline/desktop/api/http_helpers.py",
+    "tests/python/desktop/test_api_http_helpers.py",
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/python/desktop/test_library_profiles.py",
+    "tests/python/desktop/test_service_config_validation.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_api_http_helpers.py::ApiHttpHelperTests::test_read_json_body_rejects_duplicate_confirm_save_key",
+    "tests/python/desktop/test_api_http_helpers.py::ApiHttpHelperTests::test_read_json_body_rejects_nested_duplicate_patch_keys",
+    "tests/python/desktop/test_api_http_helpers.py::ApiHttpHelperTests::test_query_json_object_rejects_duplicate_keys",
+    "tests/python/desktop/test_service_config_validation.py::ServiceConfigValidationTests::test_validate_config_values_materializes_defaulted_network_numeric_keys",
+    "tests/python/desktop/test_service_config_validation.py::ServiceConfigValidationTests::test_validate_config_values_rejects_explicit_invalid_network_retry_count",
+    "tests/python/desktop/test_service_config_validation.py::ServiceConfigValidationTests::test_config_contract_rejects_strict_rename_filter_json_text",
+    "tests/python/desktop/test_service_config_validation.py::ServiceConfigValidationTests::test_validate_config_values_rejects_strict_promotion_rule_json_text",
+    "tests/python/desktop/test_library_profiles.py::LibraryProfilesTests::test_config_contract_rejects_strict_library_profile_json_text",
+    "tests/python/desktop/test_application_facade_settings_patch.py::ApplicationFacadeSettingsPatchTests::test_settings_patch_preview_and_save_allow_missing_defaulted_network_keys",
+    "tests/python/desktop/test_application_facade_settings_patch.py::ApplicationFacadeSettingsPatchTests::test_settings_save_patch_preserves_existing_unknown_keys_when_saving_known_change",
+    "tests/webview/test_webview_settings_libraries.py::WebViewSettingsLibrariesStaticTests::test_settings_libraries_asset_stages_profile_patch"
+  ],
+  "manual_validation": [
+    "Read AGENTS.md, Docs/CURRENT_PROJECT_STATE.md, Docs/OPEN_WORK_CHECKLIST.md, Docs/generated/PROJECT_INDEX.md, and Docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md before source review.",
+    "Ingested the provided settings schema/defaults/persistence and backend-vs-WebView policy ownership review artifacts from the active review workspace and verified each Markdown claim against current source before changing source files.",
+    "RED: apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_api_http_helpers.py tests/python/desktop/test_service_config_validation.py tests/python/desktop/test_library_profiles.py tests/python/desktop/test_application_facade_settings_patch.py -q failed as expected on duplicate JSON acceptance, permissive JSON-in-text handling, missing CoordinatorMaxJobRetries default materialization, and missing preserved_unknown_keys evidence.",
+    "RED: apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_settings_libraries.py::WebViewSettingsLibrariesStaticTests::test_settings_libraries_asset_stages_profile_patch -q failed as expected because the WebView still staged SourceMovies compatibility keys from LibraryProfiles.",
+    "Current-source verification for the stale WebView dynamic network route finding: apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_frontend_mutation_boundary.py::WebViewFrontendMutationBoundaryTests::test_api_post_calls_are_literal_documented_command_routes -q passed: 1 passed in 0.30s.",
+    "GREEN: apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_api_http_helpers.py tests/python/desktop/test_service_config_validation.py tests/python/desktop/test_library_profiles.py tests/python/desktop/test_application_facade_settings_patch.py -q passed: 134 passed, 215 subtests passed in 1.91s.",
+    "GREEN: apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_settings_libraries.py::WebViewSettingsLibrariesStaticTests::test_settings_libraries_asset_stages_profile_patch tests/webview/test_webview_frontend_mutation_boundary.py::WebViewFrontendMutationBoundaryTests::test_api_post_calls_are_literal_documented_command_routes -q passed: 2 passed in 0.64s.",
+    "GREEN: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_config_schema --check passed: config.v1.schema.json is current.",
+    "GREEN: apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_api_http_helpers.py tests/python/desktop/test_api_command_contracts.py -q passed: 30 passed, 238 subtests passed in 0.57s.",
+    "GREEN: apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_service_config_validation.py tests/python/desktop/test_service_config_numeric_policy.py tests/python/desktop/test_config_keys.py -q passed: 43 passed, 52 subtests passed in 1.60s.",
+    "GREEN: apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_settings_patch.py tests/python/desktop/test_library_profiles.py -q passed: 101 passed, 201 subtests passed in 1.14s.",
+    "GREEN: apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_settings_libraries.py tests/webview/test_webview_frontend_mutation_boundary.py tests/webview/test_webview_settings_patch_smoke.py -q passed: 41 passed, 218 subtests passed in 5.45s.",
+    "GREEN: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched source/test/change-packet paths> passed after source edits.",
+    "STRICT COVERAGE: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed after this packet was corrected because unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0615-021.json and ops/release/changes/unreleased/MP-CHANGE-2026-0615-022.json lack required high/critical notes or rollback detail, unrelated ops/release/changes/unreleased/MP-CHANGE-2026-0616-004.json has invalid type 'fix', and nine docs/reviews/source-scratch-output-file-handling-2026-06-16 review files are not listed in any unreleased packet."
+  ],
+  "rollback_plan": "Revert the touched settings strict-JSON, config validation, library profile, WebView settings, focused test, generated-summary, and change-packet files from this change only. Do not revert unrelated dirty worktree files or operator-owned untracked review/change packets.",
+  "related_changes": [],
+  "implementation_ledger": [
+    {
+      "issue_id": "F-001",
+      "source_markdown_file": "workspace review artifacts: settings schema/defaults/persistence findings",
+      "severity": "high",
+      "affected_files_modules": [
+        "src/mediapipeline/core/config/validation.py",
+        "src/mediapipeline/contracts/config.py",
+        "tests/python/desktop/test_service_config_validation.py",
+        "tests/python/desktop/test_application_facade_settings_patch.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests/python/desktop/test_service_config_validation.py",
+        "tests/python/desktop/test_application_facade_settings_patch.py",
+        "generate_config_schema --check"
+      ],
+      "risk_boundary_touched": "Settings persistence, config defaults, schema compatibility",
+      "implementation_status": "completed"
+    },
+    {
+      "issue_id": "F-002",
+      "source_markdown_file": "workspace review artifacts: strict JSON findings",
+      "severity": "high",
+      "affected_files_modules": [
+        "src/mediapipeline/desktop/api/http_helpers.py",
+        "src/mediapipeline/core/validation/strict_json.py",
+        "tests/python/desktop/test_api_http_helpers.py",
+        "tests/python/desktop/test_api_command_contracts.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests/python/desktop/test_api_http_helpers.py",
+        "tests/python/desktop/test_api_command_contracts.py"
+      ],
+      "risk_boundary_touched": "Local API strict JSON request/query parsing, settings save confirmation integrity",
+      "implementation_status": "completed"
+    },
+    {
+      "issue_id": "F-003",
+      "source_markdown_file": "workspace review artifacts: config JSON-in-text findings",
+      "severity": "medium",
+      "affected_files_modules": [
+        "src/mediapipeline/contracts/config.py",
+        "src/mediapipeline/contracts/config_coercion.py",
+        "src/mediapipeline/core/config/library_profile_normalization.py",
+        "src/mediapipeline/core/config/library_profile_promotion.py",
+        "src/mediapipeline/core/config/validation.py",
+        "src/mediapipeline/core/validation/strict_json.py",
+        "tests/python/desktop/test_service_config_validation.py",
+        "tests/python/desktop/test_library_profiles.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests/python/desktop/test_service_config_validation.py",
+        "tests/python/desktop/test_library_profiles.py"
+      ],
+      "risk_boundary_touched": "Config contracts, library profiles, promotion-rule parsing",
+      "implementation_status": "completed"
+    },
+    {
+      "issue_id": "F-004",
+      "source_markdown_file": "workspace review artifacts: WebView route ownership findings",
+      "severity": "medium",
+      "affected_files_modules": [
+        "apps/desktop/webview/static/assets/networkView.js",
+        "tests/webview/test_webview_frontend_mutation_boundary.py"
+      ],
+      "verification_status": "already_fixed",
+      "required_tests": [
+        "tests/webview/test_webview_frontend_mutation_boundary.py::WebViewFrontendMutationBoundaryTests::test_api_post_calls_are_literal_documented_command_routes"
+      ],
+      "risk_boundary_touched": "WebView/backend mutation route ownership",
+      "implementation_status": "no_change_current_source_passed"
+    },
+    {
+      "issue_id": "F-005",
+      "source_markdown_file": "workspace review artifacts: LibraryProfiles backend ownership findings",
+      "severity": "medium",
+      "affected_files_modules": [
+        "apps/desktop/webview/static/assets/settingsLibraries.js",
+        "tests/webview/test_webview_settings_libraries.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests/webview/test_webview_settings_libraries.py",
+        "tests/webview/test_webview_frontend_mutation_boundary.py"
+      ],
+      "risk_boundary_touched": "Library profile inheritance, persisted compatibility keys, backend policy authority",
+      "implementation_status": "completed"
+    },
+    {
+      "issue_id": "F-006",
+      "source_markdown_file": "workspace review artifacts: unknown raw-key handling findings",
+      "severity": "low",
+      "affected_files_modules": [
+        "src/mediapipeline/core/config/settings_patch_candidate_facade.py",
+        "src/mediapipeline/core/config/settings_patch_policy.py",
+        "tests/python/desktop/test_application_facade_settings_patch.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests/python/desktop/test_application_facade_settings_patch.py"
+      ],
+      "risk_boundary_touched": "Settings preview/save raw-key preservation evidence",
+      "implementation_status": "completed"
+    },
+    {
+      "issue_id": "F-007",
+      "source_markdown_file": "workspace review artifacts: DebugMode default finding",
+      "severity": "low",
+      "affected_files_modules": [
+        "src/mediapipeline/contracts/config.py",
+        "ops/pipeline/engine/config/default_values.ps1",
+        "ops/pipeline/config/profiles/Default.psd1"
+      ],
+      "verification_status": "confirmed_blocked",
+      "required_tests": [
+        "Operator/product decision required before changing defaults"
+      ],
+      "risk_boundary_touched": "Release/default-profile behavior and diagnostics policy",
+      "implementation_status": "blocked_product_decision_needed"
+    }
+  ],
+  "notes": "High-validation settings/strict-JSON/backend-ownership change. No source media, runtime state, personal config, release package, archived rollback evidence, FFmpeg media processing, subtitle processing, audio routing, pending publish/drain, queue launch, command journal storage, close-readiness, Tauri lifecycle, or release packaging files were intentionally changed by this packet. The repository had a large pre-existing dirty worktree; unrelated dirty files and unrelated untracked change packets were preserved."
+}

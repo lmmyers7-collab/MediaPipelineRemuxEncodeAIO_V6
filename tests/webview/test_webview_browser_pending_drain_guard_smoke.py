@@ -264,7 +264,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             window.renderPendingPublish(mixedPending, {});
             window.mediaPipelinePendingPublishView.renderPendingRows();
             await waitFor(
-              () => text("pending-drain-guard-status") === "Review confirm"
+              () => text("pending-drain-guard-status") === "Blocked"
                 && text("pending-drain-guard-summary").includes("Pending table filter: active;")
                 && text("pending-drain-guard-summary").includes("Backend drain scope remains all loaded parked rows")
                 && text("pending-drain-confidence-summary").includes("Display filter / drain scope"),
@@ -292,7 +292,7 @@ def _browser_pending_drain_guard_runner_source() -> str:
             requireText("pending-post-drain-trust-rows", [
               "Current parked state",
               "blocking=",
-              "Parked rows still exist",
+              "Do not trust this drain outcome yet",
               "Sample Validation",
             ]);
             const filterScopeDecisionRow = Array.from(document.querySelectorAll("#pending-drain-decision-rows tr"))
@@ -355,6 +355,10 @@ def _browser_pending_drain_guard_runner_source() -> str:
               () => text("pending-drain-guard-status") === "Blocked" && text("pending-drain-guard-summary").includes("Decision: Do not drain") && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown:"),
               "guard refresh after blocked recovery plan",
             );
+            const blockedDrainButton = byId("pending-drain-button");
+            if (!blockedDrainButton || blockedDrainButton.disabled !== true || blockedDrainButton.getAttribute("aria-disabled") !== "true") {
+              throw new Error("blocked pending drain guard must disable the Drain Parked Outputs button");
+            }
             const normalGuardBrief = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-brief");
             const normalGuardDetails = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-details");
             const normalGuardAdvanced = document.querySelector("#pending-drain-guard-summary .diagnostic-callout-advanced");
@@ -581,7 +585,3 @@ class WebViewBrowserPendingDrainGuardSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

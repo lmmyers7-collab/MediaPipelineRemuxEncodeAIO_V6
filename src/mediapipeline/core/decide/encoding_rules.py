@@ -39,8 +39,6 @@ def audio_transcode_reason(stream: SourceAudioStream, policy: EffectiveDecisionP
         return "audio policy explicitly forces transcode"
     if codec not in policy.audio_passthrough_codecs:
         return f"audio codec '{codec}' is outside passthrough policy"
-    if policy.audio_max_channels > 0 and stream.channels > policy.audio_max_channels:
-        return f"audio stream has {stream.channels} channels above policy cap {policy.audio_max_channels}"
     return ""
 
 

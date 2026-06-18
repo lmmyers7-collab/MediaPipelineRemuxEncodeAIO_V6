@@ -125,6 +125,7 @@ class EffectiveDecisionPolicy(DecisionPolicyModel):
     audio_transcode_codec: str = "eac3"
     audio_max_channels: int = Field(default=6, ge=1, le=16)
     audio_force_transcode: bool = False
+    allow_no_audio: bool = False
     subtitle_mode: SubtitleMode = "keep"
     subtitle_burn_in_forced: bool = False
 

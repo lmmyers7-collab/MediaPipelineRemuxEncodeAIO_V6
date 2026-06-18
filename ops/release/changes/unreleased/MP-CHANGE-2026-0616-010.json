@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0616-010",
+  "title": "Harden single-file pipeline launch source scope",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-16",
+  "date_completed": null,
+  "summary": "Implements the confirmed queue-launch finding that Local API/WebView single-file starts could forward arbitrary local file paths to the backend instead of requiring a configured source-root media file.",
+  "reason": "Single-file launch crosses source/scratch/output and queue-launch safety boundaries. Operator-selected files must be existing supported media under SourceMovies, SourceTV, or enabled LibraryProfiles before a backend process is started.",
+  "affected_areas": [
+    "queue_launch",
+    "source_scope",
+    "local_api",
+    "backend_process_launch",
+    "tests",
+    "change_control"
+  ],
+  "behavior_before": "Pipeline start forwarded any non-empty single_file string to the backend after generic launch checks. Preflight fixtures could advertise readiness for a missing file outside configured source roots.",
+  "behavior_after": "Pipeline start validates single_file through the backend queue source-file policy before acquiring the launch lock or spawning a process. Invalid paths return structured command evidence and do not start the backend. Tests cover a valid configured source file, outside-root rejection, and preflight parity.",
+  "files_touched": [
+    "docs/reviews/queue-launch-scope-rerun-schedule-2026-06-15/09-implementation-ledger.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-010.json",
+    "src/mediapipeline/core/processes/pipeline_facade.py",
+    "src/mediapipeline/core/processes/pipeline_policy.py",
+    "tests/python/desktop/test_application_facade_process_launch.py"
+  ],
+  "tests_added": [
+    "ApplicationFacadeProcessLaunchTests.test_pipeline_start_rejects_single_file_outside_configured_sources",
+    "Updated process-launch and preflight fixtures to use an existing configured source file"
+  ],
+  "manual_validation": [
+    "Read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, and docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md before source edits.",
+    "Inspected generated summaries for source_inventory, pipeline_policy, pipeline_facade, and process-launch tests before source edits.",
+    "Verified the queue launch finding against current source before editing.",
+    "PYTHONDONTWRITEBYTECODE=1 python -m unittest tests.python.core.decide.test_processing_decision tests.python.desktop.test_application_facade_process_launch -q - passed: 54 tests.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1 - passed.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1 - passed.",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-PathBoundaryGuardChecks.ps1 - passed."
+  ],
+  "rollback_plan": "Revert the listed queue-launch source, test, ledger, generated-summary, and packet changes only. Do not revert unrelated dirty worktree files or completed audio/source-scratch remediation packets.",
+  "related_changes": [
+    "MP-CHANGE-2026-0616-004",
+    "MP-CHANGE-2026-0616-007"
+  ],
+  "implementation_ledger": [
+    {
+      "issue_id": "QLS-001",
+      "source_markdown_file": "docs/reviews/queue-launch-scope-rerun-schedule-2026-06-15/05-findings.md",
+      "severity": "high",
+      "affected_files_modules": [
+        "src/mediapipeline/core/processes/pipeline_facade.py",
+        "src/mediapipeline/desktop/api/queue_source_path_policy.py",
+        "tests/python/desktop/test_application_facade_process_launch.py"
+      ],
+      "verification_status": "confirmed",
+      "required_tests": [
+        "tests.python.desktop.test_application_facade_process_launch"
+      ],
+      "risk_boundary_touched": "Queue launch, source-root scope, backend process start",
+      "implementation_status": "fixed_validated"
+    }
+  ],
+  "notes": "This packet is scoped to QLS-001. QLS-002 and QLS-003 remain pending verification against the current dirty tree."
+}

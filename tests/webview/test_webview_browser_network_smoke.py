@@ -160,6 +160,26 @@ def _browser_network_runner_source() -> str:
             if (typeof window.mediaPipelineNetworkView?.networkWorkerDiscoverCoordinatorsRoute !== "function") {
               throw new Error("missing worker coordinator discovery route function");
             }
+            const preservedStopLines = window.mediaPipelineNetworkView.networkLifecycleCommandResultLines({
+              ok: true,
+              command: "network.worker.stop",
+              severity: "warning",
+              message: "Network worker stop requested; active work is preserved for done reporting.",
+              data: {
+                dry_run_only: false,
+                active_work_preserved: true,
+                state_after: { status: "active_work_preserved" },
+                post_action_active_work: {
+                  active_job_count: 1,
+                  local_active_job_count: 1,
+                  remote_active_claim_count: 0,
+                  active_jobs: [{ job_id: "job-1", source_name: "Movie.mkv", source: "provider_app" }],
+                },
+              },
+            }).join("\\n");
+            if (!preservedStopLines.includes("Active work preserved:") || !preservedStopLines.includes("stopped polling/new claims")) {
+              throw new Error("active-work-preserved lifecycle result did not render backend evidence:\\n" + preservedStopLines);
+            }
             if (typeof window.mediaPipelineNetworkView?.createNetworkJoinBlob !== "function") {
               throw new Error("missing create join blob function");
             }
@@ -329,7 +349,7 @@ def _browser_network_runner_source() -> str:
             if (!workerSummaryRows[0].querySelector(".network-summary-row-label") || !workerSummaryRows[0].querySelector(".network-summary-row-value")) {
               throw new Error("expected persisted worker summary row to expose label and value spans");
             }
-            requireText("network-worker-progress-summary", ["Last reported worker progress:", "Active worker bars:", "Mutation guardrail: this panel does not start/stop workers"]);
+            requireText("network-worker-progress-summary", ["Last reported worker progress:", "Active worker bars:", "Mutation guardrail: this panel uses backend-owned Network lifecycle routes only"]);
             requireText("network-worker-progress-bars", ["worker-active", "42%", "worker-failed"]);
             requireText("network-worker-filter-summary", ["Showing 3/3 persisted worker rows", "No active/problem worker rows are hidden", "Mutation guardrail"]);
 
@@ -408,7 +428,10 @@ def _browser_network_runner_source() -> str:
               },
             });
             click(pathMapRow + ' [data-path-map-action="test"]', "path map row test button");
-            await waitForText("network-role-setup-path-map-test-result", ["Resolved: //SERVER/Source/Episode 01.mkv", "accessible yes"]);
+            await waitForText("network-role-setup-path-map-test-result", [
+              "Local rewrite result: //SERVER/Source/Episode 01.mkv",
+              "Generic saved-config backend preflight: path layer reported pass",
+            ]);
             window.mediaPipelineNetworkView.runNetworkWorkerTestConnection = originalWorkerTestConnection;
             setInput("network-role-setup-worker-overrides", '{"browser-worker":{"VideoPreset":"p4"}}');
             click("#network-role-setup-stage-button", "worker setup stage button");
@@ -499,7 +522,15 @@ def _browser_network_runner_source() -> str:
               "/api/network/coordinator/join-blob",
               "/api/network/worker/join-cluster",
             ];
-            if (posted.some((entry) => !allowedPostTargets.some((target) => String(entry.url).includes(target)))) {
+            const isAllowedUiPreferencePost = (entry) => {
+              if (!String(entry.url || "").includes("/api/ui-preferences")) return false;
+              const storage = entry.body && typeof entry.body === "object" ? entry.body.storage : null;
+              return entry.body?.source_surface === "webview"
+                && storage
+                && Object.keys(storage).length === 1
+                && storage["mediapipeline-network-tab"] === "worker";
+            };
+            if (posted.some((entry) => !allowedPostTargets.some((target) => String(entry.url).includes(target)) && !isAllowedUiPreferencePost(entry))) {
               throw new Error("Network smoke observed unexpected POST target: " + JSON.stringify(posted));
             }
             return {
@@ -686,7 +717,7 @@ def _network_payload(root: Path) -> dict[str, object]:
                     "auth_required": True,
                     "owner": "Network",
                     "frontend_exposed": True,
-                    "requires_confirmation": False,
+                    "requires_confirmation": True,
                     "journaled": False,
                     "request_keys": ["coordinator_url", "confirm_create", "rotate_token", "confirm_rotate"],
                     "response_schema": "desktop_command_result.v1",
@@ -699,7 +730,7 @@ def _network_payload(root: Path) -> dict[str, object]:
                     "auth_required": True,
                     "owner": "Network",
                     "frontend_exposed": True,
-                    "requires_confirmation": False,
+                    "requires_confirmation": True,
                     "journaled": False,
                     "request_keys": ["join_blob", "confirm_import", "timeout_seconds"],
                     "response_schema": "desktop_command_result.v1",
@@ -911,7 +942,7 @@ def _network_payload(root: Path) -> dict[str, object]:
                     "Active worker bars: 1",
                     "Blocked/stale worker bars: 1",
                     "Warning worker bars: 0",
-                    "Mutation guardrail: Last reported network progress is read-only persisted runtime evidence; WebView does not start/stop workers, reclaim jobs, release claims, send done reports, mutate queue state, or touch media files.",
+                    "Mutation guardrail: Last reported network progress is read-only persisted runtime evidence; WebView lifecycle controls must use backend-owned Network lifecycle routes and must not reclaim jobs, release claims, send done reports, mutate queue state, or touch media files.",
                 ],
                 "progress_bars": [
                     {
@@ -1041,8 +1072,18 @@ class WebViewBrowserNetworkSmoke(unittest.TestCase):
         self.assertIn("Network runtime state file evidence:", browser_result["stateFilesSummary"])
         self.assertIn("Showing 0/3 persisted worker rows", browser_result["filterSummary"])
         posted = browser_result["posted"]
+        ui_preference_posts = [entry for entry in posted if entry["url"] == "/api/ui-preferences"]
+        for entry in ui_preference_posts:
+            self.assertEqual(
+                entry["body"],
+                {
+                    "storage": {"mediapipeline-network-tab": "worker"},
+                    "source_surface": "webview",
+                },
+            )
+        command_posts = [entry for entry in posted if entry["url"] != "/api/ui-preferences"]
         self.assertEqual(
-            [entry["url"] for entry in posted],
+            [entry["url"] for entry in command_posts],
             [
                 "/api/network/worker/discover-coordinators",
                 "/api/network/coordinator/join-blob",
@@ -1050,11 +1091,11 @@ class WebViewBrowserNetworkSmoke(unittest.TestCase):
             ],
         )
         self.assertEqual(
-            posted[0]["body"],
+            command_posts[0]["body"],
             {"timeout_seconds": 2},
         )
         self.assertEqual(
-            posted[1]["body"],
+            command_posts[1]["body"],
             {
                 "confirm_create": True,
                 "rotate_token": False,
@@ -1062,13 +1103,9 @@ class WebViewBrowserNetworkSmoke(unittest.TestCase):
             },
         )
         self.assertEqual(
-            posted[2]["body"],
+            command_posts[2]["body"],
             {
                 "join_blob": "mediapipeline-join:browser-smoke",
                 "confirm_import": True,
             },
         )
-
-
-
-

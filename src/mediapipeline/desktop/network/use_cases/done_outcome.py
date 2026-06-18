@@ -55,12 +55,12 @@ class CoordinatorDoneOutcomeService:
 
     def handle(self, outcome: DoneOutcome) -> None:
         """Emit logs, queue-removal scheduling, and registry persistence."""
+        self._save_registry_after_done(outcome)
+
         if outcome.success:
             self._handle_success(outcome)
         else:
             self._handle_failure(outcome)
-
-        self._save_registry_after_done(outcome)
 
     def _remove_queue_record_directly(self, source_path: str) -> bool:
         """Last-resort removal when the app scheduler cannot run callbacks.
@@ -162,8 +162,6 @@ class CoordinatorDoneOutcomeService:
             role="coordinator",
             job_id=job.job_id,
             source_path=job.source_path,
-            reason_code=reason_code,
-            reason=err_msg,
         )
         alert = None
         marker = getattr(self._registry, "mark_failure_quarantine_alerted", None)
@@ -191,10 +189,6 @@ class CoordinatorDoneOutcomeService:
                 role="coordinator",
                 job_id=job.job_id,
                 source_path=job.source_path,
-                reason_code=alert_reason_code,
-                reason=alert_reason,
-                consecutive_count=count,
-                max_job_retries=outcome.max_job_retries,
             )
         # Retry policy: terminal worker outcomes have already produced
         # a durable skip/failure decision and should not be re-claimed.
@@ -241,3 +235,4 @@ class CoordinatorDoneOutcomeService:
                 job_id=job.job_id,
                 source_path=job.source_path,
             )
+            raise RuntimeError(f"registry save failed after done report: {safe_exc}") from exc

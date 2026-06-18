@@ -49,6 +49,18 @@ def coerce_optional_bool(d: dict[str, Any], field_name: str, *, default: bool) -
     return value
 
 
+def _coerce_strict_nonnegative_int_field(d: dict[str, Any], field_name: str, *, default: int) -> int:
+    """Read an optional wire integer without bool/string/float coercions."""
+    if field_name not in d:
+        return default
+    value = d[field_name]
+    if type(value) is not int:
+        raise ValueError(f"{field_name} must be an integer")
+    if value < 0:
+        raise ValueError(f"{field_name} must be >= 0")
+    return value
+
+
 def coerce_library_id_list(value: Any) -> list[str]:
     """Return a bounded, deduped list of library IDs from wire data."""
     if value is None:
@@ -153,11 +165,11 @@ class ClaimResponse:
             source_path=str(d.get("source_path", "")),
             library_id=str(d.get("library_id", "")),
             relative_path=str(d.get("relative_path", "")),
-            priority=bool(d.get("priority", False)),
+            priority=coerce_optional_bool(d, "priority", default=False),
             estimated_size_gb=coerce_finite_float(d.get("estimated_size_gb", 0.0), "estimated_size_gb", minimum=0.0),
             encode_config=dict(d.get("encode_config", {})),
-            retry_on_failure=bool(d.get("retry_on_failure", True)),
-            retry_after_seconds=coerce_nonnegative_int(d.get("retry_after_seconds", 0) or 0, "retry_after_seconds"),
+            retry_on_failure=coerce_optional_bool(d, "retry_on_failure", default=True),
+            retry_after_seconds=_coerce_strict_nonnegative_int_field(d, "retry_after_seconds", default=0),
         )
 
     @classmethod
@@ -222,7 +234,7 @@ class DoneRequest:
             success=coerce_optional_bool(d, "success", default=False),
             output_path=str(d.get("output_path", "")),
             elapsed_seconds=coerce_finite_float(d.get("elapsed_seconds", 0.0), "elapsed_seconds", minimum=0.0),
-            output_size_bytes=coerce_nonnegative_int(d.get("output_size_bytes", 0), "output_size_bytes"),
+            output_size_bytes=_coerce_strict_nonnegative_int_field(d, "output_size_bytes", default=0),
             error_message=str(d.get("error_message", "")),
             completion_status=str(d.get("completion_status", "")),
             reason_code=normalize_failure_reason_code(d.get("reason_code", "")),
@@ -279,7 +291,7 @@ class HeartbeatRequest:
             progress_percent=coerce_progress_percent(d.get("progress_percent", 0.0)),
             current_stage=str(d.get("current_stage", "")),
             fps=coerce_finite_float(d.get("fps", 0.0), "fps", minimum=0.0),
-            eta_seconds=coerce_nonnegative_int(d.get("eta_seconds", 0), "eta_seconds"),
+            eta_seconds=_coerce_strict_nonnegative_int_field(d, "eta_seconds", default=0),
             accessible_library_ids=coerce_library_id_list(d.get("accessible_library_ids", [])),
         )
 

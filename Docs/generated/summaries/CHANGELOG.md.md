@@ -3,9 +3,9 @@ file: CHANGELOG.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-11
+last_modified: 2026-06-14
 last_reviewed: 2026-05-31
-sha256: 85b91947007da6edb6daecb56ead8f255390b134f608389c813893522a9f18c6
+sha256: 71c4886a5a560941d7a8626cf40a0742b8f0ee8a30a7626730bf8096d28cedda
 ---
 # `CHANGELOG.md`
 

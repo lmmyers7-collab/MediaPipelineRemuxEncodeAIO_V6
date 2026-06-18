@@ -24,6 +24,7 @@ from mediapipeline.core.publish.pending_policy import (
     pending_publish_preview_fields,
     pending_publish_preview_result,
     pending_publish_recovery_plan_action,
+    pending_publish_recovery_plan_invalid_scan_result,
     pending_publish_recovery_plan_result,
     pending_publish_row_key,
     pending_publish_row_trust_fields,
@@ -197,6 +198,18 @@ class PendingPublishFacadePolicyTests(unittest.TestCase):
         self.assertEqual(exception.pending_root, str(Path("C:/Pending")))
         self.assertEqual(exception.error, "directory read failed")
         self.assertEqual(exception.warnings, ["Pending publish scan failed: directory read failed"])
+
+    def test_pending_publish_recovery_invalid_scan_result_is_fail_closed(self) -> None:
+        result = pending_publish_recovery_plan_invalid_scan_result()
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.command, "pending_publish.recovery_plan_dry_run")
+        self.assertEqual(result.severity, "error")
+        self.assertEqual(result.message, PENDING_PUBLISH_INVALID_RESULT_MESSAGE)
+        self.assertEqual(result.errors, [PENDING_PUBLISH_INVALID_RESULT_MESSAGE])
+        self.assertTrue(result.data["dry_run_only"])
+        self.assertFalse(result.data["would_mutate"])
+        self.assertEqual(result.refresh_hint, "pending_publish")
 
     def test_pending_publish_preview_result_wraps_fields_in_dto(self) -> None:
         preview = pending_publish_preview_result(

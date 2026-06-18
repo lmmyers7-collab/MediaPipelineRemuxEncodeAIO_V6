@@ -488,6 +488,7 @@ function Copy-FileRobocopy {
             $script:LastCopyFileRobocopyResult.Reason = $reason
             $script:LastCopyFileRobocopyResult.DestinationFreeGB = [double]$dstFree
             $script:LastCopyFileRobocopyResult.RequiredGB = [double]$reserveGB
+            & $cleanupStagingRoot
             return $false
         }
     } catch {
@@ -508,6 +509,7 @@ function Copy-FileRobocopy {
             $script:StopRequested = $true
             $script:LastCopyFileRobocopyResult.ReasonCode = 'COPY_STOP_REQUESTED'
             $script:LastCopyFileRobocopyResult.Reason = "Copy canceled before attempt $attempt for $srcFile"
+            & $cleanupStagingRoot
             return $false
         }
 
@@ -669,8 +671,18 @@ function Copy-FileRobocopy {
     return $false
 }
 
-# FIX#6: one-shot cleanup of stale .mp-partial files left over from an
+# FIX#6: one-shot cleanup of stale partial files left over from an
 # earlier crash. Called at startup before the main loop begins.
+function Test-MediaPipelineStalePartialArtifactName {
+    param([string]$Name)
+
+    if ([string]::IsNullOrWhiteSpace($Name)) { return $false }
+    $transactionIdPattern = '[0-9a-fA-F]{32}'
+    if ($Name -match "\.mp-partial\.$transactionIdPattern$") { return $true }
+    if ($Name -match "^\..+\.mp-publish-(partial|backup)\.$transactionIdPattern$") { return $true }
+    return $false
+}
+
 function Clear-StalePartialFiles {
     param([string[]]$Roots)
     $cutoff = (Get-Date).AddHours(-1 * [math]::Max(1, [int]$script:CleanupStaleAgeHours))
@@ -690,11 +702,11 @@ function Clear-StalePartialFiles {
             Invoke-RecursivePathScan -Path $r -ItemType File -TimeoutSeconds $script:CleanupScanTimeoutSeconds -Label "stale partial cleanup" |
                 Where-Object {
                     $name = [System.IO.Path]::GetFileName([string]$_)
-                    if ($name -notlike '*.mp-partial*' -and $name -notlike '*.mp-publish-partial.*' -and $name -notlike '*.mp-publish-backup.*') { $false }
-                    else {
+                    if (Test-MediaPipelineStalePartialArtifactName -Name $name) {
                         try { ((Get-Item -LiteralPath ([string]$_) -ErrorAction Stop).LastWriteTime -lt $cutoff) }
                         catch { $false }
                     }
+                    else { $false }
                 } |
                 ForEach-Object {
                     $candidateBoundary = Test-MediaPipelinePathBoundarySafe -Path ([string]$_) -Root $r

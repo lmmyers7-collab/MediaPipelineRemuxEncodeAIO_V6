@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0617-006",
+  "title": "Audit WebView UI responsiveness feedback",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Create a report-only audit of perceived responsiveness across WebView/static UI actions and related Local API desktop workflows.",
+  "reason": "The promoted operator surface needs a current action-by-action feedback inventory covering slow operations, duplicate-submit risk, hidden backend failures, and implementation strategy without changing UI or backend behavior.",
+  "affected_areas": [
+    "change_control",
+    "docs",
+    "local-api",
+    "responsiveness-audit",
+    "webview"
+  ],
+  "behavior_before": "No 2026-06-17 report mapped perceived responsiveness gaps across WebView actions, command routes, queue controls, settings, library management, rename/publish flows, diagnostics, startup, and error/status patterns.",
+  "behavior_after": "A docs-only audit report records the UI action inventory, missing feedback by severity, slow backend operations, double-submit/race risks, hidden-failure risks, roadmap, validation recommendations, open questions, and appendix.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-ui-responsiveness-audit.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-006.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.record_change_touch MP-CHANGE-2026-0617-006 docs/ai-audits/2026-06-17-ui-responsiveness-audit.md ops/release/changes/unreleased/MP-CHANGE-2026-0617-006.json",
+      "result": "Passed; helper confirmed two files_touched entries for the report and change packet."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+      "result": "Passed; change validation reported 347 valid packet(s)."
+    }
+  ],
+  "rollback_plan": "Delete docs/ai-audits/2026-06-17-ui-responsiveness-audit.md and this unreleased change packet.",
+  "related_changes": [],
+  "notes": "Report-only audit. No source behavior, media policy, FFmpeg command generation, subtitle conversion, audio routing, queue state, pending-publish, source/scratch/output movement, Local API route behavior, WebView controls, Tauri lifecycle behavior, scripts, configs, or generated summaries are intentionally changed. Static/source audit only; no browser automation, live Local API server, or real media workflow was executed."
+}

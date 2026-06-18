@@ -96,6 +96,12 @@ function Get-SubtitleLanguageDisplayMap {
     }
 }
 
+function Get-NormalizedSubtitleLanguage {
+    param([string] $Language)
+    if ([string]::IsNullOrWhiteSpace($Language)) { return 'und' }
+    return $Language.Trim().ToLowerInvariant()
+}
+
 function Test-SubtitleTitleMatchesAnyKeyword {
     param([string] $TitleLower, [array] $Keywords)
     foreach ($keyword in @($Keywords)) {
@@ -113,6 +119,7 @@ function Get-SubtitleLanguagePolicy {
         [switch] $IsVobSub,
         [switch] $IsAss
     )
+    if ($script:SubtitleLanguagePolicy) { return @($script:SubtitleLanguagePolicy) }
     return @('eng')
 }
 
@@ -321,6 +328,7 @@ $script:BdpgsConversionMode = 'success'
 $script:VobSubConversionMode = 'success'
 $script:SubSDHTitleKeywords = @('sdh', 'hearing')
 $script:SubSupplementalKeywords = @('sign', 'song', 'karaoke')
+$script:SubtitleLanguagePolicy = @('eng')
 $script:processingDir = Join-Path ([System.IO.Path]::GetTempPath()) ('mp-subtitle-builder-decisions-' + [guid]::NewGuid().ToString('N'))
 New-Item -ItemType Directory -Path $script:processingDir -Force | Out-Null
 
@@ -329,6 +337,18 @@ try {
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\routing_decisions.ps1')
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\filtering.ps1')
     . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\builders.ps1')
+
+    $literalKeywordResults = & {
+        . (Join-Path $repoRoot 'ops\pipeline\engine\subtitles\language_policy.ps1')
+        [pscustomobject]@{
+            QuestionMarkMatchesPlainTitle = Test-SubtitleTitleMatchesAnyKeyword -TitleLower 'regular dialogue' -Keywords @('?')
+            BracketMatchesPlainTitle = Test-SubtitleTitleMatchesAnyKeyword -TitleLower 'regular dialogue' -Keywords @('[abc]')
+            SongMatchesSongTitle = Test-SubtitleTitleMatchesAnyKeyword -TitleLower 'signs and songs' -Keywords @('song')
+        }
+    }
+    Assert-True (-not [bool]$literalKeywordResults.QuestionMarkMatchesPlainTitle) 'Supplemental keyword matching should treat ? as a literal character, not a wildcard.'
+    Assert-True (-not [bool]$literalKeywordResults.BracketMatchesPlainTitle) 'Supplemental keyword matching should treat bracket patterns as literal text.'
+    Assert-True ([bool]$literalKeywordResults.SongMatchesSongTitle) 'Supplemental keyword matching should still match ordinary literal substrings.'
 
     $preferredAssRoutingDecision = Resolve-SubtitleRoutingDecision -Entry (New-TestSubtitleEntry -Index 8 -Lang 'eng' -Title 'English Preferred ASS' -Codec 'ass')
     Assert-Equal $preferredAssRoutingDecision.Action 'ConvertAss' 'Preferred-language ASS should remain conversion-eligible.'
@@ -349,6 +369,21 @@ try {
     $nonPolicyForcedAssRoutingDecision = Resolve-SubtitleRoutingDecision -Entry $nonPolicyForcedAssEntry
     Assert-Equal $nonPolicyForcedAssRoutingDecision.Action 'Drop' 'Non-policy forced ASS should not be preserved or converted if it reaches routing.'
     Assert-ContainsText $nonPolicyForcedAssRoutingDecision.Message 'outside ASS conversion language policy' 'Non-policy forced ASS routing should explain why it was dropped.'
+
+    $script:SubtitleLanguagePolicy = @('und')
+    $blankAssPolicy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal 1 -Stream ([pscustomobject]@{
+        index = 18
+        codec_name = 'ass'
+        codec_tag_string = ''
+        tags = [pscustomobject]@{ language = ''; title = 'Undefined ASS' }
+        disposition = [pscustomobject]@{ forced = 0; default = 0 }
+    })
+    Assert-True ([bool]$blankAssPolicy.Retain) 'Blank-language ASS should be retained when policy includes und.'
+    Assert-Equal $blankAssPolicy.Lang 'und' 'Blank-language ASS should normalize to und for filtering.'
+    Assert-True ([bool]$blankAssPolicy.LanguagePolicyMatched) 'Blank-language ASS should match und language policy.'
+    $blankAssDecision = Resolve-SubtitleRoutingDecision -Entry (New-SubtitleFilterEntry -Policy $blankAssPolicy)
+    Assert-Equal $blankAssDecision.Action 'ConvertAss' 'Blank-language ASS should remain conversion-eligible when und is kept.'
+    $script:SubtitleLanguagePolicy = @('eng')
 
     $filter = @{
         Convert = @(
@@ -402,6 +437,8 @@ try {
     Assert-Equal $mp4Build.ExtraInputs.Count 0 'MP4 compatibility should not add generated SRT inputs for embedding.'
     Assert-Equal $mp4Build.Tx3gTracks.Count 1 'MP4 compatibility should reduce converted SRT sidecar candidates to exactly one publish record.'
     Assert-Equal $mp4Build.ConvertedSrtSidecarTracks.Count 1 'MP4 compatibility should expose the selected converted SRT sidecar through a source-neutral field.'
+    Assert-Equal $mp4Build.ConvertedSrtSidecarCandidates.Count 3 'MP4 compatibility should retain durable evidence for every converted SRT candidate.'
+    Assert-Equal $mp4Build.SubtitleOutputReduction.Count 2 'MP4 compatibility should retain durable evidence for every non-selected converted SRT candidate.'
     $selectedMp4Sidecar = @($mp4Build.ConvertedSrtSidecarTracks)[0]
     Assert-True $selectedMp4Sidecar.ContainsKey('ConversionKind') 'Selected MP4 sidecar should retain the conversion kind.'
     Assert-Equal $selectedMp4Sidecar.ConversionKind 'ass_to_srt' 'Selected MP4 sidecar should retain ASS-to-SRT provenance.'
@@ -410,6 +447,29 @@ try {
     Assert-Equal $selectedMp4Sidecar.SourceKind 'embedded' 'Selected MP4 sidecar should retain embedded-vs-sidecar provenance.'
     Assert-Equal @($mp4Build.Tx3gTracks)[0].ConversionKind 'ass_to_srt' 'Compatibility TX3G sidecar field should not erase non-TX3G provenance.'
     Assert-True ($mp4Build.DroppedEmbeddedTrackCount -ge 3) 'MP4 compatibility should report dropped embedded subtitle candidates.'
+    $reducedMp4Kinds = (@($mp4Build.SubtitleOutputReduction) | ForEach-Object { $_.source_subtitle_kind }) -join ','
+    Assert-ContainsText $reducedMp4Kinds 'tx3g' 'MP4 reduction evidence should identify reduced TX3G candidates.'
+    Assert-ContainsText $reducedMp4Kinds 'bdpgs' 'MP4 reduction evidence should identify reduced BDPGS candidates.'
+    Assert-True (-not [bool](@($mp4Build.SubtitleOutputReduction)[0].selected)) 'Reduced MP4 candidates should be marked as not selected.'
+
+    $script:ConversionCalls.Clear()
+    $mp4HighValueReductionFilter = @{
+        Convert = @(
+            (New-TestSubtitleEntry -Index 50 -Lang 'eng' -Title 'Main English ASS' -Codec 'ass'),
+            (New-TestSubtitleEntry -Index 51 -Lang 'eng' -Title 'Forced English ASS' -Codec 'ass' -Forced),
+            (New-TestSubtitleEntry -Index 52 -Lang 'eng' -Title 'Signs English ASS' -Codec 'ass' -Supplemental)
+        )
+        Tx3gConvert = @()
+        BdpgsConvert = @()
+        VobSubConvert = @()
+        Keep = @()
+    }
+    $mp4HighValueReductionBuild = Build-SubtitleArgsForFFmpeg -FilterResult $mp4HighValueReductionFilter -DefaultAudioLang 'eng' -SourceFile (Join-Path $script:processingDir 'source.mkv') -Context 'TEST: '
+    Assert-Equal $mp4HighValueReductionBuild.ConvertedSrtSidecarCandidates.Count 3 'High-value MP4 reduction should still record every converted candidate.'
+    Assert-Equal $mp4HighValueReductionBuild.SubtitleOutputReduction.Count 2 'High-value MP4 reduction should record every non-selected candidate.'
+    Assert-Equal @($mp4HighValueReductionBuild.Failures | Where-Object { $_.error_code -eq 'SUBTITLE_MP4_CONVERTED_SRT_REDUCTION_BLOCKED' }).Count 2 'Forced or supplemental MP4 reduction should fail closed before publish.'
+    Assert-True ([bool](@($mp4HighValueReductionBuild.SubtitleOutputReduction) | Where-Object { $_.is_forced })) 'MP4 reduction evidence should identify reduced forced candidates.'
+    Assert-True ([bool](@($mp4HighValueReductionBuild.SubtitleOutputReduction) | Where-Object { $_.is_supplemental })) 'MP4 reduction evidence should identify reduced supplemental candidates.'
 
     $script:ConversionCalls.Clear()
     $mp4SourceDefaultAssFilter = @{

@@ -463,7 +463,9 @@ class WebViewRealMediaSmoke(unittest.TestCase):
 
         self.assertEqual(html_status, 200)
         self.assertIn("text/html", html_type)
-        self.assertIn('"token": "smoke-token"', html)
+        self.assertIn('"token": ""', html)
+        self.assertIn('"tokenSource": "http-only-cookie"', html)
+        self.assertNotIn("smoke-token", html)
         self.assertNotIn("__MEDIA_PIPELINE_BOOTSTRAP__", html)
         for fragment in (
             'id="cross-page-real-media-status"',
@@ -807,4 +809,3 @@ class WebViewRealMediaSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

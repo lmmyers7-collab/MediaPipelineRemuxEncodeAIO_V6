@@ -923,6 +923,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             asset_text += "\n" + asset.read_text(encoding="utf-8")
         tauri_lib = desktop_root / "apps" / "desktop" / "tauri" / "src-tauri" / "src" / "lib.rs"
         shell_text = tauri_lib.read_text(encoding="utf-8") if tauri_lib.exists() else ""
+        tauri_contract_root = (
+            desktop_root / "apps" / "desktop" / "tauri" / "src-tauri" / "src" / "backend_contract"
+        )
+        if tauri_contract_root.exists():
+            for rust_source in tauri_contract_root.rglob("*.rs"):
+                shell_text += "\n" + rust_source.read_text(encoding="utf-8")
         combined = asset_text + "\n" + shell_text
 
         backend_only_routes_without_current_web_controls = {
@@ -1112,7 +1118,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
 
         self.assertIn('class="danger-button emergency-button topbar-emergency-control"', html)
-        self.assertIn('hidden aria-label="Emergency force stop active pipeline"', html)
+        self.assertIn('hidden aria-label="Emergency force stop related pipeline, audit, and CSV rerun processes"', html)
         self.assertIn("function updateLaunchCommandButtonStates", launch_js)
         self.assertIn("launchPipelineIsActive", launch_js)
         self.assertIn("function launchButtonGate", launch_js)
@@ -2491,6 +2497,3 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-

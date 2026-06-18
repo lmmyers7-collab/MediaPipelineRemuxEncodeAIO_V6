@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsLibraries.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-08
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 231177107320137604dbbbeebb06f3a78f088a1c4d7c66210981ee48f0cbf7bc
+sha256: 0648abe7585cab87d81f8f82507370b5191d210f0bc747f2f54139141b566609
 ---
 # `apps/desktop/webview/static/assets/settingsLibraries.js`
 

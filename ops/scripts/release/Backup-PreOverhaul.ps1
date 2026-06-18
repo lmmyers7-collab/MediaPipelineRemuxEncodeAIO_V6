@@ -144,9 +144,9 @@ if ($SkipReleaseBuild) {
         throw "Release build script not found at ops\scripts\release\build.ps1."
     }
     if ($DryRun) {
-        Write-Step "[dry-run] Would run: & '$buildScript' -DestinationRoot '$ReleaseDir' -Verify -Zip"
+        Write-Step "[dry-run] Would run: & '$buildScript' -DestinationRoot '$ReleaseDir' -Verify -Zip -IncludeTests"
     } else {
-        & $buildScript -DestinationRoot $ReleaseDir -Verify -Zip
+        & $buildScript -DestinationRoot $ReleaseDir -Verify -Zip -IncludeTests
         if ($LASTEXITCODE -ne 0) { throw "Release build failed with exit code $LASTEXITCODE" }
     }
 }

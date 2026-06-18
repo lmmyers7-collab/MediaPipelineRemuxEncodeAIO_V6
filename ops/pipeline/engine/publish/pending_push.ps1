@@ -110,6 +110,38 @@ function Write-PendingDrainSummary {
     }
 }
 
+function Get-PendingDrainSummaryLogLine {
+    param(
+        [int] $RecoveredCount = 0,
+        [int] $RemainingFallback = 0
+    )
+
+    $attempted = 0
+    $recovered = [int]$RecoveredCount
+    $succeeded = 0
+    $alreadyPublished = 0
+    $failed = 0
+    $skipped = 0
+    $remaining = [int]$RemainingFallback
+    $summaryPath = Get-PendingDrainSummaryPath
+    if (-not [string]::IsNullOrWhiteSpace([string]$summaryPath) -and (Test-Path -LiteralPath $summaryPath -ErrorAction SilentlyContinue)) {
+        try {
+            $summary = Get-Content -LiteralPath $summaryPath -Raw | ConvertFrom-Json
+            $attempted = [int](Get-PendingObjectProperty -Object $summary -Name 'attempted_count')
+            $recovered = [int](Get-PendingObjectProperty -Object $summary -Name 'recovered_count')
+            $succeeded = [int](Get-PendingObjectProperty -Object $summary -Name 'succeeded_count')
+            $alreadyPublished = [int](Get-PendingObjectProperty -Object $summary -Name 'already_published_count')
+            $failed = [int](Get-PendingObjectProperty -Object $summary -Name 'error_count')
+            $skipped = [int](Get-PendingObjectProperty -Object $summary -Name 'skipped_count')
+            $remaining = [int](Get-PendingObjectProperty -Object $summary -Name 'remaining_count')
+        } catch {
+            Write-Log "Pending: could not read pending drain summary for operator log: $_" "WARN"
+        }
+    }
+
+    return "recovered $recovered file(s); attempted $attempted; succeeded $succeeded; already-published $alreadyPublished; failed $failed; skipped $skipped; remaining queued: $remaining"
+}
+
 function Add-PendingDrainSummaryCount {
     param(
         [Parameter(Mandatory)] [System.Collections.IDictionary] $Counts,
@@ -242,6 +274,8 @@ function Invoke-ParkPendingPushWithTx3gSidecars {
         [array] $Tx3gTracks,
         [array] $BdpgsTracks = @(),
         [array] $VobSubTracks = @(),
+        [array] $ConvertedSrtSidecarCandidates = @(),
+        [array] $SubtitleOutputReduction = @(),
         [Parameter(Mandatory)] [string] $MediaOutputPath,
         [Parameter(Mandatory)] [hashtable] $ParkArgs,
         [string] $Context = '',
@@ -259,6 +293,8 @@ function Invoke-ParkPendingPushWithTx3gSidecars {
     $ParkArgs['Tx3gSrtFailures'] = @($plan.Failures)
     $ParkArgs['BdpgsSrtFailures'] = @()
     $ParkArgs['VobSubSrtFailures'] = @()
+    $ParkArgs['ConvertedSrtSidecarCandidates'] = @($ConvertedSrtSidecarCandidates)
+    $ParkArgs['SubtitleOutputReduction'] = @($SubtitleOutputReduction)
     $ParkArgs['Tx3gEmbeddedSrtTracks'] = @(ConvertTo-Tx3gEmbeddedSrtTrackRecords -Tx3gTracks @($Tx3gTracks))
     $ParkArgs['BdpgsEmbeddedSrtTracks'] = @(ConvertTo-BdpgsEmbeddedSrtTrackRecords -BdpgsTracks @($BdpgsTracks))
     $ParkArgs['VobSubEmbeddedSrtTracks'] = @(ConvertTo-VobSubEmbeddedSrtTrackRecords -VobSubTracks @($VobSubTracks))
@@ -309,6 +345,8 @@ function Invoke-ParkPendingPush {
         [array] $Tx3gSrtFailures = @(),
         [array] $BdpgsSrtFailures = @(),
         [array] $VobSubSrtFailures = @(),
+        [array] $ConvertedSrtSidecarCandidates = @(),
+        [array] $SubtitleOutputReduction = @(),
         [array] $Tx3gEmbeddedSrtTracks = @(),
         [array] $BdpgsEmbeddedSrtTracks = @(),
         [array] $VobSubEmbeddedSrtTracks = @(),
@@ -346,6 +384,8 @@ function Invoke-ParkPendingPush {
         -Tx3gSrtFailures @($Tx3gSrtFailures) `
         -BdpgsSrtFailures @($BdpgsSrtFailures) `
         -VobSubSrtFailures @($VobSubSrtFailures) `
+        -ConvertedSrtSidecarCandidates @($ConvertedSrtSidecarCandidates) `
+        -SubtitleOutputReduction @($SubtitleOutputReduction) `
         -Tx3gEmbeddedSrtTracks @($Tx3gEmbeddedSrtTracks) `
         -BdpgsEmbeddedSrtTracks @($BdpgsEmbeddedSrtTracks) `
         -VobSubEmbeddedSrtTracks @($VobSubEmbeddedSrtTracks) `

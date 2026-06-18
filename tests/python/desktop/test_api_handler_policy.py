@@ -13,10 +13,13 @@ from mediapipeline.desktop.api.handler_policy import (
     bounded_error_text,
     not_found_payload,
     options_response_headers,
+    route_exception_journal_payload,
     route_exception_payload,
     route_validation_error_payload,
     route_validation_journal_payload,
     should_record_command_payload,
+    should_record_route_exception_journal,
+    should_record_validation_failure_journal,
     unauthorized_payload,
 )
 from mediapipeline.desktop.api.http_helpers import is_client_disconnect_error, send_bytes
@@ -69,6 +72,28 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
         self.assertEqual(payload["errors"], [("x" * 1997) + "..."])
         self.assertEqual(payload["data"]["path"], "/api/pipeline/start")
         self.assertEqual(payload["data"]["status"], 400)
+
+    def test_route_exception_journal_payload_is_sanitized_command_result(self) -> None:
+        response = {"error": "internal route error", "path": "/api/pipeline/start", "error_id": "abc123def456"}
+
+        payload = route_exception_journal_payload("/api/pipeline/start", response)
+
+        self.assertEqual(payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(payload["command"], "local_api.route_exception")
+        self.assertFalse(payload["ok"])
+        self.assertEqual(payload["severity"], "error")
+        self.assertEqual(payload["errors"], ["Internal route error."])
+        self.assertEqual(payload["refresh_hint"], "diagnostics")
+        self.assertEqual(payload["data"]["path"], "/api/pipeline/start")
+        self.assertEqual(payload["data"]["status"], 500)
+        self.assertEqual(payload["data"]["error_id"], "abc123def456")
+        self.assertNotIn("RuntimeError", str(payload))
+
+    def test_route_failure_journaling_policy_suppresses_secret_transfer_routes(self) -> None:
+        self.assertFalse(should_record_validation_failure_journal("/api/network/coordinator/join-blob"))
+        self.assertFalse(should_record_validation_failure_journal("/api/network/worker/join-cluster"))
+        self.assertFalse(should_record_route_exception_journal("/api/network/coordinator/join-blob"))
+        self.assertTrue(should_record_route_exception_journal("/api/pipeline/start"))
 
     def test_command_journal_recording_policy_is_success_status_only(self) -> None:
         self.assertTrue(should_record_command_payload(200))

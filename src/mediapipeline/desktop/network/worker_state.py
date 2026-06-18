@@ -92,8 +92,12 @@ class WorkerStateMixin:
         try:
             state = load_worker_state(self._state_path)
         except Exception as exc:
-            _worker_log.warning("worker_state.json unreadable (%s) — removing.", exc)
-            self._clear_worker_state()
+            preview = _worker_diagnostic_preview(exc)
+            self._worker_state_startup_error = preview
+            _worker_log.warning(
+                "worker_state.json unreadable (%s) - preserving and holding new claims.",
+                preview,
+            )
             return
 
         job_id = str(state.get("job_id", ""))
@@ -195,27 +199,41 @@ class WorkerStateMixin:
             return False
         pending = state.get("pending_done_report")
         if not (isinstance(pending, dict) and str(pending.get("job_id", "") or "").strip()):
+            active_job_id = str(state.get("job_id", "") or "").strip()
+            if active_job_id:
+                _worker_log.warning(
+                    "worker_state.json still contains unresolved active job %s; holding new claims until crash recovery is accepted or the state is repaired.",
+                    active_job_id,
+                )
+                notify_status = getattr(self, "_notify_status", None)
+                if callable(notify_status):
+                    notify_status("⚠ Worker crash recovery unresolved; holding new claims until worker_state.json is repaired or accepted.")
+                return False
             return True
         payload = dict(pending)
         payload.setdefault("worker_id", self._worker_id)
         job_id = str(payload.get("job_id", ""))
         try:
-            self._http_post("/api/done", payload)
+            response = self._http_post("/api/done", payload)
         except Exception as exc:
             err_text = str(exc)
             if "HTTP 404 " in err_text or "HTTP Error 404:" in err_text:
-                # The coordinator no longer tracks the job (reclaimed or
-                # registry reset); this report can never be accepted, so
-                # holding new claims for it would idle the worker forever.
                 _worker_log.warning(
-                    "Pending done report for job %s is no longer known to the coordinator; discarding it.",
+                    "Pending done report for job %s was not accepted by the coordinator; holding new claims until it is recorded, accepted, or operator-repaired.",
                     job_id,
                 )
-                self._clear_worker_state_after_accepted_report(job_id, "pending done discard")
-                return True
+                return False
             _worker_log.warning(
                 "Pending done-report delivery failed; holding new claims until it lands: %s",
                 _worker_diagnostic_preview(exc),
+            )
+            return False
+        status = str((response or {}).get("status", "ok") or "ok")
+        if status not in {"ok", "late_recorded"}:
+            _worker_log.warning(
+                "Pending done report for job %s returned unaccepted coordinator status %r; holding new claims.",
+                job_id,
+                status,
             )
             return False
         self._safe_log_cluster_event(

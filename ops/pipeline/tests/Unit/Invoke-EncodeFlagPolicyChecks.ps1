@@ -421,4 +421,10 @@ foreach ($case in $retryCases) {
     Assert-Equal ([bool]$actual) ([bool]$case.Expected) "Retry truth-table mismatch for $($case.Name)."
 }
 
+$encodeEntryText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+Assert-True ($encodeEntryText -match 'Acquire-CpuEncodeMutex -TimeoutSeconds \$script:FFmpegCpuEncodeTimeoutSeconds') 'CPU fallback must wait for the CPU mutex after zero-time acquisition fails.'
+Assert-True ($encodeEntryText -match 'if \(-not \$cpuMutexLock\.Acquired\)') 'CPU fallback must re-check mutex acquisition after the timed wait.'
+Assert-True ($encodeEntryText -match 'ENCODE_CPU_MUTEX_UNAVAILABLE') 'CPU fallback mutex timeout must register a distinct failure code.'
+Assert-True ($encodeEntryText -match 'refusing to start overlapping CPU fallback') 'CPU fallback mutex timeout should log a fail-closed operator reason.'
+
 Write-Host "Encode flag policy checks passed. Snapshot count: $(@($snapshotCases).Count)."

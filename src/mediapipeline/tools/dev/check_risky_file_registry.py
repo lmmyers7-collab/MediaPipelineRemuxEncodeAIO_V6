@@ -78,9 +78,13 @@ def _git_paths() -> set[str]:
 
 def _filesystem_glob_matches(pattern: str) -> set[str]:
     matches: set[str] = set()
-    for path in REPO_ROOT.glob(pattern):
-        if path.is_file():
-            matches.add(path.relative_to(REPO_ROOT).as_posix())
+    patterns = [pattern]
+    if pattern.endswith("/**"):
+        patterns.append(pattern.rstrip("*") + "**/*")
+    for candidate in patterns:
+        for path in REPO_ROOT.glob(candidate):
+            if path.is_file():
+                matches.add(path.relative_to(REPO_ROOT).as_posix())
     return matches
 
 

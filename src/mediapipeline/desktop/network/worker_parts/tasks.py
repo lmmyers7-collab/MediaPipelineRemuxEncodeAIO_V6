@@ -11,7 +11,11 @@ from ..protocol import ClaimResponse
 
 def parse_claim_response_payload(payload: dict[str, Any]) -> ClaimResponse:
     """Parse a coordinator claim response into the shared protocol object."""
-    return ClaimResponse.from_dict(payload)
+    claim = ClaimResponse.from_dict(payload)
+    if claim.status == "ok":
+        if not claim.job_id.strip() or not claim.source_path.strip() or claim.source_path.strip() == ".":
+            raise ValueError("ok claim response requires non-empty job_id and source_path")
+    return claim
 
 
 def malformed_claim_identity(payload: object) -> tuple[str, str] | None:
@@ -21,7 +25,9 @@ def malformed_claim_identity(payload: object) -> tuple[str, str] | None:
     job_id = str(payload.get("job_id", "") or "").strip()
     if not job_id:
         return None
-    source_path = str(payload.get("source_path", "") or "")
+    source_path = str(payload.get("source_path", "") or "").strip()
+    if not source_path or source_path == ".":
+        return None
     return job_id, source_path
 
 

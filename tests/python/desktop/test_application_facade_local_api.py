@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import contextlib
 import csv
 from datetime import datetime, timedelta
 import io
@@ -90,6 +91,47 @@ class LocalApiServerTests(unittest.TestCase):
         except HTTPError as exc:
             return exc.code, dict(exc.headers.items()), exc.read()
 
+    def _get_raw(self, url: str, extra_headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:
+        from urllib.error import HTTPError
+        from urllib.request import Request, urlopen
+
+        request = Request(url, headers=dict(extra_headers or {}))
+        try:
+            with urlopen(request, timeout=5) as response:  # noqa: S310 - localhost test server
+                return response.status, dict(response.headers.items()), response.read()
+        except HTTPError as exc:
+            return exc.code, dict(exc.headers.items()), exc.read()
+
+    def test_local_api_server_suppresses_client_disconnect_tracebacks(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(facade, token="test-token")
+            try:
+                server.start()
+                http_server = server._server
+                self.assertIsNotNone(http_server)
+                assert http_server is not None
+
+                disconnect_stderr = io.StringIO()
+                with contextlib.redirect_stderr(disconnect_stderr):
+                    try:
+                        raise ConnectionResetError(10054, "connection reset by peer")
+                    except ConnectionResetError:
+                        http_server.handle_error(object(), ("127.0.0.1", 54321))
+
+                runtime_stderr = io.StringIO()
+                with contextlib.redirect_stderr(runtime_stderr):
+                    try:
+                        raise RuntimeError("boom")
+                    except RuntimeError:
+                        http_server.handle_error(object(), ("127.0.0.1", 54321))
+            finally:
+                server.stop()
+
+        self.assertEqual(disconnect_stderr.getvalue(), "")
+        self.assertIn("RuntimeError: boom", runtime_stderr.getvalue())
+
     def test_local_api_close_readiness_is_unsafe_when_workspace_is_unresolved(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -109,6 +151,52 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(payload["state"], "unknown")
         self.assertIn("resolved paths are unavailable", payload["reason"])
         self.assertTrue(payload["warnings"])
+
+    def test_browser_index_uses_http_only_cookie_without_rendering_token(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                index_status, index_headers, index_body = self._get_raw(f"{server.url}/")
+                cookie = index_headers.get("Set-Cookie", "")
+                contract_status, contract = self._get_json(
+                    f"{server.url}/api/contract",
+                    extra_headers={"Cookie": cookie.split(";", 1)[0]},
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(index_status, 200)
+        self.assertIn("MediaPipelineAuth=", cookie)
+        self.assertIn("HttpOnly", cookie)
+        self.assertIn("SameSite=Strict", cookie)
+        self.assertNotIn(b"test-token", index_body)
+        self.assertEqual(contract_status, 200)
+        self.assertEqual(contract["schema_version"], "desktop_local_api_contract.v1")
+
+    def test_browser_index_render_failure_does_not_set_auth_cookie(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v6-test")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                static_root=root / "missing-static-root",
+            )
+            try:
+                server.start()
+                index_status, index_headers, index_body = self._get_raw(f"{server.url}/")
+            finally:
+                server.stop()
+
+        self.assertEqual(index_status, 404)
+        self.assertEqual(index_headers.get("Set-Cookie", ""), "")
+        self.assertIn(b"local web assets are not installed", index_body)
 
     def test_local_api_shutdown_blocks_when_workspace_is_unresolved(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -240,11 +328,13 @@ class LocalApiServerTests(unittest.TestCase):
                     "editions": True,
                     "file_size": True,
                     "services_containers": True,
+                    "languages_subs_dubs": True,
                     "release_groups": True,
                 },
                 "RenameMovieFilterTerms": {
                     "release_groups": ["SupaCvnt", "BYNDR"],
                     "services_containers": ["MA"],
+                    "languages_subs_dubs": ["ita", "eng", "sub", "dub"],
                     "unknown": ["ignored"],
                 },
                 "RenameMovieRemoveTerms": ["sample", "", "sample", "behind the scenes"],
@@ -295,6 +385,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertTrue(save_payload["ok"])
         self.assertEqual(saved_values["RenameMovieFilterTerms"]["release_groups"], ["SupaCvnt", "BYNDR"])
         self.assertEqual(saved_values["RenameMovieFilterTerms"]["services_containers"], ["MA"])
+        self.assertEqual(saved_values["RenameMovieFilterTerms"]["languages_subs_dubs"], ["ita", "eng", "sub", "dub"])
         self.assertNotIn("unknown", saved_values["RenameMovieFilterTerms"])
         self.assertEqual(saved_values["RenameMovieRemoveTerms"], ["sample", "behind the scenes"])
         self.assertEqual(catalog_status, 200)
@@ -703,6 +794,57 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(entry["data"]["path"], "/api/pipeline/start")
         self.assertEqual(entry["request"]["token"], "<redacted>")
         self.assertEqual(entry["request"]["extra_args"], "-NoDeleteSource")
+
+    def test_local_api_route_exception_is_recorded_in_command_journal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            resolved = _resolved(root)
+
+            def fail_start(_resolved_paths: ResolvedPaths, _request: dict) -> object:
+                raise RuntimeError("backend exploded with sensitive diagnostic detail")
+
+            facade.start_pipeline_process = fail_start  # type: ignore[method-assign]
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                resolved_provider=lambda: resolved,
+                command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+            )
+            try:
+                server.start()
+                status, payload = self._post_json(
+                    f"{server.url}/api/pipeline/start",
+                    {"mode": "validate", "sleep_seconds": 1},
+                    token="test-token",
+                )
+                commands_status, commands = self._get_json(f"{server.url}/api/commands?limit=5", token="test-token")
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 500)
+        self.assertEqual(payload["error"], "internal route error")
+        self.assertEqual(payload["path"], "/api/pipeline/start")
+        self.assertRegex(payload["error_id"], r"^[0-9a-f]{12}$")
+        self.assertEqual(commands_status, 200)
+        self.assertEqual(commands["schema_version"], "desktop_command_history.v1")
+        self.assertEqual(commands["count"], 1)
+        entry = commands["entries"][0]
+        self.assertEqual(entry["command"], "local_api.route_exception")
+        self.assertFalse(entry["ok"])
+        self.assertEqual(entry["severity"], "error")
+        self.assertEqual(entry["refresh_hint"], "diagnostics")
+        self.assertEqual(entry["errors"], ["Internal route error."])
+        self.assertEqual(entry["data"]["path"], "/api/pipeline/start")
+        self.assertEqual(entry["data"]["status"], 500)
+        self.assertEqual(entry["data"]["error_id"], payload["error_id"])
+        self.assertEqual(entry["request"]["mode"], "validate")
+        self.assertEqual(entry["request"]["sleep_seconds"], 1)
+        self.assertNotIn("backend exploded", json.dumps(entry, sort_keys=True))
+        persistence = commands["journal_persistence"]
+        self.assertFalse(persistence["degraded"])
+        self.assertEqual(persistence["json"]["status"], "ok")
 
     def test_local_api_scheduled_continuous_start_arms_backend_stop_watcher(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -1597,7 +1739,7 @@ class LocalApiServerTests(unittest.TestCase):
                 )
                 unknown_status, unknown = self._post_json(
                     f"{server.url}/api/queue/file-overrides",
-                    {"path": str(source), "clear_fields": ["audio.renameTracks"]},
+                    {"path": str(source), "clear_fields": ["audio.loudnessMode"]},
                     token=server.token,
                 )
                 read_status, read_payload = self._get_json(
@@ -1678,7 +1820,11 @@ class LocalApiServerTests(unittest.TestCase):
                         "audio": {
                             "keepTracks": [{"language": "eng"}],
                             "dropTracks": [{"language": "jpn"}],
+                            "renameTracks": [{"language": "eng", "channels": 6, "newTitle": "English 5.1"}],
                             "maxChannels": 6,
+                            "downmixMode": "max_channels",
+                            "transcodeCodec": "eac3",
+                            "transcodeBitrate": "640k",
                             "preferDefaultLanguage": "eng",
                         },
                         "subtitles": {
@@ -1734,7 +1880,7 @@ class LocalApiServerTests(unittest.TestCase):
                 )
                 invalid_nested_status, invalid_nested = self._post_json(
                     f"{server.url}/api/queue/file-overrides",
-                    {"path": str(source), "audio": {"renameTracks": []}},
+                    {"path": str(source), "audio": {"loudnessMode": "night"}},
                     token=server.token,
                 )
                 invalid_selector_status, invalid_selector = self._post_json(
@@ -1780,7 +1926,11 @@ class LocalApiServerTests(unittest.TestCase):
         entry = read_payload["entry"]
         self.assertEqual(entry["audio"]["keepTracks"], [{"language": "eng"}])
         self.assertEqual(entry["audio"]["dropTracks"], [{"language": "jpn"}])
+        self.assertEqual(entry["audio"]["renameTracks"], [{"language": "eng", "channels": 6, "newTitle": "English 5.1"}])
         self.assertEqual(entry["audio"]["maxChannels"], 6)
+        self.assertEqual(entry["audio"]["downmixMode"], "max_channels")
+        self.assertEqual(entry["audio"]["transcodeCodec"], "eac3")
+        self.assertEqual(entry["audio"]["transcodeBitrate"], "640k")
         self.assertEqual(entry["audio"]["preferDefaultLanguage"], "eng")
         self.assertEqual(entry["subtitles"]["keepTracks"], [{"language": "eng"}])
         self.assertEqual(entry["subtitles"]["dropTracks"], [{"language": "und"}])
@@ -1797,11 +1947,11 @@ class LocalApiServerTests(unittest.TestCase):
             (invalid_zero_status, invalid_zero, "'audio.maxChannels' must be one of: 2, 6, 8."),
             (invalid_negative_status, invalid_negative, "'audio.maxChannels' must be one of: 2, 6, 8."),
             (invalid_top_status, invalid_top, "Unsupported file override request field(s): route"),
-            (invalid_nested_status, invalid_nested, "Unsupported audio field(s): renameTracks"),
+            (invalid_nested_status, invalid_nested, "Unsupported audio field(s): loudnessMode"),
             (invalid_selector_status, invalid_selector, "'audio.keepTracks[0].language' must be a string."),
             (invalid_safe_field_status, invalid_safe_field, "'audio.preferDefaultLanguage' must be a string."),
-            (invalid_deferred_enum_status, invalid_deferred_enum, "Unsupported audio field(s): downmixMode"),
-            (invalid_deferred_bitrate_status, invalid_deferred_bitrate, "Unsupported audio field(s): transcodeBitrate"),
+            (invalid_deferred_enum_status, invalid_deferred_enum, "'audio.downmixMode' must be one of:"),
+            (invalid_deferred_bitrate_status, invalid_deferred_bitrate, "'audio.transcodeBitrate' must match"),
             (invalid_clear_status, invalid_clear, "Unsupported clear_fields path(s): subtitles.renameTracks"),
         ]:
             with self.subTest(expected=expected):
@@ -3326,6 +3476,7 @@ class LocalApiServerTests(unittest.TestCase):
                 with urlopen(f"{server.url}/", timeout=5) as response:  # noqa: S310 - localhost test server
                     html = response.read().decode("utf-8")
                     content_type = response.headers.get("Content-Type", "")
+                    set_cookie = response.headers.get("Set-Cookie", "")
                 with urlopen(f"{server.url}/assets/app/lifecycle.js", timeout=5) as response:  # noqa: S310 - localhost test server
                     app_lifecycle_js = response.read().decode("utf-8")
                     app_lifecycle_content_type = response.headers.get("Content-Type", "")
@@ -3784,10 +3935,20 @@ class LocalApiServerTests(unittest.TestCase):
         ])
 
         self.assertIn("text/html", content_type)
-        self.assertIn("window.MEDIA_PIPELINE_BOOTSTRAP", html)
+        bootstrap_match = re.search(
+            r'<script type="application/json" id="media-pipeline-bootstrap">(.+?)</script>',
+            html,
+        )
+        self.assertIsNotNone(bootstrap_match)
+        bootstrap = json.loads(bootstrap_match.group(1))
+        self.assertEqual(bootstrap["token"], "")
+        self.assertEqual(bootstrap["tokenSource"], "http-only-cookie")
+        self.assertIn("MediaPipelineAuth=", set_cookie)
+        self.assertIn("HttpOnly", set_cookie)
+        self.assertNotIn("window.MEDIA_PIPELINE_BOOTSTRAP", html)
         self.assertIn("createCrossPageSampleValidationModule", cross_page_context_view_js)
         self.assertIn("window.__crossPageSampleValidationModule", cross_page_sample_validation_js)
-        self.assertIn("web-token", html)
+        self.assertNotIn("web-token", html)
         self.assertIn("/assets/apiClient.js", html)
         self.assertIn("/assets/dom/query.js", html)
         self.assertIn("/assets/dom/text.js", html)
@@ -4549,6 +4710,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("settings-rename-remove-terms", html)
         self.assertIn("Rename Movie Cleaning Filters", html)
         self.assertIn('data-rename-movie-filter="video_source"', html)
+        self.assertIn('data-rename-movie-filter="languages_subs_dubs"', html)
+        self.assertIn("settings-rename-filter-languages-subs-dubs", html)
         self.assertIn("rename-workbench", html)
         self.assertIn("Choose Files", html)
         self.assertIn("rename-stage-files-heading", html)
@@ -5941,6 +6104,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertNotIn("settings-rename-use-editable-cleaning-filters", html)
         self.assertIn("Stage Rename Filter Patch", html)
         self.assertIn("settings-rename-filter-video-source", html)
+        self.assertIn("settings-rename-filter-languages-subs-dubs", html)
         self.assertIn("settings-rename-filter-release-groups", html)
         self.assertIn("settings-rename-preview-button", html)
         self.assertIn("settings-rename-cleaning-filters-save-button", html)
@@ -6441,7 +6605,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("persisted worker state is visible through /api/network/workers", network_view_js)
         self.assertIn("function renderNetworkWorkerProgress", network_view_js)
         self.assertIn("network-worker-progress-bars", network_view_js)
-        self.assertIn("Mutation guardrail: this panel does not start/stop workers", network_view_js)
+        self.assertIn("Mutation guardrail: this panel uses backend-owned Network lifecycle routes only", network_view_js)
         self.assertIn("function activateNetworkTab", network_view_js)
         self.assertIn("mediapipeline-network-tab", network_view_js)
         self.assertIn("function networkCoordinatorOverviewModel", network_view_js)
@@ -7195,7 +7359,9 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("mediapipeline-launch-tab", launch_view_js)
         self.assertIn("Backend validation and launch locking remain the source of truth.", launch_view_preflight_js)
         self.assertIn("operator_readiness", launch_view_preflight_js)
-        self.assertIn("Safety policy: copy to scratch, keep originals, and park returned outputs.", launch_view_preflight_js)
+        self.assertIn("Dry run: ${request.dry_run ? \"yes - preview only\" : \"no - live rerun start\"}", launch_view_preflight_js)
+        self.assertIn("Safety policy: dry-run preview should produce backend evidence without staging, moving, publishing, or touching media.", launch_view_preflight_js)
+        self.assertIn("Safety policy: live rerun copies to scratch, keeps originals, and parks returned outputs.", launch_view_preflight_js)
         self.assertIn("commandResultDisplayMessage(payload)", launch_view_js)
         self.assertIn("window.mediaPipelineContractView", contract_view_js)
         self.assertIn("function renderContract", contract_view_js)
@@ -7250,6 +7416,10 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function collectRerunStartRequest", launch_view_js)
         self.assertIn("function startRerunFromForm", launch_view_js)
         self.assertIn("/api/rerun/start", launch_view_js)
+        self.assertIn("rerun-dry-run-button", html)
+        self.assertIn("Preview CSV Rerun", html)
+        self.assertIn('startRerunFromForm({ dry_run: true })', js)
+        self.assertIn('startRerunFromForm({ dry_run: false })', js)
         self.assertIn('stage_mode: "copy"', launch_view_js)
         self.assertIn('original_mode: "keep"', launch_view_js)
         self.assertIn('return_mode: "park"', launch_view_js)
@@ -7634,5 +7804,3 @@ class LocalApiServerTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-

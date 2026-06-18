@@ -3,7 +3,9 @@ use crate::http_helpers::request_backend_json;
 use crate::ShellResult;
 
 use super::formatting::format_route_sample;
-use super::routes::{REQUIRED_NETWORK_LIFECYCLE_ROUTES, REQUIRED_ROUTES};
+use super::routes::{
+    REQUIRED_NETWORK_LIFECYCLE_ROUTES, REQUIRED_NETWORK_SETUP_ROUTES, REQUIRED_ROUTES,
+};
 use super::types::BackendContract;
 
 pub(crate) fn validate_backend_contract(backend_url: &str, token: &str) -> ShellResult<()> {
@@ -56,6 +58,31 @@ pub(crate) fn validate_backend_contract(backend_url: &str, token: &str) -> Shell
         {
             return Err(shell_error(format!(
                 "Backend contract network lifecycle metadata drifted for POST {}.",
+                required.path
+            )));
+        }
+    }
+    for required in REQUIRED_NETWORK_SETUP_ROUTES {
+        let route = contract
+            .routes
+            .iter()
+            .find(|route| route.method == "POST" && route.path == required.path && route.auth_required)
+            .ok_or_else(|| {
+                shell_error(format!(
+                    "Backend contract is missing required network setup route: POST {}; backend reported {} route(s); sample: {}",
+                    required.path,
+                    contract.routes.len(),
+                    format_route_sample(&contract.routes, 12)
+                ))
+            })?;
+        if route.effect.as_deref() != Some(required.effect)
+            || route.requires_confirmation != Some(required.requires_confirmation)
+            || route.owner.as_deref() != Some(required.owner)
+            || route.frontend_exposed != Some(required.frontend_exposed)
+            || route.journaled != Some(required.journaled)
+        {
+            return Err(shell_error(format!(
+                "Backend contract network setup metadata drifted for POST {}.",
                 required.path
             )));
         }

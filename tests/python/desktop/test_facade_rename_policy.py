@@ -221,6 +221,9 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertNotIn("unknown", policy["movie_filter_options"])
         self.assertEqual(policy["movie_filter_terms"]["release_groups"], ["SupaCvnt", "BYNDR"])
         self.assertEqual(policy["movie_filter_terms"]["services_containers"], ["MA"])
+        self.assertIn("languages_subs_dubs", policy["movie_filter_terms"])
+        self.assertIn("eng", policy["movie_filter_terms"]["languages_subs_dubs"])
+        self.assertIn("ita", policy["movie_filter_terms"]["languages_subs_dubs"])
         self.assertNotIn("unknown", policy["movie_filter_terms"])
         self.assertEqual(policy["remove_terms"], ["sample", "behind the scenes"])
 

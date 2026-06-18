@@ -107,6 +107,7 @@ class ProcessControlFacadeMixin:
         normalized = normalize_pipeline_control_action(action)
         command = pipeline_control_command(normalized)
         lock: object | None = None
+        success_extra: dict[str, Any] = {}
         try:
             if not is_supported_pipeline_control_action(normalized):
                 return CommandResult(
@@ -148,11 +149,16 @@ class ProcessControlFacadeMixin:
                 method = getattr(self.service, "kill_related_pipeline_processes", None)
                 if not callable(method):
                     raise RuntimeError("Kill control service is not available.")
-                messages = method(resolved)
+                messages = [str(item) for item in method(resolved)]
                 logger = getattr(getattr(self, "service", None), "logger", None)
                 reset_msg = _write_idle_progress_file(resolved.progress_file, logger)
-                kill_summary = "; ".join(messages) if messages else "No active pipeline processes found to kill."
+                kill_summary = "; ".join(messages) if messages else "No related pipeline, audit, or CSV rerun processes found to kill."
                 message = f"{kill_summary}; {reset_msg}"
+                success_extra = {
+                    "kill_report": messages,
+                    "killed_process_tree_count": len(messages),
+                    "progress_reset": reset_msg,
+                }
                 flag_path = None
         except Exception as exc:
             return CommandResult(
@@ -171,7 +177,7 @@ class ProcessControlFacadeMixin:
             message=message,
             severity="info",
             refresh_hint="snapshot",
-            data=pipeline_control_success_data(normalized, flag_path),
+            data=pipeline_control_success_data(normalized, flag_path, success_extra),
         )
 
     def _acquire_process_control_lock(self, command: str) -> tuple[object | None, str]:

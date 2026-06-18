@@ -163,8 +163,36 @@ class ApplicationFacadeCompletedTests(unittest.TestCase):
         self.assertIn("Subtitles: s:0 eng ass -> srt (plex_srt)", preview["rows"][0]["route_evidence_lines"])
         self.assertEqual(preview["rows"][0]["audio_decision_count"], 1)
         self.assertEqual(preview["rows"][0]["audio_decision_preview"], ["a:0 eng aac -> copy (compatible)"])
+        self.assertEqual(
+            preview["rows"][0]["audio_decision_details"],
+            [
+                {
+                    "kind": "audio",
+                    "track_label": "a:0",
+                    "language": "eng",
+                    "source_codec": "aac",
+                    "action": "copy",
+                    "reason": "compatible",
+                    "summary": "a:0 eng aac -> copy (compatible)",
+                }
+            ],
+        )
         self.assertEqual(preview["rows"][0]["subtitle_decision_count"], 1)
         self.assertEqual(preview["rows"][0]["subtitle_decision_preview"], ["s:0 eng ass -> srt (plex_srt)"])
+        self.assertEqual(
+            preview["rows"][0]["subtitle_decision_details"],
+            [
+                {
+                    "kind": "subtitle",
+                    "track_label": "s:0",
+                    "language": "eng",
+                    "source_codec": "ass",
+                    "action": "srt",
+                    "reason": "plex_srt",
+                    "summary": "s:0 eng ass -> srt (plex_srt)",
+                }
+            ],
+        )
         self.assertTrue(preview["rows"][0]["row_key"])
 
     def test_completed_preview_flags_oversized_rows_for_operator_review(self) -> None:

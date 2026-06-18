@@ -43,6 +43,7 @@
     "docs/generated/DEPENDENCY_GRAPH.md",
     "src/mediapipeline/contracts/schemas/config.v1.schema.json",
     "docs/generated/summaries/src/mediapipeline/contracts/schemas/config.v1.schema.json.md",
+    ".pre-commit-config.yaml",
     "ops/scripts/release/test.ps1",
     "docs/generated/summaries/ops/scripts/release/test.ps1.md",
     "docs/SESSION.md",
@@ -63,7 +64,8 @@
     "In the real tests-excluded package (release_manifest.json tests_included=false), ran the 3 updated checks: feature-file-map exit 0 (REFERENCED_PATH_MISSING 17->0); summary-freshness orphans 329->0; project-index orphan findings ->0",
     "Source-tree behavior unchanged: with no root manifest the helper returns no exclusions, so the checks behave exactly as before",
     "test.ps1 parse check OK; full build.ps1 -Verify -Zip -IncludeTauriPreviewBinary -> BUILD_EXIT=0, 'Release self-test passed', zip written (the user's exact UI flags). Source/CI freshness+active-doc gates downshifted to advisory warnings in package mode; dependency/legacy/test-exclusion/config-schema/manifest/layout/parser/syntax/env/tauri stayed required and passed.",
-    "2026-06-14 follow-up after operator added network features: build failed again on two REQUIRED gates. Fixed: added 7 core.network.facade/join -> desktop.network.* allowlist entries (NO_CORE_TO_DESKTOP; 0 unallowlisted/unused/errors after) and regenerated config.v1.schema.json for the new CoordinatorMaxJobRetries key (config schema --check exit 0). Re-ran build.ps1 -Verify -Zip -IncludeTauriPreviewBinary -> BUILD_EXIT=0, 'Release self-test passed', zip written."
+    "2026-06-14 follow-up after operator added network features: build failed again on two REQUIRED gates. Fixed: added 7 core.network.facade/join -> desktop.network.* allowlist entries (NO_CORE_TO_DESKTOP; 0 unallowlisted/unused/errors after) and regenerated config.v1.schema.json for the new CoordinatorMaxJobRetries key (config schema --check exit 0). Re-ran build.ps1 -Verify -Zip -IncludeTauriPreviewBinary -> BUILD_EXIT=0, 'Release self-test passed', zip written.",
+    "2026-06-14 prevention: added a mediapipeline-dependency-boundaries pre-commit hook (.pre-commit-config.yaml) running the same check_dependency_boundaries --max-internal-imports 1 that the release self-test uses, so new NO_CORE_TO_DESKTOP/package-cycle imports fail at commit time. The config-schema-drift hook already existed. Confirmed: bundled python lacks yaml so validated indentation against sibling hooks; new hook command exits 0. NOTE: pre-commit was not installed in this repo (.git/hooks/pre-commit absent and pre-commit not on PATH), so no hooks run until the operator runs 'pip install pre-commit' then 'pre-commit install'."
   ],
   "rollback_plan": "Remove the 'Additions 2026-06-12' block from docs/architecture/dependency_boundary_allowlist.txt; revert the filesystem fallback in check_legacy_removal_readiness.py; delete release_package_scope.py and test_release_package_scope.py; revert the 3 generator imports and the excluded-prefix skips in refresh_summaries.py/generate_project_index.py/generate_feature_file_map.py; regenerate the affected summaries; delete this packet. No production/runtime code is affected; all changes are dev/release tooling and generated docs.",
   "related_changes": [],

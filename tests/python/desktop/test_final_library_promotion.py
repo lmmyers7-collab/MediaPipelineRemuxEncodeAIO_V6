@@ -1344,8 +1344,9 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
         self.assertNotIn("settings-final-library-save-button", settings_js)
         self.assertIn('["promotion_destination", "Promotion destination", profile.promotion_destination]', settings_libraries_js)
         self.assertIn("promotion_enabled: Boolean(fieldValue(\"promotion_enabled\"))", settings_libraries_js)
-        self.assertIn("patch.FinalLibraryPromotionEnabled = promotionEnabled;", settings_libraries_js)
-        self.assertIn("patch.FinalLibraryPromotionRules = generatedPromotionRules(libraryProfiles);", settings_libraries_js)
+        self.assertIn("LibraryProfiles: libraryProfiles", settings_libraries_js)
+        self.assertNotIn("patch.FinalLibraryPromotionEnabled", settings_libraries_js)
+        self.assertNotIn("patch.FinalLibraryPromotionRules", settings_libraries_js)
         self.assertIn("Existing final files are staged and verified before the replacement is revealed", metadata_js)
         self.assertIn("const finalLibraryPromotionSettingsBuilderFields = [];", metadata_js)
 
@@ -1399,4 +1400,3 @@ class FinalLibraryPromotionWebViewSettingsTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

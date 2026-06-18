@@ -3,9 +3,9 @@ file: ops/scripts/smoke/webview_browser_smoke_common.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-12
+last_modified: 2026-06-15
 last_reviewed: 2026-06-11
-sha256: 54f03f2f3f074301fa0ccd066030a62e49069ba36fb95e3e3155a78bb8386005
+sha256: 76b41d8848caa06835e754fa1db07f1510c8ba61489f8df95405b6484bb5ee65
 ---
 # `ops/scripts/smoke/webview_browser_smoke_common.ps1`
 

@@ -112,6 +112,9 @@ pub(crate) const REQUIRED_ROUTES: &[(&str, &str, bool)] = &[
     ("POST", "/api/network/worker/start-dry-run", true),
     ("POST", "/api/network/worker/stop-dry-run", true),
     ("POST", "/api/network/worker/test-connection", true),
+    ("POST", "/api/network/worker/discover-coordinators", true),
+    ("POST", "/api/network/coordinator/join-blob", true),
+    ("POST", "/api/network/worker/join-cluster", true),
     ("POST", "/api/network/coordinator/start", true),
     ("POST", "/api/network/coordinator/stop", true),
     ("POST", "/api/network/worker/start", true),
@@ -128,6 +131,42 @@ pub(crate) struct RequiredNetworkLifecycleRoute {
     pub(crate) action: &'static str,
     pub(crate) dry_run: bool,
 }
+
+pub(crate) struct RequiredNetworkSetupRoute {
+    pub(crate) path: &'static str,
+    pub(crate) effect: &'static str,
+    pub(crate) requires_confirmation: bool,
+    pub(crate) owner: &'static str,
+    pub(crate) frontend_exposed: bool,
+    pub(crate) journaled: bool,
+}
+
+pub(crate) const REQUIRED_NETWORK_SETUP_ROUTES: &[RequiredNetworkSetupRoute] = &[
+    RequiredNetworkSetupRoute {
+        path: "/api/network/worker/discover-coordinators",
+        effect: "none",
+        requires_confirmation: false,
+        owner: "Network",
+        frontend_exposed: true,
+        journaled: false,
+    },
+    RequiredNetworkSetupRoute {
+        path: "/api/network/coordinator/join-blob",
+        effect: "secret-transfer",
+        requires_confirmation: true,
+        owner: "Network",
+        frontend_exposed: true,
+        journaled: false,
+    },
+    RequiredNetworkSetupRoute {
+        path: "/api/network/worker/join-cluster",
+        effect: "config-write",
+        requires_confirmation: true,
+        owner: "Network",
+        frontend_exposed: true,
+        journaled: false,
+    },
+];
 
 pub(crate) const REQUIRED_NETWORK_LIFECYCLE_ROUTES: &[RequiredNetworkLifecycleRoute] = &[
     RequiredNetworkLifecycleRoute {

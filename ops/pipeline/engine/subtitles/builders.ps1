@@ -102,6 +102,85 @@ function New-SubtitleBuilderConvertedSrtSidecarTrack {
     }
 }
 
+function New-SubtitleBuilderConvertedSrtCandidateRecord {
+    param(
+        [Parameter(Mandatory)] $Track,
+        [bool] $Selected = $false,
+        [string] $ReductionReason = ''
+    )
+
+    $entry = Get-SubtitleBuilderObjectValue -Object $Track -Name 'StreamInfo' -Default $Track
+    $stream = Get-SubtitleBuilderObjectValue -Object $entry -Name 'Stream' -Default $null
+    $streamIndex = -1
+    if ($stream) {
+        $streamIndexValue = Get-SubtitleBuilderObjectValue -Object $stream -Name 'index' -Default $null
+        if ($null -ne $streamIndexValue) {
+            try { $streamIndex = [int]$streamIndexValue } catch { $streamIndex = -1 }
+        }
+    }
+
+    return [pscustomobject]@{
+        selected             = [bool]$Selected
+        output_action        = if ($Selected) { 'selected_external_srt_sidecar' } else { 'not_selected_mp4_reduction' }
+        reduction_reason     = $ReductionReason
+        srt_path             = Get-SubtitleBuilderObjectText -Object $Track -Name 'SrtPath' -Default ''
+        source_stream_index  = $streamIndex
+        subtitle_ordinal     = Get-SubtitleBuilderObjectValue -Object $entry -Name 'SubtitleOrdinal' -Default $null
+        language             = Get-SubtitleBuilderObjectText -Object $entry -Name 'Lang' -Default 'und'
+        title                = Get-SubtitleBuilderObjectText -Object $entry -Name 'Title' -Default ''
+        raw_title            = Get-SubtitleBuilderObjectText -Object $entry -Name 'RawTitle' -Default ''
+        source_codec         = Get-SubtitleBuilderObjectText -Object $Track -Name 'SourceSubtitleCodec' -Default (Get-SubtitleBuilderObjectText -Object $entry -Name 'Codec' -Default '')
+        codec_tag_string     = Get-SubtitleBuilderObjectText -Object $entry -Name 'CodecTagString' -Default ''
+        source_kind          = Get-SubtitleBuilderObjectText -Object $Track -Name 'SourceKind' -Default (Get-SubtitleBuilderObjectText -Object $entry -Name 'SourceKind' -Default 'embedded')
+        source_subtitle_kind = Get-SubtitleBuilderObjectText -Object $Track -Name 'SourceSubtitleKind' -Default (Get-SubtitleBuilderSourceSubtitleKind -ConversionKind (Get-SubtitleBuilderObjectText -Object $Track -Name 'ConversionKind' -Default '') -Entry $entry)
+        conversion_kind      = Get-SubtitleBuilderObjectText -Object $Track -Name 'ConversionKind' -Default ''
+        sidecar_kind         = Get-SubtitleBuilderObjectText -Object $Track -Name 'SidecarKind' -Default 'converted_srt'
+        cue_count            = [int](Get-SubtitleBuilderObjectValue -Object $Track -Name 'CueCount' -Default 0)
+        original_preserved   = [bool](Get-SubtitleBuilderObjectValue -Object $Track -Name 'OriginalPreserved' -Default $false)
+        original_preserve_reason = Get-SubtitleBuilderObjectText -Object $Track -Name 'OriginalPreserveReason' -Default ''
+        source_is_default    = [bool](Get-SubtitleBuilderObjectValue -Object $entry -Name 'SourceIsDefault' -Default $false)
+        is_default           = [bool](Get-SubtitleBuilderObjectValue -Object $entry -Name 'IsDefault' -Default $false)
+        is_forced            = [bool](Get-SubtitleBuilderObjectValue -Object $entry -Name 'IsForced' -Default $false)
+        is_sdh               = [bool](Get-SubtitleBuilderObjectValue -Object $entry -Name 'IsSdh' -Default $false)
+        is_supplemental      = [bool](Get-SubtitleBuilderObjectValue -Object $entry -Name 'IsSupplemental' -Default $false)
+        supplemental_forced  = [bool](Get-SubtitleBuilderObjectValue -Object $entry -Name 'SupplementalForced' -Default $false)
+    }
+}
+
+function New-SubtitleBuilderMp4ReductionFailureRecord {
+    param(
+        [Parameter(Mandatory)] $Record
+    )
+
+    $streamIndex = Get-SubtitleBuilderObjectValue -Object $Record -Name 'source_stream_index' -Default -1
+    try { $streamIndex = [int]$streamIndex } catch { $streamIndex = -1 }
+    $sourceKind = Get-SubtitleBuilderObjectText -Object $Record -Name 'source_subtitle_kind' -Default 'subtitle'
+    $language = Get-SubtitleBuilderObjectText -Object $Record -Name 'language' -Default 'und'
+    $title = Get-SubtitleBuilderObjectText -Object $Record -Name 'title' -Default ''
+    $reason = "MP4 compatibility would drop a retained converted ${sourceKind} subtitle candidate"
+    if ($streamIndex -ge 0) { $reason += " from stream $streamIndex" }
+    $reason += " ($language)"
+    if (-not [string]::IsNullOrWhiteSpace($title)) { $reason += " '$title'" }
+    if ([bool](Get-SubtitleBuilderObjectValue -Object $Record -Name 'is_forced' -Default $false)) { $reason += " [forced]" }
+    if ([bool](Get-SubtitleBuilderObjectValue -Object $Record -Name 'is_sdh' -Default $false)) { $reason += " [SDH]" }
+    if ([bool](Get-SubtitleBuilderObjectValue -Object $Record -Name 'is_supplemental' -Default $false)) { $reason += " [supplemental]" }
+
+    return [pscustomobject]@{
+        Stage        = 'subtitle-mp4-reduction'
+        Operation    = 'subtitle-mp4-reduction'
+        Category     = 'subtitle_conversion'
+        Reason       = $reason
+        ErrorCode    = 'SUBTITLE_MP4_CONVERTED_SRT_REDUCTION_BLOCKED'
+        error_code   = 'SUBTITLE_MP4_CONVERTED_SRT_REDUCTION_BLOCKED'
+        StreamIndex  = $streamIndex
+        stream_index = $streamIndex
+        Retryable    = $false
+        Tool         = 'ffmpeg'
+        ReproPath    = ''
+        reduction_record = $Record
+    }
+}
+
 function Get-MkvmergeTidMap {
     param([string]$FilePath, [string]$Context = "")
     $tidMap = @{}
@@ -379,6 +458,8 @@ function Build-SubtitleTracksForMkvmerge {
         Tx3gTracks     = @($tx3gTracks)
         BdpgsTracks    = @($bdpgsTracks)
         VobSubTracks   = @($vobSubTracks)
+        ConvertedSrtSidecarCandidates = @()
+        SubtitleOutputReduction = @()
         TempFiles      = @($tempFiles)
         Failures       = @($failures)
     }
@@ -504,6 +585,8 @@ function Build-SubtitleArgsForFFmpeg {
             BdpgsTracks = @()
             VobSubTracks = @()
             ConvertedSrtSidecarTracks = @()
+            ConvertedSrtSidecarCandidates = @()
+            SubtitleOutputReduction = @()
             BurnTrack   = $burnGraph.BurnTrack
             Failures    = @($burnGraph.Failures)
             TrackCount  = 0
@@ -793,7 +876,7 @@ function Build-SubtitleArgsForFFmpeg {
 
     if (Test-ConfiguredOutputContainerIsMp4) {
         $sidecarCandidates = @($tx3gTracks) + @($bdpgsTracks) + @($vobSubTracks)
-        $selectedSidecar = @(
+        $orderedSidecarCandidates = @(
             $sidecarCandidates |
                 Where-Object { $_ -and $_.SrtPath } |
                 Sort-Object `
@@ -801,9 +884,25 @@ function Build-SubtitleArgsForFFmpeg {
                     @{ Expression = { if ($_.StreamInfo -and $_.StreamInfo.ContainsKey('IsSupplemental') -and [bool]$_.StreamInfo.IsSupplemental) { 1 } else { 0 } } }, `
                     @{ Expression = { if ($_.StreamInfo -and $_.StreamInfo.ContainsKey('SubtitleOrdinal')) { [int]$_.StreamInfo.SubtitleOrdinal } else { [int]::MaxValue } } }
         )
-        $selectedConvertedSrtSidecarTracks = if ($selectedSidecar.Count -gt 0) { @($selectedSidecar[0]) } else { @() }
-        if ($sidecarCandidates.Count -gt 1) {
-            Write-Log "${Context}SUB: MP4 compatibility selected one external SRT sidecar and dropped $($sidecarCandidates.Count - 1) additional converted SRT candidate(s)." "WARN"
+        $selectedConvertedSrtSidecarTracks = if ($orderedSidecarCandidates.Count -gt 0) { @($orderedSidecarCandidates[0]) } else { @() }
+        $convertedSrtSidecarCandidateRecords = [System.Collections.Generic.List[object]]::new()
+        $subtitleOutputReductionRecords = [System.Collections.Generic.List[object]]::new()
+        $candidatePosition = 0
+        foreach ($candidate in @($orderedSidecarCandidates)) {
+            $isSelected = ($candidatePosition -eq 0)
+            $candidatePosition++
+            $reductionReason = if ($isSelected) { '' } else { 'mp4_compatibility_selected_single_external_srt_sidecar' }
+            $record = New-SubtitleBuilderConvertedSrtCandidateRecord -Track $candidate -Selected:$isSelected -ReductionReason $reductionReason
+            $convertedSrtSidecarCandidateRecords.Add($record) | Out-Null
+            if (-not $isSelected) {
+                $subtitleOutputReductionRecords.Add($record) | Out-Null
+                if ([bool]$record.is_forced -or [bool]$record.is_sdh -or [bool]$record.is_supplemental) {
+                    $failures.Add((New-SubtitleBuilderMp4ReductionFailureRecord -Record $record)) | Out-Null
+                }
+            }
+        }
+        if ($orderedSidecarCandidates.Count -gt 1) {
+            Write-Log "${Context}SUB: MP4 compatibility selected one external SRT sidecar and dropped $($orderedSidecarCandidates.Count - 1) additional converted SRT candidate(s)." "WARN"
         } else {
             Write-Log "${Context}SUB: MP4 compatibility emits no embedded subtitle tracks." "DEBUG"
         }
@@ -816,6 +915,8 @@ function Build-SubtitleArgsForFFmpeg {
             BdpgsTracks = @()
             VobSubTracks = @()
             ConvertedSrtSidecarTracks = @($selectedConvertedSrtSidecarTracks)
+            ConvertedSrtSidecarCandidates = @($convertedSrtSidecarCandidateRecords)
+            SubtitleOutputReduction = @($subtitleOutputReductionRecords)
             Failures    = @($failures)
             TrackCount  = 0
             DroppedEmbeddedTrackCount = $allTracks.Count
@@ -855,6 +956,8 @@ function Build-SubtitleArgsForFFmpeg {
         BdpgsTracks = @($bdpgsTracks)
         VobSubTracks = @($vobSubTracks)
         ConvertedSrtSidecarTracks = @(@($tx3gTracks) + @($bdpgsTracks) + @($vobSubTracks))
+        ConvertedSrtSidecarCandidates = @()
+        SubtitleOutputReduction = @()
         Failures    = @($failures)
         TrackCount  = $allTracks.Count
     }

@@ -3,9 +3,9 @@ file: ops/pipeline/engine/subtitles/language_policy.ps1
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-04
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: db726ab121e3e6f3684d172debc2ed85b27c7736081ab5f7516f0f8c66ed6003
+sha256: 3f5e3d72ebbdde7dc72e154b211dc90e939a92ed9854f5fac3bd99dbdef409bd
 ---
 # `ops/pipeline/engine/subtitles/language_policy.ps1`
 

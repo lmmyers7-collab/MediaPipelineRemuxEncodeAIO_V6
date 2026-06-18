@@ -20,6 +20,54 @@ $ffmpegProgressHelperRoot = Join-Path $PSScriptRoot 'ffmpeg_progress'
 . (Join-Path $ffmpegProgressHelperRoot 'tool_context.ps1')
 . (Join-Path $ffmpegProgressHelperRoot 'events.ps1')
 
+function Get-MkvmergeWarningClassification {
+    param([string]$Text)
+
+    $warningText = [string]$Text
+    if ([string]::IsNullOrWhiteSpace($warningText)) {
+        return [pscustomobject][ordered]@{
+            Blocking    = $false
+            Code        = 'MKVMERGE_WARNINGS'
+            Reason      = ''
+            MatchedText = ''
+        }
+    }
+
+    $riskyPatterns = @(
+        '(?i)\bskipp(?:ed|ing)\b.*\b(track|packet|element|attachment|subtitle|audio|video)\b',
+        '(?i)\b(track|packet|element|attachment|subtitle|audio|video)\b.*\bskipp(?:ed|ing)\b',
+        '(?i)\bunsupported\b.*\b(track|codec|subtitle|attachment|element|stream)\b',
+        '(?i)\b(track|codec|subtitle|attachment|element|stream)\b.*\bunsupported\b',
+        '(?i)\bun(?:recognized|recognised|readable)\b.*\b(track|codec|subtitle|attachment|element|stream|file)\b',
+        '(?i)\b(track|codec|subtitle|attachment|element|stream|file)\b.*\bun(?:recognized|recognised|readable)\b',
+        '(?i)\bdropp(?:ed|ing)\b.*\b(track|packet|element|attachment|subtitle|audio|video|stream)\b',
+        '(?i)\b(track|packet|element|attachment|subtitle|audio|video|stream)\b.*\bdropp(?:ed|ing)\b',
+        '(?i)\binvalid\b.*\b(track|packet|element|attachment|subtitle|audio|video|stream)\b'
+    )
+
+    foreach ($line in ($warningText -split '\r?\n')) {
+        $trimmed = ([string]$line).Trim()
+        if ([string]::IsNullOrWhiteSpace($trimmed)) { continue }
+        foreach ($pattern in $riskyPatterns) {
+            if ($trimmed -match $pattern) {
+                return [pscustomobject][ordered]@{
+                    Blocking    = $true
+                    Code        = 'MKVMERGE_WARNING_STREAM_LOSS'
+                    Reason      = 'mkvmerge warning text indicates skipped, unsupported, unreadable, dropped, or invalid stream content'
+                    MatchedText = $trimmed
+                }
+            }
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        Blocking    = $false
+        Code        = 'MKVMERGE_WARNINGS'
+        Reason      = ''
+        MatchedText = ''
+    }
+}
+
 function Invoke-FFmpegWithProgress {
     param(
         [array]$FFArgs,
@@ -355,15 +403,21 @@ function Invoke-MkvmergeWithProgress {
     $exitCode = [int]$result.ExitCode
 
     $reproPath = $null
-    $mkvmergeFailed = ([bool]$result.TimedOut -or [bool]$result.Stopped -or $exitCode -lt 0 -or $exitCode -ge 2)
-    $mkvmergeWarning = (-not $mkvmergeFailed -and $exitCode -eq 1)
+    $baseMkvmergeFailed = ([bool]$result.TimedOut -or [bool]$result.Stopped -or $exitCode -lt 0 -or $exitCode -ge 2)
+    $mkvmergeWarning = (-not $baseMkvmergeFailed -and $exitCode -eq 1)
+    $warningText = if (-not [string]::IsNullOrWhiteSpace([string]$result.Output)) { [string]$result.Output } else { [string]$result.Error }
+    $warningClassification = if ($mkvmergeWarning) { Get-MkvmergeWarningClassification -Text $warningText } else { $null }
+    $mkvmergeBlockingWarning = ($warningClassification -and [bool]$warningClassification.Blocking)
+    $mkvmergeFailed = ($baseMkvmergeFailed -or $mkvmergeBlockingWarning)
     if ($SaveReproOnFailure -and $mkvmergeFailed) {
         if (Get-Command -Name Save-ReproCommand -ErrorAction SilentlyContinue) {
             $reproPath = Save-ReproCommand -ToolName 'mkvmerge' -Executable $mkvmergePath -ArgumentList $ArgumentList -Stage $Stage
         }
     }
 
-    $toolErrorCode = if ($mkvmergeWarning) {
+    $toolErrorCode = if ($mkvmergeBlockingWarning) {
+        [string]$warningClassification.Code
+    } elseif ($mkvmergeWarning) {
         'MKVMERGE_WARNINGS'
     } elseif (Get-Command -Name Get-ExternalToolFailureCode -ErrorAction SilentlyContinue) {
         Get-ExternalToolFailureCode -ToolName 'mkvmerge' -Result $result
@@ -379,7 +433,10 @@ function Invoke-MkvmergeWithProgress {
         @{ Name = 'CompletedAt';     Value = $completedAt.ToString('o') },
         @{ Name = 'DurationSeconds'; Value = $durationSeconds },
         @{ Name = 'ToolErrorCode';   Value = $toolErrorCode },
-        @{ Name = 'ReproPath';       Value = $reproPath }
+        @{ Name = 'ReproPath';       Value = $reproPath },
+        @{ Name = 'MkvmergeWarningBlocking'; Value = [bool]$mkvmergeBlockingWarning },
+        @{ Name = 'MkvmergeWarningReason';   Value = if ($warningClassification) { [string]$warningClassification.Reason } else { '' } },
+        @{ Name = 'MkvmergeWarningMatchedText'; Value = if ($warningClassification) { [string]$warningClassification.MatchedText } else { '' } }
     )) {
         if (Get-Command -Name Set-ExternalToolResultProperty -ErrorAction SilentlyContinue) {
             Set-ExternalToolResultProperty -Result $result -Name $pair.Name -Value $pair.Value
@@ -401,6 +458,9 @@ function Invoke-MkvmergeWithProgress {
             error_code       = $toolErrorCode
             duration_seconds = $durationSeconds
             repro_path       = $reproPath
+            warning_blocking = [bool]$mkvmergeBlockingWarning
+            warning_reason   = if ($warningClassification) { [string]$warningClassification.Reason } else { '' }
+            warning_match    = if ($warningClassification) { [string]$warningClassification.MatchedText } else { '' }
         } | Out-Null
     }
 

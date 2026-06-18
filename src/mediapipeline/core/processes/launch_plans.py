@@ -33,6 +33,7 @@ def build_pipeline_launch_plan(
     show_config: bool,
     sleep_seconds: int,
     extra_args: str,
+    extra_argv: list[str] | tuple[str, ...] | None = None,
     single_file: str | None = None,
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
@@ -68,6 +69,8 @@ def build_pipeline_launch_plan(
         except ValueError as exc:
             raise RuntimeError(f"Extra arguments could not be parsed: {exc}") from exc
         args.extend(parsed_extra_args)
+    if extra_argv:
+        args.extend(str(item) for item in extra_argv)
 
     return ProcessLaunchPlan(
         args=args,
@@ -77,6 +80,7 @@ def build_pipeline_launch_plan(
             "show_config": bool(show_config),
             "sleep_seconds": max(1, int(sleep_seconds)),
             "extra_args": extra_args.strip(),
+            "extra_argv": [str(item) for item in (extra_argv or [])],
             "single_file": single_file or "",
         },
     )

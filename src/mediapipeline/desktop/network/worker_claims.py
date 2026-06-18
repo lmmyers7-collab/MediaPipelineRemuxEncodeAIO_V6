@@ -9,6 +9,7 @@ from .diagnostics import diagnostic_preview as _worker_diagnostic_preview
 from .dispatcher import ClaimedJob
 from .protocol import ClaimResponse
 from .worker_done import build_completion_done_request, build_release_done_request
+from .worker_state import save_worker_state
 from .worker_parts.reporting import request_abort_reclaimed_job
 from .worker_parts.results import completion_cluster_event, release_cluster_event
 from .worker_parts.tasks import malformed_claim_identity
@@ -34,21 +35,40 @@ class WorkerClaimMixin:
     def _release_claim_identity(self, job_id: str, source_path: str, reason: str) -> None:
         """Release a claimed job when only its wire identity is trustworthy."""
         reason_preview = _worker_diagnostic_preview(reason)
+        payload = build_release_done_request(job_id, self._worker_id).to_dict()
         try:
             self._http_post(
                 "/api/done",
-                build_release_done_request(job_id, self._worker_id).to_dict(),
+                payload,
             )
             self._notify_status(f"⚠ Released unstartable claim: {reason_preview[:80]}")
         except Exception as exc:
             failure_preview = _worker_diagnostic_preview(exc)
+            pending_saved = False
+            try:
+                save_worker_state(
+                    self._state_path,
+                    job_id=job_id,
+                    source_path=source_path,
+                    pending_done_report=payload,
+                )
+                pending_saved = True
+            except Exception as save_exc:
+                _log.warning(
+                    "Failed to save pending release report for unstartable claimed job %s: %s",
+                    job_id[:8],
+                    _worker_diagnostic_preview(save_exc),
+                )
             _log.warning(
                 "Failed to release unstartable claimed job %s after %s: %s",
                 job_id[:8],
                 reason_preview,
                 failure_preview,
             )
-            self._notify_status(f"⚠ Could not release unstartable claim: {failure_preview[:80]}")
+            if pending_saved:
+                self._notify_status(f"⚠ Release report queued for retry: {failure_preview[:80]}")
+            else:
+                self._notify_status(f"⚠ Could not release unstartable claim: {failure_preview[:80]}")
 
     def _release_malformed_claim_response(self, resp: object, reason: str) -> bool:
         """Release an already-claimed job when the claim body cannot be parsed."""
@@ -205,6 +225,7 @@ class WorkerClaimMixin:
         publish_mode: str | None = None,
         route: str | None = None,
         queue_terminal: bool = False,
+        retry_on_failure: bool | None = None,
         reason_code: str | None = None,
         reason: str | None = None,
     ) -> None:
@@ -225,6 +246,7 @@ class WorkerClaimMixin:
             publish_mode=publish_mode,
             route=route,
             queue_terminal=queue_terminal,
+            retry_on_failure=retry_on_failure,
             reason_code=reason_code,
             reason=reason,
         ).to_dict()

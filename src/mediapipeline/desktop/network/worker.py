@@ -18,9 +18,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable
 
+from mediapipeline.core.network.url_policy import redact_network_secret_text
+
 from ..config_keys import (
     KEY_WORKER_AUTH_TOKEN,
     KEY_WORKER_COORDINATOR_URL,
+    KEY_WORKER_ENCODER_MAP,
+    KEY_WORKER_HONOR_COORDINATOR_POLICY,
     KEY_WORKER_NAME,
     KEY_WORKER_POLL_INTERVAL_SECS,
     KEY_WORKER_SOURCE_PATH_MAP,
@@ -41,6 +45,7 @@ from .library_roots import (
 )
 from .path_map import apply_source_path_map, parse_source_path_map
 from .poll_policy import resolve_worker_poll_interval
+from .processing_policy import worker_encoder_map_descriptor, worker_honor_coordinator_policy_enabled
 from .protocol import LogEntryRequest
 from .worker_record import make_queue_record as _make_queue_record
 from .worker_parts.reporting import (
@@ -100,7 +105,7 @@ class WorkerDispatcher(
       coordinator, then begins polling normally.
     """
 
-    def __init__(self, app: "MediaPipelineApp") -> None:
+    def __init__(self, app: "MediaPipelineApp", *, start_polling: bool = True) -> None:
         self.app = app
 
         resolved = getattr(app, "resolved", None)
@@ -118,6 +123,8 @@ class WorkerDispatcher(
         self._worker_name = _cfg_name or _safe_hostname()
         self._auth_token    = str(config.get(KEY_WORKER_AUTH_TOKEN, "")).strip()
         self._poll_interval = resolve_worker_poll_interval(config.get(KEY_WORKER_POLL_INTERVAL_SECS))
+        self._worker_encoder_map = str(config.get(KEY_WORKER_ENCODER_MAP, "") or "").strip()
+        self._worker_honor_coordinator_policy = worker_honor_coordinator_policy_enabled(config)
 
         # Source path mapping: rewrite coordinator paths to local-reachable ones.
         # Parsed once at construction; callers can hot-swap via update_source_path_map().
@@ -138,6 +145,7 @@ class WorkerDispatcher(
             else Path.home()
         )
         self._state_path: Path = state_dir / "worker_state.json"
+        self._worker_state_startup_error = ""
 
         # Currently-active job (set while encode is in flight).
         self._active_job: ClaimedJob | None = None
@@ -155,6 +163,7 @@ class WorkerDispatcher(
         self._poll_thread: threading.Thread | None = threading.Thread(
             target=self._poll_loop, name="worker-poll", daemon=True
         )
+        self._poll_started = False
         self._last_claim_failure_text = ""
 
         # Optional status callback — called from the poll thread with a human-
@@ -168,12 +177,24 @@ class WorkerDispatcher(
         # it as failed before entering the poll loop.
         self._crash_recover()
 
+        if start_polling:
+            self.start_polling()
+
+    def start_polling(self) -> None:
+        """Start the background claim poller after provider attachment."""
+        if getattr(self, "_poll_started", False):
+            return
+        if self._poll_thread is None:
+            self._poll_thread = threading.Thread(
+                target=self._poll_loop, name="worker-poll", daemon=True
+            )
         try:
             self._poll_thread.start()
         except Exception as exc:
             self._poll_thread = None
             _log.error("Could not start worker poll thread for coordinator %s: %s", self._base_url, exc)
             raise RuntimeError(f"Could not start worker poll thread for coordinator {self._base_url}: {exc}") from exc
+        self._poll_started = True
         _log.info(
             "WorkerDispatcher started: coordinator=%s worker=%s poll_interval=%ss path_map_entries=%d",
             self._base_url, self._worker_name, self._poll_interval,
@@ -216,8 +237,13 @@ class WorkerDispatcher(
         py_level = {"DEBUG": logging.DEBUG, "INFO": logging.INFO,
                     "WARN": logging.WARNING, "WARNING": logging.WARNING,
                     "ERROR": logging.ERROR}.get(level.upper(), logging.INFO)
-        _log.log(py_level, "[cluster:%s] %s %s", event, message,
-                 f"(job={job_id[:8]})" if job_id else "")
+        safe_event = redact_network_secret_text(event)
+        safe_message = redact_network_secret_text(message)
+        safe_job_id = redact_network_secret_text(job_id)
+        safe_source_path = redact_network_secret_text(source_path)
+        source_display = f"(source={Path(safe_source_path).name})" if safe_source_path else ""
+        _log.log(py_level, "[cluster:%s] %s %s %s", safe_event, safe_message,
+                 f"(job={safe_job_id[:8]})" if safe_job_id else "", source_display)
 
         # Build the request payload once and dispatch on a daemon thread.
         entry = LogEntryRequest(
@@ -236,14 +262,14 @@ class WorkerDispatcher(
             try:
                 self._http_post("/api/log", entry.to_dict())
             except Exception as exc:
-                _log.warning("cluster log POST failed for event %s: %s", event, _worker_diagnostic_preview(exc))
+                _log.warning("cluster log POST failed for event %s: %s", safe_event, _worker_diagnostic_preview(exc))
 
         try:
             threading.Thread(target=_send, name="cluster-log-post", daemon=True).start()
         except Exception as exc:
             _log.warning(
                 "Failed to start cluster log POST thread for event %s: %s",
-                event,
+                safe_event,
                 _worker_diagnostic_preview(exc),
             )
 
@@ -436,6 +462,42 @@ class WorkerDispatcher(
         if wakeup is not None:
             wakeup.set()
 
+    def update_worker_encoder_map(self, new_map: str) -> None:
+        """Replace the worker-owned family->encoder map immediately."""
+        raw = str(new_map or "").strip()
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            self._worker_encoder_map = raw
+        else:
+            with lock:
+                self._worker_encoder_map = raw
+        descriptor = worker_encoder_map_descriptor(raw)
+        _log.info(
+            "WorkerDispatcher: encoder map hot-swapped (entries=%d valid=%s).",
+            int(descriptor.get("worker_encoder_map_entries") or 0),
+            "yes" if descriptor.get("worker_encoder_map_valid") else "no",
+        )
+        wakeup = getattr(self, "_wakeup", None)
+        if wakeup is not None:
+            wakeup.set()
+
+    def update_honor_coordinator_policy(self, raw_value: str) -> None:
+        """Replace the worker's coordinator-policy authority flag immediately."""
+        enabled = worker_honor_coordinator_policy_enabled({KEY_WORKER_HONOR_COORDINATOR_POLICY: raw_value})
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            self._worker_honor_coordinator_policy = enabled
+        else:
+            with lock:
+                self._worker_honor_coordinator_policy = enabled
+        _log.info(
+            "WorkerDispatcher: coordinator policy authority hot-swapped (%s).",
+            "enabled" if enabled else "disabled",
+        )
+        wakeup = getattr(self, "_wakeup", None)
+        if wakeup is not None:
+            wakeup.set()
+
     def set_status_callback(self, callback: "Callable[[str], None] | None") -> None:
         """Register a callback invoked from the poll thread after every attempt.
 
@@ -472,12 +534,35 @@ class WorkerDispatcher(
     def runtime_descriptor(self) -> dict[str, Any]:
         """Return token-safe live settings evidence for drift detection."""
         base_url, auth_token, mappings = self._runtime_settings_snapshot()
+        lock = getattr(self, "_active_job_lock", None)
+        if lock is None:
+            honor_policy = bool(getattr(self, "_worker_honor_coordinator_policy", False))
+            encoder_map = str(getattr(self, "_worker_encoder_map", "") or "")
+            manual_source = getattr(self, "_manual_source_path_map", None)
+            manual_mappings = list(manual_source if manual_source is not None else mappings)
+            auto_mappings = list(getattr(self, "_auto_source_path_map", []) or [])
+        else:
+            with lock:
+                honor_policy = bool(getattr(self, "_worker_honor_coordinator_policy", False))
+                encoder_map = str(getattr(self, "_worker_encoder_map", "") or "")
+                manual_source = getattr(self, "_manual_source_path_map", None)
+                manual_mappings = list(manual_source if manual_source is not None else mappings)
+                auto_mappings = list(getattr(self, "_auto_source_path_map", []) or [])
         return {
             "schema_version": "desktop_network_worker_runtime_descriptor.v1",
             "coordinator_url": base_url,
             "token_fingerprint": _fingerprint_text(auth_token),
+            "manual_path_map_entries": len(manual_mappings),
+            "manual_path_map_fingerprint": _path_map_fingerprint(manual_mappings),
+            "auto_path_map_entries": len(auto_mappings),
+            "auto_path_map_fingerprint": _path_map_fingerprint(auto_mappings),
+            "auto_path_map_active": bool(auto_mappings),
+            "effective_path_map_entries": len(mappings),
+            "effective_path_map_fingerprint": _path_map_fingerprint(mappings),
             "path_map_entries": len(mappings),
             "path_map_fingerprint": _path_map_fingerprint(mappings),
+            "honor_coordinator_policy": honor_policy,
+            **worker_encoder_map_descriptor(encoder_map),
             "read_only": True,
         }
 

@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0615-013",
+  "title": "Release readiness audit and publication preflight",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "release",
+  "risk_level": "low",
+  "date_started": "2026-06-15",
+  "date_completed": "2026-06-15",
+  "summary": "Audited release-readiness surfaces and realigned Tauri publication metadata to the Phase 1 semver identity while preserving the backend calendar release label.",
+  "reason": "Publication preparation found Tauri package metadata carrying a dirty 0.0.0 build identity even though the active release-foundation plan requires semver-compatible 6.0.0 Tauri metadata for the 2026.06.04.001 portable release.",
+  "affected_areas": [
+    "release_identity",
+    "tauri",
+    "release_docs",
+    "tests",
+    "change_control"
+  ],
+  "behavior_before": "The backend release label remained 2026.06.04.001, but Tauri package.json, package-lock.json, Cargo.toml, Cargo.lock, and tauri.conf.json used 0.0.0 or a dirty build suffix inconsistent with Phase 1 publication identity.",
+  "behavior_after": "Tauri package, npm lock, Cargo manifest, Cargo lock, and Tauri config all report semver 6.0.0; backend release label/product-version metadata remains 2026.06.04.001.",
+  "files_touched": [
+    "Docs/implementation/release-foundation/PHASE_4_TAURI_RELEASE_CANDIDATE.md",
+    "Docs/generated/DEPENDENCY_GRAPH.md",
+    "Docs/generated/FEATURE_FILE_MAP.md",
+    "Docs/generated/PROJECT_INDEX.md",
+    "apps/desktop/tauri/package-lock.json",
+    "apps/desktop/tauri/package.json",
+    "apps/desktop/tauri/src-tauri/Cargo.lock",
+    "apps/desktop/tauri/src-tauri/Cargo.toml",
+    "apps/desktop/tauri/src-tauri/tauri.conf.json",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0615-013.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0615-013.json",
+    "tests/python/desktop/test_tauri_shell_scaffold.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_tauri_shell_scaffold.py::TauriShellScaffoldTests::test_tauri_release_semver_matches_publication_identity"
+  ],
+  "manual_validation": [
+    "rg stale 0.0.0 Tauri identity scan: no matches in active Tauri/release-foundation/test surfaces",
+    "pytest focused Tauri identity/versioning tests: 5 passed",
+    "mediapipeline.tools.lint_naming: passed",
+    "ops/scripts/dev/start-tauri-preview.bat -CheckOnly: passed",
+    "apps/desktop/tauri/Test-TauriShell-Build.ps1: passed; cargo check/test/build reported mediapipeline-tauri-shell v6.0.0 and 38 Rust tests passed",
+    "ops/scripts/release/build.ps1 -DryRun: passed; no files copied; default plan strips live config, runtime state, logs, node modules, Tauri target output, and tests",
+    "ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke: passed after regenerating generated project maps; source/dev manifest hygiene, tool integration, and end-to-end media smoke remained intentionally skipped/downshifted"
+  ],
+  "rollback_plan": "Revert only the Tauri semver metadata, Phase 4 candidate-name doc edits, static test addition, generated summary, and this packet. No media files, source/scratch/output paths, pending publish manifests, queue state, settings persistence, or FFmpeg/audio/subtitle policy are touched.",
+  "related_changes": [],
+  "notes": "Release-readiness audit also found publication is still blocked by the pre-existing dirty worktree and in-progress network/config/WebView changes outside this packet. Public/manual publication still requires operator approval plus Phase 4 candidate build, Phase 5 package open/close validation, Phase 6 real-media pilot evidence for the same candidate, signing/unsigned-distribution decision confirmation, license/third-party/privacy/security notices, finalized release notes, and strict change-control coverage."
+}

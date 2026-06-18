@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/network/path_map.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-05-09
+last_modified: 2026-06-15
 last_reviewed: 2026-06-04
-sha256: 219496cdbd17615d57e4401f272e6d5be233420cc0a25e46182b87f80ae67a7f
+sha256: ea3962412200e7257ddc56eccc0ef9894a034d6711e39bc6f3c3606d48db9c89
 ---
 # `src/mediapipeline/desktop/network/path_map.py`
 

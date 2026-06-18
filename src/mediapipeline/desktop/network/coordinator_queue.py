@@ -17,6 +17,7 @@ from .encode_config_snapshot import snapshot_encode_config
 from .failure_reasons import classify_failure_reason
 from .failure_policy import source_has_prior_failure
 from .protocol import coerce_finite_float, coerce_library_id_list
+from .registry import normalize_source_identity
 from .use_cases.done_outcome import CoordinatorDoneOutcomeService, DoneOutcome
 
 _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
@@ -237,6 +238,7 @@ class CoordinatorQueueMixin:
         publish_mode: str | None = None,
         route: str | None = None,
         queue_terminal: bool = False,
+        retry_on_failure: bool | None = None,
         reason_code: str | None = None,
         reason: str | None = None,
     ) -> None:
@@ -306,9 +308,7 @@ class CoordinatorQueueMixin:
             publish_mode      = publish_mode or "",
             error_message     = error or "",
             queue_terminal    = bool(queue_terminal),
-            # Local encodes follow the same default retry policy the
-            # HTTP handler uses (DoneRequest.retry_on_failure default).
-            retry_on_failure  = True,
+            retry_on_failure  = True if retry_on_failure is None else bool(retry_on_failure),
             output_path       = output_path or "",
             reason_code       = final_reason_code,
             reason            = final_reason,
@@ -382,7 +382,7 @@ class CoordinatorQueueMixin:
                             evidence.get("reason_code"),
                         )
                         continue
-            return r, self._snapshot_encode_config(worker_name)
+            return r, self._snapshot_encode_config(worker_name, r)
         return None, {}
 
     def _compute_retry_after_seconds(self) -> int:
@@ -411,7 +411,7 @@ class CoordinatorQueueMixin:
         """Return ``True`` if *source_path* appears in the app's failure records."""
         return source_has_prior_failure(source_path, getattr(self._app, "failure_records", []))
 
-    def _snapshot_encode_config(self, worker_name: str = "") -> dict:
+    def _snapshot_encode_config(self, worker_name: str = "", record: object | None = None) -> dict:
         """Snapshot the encode-relevant config keys at claim time.
 
         ``WorkerConfigOverrides`` remains loadable for compatibility but is
@@ -420,7 +420,7 @@ class CoordinatorQueueMixin:
         resolved = getattr(self._app, "resolved", None)
         if resolved is None or not hasattr(resolved, "config_data"):
             return {}
-        return snapshot_encode_config(resolved.config_data, worker_name)
+        return snapshot_encode_config(resolved.config_data, worker_name, record)
 
     def _remove_from_queue(self, source_path: str) -> None:
         """Remove a completed record from queue_records.
@@ -433,9 +433,10 @@ class CoordinatorQueueMixin:
             records = getattr(self._app, "queue_records", None)
             if not records:
                 return
+            source_identity = normalize_source_identity(source_path)
             to_remove = [
                 r for r in records
-                if str(getattr(r, "source_path", "")) == source_path
+                if normalize_source_identity(getattr(r, "source_path", "")) == source_identity
             ]
             for r in to_remove:
                 records.remove(r)

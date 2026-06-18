@@ -29,15 +29,14 @@ def local_api_bootstrap(
     startup_progress: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     surface = str(shell_surface or "webview")
-    include_token = bool(require_token) and surface.casefold() != "tauri"
     payload = {
         "apiBase": "",
-        "token": token if include_token else "",
+        "token": "",
         "appVersion": app_version,
         "shellSurface": surface,
     }
-    if bool(require_token) and not include_token:
-        payload["tokenSource"] = "tauri-initialization-script"
+    if bool(require_token):
+        payload["tokenSource"] = "tauri-initialization-script" if surface.casefold() == "tauri" else "http-only-cookie"
     if startup_progress is not None:
         payload["startupProgress"] = startup_progress
     return payload

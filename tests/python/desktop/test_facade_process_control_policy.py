@@ -34,10 +34,14 @@ class ProcessControlPolicyTests(unittest.TestCase):
 
     def test_success_payload_stringifies_flag_path(self) -> None:
         payload = pipeline_control_success_data("stop", Path("C:/state/pipeline_stop.flag"))
+        kill_payload = pipeline_control_success_data("kill", None, {"kill_report": ["PID 1234"]})
 
         self.assertEqual(payload["action"], "stop")
         self.assertEqual(payload["flag_path"], str(Path("C:/state/pipeline_stop.flag")))
         self.assertEqual(pipeline_control_success_data("rescan", None)["flag_path"], "")
+        self.assertEqual(kill_payload["force_stop_scope"]["job_kinds"], ["pipeline", "audit", "rerun_csv"])
+        self.assertIn("pipeline, audit, and CSV rerun", kill_payload["force_stop_scope"]["scope_label"])
+        self.assertEqual(kill_payload["kill_report"], ["PID 1234"])
 
 
 if __name__ == "__main__":

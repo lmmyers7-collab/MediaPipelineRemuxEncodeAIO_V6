@@ -1,0 +1,31 @@
+{
+  "id": "MP-CHANGE-2026-0614-021",
+  "title": "W10 WebView network settings boundary review",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-14",
+  "date_completed": "2026-06-15",
+  "summary": "Added the W10 review-only worker report for the WebView Network page, worker settings, and UI mutation boundary audit.",
+  "reason": "Capture W10 findings and validation evidence for the 2026-06-15 network coordinator/worker mode review without changing source or generated files.",
+  "affected_areas": [
+    "docs-review"
+  ],
+  "behavior_before": "No W10 worker report existed for this review package.",
+  "behavior_after": "The W10 worker report records required reads, coverage, findings, test gaps, boundary risks, and validation evidence.",
+  "files_touched": [
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W10-webview-network-settings-boundary.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0614-021.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_network_smoke.py -q - failed: unexpected POST /api/ui-preferences",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_network_read_only_boundary.py tests/python/desktop/test_application_facade_network.py tests/python/desktop/test_api_command_contracts.py -q - passed (35 passed, 246 subtests)",
+    "change_control validate_changes --require-worktree-coverage - failed: unrelated uncovered files src/mediapipeline/desktop/network/processing_policy.py and tests/python/desktop/test_network_coordinator_policy_phase_e.py",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1 - failed: same browser smoke unexpected POST /api/ui-preferences"
+  ],
+  "rollback_plan": "Delete docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W10-webview-network-settings-boundary.md and this change packet if the review report must be withdrawn.",
+  "related_changes": [],
+  "notes": "W10 review-only WebView network settings boundary audit."
+}

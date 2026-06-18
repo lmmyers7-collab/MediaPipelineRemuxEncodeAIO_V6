@@ -905,6 +905,54 @@
     return paths;
   }
 
+  function failureCountsForRows(rows) {
+    const counts = {
+      operator_required_count: 0,
+      permanent_count: 0,
+      transient_count: 0,
+    };
+    (Array.isArray(rows) ? rows : []).forEach((item) => {
+      const classification = String(item?.classification || item?.class || "").toLowerCase();
+      if (classification === "operator_required") counts.operator_required_count += 1;
+      if (classification === "permanent") counts.permanent_count += 1;
+      if (classification === "transient") counts.transient_count += 1;
+    });
+    return counts;
+  }
+
+  function failureMarkerSourcePath() {
+    return String(
+      lastReportSettings?.paths?.failed_markers
+      || lastFailurePreviewPayload?.source
+      || "backend failure markers"
+    ).trim();
+  }
+
+  function applyLocalFailureMarkerClear(request, result) {
+    if (!request || request.dry_run || !result?.ok) return false;
+    const data = result?.data && typeof result.data === "object" ? result.data : {};
+    const movedMarkers = Number(data.markers || 0) || 0;
+    if (!request.all_markers && movedMarkers <= 0) return false;
+    const currentRows = Array.isArray(lastFailureRows) ? lastFailureRows : [];
+    const clearedPaths = new Set(normalizeFailureMarkerPaths(request.marker_paths).map((path) => path.toLowerCase()));
+    const remainingRows = request.all_markers
+      ? []
+      : currentRows.filter((item) => !failureClearMarkerPathsForRow(item).some((markerPath) => clearedPaths.has(markerPath.toLowerCase())));
+    if (!request.all_markers && remainingRows.length === currentRows.length) return false;
+    const nextPreview = {
+      ...lastFailurePreviewPayload,
+      ...(request.all_markers || failureMarkerModeActive()
+        ? { source: failureMarkerSourcePath(), source_kind: "markers" }
+        : {}),
+      ...failureCountsForRows(remainingRows),
+      count: remainingRows.length,
+      rows: remainingRows,
+    };
+    delete nextPreview.retry_state;
+    renderFailurePreview(nextPreview);
+    return true;
+  }
+
   function failureClearRequest(scope, dryRun) {
     const clearAll = scope === "all" || scope === "all_markers";
     const apiScope = scope === "all" ? "all_markers" : scope;
@@ -994,6 +1042,10 @@
         }
         selectedFailureRowKey = "";
         selectedFailureRowKeys.clear();
+        if (!applyLocalFailureMarkerClear(request, result)) {
+          renderFailureDetail(getSelectedFailureRow());
+          renderFailureRows();
+        }
         if (typeof refreshAll === "function") await refreshAll();
       }
     } catch (error) {

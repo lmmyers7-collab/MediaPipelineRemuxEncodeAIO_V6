@@ -9,6 +9,9 @@ def make_queue_record(claim: ClaimResponse):
     """Build a minimal QueueRecord from a coordinator claim response."""
     from ..models import QueueRecord  # local import to avoid circular deps
 
+    source_path = str(claim.source_path or "").strip()
+    if not source_path or source_path == ".":
+        raise ValueError("claimed network job requires a non-empty source_path")
     src = Path(claim.source_path)
     record = QueueRecord(
         source_path=src,

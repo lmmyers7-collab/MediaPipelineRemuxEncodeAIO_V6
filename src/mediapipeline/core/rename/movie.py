@@ -191,6 +191,53 @@ RENAME_MOVIE_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
         "mov",
         "wmv",
     ),
+    "languages_subs_dubs": (
+        "eng",
+        "ita",
+        "fre",
+        "fra",
+        "ger",
+        "deu",
+        "spa",
+        "esp",
+        "jpn",
+        "jap",
+        "kor",
+        "chi",
+        "zho",
+        "rus",
+        "por",
+        "dut",
+        "nld",
+        "swe",
+        "dan",
+        "nor",
+        "fin",
+        "pol",
+        "cze",
+        "ces",
+        "hun",
+        "gre",
+        "ell",
+        "tur",
+        "ara",
+        "hin",
+        "tha",
+        "vie",
+        "ukr",
+        "sub",
+        "subs",
+        "subbed",
+        "dub",
+        "dubs",
+        "dubbed",
+        "multi",
+        "multi audio",
+        "dual audio",
+        "dual-audio",
+        "vostfr",
+        "vose",
+    ),
     "release_groups": MOVIE_RELEASE_GROUP_TERMS,
 }
 MOVIE_SMALL_WORDS = frozenset({"a", "an", "and", "as", "at", "but", "by", "for", "from", "in", "into", "nor", "of", "on", "or", "per", "to", "vs", "via", "with"})
@@ -284,11 +331,12 @@ def title_case_movie_name(value: str) -> str:
 
 
 def movie_filter_term_pattern(term: str, *, bounded: bool = True) -> str:
-    pieces = [re.escape(piece) for piece in re.split(r"[\s._-]+", str(term or "").strip()) if piece]
-    if not pieces:
+    raw_term = str(term or "").strip()
+    if not raw_term:
         return ""
-    body = r"[\s._-]*".join(pieces)
-    if not bounded:
+    pieces = [re.escape(piece) for piece in re.split(r"[\s._-]+", raw_term) if piece]
+    body = r"[\s._-]*".join(pieces) if pieces else re.escape(raw_term)
+    if not bounded or not re.search(r"[A-Za-z0-9]", raw_term):
         return body
     return rf"(?<![A-Za-z0-9]){body}(?![A-Za-z0-9])"
 
@@ -369,6 +417,8 @@ def clean_pipeline_movie_name(
     if filter_options["services_containers"]:
         title = MOVIE_SERVICE_CONTAINER_TAG_PATTERN.sub(" ", title)
         title = remove_custom_movie_filter_terms(title, filter_terms, "services_containers")
+    if filter_options["languages_subs_dubs"]:
+        title = remove_movie_filter_terms(title, collective_movie_filter_terms(filter_terms, "languages_subs_dubs"))
     title = remove_movie_filter_terms(title, remove_terms)
     title = strip_movie_release_groups(title, filter_options, filter_terms)
     title = re.sub(r"[\._]", " ", title)

@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-import json
 from typing import Any
+
+from mediapipeline.core.validation.strict_json import loads_strict_json
 
 def _mapping_from_json_or_mapping(value: Any, *, label: str) -> dict[str, Any]:
     if value in (None, "", False):
@@ -13,9 +14,9 @@ def _mapping_from_json_or_mapping(value: Any, *, label: str) -> dict[str, Any]:
         if not raw:
             return {}
         try:
-            value = json.loads(raw)
-        except json.JSONDecodeError as exc:
-            raise ValueError(f"{label} must be a JSON object when provided as text.") from exc
+            value = loads_strict_json(raw)
+        except ValueError as exc:
+            raise ValueError(f"{label} must be a JSON object when provided as text: {exc}") from exc
     if not isinstance(value, dict):
         raise TypeError(f"{label} must be a mapping.")
     return {str(key): item_value for key, item_value in value.items()}

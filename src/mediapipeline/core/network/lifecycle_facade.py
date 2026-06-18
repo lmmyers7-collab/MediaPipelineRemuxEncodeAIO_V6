@@ -355,6 +355,137 @@ class NetworkLifecycleFacadeMixin:
             )
         return preconditions
 
+    def _network_lifecycle_active_work_evidence(self, role: str) -> dict[str, Any]:
+        runtime = getattr(self, "_network_dispatcher_runtime", None)
+        entry = runtime.get(role) if isinstance(runtime, dict) else None
+        local_active_jobs: list[dict[str, Any]] = []
+        remote_active_claims: list[dict[str, Any]] = []
+        active_ids: set[int] = set()
+        active_job_ids: set[str] = set()
+        active_process_running = False
+        stop_requested = False
+        dispatcher_present = False
+        app_present = False
+        if isinstance(entry, dict):
+            stop_requested = bool(entry.get("stop_requested"))
+            app = entry.get("app")
+            dispatcher = entry.get("dispatcher")
+            app_present = app is not None
+            dispatcher_present = dispatcher is not None
+
+            app_job = None
+            active_lock = getattr(app, "_active_lock", None)
+            if active_lock is not None:
+                try:
+                    with active_lock:
+                        app_job = getattr(app, "_active_job", None)
+                except Exception:
+                    app_job = getattr(app, "_active_job", None)
+            else:
+                app_job = getattr(app, "_active_job", None)
+            if app_job is not None:
+                active_ids.add(id(app_job))
+                evidence = self._network_lifecycle_job_evidence(role, app_job, source="provider_app")
+                job_id = str(evidence.get("job_id", "") or "")
+                if job_id:
+                    active_job_ids.add(job_id)
+                local_active_jobs.append(evidence)
+            proc_running = getattr(app, "active_process_running", None)
+            if callable(proc_running):
+                try:
+                    active_process_running = bool(proc_running())
+                except Exception:
+                    active_process_running = True
+
+            get_active_job = getattr(dispatcher, "get_active_job", None)
+            if callable(get_active_job):
+                try:
+                    dispatcher_job = get_active_job()
+                except Exception:
+                    dispatcher_job = None
+                if dispatcher_job is not None and id(dispatcher_job) not in active_ids:
+                    evidence = self._network_lifecycle_job_evidence(role, dispatcher_job, source="dispatcher")
+                    job_id = str(evidence.get("job_id", "") or "")
+                    if job_id:
+                        active_job_ids.add(job_id)
+                    local_active_jobs.append(evidence)
+
+            if role == "coordinator":
+                active_claims_snapshot = getattr(dispatcher, "active_claims_snapshot", None)
+                if callable(active_claims_snapshot):
+                    try:
+                        raw_claims = active_claims_snapshot()
+                    except Exception:
+                        raw_claims = []
+                    for claim in raw_claims or []:
+                        evidence = self._network_lifecycle_claim_evidence(claim)
+                        job_id = str(evidence.get("job_id", "") or "")
+                        if job_id and job_id in active_job_ids:
+                            continue
+                        if job_id:
+                            active_job_ids.add(job_id)
+                        remote_active_claims.append(evidence)
+
+        active_jobs = [*local_active_jobs, *remote_active_claims]
+
+        return {
+            "reported_worker_count": len(remote_active_claims),
+            "local_active_job_count": len(local_active_jobs),
+            "remote_active_claim_count": len(remote_active_claims),
+            "active_job_count": len(active_jobs),
+            "active_jobs": active_jobs,
+            "remote_active_claims": remote_active_claims,
+            "active_process_running": active_process_running,
+            "runtime_entry_present": isinstance(entry, dict),
+            "app_present": app_present,
+            "dispatcher_present": dispatcher_present,
+            "stop_requested": stop_requested,
+        }
+
+    def _network_lifecycle_job_evidence(self, role: str, job: Any, *, source: str) -> dict[str, Any]:
+        record = getattr(job, "record", None)
+        source_path = redact_network_secret_text(getattr(record, "source_path", "") or "")
+        return {
+            "role": role,
+            "source": source,
+            "job_id": redact_network_secret_text(getattr(job, "job_id", "") or ""),
+            "worker_id": redact_network_secret_text(getattr(job, "worker_id", "") or ""),
+            "source_path": source_path,
+            "source_name": Path(source_path).name if source_path else "",
+        }
+
+    def _network_lifecycle_claim_evidence(self, claim: Any) -> dict[str, Any]:
+        if hasattr(claim, "to_dict") and callable(getattr(claim, "to_dict")):
+            try:
+                raw = dict(claim.to_dict())
+            except Exception:
+                raw = {}
+        elif isinstance(claim, Mapping):
+            raw = dict(claim)
+        else:
+            raw = {
+                "job_id": getattr(claim, "job_id", ""),
+                "worker_id": getattr(claim, "worker_id", ""),
+                "worker_name": getattr(claim, "worker_name", ""),
+                "source_path": getattr(claim, "source_path", getattr(claim, "current_file", "")),
+                "claimed_at": getattr(claim, "claimed_at", ""),
+                "last_heartbeat": getattr(claim, "last_heartbeat", ""),
+                "heartbeat_age_seconds": getattr(claim, "heartbeat_age_seconds", None),
+            }
+        source_path = redact_network_secret_text(raw.get("source_path") or raw.get("current_file") or "")
+        return {
+            "role": "coordinator",
+            "source": "coordinator_registry",
+            "job_id": redact_network_secret_text(raw.get("job_id", "")),
+            "worker_id": redact_network_secret_text(raw.get("worker_id", "")),
+            "worker_name": redact_network_secret_text(raw.get("worker_name", "")),
+            "source_path": source_path,
+            "source_name": Path(source_path).name if source_path else "",
+            "claimed_at": redact_network_secret_text(raw.get("claimed_at", "")),
+            "last_heartbeat": redact_network_secret_text(raw.get("last_heartbeat", "")),
+            "heartbeat_age_seconds": raw.get("heartbeat_age_seconds"),
+        }
+
     def _network_lifecycle_dry_run_data(
         self,
         *,
@@ -371,6 +502,28 @@ class NetworkLifecycleFacadeMixin:
             action=action,
             state=state,
         )
+        active_work = self._network_lifecycle_active_work_evidence(role)
+        if int(active_work.get("active_job_count") or 0) > 0:
+            local_count = int(active_work.get("local_active_job_count") or 0)
+            remote_count = int(active_work.get("remote_active_claim_count") or 0)
+            if action == "start":
+                preconditions.append(
+                    _precondition(
+                        "active_network_work",
+                        "blocked",
+                        f"active_in_memory_jobs={local_count}; remote_active_claims={remote_count}; active_process_running={'yes' if active_work.get('active_process_running') else 'unknown_or_no'}",
+                        "Let the preserved active network job finish before starting a new dispatcher.",
+                    )
+                )
+            elif action == "stop":
+                preconditions.append(
+                    _precondition(
+                        "active_network_work",
+                        "review",
+                        f"active_in_memory_jobs={local_count}; remote_active_claims={remote_count}; ordinary stop preserves active process and claim",
+                        "Confirmed stop will stop polling/new claims and leave active work to report done.",
+                    )
+                )
         blocked = [row for row in preconditions if row.get("status") == "blocked"]
         would_start = []
         would_stop = []
@@ -418,7 +571,7 @@ class NetworkLifecycleFacadeMixin:
                 "completed_manifest": "no acceptance ledger writes",
             },
             "active_work": {
-                "reported_worker_count": 0,
+                **active_work,
                 "pending_done_reports": any(
                     row.get("key") == "pending_done_reports_delivered" and row.get("status") == "blocked"
                     for row in preconditions
@@ -598,13 +751,26 @@ class NetworkLifecycleFacadeMixin:
                     refresh_hint="network",
                     data=result_data,
                 )
+            post_action_active_work: dict[str, Any] = {}
+            active_work_preserved = False
+            state_status = "running" if normalized_action == "start" else "stopped"
+            if normalized_action == "stop":
+                post_action_active_work = self._network_lifecycle_active_work_evidence(normalized_role)
+                active_work_preserved = int(post_action_active_work.get("active_job_count") or 0) > 0
+                if active_work_preserved:
+                    state_status = "active_work_preserved"
+
             state_after = self._network_lifecycle_state_candidate(
                 state_before,
                 role=normalized_role,
-                status="running" if normalized_action == "start" else "stopped",
+                status=state_status,
                 command_id=command_id,
                 action=normalized_action,
             )
+            if active_work_preserved:
+                state_after["stop_requested"] = True
+                state_after["active_work_preserved"] = True
+                state_after["active_work"] = post_action_active_work
             result_data = {
                 **data,
                 "schema_version": NETWORK_LIFECYCLE_RESULT_SCHEMA_VERSION,
@@ -613,12 +779,18 @@ class NetworkLifecycleFacadeMixin:
                 "state_before": state_before,
                 "state_after": state_after,
                 "cleanup_result": "ok",
+                "post_action_active_work": post_action_active_work,
+                "active_work_preserved": active_work_preserved,
             }
             result = CommandResult(
                 command=command,
                 ok=True,
-                severity="info",
-                message=f"Network {normalized_role} {normalized_action} completed.",
+                severity="warning" if active_work_preserved else "info",
+                message=(
+                    f"Network {normalized_role} stop requested; active work is preserved for done reporting."
+                    if active_work_preserved
+                    else f"Network {normalized_role} {normalized_action} completed."
+                ),
                 refresh_hint="network",
                 data=result_data,
             )

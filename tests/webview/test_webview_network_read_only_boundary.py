@@ -91,6 +91,10 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "Persisted Worker State",
             "Last Reported Worker Progress",
             "Saved Distributed Mode Settings",
+            "Coordinator policy authority",
+            "Worker-local execution ownership",
+            'id="settings-network-worker-encoder-map"',
+            'id="settings-network-honor-coordinator-policy"',
             "Open Coordinator Setup",
             "Open Worker Setup",
             "Designation",
@@ -222,6 +226,10 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             'id="network-role-setup-worker-fields"',
             'data-role-setup-source="settings-network-coordinator-port"',
             'data-role-setup-source="settings-network-worker-url"',
+            'data-role-setup-source="settings-network-worker-encoder-map"',
+            'data-role-setup-source="settings-network-honor-coordinator-policy"',
+            'id="network-role-setup-worker-encoder-map"',
+            'id="network-role-setup-honor-coordinator-policy"',
             'id="settings-network-path-map-rows"',
             'id="network-role-setup-path-map-rows"',
             'id="settings-network-path-map-test-result"',
@@ -245,6 +253,8 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "Suggested: the Windows computer name or a short role name such as BEAST-PC.",
             "Suggested: 10 to 15 seconds",
             "Suggested: {} when paths match",
+            "worker-owned hardware map from coordinator codec families",
+            "leave disabled until real-media validation",
             "Suggested: {} unless a specific worker needs tuning",
             "aria-describedby",
             "visually-hidden",
@@ -252,10 +262,14 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "function collectPathMapRowsStrict",
             "function testPathMapRow",
             "await runner({ render: false })",
+            "Local rewrite result:",
+            "Generic saved-config backend preflight",
             "Use the coordinator machine name or LAN IP",
             "aria-invalid",
         ):
             self.assertIn(expected, source)
+        self.assertNotIn("accessible yes", source)
+        self.assertNotIn("accessible no", source)
 
     def test_workers_page_setup_dialog_actions_are_mobile_safe(self) -> None:
         css = STYLES_PAGES_CSS.read_text(encoding="utf-8")
@@ -329,13 +343,17 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("function networkCoordinatorDiscoveryResultLines", source)
         self.assertIn("function renderNetworkCoordinatorDiscoveryList", source)
         self.assertIn("function stageDiscoveredCoordinatorUrl", source)
+        self.assertNotIn("Stopping may abort active worker work", source)
+        self.assertIn("stop polling/new claims", source)
+        self.assertIn("active work is preserved for done reporting", source)
         self.assertIn("desktop_network_join_blob_result.v1", source)
         self.assertIn("desktop_network_join_import_result.v1", source)
         self.assertIn("desktop_network_coordinator_discovery.v1", source)
         self.assertIn("confirm_create", source)
         self.assertIn("confirm_import", source)
         self.assertIn("navigator.clipboard.writeText", source)
-        self.assertIn("apiPost(route, {})", source)
+        self.assertIn("postNetworkRoute(route, { timeout_seconds: 2 })", source)
+        self.assertNotIn('apiPost("/api/network/worker/discover-coordinators"', source)
         self.assertNotIn("/api/network/coordinator/start-dry-run", source)
         self.assertNotIn("/api/network/worker/stop", source)
         self.assertIn("Confirmed lifecycle command was cancelled", source)
@@ -360,7 +378,10 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("Worker misconfigured code", source)
         self.assertIn("running_vs_saved", source)
         self.assertIn("function networkWorkerDriftStatusText", source)
+        self.assertIn("function networkWorkerPolicyDivergenceStatusText", source)
         self.assertIn("Running settings drift", source)
+        self.assertIn("Coordinator policy review", source)
+        self.assertIn("Policy Authority", source)
         self.assertIn("function obviousWorkerCoordinatorUrlIssue", source)
         self.assertIn("coordinator_connectivity", source)
         self.assertIn("worker_coordinator_url", source)

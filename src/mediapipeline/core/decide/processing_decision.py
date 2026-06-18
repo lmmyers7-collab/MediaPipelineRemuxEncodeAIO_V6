@@ -196,6 +196,7 @@ _LEGACY_POLICY_ALIASES: Mapping[str, str] = {
     "PreferredDefaultAudioLanguages": "preferred_default_audio_languages",
     "AudioTranscodeCodec": "audio_transcode_codec",
     "AudioMaxChannels": "audio_max_channels",
+    "AllowNoAudio": "allow_no_audio",
 }
 _REMOVED_ROUTING_FALLBACK_KEYS = frozenset(
     {

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_api_handler_policy.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: cc59b43d02002802ebfa9c9b694cf4618eb6e55770d2fe870729888167071ab0
+sha256: ee482931f3f14f524de10d181c53b2e9964089220aee28a42625ba9679db5cf2
 ---
 # `tests/python/desktop/test_api_handler_policy.py`
 

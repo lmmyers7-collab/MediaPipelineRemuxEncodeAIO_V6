@@ -3,9 +3,9 @@ file: docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-13
 last_reviewed: 2026-05-29
-sha256: 5ca580f02ea41f313b3e2ccf79007bde348062aa65de7bdd00931ee132d590a3
+sha256: f4766e2bc111d5e4190ced24095f0201e62b0901fd5a63ffc4f00bd7e0cc0235
 ---
 # `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`
 

@@ -24,6 +24,10 @@ class ApplicationFacadeProcessControlTests(unittest.TestCase):
 
             pause = facade.request_pipeline_control(resolved, "pause").to_mapping()
             rescan = facade.request_pipeline_control(resolved, "rescan").to_mapping()
+            service.kill_related_pipeline_processes = lambda _resolved: [  # type: ignore[method-assign]
+                "Force-killed related MediaPipeline process tree (PID 1234)."
+            ]
+            kill = facade.request_pipeline_control(resolved, "kill").to_mapping()
             invalid = facade.request_pipeline_control(resolved, "launch-everything").to_mapping()
             pause_payload = json.loads(resolved.pause_flag.read_text(encoding="utf-8"))  # type: ignore[union-attr]
             rescan_payload = json.loads(resolved.rescan_flag.read_text(encoding="utf-8"))  # type: ignore[union-attr]
@@ -33,6 +37,11 @@ class ApplicationFacadeProcessControlTests(unittest.TestCase):
         self.assertEqual(pause_payload["action"], "pause")
         self.assertTrue(rescan["ok"])
         self.assertEqual(rescan_payload["action"], "rescan")
+        self.assertTrue(kill["ok"])
+        self.assertEqual(kill["data"]["force_stop_scope"]["job_kinds"], ["pipeline", "audit", "rerun_csv"])
+        self.assertIn("pipeline, audit, and CSV rerun", kill["data"]["force_stop_scope"]["scope_label"])
+        self.assertEqual(kill["data"]["killed_process_tree_count"], 1)
+        self.assertIn("PID 1234", kill["data"]["kill_report"][0])
         self.assertFalse(invalid["ok"])
         self.assertIn("pause, stop, rescan, or kill", invalid["errors"][0])
 

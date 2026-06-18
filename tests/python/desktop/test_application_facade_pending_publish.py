@@ -666,3 +666,24 @@ class ApplicationFacadePendingPublishTests(unittest.TestCase):
         self.assertIn("Pending publish scan failed before recovery plan", result.message)
         self.assertTrue(result.data["dry_run_only"])
         self.assertFalse(result.data["would_mutate"])
+
+    def test_pending_publish_recovery_plan_rejects_invalid_scan_result(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyWorkflowFacadeService(root)
+
+            def invalid_scan(_resolved: ResolvedPaths) -> str:
+                return "not a scan result"
+
+            service.scan_pending_publish = invalid_scan
+            facade = MediaPipelineApplicationFacade(service)
+
+            result = facade.plan_pending_publish_recovery(resolved, {"scope": "all"})
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.command, "pending_publish.recovery_plan_dry_run")
+        self.assertEqual(result.severity, "error")
+        self.assertIn("invalid result", result.message)
+        self.assertTrue(result.data["dry_run_only"])
+        self.assertFalse(result.data["would_mutate"])

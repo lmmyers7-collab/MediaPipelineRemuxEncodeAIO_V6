@@ -428,7 +428,10 @@ class ChangeControlWorkflowStaticTests(unittest.TestCase):
         self.assertIn("mediapipeline.tools.change_control.validate_changes --require-staged-coverage", text)
 
     def test_github_workflow_includes_pr_diff_change_packet_coverage(self) -> None:
-        text = (REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml").read_text(encoding="utf-8")
+        workflow = REPO_ROOT / ".github" / "workflows" / "phase1-drift.yml"
+        if not workflow.is_file():
+            self.skipTest("GitHub workflow metadata is omitted from release packages.")
+        text = workflow.read_text(encoding="utf-8")
 
         self.assertIn("Check change packet coverage", text)
         self.assertIn('mediapipeline.tools.change_control.validate_changes --require-diff-coverage "origin/${{ github.base_ref }}"', text)
@@ -697,4 +700,3 @@ class ChangeControlToolingTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

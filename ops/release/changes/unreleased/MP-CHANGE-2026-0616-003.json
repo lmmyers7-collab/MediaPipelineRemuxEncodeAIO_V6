@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0616-003",
+  "title": "Command journal and close readiness review artifacts",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-16",
+  "date_completed": "2026-06-16",
+  "summary": "Added an evidence-backed review packet covering command journal behavior, strict JSON mutation guards, duplicate-command protection, backend close-readiness, Tauri close behavior, and Diagnostics/Command History trust.",
+  "reason": "The review was requested to identify high-severity risks around accidental mutation, unsafe close during active work, and misleading command evidence.",
+  "affected_areas": [
+    "docs/reviews",
+    "command journal review",
+    "close readiness review",
+    "change control"
+  ],
+  "behavior_before": "The focused command journal and close-readiness review artifacts did not exist in the repository.",
+  "behavior_after": "The repository contains a structured review packet with scope, code map, invariants, risk review, test coverage review, findings, remediation plan, validation plan, and final summary.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-003.json.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/00-review-scope.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/01-code-map.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/02-invariants-and-boundaries.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/03-risk-review.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/04-test-coverage-review.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/05-findings.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/06-remediation-plan.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/07-validation-plan.md",
+    "docs/reviews/command-journal-close-readiness-2026-06-16/08-final-review-summary.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0616-003.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest focused command/close-readiness suite - ran 221 tests with 1 existing failure in tests.webview.test_webview_frontend_mutation_boundary.test_api_post_calls_are_literal_documented_command_routes: networkView.js apiPost call must use a literal documented route.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0616-003.json - passed: 1 written.",
+    "apps/desktop/runtime/Python/python.exe -m json.tool ops/release/changes/unreleased/MP-CHANGE-2026-0616-003.json - passed.",
+    "rg -n \"[^\\\\x00-\\\\x7F]\" docs/reviews/command-journal-close-readiness-2026-06-16 ops/release/changes/unreleased/MP-CHANGE-2026-0616-003.json docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0616-003.json.md - passed with no matches.",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed because 18 unrelated preexisting review files under queue-launch-scope-rerun-schedule-2026-06-15 and source-scratch-output-file-handling-2026-06-16 are not listed in any unreleased change packet."
+  ],
+  "rollback_plan": "Remove the review packet directory and this unreleased change packet.",
+  "related_changes": [],
+  "notes": "Documentation-only review. No application code was changed."
+}

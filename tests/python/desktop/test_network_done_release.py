@@ -67,6 +67,38 @@ class NetworkDoneReleaseTests(unittest.TestCase):
         self.assertIn("Job job-1 failed report accepted by coordinator.", joined_logs)
         self.assertNotIn("Job job-1 reported failed.", joined_logs)
 
+    def test_worker_mark_done_honors_explicit_retryability(self) -> None:
+        posts: list[tuple[str, dict]] = []
+        worker = WorkerDispatcher.__new__(WorkerDispatcher)
+        worker._worker_id = "worker-1"
+        worker._active_job_lock = threading.Lock()
+        worker._active_job = object()
+        worker._stop_heartbeat = lambda: None
+        worker._clear_worker_state = lambda: None
+        worker._http_post = lambda post_path, data: posts.append((post_path, data)) or {}
+        worker.log_cluster_event = lambda **_kwargs: None
+        job = SimpleNamespace(
+            job_id="job-1",
+            encode_config={"__retry_on_failure": True},
+            record=SimpleNamespace(source_path=r"C:\Media\movie.mkv"),
+        )
+
+        WorkerDispatcher.mark_done(
+            worker,
+            job,
+            success=False,
+            elapsed_seconds=3.0,
+            completion_status="failed",
+            queue_terminal=False,
+            retry_on_failure=False,
+            reason_code="ENCODE_ERROR",
+            reason="child result marked retryable false",
+        )
+
+        payload = posts[0][1]
+        self.assertFalse(payload["queue_terminal"])
+        self.assertFalse(payload["retry_on_failure"])
+
     def test_worker_mark_done_post_failure_updates_operator_status(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             state_path = Path(td) / "worker_state.json"
@@ -443,51 +475,62 @@ class NetworkDoneReleaseTests(unittest.TestCase):
         self.assertEqual(statuses, ["⚠ Released unstartable claim: record build failed"])
 
     def test_worker_unstartable_claim_release_failure_updates_operator_status(self) -> None:
-        statuses: list[str] = []
-        worker = WorkerDispatcher.__new__(WorkerDispatcher)
-        worker._worker_id = "worker-1"
-        worker._status_callback = statuses.append
-        worker._http_post = lambda _post_path, _data: (_ for _ in ()).throw(RuntimeError("coordinator offline"))
-        claim = ClaimResponse(job_id="job-5", source_path=r"C:\Media\bad.mkv")
+        with tempfile.TemporaryDirectory() as td:
+            state_path = Path(td) / "worker_state.json"
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = state_path
+            worker._worker_id = "worker-1"
+            worker._status_callback = statuses.append
+            worker._http_post = lambda _post_path, _data: (_ for _ in ()).throw(RuntimeError("coordinator offline"))
+            claim = ClaimResponse(job_id="job-5", source_path=r"C:\Media\bad.mkv")
 
-        WorkerDispatcher._release_unstartable_claim(worker, claim, "record build failed")
+            WorkerDispatcher._release_unstartable_claim(worker, claim, "record build failed")
 
-        self.assertEqual(statuses, ["⚠ Could not release unstartable claim: coordinator offline"])
+            state = load_worker_state(state_path)
+
+        self.assertEqual(statuses, ["⚠ Release report queued for retry: coordinator offline"])
+        self.assertEqual(state["job_id"], "job-5")
+        self.assertTrue(state["pending_done_report"]["released"])
 
     def test_worker_unstartable_claim_release_failure_bounds_reason_text(self) -> None:
-        statuses: list[str] = []
-        worker = WorkerDispatcher.__new__(WorkerDispatcher)
-        worker._worker_id = "worker-1"
-        worker._status_callback = statuses.append
-        worker._http_post = lambda _post_path, _data: (_ for _ in ()).throw(RuntimeError("coordinator offline"))
-        claim = ClaimResponse(job_id="job-5", source_path=r"C:\Media\bad.mkv")
-        reason = "record build failed: " + ("x" * 500) + "tail-marker"
+        with tempfile.TemporaryDirectory() as td:
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = Path(td) / "worker_state.json"
+            worker._worker_id = "worker-1"
+            worker._status_callback = statuses.append
+            worker._http_post = lambda _post_path, _data: (_ for _ in ()).throw(RuntimeError("coordinator offline"))
+            claim = ClaimResponse(job_id="job-5", source_path=r"C:\Media\bad.mkv")
+            reason = "record build failed: " + ("x" * 500) + "tail-marker"
 
-        with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
-            WorkerDispatcher._release_unstartable_claim(worker, claim, reason)
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                WorkerDispatcher._release_unstartable_claim(worker, claim, reason)
 
         output = "\n".join(logs.output)
         self.assertIn("...<truncated>", output)
         self.assertNotIn("tail-marker", output)
-        self.assertEqual(statuses, ["⚠ Could not release unstartable claim: coordinator offline"])
+        self.assertEqual(statuses, ["⚠ Release report queued for retry: coordinator offline"])
 
     def test_worker_unstartable_claim_release_failure_bounds_post_error_text(self) -> None:
-        statuses: list[str] = []
-        worker = WorkerDispatcher.__new__(WorkerDispatcher)
-        worker._worker_id = "worker-1"
-        worker._status_callback = statuses.append
-        long_error = "coordinator offline " + ("x" * 500) + "tail-marker"
-        worker._http_post = lambda _post_path, _data: (_ for _ in ()).throw(RuntimeError(long_error))
-        claim = ClaimResponse(job_id="job-5", source_path=r"C:\Media\bad.mkv")
+        with tempfile.TemporaryDirectory() as td:
+            statuses: list[str] = []
+            worker = WorkerDispatcher.__new__(WorkerDispatcher)
+            worker._state_path = Path(td) / "worker_state.json"
+            worker._worker_id = "worker-1"
+            worker._status_callback = statuses.append
+            long_error = "coordinator offline " + ("x" * 500) + "tail-marker"
+            worker._http_post = lambda _post_path, _data: (_ for _ in ()).throw(RuntimeError(long_error))
+            claim = ClaimResponse(job_id="job-5", source_path=r"C:\Media\bad.mkv")
 
-        with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
-            WorkerDispatcher._release_unstartable_claim(worker, claim, "record build failed")
+            with self.assertLogs("mediapipeline.desktop.network.worker", level="WARNING") as logs:
+                WorkerDispatcher._release_unstartable_claim(worker, claim, "record build failed")
 
         output = "\n".join(logs.output)
         self.assertIn("...<truncated>", output)
         self.assertNotIn("tail-marker", output)
         self.assertEqual(len(statuses), 1)
-        self.assertIn("Could not release unstartable claim", statuses[0])
+        self.assertIn("Release report queued for retry", statuses[0])
         self.assertNotIn("tail-marker", statuses[0])
 
     def test_done_request_preserves_completion_publish_and_queue_terminal_fields(self) -> None:

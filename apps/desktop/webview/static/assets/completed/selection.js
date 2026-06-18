@@ -61,7 +61,11 @@
 
     function selectCompletedRow(item) {
       const scrollSnapshot = captureCompletedSelectionScroll();
+      const previousRowKey = ctx.state.selectedCompletedRowKey || "";
       if (item?.row_key) ctx.state.selectedCompletedRowKey = item.row_key;
+      if ((ctx.state.selectedCompletedRowKey || "") !== previousRowKey) {
+        ctx.state.selectedCompletedSignalKey = "";
+      }
       ctx.renderCompletedRows();
       renderCompletedDetail(item || getSelectedCompletedRow());
       restoreCompletedSelectionScroll(scrollSnapshot);

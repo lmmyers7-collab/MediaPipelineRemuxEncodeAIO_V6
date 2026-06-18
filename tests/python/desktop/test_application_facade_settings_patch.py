@@ -157,6 +157,37 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertEqual(service.saved_config_calls, [])
         self.assertEqual(saved_document_text, original_text)
 
+    def test_settings_patch_preview_and_save_allow_missing_defaulted_network_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            config_path.write_text("@{ RoutingProfile = 'plex_direct_stream' }\n", encoding="utf-8")
+            service = DummyFacadeService(root)
+            service.validate_config_values = lambda values: validate_config_values(
+                values,
+                normalized_path_key=_path_key,
+                path_within_root=_path_within_root,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = _valid_config_values()
+            resolved.config_data.pop("CoordinatorMaxJobRetries")
+
+            preview = facade.preview_settings_patch(
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}},
+            )
+            saved = facade.save_settings_patch(
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+            )
+
+        self.assertTrue(preview.ok, preview.errors)
+        self.assertNotIn("CoordinatorMaxJobRetries must be an integer.", "\n".join(preview.errors))
+        self.assertTrue(saved.ok, saved.errors)
+        self.assertNotIn("CoordinatorMaxJobRetries must be an integer.", "\n".join(saved.errors))
+
     def test_settings_save_patch_rejects_relative_root_without_writing(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -320,9 +351,15 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             resolved = _resolved(root)
             resolved.config_path = config_path
             resolved.config_data = {"RoutingProfile": "plex_direct_stream", "LegacyUnknownKey": "keep"}
+            preview = facade.preview_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
             saved = facade.save_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True})
             saved_document_text = config_path.read_text(encoding="utf-8")
+            self.assertTrue(preview.ok)
+            self.assertEqual(preview.data["preserved_unknown_keys"], ["LegacyUnknownKey"])
+            self.assertIn("Existing unknown config key LegacyUnknownKey is preserved but not validated.", preview.warnings)
             self.assertTrue(saved.ok)
+            self.assertEqual(saved.data["preserved_unknown_keys"], ["LegacyUnknownKey"])
+            self.assertIn("Existing unknown config key LegacyUnknownKey is preserved but not validated.", saved.warnings)
             saved_values = service.saved_config_calls[-1]["config_values"]
             self.assertEqual(saved_values["LegacyUnknownKey"], "keep")
             self.assertIn("LegacyUnknownKey = 'keep'", saved_document_text)

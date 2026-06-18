@@ -1,0 +1,34 @@
+{
+  "id": "MP-CHANGE-2026-0617-008",
+  "title": "Document full architecture audit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-17",
+  "summary": "Create a report-only full architecture audit mapping the active backend, desktop, PowerShell, UI, state, launch, shutdown, queue, worker, configuration, publish, and safety architecture from repository evidence.",
+  "reason": "The operator requested a source-backed architecture map with ranked risk findings, diagrams, ownership boundaries, data-flow evidence, and future validation guidance.",
+  "affected_areas": [
+    "docs",
+    "architecture audit",
+    "change control"
+  ],
+  "behavior_before": "No 2026-06-17 full architecture audit existed under docs/ai-audits for the promoted workspace.",
+  "behavior_after": "A docs-only audit report records the current architecture, lifecycle maps, diagrams, risks, limitations, and remediation roadmap without changing runtime behavior.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-full-architecture-audit.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-008.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-008.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "2026-06-17 static report-only audit completed: read AGENTS.md, docs/CURRENT_PROJECT_STATE.md, docs/OPEN_WORK_CHECKLIST.md, docs/generated/PROJECT_INDEX.md, generated summaries where available, then inspected active architecture docs, route inventories, launchers, Local API, Tauri lifecycle, WebView assets, queue, worker, config, publish, pending publish, state, and external tool surfaces.",
+    "2026-06-17 .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths docs/ai-audits/2026-06-17-full-architecture-audit.md ops/release/changes/unreleased/MP-CHANGE-2026-0617-008.json - passed: Summaries: 1 written, 0 unchanged. Source files: 1.",
+    "2026-06-17 report structure checks passed: report exists, packet exists, Mermaid diagram count is 10, and no non-ASCII characters were found in the new report or packet.",
+    "2026-06-17 .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed: Change validation passed: 349 packet(s) valid."
+  ],
+  "rollback_plan": "Delete docs/ai-audits/2026-06-17-full-architecture-audit.md and ops/release/changes/unreleased/MP-CHANGE-2026-0617-008.json.",
+  "related_changes": [],
+  "notes": "Report-only audit. No source behavior, media policy, FFmpeg command generation, subtitle conversion, audio routing, queue state, pending-publish behavior, source/scratch/output movement, Local API route behavior, WebView controls, Tauri lifecycle behavior, scripts, generated contracts, schemas, tests, launchers, operator workflows, or configs are intentionally changed."
+}

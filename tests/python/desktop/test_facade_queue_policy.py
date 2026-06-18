@@ -337,14 +337,18 @@ class QueueFacadePolicyTests(unittest.TestCase):
             source.write_bytes(b"media")
 
             with self.assertRaises(ValueError):
-                clear_file_override_fields(root / "State" / "file_overrides.json", source, ["audio.renameTracks"])
+                clear_file_override_fields(root / "State" / "file_overrides.json", source, ["audio.unknownField"])
 
     def test_validate_file_override_payload_enforces_current_drawer_fields(self) -> None:
         valid = {
             "audio": {
                 "keepTracks": [{"language": "eng"}],
                 "dropTracks": [{"language": "jpn"}],
+                "renameTracks": [{"language": "eng", "channels": 6, "newTitle": "English 5.1"}],
                 "maxChannels": 6,
+                "downmixMode": "max_channels",
+                "transcodeCodec": "eac3",
+                "transcodeBitrate": "640k",
                 "preferDefaultLanguage": "eng",
             },
             "subtitles": {
@@ -375,7 +379,7 @@ class QueueFacadePolicyTests(unittest.TestCase):
 
         invalid_cases = [
             ({"route": "encode"}, "Unsupported override field(s): route"),
-            ({"audio": {"renameTracks": []}}, "Unsupported audio field(s): renameTracks"),
+            ({"audio": {"loudnessMode": "night"}}, "Unsupported audio field(s): loudnessMode"),
             ({"subtitles": {"correctLanguageTags": {"und": "eng"}}}, "Unsupported subtitles field(s): correctLanguageTags"),
             ({"audio": {"keepTracks": ["eng"]}}, "'audio.keepTracks[0]' must be an object"),
             ({"audio": {"dropTracks": [{"language": 5}]}}, "'audio.dropTracks[0].language' must be a string"),
@@ -396,8 +400,12 @@ class QueueFacadePolicyTests(unittest.TestCase):
             ({"audio": {"maxChannels": 0}}, "'audio.maxChannels' must be one of: 2, 6, 8"),
             ({"audio": {"preferDefaultLanguage": 5}}, "'audio.preferDefaultLanguage' must be a string"),
             ({"audio": {"preferDefaultLanguage": ""}}, "'audio.preferDefaultLanguage' must not be empty"),
-            ({"audio": {"downmixMode": "invalid"}}, "Unsupported audio field(s): downmixMode"),
-            ({"audio": {"transcodeBitrate": "not-a-bitrate"}}, "Unsupported audio field(s): transcodeBitrate"),
+            ({"audio": {"renameTracks": []}}, "'audio.renameTracks' must contain at least one audio rename rule"),
+            ({"audio": {"renameTracks": [{"streamIndex": 1, "newTitle": "English"}]}}, "Unsupported audio.renameTracks[0] field(s): streamIndex"),
+            ({"audio": {"renameTracks": [{"language": "eng"}]}}, "'audio.renameTracks[0].newTitle' is required"),
+            ({"audio": {"downmixMode": "invalid"}}, "'audio.downmixMode' must be one of:"),
+            ({"audio": {"transcodeCodec": "flac"}}, "'audio.transcodeCodec' must be one of:"),
+            ({"audio": {"transcodeBitrate": "not-a-bitrate"}}, "'audio.transcodeBitrate' must match"),
             ({"subtitles": {"stripAll": "true"}}, "'subtitles.stripAll' must be a boolean"),
         ]
         for payload, expected in invalid_cases:

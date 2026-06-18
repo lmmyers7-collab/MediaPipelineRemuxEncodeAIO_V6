@@ -1,0 +1,31 @@
+{
+  "id": "MP-CHANGE-2026-0615-005",
+  "title": "Add W06 network worker claims state crash recovery review",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-15",
+  "date_completed": "2026-06-15",
+  "summary": "Add the W06 review-only worker audit for network worker claims, state, pending done reports, and crash recovery.",
+  "reason": "The operator requested a focused W06 Markdown review file under the 2026-06-15 network coordinator/worker audit prompt pack.",
+  "affected_areas": [
+    "docs",
+    "network"
+  ],
+  "behavior_before": "The W06 worker review output file did not exist.",
+  "behavior_after": "The W06 worker review output documents scope, required reads, coverage, findings, test gaps, boundary risks, incomplete coverage, and follow-up prompts.",
+  "files_touched": [
+    "docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W06-worker-claims-state-crash-recovery.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0615-005.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Required W06 reads, generated summaries, assigned source/test inspection, and contextual limited reads completed - review evidence recorded",
+    "Temp-only bundled-Python in-memory malformed claim probe confirmed empty ok claim builds record source_path '.'",
+    "W06 worker Markdown required-heading check passed"
+  ],
+  "rollback_plan": "Remove docs/reviews/network-coordinator-worker-mode-2026-06-15/workers/W06-worker-claims-state-crash-recovery.md and this change packet.",
+  "related_changes": [],
+  "notes": "Review-only W06 worker output. No source, state, settings, queue, media, generated summaries, or aggregate review files changed.\nGenerated summaries were not refreshed because this review-only worker prompt forbids changing generated summaries.\nReview-only packet complete. No generated summaries refreshed because the prompt forbids generated-summary edits."
+}

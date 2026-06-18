@@ -71,6 +71,7 @@ function Get-NamingRenameMovieFilterCategoryNames {
         'editions',
         'file_size',
         'services_containers',
+        'languages_subs_dubs',
         'release_groups'
     )
 }
@@ -105,6 +106,11 @@ function Get-NamingRenameMovieFilterDefaultTerms {
         )
         services_containers = @(
             'amzn','nf','dsnp','hmax','hulu','itunes','appletv','atvp','peacock','pck','vudu','stan','sho','mkv','mp4','m4v','avi','mov','wmv'
+        )
+        languages_subs_dubs = @(
+            'eng','ita','fre','fra','ger','deu','spa','esp','jpn','jap','kor','chi','zho','rus','por','dut','nld','swe','dan','nor',
+            'fin','pol','cze','ces','hun','gre','ell','tur','ara','hin','tha','vie','ukr','sub','subs','subbed','dub','dubs',
+            'dubbed','multi','multi audio','dual audio','dual-audio','vostfr','vose'
         )
         release_groups = @(
             'rarbg','rbg','yify','yts','yts lt','galaxyrg','bone','psa','tigole','kris','sparks','ntb','evo','tepes','flux','framestor','cmrg','neonoir'
@@ -310,6 +316,9 @@ function Get-CleanMovieName {
         $title = $title -replace '\b(?:amzn|nf|dsnp|hmax|hulu|itunes|appletv|mkv|mp4|m4v)\b', ' '
         $title = Remove-NamingMovieFilterTerms -Text $title -Terms (Get-NamingRenameMovieFilterTermsForCategory -Category 'services_containers')
     }
+    if (Test-NamingRenameMovieFilterCategoryEnabled -Options $filterOptions -Category 'languages_subs_dubs') {
+        $title = Remove-NamingMovieFilterTerms -Text $title -Terms (Get-NamingRenameMovieFilterTermsForCategory -Category 'languages_subs_dubs')
+    }
     $title = Remove-NamingMovieFilterTerms -Text $title -Terms (Get-NamingRenameMovieRemoveTerms)
 
     if (Test-NamingRenameMovieFilterCategoryEnabled -Options $filterOptions -Category 'release_groups') {
@@ -355,4 +364,3 @@ function Get-CleanMovieName {
     if ($year) { return "$title ($year)" }
     return $title
 }
-

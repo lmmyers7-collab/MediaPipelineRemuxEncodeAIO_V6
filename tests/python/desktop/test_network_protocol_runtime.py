@@ -127,6 +127,22 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "eta_seconds must be >= 0"):
             HeartbeatRequest.from_dict({"eta_seconds": -1})
 
+    def test_done_request_rejects_coerced_integer_fields(self) -> None:
+        self.assertEqual(DoneRequest.from_dict({}).output_size_bytes, 0)
+        self.assertEqual(DoneRequest.from_dict({"output_size_bytes": 7}).output_size_bytes, 7)
+        for bad_value in ("7", 1.5, True, False, None):
+            with self.subTest(output_size_bytes=bad_value):
+                with self.assertRaisesRegex(ValueError, "output_size_bytes must be an integer"):
+                    DoneRequest.from_dict({"output_size_bytes": bad_value})
+
+    def test_heartbeat_request_rejects_coerced_integer_fields(self) -> None:
+        self.assertEqual(HeartbeatRequest.from_dict({}).eta_seconds, 0)
+        self.assertEqual(HeartbeatRequest.from_dict({"eta_seconds": 7}).eta_seconds, 7)
+        for bad_value in ("7", 1.5, True, False, None):
+            with self.subTest(eta_seconds=bad_value):
+                with self.assertRaisesRegex(ValueError, "eta_seconds must be an integer"):
+                    HeartbeatRequest.from_dict({"eta_seconds": bad_value})
+
     def test_done_request_rejects_coerced_boolean_flags(self) -> None:
         defaults = DoneRequest.from_dict({})
         self.assertFalse(defaults.success)
@@ -152,6 +168,36 @@ class NetworkProtocolRuntimeTests(unittest.TestCase):
                 with self.subTest(field_name=field_name, bad_value=bad_value):
                     with self.assertRaisesRegex(ValueError, f"{field_name} must be a boolean"):
                         DoneRequest.from_dict({field_name: bad_value})
+
+    def test_claim_response_rejects_coerced_booleans_and_integer_fields(self) -> None:
+        defaults = ClaimResponse.from_dict({})
+        self.assertFalse(defaults.priority)
+        self.assertTrue(defaults.retry_on_failure)
+        self.assertEqual(defaults.retry_after_seconds, 0)
+
+        valid = ClaimResponse.from_dict(
+            {
+                "priority": True,
+                "retry_on_failure": False,
+                "retry_after_seconds": 7,
+            }
+        )
+        self.assertTrue(valid.priority)
+        self.assertFalse(valid.retry_on_failure)
+        self.assertEqual(valid.retry_after_seconds, 7)
+
+        for field_name in ("priority", "retry_on_failure"):
+            for bad_value in ("false", "true", 0, 1, None, {}, []):
+                with self.subTest(field_name=field_name, bad_value=bad_value):
+                    with self.assertRaisesRegex(ValueError, f"{field_name} must be a boolean"):
+                        ClaimResponse.from_dict({field_name: bad_value})
+
+        for bad_value in ("7", 1.5, True, False, None):
+            with self.subTest(retry_after_seconds=bad_value):
+                with self.assertRaisesRegex(ValueError, "retry_after_seconds must be an integer"):
+                    ClaimResponse.from_dict({"retry_after_seconds": bad_value})
+        with self.assertRaisesRegex(ValueError, "retry_after_seconds must be >= 0"):
+            ClaimResponse.from_dict({"retry_after_seconds": -1})
 
     def test_inflight_registry_heartbeat_clamps_progress_percent(self) -> None:
         registry = InFlightRegistry()

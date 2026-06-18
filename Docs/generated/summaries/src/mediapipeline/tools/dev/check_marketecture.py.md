@@ -3,9 +3,9 @@ file: src/mediapipeline/tools/dev/check_marketecture.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-12
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 785ad836b3f226c1c10b22a5cf426cbd33f4fe9c21662f4ec4e94d6464ae65e3
+sha256: e159f620e76d025d034e2e4fa72617b7a3bf4b720f850ac227206dfb37b9cfc4
 ---
 # `src/mediapipeline/tools/dev/check_marketecture.py`
 

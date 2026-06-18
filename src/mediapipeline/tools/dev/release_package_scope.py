@@ -15,6 +15,12 @@ import json
 from pathlib import Path
 
 
+def _append_unique(prefixes: list[str], *values: str) -> None:
+    for value in values:
+        if value not in prefixes:
+            prefixes.append(value)
+
+
 def release_excluded_prefixes(repo_root: Path) -> tuple[str, ...]:
     """Return repo-relative path prefixes a shipped release package omitted.
 
@@ -33,9 +39,51 @@ def release_excluded_prefixes(repo_root: Path) -> tuple[str, ...]:
     if not isinstance(summary, dict):
         return ()
     prefixes: list[str] = []
+    _append_unique(
+        prefixes,
+        ".git/",
+        ".github/",
+        ".codex/",
+        ".codex-plugin/",
+        "CodexVerification/",
+        "LocalBase/",
+        "RunLogs/",
+        "artifacts/",
+        "node_modules/",
+        "apps/desktop/runlogs/",
+        "apps/desktop/tauri/node_modules/",
+        "apps/desktop/tauri/src-tauri/gen/",
+        "apps/desktop/tauri/src-tauri/target/",
+        "docs/PG3CleanMachineReports/",
+        "docs/reviews/",
+        "docs/archive/root-artifacts/",
+        "ops/pipeline/config/backups/",
+    )
     if summary.get("tests_included") is False:
         # Mirrors the test-suite exclusion in ops/scripts/release/release_policy.ps1.
-        prefixes.extend(("tests/", "ops/pipeline/tests/"))
+        _append_unique(prefixes, "tests/", "ops/pipeline/tests/")
+    if summary.get("dev_docs_included") is False:
+        _append_unique(prefixes, "docs/archive/docs-housekeeping/")
+    if summary.get("optional_tools_included") is False:
+        _append_unique(
+            prefixes,
+            "ops/pipeline/tools/ffmpeg/bin/ffplay.exe",
+            "ops/pipeline/tools/MKVToolNix/mkvtoolnix-gui.exe",
+            "ops/pipeline/tools/MKVToolNix/mkvextract.exe",
+            "ops/pipeline/tools/MKVToolNix/mkvinfo.exe",
+            "ops/pipeline/tools/MKVToolNix/mkvpropedit.exe",
+            "ops/pipeline/tools/MKVToolNix/uninst.exe",
+            "ops/pipeline/tools/MKVToolNix/MKVToolNix.url",
+            "ops/pipeline/tools/MKVToolNix/tools/",
+            "ops/pipeline/tools/MKVToolNix/data/",
+            "ops/pipeline/tools/MKVToolNix/locale/libqt/",
+        )
+    if summary.get("tool_docs_included") is False:
+        _append_unique(
+            prefixes,
+            "ops/pipeline/tools/MKVToolNix/doc/",
+            "ops/pipeline/tools/MKVToolNix/examples/",
+        )
     return tuple(prefixes)
 
 

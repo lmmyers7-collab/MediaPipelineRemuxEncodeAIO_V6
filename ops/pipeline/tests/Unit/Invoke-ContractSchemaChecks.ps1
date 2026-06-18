@@ -68,6 +68,28 @@ foreach ($schemaName in $expectedSchemas) {
     Assert-True (-not [string]::IsNullOrWhiteSpace([string]$schema.'$id')) "Schema id missing for $schemaName."
 }
 
+$completedSchema = Get-Content -LiteralPath (Join-Path $schemasRoot 'media_pipeline_completed_job.schema.json') -Raw | ConvertFrom-Json -ErrorAction Stop
+$pendingSchema = Get-Content -LiteralPath (Join-Path $schemasRoot 'media_pipeline_pending_push_manifest.schema.json') -Raw | ConvertFrom-Json -ErrorAction Stop
+$subtitleEvidenceFields = @(
+    'tx3g_srt_tracks',
+    'tx3g_srt_failures',
+    'bdpgs_srt_failures',
+    'vobsub_srt_failures',
+    'converted_srt_sidecar_candidates',
+    'subtitle_output_reduction',
+    'tx3g_embedded_srt_tracks',
+    'bdpgs_embedded_srt_tracks',
+    'vobsub_embedded_srt_tracks'
+)
+foreach ($field in $subtitleEvidenceFields) {
+    $completedProperty = $completedSchema.properties.PSObject.Properties[$field]
+    Assert-True ($null -ne $completedProperty) "Completed-job schema missing subtitle evidence field: $field"
+    Assert-Equal $completedProperty.Value.type 'array' "Completed-job subtitle evidence field should be an array: $field"
+    $pendingProperty = $pendingSchema.properties.PSObject.Properties[$field]
+    Assert-True ($null -ne $pendingProperty) "Pending manifest schema missing subtitle evidence field: $field"
+    Assert-Equal $pendingProperty.Value.type 'array' "Pending manifest subtitle evidence field should be an array: $field"
+}
+
 $event = Convert-RoundTripJson ([ordered]@{
     schema_version = 'pipeline_event.v1'
     event_id       = 'event-test'
@@ -160,6 +182,8 @@ $pendingManifest = Convert-RoundTripJson ([ordered]@{
     tx3g_srt_failures      = @()
     bdpgs_srt_failures     = @()
     vobsub_srt_failures    = @([ordered]@{ reason = 'ocr unavailable' })
+    converted_srt_sidecar_candidates = @([ordered]@{ source_subtitle_kind = 'ass'; selected = $true })
+    subtitle_output_reduction = @([ordered]@{ source_subtitle_kind = 'tx3g'; selected = $false; reduction_reason = 'mp4_compatibility_selected_single_external_srt_sidecar' })
     tx3g_embedded_srt_tracks = @([ordered]@{ language = 'eng' })
     bdpgs_embedded_srt_tracks = @()
     vobsub_embedded_srt_tracks = @([ordered]@{ language = 'eng' })
@@ -170,6 +194,8 @@ Assert-Equal $pendingManifest.schema_version 'pending_push_manifest.v1' 'Pending
 Assert-Equal $pendingManifest.manifest_state 'parked' 'Pending manifest state mismatch.'
 Assert-Equal $pendingManifest.media_type 'movie' 'Pending manifest media_type mismatch.'
 Assert-Equal @($pendingManifest.vobsub_srt_failures).Count 1 'Pending manifest VobSub failure evidence did not round-trip.'
+Assert-Equal @($pendingManifest.converted_srt_sidecar_candidates).Count 1 'Pending manifest MP4 subtitle candidate evidence did not round-trip.'
+Assert-Equal @($pendingManifest.subtitle_output_reduction).Count 1 'Pending manifest MP4 subtitle reduction evidence did not round-trip.'
 Assert-True ([bool]$pendingManifest.vobsub_srt_conversion_enabled) 'Pending manifest VobSub conversion flag did not round-trip.'
 
 $completedJob = Convert-RoundTripJson ([ordered]@{
@@ -181,8 +207,20 @@ $completedJob = Convert-RoundTripJson ([ordered]@{
     route            = 'encode'
     output_file      = 'Movie.mkv'
     output_path      = '\\server\Movies\Movie.mkv'
+    tx3g_srt_tracks  = @([ordered]@{ language = 'eng' })
+    tx3g_srt_failures = @()
+    bdpgs_srt_failures = @()
+    vobsub_srt_failures = @([ordered]@{ reason = 'ocr unavailable' })
+    converted_srt_sidecar_candidates = @([ordered]@{ source_subtitle_kind = 'ass'; selected = $true })
+    subtitle_output_reduction = @([ordered]@{ source_subtitle_kind = 'tx3g'; selected = $false })
+    tx3g_embedded_srt_tracks = @([ordered]@{ language = 'eng' })
+    bdpgs_embedded_srt_tracks = @()
+    vobsub_embedded_srt_tracks = @([ordered]@{ language = 'eng' })
 })
 Assert-Equal $completedJob.schema_version 'pipeline_sidecar.v1' 'Completed manifest compatibility schema mismatch.'
+Assert-Equal @($completedJob.vobsub_srt_failures).Count 1 'Completed manifest VobSub failure evidence did not round-trip.'
+Assert-Equal @($completedJob.vobsub_embedded_srt_tracks).Count 1 'Completed manifest VobSub embedded evidence did not round-trip.'
+Assert-Equal @($completedJob.subtitle_output_reduction).Count 1 'Completed manifest MP4 reduction evidence did not round-trip.'
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_result.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_partial.ps1')

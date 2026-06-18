@@ -84,6 +84,7 @@ BUILTIN_EXCLUDE_GLOBS: tuple[str, ...] = (
     "**/__pycache__/**",
     "**/.pytest_cache/**",
     "**/Runtime/**",
+    "**/runtime/**",
     "**/target/**",
     "docs/archive/**",
     "LocalBase/**",
