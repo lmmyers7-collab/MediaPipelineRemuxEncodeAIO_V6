@@ -45,16 +45,20 @@ def _browser_queue_file_overrides_runner_source() -> str:
         function queueFileOverridesScript() {
           return `
           (async () => {
-            const originalApiGet = window.apiGet;
-            const originalApiPost = window.apiPost;
-            const originalConfirm = window.confirm;
-            const previousRefreshAllForQueueOverrideSmoke = window.refreshAll;
-            const posts = [];
-            const confirms = [];
-            const sourcePath = "C:/Smoke/Example Show/Season 01/Queue Drawer Sample S01E01.mkv";
-            let savedEntry = null;
-            let failNextOverridePost = false;
-            const confirmResponses = [false, true, true];
+    const originalApiGet = window.apiGet;
+    const originalApiPost = window.apiPost;
+    const originalConfirm = window.confirm;
+    const originalSelectedPriorityRows = window.getSelectedQueuePriorityRows;
+    const previousRefreshAllForQueueOverrideSmoke = window.refreshAll;
+    const posts = [];
+    const confirms = [];
+    const sourcePath = "C:/Smoke/Example Show/Season 01/Queue Drawer Sample S01E01.mkv";
+    const row2Path = "C:/Smoke/Example Show/Season 01/Queue Drawer Sample S01E02.mkv";
+    const row3Path = "C:/Smoke/Example Show/Season 01/Queue Drawer Sample S01E03.mkv";
+    let savedEntry = null;
+    let failNextOverridePost = false;
+    let failNextRemuxPromotion = true;
+    const confirmResponses = [false, true, true];
             window.__queueOverrideMarkerCalls = [];
 
             function clone(value) {
@@ -331,6 +335,54 @@ def _browser_queue_file_overrides_runner_source() -> str:
                   batch: { batch_id: "series-smoke" },
                 };
               }
+              if (rawPath === "/api/queue/file-overrides/remux-pilot-promote") {
+                require(payload.confirm_apply === true, "remux pilot promote did not include confirm_apply=true");
+                require(Array.isArray(payload.pilot_source_paths), "remux pilot promote missing pilot_source_paths");
+                require(payload.pilot_source_paths.length === 3, "remux pilot promote should submit exactly three paths: " + JSON.stringify(payload));
+                if (failNextRemuxPromotion) {
+                  failNextRemuxPromotion = false;
+                  return {
+                    ok: false,
+                    command: "queue.file_overrides.remux_pilot_promote",
+                    data_schema: "queue_remux_pilot_promotion.v1",
+                    message: "Remux pilot promotion is blocked by pilot evidence.",
+                    pilot_evidence: payload.pilot_source_paths.slice(0, 2).map((path) => ({
+                      source_path: path,
+                      final_route: "remux",
+                      route_reason_code: "oversized_encode_remux_fallback",
+                      fallback_remux_triggered: true,
+                    })),
+                    detected_series: { show_name: "Example Show", show_root: "C:/Smoke/Example Show" },
+                    counts: {},
+                    blockers: [{ code: "blocked", message: "Pilot source lacks structured fallback-remux size-policy evidence." }],
+                    errors: ["Pilot source lacks structured fallback-remux size-policy evidence."],
+                  };
+                }
+                return {
+                  ok: true,
+                  command: "queue.file_overrides.remux_pilot_promote",
+                  data_schema: "queue_remux_pilot_promotion.v1",
+                  message: "Remux fallback pilot promotion applied to 2 current queue rows; 1 manual row protected.",
+                  pilot_evidence: payload.pilot_source_paths.map((path) => ({
+                    source_path: path,
+                    final_route: "remux",
+                    route_reason_code: "oversized_encode_remux_fallback",
+                    fallback_remux_triggered: true,
+                  })),
+                  detected_series: { show_name: "Example Show", show_root: "C:/Smoke/Example Show" },
+                  counts: {
+                    total_rows: 3,
+                    will_update: 1,
+                    replace_prior_batch: 1,
+                    protected_manual: 1,
+                    skipped: 0,
+                    issue: 0,
+                    eligible_update_count: 2,
+                  },
+                  written_batch_metadata: { batch_id: "remux-pilot-smoke", origin: "remux_pilot_promotion" },
+                  blockers: [],
+                };
+              }
               return originalApiPost(path, body, options);
             };
             window.confirm = (message) => {
@@ -341,12 +393,12 @@ def _browser_queue_file_overrides_runner_source() -> str:
             function fixtureQueuePayload() {
               return {
                 ok: true,
-                count: 1,
+                count: 3,
                 rows: [{
                   row_key: "queue-drawer-sample",
                   global_order: 1,
                   queue_index: 1,
-                  queue_total: 1,
+                  queue_total: 3,
                   media_type: "tv",
                   media_kind: "tv",
                   display_name: "Queue Drawer Sample S01E01.mkv",
@@ -356,6 +408,46 @@ def _browser_queue_file_overrides_runner_source() -> str:
                   root_path: "C:/Smoke",
                   season_number: 1,
                   episode_number: 1,
+                  route_name: "remux",
+                  route_reason: "drawer smoke fixture",
+                  operator_status: "ready for launch",
+                  operator_trust_state: "ready",
+                  proof_summary: ["drawer smoke row"],
+                  has_file_override: false,
+                }, {
+                  row_key: "queue-drawer-sample-2",
+                  global_order: 2,
+                  queue_index: 2,
+                  queue_total: 3,
+                  media_type: "tv",
+                  media_kind: "tv",
+                  display_name: "Queue Drawer Sample S01E02.mkv",
+                  relative_path: "Example Show/Season 01/Queue Drawer Sample S01E02.mkv",
+                  source_path: row2Path,
+                  source_root: "C:/Smoke",
+                  root_path: "C:/Smoke",
+                  season_number: 1,
+                  episode_number: 2,
+                  route_name: "remux",
+                  route_reason: "drawer smoke fixture",
+                  operator_status: "ready for launch",
+                  operator_trust_state: "ready",
+                  proof_summary: ["drawer smoke row"],
+                  has_file_override: false,
+                }, {
+                  row_key: "queue-drawer-sample-3",
+                  global_order: 3,
+                  queue_index: 3,
+                  queue_total: 3,
+                  media_type: "tv",
+                  media_kind: "tv",
+                  display_name: "Queue Drawer Sample S01E03.mkv",
+                  relative_path: "Example Show/Season 01/Queue Drawer Sample S01E03.mkv",
+                  source_path: row3Path,
+                  source_root: "C:/Smoke",
+                  root_path: "C:/Smoke",
+                  season_number: 1,
+                  episode_number: 3,
                   route_name: "remux",
                   route_reason: "drawer smoke fixture",
                   operator_status: "ready for launch",
@@ -390,12 +482,34 @@ def _browser_queue_file_overrides_runner_source() -> str:
             };
 
             renderFixtureQueue();
+            require(byId("fo-remux-pilot-promote").hidden, "Remux pilot promotion button should start hidden without selected pilot paths.");
+            window.getSelectedQueuePriorityRows = () => [
+              { source_path: sourcePath },
+              { source_path: row2Path },
+              { source_path: row3Path },
+            ];
+            require(window.getSelectedQueuePriorityRows().length === 3, "Expected three selected pilot rows.");
             const openButton = document.querySelector(".fo-open-btn");
             require(openButton, "missing Queue file settings button");
             require(overrideChipState() === "none", "Override chip should start inactive.");
             require(overrideChipText() === "", "Inactive override chip should not show marker text.");
             openButton.click();
             await waitFor(() => !drawerHidden() && text("fo-drawer-status").includes("No override set"), "drawer empty override load");
+            await waitFor(() => !byId("fo-remux-pilot-promote").hidden && !byId("fo-remux-pilot-promote").disabled, "remux pilot promote button ready");
+            byId("fo-remux-pilot-promote").click();
+            await waitFor(() => text("fo-remux-pilot-proof").includes("Promotion blocked"), "remux pilot promotion gate failure proof");
+            requireText("fo-remux-pilot-proof", ["Promotion blocked", "Pilot source lacks structured fallback-remux size-policy evidence."]);
+            require(statusTone() === "error", "Remux pilot gate failure should use error tone, got " + statusTone());
+            byId("fo-remux-pilot-promote").click();
+            await waitFor(() => text("fo-remux-pilot-proof").includes("Updated: 2"), "remux pilot promotion proof");
+            await waitFor(() => text("fo-drawer-status").includes("Remux fallback pilot promotion applied"), "remux pilot promotion completion status");
+            requireText("fo-remux-pilot-proof", ["Promotion ready", "Pilots: 3", "Show: Example Show", "Protected: 1"]);
+            const remuxPilotPosts = posts.filter((entry) => entry.path === "/api/queue/file-overrides/remux-pilot-promote");
+            require(remuxPilotPosts.length === 2, "Remux pilot promotion should post once for gate failure and once for success: " + JSON.stringify(remuxPilotPosts));
+            require(remuxPilotPosts[0].body.pilot_source_paths.length === 3, "Remux pilot promotion should submit selected pilot paths.");
+            const forbiddenPrefixes = ["/api/rename", "/api/pending-publish", "/api/settings"];
+            const forbiddenPromotionPosts = posts.filter((entry) => forbiddenPrefixes.some((prefix) => String(entry.path || "").startsWith(prefix)));
+            require(forbiddenPromotionPosts.length === 0, "Remux pilot promotion should not call unrelated mutation routes: " + JSON.stringify(forbiddenPromotionPosts));
             require(!byId("fo-route-risk-confirm"), "Old route-impact confirmation checkbox should not render.");
             require(saveDisabled(), "Save should be disabled while the empty loaded form is clean.");
 
@@ -410,11 +524,20 @@ def _browser_queue_file_overrides_runner_source() -> str:
             require(statusTone() === "success", "Save status should use success tone, got " + statusTone());
             require(statusRole() === "status", "Save status should use status role, got " + statusRole());
 
-            setControlValue("fo-audio-max-channels", "");
-            await waitFor(() => !saveDisabled() && text("fo-drawer-status").includes("Unsaved changes"), "dirty state after neutral max channels");
-            require(statusTone() === "warning", "Dirty status should use warning tone, got " + statusTone());
+            const maxChannelsUseSavedButton = document.querySelector('[data-fo-use-inherited="audioMaxChannels"]');
+            require(maxChannelsUseSavedButton && !maxChannelsUseSavedButton.hidden, "Use saved policy button for audio max channels should be visible after file override save.");
+            const postsBeforeSavedPolicyStage = posts.length;
+            maxChannelsUseSavedButton.click();
+            require(posts.length === postsBeforeSavedPolicyStage, "Use saved policy should stage locally and not post immediately: " + JSON.stringify(posts));
+            await waitFor(() => !saveDisabled() && text("fo-drawer-status").includes("Saved policy staged locally"), "dirty state after staged saved policy clear");
+            require(statusTone() === "warning", "Staged saved policy status should use warning tone, got " + statusTone());
+            require(byId("fo-audio-max-channels").value === "", "Use saved policy should clear audio max channels locally before save.");
+            require(maxChannelsUseSavedButton.dataset.stagedClear === "true", "Use saved policy button should show staged clear state.");
+            require(maxChannelsUseSavedButton.disabled, "Use saved policy button should disable while its clear is staged.");
             byId("fo-drawer-save").click();
             await waitFor(() => text("fo-drawer-status").includes("Override saved."), "save status after clear_fields");
+            await waitFor(() => maxChannelsUseSavedButton.dataset.stagedClear !== "true", "staged saved policy marker cleared after save");
+            require(maxChannelsUseSavedButton.hidden, "Use saved policy button should hide after its field is cleared and effective settings reload.");
             await waitFor(() => overrideChipState() === "active", "visible override marker remains after partial clear");
             require(saveDisabled(), "Save should be disabled again after successful save.");
             require(statusTone() === "success", "Save status should use success tone, got " + statusTone());
@@ -487,6 +610,7 @@ def _browser_queue_file_overrides_runner_source() -> str:
             window.apiGet = originalApiGet;
             window.apiPost = originalApiPost;
             window.confirm = originalConfirm;
+            window.getSelectedQueuePriorityRows = originalSelectedPriorityRows;
             window.refreshAll = previousRefreshAllForQueueOverrideSmoke;
             return {
               ok: true,

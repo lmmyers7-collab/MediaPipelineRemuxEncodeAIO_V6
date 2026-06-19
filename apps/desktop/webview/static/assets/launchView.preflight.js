@@ -5,7 +5,6 @@
       appendCells = function () {},
       byId = function () { return null; },
       clearRows = function () {},
-      collectAuditStartRequest = function () { return {}; },
       collectPipelineStartRequest = function () { return {}; },
       collectRerunStartRequest = function () { return {}; },
       commandHistoryCompactEvidenceLine = null,
@@ -33,6 +32,7 @@
       launchSettingsRiskLines = function () { return []; },
       launchSettingsTrustStatus = function () { return "Unknown"; },
       launchSettingsWorkspace = function () { return {}; },
+      launchPreflightRequestMatches = function () { return false; },
       launchStartDecisionPostureFromStatus = function () { return "unknown"; },
       launchStartDecisionRank = function () { return 0; },
       launchStartDecisionRowStatus = function () { return "unknown"; },
@@ -42,7 +42,6 @@
       pipelineModeLabel = function (mode) { return mode || "Pipeline"; },
       queueLaunchDecisionRows = function () { return []; },
       queueLaunchDecisionStatus = function () { return "Evidence incomplete"; },
-      renderAuditProgressInto = null,
       renderLaunchPolicyBoundary = function () {},
       renderLaunchRealMediaProofHandoff = function () {},
       renderLaunchScopeReconciliation = function () {},
@@ -192,7 +191,7 @@
       [
         `Launch-intent rows: ${settingsStatus.intentRows.length}`,
         `Active policy rows: ${settingsStatus.policyRows.length}`,
-        "Staged Settings changes are not launch-active until backend Preview/Save and refresh complete.",
+        "Staged Settings changes are not launch-active until Save Settings and refresh complete.",
         "Boundary: this row cannot save settings or change media policy.",
       ],
     );
@@ -414,9 +413,76 @@
   function launchBackendPreflightTargetLabel(target) {
     const normalized = String(target || "").toLowerCase();
     if (normalized === "pipeline") return "Pipeline";
-    if (normalized === "audit") return "Audit";
     if (normalized === "rerun" || normalized === "csv") return "CSV Rerun";
     return target || "Launch";
+  }
+
+  function launchBackendPreflightRequestSignature(target, request = {}) {
+    const normalizedTarget = String(target || "").toLowerCase();
+    const normalizedRequest = {};
+    Object.keys(request || {}).sort().forEach((key) => {
+      const value = request[key];
+      if (value === undefined || value === null) return;
+      normalizedRequest[key] = String(value);
+    });
+    return JSON.stringify({ target: normalizedTarget, request: normalizedRequest });
+  }
+
+  function launchBackendPreflightRequestSetSignature(requests = launchBackendPreflightRequests()) {
+    return (Array.isArray(requests) ? requests : [])
+      .map((item) => launchBackendPreflightRequestSignature(item.target, item.request || {}))
+      .join("|");
+  }
+
+  function launchBackendPreflightRequestActivity(item) {
+    const target = String(item?.target || "").toLowerCase();
+    if (target === "rerun" || target === "csv") {
+      const csvPath = String(item?.request?.csv_path || "").trim();
+      return {
+        active: Boolean(csvPath),
+        reason: csvPath ? "CSV path staged." : "CSV path is not staged.",
+      };
+    }
+    return {
+      active: true,
+      reason: "Target is active for the current Launch readiness scope.",
+    };
+  }
+
+  function launchBackendPreflightRequestIsActive(item) {
+    return Boolean(launchBackendPreflightRequestActivity(item).active);
+  }
+
+  function launchBackendPreflightCandidateRequests() {
+    return [
+      { key: "pipeline", target: "pipeline", label: "Pipeline", request: collectPipelineStartRequest() },
+      { key: "rerun-live", target: "rerun", label: "CSV Rerun Start", request: collectRerunStartRequest({ dry_run: false }) },
+      { key: "rerun-preview", target: "rerun", label: "CSV Rerun Preview", request: collectRerunStartRequest({ dry_run: true }) },
+    ].map((item) => {
+      const activity = launchBackendPreflightRequestActivity(item);
+      return {
+        ...item,
+        active: activity.active,
+        inactive_reason: activity.active ? "" : activity.reason,
+        scope_reason: activity.reason,
+      };
+    });
+  }
+
+  function launchBackendPreflightIncludedPayloads(payloads = []) {
+    return (Array.isArray(payloads) ? payloads : []).filter((payload) => (
+      payload?._frontend_preflight_active !== false
+      && payload?._frontend_preflight_included !== false
+    ));
+  }
+
+  function launchBackendPreflightScopeLabel(payloads = []) {
+    const included = launchBackendPreflightIncludedPayloads(payloads);
+    if (included.length === 1) {
+      const label = included[0]?._frontend_target_label || launchBackendPreflightTargetLabel(included[0]?.target);
+      return `${label} backend preflight`;
+    }
+    return "Launch backend preflight by active target";
   }
 
   function launchBackendPreflightQuery(target, request = {}) {
@@ -447,7 +513,7 @@
   }
 
   function launchBackendPreflightOverallStatus(payloads = []) {
-    const items = Array.isArray(payloads) ? payloads : [];
+    const items = launchBackendPreflightIncludedPayloads(payloads);
     if (!items.length) return "Not loaded";
     const statuses = items.map((item) => String(item?.status || "unknown").toLowerCase());
     if (statuses.includes("blocked")) return "Blocked";
@@ -461,6 +527,10 @@
     const normalized = String(status || "").toLowerCase();
     if (normalized === "blocked") return "blocked";
     if (normalized === "high review" || normalized === "review") return "warning";
+    if (normalized === "stale") return "warning";
+    if (normalized === "running" || normalized === "active") return "running";
+    if (normalized === "stopped" || normalized === "idle") return "unknown";
+    if (normalized === "forced") return "blocked";
     if (normalized === "evidence incomplete" || normalized === "not loaded" || normalized === "loading") return "unknown";
     if (normalized === "ready") return "ready";
     return "unknown";
@@ -468,19 +538,20 @@
 
   function launchBackendPreflightRows(payloads = []) {
     const rows = [];
-    (Array.isArray(payloads) ? payloads : []).forEach((payload) => {
+    launchBackendPreflightIncludedPayloads(payloads).forEach((payload) => {
       const target = payload?.target || "unknown";
       const checks = Array.isArray(payload?.checks) ? payload.checks : [];
       checks.forEach((check) => {
         rows.push({
-          key: `${target}:${check.key || check.label || rows.length}`,
+          key: `${payload?._frontend_preflight_key || target}:${check.key || check.label || rows.length}`,
           target,
-          targetLabel: launchBackendPreflightTargetLabel(target),
+          targetLabel: payload?._frontend_target_label || launchBackendPreflightTargetLabel(target),
           check: check.label || check.key || "Check",
           posture: check.status || "unknown",
           evidence: check.evidence || "",
           action: check.action || "",
           detail: Array.isArray(check.detail) ? check.detail : [],
+          recoveryActions: Array.isArray(check.recovery_actions) ? check.recovery_actions : [],
           payload,
         });
       });
@@ -493,29 +564,58 @@
   }
 
   function launchBackendPreflightPayloadForTarget(target, payloads = lastLaunchBackendPreflightPayloads) {
+    let options = {};
+    let source = payloads;
+    if (!Array.isArray(payloads) && payloads && typeof payloads === "object") {
+      options = payloads;
+      source = lastLaunchBackendPreflightPayloads;
+    }
     const normalized = String(target || "").toLowerCase();
-    return (Array.isArray(payloads) ? payloads : []).find((payload) => String(payload?.target || "").toLowerCase() === normalized) || null;
+    const candidates = (Array.isArray(source) ? source : [])
+      .filter((payload) => String(payload?.target || "").toLowerCase() === normalized);
+    if (options.request && Array.isArray(options.matchKeys) && options.matchKeys.length) {
+      return candidates.find((payload) => launchPreflightRequestMatches(payload, options.request, options.matchKeys)) || null;
+    }
+    return candidates[0] || null;
   }
 
   function getLastLaunchBackendPreflightRefreshInfo() {
     return { ...lastLaunchBackendPreflightRefreshInfo };
   }
 
+  function launchBackendPreflightIsStale(requests = launchBackendPreflightRequests()) {
+    const loadedSignature = String(lastLaunchBackendPreflightRefreshInfo.request_signature || "");
+    return Boolean(loadedSignature) && loadedSignature !== launchBackendPreflightRequestSetSignature(requests);
+  }
+
   function launchBackendPreflightSummaryLines(payloads = []) {
+    const includedPayloads = launchBackendPreflightIncludedPayloads(payloads);
     const rows = launchBackendPreflightRows(payloads);
-    const status = launchBackendPreflightOverallStatus(payloads);
+    const stale = launchBackendPreflightIsStale();
+    const status = stale && includedPayloads.length ? "Stale" : launchBackendPreflightOverallStatus(payloads);
     const counts = rows.reduce((acc, row) => {
       const key = String(row.posture || "unknown");
       acc[key] = (acc[key] || 0) + 1;
       return acc;
     }, {});
+    const skippedTargets = Array.isArray(lastLaunchBackendPreflightRefreshInfo.skipped_targets)
+      ? lastLaunchBackendPreflightRefreshInfo.skipped_targets
+      : [];
+    const activeLabels = includedPayloads.map((payload) => payload?._frontend_target_label || launchBackendPreflightTargetLabel(payload?.target));
     const lines = [
-      "Backend launch preflight:",
+      `${launchBackendPreflightScopeLabel(payloads)}:`,
       `Status: ${status}`,
-      `Targets: ${payloads.length}; checks=${rows.length}; ready=${counts.ready || 0}; review=${counts.review || 0}; high review=${counts["high review"] || 0}; blocked=${counts.blocked || 0}; unknown=${counts.unknown || 0}.`,
-      `Last refresh: ${lastLaunchBackendPreflightRefreshInfo.loaded_at || "not loaded"}; requested=${lastLaunchBackendPreflightRefreshInfo.request_count || 0}; payloads=${lastLaunchBackendPreflightRefreshInfo.payload_count || 0}; fetch failures=${lastLaunchBackendPreflightRefreshInfo.fetch_failure_count || 0}.`,
+      `Active targets: ${activeLabels.length ? activeLabels.join(", ") : "none"}; checks=${rows.length}; ready=${counts.ready || 0}; review=${counts.review || 0}; high review=${counts["high review"] || 0}; blocked=${counts.blocked || 0}; unknown=${counts.unknown || 0}.`,
+      `Last refresh: ${lastLaunchBackendPreflightRefreshInfo.loaded_at || "not loaded"}; active requests=${lastLaunchBackendPreflightRefreshInfo.request_count || 0}; skipped inactive=${lastLaunchBackendPreflightRefreshInfo.skipped_request_count || 0}; payloads=${lastLaunchBackendPreflightRefreshInfo.payload_count || 0}; fetch failures=${lastLaunchBackendPreflightRefreshInfo.fetch_failure_count || 0}.`,
       "Source: GET /api/launch/preflight. This read route mirrors backend launch guards without journaling commands or mutating runtime state.",
+      "Status scope: active targets only; inactive workflows are skipped before fetch and excluded from the overall status.",
     ];
+    if (skippedTargets.length) {
+      lines.push(`Inactive targets skipped: ${skippedTargets.map((item) => `${item.label}: ${item.reason}`).join("; ")}`);
+    }
+    if (stale && payloads.length) {
+      lines.push("Form state changed after the last backend preflight. Action: Refresh Backend Preflight before using normal Start or CSV Rerun controls.");
+    }
     const reviewRows = rows.filter((row) => row.posture !== "ready");
     if (reviewRows.length) {
       lines.push("First action: select blocked/review checks before pressing backend-owned start buttons.");
@@ -536,13 +636,13 @@
   function launchBackendPreflightDetailLines(row) {
     if (!row) {
       return [
-        "Backend launch preflight:",
+        "Launch backend preflight by active target:",
         "No backend preflight check selected.",
         "Mutation guardrail: this detail panel is read-only.",
       ];
     }
     const lines = [
-      "Backend launch preflight:",
+      `${row.targetLabel} backend preflight:`,
       `Target: ${row.targetLabel}`,
       `Check: ${row.check}`,
       `Posture: ${row.posture}`,
@@ -559,6 +659,14 @@
         } else {
           lines.push(`- ${item}`);
         }
+      });
+    }
+    if (row.recoveryActions.length) {
+      lines.push("", "Backend-advertised recovery actions:");
+      row.recoveryActions.forEach((action) => {
+        const label = String(action?.label || action?.kind || "recovery action");
+        const route = String(action?.route || "(no route)");
+        lines.push(`- ${label}: ${route}`);
       });
     }
     if (row.payload?.request) {
@@ -592,7 +700,9 @@
       selectedLaunchBackendPreflightKey = "";
     }
     const selected = selectedLaunchBackendPreflightRow(rows);
-    const status = launchBackendPreflightOverallStatus(items);
+    const stale = launchBackendPreflightIsStale();
+    const includedItems = launchBackendPreflightIncludedPayloads(items);
+    const status = stale && includedItems.length ? "Stale" : launchBackendPreflightOverallStatus(items);
     setText("launch-backend-preflight-status", status);
     const statusNode = byId("launch-backend-preflight-status");
     if (statusNode) statusNode.dataset.state = launchBackendPreflightStatusState(status);
@@ -624,11 +734,7 @@
   }
 
   function launchBackendPreflightRequests() {
-    return [
-      ["pipeline", collectPipelineStartRequest()],
-      ["audit", collectAuditStartRequest()],
-      ["rerun", collectRerunStartRequest()],
-    ];
+    return launchBackendPreflightCandidateRequests().filter(launchBackendPreflightRequestIsActive);
   }
 
   async function refreshLaunchBackendPreflight() {
@@ -636,21 +742,37 @@
     setText("launch-backend-preflight-status", "Loading");
     const statusNode = byId("launch-backend-preflight-status");
     if (statusNode) statusNode.dataset.state = "unknown";
-    const requests = launchBackendPreflightRequests();
+    const candidateRequests = launchBackendPreflightCandidateRequests();
+    const requests = candidateRequests.filter(launchBackendPreflightRequestIsActive);
+    const skippedRequests = candidateRequests.filter((item) => !launchBackendPreflightRequestIsActive(item));
     const results = await Promise.allSettled(
-      requests.map(([target, request]) => apiGet(launchBackendPreflightQuery(target, request), { timeoutMs: 15000 }))
+      requests.map((item) => apiGet(launchBackendPreflightQuery(item.target, item.request), { timeoutMs: 15000 }))
     );
     if (requestId !== launchBackendPreflightRequestId) return;
     const payloads = [];
     results.forEach((result, index) => {
-      const target = requests[index][0];
+      const requestItem = requests[index] || {};
+      const target = requestItem.target || "unknown";
       if (result.status === "fulfilled") {
-        payloads.push(result.value);
+        payloads.push({
+          ...result.value,
+          _frontend_preflight_key: requestItem.key || target,
+          _frontend_target_label: requestItem.label || launchBackendPreflightTargetLabel(target),
+          _frontend_preflight_active: true,
+          _frontend_preflight_included: true,
+          _frontend_scope_reason: requestItem.scope_reason || "Active launch target.",
+          request: result.value?.request && typeof result.value.request === "object" ? result.value.request : (requestItem.request || {}),
+        });
       } else {
         const message = result.reason instanceof Error ? result.reason.message : String(result.reason);
         payloads.push({
           schema_version: "desktop_launch_preflight.v1",
           target,
+          _frontend_preflight_key: requestItem.key || target,
+          _frontend_target_label: requestItem.label || launchBackendPreflightTargetLabel(target),
+          _frontend_preflight_active: true,
+          _frontend_preflight_included: true,
+          _frontend_scope_reason: requestItem.scope_reason || "Active launch target.",
           start_route: "",
           status: "unknown",
           can_request_start: false,
@@ -671,6 +793,15 @@
       request_count: requests.length,
       payload_count: payloads.length,
       fetch_failure_count: results.filter((result) => result.status !== "fulfilled").length,
+      request_signature: launchBackendPreflightRequestSetSignature(requests),
+      candidate_request_count: candidateRequests.length,
+      skipped_request_count: skippedRequests.length,
+      skipped_targets: skippedRequests.map((item) => ({
+        key: item.key || "",
+        target: item.target || "",
+        label: item.label || launchBackendPreflightTargetLabel(item.target),
+        reason: item.inactive_reason || item.scope_reason || "Inactive target.",
+      })),
     };
     renderLaunchBackendPreflight(payloads);
     if (typeof renderQueueLaunchDecisionChecklist === "function") {
@@ -712,26 +843,6 @@
     return lines;
   }
 
-  function auditLaunchPreflightLines(request) {
-    const root = String(request.library_root || "").trim();
-    const lines = [
-      `Library root: ${root || "not provided"}`,
-      `Include sidecars: ${request.include_sidecars ? "yes" : "no"}`,
-    ];
-    if (!root) lines.push("Input warning: audit root is blank; backend must supply or reject the target.");
-    if (request.show_console) lines.push("Console: visible audit process window requested.");
-    lines.push("", ...launchSettingsDecisionLines(launchSettingsWorkspace(), { mode: "audit" }));
-    lines.push(...launchUnsavedSettingsPatchLines());
-    lines.push(
-      "",
-      "Real-media validation boundary:",
-      "- Audit can prove library/sidecar/report evidence after files exist; it does not prove a new FFmpeg route, subtitle OCR/SRT output, audio selection, Output Size Check, or pending-publish result for an unprocessed file.",
-      "- Use Audit with Diagnostics and Completed proof after a sample run when validating the Tauri/WebView path for daily use.",
-    );
-    lines.push("Backend validation and process locking remain the source of truth.");
-    return lines;
-  }
-
   function rerunLaunchPreflightLines(request) {
     const csv = String(request.csv_path || "").trim();
     const lines = [
@@ -757,22 +868,9 @@
     setText(id, (lines || []).join("\n"));
   }
 
-  function renderLaunchAuditProgress(snapshot = null) {
-    if (typeof renderAuditProgressInto !== "function") return;
-    renderAuditProgressInto({
-      containerId: "audit-launch-progress-bars",
-      statusId: "audit-launch-progress-status",
-      summaryId: "audit-launch-progress-summary",
-      snapshot,
-      emptyText: "No audit progress loaded.",
-    });
-  }
-
-  function renderAllLaunchPreflights() {
+  function renderAllLaunchPreflights(options = {}) {
     const pipelineRequest = collectPipelineStartRequest();
-    renderLaunchAuditProgress(typeof window.getLastSnapshot === "function" ? window.getLastSnapshot() : null);
     renderLaunchPreflight("pipeline-launch-preflight", pipelineLaunchPreflightLines(pipelineRequest));
-    renderLaunchPreflight("audit-launch-preflight", auditLaunchPreflightLines(collectAuditStartRequest()));
     renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest()));
     renderLaunchSettingsRiskHandoff(pipelineRequest);
     renderLaunchPolicyBoundary();
@@ -780,7 +878,8 @@
     renderLaunchScopeReconciliation(pipelineRequest);
     renderLaunchRealMediaProofHandoff();
     renderLaunchStartDecisionSummary(pipelineRequest);
-    refreshLaunchBackendPreflight();
+    renderLaunchBackendPreflight(lastLaunchBackendPreflightPayloads);
+    if (options && options.refreshBackend === true) refreshLaunchBackendPreflight();
     if (typeof renderLaunchTimingTrust === "function") renderLaunchTimingTrust();
     if (typeof renderScheduleTimingTrust === "function") renderScheduleTimingTrust();
   }
@@ -840,6 +939,11 @@
       launchPilotRunReadinessDetailLines,
       renderLaunchPilotRunReadiness,
       launchBackendPreflightTargetLabel,
+      launchBackendPreflightRequestActivity,
+      launchBackendPreflightRequestIsActive,
+      launchBackendPreflightCandidateRequests,
+      launchBackendPreflightIncludedPayloads,
+      launchBackendPreflightScopeLabel,
       launchBackendPreflightQuery,
       launchBackendPreflightStatusRank,
       launchBackendPreflightRowStatus,
@@ -849,15 +953,14 @@
       getLastLaunchBackendPreflightPayloads,
       launchBackendPreflightPayloadForTarget,
       getLastLaunchBackendPreflightRefreshInfo,
+      launchBackendPreflightIsStale,
       launchBackendPreflightSummaryLines,
       launchBackendPreflightDetailLines,
       renderLaunchBackendPreflight,
       refreshLaunchBackendPreflight,
       pipelineLaunchPreflightLines,
-      auditLaunchPreflightLines,
       rerunLaunchPreflightLines,
       renderLaunchPreflight,
-      renderLaunchAuditProgress,
       renderAllLaunchPreflights,
       isPipelineControlCommand,
       pipelineControlHistoryLine,

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-launch.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-17
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: c5dc97981a5e897eaf292efe6ea6c1c874290feb813a948912337d1b0fa07a69
+sha256: b7add643543847ea1b2c37395c00a071a00e197706191f322583b958db418984
 ---
 # `apps/desktop/webview/static/partials/page-launch.html`
 

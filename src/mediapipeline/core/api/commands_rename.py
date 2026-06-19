@@ -1,9 +1,15 @@
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from mediapipeline.desktop.api.path_dialogs import select_windows_paths_with_dialog
 from mediapipeline.desktop.application.dto import CommandResult
+from mediapipeline.core.rename.bad_case_corpus import (
+    DEFAULT_RENAME_BAD_CASE_FIXTURE,
+    RenameBadCaseCorpusError,
+    append_bad_rename_case_from_request,
+)
 from mediapipeline.core.rename.policy import (
     RENAME_MOVIE_FILTER_POLICY_SOURCE_KEY,
     RENAME_MOVIE_FILTER_PUBLIC_REQUEST_KEYS,
@@ -12,6 +18,13 @@ from mediapipeline.core.rename.policy import (
     rename_request_with_cleaning_policy,
     rename_undo_manifest_root_from_resolved,
 )
+
+
+def _repo_root_from_here() -> Path:
+    for parent in Path(__file__).resolve().parents:
+        if (parent / "AGENTS.md").exists() and (parent / "src").exists():
+            return parent
+    return Path.cwd()
 
 
 class LocalApiRenameCommandPayloadMixin:
@@ -85,6 +98,40 @@ class LocalApiRenameCommandPayloadMixin:
                 "path_count": len(paths),
                 "source": "windows_file_browser",
             },
+        ).to_mapping()
+
+    def _rename_bad_case_fixture_file(self) -> Path:
+        configured = getattr(self, "_rename_bad_case_fixture_path_override", None)
+        if configured is None:
+            configured = getattr(self, "_rename_bad_case_fixture_path", None)
+        if configured:
+            path = Path(configured)
+            return path if path.is_absolute() else _repo_root_from_here() / path
+        return _repo_root_from_here() / DEFAULT_RENAME_BAD_CASE_FIXTURE
+
+    def _rename_filter_case_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        try:
+            result = append_bad_rename_case_from_request(
+                dict(request),
+                fixture_path=self._rename_bad_case_fixture_file(),
+                require_confirmation=True,
+            )
+        except RenameBadCaseCorpusError as exc:
+            message = str(exc)
+            return CommandResult(
+                command="rename.filter_case.append",
+                ok=False,
+                severity="warning",
+                message=message,
+                errors=[message],
+                data={"schema_version": "rename_bad_case_corpus_append.v1"},
+            ).to_mapping()
+        return CommandResult(
+            command="rename.filter_case.append",
+            ok=True,
+            severity="info",
+            message=f"Rename filter case logged as {result['case_id']}.",
+            data=result,
         ).to_mapping()
 
     def _rename_apply_payload(self, request: dict[str, Any]) -> dict[str, Any]:

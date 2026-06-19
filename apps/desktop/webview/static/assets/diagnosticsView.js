@@ -23,18 +23,27 @@
     activePack: "proof-pack",
     selectedFindingKey: "",
     selectedFindingKeys: new Set(),
+    successfulActions: {},
   };
 
-  function setDiagnosticsOpenStatus(message) {
-    setText("diagnostics-open-status", message);
-    setText("home-runtime-open-status", message);
+  function setDiagnosticsPanelStatus(id, message, state) {
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus(id, message, state);
+    } else {
+      setText(id, message);
+    }
   }
 
-  function setDiagnosticsOpenBusy(isBusy) {
+  function setDiagnosticsOpenStatus(message, state) {
+    setDiagnosticsPanelStatus("diagnostics-open-status", message, state);
+    setDiagnosticsPanelStatus("home-runtime-open-status", message, state);
+  }
+
+  function setDiagnosticsOpenBusy(isBusy, sourceButton = null) {
     diagnosticsOpenInFlight = Boolean(isBusy);
-    document.querySelectorAll("[data-open-diagnostics]").forEach((button) => {
-      button.disabled = diagnosticsOpenInFlight;
-    });
+    if (!sourceButton || typeof setActionBusy === "function") return;
+    sourceButton.disabled = diagnosticsOpenInFlight;
+    sourceButton.setAttribute("aria-busy", diagnosticsOpenInFlight ? "true" : "false");
   }
 
   function rejectDiagnosticsOpenWhileBusy() {
@@ -46,12 +55,12 @@
       message: "Another diagnostics open command is already in progress.",
     };
     appendCommandResult(result);
-    setDiagnosticsOpenStatus(result.message);
+    setDiagnosticsOpenStatus(result.message, "loading");
     return true;
   }
 
-  function setTdarrMatrixAuditStatus(message) {
-    setText("tdarr-matrix-audit-status", message);
+  function setTdarrMatrixAuditStatus(message, state) {
+    setDiagnosticsPanelStatus("tdarr-matrix-audit-status", message, state);
   }
 
   function setTdarrMatrixAuditDetail(lines) {
@@ -61,9 +70,7 @@
 
   function setTdarrMatrixAuditBusy(isBusy) {
     tdarrMatrixAuditInFlight = Boolean(isBusy);
-    document.querySelectorAll("[data-tdarr-matrix-audit-action]").forEach((button) => {
-      button.disabled = tdarrMatrixAuditInFlight;
-    });
+    updateTdarrMatrixActionGates();
     updateTdarrMatrixRerunButtons();
   }
 
@@ -83,7 +90,7 @@
       await requestTdarrMatrixConsole(selectedRunId);
       const current = tdarrMatrixConsoleState.currentRun || {};
       if (current.run_id === selectedRunId && current.report_exists) {
-        setTdarrMatrixAuditStatus("Complete");
+        setTdarrMatrixAuditStatus("Complete", "ready");
         stopTdarrMatrixBackgroundPoll();
       } else if (attempts >= 240) {
         stopTdarrMatrixBackgroundPoll();
@@ -103,6 +110,86 @@
       "cleanup-delete": "Delete Verified Full Matrix",
     };
     return labels[action] || action || "Tdarr Matrix audit";
+  }
+
+  function tdarrMatrixHasLatestEvidence() {
+    return Boolean(
+      tdarrMatrixConsoleState.latestRunId
+      || tdarrMatrixConsoleState.currentRun?.run_id
+      || tdarrMatrixConsoleState.findings.length
+      || tdarrMatrixConsoleState.smokePackRows.length
+      || tdarrMatrixConsoleState.proofPackRows.length
+    );
+  }
+
+  function tdarrMatrixHasProofEvidence() {
+    return Boolean(
+      tdarrMatrixConsoleState.proofPackRows.length
+      || tdarrMatrixConsoleState.smokePackRows.length
+      || tdarrMatrixConsoleState.currentRun?.report_exists
+    );
+  }
+
+  function tdarrMatrixDeleteConfirmReady() {
+    return String(byId("tdarr-matrix-delete-confirm")?.value || "").trim() === "DELETE VERIFIED MATRIX";
+  }
+
+  function tdarrMatrixActionGate(action) {
+    const normalized = String(action || "").trim();
+    if (tdarrMatrixAuditInFlight) return { disabled: true, state: "loading", reason: "Another Tdarr proof action is running." };
+    if (normalized === "prepare-proof-pack") return { disabled: false, state: "ready", reason: "Backend-owned proof-pack preparation can be started." };
+    if (["smoke-pack", "proof-pack"].includes(normalized) && !tdarrMatrixHasLatestEvidence()) {
+      return { disabled: true, state: "warning", reason: "Load latest Tdarr evidence before running pack tests." };
+    }
+    if (normalized === "strict-report" && !tdarrMatrixHasProofEvidence()) {
+      return { disabled: true, state: "warning", reason: "Load or run proof evidence before the strict proof gate." };
+    }
+    if (normalized === "cleanup-plan" && !tdarrMatrixHasProofEvidence()) {
+      return { disabled: true, state: "warning", reason: "Proof evidence is required before cleanup planning." };
+    }
+    if (normalized === "cleanup-archive" && !tdarrMatrixConsoleState.successfulActions["cleanup-plan"]) {
+      return { disabled: true, state: "warning", reason: "Run a successful cleanup plan before archiving matrix evidence." };
+    }
+    if (normalized === "cleanup-delete") {
+      if (!tdarrMatrixConsoleState.successfulActions["cleanup-archive"]) {
+        return { disabled: true, state: "blocked", reason: "Archive verified matrix evidence before delete can be armed." };
+      }
+      if (!tdarrMatrixDeleteConfirmReady()) {
+        return { disabled: true, state: "blocked", reason: "Type DELETE VERIFIED MATRIX to arm delete." };
+      }
+      return { disabled: false, state: "blocked", reason: "Delete is armed; backend will still verify proof and confirmation." };
+    }
+    return { disabled: false, state: "ready", reason: "Backend-owned proof action is available." };
+  }
+
+  function tdarrMatrixActionSeverity(action) {
+    const normalized = String(action || "").trim();
+    if (normalized === "cleanup-delete") return "danger";
+    if (["strict-report", "cleanup-plan", "cleanup-archive"].includes(normalized)) return "warning";
+    return "neutral";
+  }
+
+  function updateTdarrMatrixActionGates() {
+    document.querySelectorAll("[data-tdarr-matrix-audit-action]").forEach((button) => {
+      const action = button.dataset.tdarrMatrixAuditAction || "";
+      const gate = tdarrMatrixActionGate(action);
+      button.disabled = gate.disabled;
+      button.title = gate.reason || "";
+      button.dataset.gateState = gate.state || "unknown";
+      const severity = tdarrMatrixActionSeverity(action);
+      if (severity === "warning") {
+        button.dataset.severity = "warning";
+      } else {
+        delete button.dataset.severity;
+      }
+      if (typeof setInlineActionStatus === "function" && action !== "prepare-proof-pack") {
+        setInlineActionStatus(button, gate.reason, gate.state);
+      }
+    });
+    const deleteConfirm = byId("tdarr-matrix-delete-confirm");
+    if (deleteConfirm) {
+      deleteConfirm.dataset.state = tdarrMatrixDeleteConfirmReady() ? "ready" : "error";
+    }
   }
 
   function tdarrMatrixAuditDetailLines(result) {
@@ -241,11 +328,11 @@
     container.replaceChildren();
     const targets = Array.isArray(finding?.available_evidence_targets) ? finding.available_evidence_targets : [];
     if (!finding) {
-      setText("tdarr-matrix-audit-evidence-status", "No selection");
+      setDiagnosticsPanelStatus("tdarr-matrix-audit-evidence-status", "No selection", "empty");
       setText("tdarr-matrix-audit-finding-detail", "Select a finding row to inspect available evidence.");
       return;
     }
-    setText("tdarr-matrix-audit-evidence-status", targets.length ? `${targets.length} target(s)` : "No evidence targets");
+    setDiagnosticsPanelStatus("tdarr-matrix-audit-evidence-status", targets.length ? `${targets.length} target(s)` : "No evidence targets", targets.length ? "ready" : "empty");
     setText(
       "tdarr-matrix-audit-finding-detail",
       [
@@ -299,7 +386,7 @@
         || (findingCount ? "Findings were reported, but no preview rows were returned. Open the report path for full detail." : "No findings in the latest Tdarr Matrix result.");
       row.appendChild(cell);
       body.appendChild(row);
-      setText("tdarr-matrix-audit-findings-status", previewError || `${findingCount} finding(s).`);
+      setDiagnosticsPanelStatus("tdarr-matrix-audit-findings-status", previewError || `${findingCount} finding(s).`, previewError ? "blocked" : findingCount ? "warning" : "empty");
       updateTdarrMatrixRerunButtons();
       renderTdarrMatrixSelectedFinding();
       return;
@@ -354,9 +441,10 @@
     });
     const shown = rows.length;
     const totalText = total && total !== shown ? `${shown} of ${total}` : String(shown);
-    setText(
+    setDiagnosticsPanelStatus(
       "tdarr-matrix-audit-findings-status",
       `${totalText} finding row(s) shown.${truncated ? " Preview truncated; open the report path for all rows." : ""}`,
+      truncated ? "warning" : "ready",
     );
     updateTdarrMatrixRerunButtons();
     renderTdarrMatrixSelectedFinding();
@@ -374,7 +462,7 @@
       cell.textContent = "No Tdarr Matrix bucket coverage loaded.";
       row.appendChild(cell);
       body.appendChild(row);
-      setText("tdarr-matrix-audit-bucket-status", "No rows");
+      setDiagnosticsPanelStatus("tdarr-matrix-audit-bucket-status", "No rows", "empty");
       return;
     }
     rows.forEach((item) => {
@@ -394,7 +482,7 @@
       ].forEach((value) => appendTdarrMatrixAuditFindingCell(row, value));
       body.appendChild(row);
     });
-    setText("tdarr-matrix-audit-bucket-status", `${rows.length} bucket(s)`);
+    setDiagnosticsPanelStatus("tdarr-matrix-audit-bucket-status", `${rows.length} bucket(s)`, "ready");
   }
 
   function tdarrMatrixProofRowsForActivePack() {
@@ -448,7 +536,7 @@
       cell.textContent = "No Tdarr Proof Pack rows loaded.";
       row.appendChild(cell);
       body.appendChild(row);
-      setText("tdarr-matrix-proof-pack-status", `${tdarrMatrixConsoleState.activePack}: no rows`);
+      setDiagnosticsPanelStatus("tdarr-matrix-proof-pack-status", `${tdarrMatrixConsoleState.activePack}: no rows`, "empty");
       return;
     }
     rows.forEach((item) => {
@@ -490,7 +578,7 @@
     });
     const total = tdarrMatrixProofRowsForActivePack().length;
     const shown = rows.length;
-    setText("tdarr-matrix-proof-pack-status", `${tdarrMatrixConsoleState.activePack}: ${shown} of ${total} test row(s)`);
+    setDiagnosticsPanelStatus("tdarr-matrix-proof-pack-status", `${tdarrMatrixConsoleState.activePack}: ${shown} of ${total} test row(s)`, "ready");
   }
 
   function tdarrMatrixCompareExamples(items) {
@@ -524,7 +612,7 @@
     });
     const left = payload?.left_run_id || "";
     const right = payload?.right_run_id || "";
-    setText("tdarr-matrix-run-compare-status", left && right ? `${left} vs ${right}` : "Need two runs");
+    setDiagnosticsPanelStatus("tdarr-matrix-run-compare-status", left && right ? `${left} vs ${right}` : "Need two runs", left && right ? "ready" : "warning");
   }
 
   function renderTdarrMatrixConsole(payload) {
@@ -575,9 +663,11 @@
         data.report_path ? `Report: ${data.report_path}` : "",
       ].filter(Boolean).join("\n"),
     );
+    setTdarrMatrixAuditStatus(tdarrMatrixHasLatestEvidence() ? "Latest loaded" : "No report loaded", tdarrMatrixHasLatestEvidence() ? "ready" : "empty");
     renderTdarrMatrixAuditFindings({ findings: tdarrMatrixConsoleState.findings });
     renderTdarrMatrixProofPackRows();
     renderTdarrMatrixBucketCoverage(data);
+    updateTdarrMatrixActionGates();
   }
 
   function rejectTdarrMatrixAuditWhileBusy(action) {
@@ -589,7 +679,7 @@
       message: `${tdarrMatrixAuditActionLabel(action)} blocked because another Tdarr Matrix audit is already running.`,
     };
     appendCommandResult(result);
-    setTdarrMatrixAuditStatus("Busy");
+    setTdarrMatrixAuditStatus("Busy", "loading");
     setTdarrMatrixAuditDetail([result.message]);
     return true;
   }
@@ -688,8 +778,8 @@
       groupDataset: "diagnosticsActionGroup",
       actionDataset: "diagnosticsLogAction",
       targetDataset: "diagnosticsLogTarget",
-      onTail: (target) => requestDiagnosticsTail(target),
-      onOpen: (target) => requestDiagnosticsOpen(target),
+      onTail: (target, _action, button) => requestDiagnosticsTail(target, button),
+      onOpen: (target, _action, button) => requestDiagnosticsOpen(target, button),
     });
     const groupValue = String(groupLabel || "").toLowerCase().replace(/\s+/g, "-");
     container.querySelectorAll("button[data-open-target-action-group]").forEach((button) => {
@@ -716,9 +806,16 @@
     if (logSeverity) logSeverity.addEventListener("change", () => renderDiagnosticsLogTable());
     const tailButton = byId("diagnostics-tail-refresh-button");
     if (tailButton) tailButton.addEventListener("click", requestDiagnosticsTail);
+    document.querySelectorAll("[data-read-diagnostics-tail]").forEach((button) => {
+      if (button.dataset.diagnosticsTailBound === "true") return;
+      button.dataset.diagnosticsTailBound = "true";
+      button.addEventListener("click", () => requestDiagnosticsTail(button.dataset.readDiagnosticsTail || "", button));
+    });
     document.querySelectorAll("[data-tdarr-matrix-audit-action]").forEach((button) => {
       button.addEventListener("click", () => requestTdarrMatrixAudit(button.dataset.tdarrMatrixAuditAction || ""));
     });
+    const tdarrDeleteConfirm = byId("tdarr-matrix-delete-confirm");
+    if (tdarrDeleteConfirm) tdarrDeleteConfirm.addEventListener("input", updateTdarrMatrixActionGates);
     document.querySelectorAll("[data-tdarr-proof-pack-view]").forEach((button) => {
       button.addEventListener("click", () => {
         tdarrMatrixConsoleState.activePack = button.dataset.tdarrProofPackView || "proof-pack";
@@ -745,6 +842,7 @@
     if (tdarrRerunFailures) tdarrRerunFailures.addEventListener("click", () => requestTdarrMatrixRerun("latest_failures"));
     const compareRefresh = byId("tdarr-matrix-compare-refresh");
     if (compareRefresh) compareRefresh.addEventListener("click", requestTdarrMatrixRunComparison);
+    updateTdarrMatrixActionGates();
   }
 
   const diagnosticsArtifactTargets = [
@@ -993,7 +1091,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         button.type = "button";
         button.dataset.openDiagnostics = openTarget;
         button.textContent = `Open ${artifact.name}`;
-        button.addEventListener("click", () => requestDiagnosticsOpen(openTarget));
+        button.addEventListener("click", () => requestDiagnosticsOpen(openTarget, button));
         actions.appendChild(button);
       }
       if (artifact.tailTarget) {
@@ -1002,7 +1100,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         tailButton.type = "button";
         tailButton.dataset.readDiagnosticsTail = artifact.tailTarget;
         tailButton.textContent = `Read ${artifact.tailName || artifact.name}`;
-        tailButton.addEventListener("click", () => requestDiagnosticsTail(artifact.tailTarget));
+        tailButton.addEventListener("click", () => requestDiagnosticsTail(artifact.tailTarget, tailButton));
         actions.appendChild(tailButton);
       }
     });
@@ -1012,7 +1110,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     const matches = diagnosticsArtifactMatches(diagnostics || {});
     renderDiagnosticsDrilldownActions(matches);
     const status = matches.length ? `${matches.length} artifact hint(s)` : "No artifacts";
-    setText("diagnostics-drilldown-status", status);
+    setDiagnosticsPanelStatus("diagnostics-drilldown-status", status, matches.length ? "warning" : "empty");
     const lines = [
       "Artifact drilldown is read-only. Open and Read buttons below use backend allowlists; the frontend never sends arbitrary paths.",
     ];
@@ -1062,7 +1160,11 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
           : allLines.length
             ? "Informational"
             : "No issues";
-    setText("diagnostics-triage-status", status);
+    setDiagnosticsPanelStatus(
+      "diagnostics-triage-status",
+      status,
+      counts.error ? "blocked" : counts.warning ? "warning" : counts.active ? "running" : allLines.length ? "ready" : "empty",
+    );
     const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
       ? window.mediaPipelineDom.payloadFreshnessLines({
         payload: diagnostics,
@@ -1527,20 +1629,16 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     const payload = context || {};
     const rows = diagnosticsFirstResponseRows(payload);
     const status = diagnosticsFirstResponseStatus(payload);
-    setText("diagnostics-first-response-status", status);
-    const statusNode = byId("diagnostics-first-response-status");
-    if (statusNode) {
-      const state = status === "Do not proceed"
-        ? "blocked"
-        : status === "Review first"
-          ? "warning"
-          : status === "Read evidence"
-            ? "changed"
-            : status === "Ready-looking"
-              ? "ready"
-              : "unknown";
-      statusNode.dataset.state = state;
-    }
+    const state = status === "Do not proceed"
+      ? "blocked"
+      : status === "Review first"
+        ? "warning"
+        : status === "Read evidence"
+          ? "changed"
+          : status === "Ready-looking"
+            ? "ready"
+            : "unknown";
+    setDiagnosticsPanelStatus("diagnostics-first-response-status", status, state);
     setText("diagnostics-first-response-summary", diagnosticsFirstResponseSummaryLines(payload).join("\n"));
     const tbody = byId("diagnostics-first-response-rows");
     if (!tbody) return;
@@ -1666,9 +1764,68 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   }
 
   function renderDiagnosticsInvestigationTrail(context = {}) {
-    setText("diagnostics-investigation-status", diagnosticsInvestigationStatus(context || {}));
+    const status = diagnosticsInvestigationStatus(context || {});
+    setDiagnosticsPanelStatus("diagnostics-investigation-status", status);
     setText("diagnostics-investigation-trail", diagnosticsInvestigationTrailLines(context || {}).join("\n"));
     renderDiagnosticsInvestigationActions(context || {});
+  }
+
+  function diagnosticsPayloadFirstString(payload, keys) {
+    for (const key of keys || []) {
+      const value = payload?.[key];
+      if (value === undefined || value === null || value === false) continue;
+      const text = Array.isArray(value) ? value.join("; ") : String(value);
+      if (text.trim()) return text.trim();
+    }
+    return "";
+  }
+
+  function diagnosticsPayloadFlag(payload, keys) {
+    return (keys || []).some((key) => Boolean(payload?.[key]));
+  }
+
+  function diagnosticsLogPanelStatus(value, payload, options = {}) {
+    const textValue = String(value || "");
+    const metadata = diagnosticsPayloadFirstString(payload, options.stateKeys || []);
+    const lowerMetadata = metadata.toLowerCase();
+    const errorText = diagnosticsPayloadFirstString(payload, options.errorKeys || []);
+    const label = options.label || "Diagnostics log";
+    if (errorText || /\b(?:error|failed|failure|exception|read[_ -]?error)\b/.test(lowerMetadata)) {
+      return {
+        label: "Read error",
+        state: "blocked",
+        fallback: `${label} read error. ${errorText || metadata || "Backend diagnostics payload reported a read error."}`,
+      };
+    }
+    if (diagnosticsPayloadFlag(payload, options.unavailableKeys || []) || /\bunavailable\b/.test(lowerMetadata)) {
+      return {
+        label: "Unavailable",
+        state: "warning",
+        fallback: `${label} unavailable. Refresh diagnostics after confirming Local API and backend state.`,
+      };
+    }
+    if (diagnosticsPayloadFlag(payload, options.missingKeys || []) || /\b(?:missing|not found|not_found)\b/.test(lowerMetadata)) {
+      return {
+        label: "Missing",
+        state: "warning",
+        fallback: `${label} missing. Use File Log bounded tail or State Summary before acting on this absence.`,
+      };
+    }
+    if (diagnosticsPayloadFlag(payload, options.truncatedKeys || []) || /\b(?:truncated|partial)\b/.test(lowerMetadata)) {
+      return {
+        label: "Loaded truncated",
+        state: "warning",
+        fallback: textValue || `${label} loaded with a truncation or partial-read marker.`,
+      };
+    }
+    if (textValue.trim()) {
+      return { label: "Loaded", state: "ready", fallback: textValue };
+    }
+    return {
+      label: "Empty",
+      state: "empty",
+      fallback: options.emptyText || `No ${label.toLowerCase()} loaded.`,
+    };
   }
 
   function renderDiagnostics(diagnostics) {
@@ -1680,8 +1837,78 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     setText("recent-events", (payload.recent_events || []).join("\n") || "No recent events.");
     setText("active-jobs", (payload.active_jobs || []).join("\n") || "No ActiveJobs records.");
     renderActiveJobRows(payload.active_job_rows || []);
-    setText("log-tail", payload.log_tail || "No pipeline log tail loaded.");
-    setText("launch-logs", payload.launch_logs || "No launch logs loaded.");
+    const pipelineLog = String(payload.log_tail || "");
+    const launchLog = String(payload.launch_logs || "");
+    const pipelineStatus = diagnosticsLogPanelStatus(pipelineLog, payload, {
+      label: "Pipeline log tail",
+      stateKeys: ["log_tail_state", "log_tail_status", "pipeline_log_state", "pipeline_log_status"],
+      errorKeys: ["log_tail_error", "pipeline_log_error", "log_tail_read_error"],
+      unavailableKeys: ["log_tail_unavailable", "pipeline_log_unavailable"],
+      missingKeys: ["log_tail_missing", "pipeline_log_missing"],
+      truncatedKeys: ["log_tail_truncated", "pipeline_log_truncated"],
+      emptyText: "No pipeline log tail loaded.",
+    });
+    const launchStatus = diagnosticsLogPanelStatus(launchLog, payload, {
+      label: "Launch log",
+      stateKeys: ["launch_logs_state", "launch_log_state", "launch_logs_status", "launch_log_status"],
+      errorKeys: ["launch_logs_error", "launch_log_error", "launch_logs_read_error"],
+      unavailableKeys: ["launch_logs_unavailable", "launch_log_unavailable"],
+      missingKeys: ["launch_logs_missing", "launch_log_missing"],
+      truncatedKeys: ["launch_logs_truncated", "launch_log_truncated"],
+      emptyText: "No launch logs loaded.",
+    });
+    setDiagnosticsPanelStatus("diagnostics-pipeline-log-status", pipelineStatus.label, pipelineStatus.state);
+    setDiagnosticsPanelStatus("diagnostics-launch-log-status", launchStatus.label, launchStatus.state);
+    setText("log-tail", pipelineLog || pipelineStatus.fallback);
+    setText("launch-logs", launchLog || launchStatus.fallback);
+  }
+
+  function diagnosticsFailureMessage(failure) {
+    const message = failure?.message || failure?.reason || "request failed";
+    const time = new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+    return `Refresh failed at ${time}; showing stale data if previously loaded. ${message}`;
+  }
+
+  function renderDiagnosticsRefreshFailures(failures = []) {
+    const items = Array.isArray(failures) ? failures : [];
+    const byName = (name) => items.find((item) => String(item?.name || "").toLowerCase() === name);
+    const diagnosticsFailure = byName("diagnostics");
+    if (diagnosticsFailure) {
+      const message = diagnosticsFailureMessage(diagnosticsFailure);
+      [
+        "diagnostics-triage-status",
+        "diagnostics-drilldown-status",
+        "diagnostics-log-status",
+        "diagnostics-pipeline-log-status",
+        "diagnostics-launch-log-status",
+        "active-job-detail-status",
+      ].forEach((id) => setDiagnosticsPanelStatus(id, message, "warning"));
+    }
+    const stateFailure = byName("diagnostics state summary");
+    if (stateFailure) {
+      const message = diagnosticsFailureMessage(stateFailure);
+      [
+        "diagnostics-state-summary-status",
+        "diagnostics-state-recovery-status",
+        "diagnostics-state-triage-status",
+      ].forEach((id) => setDiagnosticsPanelStatus(id, message, "warning"));
+    }
+    const commandsFailure = byName("commands");
+    if (commandsFailure) {
+      const message = diagnosticsFailureMessage(commandsFailure);
+      [
+        "diagnostics-command-status",
+        "diagnostics-command-drilldown-status",
+        "diagnostics-command-owner-status",
+        "diagnostics-command-evidence-status",
+        "diagnostics-command-resolution-status",
+      ].forEach((id) => setDiagnosticsPanelStatus(id, message, "warning"));
+    }
+    const contractFailure = byName("contract");
+    if (contractFailure) {
+      const message = diagnosticsFailureMessage(contractFailure);
+      ["api-contract-status", "api-contract-safety-status"].forEach((id) => setDiagnosticsPanelStatus(id, message, "warning"));
+    }
   }
 
   async function requestTdarrMatrixConsole(runId = "") {
@@ -1689,6 +1916,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     const selectedRun = String(runId || "").trim();
     if (selectedRun) query.set("run_id", selectedRun);
     query.set("finding_limit", "250");
+    setTdarrMatrixAuditStatus("Loading latest...", "loading");
     try {
       const payload = await apiGet(`/api/diagnostics/tdarr-matrix/latest?${query.toString()}`, { timeoutMs: 15000 });
       renderTdarrMatrixConsole(payload);
@@ -1699,13 +1927,14 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setTdarrMatrixAuditStatus("Load error");
+      setTdarrMatrixAuditStatus("Load error", "blocked");
       setText("tdarr-matrix-console-summary", message);
       renderTdarrMatrixAuditFindings({ findings: [] });
       tdarrMatrixConsoleState.smokePackRows = [];
       tdarrMatrixConsoleState.proofPackRows = [];
       renderTdarrMatrixProofPackRows();
       renderTdarrMatrixBucketCoverage({ bucket_summary: [] });
+      updateTdarrMatrixActionGates();
     }
   }
 
@@ -1720,7 +1949,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       renderTdarrMatrixRunComparison(payload);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setText("tdarr-matrix-run-compare-status", message);
+      setDiagnosticsPanelStatus("tdarr-matrix-run-compare-status", message, "blocked");
       renderTdarrMatrixRunComparison({ counts: { new: 0, resolved: 0, repeated: 0, changed: 0 } });
     }
   }
@@ -1741,7 +1970,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         target: normalized,
       });
       appendCommandResult(result);
-      setText("tdarr-matrix-audit-evidence-status", result.message || "Evidence open request sent.");
+      setDiagnosticsPanelStatus("tdarr-matrix-audit-evidence-status", result.message || "Evidence open request sent.", result.ok === false ? "blocked" : "ready");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       appendCommandResult({
@@ -1750,7 +1979,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         severity: "error",
         message,
       });
-      setText("tdarr-matrix-audit-evidence-status", message);
+      setDiagnosticsPanelStatus("tdarr-matrix-audit-evidence-status", message, "blocked");
     }
   }
 
@@ -1759,7 +1988,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     const normalized = String(selection || "selected").trim();
     const keys = normalized === "latest_failures" ? [] : Array.from(tdarrMatrixConsoleState.selectedFindingKeys);
     setTdarrMatrixAuditBusy(true);
-    setTdarrMatrixAuditStatus("Running...");
+    setTdarrMatrixAuditStatus("Running...", "loading");
     setTdarrMatrixAuditDetail([normalized === "latest_failures" ? "Rerunning latest failure cases in a new Tdarr Proof Pack run root." : "Rerunning selected Tdarr Proof Pack cases in a new run root."]);
     try {
       const result = await apiPost("/api/diagnostics/tdarr-matrix/rerun", {
@@ -1768,7 +1997,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         finding_keys: keys,
       });
       appendCommandResult(result);
-      setTdarrMatrixAuditStatus(result.ok ? "Complete" : result.severity || "Failed");
+      setTdarrMatrixAuditStatus(result.ok ? "Complete" : result.severity || "Failed", result.ok ? "ready" : "blocked");
       setTdarrMatrixAuditDetail(tdarrMatrixAuditDetailLines(result));
       renderTdarrMatrixAuditFindings(result);
       await requestTdarrMatrixConsole();
@@ -1780,7 +2009,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         severity: "error",
         message,
       });
-      setTdarrMatrixAuditStatus("Error");
+      setTdarrMatrixAuditStatus("Error", "blocked");
       setTdarrMatrixAuditDetail([message]);
     } finally {
       setTdarrMatrixAuditBusy(false);
@@ -1798,9 +2027,26 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         message: "No Tdarr Matrix audit action was selected.",
       };
       appendCommandResult(result);
-      setTdarrMatrixAuditStatus("Error");
+      setTdarrMatrixAuditStatus("Error", "blocked");
       setTdarrMatrixAuditDetail([result.message]);
       renderTdarrMatrixAuditFindings(result);
+      return;
+    }
+    const gate = tdarrMatrixActionGate(normalized);
+    if (gate.disabled) {
+      const result = {
+        command: "diagnostics.tdarr_matrix_audit",
+        ok: false,
+        severity: "warning",
+        message: `${tdarrMatrixAuditActionLabel(normalized)} is gated: ${gate.reason}`,
+      };
+      appendCommandResult(result);
+      setTdarrMatrixAuditStatus("Gated", gate.state || "warning");
+      setTdarrMatrixAuditDetail([
+        result.message,
+        "Diagnostics keeps advanced proof and cleanup actions gated so the panel remains evidence-oriented.",
+      ]);
+      updateTdarrMatrixActionGates();
       return;
     }
     if (normalized === "smoke-pack" || normalized === "proof-pack") {
@@ -1809,25 +2055,39 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     }
     const payload = { action: normalized };
     if (normalized === "cleanup-delete") {
+      if (!tdarrMatrixDeleteConfirmReady()) {
+        setTdarrMatrixAuditStatus("Gated", "blocked");
+        setTdarrMatrixAuditDetail(["Type DELETE VERIFIED MATRIX before delete can be armed."]);
+        updateTdarrMatrixActionGates();
+        return;
+      }
       const confirmed = window.confirm(
         "Delete the verified legacy Tdarr full matrix after the backend confirms proof-pack verification and archived evidence?",
       );
-      if (!confirmed) return;
+      if (!confirmed) {
+        setTdarrMatrixAuditStatus("Cancelled", "warning");
+        setTdarrMatrixAuditDetail(["Delete Verified Full Matrix was cancelled before any backend request was sent."]);
+        return;
+      }
       payload.confirm_delete_full_matrix = true;
     }
     setTdarrMatrixAuditBusy(true);
-    setTdarrMatrixAuditStatus("Running...");
+    setTdarrMatrixAuditStatus("Running...", "loading");
     setTdarrMatrixAuditDetail([`${tdarrMatrixAuditActionLabel(normalized)} is running through the backend command route.`]);
     renderTdarrMatrixAuditFindings({ data: { finding_count: 0, findings_preview: [] } });
     try {
       const result = await apiPost("/api/diagnostics/tdarr-matrix-audit", payload);
       appendCommandResult(result);
+      const resultOk = Boolean(result?.ok);
+      if (resultOk) tdarrMatrixConsoleState.successfulActions[normalized] = true;
       const backgroundStarted = Boolean(result?.data?.background_started);
-      setTdarrMatrixAuditStatus(backgroundStarted ? "Running..." : result.ok ? "Complete" : result.severity || "Failed");
+      setTdarrMatrixAuditStatus(backgroundStarted ? "Running..." : resultOk ? "Complete" : result.severity || "Failed", backgroundStarted ? "loading" : resultOk ? "ready" : "blocked");
       setTdarrMatrixAuditDetail(tdarrMatrixAuditDetailLines(result));
       renderTdarrMatrixAuditFindings(result);
-      await requestTdarrMatrixConsole(result?.data?.run_id || "");
-      if (backgroundStarted) scheduleTdarrMatrixBackgroundPoll(result?.data?.run_id || "");
+      if (resultOk) {
+        await requestTdarrMatrixConsole(result?.data?.run_id || "");
+        if (backgroundStarted) scheduleTdarrMatrixBackgroundPoll(result?.data?.run_id || "");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const result = {
@@ -1837,7 +2097,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         message,
       };
       appendCommandResult(result);
-      setTdarrMatrixAuditStatus("Error");
+      setTdarrMatrixAuditStatus("Error", "blocked");
       setTdarrMatrixAuditDetail([message]);
       renderTdarrMatrixAuditFindings(result);
     } finally {
@@ -1845,8 +2105,13 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     }
   }
 
-  async function requestDiagnosticsOpen(target) {
-    if (rejectDiagnosticsOpenWhileBusy()) return;
+  async function requestDiagnosticsOpen(target, sourceButton = null) {
+    if (rejectDiagnosticsOpenWhileBusy()) {
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, "Open already in progress.", "warning");
+      }
+      return;
+    }
     const normalized = String(target || "").trim();
     if (!normalized) {
       const result = {
@@ -1856,15 +2121,24 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         message: "No diagnostics target was selected.",
       };
       appendCommandResult(result);
-      setDiagnosticsOpenStatus(result.message);
+      setDiagnosticsOpenStatus(result.message, "warning");
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, result.message, "warning");
+      }
       return;
     }
-    setDiagnosticsOpenBusy(true);
-    setDiagnosticsOpenStatus("Opening...");
+    setDiagnosticsOpenBusy(true, sourceButton);
+    if (sourceButton && typeof setActionBusy === "function") {
+      setActionBusy(sourceButton, true, `Opening ${normalized}...`);
+    }
+    setDiagnosticsOpenStatus(`Opening ${normalized}...`, "loading");
     try {
       const result = await apiPost("/api/diagnostics/open", { target: normalized });
       appendCommandResult(result);
-      setDiagnosticsOpenStatus(result.message || "Open request sent.");
+      setDiagnosticsOpenStatus(result.message || "Open request sent.", result.ok === false ? "blocked" : "ready");
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, result.message || "Open request sent.", result.ok === false ? "blocked" : "ready");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       appendCommandResult({
@@ -1873,9 +2147,15 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         severity: "error",
         message,
       });
-      setDiagnosticsOpenStatus(`Open failed: ${message}`);
+      setDiagnosticsOpenStatus(`Open failed: ${message}`, "blocked");
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, `Open failed: ${message}`, "blocked");
+      }
     } finally {
-      setDiagnosticsOpenBusy(false);
+      if (sourceButton && typeof setActionBusy === "function") {
+        setActionBusy(sourceButton, false);
+      }
+      setDiagnosticsOpenBusy(false, sourceButton);
     }
   }
 
@@ -1885,6 +2165,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
    */
   window.mediaPipelineDiagnosticsView = {
     renderDiagnostics,
+    renderDiagnosticsRefreshFailures,
     renderDiagnosticsTriage,
     renderDiagnosticsDrilldown,
     diagnosticsTextLines,
@@ -1991,6 +2272,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     renderDiagnosticsOpenHistory,
   };
   window.renderDiagnostics = renderDiagnostics;
+  window.renderDiagnosticsRefreshFailures = renderDiagnosticsRefreshFailures;
   window.requestTdarrMatrixAudit = requestTdarrMatrixAudit;
   window.diagnosticsTextLines = diagnosticsTextLines;
   window.diagnosticsSeverityForLine = diagnosticsSeverityForLine;

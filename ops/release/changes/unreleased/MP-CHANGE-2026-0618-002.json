@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0618-002",
+  "title": "Block season-plus-special tokens from rename TV titles",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Update rename title cleanup so TV source folder metadata such as S03+SP is stripped from detected show titles.",
+  "reason": "A source folder named Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA currently allows release metadata to leak into the show title; the desired title is Ascendance of a Bookworm.",
+  "affected_areas": [
+    "rename"
+  ],
+  "behavior_before": "TV folder title cleanup could preserve Sxx+SP season/special tokens as part of the detected show title.",
+  "behavior_after": "TV folder title cleanup strips Sxx+SP release metadata so the show title remains the canonical series name.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-002.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/rename/tv.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/rename/tv_folder.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_rename_tv.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_rename_tv_folder.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-002.json",
+    "src/mediapipeline/core/rename/tv.py",
+    "src/mediapipeline/core/rename/tv_folder.py",
+    "tests/python/desktop/test_service_rename_tv.py",
+    "tests/python/desktop/test_service_rename_tv_folder.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_service_rename_tv.py",
+    "tests/python/desktop/test_service_rename_tv_folder.py"
+  ],
+  "manual_validation": [
+    "2026-06-18: Bundled Python unittest passed: python -m unittest tests.python.desktop.test_service_rename_tv tests.python.desktop.test_service_rename_tv_folder (11 tests).",
+    "2026-06-18: Exact sample cleaned to Ascendance of a Bookworm and auto-renamed to Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv.",
+    "2026-06-18: refresh_summaries ran for edited source/test files and targeted packet summary.",
+    "2026-06-18: validate_changes --require-worktree-coverage passed with 360 packet(s) valid."
+  ],
+  "rollback_plan": "Revert the rename title cleanup and focused rename tests touched by this change, then remove this packet and its generated summary.",
+  "related_changes": [],
+  "notes": "No media policy, FFmpeg command generation, subtitle behavior, audio behavior, publish/drain flow, source/scratch/output movement, Local API mutation semantics, WebView controls, Tauri lifecycle behavior, or release scripts are intentionally changed."
+}

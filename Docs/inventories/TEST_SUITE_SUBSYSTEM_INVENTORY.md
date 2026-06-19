@@ -8,6 +8,10 @@ Validation command:
 Get-ChildItem tests\python\desktop -Filter test_*.py | Measure-Object
 ```
 
+All-surface rationalization snapshot: `docs/ai-audits/2026-06-18-test-coverage-rationalization.md` classifies the current live-worktree test/check surface across Python, WebView, PowerShell, smoke wrappers, and the release gate. Its 2026-06-18 read-only pass found 378 discovered test/check files and 2,504 Python test definitions. Treat that report as consolidation guidance, not as a replacement for this targeted subsystem inventory.
+
+Generated drift aids: `docs/generated/SMOKE_WRAPPER_MAP.json` maps every `ops/scripts/smoke/Test-*.ps1` wrapper to its underlying module/test selector plus docs/release presence, and `docs/generated/DUPLICATE_TEST_NAMES.md` reports exact duplicate Python test names across `tests/python` and `tests/webview`. Both are review aids; duplicates and wrapper/module pairs are not removal instructions.
+
 ---
 
 ## Running Targeted Tests
@@ -91,6 +95,25 @@ These repository-level Python tests sit outside `tests\python\desktop` and guard
 | `tests/tooling/test_lint_naming.py` | Deprecated flat facade/service/payload names, dotted `Pipeline\Modules` files, root status docs, root launcher callers, and rename-destination parsing |
 | `tests/tooling/test_risky_file_registry.py` | Risky-file registry validation and path classification into validation requirements |
 | `tests/tooling/test_summary_integrity.py` | Summary freshness orphan detection, summary pruning, and project-index orphan-summary refusal |
+
+---
+
+## Python Integration Media Policy Checks
+
+These integration tests sit outside `tests\python\desktop` and guard dry-run media-policy contracts without processing media:
+
+| Test file | What it covers |
+|---|---|
+| `tests/python/integration/test_handbrake_remux_regression_matrix.py` | Python planner remux/encode route, stream-action, size-policy, and preset parity fixtures |
+| `tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py` | Machine-readable FFmpeg/media-policy matrix completeness, owner/check/rung evidence, Python planner expectations for matrix rows, size-policy contract expectations, and TESTGAP-006 closure gating |
+
+Targeted command:
+
+```powershell
+& $py -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix tests.python.integration.test_handbrake_remux_regression_matrix -q
+```
+
+The matrix guard is synthetic validation only. It does not replace PowerShell runtime parity, Tdarr sample runs, release gates, or representative real-media validation for FFmpeg, subtitle, audio, publish/drain, or source/scratch/output behavior changes.
 
 ---
 
@@ -646,6 +669,3 @@ Coverage gaps are tracked as documentation observations. They do not require imm
 - Pending publish fixture inventory: `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`
 - Validation ladder: `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
 - Browser smoke runbook: `docs/testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
-
-
-

@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0618-035",
+  "title": "Add private beta published-release verifier",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a post-publish verifier for GitHub Release assets in the private beta NSIS/updater lane.",
+  "reason": "After workflow dispatch, operators need a repeatable check that the published GitHub Release contains the signed NSIS installer, updater signature, channel JSON, checksums, and release notes before sending the download link to beta testers.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Local preflight and bundle artifact checks existed, but there was no offline-testable or GitHub-backed verifier for the final published Release asset set.",
+  "behavior_after": "Operators can validate published private beta GitHub Release metadata either from `gh api` or a saved release JSON fixture, including required assets and channel-specific release posture.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-035.json.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaPublishedRelease.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_published_release.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-035.json",
+    "ops/scripts/release/Test-PrivateBetaPublishedRelease.ps1",
+    "tests/python/tooling/test_private_beta_published_release.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_private_beta_published_release.py"
+  ],
+  "manual_validation": [
+    "pytest tests/python/tooling/test_private_beta_published_release.py -q - initially failed on PowerShell scalar-vs-array asset selection (3 failed, 1 passed)",
+    "pytest tests/python/tooling/test_private_beta_published_release.py -q - passed (4 passed)",
+    "pytest tests/python/tooling/test_private_beta_*.py -q - not run because PowerShell did not expand the wildcard path for pytest",
+    "pytest tests/python/tooling -k private_beta -q - passed (17 passed, 145 deselected)"
+  ],
+  "rollback_plan": "Remove the published-release verifier script, tests, docs references, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-017",
+    "MP-CHANGE-2026-0618-027",
+    "MP-CHANGE-2026-0618-029"
+  ],
+  "notes": "This verifier must not download installers, publish releases, mutate GitHub releases, print secrets, or require real GitHub access for unit tests."
+}

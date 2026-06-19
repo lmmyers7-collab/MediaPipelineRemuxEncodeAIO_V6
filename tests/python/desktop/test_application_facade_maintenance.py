@@ -4,6 +4,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -184,21 +185,76 @@ class ApplicationFacadeMaintenanceTests(unittest.TestCase):
                 release = facade.run_release_dry_run({"destination_root": str(root / "Deploy")}).to_mapping()
                 backfill = facade.run_completed_backfill_dry_run(resolved, {}).to_mapping()
                 atlas = facade.run_dependency_atlas({}).to_mapping()
+                retention = facade.run_retention_dry_run(resolved, {}).to_mapping()
             finally:
                 facade._maintenance_command_lock.release()  # type: ignore[attr-defined]
 
         self.assertFalse(release["ok"])
         self.assertFalse(backfill["ok"])
         self.assertFalse(atlas["ok"])
+        self.assertFalse(retention["ok"])
         self.assertEqual(release["command"], "maintenance.release_dry_run")
         self.assertEqual(backfill["command"], "maintenance.completed_backfill_dry_run")
         self.assertEqual(atlas["command"], "maintenance.dependency_atlas")
+        self.assertEqual(retention["command"], "maintenance.retention_dry_run")
         self.assertEqual(release["severity"], "warning")
         self.assertEqual(backfill["severity"], "warning")
         self.assertEqual(atlas["severity"], "warning")
+        self.assertEqual(retention["severity"], "warning")
         self.assertIn("another maintenance command is already in progress", release["message"])
         self.assertIn("another maintenance command is already in progress", backfill["message"])
         self.assertIn("another maintenance command is already in progress", atlas["message"])
+        self.assertIn("another maintenance command is already in progress", retention["message"])
         self.assertEqual(service.release_build_calls, [])
         self.assertEqual(service.dependency_atlas_calls, [])
         self.assertEqual(backfill_calls, [])
+
+    def test_state_journal_archive_requires_confirmation_and_safe_close_readiness(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.event_file = resolved.state_root / "Progress" / "pipeline_events.jsonl"
+            resolved.event_file.parent.mkdir(parents=True)
+            resolved.event_file.write_text("1234567890", encoding="utf-8")
+
+            with patch("mediapipeline.core.maintenance.state_journal_archive.ARCHIVE_MIN_BYTES", 5):
+                unconfirmed = facade.archive_state_journals(
+                    resolved,
+                    {"reason": "launch recovery"},
+                    close_readiness={"safe_to_close": True, "reason": "idle"},
+                ).to_mapping()
+                unsafe = facade.archive_state_journals(
+                    resolved,
+                    {"confirm_archive": True, "reason": "launch recovery"},
+                    close_readiness={"safe_to_close": False, "reason": "active work"},
+                ).to_mapping()
+                confirmed = facade.archive_state_journals(
+                    resolved,
+                    {"confirm_archive": True, "reason": "launch recovery"},
+                    close_readiness={"safe_to_close": True, "reason": "idle"},
+                ).to_mapping()
+
+            archive_dir = resolved.event_file.parent / "ArchivedEvents"
+            archives = list(archive_dir.glob("pipeline_events.*.archived.jsonl"))
+            archive_count = len(archives)
+            archive_text = archives[0].read_text(encoding="utf-8") if archives else ""
+            replacement_text = resolved.event_file.read_text(encoding="utf-8")
+
+        self.assertFalse(unconfirmed["ok"])
+        self.assertTrue(unconfirmed["data"]["confirmation_required"])
+        self.assertFalse(unsafe["ok"])
+        self.assertEqual(unsafe["data"]["moved_count"], 0)
+        self.assertIn("active work", unsafe["message"])
+        self.assertTrue(confirmed["ok"])
+        self.assertEqual(confirmed["command"], "maintenance.archive_state_journals")
+        self.assertEqual(confirmed["data"]["schema_version"], "desktop_state_journal_archive.v1")
+        self.assertEqual(confirmed["data"]["moved_count"], 1)
+        self.assertFalse(confirmed["data"]["media_mutation_performed"])
+        self.assertFalse(confirmed["data"]["pending_publish_mutation_performed"])
+        self.assertFalse(confirmed["data"]["queue_mutation_performed"])
+        self.assertEqual(archive_count, 1)
+        self.assertEqual(archive_text, "1234567890")
+        self.assertEqual(replacement_text, "")

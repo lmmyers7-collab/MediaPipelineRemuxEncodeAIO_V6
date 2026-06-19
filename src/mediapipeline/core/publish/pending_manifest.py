@@ -4,6 +4,8 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline.desktop.contracts import ContractError, PENDING_PUSH_MANIFEST_STATES, PendingPushManifest
+from mediapipeline.core.kernel.contracts.pending_publish import PENDING_PUSH_RETRY_LIMIT
+from mediapipeline.core.publish.pending_format import int_or_none
 from mediapipeline.core.publish.pending_manifest_rows import (
     invalid_contract_pending_manifest_row,
     pending_output_size,
@@ -42,6 +44,7 @@ def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
     output_size = pending_output_size(manifest, local_path)
     parked_at = contract.parked_at if contract else str(manifest.get("parked_at") or "").strip()
     state = contract.manifest_state if contract else str(manifest.get("manifest_state") or "").strip()
+    retry_count = int(int_or_none(manifest.get("retry_count")) or 0)
     error_text = pending_payload_error_text(
         local_path,
         local_exists,
@@ -70,4 +73,6 @@ def pending_manifest_row(manifest_path: Path) -> dict[str, Any]:
         missing_sidecars=missing_sidecars,
         schema_version=schema_version,
         error_text=error_text,
+        retry_count=retry_count,
+        retry_limit=PENDING_PUSH_RETRY_LIMIT,
     )

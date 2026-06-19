@@ -3,9 +3,9 @@ file: ops/pipeline/engine/naming/tv_parsing.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: naming
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 7c3b67e1287826639e48d0a222501c0b05d21b1a3c11eb9e8ed9947ae8eb3c2b
+sha256: a7869397cceaa320b212ce369567e25cc9fb1c41f00d0641a6555effb8b9ca46
 ---
 # `ops/pipeline/engine/naming/tv_parsing.ps1`
 

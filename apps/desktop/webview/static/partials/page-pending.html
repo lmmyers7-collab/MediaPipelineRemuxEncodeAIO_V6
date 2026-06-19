@@ -73,7 +73,10 @@
             <button type="button" id="pending-action-blockers-button" class="secondary-button">Show Blockers</button>
           </div>
           <p id="pending-action-feedback" class="note">Action Center controls use existing backend-owned Pending Publish commands and local display filters.</p>
-          <pre id="pending-action-detail" class="prose-block">No Pending Publish action evidence loaded.</pre>
+          <details class="pending-compact-detail">
+            <summary>Decision detail</summary>
+            <pre id="pending-action-detail" class="prose-block">No Pending Publish action evidence loaded.</pre>
+          </details>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -101,7 +104,10 @@
             <span class="status-chip" data-status="validation-needed">Evidence incomplete</span>
             <span class="status-chip" data-status="ok">Ready-looking</span>
           </div>
-          <pre id="pending-drain-overview" class="prose-block">No pending publish drain decision summary loaded.</pre>
+          <details class="pending-compact-detail">
+            <summary>Drain decision summary</summary>
+            <pre id="pending-drain-overview" class="prose-block">No pending publish drain decision summary loaded.</pre>
+          </details>
           <div id="pending-drain-progress-bars" class="progress-bar-list" aria-live="polite">
             <p class="note">No active pending-publish drain progress loaded.</p>
           </div>
@@ -109,10 +115,13 @@
             <button type="button" id="pending-drain-button" class="danger-button">Drain Parked Outputs</button>
             <strong id="pending-drain-status">Idle</strong>
           </div>
-          <pre id="pending-drain-detail" class="prose-block">No pending publish drain result.</pre>
-          <pre id="pending-drain-history" class="prose-block">No pending publish drain history loaded.</pre>
+          <details class="pending-compact-detail">
+            <summary>Drain result and history</summary>
+            <pre id="pending-drain-detail" class="prose-block">No pending publish drain result.</pre>
+            <pre id="pending-drain-history" class="prose-block">No pending publish drain history loaded.</pre>
+          </details>
         </section>
-        <section class="panel" data-layout-editor-exclude data-panel-type="interactive">
+        <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Pending Refresh</h2>
             <strong>Backend scan</strong>
@@ -253,30 +262,33 @@
             <button type="button" id="pending-recovery-plan-selected-button" class="secondary-button">Plan Selected Row</button>
             <button type="button" id="pending-recovery-plan-all-button" class="secondary-button">Plan All Rows</button>
           </div>
-          <pre id="pending-recovery-plan-detail" class="prose-block">No pending publish dry-run recovery plan built. This panel never repairs, drains, rewrites, moves, deletes, or publishes files.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table aria-label="Pending publish dry-run recovery plan rows">
-              <thead>
-                <tr>
-                  <th scope="col">Class</th>
-                  <th scope="col">Action</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Target</th>
-                  <th scope="col">Next Action</th>
-                </tr>
-              </thead>
-              <tbody id="pending-recovery-plan-rows">
-                <tr><td colspan="5">No pending publish recovery plan rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No plan built</span>
-            <span class="empty-state-hint">Use Plan Selected Row or Plan All Rows to build a dry-run recovery plan.</span>
-          </div>
-          </div>
-          <p id="pending-recovery-plan-legend" class="note table-legend">Pending recovery-plan rows: no selectable rows.</p>
-          <pre id="pending-recovery-plan-row-detail" class="prose-block">No recovery-plan row selected.</pre>
-          <pre id="pending-recovery-plan-history" class="prose-block">No pending publish recovery plan history loaded.</pre>
+          <details class="pending-compact-detail">
+            <summary>Recovery plan detail</summary>
+            <pre id="pending-recovery-plan-detail" class="prose-block">No pending publish dry-run recovery plan built. This panel never repairs, drains, rewrites, moves, deletes, or publishes files.</pre>
+            <div class="table-wrap detail-table-wrap">
+              <table aria-label="Pending publish dry-run recovery plan rows">
+                <thead>
+                  <tr>
+                    <th scope="col">Class</th>
+                    <th scope="col">Action</th>
+                    <th scope="col">Evidence</th>
+                    <th scope="col">Target</th>
+                    <th scope="col">Next Action</th>
+                  </tr>
+                </thead>
+                <tbody id="pending-recovery-plan-rows">
+                  <tr><td colspan="5">No pending publish recovery plan rows loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No plan built</span>
+              <span class="empty-state-hint">Use Plan Selected Row or Plan All Rows to build a dry-run recovery plan.</span>
+            </div>
+            </div>
+            <p id="pending-recovery-plan-legend" class="note table-legend">Pending recovery-plan rows: no selectable rows.</p>
+            <pre id="pending-recovery-plan-row-detail" class="prose-block">No recovery-plan row selected.</pre>
+            <pre id="pending-recovery-plan-history" class="prose-block">No pending publish recovery plan history loaded.</pre>
+          </details>
         </section>
         <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">

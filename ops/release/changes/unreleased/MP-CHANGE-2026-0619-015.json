@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0619-015",
+  "title": "Restore Tauri Local API response CORS headers",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Ensure Local API JSON/static responses include authorized CORS response headers so the Tauri WebView can read backend responses.",
+  "reason": "The Tauri shell loads the WebView from tauri://localhost while the Local API serves http://127.0.0.1:<port>. OPTIONS preflight already allowed this origin, but actual responses lacked Access-Control-Allow-Origin, causing browser fetch calls such as settings save and backend snapshot reads to fail as unreadable cross-origin responses.",
+  "affected_areas": [
+    "local-api",
+    "settings",
+    "webview-tauri"
+  ],
+  "behavior_before": "Authorized Tauri-origin fetches could pass preflight but fail with Failed to fetch because actual Local API responses did not carry CORS allow-origin headers.",
+  "behavior_after": "Authorized Tauri-origin fetches receive matching Access-Control-Allow-Origin and Vary headers on actual Local API responses while existing host/origin/auth checks remain in place.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-015.json.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/handler.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/handler_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_handler_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_core_contracts.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-015.json",
+    "src/mediapipeline/desktop/api/handler.py",
+    "src/mediapipeline/desktop/api/handler_policy.py",
+    "tests/python/desktop/test_api_handler_policy.py",
+    "tests/python/desktop/test_application_facade_core_contracts.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_api_handler_policy.py",
+    "tests/python/desktop/test_application_facade_core_contracts.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_api_handler_policy.py tests/python/desktop/test_application_facade_core_contracts.py -q - passed (24 passed)",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_settings_patch.py -q - passed (23 passed)",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_settings_patch_smoke.py -q - failed: pre-existing dirty settingsView.js changed expected preview guidance text",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (437 packet(s) valid)",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-LocalApiLifecycleContractSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the Local API handler/header helper changes and this packet. Browser-served same-origin WebView use would continue to work, but Tauri-origin fetches would again be blocked by browser CORS enforcement.",
+  "related_changes": [],
+  "notes": "Add authorized CORS headers to actual Local API responses for Tauri-origin fetches.\nFocused tests passed; WebView settings patch smoke remains blocked by existing Settings UI wording drift outside this API CORS fix.\nStrict coverage passed with no uncovered dirty files reported by validate_changes."
+}

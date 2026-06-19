@@ -33,6 +33,7 @@ from mediapipeline.core.diagnostics.state_summary import (
     diagnostics_should_include_settings_tool_path_evidence,
     diagnostics_state_summary_payload,
 )
+from mediapipeline.core.diagnostics.autonomy_health import autonomy_health_payload, load_autonomy_growth_history
 from mediapipeline.core.status.active_jobs import worker_progress_payload
 from mediapipeline.core.status.eta import eta_payload
 from mediapipeline.core.status.ffmpeg_progress import ffmpeg_progress_payload
@@ -48,6 +49,21 @@ class DiagnosticsFacadeMixin:
 
     service: object
     app_version: str
+
+    def _autonomy_health_for_resolved(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        path_health: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        scan_pending = getattr(self.service, "scan_pending_publish", None)
+        pending_publish = scan_pending(resolved) if callable(scan_pending) else None
+        return autonomy_health_payload(
+            resolved,
+            pending_publish=pending_publish,
+            path_health=path_health or configured_path_health(resolved),
+            growth_history=load_autonomy_growth_history(resolved),
+        )
 
     def get_diagnostics(self, snapshot: Snapshot) -> DiagnosticsDto:
         active_jobs = self._active_job_rows(snapshot.resolved)
@@ -127,10 +143,20 @@ class DiagnosticsFacadeMixin:
             else None
         )
         path_health = configured_path_health(resolved)
+        pending_scan = None
+        scan_pending = getattr(self.service, "scan_pending_publish", None)
+        if callable(scan_pending):
+            pending_scan = scan_pending(resolved)
         return diagnostics_state_summary_payload(
             items,
             settings_tool_path_evidence=tool_path_evidence,
             path_health=path_health,
+            autonomy_health=autonomy_health_payload(
+                resolved,
+                pending_publish=pending_scan,
+                path_health=path_health,
+                growth_history=load_autonomy_growth_history(resolved),
+            ),
         )
 
     def _active_job_rows(self, resolved: ResolvedPaths) -> list[str]:

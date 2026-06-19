@@ -156,10 +156,14 @@ def _browser_rename_runner_source() -> str:
             setValue("settings-patch-json", "{}");
             setValue("settings-rename-filter-release-groups", "rarbg, yify, codexrg, neonoir");
             setValue("settings-rename-filter-languages-subs-dubs", "eng, ita, sub, dub, multisub");
+            setValue("settings-rename-tv-filter-release-groups", "chotab, ttga, codextv");
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', false);
+            setCheckedBySelector('[data-rename-tv-filter="release_groups"]', false);
             click("#settings-save-header-save-button", "main settings save");
             await new Promise((resolve) => setTimeout(resolve, 150));
-            requireText("settings-patch-detail", ["Rename filter draft retained in this browser", "Stage Rename Filter Patch", "Preview Patch and Save Settings"]);
+            requireText("settings-save-review-dialog", ["Review Settings Changes", "Save Settings"]);
+            byId("settings-save-review-dialog").close("cancel");
+            await new Promise((resolve) => setTimeout(resolve, 150));
             const storedRenameFilters = JSON.parse(localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") || "null");
             if (Object.prototype.hasOwnProperty.call(storedRenameFilters || {}, "use_editable_filters")) {
               throw new Error("removed editable rename filter toggle was saved");
@@ -173,36 +177,37 @@ def _browser_rename_runner_source() -> str:
             if (!String(storedRenameFilters?.movie_filter_terms_text?.languages_subs_dubs || "").includes("multisub")) {
               throw new Error("language/sub-dub terms were not saved: " + JSON.stringify(storedRenameFilters?.movie_filter_terms_text));
             }
+            if (storedRenameFilters?.tv_filter_options?.release_groups !== false) {
+              throw new Error("TV release-group checkbox state was not saved: " + JSON.stringify(storedRenameFilters?.tv_filter_options));
+            }
+            if (!String(storedRenameFilters?.tv_filter_terms_text?.release_groups || "").includes("codextv")) {
+              throw new Error("TV release-group terms were not saved: " + JSON.stringify(storedRenameFilters?.tv_filter_terms_text));
+            }
             setValue("settings-rename-filter-release-groups", "temporary lost value");
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
+            setValue("settings-rename-tv-filter-release-groups", "temporary tv lost value");
+            setCheckedBySelector('[data-rename-tv-filter="release_groups"]', true);
             window.mediaPipelineRenameView.initRenameCleaningFilterEditorEvents();
             if (document.querySelector('[data-rename-movie-filter="release_groups"]').checked) {
               throw new Error("release-group checkbox state was not restored");
             }
+            if (document.querySelector('[data-rename-tv-filter="release_groups"]').checked) {
+              throw new Error("TV release-group checkbox state was not restored");
+            }
             if (!byId("settings-rename-filter-release-groups").value.includes("codexrg")) {
               throw new Error("release-group terms did not reload from browser storage: " + byId("settings-rename-filter-release-groups").value);
+            }
+            if (!byId("settings-rename-tv-filter-release-groups").value.includes("codextv")) {
+              throw new Error("TV release-group terms did not reload from browser storage: " + byId("settings-rename-tv-filter-release-groups").value);
             }
             requireText("settings-rename-cleaning-filter-summary", ["Unsaved cleaning filter draft loaded from browser storage", "release groups=4", "Browser storage is local draft recovery only"]);
             const savedReleaseGroups = byId("settings-rename-filter-release-groups").value;
 
             const originalSettingsApiPost = window.apiPost;
             const settingsPosts = [];
-            const settingsConfirmMessages = [];
             window.apiPost = async (url, body) => {
               if (String(url || "").startsWith("/api/settings/")) {
                 settingsPosts.push({ url: String(url || ""), body: body || {} });
-                if (String(url || "") === "/api/settings/preview-patch") {
-                  return {
-                    command: "settings.preview_patch",
-                    ok: true,
-                    message: "Preview ready.",
-                    data: {
-                      writes_config: false,
-                      changed_keys: Object.keys(body?.changes || {}),
-                      removed_keys: [],
-                    },
-                  };
-                }
                 if (String(url || "") === "/api/settings/save-patch") {
                   return {
                     command: "settings.save_patch",
@@ -221,46 +226,40 @@ def _browser_rename_runner_source() -> str:
               }
               return originalSettingsApiPost(url, body);
             };
-            const originalConfirm = window.confirm;
-            window.confirm = (message) => {
-              settingsConfirmMessages.push(String(message || ""));
-              return true;
-            };
-            click("#settings-rename-cleaning-filters-save-button", "stage rename filters");
+            const renameFilterSavePromise = window.mediaPipelineSettingsView.saveSettingsPatch();
             await new Promise((resolve) => setTimeout(resolve, 250));
             if (settingsPosts.length !== 0) {
-              throw new Error("rename filter staging called backend settings routes: " + JSON.stringify(settingsPosts));
+              throw new Error("settings save review called backend settings routes before confirmation: " + JSON.stringify(settingsPosts));
             }
             const stagedChanges = JSON.parse(byId("settings-patch-json").value || "{}");
-            if (!stagedChanges.RenameMovieFilterOptions || !stagedChanges.RenameMovieFilterTerms || !stagedChanges.RenameMovieRemoveTerms) {
-              throw new Error("rename filter staging did not write persisted setting keys to Settings Changes JSON: " + JSON.stringify(stagedChanges));
+            if (!stagedChanges.RenameMovieFilterOptions || !stagedChanges.RenameMovieFilterTerms || !stagedChanges.RenameMovieRemoveTerms || !stagedChanges.RenameTVFilterOptions || !stagedChanges.RenameTVFilterTerms || !stagedChanges.RenameTVRemoveTerms) {
+              throw new Error("settings save review did not write rename filter persisted setting keys to Settings Changes JSON: " + JSON.stringify(stagedChanges));
             }
             if (!String((stagedChanges.RenameMovieFilterTerms.release_groups || []).join(",")).includes("codexrg")) {
-              throw new Error("rename filter staging omitted edited release group terms: " + JSON.stringify(stagedChanges.RenameMovieFilterTerms));
+              throw new Error("settings save review omitted edited release group terms: " + JSON.stringify(stagedChanges.RenameMovieFilterTerms));
             }
             if (!String((stagedChanges.RenameMovieFilterTerms.languages_subs_dubs || []).join(",")).includes("multisub")) {
-              throw new Error("rename filter staging omitted language/sub-dub terms: " + JSON.stringify(stagedChanges.RenameMovieFilterTerms));
+              throw new Error("settings save review omitted language/sub-dub terms: " + JSON.stringify(stagedChanges.RenameMovieFilterTerms));
+            }
+            if (!String((stagedChanges.RenameTVFilterTerms.release_groups || []).join(",")).includes("codextv")) {
+              throw new Error("settings save review omitted TV release group terms: " + JSON.stringify(stagedChanges.RenameTVFilterTerms));
             }
             if (localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") === null) {
-              throw new Error("rename filter staging should retain browser draft storage");
+              throw new Error("settings save review should retain browser draft storage");
             }
-            requireText("settings-rename-cleaning-filter-summary", ["Rename cleaning filters staged into Settings Changes JSON.", "Next step: run Preview Patch, then Save Settings from Settings.", "Browser storage is local draft recovery only"]);
-            click("#settings-save-header-preview-button", "preview staged rename filter patch");
+            requireText("settings-rename-cleaning-filter-summary", ["Rename filters are included in the current Save Settings review.", "Next step: press Save Settings.", "Browser storage is local draft recovery only"]);
+            requireText("settings-save-review-dialog", ["Review Settings Changes", "RenameMovieFilterOptions", "RenameMovieFilterTerms", "RenameMovieRemoveTerms", "RenameTVFilterOptions", "RenameTVFilterTerms", "RenameTVRemoveTerms"]);
+            byId("settings-save-review-dialog").close("confirm");
+            await renameFilterSavePromise;
             await new Promise((resolve) => setTimeout(resolve, 250));
-            click("#settings-save-header-save-button", "save staged rename filter patch");
-            await new Promise((resolve) => setTimeout(resolve, 250));
-            if (settingsPosts.length !== 2 || settingsPosts[0].url !== "/api/settings/preview-patch" || settingsPosts[1].url !== "/api/settings/save-patch") {
-              throw new Error("staged rename filters were not saved through settings preview/save routes: " + JSON.stringify(settingsPosts));
+            if (settingsPosts.length !== 1 || settingsPosts[0].url !== "/api/settings/save-patch") {
+              throw new Error("rename filters were not saved through settings save route: " + JSON.stringify(settingsPosts));
             }
-            const saveChanges = settingsPosts[1].body?.changes || {};
-            if (!saveChanges.RenameMovieFilterOptions || !saveChanges.RenameMovieFilterTerms || !saveChanges.RenameMovieRemoveTerms || settingsPosts[1].body?.confirm_save !== true) {
-              throw new Error("settings save did not submit rename filter persisted keys with confirmation: " + JSON.stringify(settingsPosts[1]));
-            }
-            if (!settingsConfirmMessages.join("\\n").includes("Save 3 setting patch key(s) to the active PSD1 config?")) {
-              throw new Error("settings save confirmation did not run for staged rename filters: " + JSON.stringify(settingsConfirmMessages));
+            const saveChanges = settingsPosts[0].body?.changes || {};
+            if (!saveChanges.RenameMovieFilterOptions || !saveChanges.RenameMovieFilterTerms || !saveChanges.RenameMovieRemoveTerms || !saveChanges.RenameTVFilterOptions || !saveChanges.RenameTVFilterTerms || !saveChanges.RenameTVRemoveTerms || settingsPosts[0].body?.confirm_save !== true) {
+              throw new Error("settings save did not submit rename filter persisted keys with confirmation: " + JSON.stringify(settingsPosts[0]));
             }
             requireText("settings-patch-status", ["Saved"]);
-            window.confirm = originalConfirm;
             window.apiPost = originalSettingsApiPost;
 
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
@@ -269,13 +268,20 @@ def _browser_rename_runner_source() -> str:
             await new Promise((resolve) => setTimeout(resolve, 600));
             requireText("settings-rename-preview-output", ["Together (2025).mkv", "Movie filter policy: staged.", "Source: backend clean_pipeline_movie_name."]);
             requireText("settings-rename-preview-status", ["Backend clean preview complete"]);
+            setValue("settings-rename-preview-mode", "tv");
+            setValue("settings-rename-preview-source-folder", "The Web S01 1080p WEB-DL-codextv");
+            setValue("settings-rename-preview-input", "S01E01-Pilot.1080p.WEB-DL-codextv.mkv");
+            setCheckedBySelector('[data-rename-tv-filter="release_groups"]', true);
+            click("#settings-rename-preview-button", "backend TV filename cleaner test");
+            await new Promise((resolve) => setTimeout(resolve, 600));
+            requireText("settings-rename-preview-output", ["The Web - S01E01 - Pilot.mkv", "TV filter policy: staged.", "Context guard:", "Source: backend build_auto_tv_rename_name."]);
 
             window.showPage("rename");
             requireText("rename-browse-folder-button", ["Add files from folder"]);
             requireText("rename-clear-paths-button", ["Clear staged paths"]);
             requireText("rename-add-path-button", ["Add manual path"]);
             requireText("rename-confirm-title", ["Confirm filesystem rename"]);
-            requireText("rename-confirm-mutation-warning", ["This will rename files on disk", "Review every source and destination path"]);
+            requireText("rename-confirm-mutation-warning", ["Preview is read-only", "backend rename.apply", "can rename files on disk"]);
             requireText("rename-confirm-apply-button", ["Apply filesystem rename"]);
             const originalApiPost = window.apiPost;
             const browsePosts = [];
@@ -338,8 +344,14 @@ def _browser_rename_runner_source() -> str:
               errors: [],
             };
             window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
-            requireText("rename-apply-button", ["Apply all 1 safe rename"]);
-            requireText("rename-apply-status-hint", ["No rows checked", "all safe rows"]);
+            requireText("rename-apply-button", ["Check rows before apply"]);
+            requireText("rename-apply-status-hint", ["No rows checked", "Check Applicable"]);
+            if (!byId("rename-apply-button").disabled) {
+              throw new Error("unchecked rename apply button was not disabled");
+            }
+            click("#rename-check-applicable-button", "check first applicable rename row");
+            requireText("rename-selected-count", ["1 checked"]);
+            requireText("rename-apply-button", ["Apply 1 checked rename"]);
             setValue("rename-show", "Serial Experiments Lain Changed");
             window.mediaPipelineRenameView.syncRenameCommandButtons();
             requireText("rename-apply-button", ["Preview out of date"]);
@@ -352,8 +364,8 @@ def _browser_rename_runner_source() -> str:
             click('#rename-rows tr[data-selectable-row="true"]', "rename preview row");
             requireText("rename-detail", ["Serial Experiments Lain - S02E01 - Weird.mkv", "Confidence reason(s): folder season 02 | episode token E01"]);
             requireText("rename-apply-readiness-status", ["Ready"]);
-            requireReadiness(["Apply scope", "all applicable preview rows", "Mutation boundary", "/api/rename/apply"]);
-            requireText("rename-batch-safety", ["Apply scope", "if none are checked", "all applicable safe preview rows"]);
+            requireReadiness(["Apply scope", "checked rows", "Mutation boundary", "/api/rename/apply"]);
+            requireText("rename-batch-safety", ["Apply scope", "checked rows are required", "selected_sources"]);
             requireTextAbsent("rename-batch-safety", ["selected detail row"]);
             const posted = [];
             window.apiPost = async (url, body) => {
@@ -370,20 +382,26 @@ def _browser_rename_runner_source() -> str:
             };
             window.mediaPipelineRenameView.renderRenamePreview({ rows: [first, second], counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
             click('#rename-rows tr[data-selectable-row="true"]', "first rename preview row");
-            requireText("rename-apply-button", ["Apply all 2 safe renames"]);
-            click("#rename-apply-button", "apply all safe rename rows");
+            click("#rename-clear-checks-button", "clear checked rename rows");
+            requireText("rename-apply-button", ["Check rows before apply"]);
+            if (!byId("rename-apply-button").disabled) {
+              throw new Error("unchecked two-row rename apply button was not disabled");
+            }
+            click("#rename-check-applicable-button", "check applicable rename rows");
+            requireText("rename-apply-button", ["Apply 2 checked renames"]);
+            click("#rename-apply-button", "apply checked rename rows");
             await new Promise((resolve) => setTimeout(resolve, 100));
             if (!byId("rename-confirm-dialog").open) {
-              throw new Error("rename confirm dialog did not open for unchecked all-safe scope");
+              throw new Error("rename confirm dialog did not open for checked scope");
             }
-            requireText("rename-confirm-count", ["Renaming 2 file(s)."]);
-            requireText("rename-confirm-warning", ["No rows were checked", "all safe rows"]);
-            click("#rename-confirm-apply-button", "confirm all-safe rename apply");
+            requireText("rename-confirm-count", ["Renaming 2 checked files."]);
+            requireText("rename-confirm-warning", ["Preview is read-only", "backend rename.apply"]);
+            click("#rename-confirm-apply-button", "confirm checked rename apply");
             await new Promise((resolve) => setTimeout(resolve, 250));
             const applyPost = posted.find((entry) => entry.url === "/api/rename/apply");
-            if (!applyPost) throw new Error("unchecked all-safe rename apply did not post /api/rename/apply");
+            if (!applyPost) throw new Error("checked rename apply did not post /api/rename/apply");
             if (JSON.stringify(applyPost.body.selected_sources || []) !== JSON.stringify([first.source, second.source])) {
-              throw new Error("unchecked apply selected_sources did not match all applicable rows: " + JSON.stringify(applyPost.body));
+              throw new Error("checked apply selected_sources did not match checked rows: " + JSON.stringify(applyPost.body));
             }
             if (applyPost.body.confirm_apply !== true) throw new Error("rename apply post omitted confirm_apply=true");
             if (byId("rename-result-dialog").open) byId("rename-result-dialog").close();
@@ -483,11 +501,11 @@ def _browser_rename_runner_source() -> str:
             setValue("rename-paths", "C:/TV/S02/E01.mkv\\nC:/TV/S02/E02.mkv");
             window.mediaPipelineRenameView.renderRenamePreview({ rows: [duplicateA, duplicateB], counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
             click("#rename-check-applicable-button", "check applicable rename rows");
-            requireText("rename-selected-count", ["2 checked"]);
+            requireText("rename-selected-count", ["0 checked"]);
             requireText("rename-apply-readiness-status", ["Blocked"]);
             requireReadiness(["Duplicate destinations", "duplicate target", "selected_sources"]);
             requireText("rename-apply-button", ["Resolve blockers before apply"]);
-            requireText("rename-apply-status-hint", ["Blocked by readiness", "duplicate destination target"]);
+            requireText("rename-apply-status-hint", ["Checked 0 ready/match rows", "duplicate=2"]);
             if (!byId("rename-apply-button").disabled) {
               throw new Error("duplicate-target scope did not disable Apply");
             }
@@ -648,7 +666,7 @@ class WebViewBrowserRenameSmoke(unittest.TestCase):
         self.assertIn("codexrg", browser_result["savedReleaseGroups"])
         self.assertIn("neonoir", browser_result["savedReleaseGroups"].lower())
         self.assertTrue(browser_result["applyDisabled"])
-        self.assertIn("duplicate destination target", browser_result["blockerHint"])
+        self.assertIn("duplicate=2", browser_result["blockerHint"])
         self.assertEqual(browser_result["posted"], [])
 
 

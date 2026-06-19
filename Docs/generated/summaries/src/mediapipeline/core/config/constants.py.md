@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/constants.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-11
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 771fc81d2d7ba9da3dc5a3f9c794eabd80c02c4c4ea42905c5282ab6ec122a4f
+sha256: f153af80027d5eb605a65212b834cb91ce9e81a4754322b84c28774e9f794ecb
 ---
 # `src/mediapipeline/core/config/constants.py`
 

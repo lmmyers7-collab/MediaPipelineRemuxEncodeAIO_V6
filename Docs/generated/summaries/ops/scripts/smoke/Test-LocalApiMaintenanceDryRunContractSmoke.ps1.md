@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 2be3a94d176e792812a07b857e3aff7944afe0e5715255bdcc35a215369b3d86
+sha256: 823e0927005972a91a3b191a251925d573584ab38ccc67c37d717cbd953151c4
 ---
 # `ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1`
 

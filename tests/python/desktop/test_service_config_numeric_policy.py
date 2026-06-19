@@ -58,6 +58,14 @@ def _numeric_baseline() -> dict:
         "IndexScanTimeoutSeconds": 300,
         "CleanupScanTimeoutSeconds": 300,
         "CleanupStaleAgeHours": 24,
+        "EncodeWasteGuardMinProgressPercent": 15,
+        "EncodeWasteGuardMinElapsedSeconds": 120,
+        "EncodeWasteGuardOversizeMarginPercent": 20,
+        "EncodeWasteGuardConsecutiveSamples": 2,
+        "EncodeWasteGuardPollSeconds": 10,
+        "EncodeWasteGuardPreflightSampleSeconds": 30,
+        "EncodeWasteGuardPreflightSampleCount": 3,
+        "EncodeWasteGuardPreflightTimeoutSeconds": 900,
     }
 
 
@@ -93,6 +101,14 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
             "VobSubOcrTimeoutSeconds": {"min": 60, "max": 14400, "step": 1, "unit": "seconds"},
             "OutputSizeMultiplier": {"min": 0.1, "max": 2.0, "step": "any", "unit": None},
             "CpuEncodeMaxThreads": {"min": 0, "max": 256, "step": 1, "unit": "threads"},
+            "EncodeWasteGuardMinProgressPercent": {"min": 0, "max": 95, "step": 1, "unit": "percent"},
+            "EncodeWasteGuardMinElapsedSeconds": {"min": 0, "max": 86400, "step": 1, "unit": "seconds"},
+            "EncodeWasteGuardOversizeMarginPercent": {"min": 0, "max": 1000, "step": 1, "unit": "percent"},
+            "EncodeWasteGuardConsecutiveSamples": {"min": 1, "max": 10, "step": 1, "unit": None},
+            "EncodeWasteGuardPollSeconds": {"min": 1, "max": 600, "step": 1, "unit": "seconds"},
+            "EncodeWasteGuardPreflightSampleSeconds": {"min": 5, "max": 600, "step": 1, "unit": "seconds"},
+            "EncodeWasteGuardPreflightSampleCount": {"min": 1, "max": 10, "step": 1, "unit": None},
+            "EncodeWasteGuardPreflightTimeoutSeconds": {"min": 30, "max": 86400, "step": 1, "unit": "seconds"},
         }
 
         for key, expected in expected_limits.items():
@@ -134,6 +150,10 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
                 "Route1080pMaxVideoBitrateMbps": 0,
                 "Route1440pMaxVideoBitrateMbps": 501,
                 "Route4KMaxVideoBitrateMbps": 501,
+                "EncodeWasteGuardMinProgressPercent": 96,
+                "EncodeWasteGuardConsecutiveSamples": 0,
+                "EncodeWasteGuardPollSeconds": 0,
+                "EncodeWasteGuardPreflightSampleSeconds": 4,
             }
         )
         errors: list[str] = []
@@ -152,6 +172,10 @@ class ServiceConfigNumericPolicyTests(unittest.TestCase):
         self.assertIn("Route1080pMaxVideoBitrateMbps must be >= 1.", errors)
         self.assertIn("Route1440pMaxVideoBitrateMbps must be <= 500.", errors)
         self.assertIn("Route4KMaxVideoBitrateMbps must be <= 500.", errors)
+        self.assertIn("EncodeWasteGuardMinProgressPercent must be <= 95.", errors)
+        self.assertIn("EncodeWasteGuardConsecutiveSamples must be >= 1.", errors)
+        self.assertIn("EncodeWasteGuardPollSeconds must be >= 1.", errors)
+        self.assertIn("EncodeWasteGuardPreflightSampleSeconds must be >= 5.", errors)
 
     def test_numeric_policy_rejects_noncontiguous_height_tolerance_percent_keys(self) -> None:
         values = _numeric_baseline()

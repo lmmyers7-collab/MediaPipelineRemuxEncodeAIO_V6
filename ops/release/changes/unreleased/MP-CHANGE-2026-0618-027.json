@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0618-027",
+  "title": "Add private beta workflow dispatch helper",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a GitHub Actions workflow dispatch helper for the private beta lane with dry-run command-shape validation.",
+  "reason": "After local and GitHub setup preflights pass, operators need one repeatable command to dispatch the private beta workflow with publish_release=false for the first CI-built artifact.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests"
+  ],
+  "behavior_before": "Operators had to manually construct the gh workflow run command after setup preflight passed.",
+  "behavior_after": "Operators can dry-run or dispatch the private beta workflow through one script that validates input shape and calls the GitHub setup preflight before any real dispatch.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-027.json.md",
+    "docs/generated/summaries/ops/scripts/release/Invoke-PrivateBetaWorkflowDispatch.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_workflow_dispatch.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-027.json",
+    "ops/scripts/release/Invoke-PrivateBetaWorkflowDispatch.ps1",
+    "tests/python/tooling/test_private_beta_workflow_dispatch.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_private_beta_workflow_dispatch.py"
+  ],
+  "manual_validation": [
+    "Invoke-PrivateBetaWorkflowDispatch.ps1 -DryRun - passed and produced publish_release=false gh workflow run command",
+    "git diff --check targeted workflow dispatch files - passed",
+    "pytest private beta dispatch/setup/workflow dry-run tooling suite - passed (7 passed)",
+    "pytest tests/python/tooling/test_private_beta_workflow_dispatch.py -q - passed (3 passed)",
+    "refresh_summaries targeted workflow dispatch helper paths - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Remove the dispatch helper script, tests, docs references, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-020",
+    "MP-CHANGE-2026-0618-023"
+  ],
+  "notes": "This helper must not publish stable or release assets by default. The first beta dispatch defaults publish_release=false."
+}

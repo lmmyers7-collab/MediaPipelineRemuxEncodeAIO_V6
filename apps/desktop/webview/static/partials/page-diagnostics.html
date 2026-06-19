@@ -336,14 +336,6 @@
 
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
-            <h2>Commands Evidence</h2>
-            <strong id="diagnostics-command-status">No commands</strong>
-          </div>
-          <pre id="diagnostics-command-history" class="log-block">No backend command history loaded.</pre>
-        </section>
-
-        <section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
             <h2>Command Detail</h2>
             <strong id="diagnostics-command-drilldown-status">No commands</strong>
           </div>
@@ -454,6 +446,15 @@
           <p id="diagnostics-command-resolution-legend" class="note table-legend">Command failure resolution rows: no selectable rows.</p>
           <pre id="diagnostics-command-resolution-detail" class="prose-block">Select a command failure checkpoint before retrying from an owning page.</pre>
         </section>
+
+        <section class="panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Commands Evidence</h2>
+            <strong id="diagnostics-command-status">No commands</strong>
+          </div>
+          <p class="note">Raw command history is secondary evidence. Use Command Detail first for owner, issue, related evidence, and safe next-step triage.</p>
+          <pre id="diagnostics-command-history" class="log-block">No backend command history loaded.</pre>
+        </section>
         </div>
 
         <!-- TAB: LOGS -->
@@ -461,6 +462,7 @@
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Pipeline Log</h2>
+            <strong id="diagnostics-pipeline-log-status">Not loaded</strong>
           </div>
           <p class="note">Source: backend diagnostics pipeline log tail from the diagnostics payload. Use Investigation > Log Access for structured source, severity, timestamp, and line filtering before acting.</p>
           <pre id="log-tail" class="log-block">No log tail loaded.</pre>
@@ -510,6 +512,7 @@
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Launch Log</h2>
+            <strong id="diagnostics-launch-log-status">Not loaded</strong>
           </div>
           <p class="note">Source: backend launch log summary from diagnostics. Compare this with File Log targets Last Stdout and Last Stderr before retrying or stopping work from the owning control surface.</p>
           <pre id="launch-logs" class="log-block">No launch logs loaded.</pre>
@@ -523,16 +526,21 @@
             <h2>Tdarr Proof Pack</h2>
             <strong id="tdarr-matrix-audit-status">Idle</strong>
           </div>
-          <p class="note">Runs backend-owned Tdarr proof diagnostics against E:\Videos\TdarrMatrix\ProofPack and isolated proof run roots.</p>
+          <p class="note">Backend-owned Tdarr proof diagnostics only. Load latest evidence first; guarded cleanup/delete controls stay disabled until prerequisite proof steps are visible.</p>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="prepare-proof-pack">Prepare Proof Pack</button>
             <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="smoke-pack">Smoke Pack</button>
             <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="proof-pack">Proof Pack</button>
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="strict-report">Strict Proof Gate</button>
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="cleanup-plan">Cleanup Full Matrix</button>
-            <button type="button" class="secondary-button" data-tdarr-matrix-audit-action="cleanup-archive">Archive Matrix Evidence</button>
+            <button type="button" class="secondary-button" data-severity="warning" data-tdarr-matrix-audit-action="strict-report">Strict Proof Gate</button>
+            <button type="button" class="secondary-button" data-severity="warning" data-tdarr-matrix-audit-action="cleanup-plan">Cleanup Full Matrix</button>
+            <button type="button" class="secondary-button" data-severity="warning" data-tdarr-matrix-audit-action="cleanup-archive">Archive Matrix Evidence</button>
             <button type="button" class="danger-button" data-tdarr-matrix-audit-action="cleanup-delete">Delete Verified Full Matrix</button>
           </div>
+          <label class="field-label" for="tdarr-matrix-delete-confirm">
+            Delete Arm Text
+            <input id="tdarr-matrix-delete-confirm" type="text" autocomplete="off" placeholder="Type DELETE VERIFIED MATRIX">
+          </label>
+          <p class="note">Delete remains backend-verified and also requires the confirmation dialog. This field only arms the UI after a successful archive step.</p>
           <pre id="tdarr-matrix-audit-detail" class="prose-block">No Tdarr Matrix audit has been run from this shell.</pre>
           <div class="action-row action-row-left wrap-actions">
             <button type="button" class="secondary-button" id="tdarr-matrix-audit-load-latest">Load Latest Report</button>
@@ -669,24 +677,49 @@
             <h2>Allowlisted File Access - Open Files</h2>
             <strong id="diagnostics-open-status">Idle</strong>
           </div>
-          <p class="note">Evidence access only. Buttons send backend allowlisted target keys, not arbitrary filesystem paths.</p>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Cluster Log</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="last_stdout_log">Last Stdout</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="last_stderr_log">Last Stderr</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="config">Config File</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="config_folder">Config Folder</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="workspace">Workspace</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="state">State Folder</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="queue_snapshot">Queue Snapshot</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="completed_manifest">Completed Manifest</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="pending_publish">Pending Publish</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="failed_reports">Failure Reports</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="failed_markers">Failure Markers</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="audit_reports">Audit Reports</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="sample_validation_log">Sample Validation Log</button>
+          <p class="note">Evidence access only. Read bounded text first when available; Open buttons send backend allowlisted target keys, not arbitrary filesystem paths.</p>
+          <div class="diagnostics-open-target-groups">
+            <div class="action-row action-row-left wrap-actions" aria-label="Log evidence targets">
+              <strong>Logs</strong>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="last_stderr_log">Read Last Stderr</button>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="last_stdout_log">Read Last Stdout</button>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="cluster_log">Read Cluster Log</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Run Logs</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="last_stdout_log">Open Last Stdout</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="last_stderr_log">Open Last Stderr</button>
+            </div>
+            <div class="action-row action-row-left wrap-actions" aria-label="Config and workspace targets">
+              <strong>Config / Workspace</strong>
+              <button type="button" class="secondary-button" data-open-diagnostics="config">Open Config File</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="config_folder">Open Config Folder</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="workspace">Open Workspace</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="state">Open State Folder</button>
+            </div>
+            <div class="action-row action-row-left wrap-actions" aria-label="State artifact targets">
+              <strong>State Artifacts</strong>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="active_jobs">Read Active Jobs</button>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="queue_snapshot">Read Queue Snapshot</button>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="completed_manifest">Read Completed Manifest</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Open Active Jobs</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="queue_snapshot">Open Queue Snapshot</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="completed_manifest">Open Completed Manifest</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="pending_publish">Open Pending Publish</button>
+            </div>
+            <div class="action-row action-row-left wrap-actions" aria-label="Failure evidence targets">
+              <strong>Failure Evidence</strong>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="latest_failure_report">Read Latest Failure Report</button>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="latest_failure_json">Read Latest Failure JSON</button>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="latest_audit_csv">Read Latest Audit CSV</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="failed_reports">Open Failure Reports</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="failed_markers">Open Failure Markers</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="audit_reports">Open Audit Reports</button>
+            </div>
+            <div class="action-row action-row-left wrap-actions" aria-label="Validation evidence targets">
+              <strong>Validation Evidence</strong>
+              <button type="button" class="secondary-button" data-read-diagnostics-tail="sample_validation_log">Read Sample Validation Log</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="sample_validation_log">Open Sample Validation Log</button>
+            </div>
           </div>
           <pre id="diagnostics-open-history" class="prose-block">No diagnostics open command history loaded.</pre>
         </section>

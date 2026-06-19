@@ -6,10 +6,14 @@ from typing import Any, Callable, Mapping
 
 from mediapipeline.core.rename.constants import PLEX_RENAME_DEFAULT_REMOVE_TERMS
 from mediapipeline.core.rename.movie import normalize_movie_filter_options, normalize_movie_filter_terms, rename_movie_filter_default_terms
+from mediapipeline.core.rename.tv import normalize_tv_filter_options, normalize_tv_filter_terms, rename_tv_filter_default_terms
 from mediapipeline.core.kernel.config_keys import (
     KEY_RENAME_MOVIE_FILTER_OPTIONS,
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,
+    KEY_RENAME_TV_FILTER_OPTIONS,
+    KEY_RENAME_TV_FILTER_TERMS,
+    KEY_RENAME_TV_REMOVE_TERMS,
 )
 
 RENAME_MOVIE_FILTER_PUBLIC_REQUEST_KEYS = {
@@ -18,6 +22,10 @@ RENAME_MOVIE_FILTER_PUBLIC_REQUEST_KEYS = {
     "movie_filter_options",
     "movie_filter_terms",
     "movie_filter_terms_enabled",
+    "tv_remove_terms",
+    "tv_remove_terms_text",
+    "tv_filter_options",
+    "tv_filter_terms",
 }
 RENAME_MOVIE_FILTER_POLICY_SOURCE_KEY = "_rename_movie_filter_policy_source"
 
@@ -86,29 +94,43 @@ def _rename_remove_terms_default() -> list[str]:
     return [str(term) for term in PLEX_RENAME_DEFAULT_REMOVE_TERMS]
 
 
+def _normalize_remove_terms(raw_remove_terms: object) -> list[str]:
+    remove_terms = _rename_remove_terms_default()
+    if raw_remove_terms in (None, "", False):
+        return remove_terms
+    normalized_remove_terms: list[str] = []
+    seen_remove_terms: set[str] = set()
+    for item in remove_terms_from_request({"remove_terms": raw_remove_terms}):
+        term = str(item or "").strip()
+        key = term.casefold()
+        if not term or key in seen_remove_terms:
+            continue
+        seen_remove_terms.add(key)
+        normalized_remove_terms.append(term)
+    return normalized_remove_terms
+
+
 def rename_cleaning_policy_from_config(config: Mapping[str, Any] | object | None = None) -> dict[str, Any]:
     raw_options = _config_mapping_value(config, KEY_RENAME_MOVIE_FILTER_OPTIONS)
     raw_terms = _config_mapping_value(config, KEY_RENAME_MOVIE_FILTER_TERMS)
     raw_remove_terms = _config_mapping_value(config, KEY_RENAME_MOVIE_REMOVE_TERMS)
+    raw_tv_options = _config_mapping_value(config, KEY_RENAME_TV_FILTER_OPTIONS)
+    raw_tv_terms = _config_mapping_value(config, KEY_RENAME_TV_FILTER_TERMS)
+    raw_tv_remove_terms = _config_mapping_value(config, KEY_RENAME_TV_REMOVE_TERMS)
 
     terms = rename_movie_filter_default_terms()
     terms.update(normalize_movie_filter_terms(dict_terms(raw_terms)))
-    remove_terms = _rename_remove_terms_default()
-    if raw_remove_terms not in (None, "", False):
-        normalized_remove_terms: list[str] = []
-        seen_remove_terms: set[str] = set()
-        for item in remove_terms_from_request({"remove_terms": raw_remove_terms}):
-            term = str(item or "").strip()
-            key = term.casefold()
-            if not term or key in seen_remove_terms:
-                continue
-            seen_remove_terms.add(key)
-            normalized_remove_terms.append(term)
-        remove_terms = normalized_remove_terms
+    tv_terms = rename_tv_filter_default_terms()
+    tv_terms.update(normalize_tv_filter_terms(dict_terms(raw_tv_terms)))
+    remove_terms = _normalize_remove_terms(raw_remove_terms)
+    tv_remove_terms = _normalize_remove_terms(raw_tv_remove_terms if raw_tv_remove_terms not in (None, "", False) else raw_remove_terms)
     return {
         "movie_filter_options": normalize_movie_filter_options(dict_bool(raw_options)),
         "movie_filter_terms": terms,
         "remove_terms": remove_terms,
+        "tv_filter_options": normalize_tv_filter_options(dict_bool(raw_tv_options)),
+        "tv_filter_terms": tv_terms,
+        "tv_remove_terms": tv_remove_terms,
     }
 
 
@@ -134,6 +156,12 @@ def rename_request_with_cleaning_policy(
         str(key): [str(item) for item in values or [] if str(item or "").strip()]
         for key, values in dict(policy.get("movie_filter_terms") or {}).items()
     }
+    enriched["tv_remove_terms"] = list(policy.get("tv_remove_terms") or [])
+    enriched["tv_filter_options"] = dict(policy.get("tv_filter_options") or {})
+    enriched["tv_filter_terms"] = {
+        str(key): [str(item) for item in values or [] if str(item or "").strip()]
+        for key, values in dict(policy.get("tv_filter_terms") or {}).items()
+    }
     enriched[RENAME_MOVIE_FILTER_POLICY_SOURCE_KEY] = source
     return enriched
 
@@ -145,11 +173,20 @@ def rename_request_uses_staged_cleaning_policy(request: Mapping[str, Any]) -> bo
 def remove_terms_from_request(
     request: Mapping[str, Any],
     parser: Callable[[str], list[str]] | None = None,
+    *,
+    key: str = "remove_terms",
+    text_key: str = "remove_terms_text",
+    fallback_key: str | None = None,
+    fallback_text_key: str | None = None,
 ) -> list[str]:
-    remove_terms = request.get("remove_terms")
+    remove_terms = request.get(key)
+    if remove_terms is None and fallback_key:
+        remove_terms = request.get(fallback_key)
     if isinstance(remove_terms, list):
         return [str(item) for item in remove_terms]
-    raw_terms = str(request.get("remove_terms_text") or "")
+    raw_terms = str(request.get(text_key) or "")
+    if not raw_terms and fallback_text_key:
+        raw_terms = str(request.get(fallback_text_key) or "")
     if callable(parser) and raw_terms:
         return [str(item) for item in parser(raw_terms)]
     return []

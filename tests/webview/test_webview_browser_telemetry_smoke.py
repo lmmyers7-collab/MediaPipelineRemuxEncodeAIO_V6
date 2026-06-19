@@ -6,6 +6,7 @@ import sys
 import tempfile
 import textwrap
 import unittest
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
@@ -51,10 +52,58 @@ def _browser_telemetry_runner_source() -> str:
             const payload = ${JSON.stringify(data)};
             function byId(id) { return document.getElementById(id); }
             function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
+            function resolveCssColor(token) {
+              const probe = document.createElement("span");
+              probe.style.color = "var(" + token + ")";
+              document.body.appendChild(probe);
+              const color = getComputedStyle(probe).color;
+              probe.remove();
+              return color;
+            }
+            function requireNotColor(selector, property, blockedToken) {
+              const node = document.querySelector(selector);
+              if (!node) throw new Error("missing selector " + selector);
+              const actual = getComputedStyle(node)[property];
+              const blocked = resolveCssColor(blockedToken);
+              if (actual === blocked) {
+                throw new Error(selector + " " + property + " unexpectedly used " + blockedToken + " (" + actual + ")");
+              }
+            }
             function requireText(id, fragments) {
               const actual = text(id);
               for (const fragment of fragments) {
                 if (!actual.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actual);
+              }
+            }
+            function requireGpuDetailsSimplifiedTableControls() {
+              window.mediaPipelineDom?.enhanceDataTables?.();
+              const table = byId("gpu-rows")?.closest("table");
+              if (!table) throw new Error("missing GPU Details table");
+              const toolbar = document.querySelector('[data-table-toolbar-for="' + table.id + '"]');
+              if (!toolbar) throw new Error("missing GPU Details table toolbar");
+              if (!toolbar.querySelector(".table-column-menu")) throw new Error("GPU Details table lost the retained Columns menu");
+              for (const selector of [".table-ui-filter", ".table-density-control", ".table-column-filter-toggle"]) {
+                if (toolbar.querySelector(selector)) throw new Error("GPU Details toolbar retained removed control " + selector);
+              }
+              for (const selector of [".table-filter-row", ".table-column-filter"]) {
+                if (table.querySelector(selector)) throw new Error("GPU Details table retained removed filter-row control " + selector);
+              }
+              for (const fragment of ["Filter rows", "Column filters", "Compact", "Comfortable"]) {
+                if (toolbar.textContent.includes(fragment)) throw new Error("GPU Details toolbar retained removed text " + fragment);
+              }
+            }
+            async function assertTelemetryViewport(width, height) {
+              void height;
+              await new Promise((resolve) => setTimeout(resolve, 120));
+              const pageOverflow = document.documentElement.scrollWidth - document.documentElement.clientWidth;
+              if (pageOverflow > 2) {
+                throw new Error("page-level horizontal overflow at " + width + "px: " + pageOverflow);
+              }
+              const wrap = document.querySelector(".detail-table-wrap");
+              const table = document.querySelector(".detail-table-wrap table");
+              if (!wrap || !table) throw new Error("missing telemetry GPU detail table wrap");
+              if (table.scrollWidth > wrap.clientWidth + 2 && getComputedStyle(wrap).overflowX === "visible") {
+                throw new Error("GPU Details overflow was not contained at " + width + "px");
               }
             }
             function requireFunction(name) {
@@ -73,46 +122,98 @@ def _browser_telemetry_runner_source() -> str:
             if (typeof window.mediaPipelineTelemetryView.telemetryChartMetaText !== "function") {
               throw new Error("missing telemetryChartMetaText namespace export");
             }
+            if (typeof window.mediaPipelineTelemetryView.redrawTelemetryCharts !== "function") {
+              throw new Error("missing redrawTelemetryCharts namespace export");
+            }
+            if (typeof window.mediaPipelineTelemetryView.telemetryHistorySnapshot !== "function") {
+              throw new Error("missing telemetryHistorySnapshot namespace export");
+            }
 
             window.showPage("live");
-            window.mediaPipelineTelemetryView.renderTelemetry(payload.idleGpu);
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.idleGpu, { refreshIntervalMs: 15000 });
             requireText("gpu-value", ["0%"]);
             if (text("gpu-value").includes("idle")) throw new Error("gpu-value still includes redundant idle wording");
             const zeroPercentGpuValue = text("gpu-value");
-            requireText("gpu-note", ["GPU video encoder telemetry available.", "Device: NVIDIA RTX Test", "Source: nvidia-smi"]);
+            requireText("gpu-note", ["GPU video encoder is idle at 0%.", "Device: NVIDIA RTX Test", "Source: nvidia-smi"]);
             requireText("telemetry-readiness-status", ["Idle"]);
             requireText("telemetry-operator-state-label", ["Idle"]);
             requireText("telemetry-operator-next-step", ["No active work is reported; hardware usage looks idle."]);
             requireText("telemetry-readiness-summary", ["Operating state: Idle", "GPU present: yes", "Video encoder (NVENC): 0%"]);
-            requireText("cpu-chart-meta", ["0-100%", "Last ~8 min", "Refreshes every 4s", "Sample age"]);
+            requireText("cpu-chart-meta", ["0-100%", "Last ~8 min", "UI refresh 15s", "GPU probe up to 12s", "Sample age"]);
+            requireText("telemetry-live-state", ["Idle"]);
+            requireText("telemetry-sample-age", ["s"]);
+            requireText("telemetry-source", ["nvidia-smi"]);
+            requireText("telemetry-expected-encoder", ["No active work"]);
+            requireText("telemetry-refresh-cadence", ["UI 15s", "GPU 12s"]);
             requireText("telemetry-kpi-cpu-value", ["13%"]);
             requireText("telemetry-kpi-encoder-value", ["0%"]);
             requireText("telemetry-kpi-ram-value", ["41%"]);
             requireText("telemetry-kpi-gpu-status", ["Available"]);
+            if (byId("telemetry-kpi-encoder-value").dataset.state !== "idle") throw new Error("0% NVENC was not marked idle");
+            requireNotColor('[data-telemetry-kpi="cpu"]', "borderLeftColor", "--semantic-success-accent");
+            requireNotColor('[data-telemetry-kpi="ram"]', "borderLeftColor", "--semantic-success-accent");
+            requireNotColor('[data-telemetry-kpi="gpu"]', "borderLeftColor", "--semantic-success-accent");
+            requireNotColor('[data-telemetry-chart-panel="cpu"]', "borderLeftColor", "--semantic-success-accent");
+            requireNotColor('[data-telemetry-chart-panel="ram"]', "borderLeftColor", "--semantic-success-accent");
+            requireNotColor("#telemetry-kpi-cpu-value", "color", "--semantic-success-text");
             requireText("gpu-detail-status", ["1 GPU row"]);
             const gpuRowText = Array.from(document.querySelectorAll("#gpu-rows td")).map((cell) => cell.textContent || "").join("\\n");
             if (gpuRowText.includes("0% idle")) throw new Error("gpu detail row still includes redundant idle wording");
-            for (const fragment of ["NVIDIA RTX Test", "0%", "1.0 / 8.0 GB"]) {
+            for (const fragment of ["NVIDIA RTX Test", "Idle", "0%", "1.0 / 8.0 GB"]) {
               if (!gpuRowText.includes(fragment)) throw new Error("gpu row missing " + fragment + "\\nActual:\\n" + gpuRowText);
             }
+            requireGpuDetailsSimplifiedTableControls();
             const visibleRows = window.mediaPipelineTelemetryView.telemetryVisibleGpuRows(payload.idleGpu);
             if (visibleRows.length !== 1 || visibleRows[0].synthesized !== true) {
               throw new Error("top-level zero-percent GPU telemetry did not synthesize a visible GPU row");
             }
 
-            window.mediaPipelineTelemetryView.renderTelemetry(payload.activeGpu, { snapshot: payload.activeSnapshot });
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.structuredGpu, { refreshIntervalMs: 15000 });
+            const structuredRowText = Array.from(document.querySelectorAll("#gpu-rows td")).map((cell) => cell.textContent || "").join("\\n");
+            for (const fragment of ["Read warning", "2", "not reported", "72 C", "unit-fixture | warning: sensor read failed"]) {
+              if (!structuredRowText.includes(fragment)) throw new Error("structured GPU row missing " + fragment + "\\nActual:\\n" + structuredRowText);
+            }
+            requireText("telemetry-readiness-status", ["Telemetry source warning"]);
+            requireText("telemetry-operator-next-step", ["Telemetry source is not fully trusted", "fixture-like", "sensor read failed"]);
+            requireText("telemetry-source", ["gpu-contract", "row unit-fixture"]);
+            requireText("telemetry-readiness-summary", ["Contract: desktop_gpu_encoder_usage.v1", "Encoder sessions: 2 active", "Source warning:"]);
+            requireText("telemetry-kpi-gpu-status", ["Warning"]);
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.structuredGpuMissingRowSource, { refreshIntervalMs: 15000 });
+            const inheritedSourceRowText = Array.from(document.querySelectorAll("#gpu-rows td")).map((cell) => cell.textContent || "").join("\\n");
+            if (!inheritedSourceRowText.includes("gpu-contract")) {
+              throw new Error("structured GPU row did not inherit payload/top-level source\\nActual:\\n" + inheritedSourceRowText);
+            }
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.activeGpu, { snapshot: payload.activeSnapshot, refreshIntervalMs: 15000 });
             requireText("telemetry-readiness-status", ["GPU-bound encode"]);
             requireText("telemetry-operator-next-step", ["GPU video encoder is the likely bottleneck"]);
+            if (document.querySelector('[data-telemetry-chart-panel="encoder"]').dataset.state !== "active") {
+              throw new Error("active NVENC chart panel was not marked active");
+            }
 
-            window.mediaPipelineTelemetryView.renderTelemetry(payload.cpuBound, { snapshot: payload.activeSnapshot });
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.expectedIdle, { snapshot: payload.activeSnapshot, refreshIntervalMs: 15000 });
+            requireText("telemetry-readiness-status", ["NVENC expected but idle"]);
+            requireText("telemetry-operator-next-step", ["hardware encode"]);
+            if (byId("telemetry-kpi-encoder-value").dataset.state !== "warning") throw new Error("expected idle NVENC was not marked warning");
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.remuxIdle, { snapshot: payload.remuxSnapshot, refreshIntervalMs: 15000 });
+            requireText("telemetry-readiness-status", ["NVENC idle as expected"]);
+            requireText("telemetry-operator-next-step", ["does not appear to require NVENC"]);
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.cpuBound, { snapshot: payload.activeSnapshot, refreshIntervalMs: 15000 });
             requireText("telemetry-readiness-status", ["CPU-bound encode"]);
             requireText("telemetry-operator-next-step", ["CPU is likely limiting the current job"]);
 
-            window.mediaPipelineTelemetryView.renderTelemetry(payload.memoryPressure, { snapshot: payload.activeSnapshot });
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.memoryPressure, { snapshot: payload.activeSnapshot, refreshIntervalMs: 15000 });
+            requireText("telemetry-readiness-status", ["NVENC expected but idle"]);
+            requireText("telemetry-operator-next-step", ["NVENC is 0%", "RAM pressure is also high"]);
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.memoryPressureOnly, { snapshot: payload.activeSnapshot, refreshIntervalMs: 15000 });
             requireText("telemetry-readiness-status", ["Memory pressure"]);
             requireText("telemetry-operator-next-step", ["RAM pressure is high"]);
 
-            window.mediaPipelineTelemetryView.renderTelemetry(payload.cpuOnly);
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.cpuOnly, { refreshIntervalMs: 15000 });
             requireText("gpu-value", ["Unavailable"]);
             requireText("gpu-note", ["GPU video encoder telemetry unavailable. CPU/RAM data is still usable."]);
             requireText("telemetry-readiness-status", ["CPU/RAM only"]);
@@ -120,15 +221,42 @@ def _browser_telemetry_runner_source() -> str:
             requireText("telemetry-readiness-summary", ["GPU present: no", "GPU video encoder telemetry is not available"]);
             requireText("telemetry-kpi-gpu-status", ["Not available"]);
             const cpuOnlyGpuValue = text("gpu-value");
+            const historyAfterCpuOnly = window.mediaPipelineTelemetryView.telemetryHistorySnapshot();
+            if (historyAfterCpuOnly.gpu[historyAfterCpuOnly.gpu.length - 1] !== null) {
+              throw new Error("missing GPU telemetry did not create a chart gap");
+            }
 
-            window.mediaPipelineTelemetryView.renderTelemetry(payload.warning);
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.warning, { refreshIntervalMs: 15000 });
             requireText("telemetry-readiness-status", ["Telemetry degraded"]);
             requireText("telemetry-operator-next-step", ["If hardware encoding is expected, inspect Maintenance GPU tools, Diagnostics nvidia-smi, and Video settings."]);
 
-            window.mediaPipelineTelemetryView.renderTelemetry(payload.stale);
+            window.mediaPipelineTelemetryView.renderTelemetry(null, { refreshIntervalMs: 15000, unavailableReason: "request timed out" });
+            requireText("telemetry-readiness-status", ["Telemetry unavailable"]);
+            requireText("telemetry-readiness-summary", ["Payload: unavailable", "request timed out"]);
+            requireText("telemetry-kpi-gpu-status", ["Unavailable"]);
+            const historyAfterUnavailable = window.mediaPipelineTelemetryView.telemetryHistorySnapshot();
+            if (historyAfterUnavailable.cpu[historyAfterUnavailable.cpu.length - 1] !== null) {
+              throw new Error("unavailable telemetry did not create a CPU chart gap");
+            }
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.future, { refreshIntervalMs: 15000 });
+            requireText("telemetry-readiness-status", ["Telemetry clock skew"]);
+            requireText("telemetry-kpi-gpu-status", ["Clock skew"]);
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.stale, { refreshIntervalMs: 15000 });
             requireText("telemetry-readiness-status", ["Telemetry stale"]);
             requireText("telemetry-operator-next-step", ["backend sampler"]);
             requireText("telemetry-kpi-gpu-status", ["Stale"]);
+
+            window.mediaPipelineTelemetryView.renderTelemetry(payload.activeGpu, { snapshot: payload.activeSnapshot, refreshIntervalMs: 15000 });
+            const beforeThemeRedraw = byId("cpu-chart").toDataURL();
+            document.body.classList.add("light-mode");
+            window.mediaPipelineTelemetryView.redrawTelemetryCharts();
+            const afterThemeRedraw = byId("cpu-chart").toDataURL();
+            if (beforeThemeRedraw === afterThemeRedraw) throw new Error("theme redraw did not update telemetry canvas pixels");
+            document.body.classList.remove("light-mode");
+            window.mediaPipelineTelemetryView.redrawTelemetryCharts();
+            window.__assertTelemetryViewport = assertTelemetryViewport;
 
             return {
               ok: true,
@@ -138,6 +266,7 @@ def _browser_telemetry_runner_source() -> str:
               finalReadiness: text("telemetry-readiness-status"),
               activeState: window.mediaPipelineTelemetryView.telemetryOperatingState(payload.activeGpu, { snapshot: payload.activeSnapshot }).label,
               chartMeta: text("cpu-chart-meta"),
+              encoderState: byId("telemetry-kpi-encoder-value").dataset.state,
             };
           })()
           `;
@@ -189,6 +318,28 @@ def _browser_telemetry_runner_source() -> str:
               const details = result.exceptionDetails;
               throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
             }
+            for (const viewport of [
+              { width: 390, height: 900, mobile: true },
+              { width: 768, height: 900, mobile: false },
+              { width: 1440, height: 1000, mobile: false },
+            ]) {
+              await client.send("Emulation.setDeviceMetricsOverride", {
+                width: viewport.width,
+                height: viewport.height,
+                deviceScaleFactor: 1,
+                mobile: viewport.mobile,
+              });
+              const viewportResult = await client.send("Runtime.evaluate", {
+                expression: `window.__assertTelemetryViewport(${viewport.width}, ${viewport.height})`,
+                awaitPromise: true,
+                returnByValue: true,
+              });
+              if (viewportResult.exceptionDetails) {
+                const details = viewportResult.exceptionDetails;
+                throw new Error(details.exception?.description || details.exception?.value || details.text || "telemetry viewport evaluation failed");
+              }
+            }
+            await client.send("Emulation.clearDeviceMetricsOverride");
             await sleep(750);
             const errorEvents = client.consoleEvents.filter((entry) => entry.startsWith("error:") || entry.startsWith("warning:"));
             if (client.exceptions.length || errorEvents.length) {
@@ -218,6 +369,9 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
         port = _free_port()
         payload_path = tmp / "browser-telemetry-payload.json"
         runner_path = tmp / "browser-telemetry-runner.cjs"
+        now = datetime.now(timezone.utc)
+        fresh_sample = now.isoformat().replace("+00:00", "Z")
+        future_sample = (now + timedelta(hours=2)).isoformat().replace("+00:00", "Z")
         payload_path.write_text(
             json.dumps(
                 {
@@ -237,8 +391,75 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                             "gpu_memory_used_gb": 1.0,
                             "gpu_memory_total_gb": 8.0,
                             "source": "nvidia-smi",
-                            "sampled_at": "2099-01-01T00:00:00Z",
+                            "sampled_at": fresh_sample,
                             "gpu_rows": [],
+                        },
+                        "structuredGpu": {
+                            "cpu_percent": 31.0,
+                            "memory_percent": 50.0,
+                            "gpu_present": True,
+                            "gpu_encoder_percent": 12.0,
+                            "gpu_percent": 24.0,
+                            "gpu_name": "NVIDIA RTX Structured",
+                            "source": "gpu-contract",
+                            "sampled_at": fresh_sample,
+                            "gpu_rows": [],
+                            "gpu_encoder_usage": {
+                                "schema_version": "desktop_gpu_encoder_usage.v1",
+                                "status": "warning",
+                                "row_count": 1,
+                                "active_encoder_count": 1,
+                                "missing_session_count": 0,
+                                "read_only": True,
+                                "summary_lines": ["Encoder sessions: 2 active"],
+                                "rows": [
+                                    {
+                                        "adapter_index": "0",
+                                        "adapter": "NVIDIA RTX Structured",
+                                        "utilization_percent": 12.0,
+                                        "gpu_utilization_percent": 24.0,
+                                        "memory_used_mb": None,
+                                        "memory_total_mb": None,
+                                        "temperature_c": 72,
+                                        "encoder_sessions": 2,
+                                        "source": "unit-fixture",
+                                        "read_error": "sensor read failed",
+                                    }
+                                ],
+                            },
+                        },
+                        "structuredGpuMissingRowSource": {
+                            "cpu_percent": 28.0,
+                            "memory_percent": 48.0,
+                            "gpu_present": True,
+                            "gpu_encoder_percent": 18.0,
+                            "gpu_percent": 30.0,
+                            "gpu_name": "NVIDIA RTX Structured",
+                            "source": "gpu-contract",
+                            "sampled_at": fresh_sample,
+                            "gpu_rows": [],
+                            "gpu_encoder_usage": {
+                                "schema_version": "desktop_gpu_encoder_usage.v1",
+                                "status": "loaded",
+                                "source": "gpu-contract",
+                                "row_count": 1,
+                                "active_encoder_count": 1,
+                                "missing_session_count": 0,
+                                "read_only": True,
+                                "summary_lines": ["Encoder sessions: 1 active"],
+                                "rows": [
+                                    {
+                                        "adapter_index": "0",
+                                        "adapter": "NVIDIA RTX Structured",
+                                        "utilization_percent": 18.0,
+                                        "gpu_utilization_percent": 30.0,
+                                        "memory_used_mb": 2048,
+                                        "memory_total_mb": 8192,
+                                        "temperature_c": 66,
+                                        "encoder_sessions": 1,
+                                    }
+                                ],
+                            },
                         },
                         "activeGpu": {
                             "cpu_percent": 37.0,
@@ -251,7 +472,7 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                             "gpu_memory_used_gb": 6.5,
                             "gpu_memory_total_gb": 12.0,
                             "source": "nvidia-smi",
-                            "sampled_at": "2099-01-01T00:00:00Z",
+                            "sampled_at": fresh_sample,
                             "gpu_rows": [
                                 {
                                     "index": "0",
@@ -263,6 +484,30 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                                 }
                             ],
                         },
+                        "expectedIdle": {
+                            "cpu_percent": 37.0,
+                            "memory_percent": 64.0,
+                            "gpu_present": True,
+                            "gpu_encoder_percent": 0.0,
+                            "gpu_percent": 4.0,
+                            "gpu_name": "NVIDIA RTX Test",
+                            "gpu_index": "0",
+                            "source": "nvidia-smi",
+                            "sampled_at": fresh_sample,
+                            "gpu_rows": [],
+                        },
+                        "remuxIdle": {
+                            "cpu_percent": 18.0,
+                            "memory_percent": 42.0,
+                            "gpu_present": True,
+                            "gpu_encoder_percent": 0.0,
+                            "gpu_percent": 2.0,
+                            "gpu_name": "NVIDIA RTX Test",
+                            "gpu_index": "0",
+                            "source": "nvidia-smi",
+                            "sampled_at": fresh_sample,
+                            "gpu_rows": [],
+                        },
                         "cpuBound": {
                             "cpu_percent": 96.0,
                             "memory_percent": 45.0,
@@ -272,7 +517,7 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                             "gpu_name": "NVIDIA RTX Test",
                             "gpu_index": "0",
                             "source": "nvidia-smi",
-                            "sampled_at": "2099-01-01T00:00:00Z",
+                            "sampled_at": fresh_sample,
                             "gpu_rows": [],
                         },
                         "memoryPressure": {
@@ -284,7 +529,19 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                             "gpu_name": "NVIDIA RTX Test",
                             "gpu_index": "0",
                             "source": "nvidia-smi",
-                            "sampled_at": "2099-01-01T00:00:00Z",
+                            "sampled_at": fresh_sample,
+                            "gpu_rows": [],
+                        },
+                        "memoryPressureOnly": {
+                            "cpu_percent": 44.0,
+                            "memory_percent": 91.0,
+                            "gpu_present": True,
+                            "gpu_encoder_percent": 32.0,
+                            "gpu_percent": 36.0,
+                            "gpu_name": "NVIDIA RTX Test",
+                            "gpu_index": "0",
+                            "source": "nvidia-smi",
+                            "sampled_at": fresh_sample,
                             "gpu_rows": [],
                         },
                         "cpuOnly": {
@@ -294,7 +551,7 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                             "gpu_encoder_percent": None,
                             "gpu_name": "",
                             "source": "psutil",
-                            "sampled_at": "2099-01-01T00:00:00Z",
+                            "sampled_at": fresh_sample,
                             "gpu_rows": [],
                         },
                         "warning": {
@@ -305,7 +562,18 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                             "gpu_name": "",
                             "source": "psutil",
                             "error": "nvidia-smi not found; GPU encoder telemetry unavailable.",
-                            "sampled_at": "2099-01-01T00:00:00Z",
+                            "sampled_at": fresh_sample,
+                            "gpu_rows": [],
+                        },
+                        "future": {
+                            "cpu_percent": 25.0,
+                            "memory_percent": 49.0,
+                            "gpu_present": True,
+                            "gpu_encoder_percent": 12.0,
+                            "gpu_percent": 20.0,
+                            "gpu_name": "NVIDIA RTX Test",
+                            "source": "nvidia-smi",
+                            "sampled_at": future_sample,
                             "gpu_rows": [],
                         },
                         "stale": {
@@ -323,6 +591,13 @@ def _run_browser_telemetry_smoke(*, browser_path: str, url: str) -> dict[str, ob
                             "pipeline_state": "processing",
                             "current_work": {
                                 "item_label": "Example encode"
+                            },
+                        },
+                        "remuxSnapshot": {
+                            "pipeline_state": "processing",
+                            "current_work": {
+                                "item_label": "Example remux",
+                                "route_label": "remux copy"
                             },
                         },
                     },
@@ -368,6 +643,7 @@ def _run_node_telemetry_view_smoke() -> dict[str, object]:
 
         const view = context.mediaPipelineTelemetryView;
         if (!view) throw new Error("telemetry namespace was not created");
+        const freshSample = new Date().toISOString();
 
         const blankNumericPayload = {{
           cpu_percent: "",
@@ -376,7 +652,7 @@ def _run_node_telemetry_view_smoke() -> dict[str, object]:
           gpu_percent: "",
           gpu_name: "",
           gpu_rows: [],
-          sampled_at: "2099-01-01T00:00:00Z",
+          sampled_at: freshSample,
         }};
         const blankStatus = view.telemetryReadinessStatus(blankNumericPayload);
         const blankOperatingState = view.telemetryOperatingState(blankNumericPayload);
@@ -400,7 +676,7 @@ def _run_node_telemetry_view_smoke() -> dict[str, object]:
           gpu_memory_used_gb: null,
           gpu_memory_total_gb: null,
           gpu_rows: [],
-          sampled_at: "2099-01-01T00:00:00Z",
+          sampled_at: freshSample,
         }};
         const partialRows = view.telemetryVisibleGpuRows(partialGpuPayload);
         if (partialRows.length !== 1) throw new Error("partial GPU payload should synthesize one visible row");
@@ -478,10 +754,6 @@ class WebViewBrowserTelemetrySmoke(unittest.TestCase):
         browser_result = result["result"]
         self.assertEqual(browser_result["visibleRows"], 1)
         self.assertEqual(browser_result["cpuOnlyGpuValue"], "Unavailable")
-        self.assertEqual(browser_result["finalReadiness"], "Telemetry stale")
+        self.assertEqual(browser_result["finalReadiness"], "GPU-bound encode")
         self.assertEqual(browser_result["activeState"], "GPU-bound encode")
         self.assertIn("Last ~8 min", browser_result["chartMeta"])
-
-
-
-

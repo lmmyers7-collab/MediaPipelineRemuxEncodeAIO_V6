@@ -22,6 +22,23 @@
     state,
     updateTableStatusLegend,
   } = {}) {
+    function sampleValidationPanelState(message) {
+      const text = String(message || "").toLowerCase();
+      if (!text || text.includes("not loaded") || text.startsWith("no ")) return "empty";
+      if (text.includes("blocked") || text.includes("error")) return "blocked";
+      if (text.includes("needed") || text.includes("need") || text.includes("review") || text.includes("pilot") || text.includes("coverage") || text.includes("partial") || text.includes("worksheet only") || text.includes("historical")) return "warning";
+      if (text.includes("ready") || text.includes("current") || text.includes("loaded")) return "ready";
+      return "unknown";
+    }
+
+    function setWorksheetPanelStatus(id, message, state) {
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus(id, message, state || sampleValidationPanelState(message));
+      } else {
+        setText(id, message);
+      }
+    }
+
     function crossPageSamplePageStrength(sample, page) {
       const matches = Array.isArray(sample?.matches) ? sample.matches : [];
       if (matches.some((item) => item.page === page && item.strength === "exact")) return "exact";
@@ -255,7 +272,7 @@
 
     function renderCrossPageRealMediaWorksheet(context = {}) {
       const rows = crossPageRealMediaWorksheetRows(context || {});
-      setText("cross-page-real-media-status", crossPageRealMediaWorksheetStatus(context || {}));
+      setWorksheetPanelStatus("cross-page-real-media-status", crossPageRealMediaWorksheetStatus(context || {}));
       setText("cross-page-real-media-summary", crossPageRealMediaWorksheetSummary(context || {}));
       const tbody = byId("cross-page-real-media-rows");
       if (!tbody) return;
@@ -548,7 +565,7 @@
         state.selectedSampleValidationCategorySummaryKey = "";
       }
       const selected = selectedSampleValidationCategorySummaryRow(rows);
-      setText("sample-validation-category-summary-status", sampleValidationCategorySummaryStatus(log || {}));
+      setWorksheetPanelStatus("sample-validation-category-summary-status", sampleValidationCategorySummaryStatus(log || {}));
       setText("sample-validation-category-summary", sampleValidationCategorySummaryLines(log || {}).join("\n"));
       setText("sample-validation-category-summary-detail", sampleValidationCategorySummaryDetailLines(selected).join("\n"));
       setText("sample-validation-category-summary-legend", "Pilot category validation rows are read-only and cannot launch, append records, accept output, rerun, drain, publish, repair, save settings, rename, rewrite manifests/sidecars, change media policy, or touch media.");
@@ -598,7 +615,7 @@
     }
 
     function renderSampleValidationSampleSetGuide(log = {}) {
-      setText("sample-validation-sample-set-status", sampleValidationSampleSetStatus(log || {}));
+      setWorksheetPanelStatus("sample-validation-sample-set-status", sampleValidationSampleSetStatus(log || {}));
       setText("sample-validation-sample-set-summary", sampleValidationSampleSetSummaryLines(log || {}).join("\n"));
       const tbody = byId("sample-validation-sample-set-rows");
       if (!tbody) return;
@@ -749,7 +766,7 @@
       const log = context.sampleValidation || {};
       const rows = sampleValidationWorksheetRows(log);
       const sample = crossPageSampleRows(context || {})[0] || null;
-      setText("sample-validation-worksheet-status", sampleValidationWorksheetStatus(context || {}));
+      setWorksheetPanelStatus("sample-validation-worksheet-status", sampleValidationWorksheetStatus(context || {}));
       setText("sample-validation-worksheet-summary", sampleValidationWorksheetSummaryLines(context || {}).join("\n"));
       const tbody = byId("sample-validation-worksheet-rows");
       if (!tbody) return;

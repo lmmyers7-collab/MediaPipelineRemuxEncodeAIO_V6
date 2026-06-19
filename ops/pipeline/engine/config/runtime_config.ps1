@@ -357,6 +357,20 @@ $script:H264RemuxMaxBitrateMbps = Get-ConfigDouble 'H264RemuxMaxBitrateMbps' 35 
 $script:H264RemuxMaxHeight = Get-ConfigInt 'H264RemuxMaxHeight' 1080 1 4320
 $script:MaxEncodeGrowthPercent = Get-ConfigDouble 'MaxEncodeGrowthPercent' 5 0 1000
 $script:CompatibilityEncodeGrowthPercent = Get-ConfigDouble 'CompatibilityEncodeGrowthPercent' 15 0 1000
+$script:EncodeWasteGuardMode = if ($config.ContainsKey('EncodeWasteGuardMode')) {
+    Resolve-MediaPipelineEncodeWasteGuardMode -Mode ([string]$config['EncodeWasteGuardMode'])
+} else {
+    Get-MediaPipelineEncodeWasteGuardModeDefault
+}
+$script:EncodeWasteGuardPreflightEnabled = Get-ConfigBool 'EncodeWasteGuardPreflightEnabled' $false
+$script:EncodeWasteGuardMinProgressPercent = Get-ConfigDouble 'EncodeWasteGuardMinProgressPercent' 15 0 95
+$script:EncodeWasteGuardMinElapsedSeconds = Get-ConfigDouble 'EncodeWasteGuardMinElapsedSeconds' 120 0 86400
+$script:EncodeWasteGuardOversizeMarginPercent = Get-ConfigDouble 'EncodeWasteGuardOversizeMarginPercent' 20 0 1000
+$script:EncodeWasteGuardConsecutiveSamples = Get-ConfigInt 'EncodeWasteGuardConsecutiveSamples' 2 1 10
+$script:EncodeWasteGuardPollSeconds = Get-ConfigDouble 'EncodeWasteGuardPollSeconds' 10 1 600
+$script:EncodeWasteGuardPreflightSampleSeconds = Get-ConfigDouble 'EncodeWasteGuardPreflightSampleSeconds' 30 5 600
+$script:EncodeWasteGuardPreflightSampleCount = Get-ConfigInt 'EncodeWasteGuardPreflightSampleCount' 3 1 10
+$script:EncodeWasteGuardPreflightTimeoutSeconds = Get-ConfigInt 'EncodeWasteGuardPreflightTimeoutSeconds' 900 30 86400
 $script:CurrentSizePolicyResult = $null
 $script:LastQualityVerification = $null
 $script:ExtraVideoFlags = @(

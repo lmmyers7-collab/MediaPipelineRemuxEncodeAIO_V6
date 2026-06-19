@@ -832,6 +832,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         if not node:
             raise unittest.SkipTest("Node.js is required for the Home next-queue formatter smoke.")
         repo_root = find_repo_root(Path(__file__))
+        static_root = repo_root / "apps" / "desktop" / "webview" / "static"
+        html = _render_static_index_html(static_root)
+        next_queue_start = html.index("home-next-queue-status")
+        next_queue_end = html.index("<!-- ═══ DAILY DRIVER: RUN PROGRESS ═══ -->")
+        next_queue_section = html[next_queue_start:next_queue_end]
+        self.assertNotIn("Review Queue", next_queue_section)
         script = textwrap.dedent(
             r"""
             const fs = require("fs");
@@ -849,7 +855,18 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                 title: "",
                 dataset: {},
                 className: "",
-                classList: { add(value) { node.className = [node.className, value].filter(Boolean).join(" "); } },
+                classList: {
+                  add(value) { node.className = [node.className, value].filter(Boolean).join(" "); },
+                  toggle(value, force) {
+                    const classes = new Set(String(node.className || "").split(/\s+/).filter(Boolean));
+                    const enabled = force === undefined ? !classes.has(value) : Boolean(force);
+                    if (enabled) classes.add(value);
+                    else classes.delete(value);
+                    node.className = Array.from(classes).join(" ");
+                  },
+                },
+                setAttribute(name, value) { this[name] = String(value); },
+                addEventListener() {},
                 appendChild(child) { this.children.push(child); return child; },
                 append(...items) { items.forEach((item) => this.appendChild(item)); },
                 replaceChildren(...items) { this.children = []; this.append(...items); },
@@ -870,6 +887,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               console,
               document: { createElement: makeElement },
               byId(id) { return elements[id] || null; },
+              setText(id, value) { if (elements[id]) elements[id].textContent = value; },
               formatProgressValue(value) { return value == null ? "" : String(value); },
             };
             context.window = context;
@@ -880,11 +898,18 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             home.renderHomeNextQueue({
               queue: {
                 rows: [
-                  { display_name: "Ready One.mkv", route_name: "REMUX", operator_status: "Ready", queue_position: "1/9" },
+                  {
+                    media_kind: "tv",
+                    relative_path: "Serial Experiments Lain\\Season 02\\Serial Experiments Lain S02E01 Weird.mkv",
+                    display_name: "Serial Experiments Lain S02E01 Weird.mkv",
+                    route_name: "REMUX (codec check pending)",
+                    operator_status: "Ready",
+                    queue_position: "1/9",
+                  },
                   { display_name: "Completed Should Hide.mkv", route_name: "REMUX", operator_status: "Recently completed", queue_position: "2/9" },
                   { display_name: "Blocked Should Hide.mkv", route_name: "REMUX", operator_status: "Blocked", blocked_reason: "already processed", queue_position: "3/9" },
                   { display_name: "Invalid Should Hide.mkv", route_name: "REMUX", operator_status: "Invalid snapshot row", queue_position: "4/9" },
-                  { display_name: "Priority Two.mkv", route_name: "ENCODE", operator_status: "Priority ready", queue_position: "5/9" },
+                  { media_kind: "movie", display_name: "Cast.Away.2000.1080p.BluRay.x264.mkv", route_name: "ENCODE", operator_status: "Priority ready", queue_position: "5/9" },
                   { display_name: "Ready Three.mkv", route_name: "REMUX", operator_status: "Ready", queue_position: "6/9" },
                   { display_name: "Ready Four.mkv", route_name: "REMUX", operator_status: "Ready", queue_position: "7/9" },
                   { display_name: "Ready Five.mkv", route_name: "REMUX", operator_status: "Ready", queue_position: "8/9" },
@@ -895,10 +920,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             const list = elements["home-next-queue-list"];
             const rendered = list.children.map((item) => item.textContent);
             if (rendered.length !== 5) throw new Error(`Expected five rows, got ${rendered.length}: ${rendered.join(" | ")}`);
-            for (const expected of ["Ready One.mkv", "Priority Two.mkv", "Ready Three.mkv", "Ready Four.mkv", "Ready Five.mkv"]) {
+            for (const expected of ["Serial Experiments Lain", "S02E01", "REMUX", "Cast Away (2000)", "Ready Three.mkv", "Ready Four.mkv", "Ready Five.mkv"]) {
               if (!rendered.some((line) => line.includes(expected))) throw new Error(`Missing ${expected}: ${rendered.join(" | ")}`);
             }
-            for (const forbidden of ["Completed Should Hide", "Blocked Should Hide", "Invalid Should Hide", "Ready Six Should Cap"]) {
+            for (const forbidden of ["codec check pending", "Weird", "Completed Should Hide", "Blocked Should Hide", "Invalid Should Hide", "Ready Six Should Cap"]) {
               if (rendered.some((line) => line.includes(forbidden))) throw new Error(`Unexpected ${forbidden}: ${rendered.join(" | ")}`);
             }
             if (elements["home-next-queue-status"].textContent !== "5 ready") {
@@ -938,6 +963,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "/api/subtitle-qa/summary",
             "/api/subtitle-qa/item",
             "/api/subtitle-qa/preview",
+            "/api/maintenance/retention-dry-run",
         }
         route_paths = [
             route["path"]
@@ -952,6 +978,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         desktop_root = find_repo_root(Path(__file__))
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         html = _render_static_index_html(static_root)
+        diagnostics_html = (static_root / "partials" / "page-diagnostics.html").read_text(encoding="utf-8")
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
         app_row_open_js = (static_root / "assets" / "app" / "rowOpenActions.js").read_text(encoding="utf-8")
         reports_js = (static_root / "assets" / "reportsView.js").read_text(encoding="utf-8")
@@ -1116,6 +1143,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         launch_js = _read_launch_view_asset_bundle(static_root / "assets")
         launch_scope_js = (static_root / "assets" / "launchView.scope.js").read_text(encoding="utf-8")
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+        styles_css = (static_root / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        controls_css = (static_root / "assets" / "styles.controls.css").read_text(encoding="utf-8")
 
         self.assertIn('class="danger-button emergency-button topbar-emergency-control"', html)
         self.assertIn('hidden aria-label="Emergency force stop related pipeline, audit, and CSV rerun processes"', html)
@@ -1124,8 +1153,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function launchButtonGate", launch_js)
         self.assertIn("launchBackendPreflightPayloadForTarget", launch_js)
         self.assertIn("launchStartDecisionGate", launch_js)
-        self.assertIn('return ["pipeline", "audit", "rerun", "history", "readiness"];', launch_js)
+        self.assertIn('return ["pipeline", "rerun", "history", "readiness"];', launch_js)
         self.assertIn('data-launch-tab="pipeline">Pipeline Processor</button>', html)
+        self.assertNotIn('data-launch-tab="audit">Audit</button>', html)
+        self.assertNotIn('data-launch-tab-panel="audit"', html)
         self.assertIn('id="pipeline-compact-gate-strip"', html)
         self.assertIn('id="pipeline-compact-gate-detail"', html)
         self.assertIn('id="pipeline-compact-gate-refresh-button"', html)
@@ -1141,13 +1172,32 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('aria-describedby="pipeline-start-disabled-reason"', html)
         self.assertIn("function launchCompactGateRows", launch_scope_js)
         self.assertIn("function launchCompactGateOverallStatus", launch_scope_js)
+        self.assertIn("function launchCompactGateOpenTarget", launch_scope_js)
+        self.assertIn("function launchCompactGateSettingsRows", launch_scope_js)
+        self.assertIn("function activateLaunchTab(tabId, options = {})", launch_js)
+        self.assertIn("const persist = options?.persist !== false;", launch_js)
+        self.assertIn("launchCompactGateOpenTarget(item)", launch_scope_js)
+        self.assertIn('activateLaunchTab(target.tab, { persist: false })', launch_scope_js)
+        self.assertIn("is-attention-reveal", launch_scope_js)
+        self.assertIn(
+            'showPage: typeof showPage === "function" ? showPage : window.showPage,\n'
+            "      activateLaunchTab: (...args) => activateLaunchTab(...args),",
+            launch_js,
+        )
+        self.assertIn("Opened Launch > Readiness > Backend Preflight", launch_scope_js)
+        self.assertIn("Opened Queue > Queue-to-Launch handoff", launch_scope_js)
+        self.assertIn("Opened Launch > Readiness > Settings Check", launch_scope_js)
+        self.assertIn("Opened Launch > Readiness > Schedule Alignment", launch_scope_js)
+        self.assertIn(".is-attention-target", styles_css)
+        self.assertIn(".is-attention-reveal", styles_css)
+        self.assertIn(".is-attention-reveal", controls_css)
         self.assertIn("function renderLaunchCompactGate", launch_scope_js)
         self.assertIn("launchCompactGateRows,", launch_js)
         self.assertIn("renderLaunchCompactGate,", launch_js)
         self.assertIn("Submit ${label} for ${scope}? Backend will re-check queue, settings, schedule, and locks before starting.", launch_js)
         self.assertIn("Resolve blocked Backend Preflight checks", launch_js)
         self.assertIn("Resolve blocked Launch Start Summary rows", launch_js)
-        self.assertIn("Refresh Backend Preflight before using this start control", launch_js)
+        self.assertIn("Refresh Backend Preflight before using this control", launch_js)
         self.assertIn("const stuck = pipelineProgressIsStuck(snapshot);", launch_js)
         self.assertIn("const killable = active || stuck;", launch_js)
         self.assertIn("button.hidden = !killable", launch_js)
@@ -1431,7 +1481,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('selection_mode: "folder"', settings_js)
         self.assertIn("writes_config", settings_js)
         self.assertIn("stages_only", settings_js)
-        self.assertIn("Merge File Safety Patch, then Preview Patch before Save Patch", settings_js)
+        self.assertIn("Use Save Settings to review and write the prepared File Safety change.", settings_js)
         self.assertIn("It cannot save settings, launch work, rewrite queue state, publish, rename, delete, or touch media files.", settings_js)
         self.assertIn("[data-settings-path-key]", app_js)
         self.assertIn('command === "settings.browse_path"', settings_history_js)
@@ -1451,7 +1501,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("settings-tv-library-panel", html)
         self.assertIn("renderTvLibraryFolderEvidence", file_safety_js)
         self.assertIn("folder season hints and loose anime/import filename patterns", file_safety_js)
-        self.assertIn("backend Preview/Save and engine naming/publish behavior remain authoritative", file_safety_js)
+        self.assertIn("backend Save and engine naming/publish behavior remain authoritative", file_safety_js)
 
     def test_web_command_feedback_preserves_backend_warnings_and_errors(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
@@ -1634,7 +1684,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "rename-table-legend",
             "failure-table-legend",
             "audit-preview-table-legend",
-            "audit-launch-log-table-legend",
             "network-worker-table-legend",
             "diagnostics-first-response-legend",
             "diagnostics-state-summary-table-legend",
@@ -1767,7 +1816,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             (command_history_js, "command-table-legend"),
             (reports_view_js, "failure-table-legend"),
             (reports_view_js, "audit-preview-table-legend"),
-            (launch_view_js, "audit-launch-log-table-legend"),
             (network_view_js, "network-worker-table-legend"),
             (diagnostics_view_js, "diagnostics-first-response-legend"),
             (diagnostics_state_js, "diagnostics-state-summary-table-legend"),
@@ -1822,6 +1870,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         queue_table_js = (assets_root / "queue" / "table.js").read_text(encoding="utf-8")
 
         self.assertIn('async function clearQueuePriorityManifest()', queue_view_js)
+        self.assertIn("let queuePriorityCommandInFlight = false;", queue_view_js)
+        self.assertIn("function beginQueuePriorityCommand(message = \"\")", queue_view_js)
+        self.assertIn("function endQueuePriorityCommand(seq)", queue_view_js)
+        self.assertIn("if (queuePriorityCommandInFlight)", queue_view_js)
         self.assertIn('apiPost("/api/queue/priority", { clear_all: true })', queue_view_js)
         self.assertIn('wire("queue-priority-clear-all-btn", clearQueuePriorityManifest);', queue_view_js)
         self.assertIn('return Boolean(item.is_priority) && manifestLevel === "normal" ? "fs" : manifestLevel;', queue_table_js)
@@ -1866,19 +1918,40 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
 
         for element_id in [
             "queue-manual-save-order-btn",
+            "queue-manual-discard-order-btn",
             "queue-manual-move-top-btn",
             "queue-manual-move-up-btn",
             "queue-manual-move-down-btn",
             "queue-manual-move-bottom-btn",
             "queue-manual-order-status",
+            "queue-table-pagination",
+            "queue-table-page-status",
+            "queue-page-prev-btn",
+            "queue-page-next-btn",
         ]:
             with self.subTest(element_id=element_id):
                 self.assertIn(element_id, html)
 
+        self.assertIn('<pre id="queue-filter-summary" class="prose-block queue-filter-summary" hidden aria-hidden="true">', html)
+        self.assertIn("const QUEUE_RENDER_LIMIT = 250;", queue_view_js)
+        self.assertIn("function updateQueuePaginationControls(rowCount, pageStart, renderedCount)", queue_view_js)
+        self.assertIn("function moveQueueTablePage(delta)", queue_view_js)
+        self.assertIn("function setQueueFilterSummary(lines)", queue_view_js)
         self.assertIn("function queueManualOrderPositionItems()", queue_view_js)
+        self.assertIn("let queueManualOrderLoadedKeys = [];", queue_view_js)
+        self.assertIn("let queueManualOrderDraftDirty = false;", queue_view_js)
+        self.assertIn("function resetQueueManualOrderLoadedKeys(rows = lastQueueRows)", queue_view_js)
+        self.assertIn("function syncQueueManualOrderDraftDirty()", queue_view_js)
         self.assertIn("position: index + 1", queue_view_js)
         self.assertIn('apiPost("/api/queue/priority", { items })', queue_view_js)
+        self.assertIn("if (!syncQueueManualOrderDraftDirty())", queue_view_js)
+        self.assertIn('queueManualOrderStatus("No staged manual-order changes to save.");', queue_view_js)
+        self.assertIn("Staged manual order for ${queueManualOrderPhaseLabel(context.phase)}", queue_view_js)
+        self.assertIn("renderQueueRows({ preservePage: true });", queue_view_js)
+        self.assertIn("function discardQueueManualOrderDraft()", queue_view_js)
+        self.assertIn("function restoreQueueManualOrderLoadedOrder()", queue_view_js)
         self.assertIn('wire("queue-manual-move-up-btn", () => moveQueueManualOrder("up"));', queue_view_js)
+        self.assertIn('wire("queue-manual-discard-order-btn", () => discardQueueManualOrderDraft());', queue_view_js)
         self.assertIn('row.addEventListener("drop"', queue_view_js)
         self.assertIn('event.key !== "ArrowUp" && event.key !== "ArrowDown"', queue_view_js)
         self.assertIn('ManualOrder takes effect on the next backend queue build.', queue_view_js)
@@ -1886,6 +1959,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("dataset.manualOrderDraggable", queue_table_js)
         self.assertIn(".queue-manual-order-toolbar", queue_css)
         self.assertIn(".is-manual-drop-target", queue_css)
+        self.assertIn('.priority-badge[data-level="high"]', queue_css)
+        self.assertIn('background: var(--semantic-info-bg);', queue_css)
+        self.assertIn('[data-page-panel="queue"] .queue-table tr.is-selected[data-status="warning"] td:first-child', queue_css)
+        self.assertIn('[data-page-panel="queue"] .queue-table tr.is-selected[data-status="blocked"] td:first-child', queue_css)
 
     def test_queue_file_settings_drawer_stage2_annotations_and_focus(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
@@ -1928,7 +2005,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertNotIn('"File Settings — " + (name.length > 40 ? "…" + name.slice(-40) : name)', queue_view_js)
         self.assertIn("/api/queue/file-overrides/effective", queue_view_js)
         self.assertIn("const FILE_OVERRIDES_EFFECTIVE_ROUTE", queue_view_js)
-        self.assertIn("function loadFileOverrideEffectiveForPath(path, item)", queue_view_js)
+        self.assertIn("function loadFileOverrideEffectiveForPath(path, item, token", queue_view_js)
         self.assertIn("function applyFileOverrideEffectivePayload(payload, item)", queue_view_js)
         self.assertIn("function drawerDefaultsFromEffectivePayload(payload, item)", queue_view_js)
         self.assertIn("await loadFileOverrideEffectiveForPath(state.foCurrentPath, state.foCurrentItem);", queue_view_js)
@@ -1997,6 +2074,16 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
 
         self.assertIn("function clearFileOverrideField(fieldKey)", queue_view_js)
         self.assertIn("clear_fields: [fieldPath]", queue_view_js)
+        self.assertIn("function stageUseSavedPolicyField(fieldKey)", queue_view_js)
+        self.assertIn("state.foPendingClearFieldPaths.add(fieldPath);", queue_view_js)
+        self.assertIn('setStatus("Saved policy staged locally. Use Save Override to persist this field clear, or close to discard.", "warning");', queue_view_js)
+        self.assertIn('button.textContent = staged ? "Saved policy staged" : text;', queue_view_js)
+        self.assertIn('button.dataset.stagedClear = "true";', queue_view_js)
+        self.assertIn('button.addEventListener("click", () => ctx.form.stageUseSavedPolicyField(button.dataset.foUseInherited || ""));', queue_view_js)
+        self.assertIn("foPendingClearFieldPaths: new Set(),", queue_view_js)
+        self.assertIn("foDrawerLoading: false,", queue_view_js)
+        self.assertIn("function drawerRequestIsCurrent(path, token = state.foDrawerLoadToken)", queue_view_js)
+        self.assertIn("if (!drawerRequestIsCurrent(path, token)) return false;", queue_view_js)
         self.assertIn('payload.file_override_scope !== "file"', queue_view_js)
         self.assertIn('sources[fieldPath] === "file_override"', queue_view_js)
         self.assertIn("function renderDrawerUseInheritedButtons(payload)", queue_view_js)
@@ -2026,6 +2113,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("Discard unsaved file override changes", queue_view_js)
         self.assertIn("function restoreFileSettingsDrawerFocus()", queue_view_js)
         self.assertIn(".fo-use-inherited-button", queue_css)
+        self.assertIn('.fo-use-inherited-button[data-staged-clear="true"]', queue_css)
+        self.assertIn(".fo-use-inherited-button:disabled", queue_css)
 
     def test_queue_file_settings_drawer_stage4f_audio_preferred_default_language(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
@@ -2137,12 +2226,19 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('data-fo-series-filter="protected"', html)
         self.assertIn('data-fo-series-filter="issues"', html)
         self.assertIn('id="fo-series-apply" class="primary-button" disabled', html)
+        self.assertIn('id="fo-remux-pilot-promote" class="secondary-button" hidden', html)
+        self.assertIn('id="fo-remux-pilot-proof" class="fo-remux-pilot-proof"', html)
 
         self.assertIn('apiPost("/api/queue/file-overrides/series-preview", {', queue_view_js)
         self.assertIn('apiPost("/api/queue/file-overrides/series-apply", {', queue_view_js)
+        self.assertIn('apiPost("/api/queue/file-overrides/remux-pilot-promote", {', queue_view_js)
         self.assertIn("function requestSeriesPreview()", queue_view_js)
         self.assertIn("function applySeriesPreview()", queue_view_js)
+        self.assertIn("function requestRemuxPilotPromotion()", queue_view_js)
+        self.assertIn("function selectedPilotSourcePaths()", queue_view_js)
+        self.assertIn("pilot_source_paths: pilotPaths", queue_view_js)
         self.assertIn("function renderSeriesPreview(payload)", queue_view_js)
+        self.assertIn("function renderRemuxPilotPromotionResult(result)", queue_view_js)
         self.assertIn("function hideDrawerForSeriesModal()", queue_view_js)
         self.assertIn("function restoreDrawerAfterSeriesModal()", queue_view_js)
         self.assertIn("hideDrawerForSeriesModal();", queue_view_js)
@@ -2150,6 +2246,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("closeFileSettingsDrawer();", queue_view_js)
         self.assertIn("preview_fingerprint: fingerprint", queue_view_js)
         self.assertIn("confirm_apply: true", queue_view_js)
+        self.assertIn("window.getSelectedQueuePriorityRows = getSelectedQueuePriorityRows;", queue_view_js)
+        self.assertIn('remuxPilotBtn.addEventListener("click", ctx.series.requestRemuxPilotPromotion);', queue_view_js)
         self.assertIn('button.addEventListener("click", () => {', queue_view_js)
         self.assertIn("ctx.series.renderSeriesRows(ctx.state.foSeriesPreviewPayload?.rows);", queue_view_js)
         self.assertIn("closeSeriesModal()", queue_view_js)
@@ -2157,6 +2255,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn(".fo-series-modal", queue_css)
         self.assertIn(".fo-series-table", queue_css)
         self.assertIn(".fo-series-filters", queue_css)
+        self.assertIn(".fo-remux-pilot-proof", queue_css)
 
     def test_queue_file_settings_drawer_stage6e_track_metadata_sections(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
@@ -2182,7 +2281,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
 
         self.assertIn("function renderDrawerTrackMetadata(payload)", queue_view_js)
         self.assertIn('const FILE_OVERRIDES_TRACKS_ROUTE = "/api/queue/file-overrides/tracks";', queue_view_js)
-        self.assertIn("function loadFileOverrideTracksForPath(path)", queue_view_js)
+        self.assertIn("function loadFileOverrideTracksForPath(path, token", queue_view_js)
         self.assertIn("function trackMetadataFromTracksPayload(payload)", queue_view_js)
         self.assertIn("payload?.track_metadata", queue_view_js)
         self.assertIn("payload?.track_selection_preview", queue_view_js)
@@ -2312,6 +2411,77 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         ]
         for text in removed_css:
             self.assertNotIn(text, queue_css)
+
+    def test_diagnostics_ui_hardening_affordances_are_static_pinned(self) -> None:
+        desktop_root = find_repo_root(Path(__file__))
+        static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
+        html = _render_static_index_html(static_root)
+        assets_root = static_root / "assets"
+        dom_helpers_js = _read_dom_helpers_asset_bundle(assets_root)
+        table_js = (assets_root / "dom" / "table.js").read_text(encoding="utf-8")
+        diagnostics_view_js = _read_diagnostics_asset_bundle(assets_root)
+        diagnostics_tail_js = (assets_root / "diagnosticsTailView.js").read_text(encoding="utf-8")
+        diagnostics_state_js = (assets_root / "diagnosticsStateSummaryView.js").read_text(encoding="utf-8")
+        diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
+        command_history_js = _read_command_history_asset_bundle(assets_root)
+        contract_view_js = (assets_root / "contractView.js").read_text(encoding="utf-8")
+        app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        diagnostics_html = (static_root / "partials" / "page-diagnostics.html").read_text(encoding="utf-8")
+        styles_css = "\n".join(path.read_text(encoding="utf-8") for path in sorted(assets_root.glob("styles*.css")))
+
+        for symbol in [
+            "function setPanelStatus",
+            "function setInlineActionStatus",
+            "function setActionBusy",
+            "normalizePanelStatusState",
+            "window.setPanelStatus = setPanelStatus",
+        ]:
+            self.assertIn(symbol, dom_helpers_js)
+
+        for tbody_id in [
+            "diagnostics-first-response-rows",
+            "diagnostics-state-triage-rows",
+            "diagnostics-state-summary-rows",
+            "diagnostics-owner-handoff-rows",
+            "diagnostics-command-drilldown-rows",
+            "diagnostics-command-evidence-rows",
+            "diagnostics-command-resolution-rows",
+            "api-contract-safety-rows",
+            "tdarr-matrix-proof-pack-rows",
+        ]:
+            self.assertIn(f'"{tbody_id}"', table_js)
+
+        self.assertIn('id="diagnostics-pipeline-log-status"', html)
+        self.assertIn('id="diagnostics-launch-log-status"', html)
+        self.assertIn('id="tdarr-matrix-delete-confirm"', html)
+        self.assertIn('data-severity="warning" data-tdarr-matrix-audit-action="cleanup-plan"', html)
+        self.assertIn('data-read-diagnostics-tail="last_stderr_log"', html)
+        self.assertIn('data-read-diagnostics-tail="queue_snapshot"', html)
+        self.assertIn('diagnostics-open-target-groups', html)
+        self.assertLess(diagnostics_html.index("<h2>Command Detail</h2>"), diagnostics_html.index("<h2>Commands Evidence</h2>"))
+
+        self.assertIn("function tdarrMatrixActionGate", diagnostics_view_js)
+        self.assertIn("Type DELETE VERIFIED MATRIX", diagnostics_view_js)
+        self.assertIn("confirm_delete_full_matrix = true", diagnostics_view_js)
+        self.assertIn("function renderDiagnosticsRefreshFailures", diagnostics_view_js)
+        self.assertIn("function diagnosticsLogPanelStatus", diagnostics_view_js)
+        self.assertIn('"log_tail_missing"', diagnostics_view_js)
+        self.assertIn('"launch_logs_error"', diagnostics_view_js)
+        self.assertIn("if (resultOk) {", diagnostics_view_js)
+        self.assertIn("renderDiagnosticsRefreshFailuresFn(failures)", app_js)
+        self.assertIn("requestDiagnosticsOpen(openTarget, button)", diagnostics_view_js)
+        self.assertIn("requestDiagnosticsTail(artifact.tailTarget, tailButton)", diagnostics_view_js)
+        self.assertIn("setInlineActionStatus(sourceButton", diagnostics_tail_js)
+        self.assertIn('"Read error"', diagnostics_tail_js)
+        self.assertIn('"Missing"', diagnostics_tail_js)
+        self.assertIn('"Empty"', diagnostics_tail_js)
+        self.assertIn("requestDiagnosticsTail(target, button)", diagnostics_state_js)
+        self.assertIn("onAction(action, button)", diagnostics_bridge_js)
+        self.assertIn("requestCommandDiagnosticsAction(action, button)", command_history_js)
+        self.assertIn("Operator boundary: route presence is evidence only", contract_view_js)
+        self.assertIn("Diagnostics handoff selected this row locally. No backend command was sent.", diagnostics_view_js)
+        self.assertIn(".inline-action-status[data-state=\"blocked\"]", styles_css)
+        self.assertIn(".secondary-button[data-severity=\"warning\"]", styles_css)
 
     def test_web_selected_rows_share_diagnostics_handoff(self) -> None:
         desktop_root = find_repo_root(Path(__file__))

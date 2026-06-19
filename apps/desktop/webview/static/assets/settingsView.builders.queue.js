@@ -77,10 +77,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Queue builder merged priority, processed-index refresh, and reprocess keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Queue builder prepared priority, processed-index refresh, and reprocess keys for Save Settings. Backend Save still validates before writing.");
       queueSettingsBuilderState.initialized = true;
       queueSettingsBuilderState.dirty = true;
-      setText("settings-queue-builder-status", `${Object.keys(patch).length} queue patch keys ready`);
+      setText("settings-queue-builder-status", `${Object.keys(patch).length} queue change keys ready`);
       renderQueueSettingsBuilderGuidance();
       return true;
     }

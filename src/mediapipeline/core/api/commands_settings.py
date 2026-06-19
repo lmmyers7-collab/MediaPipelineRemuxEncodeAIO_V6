@@ -89,8 +89,56 @@ def _validate_settings_browse_path(setting_key: str, raw_path: str) -> dict[str,
 
 
 class LocalApiSettingsCommandPayloadMixin:
+    def _settings_preset_library_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.list", "settings")
+        return self.facade.list_preset_library(resolved).to_mapping()
+
     def _settings_validate_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         return self.facade.validate_settings_values(request).to_mapping()
+
+    def _settings_preset_library_validate_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.validate", "settings")
+        return self.facade.validate_preset_library(resolved, request).to_mapping()
+
+    def _settings_preset_library_compare_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.compare", "settings")
+        return self.facade.compare_preset_library(resolved, request).to_mapping()
+
+    def _settings_preset_library_import_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.import_preview", "settings")
+        return self.facade.import_preset_library_preview(resolved, request).to_mapping()
+
+    def _settings_preset_library_save_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.save", "settings")
+        return self.facade.save_preset_library(resolved, request).to_mapping()
+
+    def _settings_preset_library_export_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.export", "settings")
+        return self.facade.export_preset_library(resolved, request).to_mapping()
+
+    def _settings_preset_library_apply_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.apply_preview", "settings")
+        return self.facade.preview_preset_library_apply(resolved, request).to_mapping()
+
+    def _settings_preset_library_apply_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.preset_library.apply", "settings")
+        return self.facade.apply_preset_library(resolved, request).to_mapping()
 
     def _settings_browse_path_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         setting_key = str(request.get("setting_key") or "").strip()

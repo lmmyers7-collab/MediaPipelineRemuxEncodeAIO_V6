@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0618-022",
+  "title": "Strengthen autonomy active liveness evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Extend the backend-owned autonomy worker health payload with detection-only active liveness watchdog evidence.",
+  "reason": "The 30-day hardening phase needs stronger ActiveJobs liveness evidence before any future active watchdog mutation is considered. This slice must remain read-only and must not kill processes or rewrite state.",
+  "affected_areas": [
+    "diagnostics",
+    "safety",
+    "tests"
+  ],
+  "behavior_before": "Autonomy worker health only aged ActiveJobs records with fixed review/block thresholds and did not expose the liveness evidence or configured timeout basis used for the decision.",
+  "behavior_after": "Autonomy worker health reports read-only watchdog evidence that combines ActiveJobs heartbeat, progress/event/log freshness, and configured native timeout budgets before gating new launches.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-022.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/autonomy_health.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_autonomy_health.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-022.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "manual_validation": [
+    "Added required date_completed=null to satisfy change-control schema",
+    "pytest tests/python/desktop/test_autonomy_health.py -q - initially failed before implementation (3 failed, 6 passed)",
+    "pytest tests/python/desktop/test_autonomy_health.py -q - passed (10 passed)",
+    "pytest tests/python/desktop/test_autonomy_health.py -q - passed (9 passed)",
+    "pytest tests/python/desktop/test_autonomy_health.py tests/python/desktop/test_application_facade_diagnostics.py tests/python/desktop/test_application_facade_process_launch.py tests/python/desktop/test_application_facade_local_api.py tests/python/desktop/test_api_contract_payload.py -q - passed (116 passed, 209 subtests)",
+    "pytest tests/python/desktop/test_autonomy_health.py tests/python/desktop/test_application_facade_diagnostics.py tests/python/desktop/test_application_facade_process_launch.py tests/python/desktop/test_application_facade_local_api.py tests/python/desktop/test_api_contract_payload.py -q - passed (117 passed, 209 subtests)",
+    "refresh_summaries targeted MP-CHANGE-2026-0618-022 packet - passed",
+    "refresh_summaries targeted autonomy liveness files - passed (3 written after final edits)",
+    "refresh_summaries targeted autonomy liveness files - passed (3 written)",
+    "validate_changes --require-worktree-coverage - passed (388 packet(s) valid)"
+  ],
+  "rollback_plan": "Remove the active liveness evidence changes, tests, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0617-906",
+    "MP-CHANGE-2026-0618-019",
+    "MP-CHANGE-2026-0618-021"
+  ],
+  "notes": "Detection-only. This change must not kill active processes, rewrite ActiveJobs, move/delete media, drain pending publish, or bypass existing lifecycle controls."
+}

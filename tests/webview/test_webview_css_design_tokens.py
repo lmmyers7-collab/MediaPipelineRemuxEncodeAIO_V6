@@ -219,15 +219,10 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         for selector in [
             ".data-table-wrap",
             ".table-ui-toolbar",
-            ".table-ui-filter",
-            ".table-density-control",
             ".table-column-menu",
             ".table-sort-button",
             ".table-column-resizer",
-            ".table-filter-row",
             ".data-table th[data-sticky-column]",
-            ".table-wrap[data-table-density=\"compact\"] th",
-            ".table-wrap[data-table-density=\"comfortable\"] th",
             ".data-table.has-many-rows tbody tr:nth-child(even):not(.is-selected):not([data-status]) td",
         ]:
             self.assertIn(selector, components)
@@ -381,7 +376,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".status-chip::before", controls)
         self.assertIn("background: currentColor;", controls)
         self.assertIn("padding: var(--space-3) var(--space-4);", components)
-        self.assertIn('id="audit-start-button" class="primary-button"', launch_html)
+        self.assertNotIn('id="audit-start-button" class="primary-button"', launch_html)
         self.assertIn('id="rerun-start-button" class="primary-button"', launch_html)
         self.assertIn("This does not start a new run or touch media", launch_command_buttons_js)
         self.assertIn("source media should not be touched", launch_command_buttons_js)

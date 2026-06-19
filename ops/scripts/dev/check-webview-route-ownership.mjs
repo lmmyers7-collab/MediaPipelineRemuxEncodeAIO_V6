@@ -35,6 +35,12 @@ const confirmationRules = [
     pattern: /confirm_promote\s*:\s*true/,
     note: "Final-library promotion must remain explicitly backend-confirmed.",
   },
+  {
+    route: "/api/rename/filter-cases",
+    confirmation: "confirm_append",
+    pattern: /confirm_append\s*:\s*true/,
+    note: "Rename filter corpus writes must remain explicitly backend-confirmed.",
+  },
 ];
 
 const settingsReadRoutesAllowedOutsideSettingsAssets = new Set([

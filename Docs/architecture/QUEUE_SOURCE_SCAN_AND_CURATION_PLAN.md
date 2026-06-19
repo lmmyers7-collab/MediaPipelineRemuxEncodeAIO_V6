@@ -86,7 +86,7 @@ _queue_payload() -> self.facade.get_queue_preview(resolved).to_mapping()
 
 Queue preview facade:
 
-- `app/queue/facade.py`
+- `src/mediapipeline/core/queue/facade.py`
 
 Important current docstring:
 
@@ -101,14 +101,14 @@ reads the existing snapshot only.
 
 The backend already has a queue-plan emission path:
 
-- `app/queue/service.py`
-- `app/queue/preview_builder.py`
-- `app/queue/dry_run.py`
-- `app/queue/dry_run_runner.py`
+- `src/mediapipeline/core/queue/service.py`
+- `src/mediapipeline/core/queue/preview_builder.py`
+- `src/mediapipeline/core/queue/dry_run.py`
+- `src/mediapipeline/core/queue/dry_run_runner.py`
 - `ops/pipeline/entrypoints/MediaPipeline.ps1`
 - `ops/pipeline/engine/queue/pipeline_engine.ps1`
 
-The command builder in `app/queue/dry_run.py` produces:
+The command builder in `src/mediapipeline/core/queue/dry_run.py` produces:
 
 ```text
 pwsh -NoProfile -NonInteractive -File MediaPipeline.ps1
@@ -355,12 +355,11 @@ Goal: add a backend route that actually triggers queue snapshot rebuild.
 
 Files likely involved:
 
-- `app/api/commands.py`
-- `app/contracts/api_commands.py`
+- `src/mediapipeline/core/api/commands.py`
+- `src/mediapipeline/contracts/api_commands.py`
 - `src/mediapipeline/desktop/api/contract_command.py`
 - `src/mediapipeline/desktop/api/routes_command.py`
-- `app/api/commands_queue_scan.py` (new, under `app/api/`, not a flat desktop
-  app file)
+- `src/mediapipeline/core/api/commands_queue_scan.py`
 
 Add route:
 
@@ -381,9 +380,9 @@ Use a command result envelope.
 
 Files likely involved:
 
-- `app/queue/service.py`
-- `app/queue/dry_run_runner.py`
-- `app/queue/scan_status.py` (new focused helper)
+- `src/mediapipeline/core/queue/service.py`
+- `src/mediapipeline/core/queue/dry_run_runner.py`
+- `src/mediapipeline/core/queue/scan_status.py` (new focused helper)
 
 Do not make the WebView call `MediaPipeline.ps1` directly.
 
@@ -464,9 +463,9 @@ Inventory must not:
 
 ### Inventory Writer
 
-Add focused helper under `app/queue/`, for example:
+Add focused helper under `src/mediapipeline/core/queue/`, for example:
 
-- `app/queue/source_inventory.py`
+- `src/mediapipeline/core/queue/source_inventory.py`
 
 Responsibilities:
 
@@ -738,11 +737,13 @@ what it found, whether curation completed, and why a file is or is not launchabl
 For the next implementation agent:
 
 1. Read this file.
-2. Read `app/queue/facade.py`, `app/queue/service.py`,
-   `app/queue/dry_run_runner.py`, and `app/queue/dry_run.py`.
+2. Read `src/mediapipeline/core/queue/facade.py`,
+   `src/mediapipeline/core/queue/service.py`,
+   `src/mediapipeline/core/queue/dry_run_runner.py`, and
+   `src/mediapipeline/core/queue/dry_run.py`.
 3. Read `src/mediapipeline/desktop/api/routes_read.py`,
    `src/mediapipeline/desktop/api/routes_command.py`, and
-   `app/api/commands.py`.
+   `src/mediapipeline/core/api/commands.py`.
 4. Add the route and duplicate-guarded scan service first.
 5. Do not start with the fast inventory UI. Prove a true scan route can refresh
    `queue_snapshot.json` safely before adding the inventory/candidate layer.

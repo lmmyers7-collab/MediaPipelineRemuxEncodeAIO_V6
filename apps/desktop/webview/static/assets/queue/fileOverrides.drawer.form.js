@@ -383,17 +383,22 @@
       button.hidden = true;
       button.disabled = true;
       button.textContent = "Use saved policy";
+      delete button.dataset.stagedClear;
     });
   }
 
   function setDrawerUseInheritedAvailable(fieldKey, isAvailable) {
     const button = document.querySelector(`[data-fo-use-inherited="${fieldKey}"]`);
     if (!button) return;
+    const fieldPath = DRAWER_FIELD_PATHS[fieldKey];
+    const staged = Boolean(fieldPath && state.foPendingClearFieldPaths?.has?.(fieldPath));
     const text = savedPolicyButtonText(fieldKey);
-    button.textContent = text;
-    button.setAttribute("aria-label", `${text} for ${fieldKey.replace(/([A-Z])/g, " $1").toLowerCase()}`);
-    button.hidden = !isAvailable;
-    button.disabled = !isAvailable;
+    button.textContent = staged ? "Saved policy staged" : text;
+    button.setAttribute("aria-label", `${staged ? "Saved policy staged" : text} for ${fieldKey.replace(/([A-Z])/g, " $1").toLowerCase()}`);
+    button.hidden = !isAvailable && !staged;
+    button.disabled = !isAvailable || staged;
+    if (staged) button.dataset.stagedClear = "true";
+    else delete button.dataset.stagedClear;
   }
 
   function renderDrawerUseInheritedButtons(payload) {
@@ -413,11 +418,17 @@
     const clearButton = byId("fo-drawer-clear");
     const seriesButton = byId("fo-series-preview-open");
     const seriesApplyButton = byId("fo-series-apply");
-    const commandDisabled = Boolean(disabled);
+    const remuxPilotButton = byId("fo-remux-pilot-promote");
+    const commandDisabled = Boolean(disabled || state.foDrawerLoading);
     if (saveButton) saveButton.disabled = commandDisabled || !state.foDrawerDirty;
-    if (clearButton) clearButton.disabled = Boolean(disabled);
+    if (clearButton) clearButton.disabled = commandDisabled;
     if (seriesButton) seriesButton.disabled = commandDisabled || !state.foCurrentPath;
     if (seriesApplyButton && commandDisabled) seriesApplyButton.disabled = true;
+    if (remuxPilotButton && commandDisabled) remuxPilotButton.disabled = true;
+    document.querySelectorAll("[data-fo-use-inherited]").forEach((button) => {
+      if (button.hidden) return;
+      button.disabled = commandDisabled || button.dataset.stagedClear === "true";
+    });
   }
 
   function normalizeForSignature(value) {
@@ -451,6 +462,7 @@
   }
 
   function markDrawerClean() {
+    state.foPendingClearFieldPaths = new Set();
     state.foDrawerBaselineSignature = drawerFormSignature();
     state.foDrawerDirty = false;
     const drawer = byId("fo-drawer");
@@ -561,6 +573,7 @@
     });
     clearDrawerOverrideMarkers();
     clearDrawerUseInheritedButtons();
+    state.foPendingClearFieldPaths = new Set();
     state.foExactTrackOverrideEntry = null;
     resetExactTrackControls();
     state.foUnmatchedExactSelectors = ctx.emptyExactSelectorState();
@@ -628,6 +641,7 @@
 
   function populateDrawerForm(entry) {
     // entry = { audio: {...}, subtitles: {...} } or null
+    state.foPendingClearFieldPaths = new Set();
     const audio = (entry && entry.audio)     || {};
     const subs  = (entry && entry.subtitles) || {};
     const routing = (entry && entry.routing) || {};
@@ -761,7 +775,7 @@
 
   function collectFileOverrideFieldsToClearOnSave() {
     const sources = isPlainObject(state.foLastEffectivePayload?.sources) ? state.foLastEffectivePayload.sources : {};
-    return Object.keys(DRAWER_FIELD_PATHS)
+    const paths = Object.keys(DRAWER_FIELD_PATHS)
       .filter((fieldKey) => {
         const fieldPath = DRAWER_FIELD_PATHS[fieldKey];
         return (
@@ -771,6 +785,62 @@
         );
       })
       .map((fieldKey) => DRAWER_FIELD_PATHS[fieldKey]);
+    Object.keys(DRAWER_FIELD_PATHS).forEach((fieldKey) => {
+      const fieldPath = DRAWER_FIELD_PATHS[fieldKey];
+      if (!fieldPath || !state.foPendingClearFieldPaths?.has?.(fieldPath)) return;
+      if (drawerFieldIsNeutral(fieldKey)) paths.push(fieldPath);
+    });
+    return Array.from(new Set(paths));
+  }
+
+  function neutralizeDrawerField(fieldKey) {
+    const inputIds = {
+      audioKeepLanguages: "fo-audio-keep-langs",
+      audioDropLanguages: "fo-audio-drop-langs",
+      audioMaxChannels: "fo-audio-max-channels",
+      audioPreferDefaultLanguage: "fo-audio-prefer-default-language",
+      subtitleKeepLanguages: "fo-sub-keep-langs",
+      subtitleDropLanguages: "fo-sub-drop-langs",
+    };
+    const inputId = inputIds[fieldKey];
+    if (inputId) {
+      const control = byId(inputId);
+      if (control) control.value = "";
+    }
+    if (fieldKey === "subtitleStripAll") {
+      const control = byId("fo-sub-strip-all");
+      if (control) control.checked = false;
+    }
+    if (ROUTE_FIELD_KEYS.includes(fieldKey)) {
+      const control = routeControlElement(fieldKey);
+      if (control) control.value = "";
+    }
+  }
+
+  function stageUseSavedPolicyField(fieldKey) {
+    const fieldPath = DRAWER_FIELD_PATHS[fieldKey];
+    if (!fieldPath) {
+      setStatus("Cannot stage saved policy for this override field.", "error");
+      return false;
+    }
+    if (!state.foCurrentPath) {
+      setStatus("No file selected.", "warning");
+      return false;
+    }
+    neutralizeDrawerField(fieldKey);
+    state.foPendingClearFieldPaths.add(fieldPath);
+    if (fieldKey === "subtitleBurnTrack") ctx.tracks.resetExactTrackActionsForField(fieldKey);
+    if (["audioKeepLanguages", "audioDropLanguages", "subtitleKeepLanguages", "subtitleDropLanguages"].includes(fieldKey)) {
+      ctx.tracks.resetExactTrackActionsForField(fieldKey);
+    }
+    setDrawerFieldOverridden(fieldKey, false);
+    syncSubFilterFields();
+    syncRouteOverrideDisclosure();
+    if (ROUTE_FIELD_KEYS.includes(fieldKey)) ctx.routePreview.scheduleRoutePreviewFromCurrentForm();
+    syncDrawerDirtyState();
+    setDrawerUseInheritedAvailable(fieldKey, true);
+    setStatus("Saved policy staged locally. Use Save Override to persist this field clear, or close to discard.", "warning");
+    return true;
   }
 
   function collectRouteVideoFieldsToClearOnSave() {
@@ -822,6 +892,7 @@
       populateDrawerForm,
       buildOverridePayload,
       drawerFieldIsNeutral,
+      stageUseSavedPolicyField,
       collectFileOverrideFieldsToClearOnSave,
       collectRouteVideoFieldsToClearOnSave,
       fieldPathsIncludeRouteVideo,

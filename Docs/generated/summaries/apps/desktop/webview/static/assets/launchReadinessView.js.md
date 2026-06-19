@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launchReadinessView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: feb499dbc1b62cfbe8be3d50dff9b66ecd161344b1b3fef00792a3e05e1ffbb0
+sha256: 7fc2d5670b3538190dc04d95250d48b38e6ba51e71a636a12ff762967a595405
 ---
 # `apps/desktop/webview/static/assets/launchReadinessView.js`
 

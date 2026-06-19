@@ -4,6 +4,8 @@ Date: 2026-06-17
 
 Coordinator packet: `MP-CHANGE-2026-0617-013`
 
+Follow-up resolution packet: `MP-CHANGE-2026-0618-004`
+
 This report coordinates the 14 planned audit tracks. It does not execute the
 audits, validate source behavior, change source code, or change operator
 workflows. Its purpose is to make worker reports easier to merge by assigning
@@ -33,9 +35,34 @@ The coordinator recommendation is:
 5. Keep the deepest analysis in the owning report and merge all duplicated
    sightings into a master registry with `Duplicate/cross-reference IDs`.
 
-Current workspace observation: 13 audit reports exist under `docs/ai-audits/`.
-The expected `2026-06-17-test-coverage-gap-analysis.md` report was not present
-when this coordinator report was written.
+Original workspace observation: 13 worker audit reports existed under
+`docs/ai-audits/`. The expected
+`2026-06-17-test-coverage-gap-analysis.md` report was not present when this
+coordinator report was first written.
+
+Follow-up status as of 2026-06-18: all 14 worker audit reports now exist. The
+missing TESTGAP report was added at
+`docs/ai-audits/2026-06-17-test-coverage-gap-analysis.md`, and the bounded
+follow-up synthesis/registry was added at
+`docs/ai-audits/2026-06-17-audit-master-registry.md`.
+
+## Follow-Up Resolution Status
+
+This section records how the actionable coordinator issues were addressed after
+the original coordination pass. It does not replace the ownership matrix or
+worker reports; it points readers to the follow-up artifacts that resolve the
+coordination gaps.
+
+| Coordinator issue or gap | Status | Resolution |
+|---|---|---|
+| Missing Test Coverage Gap Analysis report | Resolved | Added `docs/ai-audits/2026-06-17-test-coverage-gap-analysis.md` with normalized `TESTGAP-###` findings and validation ownership. |
+| Expected report inventory could not be closed | Resolved | All 14 worker reports plus this coordinator report are now present; see the appendix and `docs/ai-audits/2026-06-17-audit-master-registry.md`. |
+| Existing reports lacked a shared normalized ID map | Resolved for synthesis | `docs/ai-audits/2026-06-17-audit-master-registry.md` maps each audit track to the coordinator ID scheme without rewriting existing reports. |
+| Duplicate or overlapping findings needed grouping | Resolved for synthesis | The master registry includes a root-cause duplicate map with owning audit, duplicate IDs, severity, confidence, domains, evidence source, and validation required. |
+| Prompt issue list needed disposition | Resolved for future prompts | The master registry includes `Prompt Issue Disposition`; this report now also records the status of each prompt issue below. |
+| Open questions needed answers or operator decisions | Resolved where evidence allowed | Section 14 now records follow-up answers and the remaining operator decisions. |
+| Master issue registry and final synthesis workflow were templates only | Resolved for synthesis | `docs/ai-audits/2026-06-17-audit-master-registry.md` contains the first bounded master registry, remediation order, validation ladder, severity conflicts, and insufficient-evidence list. |
+| Runtime/source remediation was out of scope | Preserved | No source behavior, runtime config, tests, launchers, generated contracts, schemas, or operator workflows were changed by this coordinator follow-up. |
 
 ## 2. Coordination Methodology
 
@@ -89,7 +116,7 @@ Limitations:
 | MEMORY | Memory Leak Investigation | Own unbounded growth, leaked listeners/timers/threads/process handles, long-run resource retention, and lifecycle cleanup. | Present |
 | COORD | Network Coordinator Deep Dive | Own distributed coordinator/worker lifecycle, claims, heartbeats, reclaim, done reports, split-brain, path mapping, and duplicate processing. | Present |
 | CONFIG | Configuration System Audit | Own defaults, schemas, PSD1/Python parity, precedence, profile overrides, risky settings, and config drift. | Present |
-| TESTGAP | Test Coverage Gap Analysis | Own missing tests, weak assertions, stale smokes, validation gaps, and evidence required before remediation. | Missing from `docs/ai-audits` |
+| TESTGAP | Test Coverage Gap Analysis | Own missing tests, weak assertions, stale smokes, validation gaps, and evidence required before remediation. | Present after follow-up packet `MP-CHANGE-2026-0618-001` |
 | JOURNEY | User Journey Audit | Own operator workflows, terminology, onboarding, confusing handoffs, recovery discoverability, and docs-to-UI friction. | Present |
 | HBPARITY | HandBrake Parity Analysis | Own HandBrake-style feature parity, media workflow comparison, preset/profile ergonomics, track-selection usability, and parity gaps worth pursuing. | Present |
 | FUTURE | Future Feature Readiness Audit | Own readiness for future capabilities, extensibility constraints, prerequisite architecture work, and sequencing. | Present |
@@ -476,6 +503,34 @@ and high-blast-radius files.
 | All | Missing duplicate map update section. | Coordinator cannot merge reports deterministically. | "Add a `Cross-references and possible duplicates` section listing owner IDs." | Medium |
 | All | Missing validation ladder language. | Remediation plans may under-test high-risk media changes. | "For each finding, name the smallest safe validation rung and call out when real-media validation is required." | High |
 
+### Follow-Up Prompt Issue Disposition
+
+The original table above remains the prompt-quality analysis. The disposition
+below records how each actionable issue is addressed for synthesis or future
+worker prompts. Existing audit reports were not rewritten; the registry maps
+them unless the operator later requests manual normalization.
+
+| Prompt issue | Status | Resolution |
+|---|---|---|
+| No shared finding ID scheme | Resolved for synthesis | The master registry maps audit-local findings to `ARCH-###`, `GODFILE-###`, `DEAD-###`, `UIRESP-###`, `STARTUP-###`, `MEMORY-###`, `COORD-###`, `CONFIG-###`, `TESTGAP-###`, `JOURNEY-###`, `HBPARITY-###`, `FUTURE-###`, `RELIABILITY-###`, and `NERVOUS-###`. |
+| Severity/category taxonomy not explicitly shared | Resolved for synthesis | Section 6 remains the shared taxonomy; the master registry applies it while preserving existing local report wording. |
+| Findings may duplicate specialist analysis | Resolved for synthesis | The master registry duplicate map chooses one owning audit per root cause and preserves secondary IDs as cross-references. |
+| Prompts may allow implementation drift | Resolved for future prompts | Follow-up artifacts repeat that audit work is report-only unless separately authorized; this packet changed docs/change-control only. |
+| Evidence requirements vary | Resolved for synthesis | The master registry rows include confidence, affected domains, evidence, validation required, and status. |
+| Summaries-before-source rule is easy to skip | Resolved for future prompts | Future worker prompt wording should explicitly require reading generated summaries before full source files when available. Existing reports were not retrofitted. |
+| Lifecycle ownership overlaps | Resolved for synthesis | The ownership matrix assigns startup timing to `STARTUP`, failure modes to `RELIABILITY`, leaks to `MEMORY`, network protocol to `COORD`, and diagrams to `ARCH`. |
+| Settings UI and backend config overlap | Resolved for synthesis | `CONFIG` owns settings semantics and persistence; `UIRESP` and `JOURNEY` own feedback, display, and comprehension only. |
+| Risk synthesis overlaps | Resolved for synthesis | `NERVOUS` is treated as an escalation lens and roadmap prioritizer, not the default root-cause owner. |
+| Missing Test Coverage Gap Analysis output | Resolved | `docs/ai-audits/2026-06-17-test-coverage-gap-analysis.md` now exists and owns validation gaps. |
+| God File Hunt and Dead Code overreach | Resolved for future prompts | Future prompts require owner evidence, rollback, and validation rung before any removal/refactor recommendation becomes implementation work. |
+| UI prompts may recommend frontend-owned mutation | Resolved for future prompts | Future UI/JOURNEY wording must preserve backend ownership of media policy, queue mutation, drain, rename apply, and settings persistence. |
+| Network Coordinator and Future Feature duplicate current defects | Resolved for synthesis | `COORD` owns current network correctness; `FUTURE` records future-readiness blockers and dependencies. |
+| Runtime tests or long runs may be implied | Resolved for future prompts | Future prompts must state static-only constraints and require authorization before service starts, destructive tests, or real-media runs. |
+| HandBrake parity gaps can be mistaken for defects | Resolved for synthesis | `HBPARITY` owns parity/value gaps; safety defects are routed to `RELIABILITY` or `CONFIG` as appropriate. |
+| Dead Code may misclassify generated/archive/compatibility surfaces | Resolved for future prompts | Future dead-code prompts must classify candidates as generated, archived, compatibility, dead, or unknown before recommending removal. |
+| Missing duplicate map update section | Resolved | The master registry contains the duplicate map; this coordinator report points to it in the follow-up status section. |
+| Missing validation ladder language | Resolved for synthesis | The master registry includes validation required per issue and a validation ladder for top issues; TESTGAP owns missing validation. |
+
 ## 11. Consolidation Plan
 
 ### Expected Report File List
@@ -534,6 +589,13 @@ and high-blast-radius files.
 Use the template in section 12. Store the final registry in the final synthesis
 document or a future coordinator-approved registry file. Do not create another
 "single source of truth" document without operator approval.
+
+Follow-up note: the bounded synthesis artifact
+`docs/ai-audits/2026-06-17-audit-master-registry.md` now contains the first
+master registry, duplicate map, normalized ID map, severity conflicts,
+insufficient-evidence list, remediation order, and validation ladder. It is an
+audit synthesis artifact, not a replacement for the canonical project docs
+listed in `AGENTS.md`.
 
 ### Master Roadmap Format
 
@@ -616,17 +678,25 @@ Do not discard them. Mark:
 
 ## 14. Open Questions
 
-1. Where is the Test Coverage Gap Analysis report, and should the final
-   synthesis wait for it?
-2. Should existing reports be edited to adopt the shared ID scheme, or should
-   only the final registry map existing local IDs?
-3. Should the coordinator produce the final synthesis as a separate report after
-   all worker outputs are confirmed?
-4. Should `NERVOUS` severity upgrades require specialist-owner approval before
-   roadmap ordering?
-5. Should future audit prompt packs be stored in `docs/ai-audits/` alongside
-   outputs, or remain outside the repository to avoid creating another active
-   planning source?
+| Question | Follow-up answer or decision needed |
+|---|---|
+| Where is the Test Coverage Gap Analysis report, and should the final synthesis wait for it? | Resolved. `docs/ai-audits/2026-06-17-test-coverage-gap-analysis.md` now exists, so synthesis no longer needs to wait for a missing worker report. |
+| Should existing reports be edited to adopt the shared ID scheme, or should only the final registry map existing local IDs? | Answered for this follow-up: use registry mapping only. Existing reports should not be rewritten unless the operator explicitly requests a normalization pass. |
+| Should the coordinator produce the final synthesis as a separate report after all worker outputs are confirmed? | Resolved. The separate bounded synthesis artifact is `docs/ai-audits/2026-06-17-audit-master-registry.md`. |
+| Should `NERVOUS` severity upgrades require specialist-owner approval before roadmap ordering? | Partially resolved. `NERVOUS` may influence provisional remediation order, but specialist owner review is required before final severity downgrade, upgrade, or implementation authorization. |
+| Should future audit prompt packs be stored in `docs/ai-audits/` alongside outputs, or remain outside the repository to avoid creating another active planning source? | Operator decision still needed. Default recommendation: keep prompt packs outside active docs, or store them only as bounded audit evidence with clear non-authoritative status. |
+
+Remaining operator decisions after follow-up:
+
+- Whether to retrofit existing audit reports with normalized IDs instead of
+  relying on the master registry mapping.
+- Whether to store future audit prompt packs under `docs/ai-audits/` as bounded
+  evidence or keep them outside the repository.
+- Whether to promote any registry items into `docs/OPEN_WORK_CHECKLIST.md`; that
+  should happen only after owner review because the current checklist has zero
+  open items.
+- Whether to maintain a redacted, rerunnable real-media validation sample matrix
+  to supplement operator-attested evidence.
 
 ## 15. Appendix
 
@@ -643,12 +713,13 @@ Do not discard them. Mark:
 - `docs/ai-audits/2026-06-17-network-coordinator-deep-dive.md`
 - `docs/ai-audits/2026-06-17-reliability-audit.md`
 - `docs/ai-audits/2026-06-17-startup-performance-investigation.md`
+- `docs/ai-audits/2026-06-17-test-coverage-gap-analysis.md`
 - `docs/ai-audits/2026-06-17-ui-responsiveness-audit.md`
 - `docs/ai-audits/2026-06-17-user-journey-audit.md`
 
 ### Expected But Not Observed
 
-- `docs/ai-audits/2026-06-17-test-coverage-gap-analysis.md`
+- None after follow-up packet `MP-CHANGE-2026-0618-001`.
 
 ### Evidence Commands Used
 
@@ -659,6 +730,9 @@ Do not discard them. Mark:
 - `Get-ChildItem -LiteralPath docs\ai-audits`
 - `rg` over `docs\ai-audits` for headings and finding sections
 - `Get-ChildItem` and `Get-Content` over nearby change-control packets
+- `rg` over `docs\ai-audits\2026-06-17-audit-master-registry.md` and
+  `docs\ai-audits\2026-06-17-test-coverage-gap-analysis.md` for follow-up
+  status, prompt disposition, registry, and TESTGAP coverage sections
 
 ### Coordinator Constraints
 

@@ -68,6 +68,11 @@
  */
 .advanced-mode [data-advanced] { display: block; }
 
+[data-advanced].is-attention-reveal,
+[data-panel-advanced].is-attention-reveal {
+  display: block;
+}
+
 /*
  * Advanced toggle button — lights up when advanced mode is active so the
  * operator always knows the gate is open.
@@ -193,6 +198,7 @@
 .status-chip[data-status="parked"],
 .status-chip[data-status="paused"],
 .status-chip[data-status="retrying"],
+.status-chip[data-status="stale"],
 .status-chip[data-status="unknown"] {
   background: var(--semantic-warning-bg);
   border-color: var(--semantic-warning-border);
@@ -200,6 +206,7 @@
 }
 
 .status-chip[data-status="blocked"],
+.status-chip[data-status="error"],
 .status-chip[data-status="failed"] {
   background: var(--semantic-danger-bg);
   border-color: var(--semantic-danger-border);
@@ -242,12 +249,14 @@ body.light-mode .status-chip[data-status="health-check"],
 body.light-mode .status-chip[data-status="parked"],
 body.light-mode .status-chip[data-status="paused"],
 body.light-mode .status-chip[data-status="retrying"],
+body.light-mode .status-chip[data-status="stale"],
 body.light-mode .status-chip[data-status="unknown"] {
   background: var(--semantic-warning-bg);
   color: var(--semantic-warning-text);
 }
 
 body.light-mode .status-chip[data-status="blocked"],
+body.light-mode .status-chip[data-status="error"],
 body.light-mode .status-chip[data-status="failed"] {
   background: var(--semantic-danger-bg);
   color: var(--semantic-danger-text);
@@ -303,6 +312,10 @@ body.light-mode .status-chip[data-status="unavailable"] {
    so the operator can scroll straight to Start Pipeline. */
 #launch-evidence-body.is-collapsed {
   display: none;
+}
+
+#launch-evidence-body.is-collapsed.is-attention-reveal {
+  display: block;
 }
 
 /* S46: KEYBOARD SHORTCUT HELP OVERLAY
@@ -378,8 +391,9 @@ body.light-mode .impact-chip[data-impact="medium"] { background: var(--semantic-
 /* ===== STAGE 16 #3 — SEMANTIC ROW BACKGROUNDS (Section 8) ==================
    Global: warning rows (amber) and blocked rows (red) are semantically
    consistent across Queue, Rename, and Diagnostics.
-   Schedule-specific "ready" (partial window) and "match" (full day) rows are
-   scoped to [data-page-panel="schedule"] to avoid false highlights elsewhere. */
+   Schedule-specific "ready" (partial window), "match" (full day), "current"
+   (active saved window), and "changed" (draft coverage) rows are scoped to
+   [data-page-panel="schedule"] to avoid false highlights elsewhere. */
 
 /* Dark mode — muted tints that don't overpower the dark surface */
 tr[data-status="warning"] td,
@@ -388,17 +402,27 @@ tr[data-status="health-check"] td,
 tr[data-status="parked"] td,
 tr[data-status="paused"] td,
 tr[data-status="retrying"] td,
+tr[data-status="stale"] td,
 tr[data-status="unknown"] td { background: var(--row-warning-bg); }
 tr[data-status="blocked"] td,
+tr[data-status="error"] td,
 tr[data-status="failed"] td   { background: var(--row-blocked-bg); }
 tr[data-status="empty"] td,
 tr[data-status="unavailable"] td { background: var(--semantic-disabled-bg); }
 
 /* Schedule day rows — page-scoped (dark mode) */
-[data-page-panel="schedule"] tr[data-status="match"] td   { background: var(--row-match-bg); }
-[data-page-panel="schedule"] tr[data-status="ready"] td   { background: var(--row-warning-bg); }
+[data-page-panel="schedule"] tr[data-status="match"] td,
+[data-page-panel="schedule"] tr[data-status="current-match"] td,
+[data-page-panel="schedule"] tr[data-status="ready"] td   { background: var(--row-match-bg); }
+[data-page-panel="schedule"] tr[data-status="current"] td { background: var(--semantic-info-bg); }
+[data-page-panel="schedule"] tr[data-status="current-match"] td:first-child { box-shadow: inset 3px 0 0 var(--semantic-info-accent); }
+[data-page-panel="schedule"] tr[data-status="changed"] td { background: var(--semantic-info-bg); }
 [data-page-panel="schedule"] tr[data-status="review"] td  { background: var(--row-warning-bg); }
 [data-page-panel="schedule"] tr[data-status="normal"] td  { background: var(--semantic-neutral-bg); }
+
+/* Network worker rows — page-scoped (dark mode) */
+[data-page-panel="network"] tr[data-status="match"] td,
+[data-page-panel="network"] tr[data-status="ready"] td { background: var(--row-match-bg); }
 
 /* Light mode — use the spec-named tokens directly */
 body.light-mode tr[data-status="warning"] td,
@@ -407,13 +431,21 @@ body.light-mode tr[data-status="health-check"] td,
 body.light-mode tr[data-status="parked"] td,
 body.light-mode tr[data-status="paused"] td,
 body.light-mode tr[data-status="retrying"] td,
+body.light-mode tr[data-status="stale"] td,
 body.light-mode tr[data-status="unknown"] td { background: var(--row-warning-bg); }
 body.light-mode tr[data-status="blocked"] td,
+body.light-mode tr[data-status="error"] td,
 body.light-mode tr[data-status="failed"] td   { background: var(--row-blocked-bg); }
 body.light-mode tr[data-status="empty"] td,
 body.light-mode tr[data-status="unavailable"] td { background: var(--semantic-disabled-bg); }
 
-body.light-mode [data-page-panel="schedule"] tr[data-status="match"] td  { background: var(--row-match-bg); }
-body.light-mode [data-page-panel="schedule"] tr[data-status="ready"] td  { background: var(--row-warning-bg); }
+body.light-mode [data-page-panel="schedule"] tr[data-status="match"] td,
+body.light-mode [data-page-panel="schedule"] tr[data-status="current-match"] td,
+body.light-mode [data-page-panel="schedule"] tr[data-status="ready"] td  { background: var(--row-match-bg); }
+body.light-mode [data-page-panel="schedule"] tr[data-status="current-match"] td:first-child { box-shadow: inset 3px 0 0 var(--semantic-info-accent); }
+body.light-mode [data-page-panel="schedule"] tr[data-status="current"] td,
+body.light-mode [data-page-panel="schedule"] tr[data-status="changed"] td { background: var(--semantic-info-bg); }
 body.light-mode [data-page-panel="schedule"] tr[data-status="review"] td { background: var(--row-warning-bg); }
 body.light-mode [data-page-panel="schedule"] tr[data-status="normal"] td { background: var(--semantic-neutral-bg); }
+body.light-mode [data-page-panel="network"] tr[data-status="match"] td,
+body.light-mode [data-page-panel="network"] tr[data-status="ready"] td { background: var(--row-match-bg); }

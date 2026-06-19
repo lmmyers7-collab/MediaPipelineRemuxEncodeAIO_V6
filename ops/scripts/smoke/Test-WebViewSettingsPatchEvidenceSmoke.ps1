@@ -32,9 +32,9 @@ $python = Resolve-WebViewSettingsPatchSmokePython -ProjectRoot $projectRoot
 $appRoot = Join-Path $projectRoot 'apps\desktop'
 $srcRoot = Join-Path $projectRoot 'src'
 
-Write-Host 'WebView settings preview/save evidence smoke'
+Write-Host 'WebView settings save evidence smoke'
 Write-Host 'Boundary: starts a temporary local API against a generated temporary config.'
-Write-Host 'Boundary: exercises backend-owned Preview Patch, denied Save Patch, confirmed Save Patch, reload, and command-history evidence.'
+Write-Host 'Boundary: exercises backend-owned Save review dialog, denied Save Settings, confirmed Save Settings, reload, and command-history evidence.'
 Write-Host 'Boundary: does not use the current saved config and does not process media, launch pipeline commands, publish, rename, mutate queue state, or modify source/output/scratch media.'
 Write-Host "Python: $python"
 
@@ -57,6 +57,3 @@ finally {
     $env:PYTHONPATH = $oldPythonPath
     Pop-Location
 }
-
-
-

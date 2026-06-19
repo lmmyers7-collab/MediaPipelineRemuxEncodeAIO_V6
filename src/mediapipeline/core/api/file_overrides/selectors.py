@@ -133,22 +133,6 @@ def _selector_rule(value: Any) -> list[Mapping[str, Any]]:
     return [value] if isinstance(value, Mapping) else []
 
 
-def _selector_has_engine_consumed_key(selector: Mapping[str, Any], *, kind: str) -> bool:
-    if _selector_exact_stream_index(selector) is not None:
-        return True
-    if "language" in selector and _selector_language(selector):
-        return True
-    if "codec" in selector and str(selector.get("codec") or "").strip():
-        return True
-    if "title" in selector and _selector_title(selector):
-        return True
-    if kind == "audio" and _selector_channels(selector) is not None:
-        return True
-    if kind == "subtitle" and _selector_forced(selector) is not None:
-        return True
-    return False
-
-
 def _append_selector_warnings(
     warnings: list[dict[str, str]],
     *,

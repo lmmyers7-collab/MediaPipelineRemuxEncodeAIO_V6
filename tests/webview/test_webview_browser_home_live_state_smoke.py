@@ -110,6 +110,34 @@ def _browser_home_live_state_runner_source() -> str:
               if (!row) throw new Error(tbodyId + " missing selectable row " + fragment + "\\nActual:\\n" + tableText(tbodyId));
               row.click();
             }
+            function requirePanelState(id, expectedStates) {
+              const node = byId(id);
+              if (!node) throw new Error("missing panel status " + id);
+              const actual = node.dataset.state || node.getAttribute("data-state") || "";
+              if (!expectedStates.includes(actual)) {
+                throw new Error(id + " expected state " + expectedStates.join("|") + " but saw " + actual + "\\nText:\\n" + text(id));
+              }
+            }
+            function requireSingleSelected(selector, label) {
+              const selected = Array.from(document.querySelectorAll(selector + ".is-selected, " + selector + "[aria-selected='true']"));
+              const unique = Array.from(new Set(selected));
+              if (unique.length !== 1) {
+                throw new Error(label + " expected exactly one selected row/item, saw " + unique.length);
+              }
+              const row = unique[0];
+              if (!row.classList.contains("is-selected") || row.getAttribute("aria-selected") !== "true") {
+                throw new Error(label + " selected row/item did not expose both class and aria-selected.");
+              }
+              return row;
+            }
+            function clickListItem(listId, fragment) {
+              const list = byId(listId);
+              if (!list) throw new Error("missing list " + listId);
+              const item = Array.from(list.querySelectorAll("[role='option'], li")).find((node) => (node.innerText || node.textContent || "").includes(fragment));
+              if (!item) throw new Error(listId + " missing selectable item " + fragment + "\\nActual:\\n" + text(listId));
+              item.click();
+              return requireSingleSelected("#" + listId + " [role='option']", listId);
+            }
             async function waitFor(predicate, label) {
               const deadline = Date.now() + 15000;
               let lastError = null;
@@ -160,7 +188,8 @@ def _browser_home_live_state_runner_source() -> str:
             await waitFor(
               () => text("daily-driver-summary").includes("Daily-driver readiness checklist:")
                 && text("state-pill").includes("Encoding")
-                && text("home-next-queue-list").includes("Serial Experiments Lain S02E01 Weird.mkv")
+                && text("home-next-queue-list").includes("Serial Experiments Lain")
+                && text("home-next-queue-list").includes("S02E01")
                 && text("home-scratch-storage-status").includes("OK")
                 && text("home-output-storage-status").includes("OK")
                 && text("progress-bar-list").includes("Current backend stage")
@@ -256,7 +285,22 @@ def _browser_home_live_state_runner_source() -> str:
               gets.push(String(path || ""));
               return originalApiGet(path, options);
             };
-            await window.refreshAllNow();
+            const refreshPromise = window.refreshAllNow();
+            const homeRefreshButton = byId("home-refresh-button");
+            const globalRefreshButton = byId("refresh-button");
+            if (!homeRefreshButton || homeRefreshButton.getAttribute("aria-busy") !== "true" || !homeRefreshButton.disabled) {
+              throw new Error("Refresh Home button did not enter an immediate busy/disabled state.");
+            }
+            if (!globalRefreshButton || globalRefreshButton.getAttribute("aria-busy") !== "true" || !globalRefreshButton.disabled) {
+              throw new Error("Global refresh button did not mirror Home refresh busy state.");
+            }
+            await refreshPromise;
+            if (homeRefreshButton.getAttribute("aria-busy") === "true" || homeRefreshButton.disabled || text("home-refresh-button") !== "Refresh Home") {
+              throw new Error("Refresh Home button did not restore after refresh.");
+            }
+            if (globalRefreshButton.getAttribute("aria-busy") === "true" || globalRefreshButton.disabled || text("refresh-button") !== "Refresh") {
+              throw new Error("Global refresh button did not restore after refresh.");
+            }
             if (gets.some((path) => path.startsWith("/api/maintenance"))) {
               throw new Error("Home refresh must not poll /api/maintenance because Maintenance health can run helper probes: " + JSON.stringify(gets));
             }
@@ -303,10 +347,40 @@ def _browser_home_live_state_runner_source() -> str:
               }
             }
             requireText("home-next-queue-list", [
-              "Serial Experiments Lain S02E01 Weird.mkv",
+              "Serial Experiments Lain",
+              "S02E01",
               "REMUX",
               "Ready",
               "1/1",
+            ]);
+            if (text("home-next-queue-list").includes("Weird")) {
+              throw new Error("Home next queue leaked the TV episode title into the row label.\\nActual:\\n" + text("home-next-queue-list"));
+            }
+            clickListItem("home-next-queue-list", "Serial Experiments Lain");
+            requireText("home-next-queue-detail", [
+              "Selected queue item:",
+              "Serial Experiments Lain S02E01",
+              "Safe next step:",
+            ]);
+            requireSingleSelected("#home-recent-completed-tbody tr[data-selectable-row='true']", "Recently Completed");
+            requireText("home-recent-completed-detail", [
+              "Selected completed output:",
+              "Safe next step:",
+            ]);
+            [
+              ["home-readiness-status", ["warning", "ready", "blocked", "neutral"]],
+              ["home-next-queue-status", ["ready", "warning", "empty", "neutral"]],
+              ["home-recent-completed-status", ["ready", "empty", "warning", "neutral"]],
+              ["home-active-work-status", ["ready", "warning", "blocked", "neutral", "running"]],
+              ["progress-detail-status", ["ready", "warning", "blocked", "empty"]],
+              ["progress-evidence-status", ["ready", "warning", "blocked", "empty"]],
+              ["daily-driver-status", ["ready", "warning", "blocked", "neutral"]],
+              ["home-external-dependencies-status", ["ready", "warning", "blocked", "neutral"]],
+            ].forEach(([id, states]) => requirePanelState(id, states));
+            requireText("home-run-state-handoff", [
+              "Run state:",
+              "Safe next step:",
+              "Mutation guardrail:",
             ]);
             requireText("progress-bar-list", [
               "Active work",
@@ -886,7 +960,9 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
             self.assertIn("No New Sources", browser_result["noNewPipelineState"])
             self.assertNotIn("_", browser_result["pipelineState"])
             self.assertIn("Encoding", browser_result["statePill"])
-            self.assertIn("Serial Experiments Lain S02E01 Weird.mkv", browser_result["nextQueue"])
+            self.assertIn("Serial Experiments Lain", browser_result["nextQueue"])
+            self.assertIn("S02E01", browser_result["nextQueue"])
+            self.assertNotIn("Weird", browser_result["nextQueue"])
             self.assertIn("REMUX", browser_result["nextQueue"])
             self.assertIn("Ready", browser_result["nextQueue"])
             self.assertIn("OK", browser_result["scratchStorage"])

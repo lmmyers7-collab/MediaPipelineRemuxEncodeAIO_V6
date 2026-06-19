@@ -637,7 +637,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn('id="settings-video-apply-button"', html)
         self.assertIn('aria-describedby="settings-video-apply-hint"', html)
         self.assertIn('id="settings-video-apply-hint" class="action-hover-hint" role="tooltip"', html)
-        self.assertIn("Stages the values in this Video builder into Changes JSON.", html)
+        self.assertIn("Prepares the values in this Video builder for Save Settings.", html)
         self.assertIn("backend owns routing, codec, container, and encoder policy", html)
 
     def test_video_speed_and_quality_targets_use_descriptive_sliders(self) -> None:
@@ -951,7 +951,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "field.max",
             "field.step",
             "display label only; use persisted key",
-            "Local validation hints (advisory only; backend preview/save remains authoritative):",
+            "Local validation hints (advisory only; backend Save remains authoritative):",
         ):
             self.assertIn(token, review_js)
 
@@ -968,10 +968,10 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("const localHintLines = settingsPatchLocalValidationHintLines(changes);", settings_js)
         self.assertIn('"Requesting backend patch preview. This will not save the PSD1."', settings_js)
         self.assertIn("await apiPost", settings_js)
-        self.assertIn("Backend preview/save remains authoritative", patch_review_js)
+        self.assertIn("Backend Save remains authoritative", patch_review_js)
         self.assertNotIn("return settingsPatchLocalValidationHintLines(changes);", settings_js)
-        self.assertIn("setText(\"settings-patch-status\", result.ok ? \"Preview ready\" : result.severity || \"Preview failed\");", settings_js)
-        self.assertIn("setText(\"settings-patch-status\", result.ok ? \"Saved\" : result.severity || \"Save failed\");", settings_js)
+        self.assertIn("settingsResultStatusLabel(result, \"Preview ready\", \"Preview failed\")", settings_js)
+        self.assertIn("settingsResultStatusLabel(result, \"Saved\", \"Save failed\")", settings_js)
 
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
@@ -986,7 +986,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             'if ((result.errors || []).length) {',
             'lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));',
             "Backend validation errors are authoritative; this WebView did not save or bypass them.",
-            "Backend preview/save remains authoritative",
+            "Backend Save remains authoritative",
             "settingsPatchLocalValidationHintLines(changes)",
             "is not in backend field metadata loaded by this WebView",
             "display label only; use persisted key",
@@ -1087,4 +1087,3 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

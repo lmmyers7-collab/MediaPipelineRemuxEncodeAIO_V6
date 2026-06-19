@@ -262,7 +262,7 @@ def build_backend(
         resolved_reload=resolved_state.reload,
         audit_root_provider=lambda: str(resolved_state.get().audit_reports_path or ""),
         shutdown_request=shutdown_request.set if shutdown_request is not None else None,
-        command_journal_path=root / "RunLogs" / "local_api_command_history.json",
+        command_journal_path=getattr(service, "command_journal_path", root / "RunLogs" / "local_api_command_history.json"),
         shell_surface=shell_surface,
         startup_progress=startup_progress,
     )

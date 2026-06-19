@@ -100,10 +100,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "File safety builder merged source/output/scratch, reserve, watch-folder, publish, and cleanup keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "File safety builder prepared source/output/scratch, reserve, watch-folder, publish, and cleanup keys for Save Settings. Backend Save still validates before writing.");
       fileSafetySettingsBuilderState.initialized = true;
       fileSafetySettingsBuilderState.dirty = true;
-      setText("settings-file-safety-builder-status", `${Object.keys(patch).length} file-safety patch keys ready`);
+      setText("settings-file-safety-builder-status", `${Object.keys(patch).length} file-safety change keys ready`);
       renderFileSafetySettingsBuilderGuidance();
       renderSettingsActiveMediaPolicyHandoff();
       return true;
@@ -131,7 +131,7 @@
         foldersEnabled
           ? "Effect: future TV outputs can be planned under Plex-style TV\\Show\\Season NN folders."
           : "Effect: future TV outputs may be flatter and should be reviewed before Plex library scans.",
-        "Boundary: this panel only stages existing settings keys into Changes JSON; backend Preview/Save and engine naming/publish behavior remain authoritative.",
+        "Boundary: this panel only prepares existing settings keys for Save Settings; backend Save and engine naming/publish behavior remain authoritative.",
       ];
       if (aggressiveField?.help) lines.push(`Metadata: ${aggressiveField.help}`);
       if (foldersField?.help) lines.push(`Metadata: ${foldersField.help}`);
@@ -173,7 +173,7 @@
         if (key === "ValidExtensions") {
           const values = parseSettingsListText(byId(id)?.value || "");
           const broad = values.filter((item) => !String(item).trim().startsWith("."));
-          if (broad.length) lines.push("  Warning: every extension should start with a dot before backend preview/save.");
+          if (broad.length) lines.push("  Warning: every extension should start with a dot before backend Save.");
         }
         if (key === "EnableWatchFolders" && byId(id)?.checked) {
           lines.push("  Watch folders are off by default; validate with a test folder before pointing at a real source root.");

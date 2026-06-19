@@ -311,9 +311,9 @@
         posture: repairMutationEnabled.length || missingRepairProof.length ? "Blocked" : repairContracts.length ? "Guarded review" : "Ready",
         evidence: `design contracts=${repairContracts.length}; mutation enabled=${repairMutationEnabled.length}; missing proof fields=${missingRepairProof.length}`,
         safeNextStep: repairMutationEnabled.length
-          ? "Remove WebView repair/reconcile mutation exposure until backend dry-run, atomic write, and journal contracts exist."
+          ? "Remove WebView repair/reconcile mutation exposure; backend dry-runs exist but mutation controls remain forbidden."
           : repairContracts.length
-            ? "Implement backend dry-run diffs and atomic journals before adding any repair/reconcile command routes."
+            ? "Backend dry-runs exist for evidence review; mutation controls remain forbidden until atomic write or move semantics, rollback, and command-journal evidence exist."
             : "No repair/reconcile design contracts are published by the backend yet.",
         detail: [
           "Repair/reconcile boundary:",
@@ -321,7 +321,7 @@
           `Mutation-enabled contracts: ${repairMutationEnabled.map((contract) => contract.candidate_command || contract.key || "unknown").join(", ") || "none"}`,
           `Missing proof contracts: ${missingRepairProof.map((contract) => contract.candidate_command || contract.key || "unknown").join(", ") || "none"}`,
           "Required contract fields: candidate_command, current_status, required_preconditions, required_evidence, dry_run_contract, rollback_contract, source_file_policy, route_exposure_gates, rollback_requirements, must_not.",
-          "Guardrail: WebView may display these contracts, but repair/reconcile commands are not allowed until the backend owns dry-run proof, atomic write/rollback, and command-journal evidence.",
+          "Guardrail: WebView may display these contracts; backend dry-runs exist but mutation controls remain forbidden until rollback and command-journal evidence exist.",
           ...repairContracts.flatMap((contract) => [
             "",
             `${contract.surface || contract.key || "Repair contract"}:`,
@@ -358,6 +358,7 @@
     return [
       `Contract safety review: ${status}`,
       `Routes: ${contractRoutes(contract || {}).length}; ready rows=${ready}; review rows=${review}; blocked rows=${blocked}`,
+      "Operator boundary: route presence is evidence only. A safe operator action exists only when an owner page exposes the backend-owned control with guardrails and result feedback.",
       "Decision rule: blocked rows must be fixed before trusting new WebView controls; review rows require owner-page command-result feedback and mutation guardrails.",
       "Mutation guardrail: this panel is read-only over /api/contract and cannot call command routes, open files, save settings, launch work, drain publish, rename, or mutate media.",
     ];
@@ -430,7 +431,12 @@
   function renderContractSafetyReview(contract) {
     const rows = contractSafetyReviewRows(contract || {});
     const status = contractSafetyStatus(rows);
-    setText("api-contract-safety-status", status);
+    const state = status === "Blocked" ? "blocked" : status === "Review" ? "warning" : status === "Ready" ? "ready" : "empty";
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("api-contract-safety-status", status, state);
+    } else {
+      setText("api-contract-safety-status", status);
+    }
     setText("api-contract-safety-summary", contractSafetySummaryLines(contract || {}, rows).join("\n"));
     renderContractSafetyRows(rows);
   }
@@ -444,10 +450,12 @@
 
   function updateContractStatus(filteredCount, totalCount) {
     const guardedRoutes = lastContractRoutes.filter((route) => route.effect && route.effect !== "none").length;
-    setText(
-      "api-contract-status",
-      `${filteredCount} / ${totalCount} route${totalCount === 1 ? "" : "s"}, ${guardedRoutes} guarded action${guardedRoutes === 1 ? "" : "s"}`
-    );
+    const status = `${filteredCount} / ${totalCount} route${totalCount === 1 ? "" : "s"}, ${guardedRoutes} guarded action${guardedRoutes === 1 ? "" : "s"}`;
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("api-contract-status", status, guardedRoutes ? "warning" : totalCount ? "ready" : "empty");
+    } else {
+      setText("api-contract-status", status);
+    }
   }
 
   function selectedContractRoute() {

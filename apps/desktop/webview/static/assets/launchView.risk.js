@@ -182,7 +182,10 @@
       state.selectedLaunchPolicyBoundaryKey = "";
     }
     const selected = selectedLaunchPolicyBoundaryRow(rows);
-    setText("launch-policy-boundary-status", launchPolicyBoundaryStatus(rows));
+    const status = launchPolicyBoundaryStatus(rows);
+    setText("launch-policy-boundary-status", status);
+    const statusNode = byId("launch-policy-boundary-status");
+    if (statusNode) statusNode.dataset.state = launchSettingsIntentStatusState(status);
     setText("launch-policy-boundary-summary", launchPolicyBoundarySummaryLines(rows).join("\n"));
     setText("launch-policy-boundary-detail", launchPolicyBoundaryDetailLines(selected).join("\n"));
     const tbody = byId("launch-policy-boundary-rows");
@@ -212,7 +215,10 @@
       state.selectedLaunchSettingsRiskKey = "";
     }
     const selected = selectedLaunchSettingsRiskRow(rows);
-    setText("launch-settings-risk-status", launchSettingsRiskStatus(rows));
+    const status = launchSettingsRiskStatus(rows);
+    setText("launch-settings-risk-status", status);
+    const statusNode = byId("launch-settings-risk-status");
+    if (statusNode) statusNode.dataset.state = launchSettingsIntentStatusState(status);
     setText("launch-settings-risk-summary", launchSettingsRiskSummaryLines(rows).join("\n"));
     setText("launch-settings-risk-detail", launchSettingsRiskDetailLines(selected).join("\n"));
     setText("launch-settings-risk-legend", "Launch risk rows are selectable for read-only details and do not change backend launch validation.");
@@ -267,17 +273,17 @@
     if (typeof settingsPatchIsTouched !== "function" || settingsPatchIsTouched() !== true) {
       return {
         posture: "ready",
-        evidence: "Settings Changes JSON has not been touched in this WebView session.",
+        evidence: "Settings changes have not been touched in this WebView session.",
         action: "Launch will use saved backend settings.",
-        detail: ["No staged settings patch is visible in the current WebView session."],
+        detail: ["No unsaved Settings changes are visible in the current WebView session."],
       };
     }
     if (typeof settingsPatchEffectiveChangedEntries !== "function") {
       return {
         posture: "review",
-        evidence: "Settings patch was touched, but patch-impact helpers are unavailable.",
-        action: "Use Settings Preview/Save before relying on changed settings.",
-        detail: ["The Launch page cannot inspect staged settings changes, so saved backend settings remain the only launch input."],
+        evidence: "Settings changes were touched, but impact helpers are unavailable.",
+        action: "Use Save Settings before relying on changed settings.",
+        detail: ["The Launch page cannot inspect unsaved settings changes, so saved backend settings remain the only launch input."],
       };
     }
     try {
@@ -285,9 +291,9 @@
       if (!entries.length) {
         return {
           posture: "ready",
-          evidence: "Settings Changes JSON was touched, but no effective saved-value changes are staged.",
+          evidence: "Settings changes were touched, but no effective saved-value changes are pending.",
           action: "Launch can continue to rely on saved backend settings.",
-          detail: ["Staged keys either match saved values or no effective changed keys were detected."],
+          detail: ["Candidate keys either match saved values or no effective changed keys were detected."],
         };
       }
       const rows = typeof settingsLaunchImpactRows === "function" ? settingsLaunchImpactRows(entries) : [];
@@ -305,19 +311,19 @@
       return {
         posture: String(status).toLowerCase().includes("blocked") ? "blocked" : String(status).toLowerCase().includes("high") ? "high review" : "review",
         evidence: `${entries.length} unsaved effective change(s): ${entries.map((entry) => entry.key).slice(0, 8).join(", ")}${entries.length > 8 ? `, +${entries.length - 8} more` : ""}.`,
-        action: "Save Patch must succeed and settings must reload/refresh before Launch uses these changes.",
+        action: "Save Settings must succeed and settings must reload/refresh before Launch uses these changes.",
         detail: [
           `Settings handoff status: ${status}`,
-          `Staged media-policy delta: ${deltaStatus}`,
+          `Save-candidate media-policy delta: ${deltaStatus}`,
           `Launch active policy boundary: ${typeof launchPolicyBoundaryStatus === "function" ? launchPolicyBoundaryStatus(policyRows) : "not evaluated"}`,
           policyReviewRows.length
             ? `First launch policy boundary row: ${policyReviewRows[0].area} (${policyReviewRows[0].launchState}) - ${policyReviewRows[0].action}`
             : "No launch policy boundary review rows detected locally.",
           deltaReviewRows.length
-            ? `First staged delta review row: ${deltaReviewRows[0].area} (${deltaReviewRows[0].posture}) - ${deltaReviewRows[0].check}`
-            : "No staged media-policy delta review rows detected locally.",
-          "Unsaved Changes JSON does not change backend launch input.",
-          "Use Settings > Preview Patch, then Save Patch, then refresh before treating these changes as launch-active.",
+            ? `First save-candidate delta review row: ${deltaReviewRows[0].area} (${deltaReviewRows[0].posture}) - ${deltaReviewRows[0].check}`
+            : "No save-candidate media-policy delta review rows detected locally.",
+          "Unsaved settings changes do not change backend launch input.",
+          "Use Settings > Save Settings, then refresh before treating these changes as launch-active.",
         ],
       };
     } catch (error) {
@@ -325,10 +331,10 @@
       return {
         posture: "review",
         evidence: `Settings Changes JSON is invalid: ${message}`,
-        action: "Fix Settings Changes JSON before preview/save; Launch still uses saved backend settings.",
+        action: "Fix Settings Changes JSON before saving; Launch still uses saved backend settings.",
         detail: [
           `JSON error: ${message}`,
-          "Invalid staged JSON cannot be previewed or saved by Settings.",
+          "Invalid settings JSON cannot be saved by Settings.",
           "The backend launch route will still evaluate the saved config on disk.",
         ],
       };
@@ -377,7 +383,7 @@
     const patchStatus = launchSettingsIntentStagedPatchStatus();
     add(
       "staged-settings",
-      "Staged Settings patch",
+      "Unsaved Settings changes",
       patchStatus.posture,
       patchStatus.evidence,
       patchStatus.action,
@@ -535,7 +541,7 @@
     const lines = [
       "Saved settings vs launch intent checklist:",
       `Rows: ${rows.length}; ready=${counts.ready || 0}; review=${counts.review || 0}; high review=${counts["high review"] || 0}; blocked=${counts.blocked || 0}; unknown=${counts.unknown || 0}.`,
-      "Decision rule: Launch uses saved backend settings and selected form intent only; staged Settings JSON does not count until backend Save Patch succeeds and refresh/reload completes.",
+      "Decision rule: Launch uses saved backend settings and selected form intent only; unsaved Settings changes do not count until Save Settings succeeds and refresh/reload completes.",
     ];
     if (stagedSettingsRow && stagedSettingsRow.posture !== "ready") {
       lines.push(`Staged settings patch: ${stagedSettingsRow.evidence} ${stagedSettingsRow.action}`);

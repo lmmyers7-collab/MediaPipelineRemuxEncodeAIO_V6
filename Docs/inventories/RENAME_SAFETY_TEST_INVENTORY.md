@@ -2,8 +2,8 @@
 
 Purpose: inventory all rename-related test files, describe what each covers and does not cover, identify how fixture data is provided, and note safety-property gaps. This document is observational and does not add new tests.
 
-Total rename test files: 16.
-No separate fixture JSON/JSONL files exist — fixture data is generated dynamically in temporary directories or hardcoded as Python dicts within test methods.
+Total rename test files: 18.
+Most fixture data is generated dynamically in temporary directories or hardcoded as Python dicts within test methods. The bad rename regression corpus lives at `tests/fixtures/rename/bad_rename_cases.jsonl`.
 
 ---
 
@@ -13,6 +13,7 @@ No separate fixture JSON/JSONL files exist — fixture data is generated dynamic
 
 | Test file | Type | What it covers |
 |---|---|---|
+| `test_rename_workbench.py` | Python unittest | Rename WebView static structure, JS route literals/exports, backend browse mode normalization, and bad-case corpus append command boundary |
 | `test_webview_rename_readiness_smoke.py` | Node VM (no browser) | Apply Readiness state transitions in mocked DOM; single-row "Ready" scope; duplicate-destination "Blocked" scope; verifies `rename.apply` is not called when blocked |
 | `test_webview_browser_rename_smoke.py` | Chrome/Edge CDP | Same logic under real browser rendering; verifies the Browse Files button posts `POST /api/rename/browse` and stages returned paths without apply; renders a TV rename preview row, selects it, validates readiness = Ready; creates duplicate-destination scenario, validates readiness = Blocked; confirms no POST to `/api/rename/apply` |
 
@@ -28,6 +29,7 @@ Both tests share the same fixture shape: a single TV episode row — `Serial Exp
 
 | Test file | Type | What it covers |
 |---|---|---|
+| `test_application_facade_rename.py` | Python unittest | Local API/facade rename apply confirmation, selection, and filesystem-mutation guard behavior |
 | `test_facade_rename_policy.py` | Python unittest | Preview count aggregation (total/ready/warning/blocked); confidence/source/change_kind breakdowns; selected-source filtering with path casefolding (Windows/POSIX); missing-source warning generation |
 | `test_rename_service.py` | Python unittest | High-level facade integration: movie prediction with natural file sort order; pipeline preview runner integration with mocked subprocess; force-pipeline-name per-row config |
 
@@ -56,18 +58,20 @@ Both tests share the same fixture shape: a single TV episode row — `Serial Exp
 | `test_service_rename_apply_runner.py` | Python unittest | Apply operation execution |
 | `test_service_rename_apply.py` | Python unittest | Filesystem apply operations; Windows case-only rename (case-safe path handling); sidecar JSON reading (marks corrupt JSON with error flag); sidecar metadata update after rename (preserves error markers, appends to rename history capped at 25 entries, updates output path fields) |
 | `test_service_rename_tv_folder.py` | Python unittest | TV folder structure handling |
+| `test_rename_bad_case_corpus.py` | Python unittest | JSONL bad rename regression corpus schema, unique IDs, and active case output expectations |
 
 ---
 
 ## Fixture Data Approach
 
-No fixture JSON/JSONL files. All test data is inline:
+Most rename test data is inline:
 
 - **Inline Python dicts**: `test_service_rename_apply.py`, `test_facade_rename_policy.py` hardcode row structures like `{"source": ..., "destination": ..., "status": "ready", ...}` inside test methods.
 - **Temporary directories**: `test_rename_service.py` and `test_service_rename_discovery.py` create `tempfile.TemporaryDirectory()` instances and write minimal `.mkv`/sidecar files.
 - **Mocked subprocess**: `test_service_rename_preview_runner.py` and `test_rename_service.py` mock subprocess calls for pipeline preview scripts; `test_api_path_dialogs.py` mocks the Windows PowerShell dialog process so automated tests do not open an interactive picker.
 - **Mocked DOM**: `test_webview_rename_readiness_smoke.py` constructs in-memory mock DOM elements and a minimal `apiPost` spy function.
 - **Dynamic fixture state**: `test_webview_browser_rename_smoke.py` calls `_write_fixture_state()` to populate a temporary local API with queue/completed/rename fixture rows.
+- **JSONL corpus**: `tests/fixtures/rename/bad_rename_cases.jsonl` stores real bad rename cases. `test_rename_bad_case_corpus.py` gates active cases; `POST /api/rename/filter-cases` and `ops/scripts/operator/Add-RenameFilterCase.ps1` append cases.
 
 ---
 
@@ -133,7 +137,7 @@ All CI-safe tests use temporary directories with minimal files. No test exercise
 
 ## See Also
 
-- Rename command route: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/rename/browse`, `POST /api/rename/preview`, `POST /api/rename/apply`)
+- Rename command route: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/rename/browse`, `POST /api/rename/preview`, `POST /api/rename/filter-cases`, `POST /api/rename/apply`)
 - Rename apply route contract: `src/mediapipeline/desktop/api/contract_command.py` (`LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT`)
 - WebView smoke catalog: `WEBVIEW_SMOKE_TEST_CATALOG.md`
 - Browser smoke runbook: `BROWSER_SMOKE_TEST_RUNBOOK.md`

@@ -20,6 +20,9 @@ PIPELINE_NETWORK_MODE_BLOCK_ERROR = (
     "Normal Launch is disabled while NetworkRole is coordinator or worker, or when NetworkRole is invalid. "
     "Use Network/Workers controls or switch NetworkRole back to standalone."
 )
+PIPELINE_AUTONOMY_HEALTH_BLOCK_ERROR = (
+    "Autonomy health is blocked, so new pipeline work is gated before launch."
+)
 PIPELINE_SINGLE_FILE_BLOCK_ERROR = (
     "Single-file launch must target an existing supported media file under a configured source root."
 )
@@ -248,6 +251,31 @@ def pipeline_start_config_blocked_result(message: str, data: dict[str, Any]) -> 
     )
 
 
+def pipeline_start_autonomy_blocked_result(autonomy_health: Mapping[str, Any]) -> "CommandResult":
+    blockers = autonomy_health.get("blockers") if isinstance(autonomy_health, Mapping) else []
+    first_blocker = blockers[0] if isinstance(blockers, list) and blockers and isinstance(blockers[0], Mapping) else {}
+    message = str(first_blocker.get("message") or PIPELINE_AUTONOMY_HEALTH_BLOCK_ERROR)
+    safe_next_action = str(
+        first_blocker.get("next_action")
+        or (autonomy_health.get("launch_gate", {}) if isinstance(autonomy_health, Mapping) else {}).get("safe_next_action")
+        or "Open Diagnostics and resolve blocked autonomy health before starting new work."
+    )
+    return _command_result(
+        command=PIPELINE_START_COMMAND,
+        ok=False,
+        message=PIPELINE_AUTONOMY_HEALTH_BLOCK_ERROR,
+        severity="error",
+        errors=[message],
+        refresh_hint="diagnostics",
+        data={
+            "schema_version": "desktop_pipeline_autonomy_launch_block.v1",
+            "start_route_allowed": False,
+            "safe_next_action": safe_next_action,
+            "autonomy_health": _json_safe(dict(autonomy_health)),
+        },
+    )
+
+
 def pipeline_start_exception_result(exc: Exception) -> "CommandResult":
     return _command_result(
         command=PIPELINE_START_COMMAND,
@@ -317,6 +345,7 @@ __all__ = [
     "pipeline_start_schedule_gate_result",
     "pipeline_start_active_work_result",
     "pipeline_start_config_blocked_result",
+    "pipeline_start_autonomy_blocked_result",
     "pipeline_start_exception_result",
     "pipeline_start_success_result",
 ]

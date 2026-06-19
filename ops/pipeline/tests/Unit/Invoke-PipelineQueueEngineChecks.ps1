@@ -120,6 +120,36 @@ function Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck {
     }
 }
 
+function Invoke-CorruptPriorityManifestFailsClosedCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineQueuePriorityCorruptTest_' + [guid]::NewGuid().ToString('N'))
+    $previousLayout = $script:LocalStateLayout
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $stateRoot = Join-Path $tempRoot 'State'
+        New-Item -ItemType Directory -Path $stateRoot -Force | Out-Null
+        $source = Join-Path $tempRoot 'Movie.mkv'
+        Set-Content -LiteralPath $source -Value 'fake media' -Encoding UTF8
+        $manifestPath = Join-Path $stateRoot 'priority_manifest.json'
+        Set-Content -LiteralPath $manifestPath -Value '{not-json' -Encoding UTF8
+        $script:LocalStateLayout = [pscustomobject]@{
+            Paths = [pscustomobject]@{ PriorityManifest = $manifestPath }
+        }
+
+        $failedClosed = $false
+        try {
+            Get-QueuedEntries -Files @((Get-Item -LiteralPath $source)) -RootPath $tempRoot | Out-Null
+        } catch {
+            $failedClosed = ([string]$_ -match 'Priority manifest is unreadable')
+        }
+        Assert-True $failedClosed 'Corrupt priority manifest should fail closed before queue entries become runnable.'
+    } finally {
+        $script:LocalStateLayout = $previousLayout
+        if (Test-Path -LiteralPath $tempRoot -PathType Container) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force
+        }
+    }
+}
+
 function New-TestQueuePlan {
     return [pscustomobject]@{
         HighPriorityMovieEntries = @()
@@ -406,6 +436,7 @@ function Invoke-QueueSnapshotHoldRowsRunnableCountCheck {
 
 Invoke-ManualOrderSortsHighPriorityBucketsCheck
 Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck
+Invoke-CorruptPriorityManifestFailsClosedCheck
 Invoke-GlobalRunnableQueueSnapshotMetadataCheck
 Invoke-SerialQueueDispatchUsesGlobalRunnableMetadataCheck
 Invoke-QueueSnapshotHoldRowsRunnableCountCheck

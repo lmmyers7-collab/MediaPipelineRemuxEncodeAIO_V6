@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/commands_queue_strategy.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: ac0f998c549821bf7b12c47a67d09172199b93074831571f64bd4ecdd2d45ecb
+sha256: c6379557b51cc5b7928616676520d9eb92ced29fab215dac267aea4fe2fa40a4
 ---
 # `src/mediapipeline/core/api/commands_queue_strategy.py`
 

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/diagnosticsView.activejobs.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 7e421cfba6e989faecead00e391803033094d98e161642e86671be42c45317e2
+sha256: 9d24693a10bbcffbb1bc0ca92d87c494837d679fa2585eaac69bee16bb38ea98
 ---
 # `apps/desktop/webview/static/assets/diagnosticsView.activejobs.js`
 

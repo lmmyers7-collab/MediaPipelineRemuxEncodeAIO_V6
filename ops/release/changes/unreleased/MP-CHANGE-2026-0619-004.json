@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0619-004",
+  "title": "Move Completed selected output context below history",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Move the Completed page selected-output context strip below the Completed History Summary table.",
+  "reason": "The selected-output context currently sits above the History tab content, pushing the completed-history controls and rows lower than intended.",
+  "affected_areas": [
+    "completed",
+    "docs-generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Completed page rendered the selected-output context immediately below the Completed subtab bar, above the History tab summary.",
+  "behavior_after": "The Completed page renders the selected-output context after the Completed History Summary table and legend while preserving the existing selected-row IDs and read-only behavior.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-004.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_navigation_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-004.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+    "tests/webview/test_webview_navigation_static.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_navigation_static.py -q - passed (17 tests)",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_navigation_static.py -q - passed (18 tests)",
+    "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - passed after selected-output context was scoped inside the History panel",
+    "run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-completed.html apps/desktop/webview/static/assets/styles.pages.css tests/webview/test_webview_navigation_static.py tests/webview/test_webview_browser_completed_pending_proof_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0619-004.json - passed",
+    "run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-completed.html tests/webview/test_webview_navigation_static.py ops/release/changes/unreleased/MP-CHANGE-2026-0619-004.json - passed",
+    "run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-completed.html tests/webview/test_webview_navigation_static.py tests/webview/test_webview_browser_completed_pending_proof_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0619-004.json - passed",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0619-002 type ux and uncovered dirty files apps/desktop/webview/static/assets/settings/backendResult.js, ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1, src/mediapipeline/contracts/config_defaults.py, src/mediapipeline/core/rename/contracts.py, src/mediapipeline/core/rename/planner.py, src/mediapipeline/core/rename/service.py",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0619-002 type ux, MP-CHANGE-2026-0619-005 type ui, and uncovered dirty files apps/desktop/webview/static/assets/settings/backendResult.js, src/mediapipeline/contracts/config_defaults.py, src/mediapipeline/core/rename/contracts.py, src/mediapipeline/core/rename/planner.py, src/mediapipeline/core/rename/service.py"
+  ],
+  "rollback_plan": "Revert the page-completed.html section reorder and this change packet.",
+  "related_changes": [],
+  "notes": "Started from a heavily dirty worktree with unrelated generated docs, Tauri, backend, WebView, rename, repair/reconcile, and test changes already present. This packet intentionally covers only the selected-output placement requested here.\nMoved completed-active-output-context below completed-history-table-legend; IDs and read-only selected-row controls are unchanged.\nAdded a rendered-index static assertion that completed-active-output-context follows completed-history-table-legend.\nFollow-up: scope completed-active-output-context inside the History panel so it is hidden on Evidence.\nAdded browser smoke assertions that Evidence makes the selected-output History pane inactive and hides the selected-output context."
+}

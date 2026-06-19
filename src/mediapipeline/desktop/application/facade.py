@@ -15,12 +15,15 @@ from mediapipeline.core.maintenance.commands_facade import MaintenanceCommandFac
 from mediapipeline.core.maintenance.dependency_atlas_facade import MaintenanceDependencyAtlasFacadeMixin
 from mediapipeline.core.maintenance.facade import MaintenanceFacadeMixin
 from mediapipeline.core.maintenance.release_facade import MaintenanceReleaseFacadeMixin
+from mediapipeline.core.maintenance.retention_facade import MaintenanceRetentionFacadeMixin
+from mediapipeline.core.maintenance.state_journal_archive_facade import MaintenanceStateJournalArchiveFacadeMixin
 from mediapipeline.core.library.facade import LibraryRouteMapFacadeMixin
 from mediapipeline.core.metrics.facade import MetricsFacadeMixin
 from mediapipeline.core.network.facade import NetworkFacadeMixin
 from mediapipeline.core.network.lifecycle_facade import NetworkLifecycleFacadeMixin
 from mediapipeline.core.publish.pending_facade import PendingPublishFacadeMixin
 from mediapipeline.core.publish.reconciliation_facade import PublishReconciliationFacadeMixin
+from mediapipeline.core.repair_reconcile.facade import RepairReconcileDryRunFacadeMixin
 from mediapipeline.core.processes.preflight_facade import ProcessFacadeMixin
 from mediapipeline.core.processes.audit_facade import AuditLaunchFacadeMixin
 from mediapipeline.core.processes.control_facade import ProcessControlFacadeMixin
@@ -37,6 +40,7 @@ from mediapipeline.core.config.settings_helpers_facade import SettingsHelperFaca
 from mediapipeline.core.config.settings_patch_candidate_facade import SettingsPatchCandidateFacadeMixin
 from mediapipeline.core.config.settings_risk_facade import SettingsRiskFacadeMixin
 from mediapipeline.core.config.settings_wizard_facade import SettingsWizardFacadeMixin
+from mediapipeline.core.config.preset_library import PresetLibraryFacadeMixin
 from mediapipeline.core.orchestration.settings_patch_facade import SettingsPatchFacadeMixin
 from mediapipeline.core.status.facade import StatusFacadeMixin
 from mediapipeline.core.subtitles.facade import SubtitleQaFacadeMixin
@@ -55,6 +59,7 @@ class MediaPipelineApplicationFacade(
     SettingsPatchFacadeMixin,
     SettingsRiskFacadeMixin,
     SettingsWizardFacadeMixin,
+    PresetLibraryFacadeMixin,
     CompletedFacadeMixin,
     CompletedOpenFacadeMixin,
     FinalLibraryPromotionFacadeMixin,
@@ -63,6 +68,8 @@ class MediaPipelineApplicationFacade(
     MaintenanceReleaseFacadeMixin,
     MaintenanceBackfillFacadeMixin,
     MaintenanceDependencyAtlasFacadeMixin,
+    MaintenanceRetentionFacadeMixin,
+    MaintenanceStateJournalArchiveFacadeMixin,
     LibraryRouteMapFacadeMixin,
     MetricsFacadeMixin,
     NetworkFacadeMixin,
@@ -74,6 +81,7 @@ class MediaPipelineApplicationFacade(
     AuditFacadeMixin,
     PendingPublishFacadeMixin,
     PublishReconciliationFacadeMixin,
+    RepairReconcileDryRunFacadeMixin,
     PipelineLaunchFacadeMixin,
     AuditLaunchFacadeMixin,
     RerunLaunchFacadeMixin,

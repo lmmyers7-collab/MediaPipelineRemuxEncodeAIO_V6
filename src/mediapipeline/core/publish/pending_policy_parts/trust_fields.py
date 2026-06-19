@@ -23,6 +23,8 @@ def build_pending_publish_row_trust_fields(
         issues.append("diagnostic severity is error")
     if row.get("local_exists") is False:
         issues.append("local payload missing")
+    if row.get("retry_exhausted") is True or str(diagnostics.get("diagnostic_status") or "").casefold() == "retry_exhausted":
+        issues.append("retry budget exhausted")
     if missing_sidecars > 0:
         issues.append(f"{missing_sidecars} missing sidecar{'s' if missing_sidecars != 1 else ''}")
     if state in {"invalid_manifest", "unreadable_manifest", "invalid_contract", "unreadable"} or status in {"invalid_manifest", "unreadable_manifest"}:
@@ -34,7 +36,10 @@ def build_pending_publish_row_trust_fields(
 
     if recommendation == "do_not_drain" or severity == "error":
         trust_state = "do-not-drain"
-        safe_action = "Do not drain; inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs first."
+        if "retry budget exhausted" in issues:
+            safe_action = "Do not drain automatically; keep parked files intact and review manifest, drain summary, Last Stderr, and Run Logs."
+        else:
+            safe_action = "Do not drain; inspect pending manifest/payload/sidecar evidence, Last Stderr, and Run Logs first."
     elif issues:
         trust_state = "review-before-drain"
         safe_action = "Review backend-selected row targets before Drain Parked Outputs; backend drain validation remains authoritative."

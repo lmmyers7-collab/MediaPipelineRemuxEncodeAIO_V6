@@ -90,7 +90,8 @@ function Get-NamingRenameMovieFilterDefaultTerms {
             '2160p','1080p','1080i','720p','720i','480p','4k','uhd','hdr','hdr10','hdr10+','hlg','dv','dovi',
             'dolby vision','hevc','h264','h.264','h265','h.265','x264','x265','av1','avc','xvid','divx',
             'blu ray','bluray','brrip','bdrip','webrip','web dl','webdl','web','hdtv','hdrip','dvdrip','dvd',
-            'dvdscr','ts','cam','scr','remux','hybrid','10 bit','8 bit'
+            'dvdscr','ts','cam','scr','remux','hybrid','10 bit','10bit','10 bits','10bits','10-bit','10-bits',
+            '8 bit','8bit','8 bits','8bits','8-bit','8-bits','upscale','upscaled'
         )
         audio_channels = @(
             'truehd','atmos','flac','opus','eac3','ac3','aac','dd','dd+','ddp','dts','dts hd','dts-x','dtsx',
@@ -113,7 +114,8 @@ function Get-NamingRenameMovieFilterDefaultTerms {
             'dubbed','multi','multi audio','dual audio','dual-audio','vostfr','vose'
         )
         release_groups = @(
-            'rarbg','rbg','yify','yts','yts lt','galaxyrg','bone','psa','tigole','kris','sparks','ntb','evo','tepes','flux','framestor','cmrg','neonoir'
+            'rarbg','rbg','yify','yts','yts lt','galaxyrg','bone','psa','tigole','kris','sparks','ntb','evo','tepes','flux','framestor','cmrg','neonoir',
+            'asiimov','rapta','licdom'
         )
     }
 }
@@ -229,6 +231,13 @@ function Get-NamingRenameMovieRemoveTerms {
 function ConvertTo-NamingMovieFilterTermPattern {
     param([string]$Term, [bool]$Bounded = $true)
 
+    $trimmedTerm = ([string]$Term).Trim()
+    if ($trimmedTerm -match '^\d\.\d$') {
+        $decimalPattern = [regex]::Escape($trimmedTerm)
+        if (-not $Bounded) { return $decimalPattern }
+        return "(?<![A-Za-z0-9])$decimalPattern(?![A-Za-z0-9])"
+    }
+
     $pieces = @([regex]::Split(([string]$Term).Trim(), '[\s._-]+') | Where-Object {
         -not [string]::IsNullOrWhiteSpace([string]$_)
     } | ForEach-Object {
@@ -304,8 +313,9 @@ function Get-CleanMovieName {
         $title = Remove-NamingMovieFilterTerms -Text $title -Terms (Get-NamingRenameMovieFilterTermsForCategory -Category 'audio_channels')
     }
     if (Test-NamingRenameMovieFilterCategoryEnabled -Options $filterOptions -Category 'video_source') {
-        $title = $title -replace '\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10\+?|dv|dovi|dolby[\s._-]*vision|hevc|h\.?264|h\.?265|x264|x265|av1|avc|blu[\s._-]*ray|brrip|bdrip|webrip|web[\s._-]*dl|webdl|web|hdtv|dvdrip|dvd|remux)\b', ' '
-        $title = $title -replace '\b(?:10|8)\s*bit\b', ' '
+        $title = $title -replace '(?i)(?<![A-Za-z0-9])hdr10\+?(?![A-Za-z0-9])', ' '
+        $title = $title -replace '\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10\+?|dv|dovi|dolby[\s._-]*vision|hevc|h\.?264|h\.?265|x264|x265|av1|avc|blu[\s._-]*ray|brrip|bdrip|webrip|web[\s._-]*dl|webdl|web|hdtv|dvdrip|dvd|remux|upscale(?:d)?)\b', ' '
+        $title = $title -replace '\b(?:10|8)[\s._-]*bits?\b', ' '
         $title = Remove-NamingMovieFilterTerms -Text $title -Terms (Get-NamingRenameMovieFilterTermsForCategory -Category 'video_source')
     }
     if (Test-NamingRenameMovieFilterCategoryEnabled -Options $filterOptions -Category 'editions') {

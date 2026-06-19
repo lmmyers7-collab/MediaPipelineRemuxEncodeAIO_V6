@@ -49,9 +49,10 @@ def _preflight_check(
     evidence: str,
     action: str,
     *,
-    detail: list[str] | None = None,
+    detail: list[Any] | None = None,
+    recovery_actions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    return {
+    row = {
         "key": key,
         "label": label,
         "status": status,
@@ -59,6 +60,9 @@ def _preflight_check(
         "action": action,
         "detail": detail or [],
     }
+    if recovery_actions:
+        row["recovery_actions"] = recovery_actions
+    return row
 
 
 def _preflight_status(checks: list[dict[str, Any]]) -> str:
@@ -173,6 +177,7 @@ def _preflight_operator_readiness(
                 "status": check.get("status") or "unknown",
                 "evidence": check.get("evidence") or "",
                 "action": check.get("action") or "",
+                "recovery_actions": list(check.get("recovery_actions") or []),
             }
             for check in non_ready
         ],
@@ -374,8 +379,13 @@ class ProcessFacadeMixin:
             "Refresh the backend Settings workspace before launch.",
         )
 
-    def _configured_path_health_preflight_check(self, resolved: ResolvedPaths) -> dict[str, Any] | None:
-        health = configured_path_health(resolved)
+    def _configured_path_health_preflight_check(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        path_health: dict[str, Any] | None = None,
+    ) -> dict[str, Any] | None:
+        health = path_health or configured_path_health(resolved)
         if not health.get("rows"):
             return None
         operator_status = str(health.get("operator_status") or "unknown").casefold()
@@ -399,6 +409,54 @@ class ProcessFacadeMixin:
             str(health.get("operator_summary") or "Configured path health is incomplete."),
             "Resolve unreachable configured source/output/scratch roots before pressing Start.",
             detail=issue_lines[:10],
+        )
+
+    def _autonomy_health_preflight_check(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        path_health: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        health = self._autonomy_health_for_resolved(resolved, path_health=path_health)
+        status = str(health.get("overall_status") or "unknown").casefold()
+        if status == "ready":
+            check_status = "ready"
+        elif status == "blocked":
+            check_status = "blocked"
+        else:
+            check_status = "review"
+        blockers = [item for item in health.get("blockers", []) if isinstance(item, dict)]
+        review_items = [item for item in health.get("review_items", []) if isinstance(item, dict)]
+        detail = [
+            f"overall_status={status}",
+            f"blocked_count={len(blockers)}",
+            f"review_count={len(review_items)}",
+        ]
+        recovery_actions: list[dict[str, Any]] = []
+        for item in blockers[:5]:
+            detail.append(f"{item.get('code')}: {item.get('message')}")
+            recovery_action = item.get("recovery_action")
+            if isinstance(recovery_action, dict):
+                recovery_actions.append(json_safe(recovery_action))
+                detail.append(f"recovery_action={recovery_action.get('kind')}: {recovery_action.get('label')}")
+        if not recovery_actions:
+            for item in review_items[:5]:
+                recovery_action = item.get("recovery_action")
+                if isinstance(recovery_action, dict):
+                    recovery_actions.append(json_safe(recovery_action))
+                    detail.append(f"recovery_action={recovery_action.get('kind')}: {recovery_action.get('label')}")
+                    break
+        return _preflight_check(
+            "autonomy_health",
+            "Autonomy health gate",
+            check_status,
+            f"overall_status={status}; can_start_new_work={'yes' if status != 'blocked' else 'no'}",
+            str(
+                (health.get("launch_gate") if isinstance(health.get("launch_gate"), dict) else {}).get("safe_next_action")
+                or "Review autonomy health before unattended launch."
+            ),
+            detail=detail,
+            recovery_actions=recovery_actions,
         )
 
     def _pipeline_launch_preflight_checks(
@@ -494,9 +552,11 @@ class ProcessFacadeMixin:
                 self._config_identity_preflight_check(resolved),
             ]
         )
-        path_health_check = self._configured_path_health_preflight_check(resolved)
+        path_health = configured_path_health(resolved)
+        path_health_check = self._configured_path_health_preflight_check(resolved, path_health=path_health)
         if path_health_check is not None:
             checks.append(path_health_check)
+        checks.append(self._autonomy_health_preflight_check(resolved, path_health=path_health))
         checks.extend(
             [
                 self._active_work_preflight_check(resolved, "Pipeline preflight"),

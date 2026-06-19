@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0618-912",
+  "title": "Make Launch compact gates actionable",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-19",
+  "summary": "Made the Launch compact gate strip actionable: each gate now opens the owning page/tab evidence and highlights the concrete row or control. Reduced false compact-gate severity by limiting Settings to settings-owned rows and treating schedule/window advisories as review instead of hard blocked. Restored the missing Audit Launch tab/panel pairing.",
+  "reason": "Operators saw compact Launch tiles labeled warning/blocked without a direct path to the underlying issue. The strip needed to either point at actionable backend evidence or avoid escalating duplicate/advisory state.",
+  "affected_areas": [
+    "launch",
+    "operator-navigation",
+    "readiness",
+    "webview"
+  ],
+  "behavior_before": "Compact Launch gates only changed the detail text. Settings inherited unrelated launch/schedule/queue rows and could show blocked counts that were not settings problems. Schedule/window duplicate advisories could appear as hard blocked. Audit tab state was inconsistent because the tab/panel pairing was missing in the current partial.",
+  "behavior_after": "Compact Launch gate clicks navigate to Launch/Queue owner evidence, select and highlight the first concrete issue where available, and reveal hidden evidence transiently without changing persisted UI preferences. Settings compact status is based on settings-owned rows plus policy rows, schedule advisory state is review-level, and the Audit tab/panel pairing is restored.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/launchView.scope.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/assets/styles.controls.css",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.scope.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.controls.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-912.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-912.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static.py::ApplicationFacadeWebStaticTests::test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py::WebViewBrowserLaunchQueueReadinessSmoke::test_real_browser_renders_launch_queue_readiness_without_mutation_posts"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests/python/desktop/test_application_facade_web_static.py::ApplicationFacadeWebStaticTests::test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests/webview/test_webview_browser_launch_queue_readiness_smoke.py::WebViewBrowserLaunchQueueReadinessSmoke::test_real_browser_renders_launch_queue_readiness_without_mutation_posts",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/launchView.scope.js apps/desktop/webview/static/assets/launchView.js apps/desktop/webview/static/assets/styles.components.css apps/desktop/webview/static/assets/styles.controls.css apps/desktop/webview/static/partials/page-launch.html tests/python/desktop/test_application_facade_web_static.py tests/webview/test_webview_browser_launch_queue_readiness_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0618-912.json",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1",
+    "node --check apps/desktop/webview/static/assets/launchView.js",
+    "node --check apps/desktop/webview/static/assets/launchView.scope.js"
+  ],
+  "rollback_plan": "Revert the Launch compact gate navigation changes in launchView.scope.js and launchView.js, remove the transient reveal CSS, restore the prior page-launch.html tab markup if needed, and revert the targeted static/browser smoke assertions.",
+  "related_changes": [],
+  "notes": "No media policy, FFmpeg, subtitle, audio, pending-publish, source movement, or backend mutation behavior changed."
+}

@@ -78,7 +78,10 @@ def resolve_tv_folder_season_info(
                 "source": "show-folder-suffix",
             }
 
-        match = re.fullmatch(r"(?i)(?P<show>.+?)\s+S(?P<season>\d{1,2})(?![A-Za-z0-9])\s*", flexible_leaf)
+        match = re.fullmatch(
+            r"(?i)(?P<show>.+?)\s+S(?P<season>\d{1,2})(?![A-Za-z0-9])(?:\s*\+\s*(?:sp|specials?)\b)?\s*",
+            flexible_leaf,
+        )
         if match:
             return {
                 "season": int(match.group("season")),
@@ -87,7 +90,7 @@ def resolve_tv_folder_season_info(
             }
 
         match = re.fullmatch(
-            r"(?i)(?P<show>.+?)(?:\s+|[\._-]+)(?:[-\u2013]\s*)?(?:Season[\s._-]*(?P<season_word>\d{1,2})|S[\s._-]*(?P<season_s>\d{1,2})(?![A-Za-z0-9]))(?:\s+.*)?",
+            r"(?i)(?P<show>.+?)(?:\s+|[\._-]+)(?:[-\u2013]\s*)?(?:Season[\s._-]*(?P<season_word>\d{1,2})|S[\s._-]*(?P<season_s>\d{1,2})(?![A-Za-z0-9]))(?:\s*\+\s*(?:sp|specials?)\b)?(?:\s+.*)?",
             flexible_leaf,
         )
         if match:

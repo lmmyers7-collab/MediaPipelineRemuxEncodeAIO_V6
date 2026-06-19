@@ -22,6 +22,7 @@
       completedSelectedQuickSignalLines: typeof deps.completedSelectedQuickSignalLines === "function" ? deps.completedSelectedQuickSignalLines : emptyLines,
       diagnosticsBridgeHandoffLines: typeof deps.diagnosticsBridgeHandoffLines === "function" ? deps.diagnosticsBridgeHandoffLines : null,
       renderCompletedDiagnosticsLinks: typeof deps.renderCompletedDiagnosticsLinks === "function" ? deps.renderCompletedDiagnosticsLinks : noop,
+      renderCompletedActiveOutputContext: typeof deps.renderCompletedActiveOutputContext === "function" ? deps.renderCompletedActiveOutputContext : noop,
       renderCompletedPromotionActions: typeof deps.renderCompletedPromotionActions === "function" ? deps.renderCompletedPromotionActions : noop,
       renderCompletedRows: typeof deps.renderCompletedRows === "function" ? deps.renderCompletedRows : noop,
       renderCompletedSelectedAtAGlance: typeof deps.renderCompletedSelectedAtAGlance === "function" ? deps.renderCompletedSelectedAtAGlance : noop,
@@ -73,6 +74,7 @@
 
     function renderCompletedDetail(item) {
       ctx.renderCompletedSelectedAtAGlance(item || null);
+      ctx.renderCompletedActiveOutputContext(item || null);
       const guardrail = "Mutation guardrail: selected-row detail is read-only and cannot accept outputs, repair manifests, rerun jobs, reconcile sidecars, publish, or delete files.";
       if (!item) {
         const bodyLines = ctx.completedRowReviewChecklistLines(null);

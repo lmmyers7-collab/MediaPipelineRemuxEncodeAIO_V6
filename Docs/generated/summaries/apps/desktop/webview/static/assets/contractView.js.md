@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/contractView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-13
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 2df529dc16224a8fe6c769dd4fc57ed091b1999cbd0696c6d092305b6e50318d
+sha256: 67fa5eb03df96fa77eb527591c2a83646274d1cc2fac927f724738997d100836
 ---
 # `apps/desktop/webview/static/assets/contractView.js`
 

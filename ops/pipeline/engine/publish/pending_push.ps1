@@ -194,6 +194,8 @@ function New-PendingDrainSummaryItem {
     $publishMode = ''
     $transactionId = ''
     $sidecarCount = 0
+    $retryCount = 0
+    $retryLimit = Get-PendingPublishRetryLimit
     $recovered = $false
     if ($null -ne $Manifest) {
         $localFile = [string](Get-PendingObjectProperty -Object $Manifest -Name 'local_file')
@@ -202,6 +204,7 @@ function New-PendingDrainSummaryItem {
         $sourcePath = [string](Get-PendingObjectProperty -Object $Manifest -Name 'source_path')
         $publishMode = [string](Get-PendingObjectProperty -Object $Manifest -Name 'publish_mode')
         $transactionId = [string](Get-PendingObjectProperty -Object $Manifest -Name 'publish_transaction_id')
+        $retryCount = Get-PendingManifestRetryCount -Manifest $Manifest
     }
     if ($null -ne $Transaction) {
         $Status = [string](Get-PendingObjectProperty -Object $Transaction -Name 'Status')
@@ -229,6 +232,8 @@ function New-PendingDrainSummaryItem {
         recovered              = $recovered
         publish_transaction_id = $transactionId
         sidecar_count          = $sidecarCount
+        retry_count            = $retryCount
+        retry_limit            = $retryLimit
         error                  = $ErrorMessage
     }
 }

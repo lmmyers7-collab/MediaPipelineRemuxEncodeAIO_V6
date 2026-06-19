@@ -458,7 +458,26 @@
   }
 
   function setDiagnosticsOwnerHandoffNavStatus(message) {
-    setText("diagnostics-owner-handoff-nav-status", message || "");
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-owner-handoff-nav-status", message || "", message ? "changed" : "empty");
+    } else {
+      setText("diagnostics-owner-handoff-nav-status", message || "");
+    }
+  }
+
+  function setDiagnosticsOwnerDestinationStatus(pageId, message) {
+    const statusIds = {
+      queue: "queue-diagnostics-status",
+      completed: "completed-diagnostics-status",
+      pending: "pending-diagnostics-status",
+    };
+    const id = statusIds[pageId] || "";
+    if (!id) return;
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus(id, message, "changed");
+    } else {
+      setText(id, message);
+    }
   }
 
   function navigateDiagnosticsOwnerHandoffRow(item) {
@@ -484,9 +503,9 @@
         ? ` Selected Completed > Final Output Trust Walkthrough step: ${item.completedFinalTrust.step}.`
         : " After navigation, read Completed > Final Output Trust Walkthrough for the mapped proof step."
       : "";
-    setDiagnosticsOwnerHandoffNavStatus(
-      `Opened ${item.owner} and locally selected row_key=${item.row?.row_key || "not reported"}. No backend command was sent and no file paths were opened.${completedFinalTrustSuffix}`
-    );
+    const message = `Opened ${item.owner} and locally selected row_key=${item.row?.row_key || "not reported"}. No backend command was sent and no file paths were opened.${completedFinalTrustSuffix}`;
+    setDiagnosticsOwnerHandoffNavStatus(message);
+    setDiagnosticsOwnerDestinationStatus(pageId, `Diagnostics handoff selected this row locally. No backend command was sent.`);
     return true;
   }
 

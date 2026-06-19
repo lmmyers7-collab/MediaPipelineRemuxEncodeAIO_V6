@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/selection.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-14
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: 84b9ef4493f10fab3ddbbb4e4a4362fc85fde0f1ae6db44b6f9198cf5078f2ed
+sha256: 7f8e926b22525db6065156579b8f1c5f6f9b02ebce192d6380265358fffd996b
 ---
 # `apps/desktop/webview/static/assets/completed/selection.js`
 

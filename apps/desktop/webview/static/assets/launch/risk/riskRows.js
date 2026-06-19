@@ -129,7 +129,7 @@
       lines.push("- Reason: no saved-settings risks are currently reported.");
     }
     lines.push(`- Evidence guidance: ${decision.guidance}`);
-    lines.push("- Evidence owner: Settings page edits/preview/save; Launch page displays saved posture only.");
+    lines.push("- Evidence owner: Settings page edits/save; Launch page displays saved posture only.");
     return lines;
   }
 
@@ -153,23 +153,23 @@
       });
       const lines = [
         "",
-        "Unsaved Settings patch warning:",
-        `- Staged but unsaved keys: ${keys.slice(0, 8).join(", ")}${keys.length > 8 ? `, +${keys.length - 8} more` : ""}`,
+        "Unsaved Settings changes:",
+        `- Unsaved keys: ${keys.slice(0, 8).join(", ")}${keys.length > 8 ? `, +${keys.length - 8} more` : ""}`,
         `- Settings handoff status: ${status}`,
-        `- Staged media-policy delta: ${deltaStatus}`,
-        "- Launch uses saved backend settings only. Staged Changes JSON will not affect this launch until backend Save Patch succeeds and settings reload/refresh completes.",
+        `- Save-candidate media-policy delta: ${deltaStatus}`,
+        "- Launch uses saved backend settings only. Unsaved settings changes will not affect this launch until Save Settings succeeds and settings reload/refresh completes.",
       ];
       if (deltaReviewRows.length) {
-        lines.push(`- First staged delta review row: ${deltaReviewRows[0].area} (${deltaReviewRows[0].posture}) - ${deltaReviewRows[0].check}`);
+        lines.push(`- First save-candidate delta review row: ${deltaReviewRows[0].area} (${deltaReviewRows[0].posture}) - ${deltaReviewRows[0].check}`);
       }
       return lines;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return [
         "",
-        "Unsaved Settings patch warning:",
+        "Unsaved Settings changes:",
         `- Settings Changes JSON is invalid: ${message}`,
-        "- Launch will continue using saved backend settings; backend Preview Patch/Save cannot run until Changes JSON is valid.",
+        "- Launch will continue using saved backend settings; Save Settings cannot run until Changes JSON is valid.",
       ];
     }
   }
@@ -197,7 +197,7 @@
         lines.push(`  - [${item.severity || "unknown"}] ${item.key || "setting"} (${item.code || "risk"}): ${item.message || ""}`);
       });
       if ((risk.items || []).length > 8) lines.push(`  - ${(risk.items || []).length - 8} more risk item(s).`);
-      lines.push("- Operator guidance: preview/save settings or use Diagnostics before launching if high-risk items are unexpected.");
+      lines.push("- Operator guidance: save settings or use Diagnostics before launching if high-risk items are unexpected.");
     }
     if (errors.length) {
       lines.push(`- Settings validation errors: ${errors.length}`);
@@ -493,7 +493,7 @@
         `Risk item: ${item?.key || item?.code || "setting"}`,
         severity === "critical" ? "blocked" : severity === "high" ? "high review" : "review",
         `${item?.code || "risk"}: ${item?.message || "Review saved setting."}`,
-        "Use Settings Preview/Save or Diagnostics before launch if this risk is unexpected.",
+        "Use Save Settings or Diagnostics before launch if this risk is unexpected.",
         [
           `Backend risk code: ${item?.code || "unknown"}`,
           `Setting key: ${item?.key || "unknown"}`,
@@ -522,7 +522,7 @@
       "Launch settings risk handoff:",
       `Rows: ${rows.length}; ready=${counts.ready || 0}; review=${counts.review || 0}; high review=${counts["high review"] || 0}; blocked=${counts.blocked || 0}.`,
       "This panel translates saved settings posture into launch-specific operator checks.",
-      "Backend launch validation, process locks, and settings preview/save remain the source of truth.",
+      "Backend launch validation, process locks, and Settings Save remain the source of truth.",
       "Real-media proof still requires a completed sample run with route, subtitle/audio, output, sidecar, size-growth, and pending-publish evidence.",
     ];
     const reviewRows = rows.filter((row) => row.impact !== "ready");

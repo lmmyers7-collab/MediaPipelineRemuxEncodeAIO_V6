@@ -105,6 +105,57 @@ function Invoke-JsonLineAppendFailsClosedWhenLogLockIsHeldCheck {
     }
 }
 
+function Invoke-PipelineEventLogRotationCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineEventLogRotationTest_' + [guid]::NewGuid().ToString('N'))
+    $oldLogLock = $script:logLock
+    $oldEventLogFile = $script:PipelineEventLogFile
+    $oldMaxBytes = $script:PipelineEventLogMaxBytes
+    $oldArchiveFolderName = $script:PipelineEventArchiveFolderName
+    $oldRetentionDays = $script:LogRetentionDays
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $mutexName = 'Global\MediaPipelineEventLogRotationTest_' + [guid]::NewGuid().ToString('N')
+        $script:logLock = [System.Threading.Mutex]::new($false, $mutexName)
+        $script:PipelineEventLogMaxBytes = 64
+        $script:PipelineEventArchiveFolderName = 'ArchivedEvents'
+        $script:LogRetentionDays = 14
+
+        $eventPath = Join-Path $tempRoot 'pipeline_events.jsonl'
+        $script:PipelineEventLogFile = $eventPath
+        [System.IO.File]::WriteAllText($eventPath, ('x' * 80), [System.Text.Encoding]::UTF8)
+
+        $written = Write-PipelineEvent -EventType 'rotation_test' -Stage 'unit' -Status 'ok' -Data @{ case = 'rotation' }
+        Assert-True ([bool]$written) 'Write-PipelineEvent should append after rotating an oversized event journal.'
+
+        $archiveDir = Join-Path $tempRoot 'ArchivedEvents'
+        $archives = @(Get-ChildItem -LiteralPath $archiveDir -Filter 'pipeline_events.*.archived.jsonl' -ErrorAction Stop)
+        Assert-Equal $archives.Count 1 'Oversized pipeline_events.jsonl should be moved into exactly one archive file.'
+        Assert-Equal ([System.IO.File]::ReadAllText($archives[0].FullName, [System.Text.Encoding]::UTF8)) ('x' * 80) 'Archived event journal should preserve previous content.'
+        $lines = @(Get-Content -LiteralPath $eventPath)
+        Assert-Equal $lines.Count 1 'Fresh pipeline_events.jsonl should contain exactly the newly appended event.'
+        $parsed = $lines[0] | ConvertFrom-Json -ErrorAction Stop
+        Assert-Equal ([string]$parsed.event_type) 'rotation_test' 'Rotated event journal should contain the submitted event.'
+
+        $otherPath = Join-Path $tempRoot 'other.jsonl'
+        [System.IO.File]::WriteAllText($otherPath, ('y' * 80), [System.Text.Encoding]::UTF8)
+        $otherWritten = Write-JsonLineAppend -Path $otherPath -Payload ([ordered]@{ event_type = 'not_rotated' }) -UseLogLock -RotatePipelineEventLog
+        Assert-True ([bool]$otherWritten) 'Write-JsonLineAppend should still append non-event JSONL files.'
+        $archivesAfterOther = @(Get-ChildItem -LiteralPath $archiveDir -Filter 'other.*' -ErrorAction SilentlyContinue)
+        Assert-Equal $archivesAfterOther.Count 0 'Rotation must be limited to pipeline_events.jsonl.'
+    } finally {
+        if ($script:logLock -and $script:logLock -ne $oldLogLock) {
+            $script:logLock.Dispose()
+        }
+        $script:logLock = $oldLogLock
+        $script:PipelineEventLogFile = $oldEventLogFile
+        $script:PipelineEventLogMaxBytes = $oldMaxBytes
+        $script:PipelineEventArchiveFolderName = $oldArchiveFolderName
+        $script:LogRetentionDays = $oldRetentionDays
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Invoke-JsonLineAppendFailsClosedWhenLogLockIsHeldCheck
+Invoke-PipelineEventLogRotationCheck
 
 Write-Host 'Logging JSONL checks passed.'

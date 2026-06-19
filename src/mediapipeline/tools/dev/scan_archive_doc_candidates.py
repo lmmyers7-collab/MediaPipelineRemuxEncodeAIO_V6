@@ -240,25 +240,6 @@ def _reference_tokens(line: str) -> set[str]:
     return {token for token in tokens if token}
 
 
-def _line_references_target(line: str, source_rel: str, target_rel: str) -> bool:
-    target = normalize_path(target_rel)
-    variants = {target, target.replace("/", "\\")}
-    if target.startswith("docs/"):
-        docs_relative = target[len("docs/") :]
-        variants.add(docs_relative)
-        variants.add(docs_relative.replace("/", "\\"))
-
-    if any(variant and variant in line for variant in variants):
-        return True
-
-    target_key = _case_key(target)
-    for token in _reference_tokens(line):
-        resolved = _resolve_reference_token(source_rel, token)
-        if resolved and _case_key(resolved) == target_key:
-            return True
-    return False
-
-
 def _reference_category(rel: str) -> str:
     normalized = normalize_path(rel)
     if normalized in HISTORICAL_REFERENCE_SOURCES:
@@ -299,14 +280,6 @@ def collect_reference_index(
         rel: tuple(sorted(refs, key=lambda ref: (ref.path.casefold(), ref.line, ref.category)))
         for rel, refs in references.items()
     }
-
-
-def collect_inbound_references(
-    target_rel: str,
-    reference_paths: Iterable[Path],
-    root: Path = REPO_ROOT,
-) -> tuple[Reference, ...]:
-    return collect_reference_index([target_rel], reference_paths, root).get(normalize_path(target_rel), ())
 
 
 def _read_document_text(path: Path) -> str:

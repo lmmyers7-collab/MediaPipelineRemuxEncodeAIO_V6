@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0618-041",
+  "title": "Add private beta downloaded-asset verifier",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a read-only verifier for downloaded private beta GitHub Release assets before clean-machine installation.",
+  "reason": "Operators need a local gate after downloading published Release assets and before running the NSIS installer, so checksum, updater signature, channel JSON, Authenticode posture, and MSI exclusion are checked from the actual downloaded folder.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "The runbook described manual downloaded-asset checks, but there was no focused script that validated a downloaded GitHub Release asset folder before installation.",
+  "behavior_after": "Operators can run a read-only downloaded-asset verifier against a folder containing the installer, updater signature, channel JSON, and SHA256SUMS before running the NSIS installer.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-041.json.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaDownloadedAssets.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_downloaded_assets.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-041.json",
+    "ops/scripts/release/Test-PrivateBetaDownloadedAssets.ps1",
+    "tests/python/tooling/test_private_beta_downloaded_assets.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_private_beta_downloaded_assets.py"
+  ],
+  "manual_validation": [
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m pytest tests/python/tooling/test_private_beta_downloaded_assets.py -q - passed (4)",
+    "PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m pytest tests/python/tooling -k private_beta -q - passed (27 passed, 148 deselected)"
+  ],
+  "rollback_plan": "Remove the downloaded-asset verifier script, tests, docs references, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-035",
+    "MP-CHANGE-2026-0618-040"
+  ],
+  "notes": "The verifier must not run installers, dispatch workflows, download assets, upload releases, mutate GitHub state, modify AppData, or touch media/source/scratch/output paths."
+}

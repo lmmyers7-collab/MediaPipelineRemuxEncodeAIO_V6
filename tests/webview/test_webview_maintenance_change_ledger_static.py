@@ -42,7 +42,10 @@ class WebViewMaintenanceChangeLedgerStaticTests(unittest.TestCase):
     def test_maintenance_view_uses_read_only_get_route_and_namespace_exports(self) -> None:
         source = (ASSETS_ROOT / "maintenanceView.js").read_text(encoding="utf-8")
 
-        self.assertIn('apiGet("/api/maintenance/change-ledger")', source)
+        self.assertIn("CHANGE_LEDGER_ROW_LIMIT = 200", source)
+        self.assertIn("CHANGE_LEDGER_REFRESH_TIMEOUT_MS = 120000", source)
+        self.assertIn("`/api/maintenance/change-ledger?limit=${CHANGE_LEDGER_ROW_LIMIT}`", source)
+        self.assertIn("timeoutMs: CHANGE_LEDGER_REFRESH_TIMEOUT_MS", source)
         self.assertNotIn('apiPost("/api/maintenance/change-ledger"', source)
         self.assertIn("function renderChangeLedger", source)
         self.assertIn("function renderChangeLedgerRows", source)
@@ -63,8 +66,8 @@ class WebViewMaintenanceChangeLedgerStaticTests(unittest.TestCase):
     def test_maintenance_view_treats_running_process_guard_as_active_not_blocked(self) -> None:
         source = (ASSETS_ROOT / "maintenanceView.js").read_text(encoding="utf-8")
 
-        self.assertIn('item.status === "running" ? "running" : "blocked"', source)
-        self.assertIn('item?.status !== "running"', source)
+        self.assertIn('item?.status !== "ok" && item?.status !== "running"', source)
+        self.assertIn('item?.status === "running"', source)
         self.assertIn('if (readiness === "Active") return "Active";', source)
         self.assertIn("Active process guard rows:", source)
 

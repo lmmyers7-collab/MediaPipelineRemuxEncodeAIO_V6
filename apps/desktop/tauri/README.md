@@ -160,7 +160,7 @@ For browser-free sample-validation route coverage, run the local API sample vali
 .\ops/scripts/smoke\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1
 ```
 
-21. Run the Settings preview/save evidence smoke. This uses a generated temporary config and proves Preview Patch, denied Save Patch, confirmed Save Patch, reload evidence, command history, and WebView Settings result-panel assets without touching the current saved config or media:
+21. Run the Settings save evidence smoke. This uses a generated temporary config and proves Save review, denied Save Settings, confirmed Save Settings, reload evidence, command history, and WebView Settings result-panel assets without touching the current saved config or media:
 
 ```powershell
 .\ops/scripts/smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1
@@ -230,4 +230,3 @@ npm run dev
 ```
 
 Keep the external rollback workspace available until current real processing, audit, rename, settings, pending-publish, network-visibility, launch/close, and release verification cycles are complete.
-

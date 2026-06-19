@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_app_schedule.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: ef6a803018a7922f7608f6868da6fb4a8bf8fe6b90ec2374b57b28d529d64a3c
+sha256: 53c19f05fe677ef1804649eb2fcf7dd9760b08792609a87299442fed920acd21
 ---
 # `tests/python/desktop/test_service_app_schedule.py`
 

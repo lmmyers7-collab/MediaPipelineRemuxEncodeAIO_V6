@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -113,10 +114,10 @@ class RenameWorkbenchHtmlTests(unittest.TestCase):
         self.assertIn('id="rename-confirm-list"', self.html)
         self.assertIn('id="rename-confirm-count"', self.html)
         self.assertIn("Confirm filesystem rename", self.html)
-        self.assertIn("This will rename files on disk. Review every source and destination path before continuing.", self.html)
+        self.assertIn("Apply filesystem rename sends the checked source paths to backend rename.apply", self.html)
         self.assertIn("Apply filesystem rename", self.html)
         self.assertIn('id="rename-result-dialog"', self.html)
-        for counter in ("rename-result-success", "rename-result-failed", "rename-result-skipped"):
+        for counter in ("rename-result-success", "rename-result-unchanged", "rename-result-failed", "rename-result-skipped", "rename-result-protected"):
             self.assertIn(counter, self.html)
         self.assertIn('id="rename-result-errors"', self.html)
 
@@ -163,6 +164,26 @@ class RenameWorkbenchHtmlTests(unittest.TestCase):
         ):
             self.assertIn(node_id, self.html)
 
+    def test_bad_case_logging_dialog_present(self) -> None:
+        for node_id in (
+            "rename-log-bad-case-button",
+            "rename-log-bad-case-status",
+            "rename-log-case-dialog",
+            "rename-log-case-source-folder",
+            "rename-log-case-source-file",
+            "rename-log-case-expected-name",
+            "rename-log-case-expected-show",
+            "rename-log-case-expected-season",
+            "rename-log-case-status-select",
+            "rename-log-case-notes",
+            "rename-log-case-submit-button",
+        ):
+            self.assertIn(node_id, self.html)
+        self.assertIn("Log Bad Rename Case", self.html)
+        self.assertIn("Append Case writes a backend bad-case corpus entry only", self.html)
+        self.assertIn('<option value="pending">Pending</option>', self.html)
+        self.assertIn('<option value="active">Active</option>', self.html)
+
 
 class RenameWorkbenchJsTests(unittest.TestCase):
     def setUp(self) -> None:
@@ -189,20 +210,31 @@ class RenameWorkbenchJsTests(unittest.TestCase):
         self.assertIn("renameUsesStandaloneWorkbench", self.app_js)
         self.assertIn("renameBrowseFolderButton && !renameUsesStandaloneWorkbench", self.app_js)
 
-    def test_apply_workbench_targets_non_blocked_preview_rows(self) -> None:
+    def test_apply_workbench_requires_checked_preview_rows(self) -> None:
         self.assertIn("applyRenameWorkbench", self.js)
         self.assertIn("renameApplicablePreviewRows", self.js)
-        self.assertIn('source: "all applicable preview rows"', self.js)
-        self.assertIn("Apply all ${rowsToApply.length} safe rename", self.js)
+        self.assertIn('source: "none; check intended rows before apply"', self.js)
+        self.assertIn("Check rows before apply", self.js)
         self.assertIn("Apply ${rowsToApply.length} checked rename", self.js)
         self.assertIn("Preview out of date. Run Preview again before applying.", self.js)
-        self.assertIn("No rows were checked; this will apply all safe rows in the current preview.", self.js)
+        self.assertIn("No rows checked. Check intended rows before applying", self.js)
+        self.assertNotIn("Apply all ${rowsToApply.length} safe rename", self.js)
+        self.assertNotIn("No rows were checked; this will apply all safe rows in the current preview.", self.js)
         self.assertIn("renameRequestSignatureFromRequest", self.js)
         self.assertIn("renamePathOrigins", self.js)
 
     def test_result_dialog_does_not_direct_open_file_urls(self) -> None:
         self.assertNotIn("window.open(`file://", self.js)
         self.assertIn("Open logs through the backend-owned Diagnostics targets.", self.js)
+        self.assertIn('requestOpen("run_logs")', self.js)
+
+    def test_bad_case_logging_posts_backend_command(self) -> None:
+        self.assertIn("renameBadCasePayloadFromRow", self.js)
+        self.assertIn("submitRenameBadCasePayload", self.js)
+        self.assertIn("openRenameBadCaseDialog", self.js)
+        self.assertIn("submitRenameBadCaseDialog", self.js)
+        self.assertIn('apiPost("/api/rename/filter-cases", request)', self.js)
+        self.assertIn("confirm_append: true", self.js)
 
 
 class RenameBackendBrowseModeTests(unittest.TestCase):
@@ -268,6 +300,61 @@ class RenameBackendBrowseModeTests(unittest.TestCase):
 
         self.assertEqual(observed["selection_mode"], "files")
 
+    def test_filter_case_command_appends_to_configured_fixture(self) -> None:
+        import mediapipeline.desktop.api  # noqa: F401
+        from mediapipeline.core.api.commands_rename import LocalApiRenameCommandPayloadMixin
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_path = Path(temp_dir) / "bad_rename_cases.jsonl"
+            mixin = LocalApiRenameCommandPayloadMixin()
+            mixin._rename_bad_case_fixture_path = fixture_path  # type: ignore[attr-defined]
+
+            payload = mixin._rename_filter_case_payload(
+                {
+                    "source_folder": "Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA",
+                    "source_file": "S03E01-The Beginning of Winter.mkv",
+                    "expected_name": "Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv",
+                    "expected_show": "Ascendance of a Bookworm",
+                    "expected_season": 3,
+                    "status": "pending",
+                    "notes": "UI smoke",
+                    "confirm_append": True,
+                }
+            )
+
+            self.assertTrue(payload["ok"], payload)
+            self.assertEqual(payload["command"], "rename.filter_case.append")
+            self.assertEqual(payload["data"]["status"], "pending")
+            rows = [
+                json.loads(line)
+                for line in fixture_path.read_text(encoding="utf-8").splitlines()
+                if line.strip() and not line.startswith("#")
+            ]
+            self.assertEqual(len(rows), 1)
+            self.assertEqual(rows[0]["source_file"], "S03E01-The Beginning of Winter.mkv")
+            self.assertEqual(rows[0]["expected_show"], "Ascendance of a Bookworm")
+
+    def test_filter_case_command_requires_confirmation(self) -> None:
+        import mediapipeline.desktop.api  # noqa: F401
+        from mediapipeline.core.api.commands_rename import LocalApiRenameCommandPayloadMixin
+
+        with tempfile.TemporaryDirectory() as temp_dir:
+            fixture_path = Path(temp_dir) / "bad_rename_cases.jsonl"
+            mixin = LocalApiRenameCommandPayloadMixin()
+            mixin._rename_bad_case_fixture_path = fixture_path  # type: ignore[attr-defined]
+
+            payload = mixin._rename_filter_case_payload(
+                {
+                    "source_folder": "Show S01",
+                    "source_file": "S01E01.mkv",
+                    "expected_name": "Show - S01E01.mkv",
+                }
+            )
+
+            self.assertFalse(payload["ok"])
+            self.assertIn("confirm_append", payload["message"])
+            self.assertFalse(fixture_path.exists())
+
 
 class RenameBackendPathDialogScriptTests(unittest.TestCase):
     """The PowerShell payload script branch should know about folder_files."""
@@ -298,4 +385,3 @@ class RenameBackendPathDialogScriptTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

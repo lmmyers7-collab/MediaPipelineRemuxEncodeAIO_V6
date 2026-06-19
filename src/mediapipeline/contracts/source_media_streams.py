@@ -18,7 +18,6 @@ from mediapipeline.contracts.source_media_values import (
     as_list,
     bool_flag,
     bool_value,
-    float_value,
     frame_rate,
     int_value,
     mbps_to_bps,

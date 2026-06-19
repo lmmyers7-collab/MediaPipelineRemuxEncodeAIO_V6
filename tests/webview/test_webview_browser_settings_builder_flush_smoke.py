@@ -94,20 +94,15 @@ def _browser_settings_builder_flush_runner_source() -> str:
 
               const invalidBuilderPosts = [];
               const originalApiPost = window.apiPost;
-              const originalConfirm = window.confirm;
               window.apiPost = async (path, body) => {
                 invalidBuilderPosts.push({ path: String(path || ""), body: JSON.parse(JSON.stringify(body || {})) });
                 return { ok: true, command: "settings.mocked", message: name + " should not post" };
               };
-              window.confirm = () => true;
               try {
-                click("settings-preview-patch-button");
-                await new Promise((resolve) => setTimeout(resolve, 250));
-                click("settings-save-patch-button");
+                click("settings-save-header-save-button");
                 await new Promise((resolve) => setTimeout(resolve, 250));
               } finally {
                 window.apiPost = originalApiPost;
-                window.confirm = originalConfirm;
               }
 
               requireText("settings-patch-status", ["Builder invalid"]);
@@ -116,7 +111,7 @@ def _browser_settings_builder_flush_runner_source() -> str:
                 return entry.path === "/api/settings/preview-patch" || entry.path === "/api/settings/save-patch";
               });
               if (settingsPosts.length) {
-                throw new Error(name + " invalid dirty settings builder still posted Preview/Save: " + JSON.stringify(invalidBuilderPosts));
+                throw new Error(name + " invalid dirty settings builder still posted Save: " + JSON.stringify(invalidBuilderPosts));
               }
               return {
                 name,
@@ -148,7 +143,7 @@ def _browser_settings_builder_flush_runner_source() -> str:
                 setInput("settings-runtime-ffmpeg-encode-timeout", "0");
                 window.mediaPipelineSettingsView.markRuntimeSettingsBuilderDirty();
               },
-              ["Encode Timeout", "one or higher"]
+              ["runtime builder", "one or higher"]
             );
 
             return {
@@ -156,6 +151,103 @@ def _browser_settings_builder_flush_runner_source() -> str:
               patchStatus: text("settings-patch-status"),
               patchDetail: text("settings-patch-detail"),
               cases: [pathMapRowCase, numericCase],
+            };
+          })()
+          `;
+        }
+
+        function settingsSaveScript() {
+          return `
+          (async () => {
+            function byId(id) { return document.getElementById(id); }
+            function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
+            function requireText(id, fragments) {
+              const actual = text(id);
+              for (const fragment of fragments) {
+                if (!actual.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actual);
+              }
+            }
+            function click(id) {
+              const node = byId(id);
+              if (!node) throw new Error("missing control " + id);
+              node.click();
+            }
+            function setTextarea(id, value) {
+              const node = byId(id);
+              if (!node) throw new Error("missing textarea " + id);
+              node.value = value;
+              node.dispatchEvent(new Event("input", { bubbles: true }));
+              node.dispatchEvent(new Event("change", { bubbles: true }));
+            }
+            function clickSettingsTab(tabId) {
+              const button = document.querySelector('.settings-section-nav-btn[data-settings-tab="' + tabId + '"]');
+              if (!button) throw new Error("missing settings section " + tabId);
+              button.click();
+            }
+            async function waitFor(predicate, label, timeoutMs = 6000) {
+              const deadline = Date.now() + timeoutMs;
+              while (Date.now() < deadline) {
+                if (predicate()) return;
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+              throw new Error("Timed out waiting for " + label);
+            }
+
+            window.showPage("settings");
+            clickSettingsTab("queue-runtime");
+            window.mediaPipelineSettingsView.syncNetworkSettingsBuilderFromConfig();
+            window.mediaPipelineSettingsView.syncRuntimeSettingsBuilderFromConfig();
+            setTextarea("settings-patch-json", JSON.stringify({ RoutingProfile: "plex_direct_play" }, null, 2));
+
+            const savePosts = [];
+            const originalApiPost = window.apiPost;
+            window.apiPost = async (path, body, options) => {
+              const clonedBody = JSON.parse(JSON.stringify(body || {}));
+              if (String(path || "") === "/api/settings/save-patch") {
+                savePosts.push({ path: String(path || ""), body: clonedBody });
+              }
+              return originalApiPost(path, body, options);
+            };
+            try {
+              click("settings-save-header-save-button");
+              await waitFor(() => {
+                const dialog = byId("settings-save-review-dialog");
+                return Boolean(dialog && (dialog.open || dialog.getAttribute("open") !== null));
+              }, "settings save review dialog");
+              click("settings-save-review-confirm-button");
+              await waitFor(() => text("settings-patch-status").includes("Saved"), "settings save completion");
+            } finally {
+              window.apiPost = originalApiPost;
+            }
+
+            if (savePosts.length !== 1) throw new Error("Expected exactly one Save Settings post: " + JSON.stringify(savePosts));
+            if (savePosts[0].body.confirm_save !== true) throw new Error("Save Settings post did not include confirm_save true: " + JSON.stringify(savePosts[0]));
+            if (!savePosts[0].body.changes || savePosts[0].body.changes.RoutingProfile !== "plex_direct_play") {
+              throw new Error("Save Settings post did not include the expected RoutingProfile change: " + JSON.stringify(savePosts[0]));
+            }
+
+            const renderedText = [
+              text("settings-patch-status"),
+              text("settings-patch-detail"),
+              text("settings-backend-result-status"),
+              text("settings-backend-result-summary"),
+              text("settings-backend-result-rows"),
+              text("settings-save-header-reload-status"),
+            ].join("\\n");
+            if (renderedText.includes("Failed to fetch")) throw new Error("Settings save rendered Failed to fetch:\\n" + renderedText);
+            requireText("settings-patch-detail", ["Reloaded:"]);
+            requireText("settings-backend-result-summary", ["Save:", "Reload:"]);
+            const resultRows = document.querySelectorAll("#settings-backend-result-rows tr");
+            if (!resultRows.length) throw new Error("Settings backend-result rows did not render.");
+
+            return {
+              ok: true,
+              patchStatus: text("settings-patch-status"),
+              patchDetail: text("settings-patch-detail"),
+              backendResultStatus: text("settings-backend-result-status"),
+              backendResultSummary: text("settings-backend-result-summary"),
+              headerReloadStatus: text("settings-save-header-reload-status"),
+              savePosts,
             };
           })()
           `;
@@ -175,36 +267,54 @@ def _browser_settings_builder_flush_runner_source() -> str:
             "--no-default-browser-check",
             `--remote-debugging-port=${payload.port}`,
             `--user-data-dir=${userDataDir}`,
-            payload.url,
+            "about:blank",
           ]);
           let client = null;
           try {
-            const wsUrl = await waitForPageWebSocket(payload.port, payload.url);
+            const wsUrl = await waitForPageWebSocket(payload.port, "about:blank");
             client = createCdpClient(wsUrl);
             await client.send("Runtime.enable");
             await client.send("Log.enable");
             await client.send("Page.enable");
+            await client.send("Page.addScriptToEvaluateOnNewDocument", {
+              source: `window.MEDIA_PIPELINE_TAURI_BOOTSTRAP = {
+                apiBase: "",
+                token: ${JSON.stringify(payload.token)},
+                tokenSource: "tauri-initialization-script",
+                shellSurface: "tauri",
+              };`,
+            });
+            await client.send("Page.navigate", { url: payload.url });
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("settings-preview-patch-button") && document.getElementById("settings-save-patch-button") && document.getElementById("settings-network-path-map") && document.getElementById("settings-runtime-ffmpeg-encode-timeout") && typeof window.showPage === "function" && typeof window.mediaPipelineSettingsView?.previewSettingsPatch === "function")`,
+                expression: `Boolean(document.getElementById("settings-save-patch-button") && document.getElementById("settings-network-path-map") && document.getElementById("settings-runtime-ffmpeg-encode-timeout") && typeof window.showPage === "function" && typeof window.mediaPipelineSettingsView?.saveSettingsPatch === "function" && window.mediaPipelineApi?.tokenPresent === true && String(window.MEDIA_PIPELINE_BOOTSTRAP?.shellSurface || "").toLowerCase() === "tauri")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("settings-preview-patch-button") && document.getElementById("settings-save-patch-button") && document.getElementById("settings-network-path-map") && document.getElementById("settings-runtime-ffmpeg-encode-timeout") && typeof window.showPage === "function" && typeof window.mediaPipelineSettingsView?.previewSettingsPatch === "function")`,
+              expression: `Boolean(document.getElementById("settings-save-patch-button") && document.getElementById("settings-network-path-map") && document.getElementById("settings-runtime-ffmpeg-encode-timeout") && typeof window.showPage === "function" && typeof window.mediaPipelineSettingsView?.saveSettingsPatch === "function" && window.mediaPipelineApi?.tokenPresent === true && String(window.MEDIA_PIPELINE_BOOTSTRAP?.shellSurface || "").toLowerCase() === "tauri")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Settings builder WebView globals or DOM nodes did not become ready.");
-            const result = await client.send("Runtime.evaluate", {
+            const invalidResult = await client.send("Runtime.evaluate", {
               expression: invalidBuilderScript(),
               awaitPromise: true,
               returnByValue: true,
             });
-            if (result.exceptionDetails) {
-              const details = result.exceptionDetails;
+            if (invalidResult.exceptionDetails) {
+              const details = invalidResult.exceptionDetails;
+              throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
+            }
+            const saveResult = await client.send("Runtime.evaluate", {
+              expression: settingsSaveScript(),
+              awaitPromise: true,
+              returnByValue: true,
+            });
+            if (saveResult.exceptionDetails) {
+              const details = saveResult.exceptionDetails;
               throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
             }
             await sleep(500);
@@ -212,7 +322,13 @@ def _browser_settings_builder_flush_runner_source() -> str:
             if (client.exceptions.length || errorEvents.length) {
               throw new Error(`Browser console/exception noise: ${client.exceptions.concat(errorEvents).join("; ")}`);
             }
-            console.log(JSON.stringify({ ok: true, result: result.result?.value || {} }));
+            console.log(JSON.stringify({
+              ok: true,
+              result: {
+                invalidBuilder: invalidResult.result?.value || {},
+                save: saveResult.result?.value || {},
+              },
+            }));
           } finally {
             if (client) client.close();
             await terminateBrowser(browser);
@@ -227,7 +343,7 @@ def _browser_settings_builder_flush_runner_source() -> str:
     )
 
 
-def _run_browser_settings_builder_flush_smoke(*, browser_path: str, url: str) -> dict[str, object]:
+def _run_browser_settings_builder_flush_smoke(*, browser_path: str, url: str, token: str) -> dict[str, object]:
     node = shutil.which("node")
     if not node:
         raise unittest.SkipTest("Node.js is required for the browser-backed Settings builder flush smoke.")
@@ -241,6 +357,7 @@ def _run_browser_settings_builder_flush_smoke(*, browser_path: str, url: str) ->
                 {
                     "browserPath": browser_path,
                     "port": port,
+                    "token": token,
                     "tmpRoot": str(tmp),
                     "url": url,
                 },
@@ -273,6 +390,7 @@ class WebViewBrowserSettingsBuilderFlushSmoke(unittest.TestCase):
             server = LocalApiServer(
                 facade,
                 token="browser-settings-builder-flush-token",
+                shell_surface="tauri",
                 resolved_provider=lambda: resolved,
                 audit_root_provider=lambda: str(root),
             )
@@ -280,19 +398,30 @@ class WebViewBrowserSettingsBuilderFlushSmoke(unittest.TestCase):
                 server.start()
                 result = _run_browser_settings_builder_flush_smoke(
                     browser_path=browser_path,
+                    token=server.token,
                     url=f"{server.url}/",
                 )
             finally:
                 server.stop()
             assert_media_no_mutation(self, media_snapshot)
 
-        browser_result = result["result"]
-        self.assertEqual(browser_result["patchStatus"], "Builder invalid")
-        self.assertIn("Encode Timeout", browser_result["patchDetail"])
-        self.assertEqual([case["name"] for case in browser_result["cases"]], ["network-path-map-row", "runtime-positive-number"])
-        for case in browser_result["cases"]:
+        invalid_result = result["result"]["invalidBuilder"]
+        self.assertEqual(invalid_result["patchStatus"], "Builder invalid")
+        self.assertIn("runtime builder", invalid_result["patchDetail"])
+        self.assertIn("one or higher", invalid_result["patchDetail"])
+        self.assertEqual([case["name"] for case in invalid_result["cases"]], ["network-path-map-row", "runtime-positive-number"])
+        for case in invalid_result["cases"]:
             self.assertEqual(case["patchStatus"], "Builder invalid")
             self.assertEqual(case["invalidBuilderPosts"], [])
+        save_result = result["result"]["save"]
+        self.assertEqual(save_result["patchStatus"], "Saved")
+        self.assertIn("Reloaded:", save_result["patchDetail"])
+        self.assertIn("Save:", save_result["backendResultSummary"])
+        self.assertIn("Reload:", save_result["backendResultSummary"])
+        self.assertEqual(len(save_result["savePosts"]), 1)
+        self.assertEqual(save_result["savePosts"][0]["path"], "/api/settings/save-patch")
+        self.assertIs(save_result["savePosts"][0]["body"]["confirm_save"], True)
+        self.assertEqual(save_result["savePosts"][0]["body"]["changes"]["RoutingProfile"], "plex_direct_play")
 
 
 if __name__ == "__main__":

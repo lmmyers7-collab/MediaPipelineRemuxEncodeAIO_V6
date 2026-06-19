@@ -160,7 +160,19 @@
     if (selectedActiveJobKey && !lastActiveJobRows.some((row) => activeJobRowKey(row) === selectedActiveJobKey)) {
       selectedActiveJobKey = "";
     }
-    setText("active-job-detail-status", activeJobRowsStatusText(lastActiveJobRows));
+    const statusText = activeJobRowsStatusText(lastActiveJobRows);
+    const statusState = lastActiveJobRows.some((row) => activeJobRowPosture(row) === "blocked")
+      ? "blocked"
+      : lastActiveJobRows.some((row) => activeJobRowPosture(row) === "warning")
+        ? "warning"
+        : lastActiveJobRows.length
+          ? "ready"
+          : "empty";
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("active-job-detail-status", statusText, statusState);
+    } else {
+      setText("active-job-detail-status", statusText);
+    }
     const tbody = byId("active-job-detail-rows");
     if (!tbody) return;
     if (!lastActiveJobRows.length) {

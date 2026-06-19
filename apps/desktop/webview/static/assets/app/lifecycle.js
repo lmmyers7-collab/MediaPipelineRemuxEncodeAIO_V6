@@ -621,7 +621,6 @@
     const tooltips = [
       ["#pipeline-start-button", "Start is disabled while active work is reported. Backend start routes re-check queue, schedule, settings, and process locks at submission time."],
       ["#home-refresh-button", "Refreshes dashboard state from backend snapshots without starting or mutating media work."],
-      ["#audit-start-button", "Starts backend audit mode. Use only after the library root and active-work state look correct."],
       ["#rerun-dry-run-button", "Previews backend CSV rerun as a dry run. Review dry-run evidence before starting a live copy / keep / park rerun."],
       ["#rerun-start-button", "Starts backend CSV rerun with copy / keep / park policy. Review the CSV path and preflight before starting."],
       ["#pending-drain-button", "Requests backend pending-publish drain. Drain safety remains backend-owned and requires parked payload evidence."],
@@ -663,7 +662,6 @@
       ["#settings-library-reset-button", "Reloads library cards from current saved backend settings."],
       ['[data-settings-path-key]', "Opens a backend-owned Windows folder picker and stages this Settings field. It does not save the PSD1 or touch media files."],
       ["#settings-save-patch-button", "Saves staged settings through backend validation. Raw WebView fields never write directly to the PSD1."],
-      ["#settings-preview-patch-button", "Previews staged settings changes without saving."],
     ];
     tooltips.forEach(([selector, title]) => {
       document.querySelectorAll(selector).forEach((node) => {
@@ -905,6 +903,7 @@
     document.body.classList.toggle("light-mode", light);
     if (btn) btn.textContent = light ? "Dark" : "Light";
     try { localStorage.setItem(THEME_STORAGE_KEY, light ? "light" : "dark"); } catch (_) {}
+    window.mediaPipelineTelemetryView?.redrawTelemetryCharts?.();
   }
 
   function renderBackendLifecycle(closeReadiness = lastCloseReadiness, snapshot = lastSnapshot) {

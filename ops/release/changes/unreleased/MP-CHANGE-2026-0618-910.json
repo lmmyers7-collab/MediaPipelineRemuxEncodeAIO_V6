@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0618-910",
+  "title": "Make all backend marker clear immediate",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Make the Reports Clear All Backend Markers button submit the backend-owned all_markers clear command immediately, without requiring a matching Preview All Backend Markers dry run first.",
+  "reason": "The operator expects one click on Clear All Backend Markers to clear active backend marker blockers without a separate preview step or browser confirmation prompt.",
+  "affected_areas": [
+    "webview_reports",
+    "failure_marker_cleanup",
+    "operator_controls"
+  ],
+  "behavior_before": "Clear All Backend Markers was blocked unless Preview All Backend Markers had been run in the same page session against a matching marker source/count, and clear actions used a browser confirmation prompt.",
+  "behavior_after": "Clear All Backend Markers posts /api/failures/clear with scope all_markers and confirm_clear true immediately, lets the backend enumerate marker paths, and updates the local marker table while selected/visible clears keep their existing confirmation behavior.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reportsView.js",
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/reportsView.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/partials/page-reports.html.md",
+    "Docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "Docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-910.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-910.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_reports_view_static.py -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_maintenance_reports_smoke.py -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/reportsView.js apps/desktop/webview/static/partials/page-reports.html tests/python/desktop/test_reports_view_static.py tests/webview/test_webview_browser_maintenance_reports_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0618-910.json - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated packets MP-CHANGE-2026-0619-002/005 using invalid types and unrelated uncovered dirty files: apps/desktop/webview/static/assets/settings/backendResult.js, src/mediapipeline/contracts/config_defaults.py, src/mediapipeline/core/rename/contracts.py, src/mediapipeline/core/rename/planner.py, src/mediapipeline/core/rename/service.py"
+  ],
+  "rollback_plan": "Restore the all-marker preview gate and browser confirmation branch in reportsView.js, restore the Reports cleanup copy, and revert the matching static/browser smoke expectations.",
+  "related_changes": [],
+  "notes": "No backend route, media policy, source file, output file, pending publish, or marker archive service behavior changed; the UI still calls the backend-owned failure marker clear command."
+}

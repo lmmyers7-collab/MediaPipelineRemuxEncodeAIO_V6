@@ -7,6 +7,7 @@
 
   function createDomStatusModule(deps = {}) {
     const setText = typeof deps.setText === "function" ? deps.setText : function () {};
+    const byId = typeof deps.byId === "function" ? deps.byId : (id) => document.getElementById(id);
 
     function normalizedTableStatus(value) {
       return String(value || "").trim().toLowerCase() || "normal";
@@ -35,6 +36,13 @@
         do_not_launch: "blocked",
         review: "warning",
         active: "running",
+        loading: "loading",
+        updating: "loading",
+        requesting: "loading",
+        stale: "warning",
+        partial: "warning",
+        canceled: "warning",
+        cancelled: "warning",
         unavailable: "unavailable",
         "not available": "unavailable",
         not_available: "unavailable",
@@ -57,6 +65,7 @@
         "paused",
         "retrying",
         "changed",
+        "loading",
         "unavailable",
         "unknown",
         "empty",
@@ -86,6 +95,78 @@
         if (state && state !== "normal") return state;
       }
       return "";
+    }
+
+    function normalizePanelStatusState(state, message) {
+      const explicit = normalizeBackendStatusState(state);
+      if (explicit) {
+        if (explicit === "failed" || explicit === "unavailable") return "blocked";
+        if (explicit === "match" || explicit === "completed") return "ready";
+        return explicit;
+      }
+      const text = String(message || state || "").trim().toLowerCase();
+      if (!text) return "empty";
+      if (text === "idle" || text === "not loaded" || text === "no rows" || text === "none"
+          || text.startsWith("no ")) return "empty";
+      if (text.includes("loading") || text.includes("reading") || text.includes("opening")
+          || text.includes("requesting") || text.includes("running") || text.includes("busy")) return "loading";
+      if (text.includes("cancel")) return "warning";
+      if (text.includes("stale") || text.includes("partial") || text.includes("warning")
+          || text.includes("review") || text.includes("truncated") || text.includes("unavailable")) return "warning";
+      if (text.includes("blocked") || text.includes("failed") || text.includes("error")
+          || text.includes("missing") || text.includes("denied")) return "blocked";
+      if (text.includes("loaded") || text.includes("complete") || text.includes("ready")
+          || text.includes("safe") || text.includes("ok")) return "ready";
+      return "unknown";
+    }
+
+    function setPanelStatus(id, message, state) {
+      setText(id, message);
+      const node = byId(id);
+      if (!node) return "";
+      const normalized = normalizePanelStatusState(state, message);
+      node.dataset.state = normalized;
+      node.setAttribute("role", "status");
+      node.setAttribute("aria-live", "polite");
+      return normalized;
+    }
+
+    let inlineActionStatusSequence = 0;
+
+    function ensureInlineActionStatus(button) {
+      if (!button || !button.insertAdjacentElement) return null;
+      const describedBy = button.getAttribute("aria-describedby") || "";
+      const existing = describedBy ? document.getElementById(describedBy) : null;
+      if (existing?.classList?.contains("inline-action-status")) return existing;
+      const next = button.nextElementSibling;
+      if (next?.classList?.contains("inline-action-status")) return next;
+      inlineActionStatusSequence += 1;
+      const status = document.createElement("span");
+      status.id = `inline-action-status-${inlineActionStatusSequence}`;
+      status.className = "inline-action-status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+      button.setAttribute("aria-describedby", status.id);
+      button.insertAdjacentElement("afterend", status);
+      return status;
+    }
+
+    function setInlineActionStatus(button, message, state) {
+      const status = ensureInlineActionStatus(button);
+      if (!status) return "";
+      const normalized = normalizePanelStatusState(state, message);
+      status.textContent = String(message || "");
+      status.dataset.state = normalized;
+      if (button?.dataset) button.dataset.state = normalized;
+      return normalized;
+    }
+
+    function setActionBusy(button, isBusy, message) {
+      if (!button) return;
+      const busy = Boolean(isBusy);
+      button.disabled = busy;
+      button.setAttribute("aria-busy", busy ? "true" : "false");
+      if (message) setInlineActionStatus(button, message, busy ? "loading" : undefined);
     }
 
     function statusChipState(status, label) {
@@ -164,15 +245,61 @@
       setText(id, tableStatusLegendText(tbody, label));
     }
 
+    function reviewTileTone(tone) {
+      const raw = normalizedTableStatus(tone);
+      if (["danger", "error", "failed", "failure", "blocked", "critical"].includes(raw)) return "danger";
+      if (["warning", "warn", "review", "stale", "partial", "changed", "validation-needed"].includes(raw)) return "warning";
+      if (["success", "ok", "safe", "ready", "match", "completed", "complete", "healthy"].includes(raw)) return "success";
+      if (["info", "running", "active", "loading", "queued", "publishing", "draining"].includes(raw)) return "info";
+      return "muted";
+    }
+
+    function makeReviewTile(tile = {}) {
+      const input = tile && typeof tile === "object" ? tile : {};
+      const node = document.createElement("section");
+      node.className = "review-tile";
+      if (input.wide) node.classList.add("review-tile-wide");
+      node.dataset.tone = reviewTileTone(input.tone);
+      const label = document.createElement("span");
+      label.className = "review-tile-label";
+      label.textContent = String(input.label || "Status").trim() || "Status";
+      const value = document.createElement("strong");
+      value.className = "review-tile-value";
+      value.textContent = String(input.value ?? "Not loaded").trim() || "Not loaded";
+      const detail = document.createElement("span");
+      detail.className = "review-tile-detail";
+      detail.textContent = String(input.detail ?? "").trim();
+      node.append(label, value, detail);
+      node.title = [label.textContent, value.textContent, detail.textContent].filter(Boolean).join(": ");
+      return node;
+    }
+
+    function renderReviewTileBoard(targetId, tiles, options = {}) {
+      const target = typeof targetId === "string" ? byId(targetId) : targetId;
+      if (!target) return 0;
+      const rows = Array.isArray(tiles) ? tiles.filter(Boolean) : [];
+      const emptyTile = options && options.emptyTile;
+      const renderedTiles = rows.length ? rows : (emptyTile ? [emptyTile] : []);
+      target.replaceChildren(...renderedTiles.map((tile) => makeReviewTile(tile)));
+      return renderedTiles.length;
+    }
+
     return {
       normalizedTableStatus,
       normalizeBackendStatusState,
       backendRowStatusState,
       statusChipState,
+      normalizePanelStatusState,
+      setPanelStatus,
+      setInlineActionStatus,
+      setActionBusy,
       makeStatusChip,
       setCellStatusChip,
       tableStatusLegendText,
       updateTableStatusLegend,
+      reviewTileTone,
+      makeReviewTile,
+      renderReviewTileBoard,
     };
   }
 

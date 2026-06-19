@@ -34,7 +34,8 @@ from mediapipeline.desktop.api.routes import GET_ROUTE_HANDLERS, POST_ROUTE_HAND
 from mediapipeline.desktop.api.static_files import local_api_bootstrap, read_static_asset, render_index
 from mediapipeline.desktop.application import CommandResult, MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
-from tests.python.desktop.test_application_facade import DummyFacadeService
+from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.test_service_config_validation import _valid_config_values
 
 
 class ApplicationFacadeCoreContractTests(unittest.TestCase):
@@ -362,7 +363,15 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
 
         handler = FakeHandler()
 
-        send_bytes(handler, b"ok", content_type="text/plain; charset=utf-8")  # type: ignore[arg-type]
+        send_bytes(
+            handler,
+            b"ok",
+            content_type="text/plain; charset=utf-8",
+            extra_headers=[
+                ("Access-Control-Allow-Origin", "tauri://localhost"),
+                ("Vary", "Origin"),
+            ],
+        )  # type: ignore[arg-type]
 
         headers = dict(handler.headers)
         self.assertEqual(handler.status, 200)
@@ -373,6 +382,8 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertIn("object-src 'none'", headers["Content-Security-Policy"])
         self.assertEqual(headers["X-Content-Type-Options"], "nosniff")
         self.assertEqual(headers["Referrer-Policy"], "no-referrer")
+        self.assertEqual(headers["Access-Control-Allow-Origin"], "tauri://localhost")
+        self.assertEqual(headers["Vary"], "Origin")
 
     def test_local_api_json_body_rejects_nonfinite_constants(self) -> None:
         body = b'{"progress": NaN}'
@@ -436,6 +447,113 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
         self.assertEqual(set(POST_ROUTE_HANDLERS), documented_post)
         for spec in [*GET_ROUTE_HANDLERS.values(), *POST_ROUTE_HANDLERS.values()]:
             self.assertTrue(callable(getattr(server, spec.method_name, None)), spec.method_name)
+
+    def test_local_api_handler_routes_json_and_static_responses_through_send_bytes(self) -> None:
+        repo_root = find_repo_root(Path(__file__))
+        handler_source = (repo_root / "src" / "mediapipeline" / "desktop" / "api" / "handler.py").read_text(encoding="utf-8")
+        server_source = (repo_root / "src" / "mediapipeline" / "desktop" / "api" / "server.py").read_text(encoding="utf-8")
+
+        direct_response_lines = [
+            line.strip()
+            for line in handler_source.splitlines()
+            if "send_response(" in line and "self.send_response(204)" not in line
+        ]
+
+        self.assertEqual(direct_response_lines, [])
+        self.assertIn("self._send_bytes(body", handler_source)
+        self.assertIn("*cors_response_headers(self._cors_response_origin())", handler_source)
+        self.assertIn("handler._send_bytes(", server_source)
+
+    def test_local_api_tauri_origin_actual_responses_include_cors_headers(self) -> None:
+        from urllib.request import Request, urlopen
+
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = _valid_config_values()
+            resolved.config_path.write_text(service.serialize_psd1_document(resolved.config_data), encoding="utf-8")
+            server = LocalApiServer(
+                facade,
+                token="test-token",
+                shell_surface="tauri",
+                resolved_provider=lambda: resolved,
+                audit_root_provider=lambda: str(root),
+            )
+            try:
+                server.start()
+                health_request = Request(
+                    f"{server.url}/api/health",
+                    headers={"Origin": "tauri://localhost"},
+                )
+                snapshot_request = Request(
+                    f"{server.url}/api/snapshot",
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Origin": "tauri://localhost",
+                    },
+                )
+                workspace_request = Request(
+                    f"{server.url}/api/settings/workspace",
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Origin": "tauri://localhost",
+                    },
+                )
+                save_body = json.dumps(
+                    {
+                        "changes": {"RoutingProfile": "plex_direct_play"},
+                        "confirm_save": True,
+                    },
+                    ensure_ascii=False,
+                ).encode("utf-8")
+                save_request = Request(
+                    f"{server.url}/api/settings/save-patch",
+                    data=save_body,
+                    headers={
+                        "Authorization": "Bearer test-token",
+                        "Content-Type": "application/json",
+                        "Origin": "tauri://localhost",
+                    },
+                    method="POST",
+                )
+                with urlopen(health_request, timeout=5) as health_response:  # noqa: S310 - localhost test server
+                    health_status = health_response.status
+                    health_headers = dict(health_response.headers.items())
+                    health_response.read()
+                with urlopen(snapshot_request, timeout=5) as snapshot_response:  # noqa: S310 - localhost test server
+                    snapshot_status = snapshot_response.status
+                    snapshot_headers = dict(snapshot_response.headers.items())
+                    snapshot_payload = json.loads(snapshot_response.read().decode("utf-8"))
+                with urlopen(workspace_request, timeout=5) as workspace_response:  # noqa: S310 - localhost test server
+                    workspace_status = workspace_response.status
+                    workspace_headers = dict(workspace_response.headers.items())
+                    workspace_payload = json.loads(workspace_response.read().decode("utf-8"))
+                with urlopen(save_request, timeout=5) as save_response:  # noqa: S310 - localhost test server
+                    save_status = save_response.status
+                    save_headers = dict(save_response.headers.items())
+                    save_payload = json.loads(save_response.read().decode("utf-8"))
+            finally:
+                server.stop()
+
+        self.assertEqual(health_status, 200)
+        self.assertEqual(health_headers["Access-Control-Allow-Origin"], "tauri://localhost")
+        self.assertEqual(health_headers["Vary"], "Origin")
+        self.assertEqual(snapshot_status, 200)
+        self.assertEqual(snapshot_headers["Access-Control-Allow-Origin"], "tauri://localhost")
+        self.assertEqual(snapshot_headers["Vary"], "Origin")
+        self.assertEqual(snapshot_payload["status_summary"], "Status OK")
+        self.assertEqual(workspace_status, 200)
+        self.assertEqual(workspace_headers["Access-Control-Allow-Origin"], "tauri://localhost")
+        self.assertEqual(workspace_headers["Vary"], "Origin")
+        self.assertEqual(workspace_payload["schema_version"], "desktop_settings_workspace.v1")
+        self.assertEqual(save_status, 200)
+        self.assertEqual(save_headers["Access-Control-Allow-Origin"], "tauri://localhost")
+        self.assertEqual(save_headers["Vary"], "Origin")
+        self.assertTrue(save_payload["ok"])
+        self.assertEqual(save_payload["command"], "settings.save_patch")
+        self.assertEqual(service.saved_config_calls[-1]["config_values"]["RoutingProfile"], "plex_direct_play")
 
     def test_ui_preferences_round_trip_uses_state_root_and_allowlisted_keys(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

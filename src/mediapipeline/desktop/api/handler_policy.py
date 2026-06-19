@@ -38,6 +38,14 @@ def options_response_headers(allowed_origin: str = "http://127.0.0.1") -> list[t
 OPTIONS_RESPONSE_HEADERS = options_response_headers()
 
 
+def cors_response_headers(allowed_origin: str = "http://127.0.0.1") -> list[tuple[str, str]]:
+    origin = str(allowed_origin or "").strip() or "http://127.0.0.1"
+    return [
+        ("Access-Control-Allow-Origin", origin),
+        ("Vary", "Origin"),
+    ]
+
+
 def bounded_error_text(value: object, *, limit: int = 2000) -> str:
     text = str(value or "")
     if len(text) <= limit:

@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 116 (46 read, 70 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 140 (49 read, 91 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -47,6 +47,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/failures` | `read` | No | Failure markers and reports; query-bounded |
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
 | `GET /api/audit-controls` | `read` | No | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
+| `GET /api/rename/cleaning-filters` | `read` | No | Reads backend-owned movie and TV cleaning filter catalogs only |
 | `GET /api/rename/movie-cleaning-filters` | `read` | No | Reads backend-owned movie filename cleaning filter catalog only |
 | `GET /api/rename/clean-filename-preview` | `read` | No | Read-only clean-filename preview; accepts query fields and writes nothing |
 | `GET /api/pending-publish` | `read` | No | Reads manifests and parked payloads; does not drain |
@@ -59,9 +60,11 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/maintenance` | `bounded-health-check` | No | Runs existing env/tool probes; does not repair, install, remove, or change anything |
 | `GET /api/maintenance/progress` | `read` | No | Reads latest maintenance health-progress state; does not run probes or repair |
 | `GET /api/maintenance/change-ledger` | `read` | No | Reads structured change-control packets, changelog source status, and hygiene; no probes, codegen, packet writes, or media/state mutation |
+| `GET /api/maintenance/productization` | `read` | No | Reads installer/updater/AppData productization readiness, migration posture, release channel, and close-readiness evidence only |
 | `GET /api/schedule` | `read` | No | Reads persisted schedule state; does not save or edit |
 | `GET /api/watch-folders/status` | `read` | No | Reads watch-folder manager state only; does not scan on demand, launch, or mutate queue/process state |
 | `GET /api/settings/workspace` | `read` | No | Read-only, redacted settings snapshot |
+| `GET /api/settings/preset-library` | `read` | No | Reads backend PresetV2 library State JSON only; no active config save, queue mutation, launch, or media touch |
 | `GET /api/libraries/route-map` | `read` | No | Backend-authored Library Route Map and decision-matrix evidence only; no save, launch, plugin execution, queue mutation, or media touch |
 | `GET /api/libraries/route-map/trace` | `read` | No | Selected-file trace from existing Queue, Completed, and Sample Validation row evidence only; no probing, launch, save, repair, drain, rename, or media mutation |
 | `GET /api/libraries/route-map/compare` | `read` | No | Backend-authored Library Profile diff with explicit/inherited evidence and designation filtering; no staging or saving |
@@ -104,6 +107,7 @@ Writes backend-owned queue state manifests. These routes never rename, move, del
 | `POST /api/queue/strategy` | `queue-state-write` | Frontend cannot write queue strategy state directly | `strategy` must be one of the backend-declared valid strategy names |
 | `POST /api/queue/file-overrides` | `queue-state-write` | Frontend cannot write per-file media-policy override manifests directly | `path` must be source-root-contained unless `clear_all` is requested; writes non-destructive audio/subtitle/routing/video override metadata only |
 | `POST /api/queue/file-overrides/series-apply` | `queue-state-write` | Frontend cannot decide or write series batch override scope directly | Requires `confirm_apply: true` plus a matching backend preview fingerprint; writes exact overrides only for eligible current queue rows, protects exact manual rows, and creates no future show/folder policy |
+| `POST /api/queue/file-overrides/remux-pilot-promote` | `queue-state-write` | Frontend cannot decide or write pilot series remux scope directly | Requires `confirm_apply: true`; writes exact per-file remux overrides for eligible remaining current queue rows in the detected pilot series only |
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | Frontend cannot write folder override manifests directly | `folder_path` must be under source roots but not a source/library root; raw FFmpeg map fields and file-only stream indexes are rejected; explicit confirmation evidence is required |
 
 ### read-only-preview (no output or state written)
@@ -157,6 +161,14 @@ Opens a backend-owned native Windows dialog and returns operator-selected paths 
 | `POST /api/settings/browse-path` | `shell-dialog` | Frontend cannot browse or resolve settings paths directly | Folder-only browser for allowlisted source/output/scratch and final-library promotion root settings; result is staged evidence only and does not save config |
 | `POST /api/pipeline/browse-file` | `shell-dialog` | Frontend cannot browse or validate single-file paths directly | File-only browser for Launch single-file staging; result does not save config, launch work, mutate queue state, or touch media |
 
+### test-fixture-write (low risk, regression corpus only)
+
+Appends backend-validated regression fixture rows. This does not inspect, preview, rename, move, delete, or touch media files.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/rename/filter-cases` | `test-fixture-write` | Frontend cannot choose arbitrary fixture paths or bypass confirmation | `confirm_append` required; backend writes only `tests/fixtures/rename/bad_rename_cases.jsonl` |
+
 ### dry-run / validation / preview (effect `none`)
 
 Returns backend-computed plans, diffs, validation results, or reload status. No files are moved, created, published, deleted, or written.
@@ -164,10 +176,21 @@ Returns backend-computed plans, diffs, validation results, or reload status. No 
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/pending-publish/recovery-plan` | `none` | Frontend cannot author the plan | `scope`: `all` or `selected` only; dry-run result is read-only |
+| `POST /api/completed/reconcile-manifest-dry-run` | `none` | Frontend cannot repair Completed manifests | Backend-authored dry-run diff only; no manifest write, sidecar write, publish, drain, move, delete, rerun, or media touch |
+| `POST /api/completed/repair-sidecar-metadata-dry-run` | `none` | Frontend cannot repair sidecar metadata | Backend-authored dry-run diff only; no sidecar JSON write, manifest write, publish, drain, move, delete, rerun, or media touch |
+| `POST /api/pending-publish/repair-manifest-dry-run` | `none` | Frontend cannot repair pending-publish manifests | Backend-authored dry-run diff only; no manifest write, drain, publish, move, delete, rerun, or media touch |
+| `POST /api/pending-publish/reconcile-orphan-payloads-dry-run` | `none` | Frontend cannot create pending-publish manifests | Backend-authored orphan-payload review only; no manifest create, drain, publish, move, delete, rerun, or media touch |
+| `POST /api/startup/reconcile-dry-run` | `none` | Frontend cannot reconcile startup state or repair/rebuild manifests | Backend-authored startup reconciliation evidence only; no write, repair, rebuild, migration, drain, publish, move, delete, rerun, queue mutation, or media touch |
+| `POST /api/maintenance/retention-dry-run` | `none` | Frontend cannot decide or execute runtime retention cleanup | Backend-authored retention candidate report only; no delete, move, archive, truncate, rewrite, drain, publish, or source/output/pending-publish media touch |
 | `POST /api/rename/preview` | `none` | Frontend cannot run pipeline rename planning | Predictions only; no files touched |
 | `POST /api/settings/validate` | `none` | Frontend cannot validate config schema independently | Validation only |
 | `POST /api/settings/preview-patch` | `none` | Frontend cannot diff or persist config independently | Returns redacted diff; no config written |
 | `POST /api/settings/pipeline-plan-preview` | `none` | Frontend cannot make source/probe/media-policy decisions | Validates supplied source facts and staged patch; returns backend-owned dry-run plan only |
+| `POST /api/settings/preset-library/validate` | `none` | Frontend cannot validate PresetV2 independently | Validates inline PresetV2 only; no State JSON or active config write |
+| `POST /api/settings/preset-library/compare` | `none` | Frontend cannot compare preset media policy independently | Compares preset records or inline PresetV2 documents through backend legacy-patch projection only |
+| `POST /api/settings/preset-library/import-preview` | `none` | Frontend cannot import preset records directly | Validates import candidates and reports State JSON target only |
+| `POST /api/settings/preset-library/export` | `none` | Frontend cannot read arbitrary export paths | Returns a backend preset record or inline PresetV2 export payload only |
+| `POST /api/settings/preset-library/apply-preview` | `none` | Frontend cannot apply PresetV2 policy independently | Converts PresetV2 to a legacy settings patch and runs existing backend settings preview semantics only |
 | `POST /api/settings/wizard/validate-paths` | `none` | Frontend cannot validate wizard paths independently | Validation only |
 | `POST /api/settings/wizard/validate-tools` | `none` | Frontend cannot validate tool paths independently | Validation only |
 | `POST /api/settings/wizard/probe-hardware` | `none` | Frontend cannot run hardware probes independently | Bounded backend hardware probe evidence only |
@@ -180,6 +203,25 @@ Returns backend-computed plans, diffs, validation results, or reload status. No 
 | `POST /api/network/coordinator/stop-dry-run` | `none` | Frontend cannot decide coordinator stop safety | Backend reports active-work, claim, provider, and state-preservation posture only |
 | `POST /api/network/worker/start-dry-run` | `none` | Frontend cannot claim work or validate path maps independently | Backend reports coordinator URL, path-map, pending-done, provider, and no-touch posture only |
 | `POST /api/network/worker/stop-dry-run` | `none` | Frontend cannot abort work or clean scratch independently | Backend reports worker stop and pending-done posture only |
+
+### repair/reconcile confirmed writes (medium risk, manifest or sidecar state only)
+
+Confirmed repair/reconcile routes rerun the backend dry-run, require a matching `dry_run_fingerprint` plus explicit confirmation, and back up touched files before atomic writes. They never drain, move, delete, publish, rerun processing, or touch source/scratch/output media bytes.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/completed/reconcile-manifest` | `completed-manifest-write` | Frontend cannot rewrite completed manifests directly | Rewrites existing selected manifest rows only after matching backend dry-run fingerprint; no row add/remove |
+| `POST /api/completed/repair-sidecar-metadata` | `completed-sidecar-json-write` | Frontend cannot rewrite sidecar JSON directly | Updates only backend-derived sidecar metadata fields; preserves unknown fields |
+| `POST /api/pending-publish/repair-manifest` | `pending-manifest-write` | Frontend cannot repair pending manifests directly | Route is fingerprint-gated and blocks unless backend dry-run supplies complete proposed manifest fields |
+| `POST /api/pending-publish/reconcile-orphan-payloads` | `pending-orphan-manifest-write` | Frontend cannot reconcile orphan payloads directly | Manifest-only route is fingerprint-gated, blocks without complete backend evidence, and never moves/deletes/drains/publishes payloads |
+
+### preset-library-state-write (low risk, settings preset library only)
+
+Writes backend-owned PresetV2 library state under `State\PresetLibrary`. It does not save active PSD1 settings, launch work, mutate queue state, or touch media files.
+
+| Route | Mutation class | Frontend cannot own? | Key restriction |
+|---|---|---|---|
+| `POST /api/settings/preset-library/save` | `preset-library-state-write` | Frontend cannot write preset library JSON directly | Backend validates PresetV2 and writes `State/PresetLibrary/presets.json` only |
 
 ### app-state-write / ui-state-write (non-media app state)
 
@@ -225,6 +267,7 @@ Writes and atomically reloads the live config PSD1 through backend-owned setting
 | Route | Mutation class | Frontend cannot own? | Key restriction |
 |---|---|---|---|
 | `POST /api/settings/save-patch` | `config-write` | Frontend cannot write PSD1 directly | `confirm_save` required; backend validates, backs up, writes, and reloads |
+| `POST /api/settings/preset-library/apply` | `config-write` | Frontend cannot convert or save PresetV2 policy directly | `confirm_apply` required; backend converts PresetV2 to a legacy settings patch and saves through the existing settings policy for future launches |
 | `POST /api/settings/wizard/save` | `config-write` | Frontend cannot write PSD1 directly | `confirm_save` required; backend uses normal settings save path |
 | `POST /api/network/worker/join-cluster` | `config-write` | Frontend cannot import worker URL/token/path-map directly | `confirm_import` required; backend decodes the secret-safe join blob, saves worker settings through the normal settings path, then runs read-only test-connection |
 
@@ -245,7 +288,7 @@ Performs backend-owned filesystem mutation after explicit confirmation. The fron
 | `POST /api/rename/apply` | `filesystem-mutation` | Frontend cannot execute filesystem renames | `confirm_apply` required; backend rebuilds plan from state and applies only selected rows; outside configured roots require explicit override |
 | `POST /api/final-library-promotion/promote-queue` | `filesystem-mutation` | Frontend cannot copy/promote outputs or choose destinations directly | `confirm_promote` required; backend resolves eligible completed rows, destinations, copy behavior, and cleanup policy |
 
-### process-dry-run / tooling-artifact-write / deployment-write
+### process-dry-run / tooling-artifact-write / diagnostics-artifact-write / deployment-write
 
 Runs backend maintenance tooling. Dry runs write no ops/release/metadata/backfill artifacts; write routes are bounded to development/deployment artifacts and do not touch media or queue state.
 
@@ -254,6 +297,8 @@ Runs backend maintenance tooling. Dry runs write no ops/release/metadata/backfil
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | Frontend cannot invoke the release script directly | Runs release builder with dry-run semantics; no release folder or zip written |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | Frontend cannot invoke the backfill script directly | Runs backfill dry-run; no completed manifest written |
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | Frontend cannot regenerate tooling artifacts directly | Writes generated dependency-atlas artifacts under `docs/generated/dependency-atlas/` only; no media, queue, settings, manifests, pending publish, or pipeline state touched |
+| `POST /api/maintenance/support-export` | `diagnostics-artifact-write` | Frontend cannot assemble support bundles directly | Backend writes a redacted support export under per-user AppData DiagnosticsExports only; no config write, launch, queue, manifest, pending publish, or media mutation |
+| `POST /api/maintenance/archive-state-journals` | `runtime-evidence-archive` | Frontend cannot archive state journals directly | `confirm_archive` required; archives backend state-journal evidence only and does not mutate media, queue, settings, manifests, or pending publish state |
 | `POST /api/maintenance/release-build` | `deployment-write` | Frontend cannot create release packages directly | `confirm_create` required; backend checks active work, owns destination replacement, manifest creation, and optional zip creation |
 
 ### backend-lifecycle (critical)
@@ -286,17 +331,18 @@ Spawns backend processes. The backend owns launch locks, command journal entries
 
 ---
 
-## Design-Only Repair/Reconcile Boundary
+## Repair/Reconcile Confirmed-Apply Boundary
 
-Repair/reconcile is not an active command surface. `/api/contract` publishes design-only entries for Completed manifest reconciliation, Completed sidecar metadata repair, Pending Publish manifest repair, and orphan pending payload reconciliation. Every entry keeps `mutation_enabled=false` and `frontend_allowed=false`.
+Repair/reconcile is an active but constrained backend-owned command surface for selected Completed and Pending Publish repairs. Dry-runs remain `effect=none` and return a stable `dry_run_fingerprint`; confirmed apply routes rerun the dry-run, require the same fingerprint and explicit confirmation, write backups under backend State, and report rollback status.
 
-Required before any future implementation:
+Current limits:
 
-- A backend dry-run route with `effect=none`, `dry_run_only=true`, exact backend-selected scope, precondition results, diff summary, and `would_not_touch` evidence for source media, scratch media, parked payloads, destination output, and unrelated state.
-- A mutation route only after backup/rollback semantics, command journal fields, atomic write or verified-move rules, and failure rollback tests exist.
-- Route inventory, command ownership, WebView mutation-boundary tests, browser no-mutation evidence, and change-control evidence before any WebView control is exposed.
+- Completed manifest reconcile updates existing selected manifest rows only; it does not add or remove rows.
+- Completed sidecar repair updates only backend-derived metadata fields and preserves unknown JSON fields.
+- Pending manifest repair and orphan-payload reconcile remain blocked unless backend evidence supplies complete proposed manifest fields.
+- No repair/reconcile route drains, moves, deletes, publishes, reruns processing, or mutates source/scratch/output media bytes.
 
-The current source-of-truth details are in `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`.
+The detailed contract remains in `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`.
 
 ---
 

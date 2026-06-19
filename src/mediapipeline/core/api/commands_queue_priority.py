@@ -39,6 +39,7 @@ from typing import Any
 
 from mediapipeline.desktop.api.queue_source_path_policy import validate_queue_source_path
 from mediapipeline.core.queue.priority_manifest import (
+    PriorityManifestReadError,
     VALID_LEVELS,
     clear_priority_manifest,
     manifest_to_api_payload,
@@ -212,7 +213,10 @@ class LocalApiQueuePriorityCommandPayloadMixin:
         if manifest_path is None:
             return _priority_unavailable_payload("state_root is not configured")
 
-        manifest = read_priority_manifest(manifest_path)
+        try:
+            manifest = read_priority_manifest(manifest_path, fail_closed=True)
+        except PriorityManifestReadError as exc:
+            return _priority_error_payload(str(exc))
         payload = manifest_to_api_payload(manifest, manifest_path)
         payload["command"] = "queue.priority.read"
         payload["severity"] = "ok"

@@ -146,6 +146,9 @@ class RenameFacadePolicyTests(unittest.TestCase):
             "remove_terms_text": "sample, trailer",
             "movie_filter_options": {"video": 1, "audio": 0},
             "movie_filter_terms": {"video_source": "custom tag, local rip", "release_groups": ["Group", "group"]},
+            "tv_remove_terms_text": "tv sample, tv trailer",
+            "tv_filter_options": {"release_groups": True, "audio_channels": False},
+            "tv_filter_terms": {"release_groups": ["TTGA", "ttga"]},
             "final_name_overrides": {"C:/Media/Show E01.mkv": None},
             "rename_sidecars": False,
             "force_pipeline_name": True,
@@ -168,6 +171,8 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertEqual(kwargs["remove_terms"], ["sample", "trailer"])
         self.assertEqual(kwargs["movie_filter_options"], {"video": True, "audio": False})
         self.assertEqual(kwargs["movie_filter_terms"], {"video_source": ["custom tag", "local rip"], "release_groups": ["Group"]})
+        self.assertEqual(kwargs["tv_filter_options"], {"release_groups": True, "audio_channels": False})
+        self.assertEqual(kwargs["tv_filter_terms"], {"release_groups": ["TTGA"]})
         self.assertEqual(kwargs["final_name_overrides"], {"C:/Media/Show E01.mkv": "None"})
         self.assertFalse(kwargs["rename_sidecars"])
         self.assertTrue(kwargs["force_pipeline_name"])
@@ -213,6 +218,13 @@ class RenameFacadePolicyTests(unittest.TestCase):
                     "unknown": ["Ignored"],
                 },
                 "RenameMovieRemoveTerms": ["sample", "", "SAMPLE", "behind the scenes"],
+                "RenameTVFilterOptions": {"release_groups": "true", "audio_channels": "false", "unknown": False},
+                "RenameTVFilterTerms": {
+                    "release_groups": ["TTGA", "ttga", ""],
+                    "release_flags": "uncensored, uncensored, ",
+                    "unknown": ["Ignored"],
+                },
+                "RenameTVRemoveTerms": ["ova", "", "OVA", "special"],
             }
         )
 
@@ -226,6 +238,13 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertIn("ita", policy["movie_filter_terms"]["languages_subs_dubs"])
         self.assertNotIn("unknown", policy["movie_filter_terms"])
         self.assertEqual(policy["remove_terms"], ["sample", "behind the scenes"])
+        self.assertTrue(policy["tv_filter_options"]["release_groups"])
+        self.assertFalse(policy["tv_filter_options"]["audio_channels"])
+        self.assertNotIn("unknown", policy["tv_filter_options"])
+        self.assertEqual(policy["tv_filter_terms"]["release_groups"], ["TTGA"])
+        self.assertEqual(policy["tv_filter_terms"]["release_flags"], ["uncensored"])
+        self.assertNotIn("unknown", policy["tv_filter_terms"])
+        self.assertEqual(policy["tv_remove_terms"], ["ova", "special"])
 
     def test_clean_filename_preview_reports_staged_and_saved_policy_sources(self) -> None:
         staged = rename_clean_filename_preview_from_request(
@@ -258,6 +277,28 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertEqual(saved["target_name"], "Hoppers (2026).mkv")
         self.assertEqual(saved["rename_cleaning_policy_source"], "saved")
         self.assertEqual(saved["movie_filter_terms_mode"], "saved")
+
+    def test_clean_filename_preview_supports_tv_context_and_split_filters(self) -> None:
+        from mediapipeline.core.rename.tv import build_auto_tv_rename_name
+
+        preview = rename_clean_filename_preview_from_request(
+            {
+                "mode": "tv",
+                "source_folder": "The Web S01 1080p WEB-DL-TTGA",
+                "filename": "S01E01-Pilot.1080p.WEB-DL-TTGA.mkv",
+                "tv_filter_terms": {"release_groups": ["TTGA"]},
+                "tv_filter_options": {"release_groups": True},
+                "_rename_movie_filter_policy_source": "staged",
+            },
+            clean_movie_name=clean_pipeline_movie_name,
+            build_auto_tv_name=build_auto_tv_rename_name,
+        )
+
+        self.assertEqual(preview["target_name"], "The Web - S01E01 - Pilot.mkv")
+        self.assertEqual(preview["mode"], "tv")
+        self.assertEqual(preview["preview_source"], "backend_tv_cleaner")
+        self.assertEqual(preview["tv_filter_terms_mode"], "staged")
+        self.assertTrue(any(item["kind"] == "context_guard" for item in preview["filter_evidence"]))
 
 
 if __name__ == "__main__":

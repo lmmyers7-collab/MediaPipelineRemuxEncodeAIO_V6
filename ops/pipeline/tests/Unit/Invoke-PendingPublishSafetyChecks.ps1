@@ -362,6 +362,68 @@ Invoke-WithTempRoot {
 Invoke-WithTempRoot {
     param($Root)
     Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'single-bdpgs-track.mkv'
+    $serverOut = Join-Path $script:Outsource 'single-bdpgs-track.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+    $manifest['bdpgs_embedded_srt_tracks'] = @(
+        [pscustomobject]@{
+            source_stream_index = 4
+            subtitle_ordinal = 1
+            language = 'eng'
+            title = 'SDH'
+        }
+    )
+    $manifestPath = Join-Path $script:LocalPendingPush 'single-bdpgs-track.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $roundTrip = Read-PendingManifestFile -Path $manifestPath
+    $bdpgsTracks = Get-PendingObjectProperty -Object $roundTrip -Name 'bdpgs_embedded_srt_tracks'
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest $roundTrip
+
+    Assert-True ($bdpgsTracks -is [System.Array]) 'Single-item BDPGS manifest track array was collapsed by pending manifest property access.'
+    Assert-Equal @($bdpgsTracks).Count 1 'Single-item BDPGS manifest track array count was not preserved.'
+    Assert-True ([bool]$trust.Ok) "Single-item BDPGS manifest track array should pass drain trust: $($trust.Reason)"
+    Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Trust regression check should not mutate the parked payload.'
+    Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Trust regression check should not publish output.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'single-array-fields.mkv'
+    $serverOut = Join-Path $script:Outsource 'single-array-fields.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut
+    $requiredArrayFields = @(
+        'sidecar_files',
+        'tx3g_srt_tracks',
+        'tx3g_srt_failures',
+        'bdpgs_srt_failures',
+        'vobsub_srt_failures',
+        'tx3g_embedded_srt_tracks',
+        'bdpgs_embedded_srt_tracks',
+        'vobsub_embedded_srt_tracks'
+    )
+    foreach ($field in $requiredArrayFields) {
+        $manifest[$field] = @([pscustomobject]@{ field = $field; marker = 'single-item-array' })
+    }
+    $manifestPath = Join-Path $script:LocalPendingPush 'single-array-fields.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $roundTrip = Read-PendingManifestFile -Path $manifestPath
+    foreach ($field in $requiredArrayFields) {
+        $value = Get-PendingObjectProperty -Object $roundTrip -Name $field
+        Assert-True ($value -is [System.Array]) "$field single-item array was collapsed by pending manifest property access."
+        Assert-Equal @($value).Count 1 "$field single-item array count was not preserved."
+    }
+    Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Array preservation regression check should not mutate the parked payload.'
+    Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Array preservation regression check should not publish output.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
     $manifestPath = Join-Path $script:LocalPendingPush 'missing-payload.manifest.json'
     $missingLocal = Join-Path $script:LocalPendingPush 'missing.mkv'
     $serverOut = Join-Path $script:Outsource 'missing.mkv'
@@ -455,6 +517,32 @@ Invoke-WithTempRoot {
     Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Trust check should not mutate the parked payload.'
     Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Trust check should not delete the manifest.'
     Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Trust check should not publish output.'
+}
+
+Invoke-WithTempRoot {
+    param($Root)
+    Set-TestPipelineRoots -Root $Root
+    $payload = Join-Path $script:LocalPendingPush 'retry-exhausted.mkv'
+    $serverOut = Join-Path $script:Outsource 'retry-exhausted.mkv'
+    [System.IO.File]::WriteAllText($payload, 'media')
+    $manifest = New-TestPendingManifest -LocalFile $payload -ServerOut $serverOut -State 'retry_copy_failed'
+    $manifest['retry_count'] = 3
+    $manifestPath = Join-Path $script:LocalPendingPush 'retry-exhausted.manifest.json'
+    Write-PendingManifestFile -Path $manifestPath -Manifest $manifest | Out-Null
+
+    $trust = Test-PendingManifestTrustedForDrain -ManifestFile (Get-Item -LiteralPath $manifestPath) -Manifest (Read-PendingManifestFile -Path $manifestPath)
+    $drained = Invoke-RetryPendingPushes -Force
+    $summary = Get-Content -LiteralPath (Get-PendingDrainSummaryPath) -Raw | ConvertFrom-Json
+
+    Assert-True (-not [bool]$trust.Ok) 'Retry-exhausted manifest was trusted for drain.'
+    Assert-Equal ([string]$trust.Status) 'retry_exhausted' 'Retry-exhausted manifest should be classified separately from invalid manifests.'
+    Assert-Equal ([string]$trust.ReasonCode) 'RETRY_EXHAUSTED' 'Retry-exhausted trust failure should expose a stable reason code.'
+    Assert-MatchText ([string]$trust.Reason) 'retry_count' 'Retry-exhausted trust failure should name retry_count.'
+    Assert-Equal $drained 0 'Retry-exhausted pending drain should not report a recovered publish.'
+    Assert-Equal ([string]$summary.status_counts.retry_exhausted) '1' 'Retry-exhausted drain should be counted in the durable drain summary.'
+    Assert-True (Test-Path -LiteralPath $payload -PathType Leaf) 'Retry-exhausted drain moved or deleted the parked payload.'
+    Assert-True (Test-Path -LiteralPath $manifestPath -PathType Leaf) 'Retry-exhausted drain deleted the manifest.'
+    Assert-True (-not (Test-Path -LiteralPath $serverOut -PathType Leaf)) 'Retry-exhausted drain published output.'
 }
 
 Invoke-WithTempRoot {

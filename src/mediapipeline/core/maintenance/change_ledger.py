@@ -13,6 +13,8 @@ from mediapipeline.tools.change_control import packet_coverage
 CHANGE_LEDGER_SCHEMA_VERSION = "desktop_change_ledger.v1"
 CHANGE_LEDGER_HYGIENE_SCHEMA_VERSION = "desktop_change_ledger_hygiene.v1"
 CHANGE_PACKET_ROOT = Path("ops") / "release" / "changes"
+DEFAULT_CHANGE_LEDGER_ROW_LIMIT = 200
+MAX_CHANGE_LEDGER_ROW_LIMIT = 500
 
 REQUIRED_PACKET_FIELDS = (
     "id",
@@ -282,6 +284,20 @@ def _aggregate_python_impact(rows: list[dict[str, Any]]) -> dict[str, Any]:
     return python_impact_for_files(files)
 
 
+def bounded_change_ledger_row_limit(value: Any, *, default: int | None = DEFAULT_CHANGE_LEDGER_ROW_LIMIT) -> int | None:
+    if isinstance(value, str) and value.strip().casefold() == "all":
+        return None
+    if value is None or value == "":
+        return default
+    try:
+        limit = int(value)
+    except (TypeError, ValueError):
+        return default
+    if limit <= 0:
+        return default
+    return min(limit, MAX_CHANGE_LEDGER_ROW_LIMIT)
+
+
 def _hygiene(
     rows: list[dict[str, Any]],
     issues: list[dict[str, Any]],
@@ -339,7 +355,7 @@ def _hygiene(
     }
 
 
-def change_ledger_payload(root: Path) -> dict[str, Any]:
+def change_ledger_payload(root: Path, *, row_limit: int | str | None = DEFAULT_CHANGE_LEDGER_ROW_LIMIT) -> dict[str, Any]:
     repo_root = Path(root)
     packet_paths = _packet_paths(repo_root)
     issues: list[dict[str, Any]] = []
@@ -349,6 +365,9 @@ def change_ledger_payload(root: Path) -> dict[str, Any]:
         if packet is not None:
             rows.append(_row_from_packet(repo_root, path, packet, issues))
     rows.sort(key=lambda item: _as_text(item.get("id")), reverse=True)
+    bounded_limit = bounded_change_ledger_row_limit(row_limit)
+    visible_rows = rows if bounded_limit is None else rows[:bounded_limit]
+    truncated_row_count = max(0, len(rows) - len(visible_rows))
     source_paths = _source_path_status(repo_root, packet_paths)
     counts = _counts(rows)
     coverage = packet_coverage.coverage_for_worktree(repo_root, require_git=False)
@@ -358,12 +377,17 @@ def change_ledger_payload(root: Path) -> dict[str, Any]:
         f"Unreleased: {counts['unreleased']}; released: {counts['released']}",
         f"Open: {counts['planned'] + counts['in_progress']}; complete: {counts['complete']}",
         f"High/critical risk: {counts['high_or_critical_risk']}",
+        f"Displayed rows: {len(visible_rows)} of {len(rows)}{f' (latest {bounded_limit})' if bounded_limit is not None and truncated_row_count else ''}",
         "Canonical sources: root CHANGELOG.md plus structured change-control packets and generated docs/change_control outputs.",
     ]
     return {
         "schema_version": CHANGE_LEDGER_SCHEMA_VERSION,
         "read_only": True,
-        "rows": rows,
+        "rows": visible_rows,
+        "row_count": len(rows),
+        "returned_row_count": len(visible_rows),
+        "row_limit": bounded_limit if bounded_limit is not None else "all",
+        "truncated_row_count": truncated_row_count,
         "counts": counts,
         "coverage": coverage.to_dict(),
         "python_impact": _aggregate_python_impact(rows),
@@ -376,6 +400,9 @@ def change_ledger_payload(root: Path) -> dict[str, Any]:
 
 __all__ = [
     "CHANGE_LEDGER_SCHEMA_VERSION",
+    "DEFAULT_CHANGE_LEDGER_ROW_LIMIT",
+    "MAX_CHANGE_LEDGER_ROW_LIMIT",
+    "bounded_change_ledger_row_limit",
     "change_ledger_payload",
     "python_impact_for_files",
 ]

@@ -250,10 +250,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Video detail builder merged remux, H.264 copy, CPU fallback, and legacy flag keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Video detail builder prepared remux, H.264 copy, CPU fallback, and legacy flag keys for Save Settings. Backend Save still validates before writing.");
       videoDetailSettingsBuilderState.initialized = true;
       videoDetailSettingsBuilderState.dirty = true;
-      setText("settings-video-builder-status", `${Object.keys(patch).length} video detail patch keys ready`);
+      setText("settings-video-builder-status", `${Object.keys(patch).length} video detail change keys ready`);
       updateVideoDetailSliderReadouts();
       renderVideoDetailSettingsBuilderGuidance();
       renderSettingsActiveMediaPolicyHandoff();

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.builders.quality.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-11
+last_modified: 2026-06-18
 last_reviewed: 2026-06-11
-sha256: 463d0c4d2f8288c76692c65f1d845d25c0e9473a298ddf3d5ad5075805ab26b3
+sha256: ac6bbe87701a34d7081d4771138a18c67b9c8550ca243315e3054391f24a535a
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.quality.js`
 

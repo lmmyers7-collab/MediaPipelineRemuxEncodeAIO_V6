@@ -3,9 +3,9 @@ file: tests/python/desktop/test_local_api_maintenance_dry_run_contract_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: dfe50d561348805aa862947c21269de9d51c40c069fe91cb65029f0d9f8a98da
+sha256: d476b639c3715f565890f94508bd7893629108d30bfa403e3307aebf6f73d718
 ---
 # `tests/python/desktop/test_local_api_maintenance_dry_run_contract_smoke.py`
 

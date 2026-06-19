@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING, Any, Mapping
 from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
 from mediapipeline.core.kernel.contracts.pending_publish import (
     PENDING_PUSH_MANIFEST_DRAINABLE_STATES,
+    PENDING_PUSH_RETRY_LIMIT,
     PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
 )
 from .pending_policy_parts.status_rules import (
@@ -203,6 +204,8 @@ def pending_publish_preview_fields(raw: Mapping[str, Any]) -> dict[str, Any]:
         "orphan_payload_count": sum(1 for row in rows if str(row.get("state") or "").casefold() == "orphan_payload"),
         "invalid_manifest_count": sum(1 for row in rows if str(row.get("diagnostic_status") or "").casefold() in {"invalid_manifest", "unreadable_manifest"}),
         "missing_sidecar_count": sum(int_value(row.get("missing_sidecar_count")) for row in rows),
+        "retry_exhausted_count": sum(1 for row in rows if pending_publish_row_retry_exhausted(row)),
+        "retry_budget": pending_publish_retry_budget_payload(rows),
         "recovery_summary": pending_publish_recovery_summary(rows, raw),
         "drain_summary": _json_safe(raw.get("drain_summary") or {}),
         "file_inventory": pending_publish_file_inventory_payload(
@@ -243,6 +246,7 @@ def pending_publish_row_ready_to_drain(row: Mapping[str, Any]) -> bool:
     schema_version = str(row.get("schema_version") or "").strip()
     return not (
         row.get("error")
+        or pending_publish_row_retry_exhausted(row)
         or row.get("local_exists") is False
         or int_value(row.get("missing_sidecar_count")) > 0
         or schema_version != PENDING_PUSH_MANIFEST_SCHEMA_VERSION
@@ -256,6 +260,10 @@ def pending_publish_row_issue_summary(row: Mapping[str, Any]) -> str:
     state = str(row.get("state") or "").casefold()
     if row.get("error"):
         issues.append(str(row.get("error")))
+    if pending_publish_row_retry_exhausted(row):
+        issues.append(
+            f"retry count exhausted ({pending_publish_row_retry_count(row)}/{pending_publish_row_retry_limit(row)})"
+        )
     if row.get("local_exists") is False:
         issues.append("local payload missing")
     missing_sidecars = int_value(row.get("missing_sidecar_count"))
@@ -305,6 +313,8 @@ def pending_publish_row_diagnostic_status(row: Mapping[str, Any]) -> str:
         return "invalid_manifest"
     if state not in PENDING_PUSH_MANIFEST_DRAINABLE_STATES:
         return "invalid_manifest"
+    if pending_publish_row_retry_exhausted(row):
+        return "retry_exhausted"
     if "Duplicate pending publish" in error:
         return "duplicate_target"
     if row.get("local_exists") is False:
@@ -319,7 +329,7 @@ def pending_publish_row_diagnostic_status(row: Mapping[str, Any]) -> str:
 def pending_publish_row_drain_recommendation(status: str) -> str:
     if status == "ready":
         return "ready_to_drain"
-    if status in {"duplicate_target", "invalid_manifest", "unreadable_manifest", "missing_payload", "row_error"}:
+    if status in {"duplicate_target", "invalid_manifest", "unreadable_manifest", "missing_payload", "retry_exhausted", "row_error"}:
         return "do_not_drain"
     return "review_before_drain"
 
@@ -369,6 +379,8 @@ def pending_publish_row_evidence_fields(row: Mapping[str, Any], status: str) -> 
             fields.append(key)
     if int_value(row.get("missing_sidecar_count")) > 0 or status == "missing_sidecar":
         fields.append("sidecar_paths")
+    if status == "retry_exhausted":
+        fields.append("retry_count")
     if row.get("error"):
         fields.append("error")
     return fields or ["manifest_path", "local_file", "server_out"]
@@ -384,6 +396,7 @@ def pending_publish_row_recommended_open_targets(row: Mapping[str, Any], status:
         "invalid_manifest": ["manifest", "local_file"],
         "unreadable_manifest": ["manifest", "local_file"],
         "duplicate_target": ["manifest", "destination_folder", "local_file"],
+        "retry_exhausted": ["manifest", "local_file", "destination_folder"],
         "row_error": ["manifest", "local_file", "destination_folder"],
     }
     ordered = [target for target in priority_by_status.get(status, ["manifest", "local_file"]) if target in available]
@@ -405,6 +418,10 @@ def pending_publish_row_diagnostics(row: Mapping[str, Any]) -> dict[str, Any]:
         "evidence_fields": pending_publish_row_evidence_fields(row, status),
         "available_open_targets": pending_publish_row_available_open_targets(row),
         "recommended_open_targets": pending_publish_row_recommended_open_targets(row, status),
+        "retry_count": pending_publish_row_retry_count(row),
+        "retry_limit": pending_publish_row_retry_limit(row),
+        "retry_exhausted": pending_publish_row_retry_exhausted(row),
+        "dead_letter_status": pending_publish_row_dead_letter_status(row),
     }
     fields.update(pending_publish_row_trust_fields(row, fields))
     return fields
@@ -424,6 +441,48 @@ def pending_publish_row_is_recovery_blocker(row: Mapping[str, Any]) -> bool:
         str(row.get("drain_recommendation") or "").casefold() == "do_not_drain"
         or str(row.get("diagnostic_severity") or "").casefold() == "error"
     )
+
+
+def pending_publish_row_retry_count(row: Mapping[str, Any]) -> int:
+    return max(0, int_value(row.get("retry_count")))
+
+
+def pending_publish_row_retry_limit(row: Mapping[str, Any]) -> int:
+    return max(1, int_value(row.get("retry_limit")) or PENDING_PUSH_RETRY_LIMIT)
+
+
+def pending_publish_row_retry_exhausted(row: Mapping[str, Any]) -> bool:
+    if bool(row.get("retry_exhausted")):
+        return True
+    return pending_publish_row_retry_count(row) >= pending_publish_row_retry_limit(row)
+
+
+def pending_publish_row_dead_letter_status(row: Mapping[str, Any]) -> str:
+    if pending_publish_row_retry_exhausted(row):
+        return "retry_exhausted_review"
+    if pending_publish_row_retry_count(row) > 0:
+        return "retrying"
+    return "active"
+
+
+def pending_publish_retry_budget_payload(rows: list[dict[str, Any]]) -> dict[str, Any]:
+    exhausted = [row for row in rows if pending_publish_row_retry_exhausted(row)]
+    retrying = [row for row in rows if pending_publish_row_retry_count(row) > 0 and row not in exhausted]
+    max_retry_count = max((pending_publish_row_retry_count(row) for row in rows), default=0)
+    status = "blocked" if exhausted else "review" if retrying else "ready"
+    return {
+        "schema_version": "desktop_pending_publish_retry_budget.v1",
+        "status": status,
+        "retry_limit": PENDING_PUSH_RETRY_LIMIT,
+        "row_count": len(rows),
+        "retrying_count": len(retrying),
+        "exhausted_count": len(exhausted),
+        "max_retry_count": max_retry_count,
+        "summary_lines": [
+            f"Pending publish retry budget: status={status}; exhausted={len(exhausted)}; retrying={len(retrying)}; limit={PENDING_PUSH_RETRY_LIMIT}.",
+            "Retry-exhausted rows stay parked and require operator review; this preview does not move, delete, drain, or repair files.",
+        ],
+    }
 
 
 def pending_publish_recovery_summary(rows: list[dict[str, Any]], raw: Mapping[str, Any]) -> dict[str, Any]:
@@ -549,6 +608,11 @@ __all__ = [
     "pending_publish_row_diagnostics",
     "pending_publish_row_trust_fields",
     "pending_publish_row_is_recovery_blocker",
+    "pending_publish_row_retry_count",
+    "pending_publish_row_retry_limit",
+    "pending_publish_row_retry_exhausted",
+    "pending_publish_row_dead_letter_status",
+    "pending_publish_retry_budget_payload",
     "pending_publish_recovery_summary",
     "pending_publish_scan_exception_fields",
     "pending_publish_preview_result",

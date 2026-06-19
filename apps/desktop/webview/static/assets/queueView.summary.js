@@ -427,7 +427,7 @@
       } else {
         lines.push("Next step: queue preview has runnable rows. Use Launch to start backend-owned processing.");
       }
-      lines.push("Mutation guardrail: queue mutation and processing start remain backend-owned commands; this page is read-only.");
+      lines.push("Mutation guardrail: backend queue mutation and processing start remain backend-owned commands; local staging controls are not launch scope.");
       return lines;
     }
 
@@ -488,7 +488,7 @@
         lines.push("Next step: queue context is coherent. Use Launch for the backend-owned start command when schedule/readiness allows.");
       }
       lines.push("Owning pages: Queue for source readiness, Completed for skip/collision proof, Pending Publish for parked-output state, Diagnostics for artifacts/logs.");
-      lines.push("Mutation guardrail: this workflow panel is read-only. Launch commands remain backend-owned.");
+      lines.push("Mutation guardrail: backend launch commands remain backend-owned; visible rows and local staging controls are not launch scope.");
       return lines;
     }
 

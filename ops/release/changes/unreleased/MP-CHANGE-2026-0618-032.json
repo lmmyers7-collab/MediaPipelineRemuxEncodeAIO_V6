@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0618-032",
+  "title": "Tighten Schedule WebView draft trust",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Improve Schedule tab staged-draft clarity, launch-window trust, bulk-action feedback, watch-folder scanning, duplicate-submit protection, and responsive editor behavior while leaving preview diff expansion out of scope.",
+  "reason": "The Schedule UI audit found that saved/current evidence can be confused with unsaved draft edits, bulk changes lack specific feedback, in-flight preview/save controls can be reused, current-window evidence is too prose-heavy, and the editor/watch-folder surfaces need clearer scan and responsive behavior.",
+  "affected_areas": [
+    "webview",
+    "schedule",
+    "tests"
+  ],
+  "behavior_before": "Schedule edits were staged locally and safely previewed/saved through backend routes, but saved evidence panels did not clearly distinguish unsaved drafts, bulk actions had generic feedback, Load Current preserved the day clipboard, in-flight commands were not globally disabled, watch-folder evidence was dense prose, and partial allowed windows used warning-colored rows.",
+  "behavior_after": "Schedule edits expose explicit staged-draft summaries and saved/current labels, bulk actions report exact staged totals, Load Current clears copy/paste state, preview/save disables related controls while pending, weekly/current-window and watch-folder evidence is easier to scan, and schedule-specific status colors separate allowed, review, blocked, current, and saved states.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/scheduleView.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/assets/styles.controls.css",
+    "apps/desktop/webview/static/partials/page-schedule.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/scheduleView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.controls.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-schedule.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-032.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_schedule_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_schedule_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-032.json",
+    "tests/webview/test_webview_browser_schedule_smoke.py",
+    "tests/webview/test_webview_schedule_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\ops\\scripts\\smoke\\Test-WebViewScheduleSmoke.ps1 - passed (2 tests)",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserScheduleSmoke.ps1 - passed (1 test)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [Schedule UI files, Schedule tests, MP-CHANGE-2026-0618-032] - passed",
+    "node --check apps/desktop/webview/static/assets/scheduleView.js - passed",
+    "git diff --check -- [Schedule files and MP-CHANGE-2026-0618-032 files] - passed with line-ending normalization warnings only",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed only on five unrelated uncovered dirty files outside this Schedule packet",
+    "A parallel browser-smoke run timed out once at 180s without a test failure; rerunning the same browser smoke alone passed in 5.305s."
+  ],
+  "rollback_plan": "Revert the Schedule WebView, CSS, partial, smoke-test, generated-summary, and this change packet updates for MP-CHANGE-2026-0618-032.",
+  "related_changes": [],
+  "notes": "Frontend/operator-trust refinement only. Does not add Preview Schedule before/after diffing, backend API/schema changes, launch processing, queue mutation, publishing, rename, settings save, or media/file movement."
+}

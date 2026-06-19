@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/maintenanceView.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-12
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: cc497d4cffa984ee2620c0c9df42faf2c55cdc86a98e498f90594d99d5754069
+sha256: 68f315c77f92625a443fd90f77788043e9e09c7c2039824bfeb70068fbd8cc67
 ---
 # `apps/desktop/webview/static/assets/maintenanceView.js`
 

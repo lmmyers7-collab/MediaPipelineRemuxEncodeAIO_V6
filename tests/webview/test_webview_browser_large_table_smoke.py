@@ -91,6 +91,27 @@ def _browser_large_table_runner_source() -> str:
               const active = document.activeElement?.id || "";
               if (active !== id) throw new Error("expected active element " + id + ", got " + active);
             }
+            function shortcutFailureContext(detailId) {
+              const node = byId(detailId);
+              const panel = node?.closest("[data-panel-type]");
+              const rect = node?.getBoundingClientRect?.();
+              const panelRect = panel?.getBoundingClientRect?.();
+              const style = node ? getComputedStyle(node) : null;
+              const panelStyle = panel ? getComputedStyle(panel) : null;
+              return JSON.stringify({
+                activePage: document.querySelector("[data-page-panel].is-visible")?.dataset.pagePanel || "",
+                activeElement: document.activeElement?.id || document.activeElement?.tagName || "",
+                bodyClass: document.body.className,
+                detailDisplay: style?.display || "",
+                detailVisibility: style?.visibility || "",
+                detailWidth: Math.round(rect?.width || 0),
+                detailHeight: Math.round(rect?.height || 0),
+                panelType: panel?.dataset?.panelType || "",
+                panelDisplay: panelStyle?.display || "",
+                panelWidth: Math.round(panelRect?.width || 0),
+                panelHeight: Math.round(panelRect?.height || 0),
+              });
+            }
             function requireText(id, fragments) {
               const actual = text(id);
               for (const fragment of fragments) {
@@ -104,40 +125,26 @@ def _browser_large_table_runner_source() -> str:
               const count = document.querySelectorAll(selector).length;
               if (count !== expected) throw new Error(selector + " expected " + expected + " rendered rows, got " + count);
             }
-            function visibleRenderedRows(selector) {
-              return Array.from(document.querySelectorAll(selector)).filter((row) => !row.hidden).length;
-            }
             function enhancedTableState(tbodyId) {
-              window.mediaPipelineDom?.enhanceDataTables?.();
               const tbody = byId(tbodyId);
               if (!tbody) throw new Error("missing table body " + tbodyId);
               const table = tbody.closest("table");
               if (!table) throw new Error("missing table for " + tbodyId);
               const toolbar = document.querySelector('[data-table-toolbar-for="' + table.id + '"]');
               if (!toolbar) throw new Error("missing shared table toolbar for " + tbodyId);
-              const filter = toolbar.querySelector(".table-ui-filter");
-              const density = toolbar.querySelector(".table-density-control");
               const columns = toolbar.querySelector(".table-column-menu");
-              const filterToggle = toolbar.querySelector(".table-column-filter-toggle");
               if (!table.classList.contains("is-enhanced-table")) throw new Error(tbodyId + " was not enhanced");
-              if (!filter || !density || !columns || !filterToggle) throw new Error(tbodyId + " missing shared table controls");
+              if (!columns) throw new Error(tbodyId + " missing shared column menu");
+              for (const selector of [".table-ui-filter", ".table-density-control", ".table-column-filter-toggle"]) {
+                if (toolbar.querySelector(selector)) throw new Error(tbodyId + " retained removed toolbar control " + selector);
+              }
+              for (const selector of [".table-filter-row", ".table-column-filter"]) {
+                if (table.querySelector(selector)) throw new Error(tbodyId + " retained removed filter-row control " + selector);
+              }
+              if (!toolbar.textContent.includes("rows")) throw new Error(tbodyId + " missing row-count summary: " + toolbar.textContent);
               if (!table.querySelector("th[data-sticky-column]")) throw new Error(tbodyId + " missing sticky identifier columns");
               if (!table.querySelector(".table-sort-button")) throw new Error(tbodyId + " missing sortable headers");
-              return { tbody, table, toolbar, filter, density, columns, filterToggle };
-            }
-            function requireSharedTableFilter(tbodyId, selector, needle, expectedVisible) {
-              const state = enhancedTableState(tbodyId);
-              state.filter.value = needle;
-              state.filter.dispatchEvent(new Event("input", { bubbles: true }));
-              const visible = visibleRenderedRows(selector);
-              if (visible !== expectedVisible) {
-                throw new Error(tbodyId + " shared filter expected " + expectedVisible + " visible rows, got " + visible);
-              }
-              if (!state.toolbar.textContent.includes(String(expectedVisible) + " shown")) {
-                throw new Error(tbodyId + " toolbar summary did not report filtered rows: " + state.toolbar.textContent);
-              }
-              state.filter.value = "";
-              state.filter.dispatchEvent(new Event("input", { bubbles: true }));
+              return { tbody, table, toolbar, columns };
             }
             function click(selector, label) {
               const node = document.querySelector(selector);
@@ -307,7 +314,65 @@ def _browser_large_table_runner_source() -> str:
               throw new Error("Excluded source cell did not use path-cell styling");
             }
             requireRenderedRows("#queue-rows tr[data-row-key]", 250);
-            requireSharedTableFilter("queue-rows", "#queue-rows tr[data-row-key]", "Large Queue 240", 1);
+            requireText("queue-table-page-status", ["Rows 1-250 of 260", "Page 1 of 2", "Display paging does not change backend Launch scope"]);
+            if (!byId("queue-page-prev-btn").disabled) throw new Error("previous queue page button should start disabled");
+            if (byId("queue-page-next-btn").disabled) throw new Error("next queue page button should be enabled for 260 filtered rows");
+            click("#queue-page-next-btn", "next queue display page");
+            requireText("queue-status", ["251-260 shown / 260 filtered / 260 rows"]);
+            requireText("queue-table-page-status", ["Rows 251-260 of 260", "Page 2 of 2"]);
+            requireRenderedRows("#queue-rows tr[data-row-key]", 10);
+            const blockedQueueRow = document.querySelector("#queue-rows tr[data-row-key='queue-large-260']");
+            if (!blockedQueueRow) throw new Error("second queue display page did not render row 260");
+            if (blockedQueueRow.dataset.status !== "blocked" || blockedQueueRow.dataset.filterStatus !== "blocked") {
+              throw new Error("blocked queue row lost semantic status attributes: " + JSON.stringify(blockedQueueRow.dataset));
+            }
+            click("#queue-page-prev-btn", "previous queue display page");
+            requireText("queue-status", ["250 shown / 260 filtered / 260 rows"]);
+            requireText("queue-table-page-status", ["Rows 1-250 of 260", "Page 1 of 2"]);
+            requireRenderedRows("#queue-rows tr[data-row-key]", 250);
+            setValue("queue-strategy-select", "ManualOrder");
+            clickRowContaining("#queue-rows tr[data-row-key]", "Large Queue 001");
+            const manualPostStart = priorityPosts.length;
+            click("#queue-manual-move-down-btn", "manual order move down");
+            if (priorityPosts.length !== manualPostStart) {
+              throw new Error("manual order move should stage locally without posting: " + JSON.stringify(priorityPosts));
+            }
+            requireText("queue-manual-order-status", ["staged local changes", "Save Loaded Backend Order", "Discard restores the loaded order"]);
+            if (byId("queue-manual-save-order-btn").disabled || byId("queue-manual-discard-order-btn").disabled) {
+              throw new Error("staged manual order should enable save and discard controls");
+            }
+            let visibleQueueKeys = Array.from(document.querySelectorAll("#queue-rows tr[data-row-key]")).slice(0, 3).map((row) => row.dataset.rowKey).join(",");
+            if (visibleQueueKeys !== "queue-large-003,queue-large-002,queue-large-001") {
+              throw new Error("manual order stage did not visibly stick in the table: " + visibleQueueKeys);
+            }
+            click("#queue-manual-discard-order-btn", "manual order discard");
+            if (priorityPosts.length !== manualPostStart) {
+              throw new Error("manual order discard should not post: " + JSON.stringify(priorityPosts));
+            }
+            requireText("queue-manual-order-status", ["Discarded staged manual-order changes", "no backend request was sent"]);
+            visibleQueueKeys = Array.from(document.querySelectorAll("#queue-rows tr[data-row-key]")).slice(0, 3).map((row) => row.dataset.rowKey).join(",");
+            if (visibleQueueKeys !== "queue-large-001,queue-large-002,queue-large-003") {
+              throw new Error("manual order discard did not restore loaded order: " + visibleQueueKeys);
+            }
+            clickRowContaining("#queue-rows tr[data-row-key]", "Large Queue 001");
+            click("#queue-manual-move-down-btn", "manual order move down for save");
+            click("#queue-manual-save-order-btn", "manual order save");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            if (priorityPosts.length !== manualPostStart + 1) {
+              throw new Error("manual order save should post exactly once: " + JSON.stringify(priorityPosts));
+            }
+            const manualSaveItems = priorityPosts[manualPostStart].body?.items || [];
+            if (manualSaveItems.length !== 260) {
+              throw new Error("manual order save should include all loaded backend rows, got " + manualSaveItems.length);
+            }
+            if (!manualSaveItems[0].path.includes("Large Queue 003") || !manualSaveItems[2].path.includes("Large Queue 001")) {
+              throw new Error("manual order save payload did not preserve staged order: " + JSON.stringify(manualSaveItems.slice(0, 3)));
+            }
+            requireText("queue-manual-order-status", ["Saved loaded backend queue order", "Display filters and render caps did not define the saved scope"]);
+            window.renderQueue(queuePayload);
+            setValue("queue-strategy-select", "Standard");
+            window.mediaPipelineQueueView.renderQueueRows();
+            enhancedTableState("queue-rows");
             if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled before scroll preservation check");
             requireActivePage("queue");
             requireQueueScrollPreservedOnSelection("Large Queue 240");
@@ -349,7 +414,7 @@ def _browser_large_table_runner_source() -> str:
             setValue("queue-filter", "Large Queue 001");
             if (!pressShortcut("j")) throw new Error("Queue next-row shortcut should be handled");
             requireText("queue-detail", ["Queue selected-row detail:", "Large Queue 001", "Mutation guardrail"]);
-            if (!pressShortcut("d")) throw new Error("Queue detail shortcut should be handled");
+            if (!pressShortcut("d")) throw new Error("Queue detail shortcut should be handled " + shortcutFailureContext("queue-detail"));
             requireActiveElement("queue-detail");
             if (!pressShortcut("c")) throw new Error("Queue clear-filter shortcut should be handled");
             requireText("queue-status", ["250 shown / 260 filtered / 260 rows"]);
@@ -367,7 +432,9 @@ def _browser_large_table_runner_source() -> str:
             ]);
             const originalRefreshAll = window.refreshAll;
             window.refreshAll = async () => {};
+            const bulkPriorityPostStart = priorityPosts.length;
             click("#queue-priority-promote-movies-btn", "all loaded movie priority");
+            await new Promise((resolve) => setTimeout(resolve, 150));
             click("#queue-priority-promote-tv-btn", "all loaded TV priority");
             await new Promise((resolve) => setTimeout(resolve, 150));
             if (priorityConfirmMessages.length !== 2) {
@@ -389,14 +456,16 @@ def _browser_large_table_runner_source() -> str:
             if (!priorityConfirmMessages[1].includes("Current display-filter matches for tv: 0.")) {
               throw new Error("TV confirmation did not disclose filtered TV count: " + priorityConfirmMessages[1]);
             }
-            if (priorityPosts.length !== 2) {
+            if (priorityPosts.length !== bulkPriorityPostStart + 2) {
               throw new Error("expected two queue priority posts: " + JSON.stringify(priorityPosts));
             }
-            if ((priorityPosts[0].body?.items || []).length !== loadedMovieRows.length) {
-              throw new Error("movie bulk post did not include all loaded movie rows: " + JSON.stringify(priorityPosts[0]));
+            const moviePriorityPost = priorityPosts[bulkPriorityPostStart];
+            const tvPriorityPost = priorityPosts[bulkPriorityPostStart + 1];
+            if ((moviePriorityPost.body?.items || []).length !== loadedMovieRows.length) {
+              throw new Error("movie bulk post did not include all loaded movie rows: " + JSON.stringify(moviePriorityPost));
             }
-            if ((priorityPosts[1].body?.items || []).length !== loadedTvRows.length) {
-              throw new Error("TV bulk post did not include all loaded TV rows: " + JSON.stringify(priorityPosts[1]));
+            if ((tvPriorityPost.body?.items || []).length !== loadedTvRows.length) {
+              throw new Error("TV bulk post did not include all loaded TV rows: " + JSON.stringify(tvPriorityPost));
             }
             requireText("queue-priority-status", ["Promoted " + loadedTvRows.length + " loaded TV row(s) to High."]);
             const postsBeforeClearCancel = priorityPosts.length;
@@ -427,7 +496,7 @@ def _browser_large_table_runner_source() -> str:
                 throw new Error("accepted Clear All confirmation missing " + fragment + "\\nActual:\\n" + priorityConfirmMessages[3]);
               }
             }
-            if (priorityPosts.length !== 3 || priorityPosts[2].body?.clear_all !== true) {
+            if (priorityPosts.length !== bulkPriorityPostStart + 3 || priorityPosts[bulkPriorityPostStart + 2].body?.clear_all !== true) {
               throw new Error("accepted Clear All should post clear_all once: " + JSON.stringify(priorityPosts));
             }
             requireText("queue-priority-status", ["All priority manifest entries cleared."]);
@@ -511,7 +580,7 @@ def _browser_large_table_runner_source() -> str:
             requireText("completed-table-legend", ["Current output rows: 250 selectable rows"]);
             requireRenderedRows("#completed-rows tr[data-row-key]", 250);
             requireRenderedRows("#completed-history-rows tr[data-row-key]", 250);
-            requireSharedTableFilter("completed-rows", "#completed-rows tr[data-row-key]", "Large Completed 240", 1);
+            enhancedTableState("completed-rows");
             const completedLibrarySelect = byId("completed-library-filter");
             const tvLibraryOption = Array.from(completedLibrarySelect.options).find((option) => option.textContent === "TV Library");
             if (!tvLibraryOption) {
@@ -572,6 +641,33 @@ def _browser_large_table_runner_source() -> str:
               "Authority: this summary is read-only",
             ]);
             requireText("completed-detail", ["Large Completed 260", "Selected row visible in table: no", "not present in Current Output Status table", "text filter=\\"Large Completed 001\\"", "Mutation guardrail"]);
+            requireText("completed-active-output-context", [
+              "Large Completed 260.mkv",
+              "Output unavailable",
+              "Missing: no proof",
+              "Hidden by current filters",
+              "text filter=\\"Large Completed 001\\"",
+            ]);
+            if (byId("completed-show-selected-button").disabled) throw new Error("Show Selected should be enabled when a completed row is selected");
+            click("#completed-show-selected-button", "show selected completed row");
+            if (byId("completed-filter").value || byId("completed-history-filter").value) {
+              throw new Error("Show Selected should clear current and history text filters");
+            }
+            requireText("completed-active-output-context", [
+              "Large Completed 260.mkv",
+              "visible in rendered history table",
+            ]);
+            if (!document.querySelector("#completed-history-rows tr[data-row-key='completed-large-260']")) {
+              throw new Error("Show Selected should pin the selected history row into the rendered table window");
+            }
+            setValue("completed-filter", "zz-no-current-output-match");
+            window.mediaPipelineCompletedView.renderCompletedRows();
+            const completedEmptyCell = document.querySelector("#completed-rows tr td");
+            if (!completedEmptyCell || completedEmptyCell.colSpan !== 7) {
+              throw new Error("Completed current empty row should span 7 columns, got " + (completedEmptyCell ? completedEmptyCell.colSpan : "none"));
+            }
+            setValue("completed-filter", "");
+            window.mediaPipelineCompletedView.renderCompletedRows();
             if (!pressShortcut("3")) throw new Error("Completed Output shortcut should be handled");
             requireActivePage("completed");
             if (!pressShortcut("/")) throw new Error("Output search shortcut should be handled");
@@ -580,7 +676,7 @@ def _browser_large_table_runner_source() -> str:
             setValue("completed-filter", "Large Completed 001");
             if (!pressShortcut("j")) throw new Error("Output next-row shortcut should be handled");
             requireText("completed-detail", ["Completed selected-row detail:", "Large Completed 001", "Mutation guardrail"]);
-            if (!pressShortcut("d")) throw new Error("Output detail shortcut should be handled");
+            if (!pressShortcut("d")) throw new Error("Output detail shortcut should be handled " + shortcutFailureContext("completed-detail"));
             requireActiveElement("completed-detail");
             if (!pressShortcut("c")) throw new Error("Output clear-filter shortcut should be handled");
             requireText("completed-status", ["1 missing from expected destination / 250 shown / 259 filtered / 259 rows"]);
@@ -647,7 +743,7 @@ def _browser_large_table_runner_source() -> str:
             requireText("pending-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering Pending Publish rows does not change drain scope"]);
             requireText("pending-table-legend", ["Pending publish rows: 250 selectable rows"]);
             requireRenderedRows("#pending-rows tr[data-row-key]", 250);
-            requireSharedTableFilter("pending-rows", "#pending-rows tr[data-row-key]", "Large Pending 240", 1);
+            enhancedTableState("pending-rows");
             if (!pressShortcut("4")) throw new Error("Pending Publish shortcut should be handled before scroll preservation check");
             requireActivePage("pending");
             requirePendingScrollPreservedOnSelection("Large Pending 240");
@@ -683,7 +779,7 @@ def _browser_large_table_runner_source() -> str:
             setValue("pending-filter", "Large Pending 001");
             if (!pressShortcut("j")) throw new Error("Publish next-row shortcut should be handled");
             requireText("pending-detail", ["Large Pending 001", "Mutation guardrail"]);
-            if (!pressShortcut("d")) throw new Error("Publish detail shortcut should be handled");
+            if (!pressShortcut("d")) throw new Error("Publish detail shortcut should be handled " + shortcutFailureContext("pending-detail"));
             requireActiveElement("pending-detail");
             if (!pressShortcut("c")) throw new Error("Publish clear-filter shortcut should be handled");
             requireText("pending-status", ["250 shown / 260 filtered / 260 rows"]);
@@ -840,17 +936,14 @@ class WebViewBrowserLargeTableSmoke(unittest.TestCase):
         self.assertEqual(browser_result["completedStatus"], "1 missing from expected destination / 250 shown / 259 filtered / 259 rows")
         self.assertEqual(browser_result["pendingStatus"], "250 shown / 260 filtered / 260 rows")
         command_posts = [path for path in browser_result["posts"] if path != "/api/ui-preferences"]
-        self.assertEqual(command_posts, ["/api/queue/priority", "/api/queue/priority", "/api/queue/priority"])
-        self.assertEqual(len(browser_result["priorityPosts"]), 3)
-        self.assertEqual(len(browser_result["priorityPosts"][0]["body"]["items"]), 87)
+        self.assertEqual(command_posts, ["/api/queue/priority", "/api/queue/priority", "/api/queue/priority", "/api/queue/priority"])
+        self.assertEqual(len(browser_result["priorityPosts"]), 4)
+        self.assertEqual(len(browser_result["priorityPosts"][0]["body"]["items"]), 260)
         self.assertEqual(len(browser_result["priorityPosts"][1]["body"]["items"]), 87)
-        self.assertTrue(browser_result["priorityPosts"][2]["body"]["clear_all"])
+        self.assertEqual(len(browser_result["priorityPosts"][2]["body"]["items"]), 87)
+        self.assertTrue(browser_result["priorityPosts"][3]["body"]["clear_all"])
         self.assertIn("Backend Launch scope remains unchanged", "\n".join(browser_result["priorityConfirmMessages"]))
 
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

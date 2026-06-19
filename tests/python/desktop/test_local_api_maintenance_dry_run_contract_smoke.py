@@ -107,6 +107,7 @@ class LocalApiMaintenanceDryRunContractSmoke(unittest.TestCase):
                         "zip_package": True,
                         "verify": True,
                         "include_optional_tools": True,
+                        "force": True,
                         "timeout_seconds": 99999,
                     },
                     token="maintenance-dry-run-token",
@@ -114,6 +115,11 @@ class LocalApiMaintenanceDryRunContractSmoke(unittest.TestCase):
                 backfill_status, backfill = _post_json(
                     f"{server.url}/api/maintenance/completed-backfill-dry-run",
                     {"timeout_seconds": 99999},
+                    token="maintenance-dry-run-token",
+                )
+                retention_status, retention = _post_json(
+                    f"{server.url}/api/maintenance/retention-dry-run",
+                    {"limit": 25, "reason": "maintenance smoke"},
                     token="maintenance-dry-run-token",
                 )
                 history_status, history = _get_json(
@@ -146,8 +152,10 @@ class LocalApiMaintenanceDryRunContractSmoke(unittest.TestCase):
         self.assertFalse(release_data["zip_exists"])
         self.assertEqual(release_data["returncode"], 0)
         self.assertEqual(release_data["options"]["include_optional_tools"], True)
+        self.assertEqual(release_data["options"]["force"], True)
         self.assertEqual(service.release_build_calls[-1]["destination_root"], str(deploy_root))
         self.assertEqual(service.release_build_calls[-1]["dry_run"], True)
+        self.assertEqual(service.release_build_calls[-1]["force"], True)
         self.assertEqual(service.release_build_calls[-1]["timeout_seconds"], 1800)
         self.assertFalse(deploy_root_exists)
         self.assertFalse(deploy_zip_exists)
@@ -169,6 +177,20 @@ class LocalApiMaintenanceDryRunContractSmoke(unittest.TestCase):
         checkpoint_path = Path(str(backfill_calls[0]["checkpoint_path"]))
         self.assertEqual(checkpoint_path.parent, root / "RunLogs")
 
+        self.assertEqual(retention_status, 200)
+        self.assertEqual(retention["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(retention["command"], "maintenance.retention_dry_run")
+        self.assertTrue(retention["ok"])
+        retention_data = retention["data"]
+        self.assertIsInstance(retention_data, dict)
+        self.assertEqual(retention_data["schema_version"], "desktop_retention_dry_run.v1")
+        self.assertTrue(retention_data["dry_run_only"])
+        self.assertEqual(retention_data["effect"], "none")
+        self.assertEqual(retention_data["would_delete_paths"], [])
+        self.assertEqual(retention_data["would_move_paths"], [])
+        self.assertEqual(retention_data["would_write_paths"], [])
+        self.assertTrue(retention_data["suppress_command_journal"])
+
         self.assertEqual(after_manifest, before_manifest)
         self.assertEqual(after_source_bytes, before_source_bytes)
         self.assertEqual(after_output_bytes, before_output_bytes)
@@ -178,6 +200,7 @@ class LocalApiMaintenanceDryRunContractSmoke(unittest.TestCase):
         commands = [entry["command"] for entry in history["entries"]]
         self.assertIn("maintenance.release_dry_run", commands)
         self.assertIn("maintenance.completed_backfill_dry_run", commands)
+        self.assertNotIn("maintenance.retention_dry_run", commands)
 
 
 if __name__ == "__main__":

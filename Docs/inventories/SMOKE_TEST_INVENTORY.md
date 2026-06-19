@@ -1,10 +1,12 @@
 # Smoke Test Inventory
 
-Last updated: 2026-05-20
+Last updated: 2026-06-18
 
 All project smoke wrappers live under `ops/scripts/smoke/`. Run them from the repository root with `.\ops/scripts/smoke\<script>.ps1`, or run them by absolute path. Each wrapper resolves the project root as the parent of `ops/scripts/smoke/`.
 
 The wrappers are intentionally thin. They print boundary text, resolve a Python runtime, set `PYTHONDONTWRITEBYTECODE=1`, and call the matching Python unittest/module. They must not contain media policy, filesystem mutation logic, or WebView business rules.
+
+Machine-readable wrapper ownership lives in `docs/generated/SMOKE_WRAPPER_MAP.json`. Regenerate it with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_smoke_wrapper_map`; release/tooling checks use `--check` to catch drift between this inventory, the WebView smoke catalog, wrapper files, and `ops/scripts/release/test.ps1`.
 
 ## Quick Commands
 
@@ -24,6 +26,7 @@ Browser-backed smokes require Chrome or Edge plus Node/browser runner prerequisi
 | --- | --- | --- | --- | --- |
 | `ops/scripts/smoke/Test-LocalApiLifecycleContractSmoke.ps1` | Local API contract | `tests.python.desktop.test_local_api_lifecycle_contract_smoke` | Close-readiness and backend shutdown route contracts against temporary test backends | Backend lifecycle POSTs only against temporary test backend |
 | `ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1` | Local API contract | `tests.python.desktop.test_local_api_maintenance_dry_run_contract_smoke` | Maintenance ops/release/metadata/backfill dry-run contracts, token enforcement, command history | Dry-run only; temp state only |
+| `ops/scripts/smoke/Test-LocalApiRepairReconcileDryRunContractSmoke.ps1` | Local API contract | `pytest` selectors in `tests/python/desktop/test_repair_reconcile_dry_run.py`, `tests/python/desktop/test_api_command_contracts.py`, `tests/python/desktop/test_api_contract_payload.py`, and `tests/webview/test_webview_frontend_mutation_boundary.py` | Completed and pending-publish repair/reconcile dry-run route contracts, strict request fields, required dry-run schema fields, command-journal suppression, and frontend mutation-boundary guards | Dry-run/effect-none fixtures only; no manifests, sidecars, parked payloads, outputs, sources, or WebView controls are mutated |
 | `ops/scripts/smoke/Test-LocalApiSampleValidationContractSmoke.ps1` | Local API contract | `tests.python.desktop.test_sample_validation_api` | Sample-validation preview/append/read/tail contracts and diagnostics tail allowlist | Writes validation log only inside temp state |
 | `ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1` | WebView non-browser | `tests.webview.test_webview_command_evidence_smoke` | Shared owner/issue command-history rendering | No mutation routes |
 | `ops/scripts/smoke/Test-WebViewRealMediaEvidenceSmoke.ps1` | WebView non-browser | `tests.webview.test_webview_real_media_smoke` | Backend-served Queue/Completed/Pending/Diagnostics/Settings evidence from generated sample state | No real media processing |
@@ -45,6 +48,7 @@ Browser-backed smokes require Chrome or Edge plus Node/browser runner prerequisi
 | `ops/scripts/smoke/Test-WebViewBrowserMaintenanceReportsSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_maintenance_reports_smoke` | Maintenance health/dry-run result rendering and Reports triage | Failure-marker clear dry-run preview only; no non-dry-run mutation posts |
 | `ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_network_smoke` | Read-only Network readiness, lifecycle handoff, worker detail, worker-filter guardrails | No coordinator/worker lifecycle mutation |
 | `ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_pending_drain_guard_smoke` | Pending Publish drain guard and blocked frontend evidence | Does not post `/api/pipeline/start` |
+| `ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_queue_file_overrides_smoke` | Queue File Settings drawer action/status feedback, dirty-state discard guard, clear-fields save payload, full-clear confirmation, and failed-save alert tone | Intercepts file-overrides POST routes in the browser harness; does not persist queue/file override mutations |
 | `ops/scripts/smoke/Test-WebViewBrowserRenameSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_rename_smoke` | Rename row selection, Apply Readiness, duplicate-target apply blocking | Does not call `rename.apply` |
 | `ops/scripts/smoke/Test-WebViewBrowserSampleValidationSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_sample_validation_smoke` | Home sample-validation pilot/readiness/reconciliation and worksheet detail | Preview only; no append |
 | `ops/scripts/smoke/Test-WebViewBrowserScheduleSmoke.ps1` | WebView browser-backed | `tests.webview.test_webview_browser_schedule_smoke` | Schedule editor preview/save routing and Launch timing trust | App-state write only in generated temp backend |
@@ -59,4 +63,3 @@ Browser-backed smokes require Chrome or Edge plus Node/browser runner prerequisi
 - Browser-backed smokes must skip cleanly when Chrome/Edge is unavailable.
 - Do not add source/output/scratch mutation to smoke wrappers.
 - Update `ops\scripts\release\test.ps1`, `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`, `docs/testing/TEST_COVERAGE_MATRIX.md`, and this inventory when adding or removing smoke wrappers.
-

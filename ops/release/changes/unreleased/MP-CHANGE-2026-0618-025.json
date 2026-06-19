@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0618-025",
+  "title": "Improve Telemetry live-status trust",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Improve the WebView Telemetry tab so missing, stale, unavailable, unsupported, idle, warning, and active encode telemetry states are explicit and easy to scan.",
+  "reason": "The Telemetry audit found that placeholders, cadence mismatch, neutral KPI styling, flattened GPU/NVENC payloads, and canvas redraw behavior could make telemetry look blank, stale, fixture-like, or broken during operator review.",
+  "affected_areas": [
+    "observability",
+    "webview"
+  ],
+  "behavior_before": "Telemetry panels could keep placeholder values after optional refresh failures, chart metadata overstated cadence, KPI values were visually neutral, GPU details flattened backend usage status, and canvases were not redrawn immediately after theme changes.",
+  "behavior_after": "Telemetry panels render explicit unavailable/waiting/stale/clock-skew states, show accurate UI/GPU sample cadence, style KPI and chart panels by semantic state, surface structured GPU/NVENC usage detail, and redraw canvases after theme changes without adding mutation authority.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/assets/telemetryView.js",
+    "apps/desktop/webview/static/partials/page-telemetry.html",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-025.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-025.json",
+    "tests/webview/test_webview_browser_telemetry_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_telemetry_smoke.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests/webview/test_webview_css_design_tokens.py - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests/webview/test_webview_frontend_mutation_boundary.py - failed on unrelated Queue copy assertions in page-queue.html",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [telemetry files] - passed; 1 written, 6 unchanged",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed; 12 unrelated changed files are not listed in any unreleased change packet",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserTelemetrySmoke.ps1 - passed",
+    "git diff --check -- [telemetry files] - passed with line-ending normalization warnings only",
+    "node --check telemetryView.js/app.js/lifecycle.js - passed"
+  ],
+  "rollback_plan": "Revert the Telemetry WebView, CSS, test, generated summary, and this change packet updates.",
+  "related_changes": [],
+  "notes": "WebView telemetry display and browser-smoke validation only. Backend telemetry routes remain authoritative; this change must not launch processing, mutate queue state, publish, rename, drain pending publish, save settings, or touch source/output/scratch media."
+}

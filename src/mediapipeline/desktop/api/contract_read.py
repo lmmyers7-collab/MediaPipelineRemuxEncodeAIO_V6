@@ -288,6 +288,14 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
 LOCAL_API_RENAME_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     {
         "method": "GET",
+        "path": "/api/rename/cleaning-filters",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_rename_cleaning_filter_catalog.v1",
+        "purpose": "Read the backend movie and TV cleaning filter catalogs used to seed the Settings rename filter editor without opening, renaming, moving, deleting, writing, or probing any filesystem path.",
+    },
+    {
+        "method": "GET",
         "path": "/api/rename/movie-cleaning-filters",
         "auth_required": True,
         "effect": "none",
@@ -301,12 +309,17 @@ LOCAL_API_RENAME_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "query_keys": [
             "filename",
+            "mode",
+            "source_folder",
             "remove_terms_text",
             "movie_filter_options",
             "movie_filter_terms",
+            "tv_remove_terms_text",
+            "tv_filter_options",
+            "tv_filter_terms",
         ],
         "response_schema": "desktop_rename_clean_filename_preview.v1",
-        "purpose": "Preview backend movie filename cleaning for one typed filename without opening, renaming, moving, deleting, writing, or probing any filesystem path.",
+        "purpose": "Preview backend movie or TV filename cleaning for one typed filename without opening, renaming, moving, deleting, writing, or probing any filesystem path.",
     },
 )
 
@@ -333,7 +346,16 @@ LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "auth_required": True,
         "effect": "none",
         "response_schema": "desktop_change_ledger.v1",
-        "purpose": "Read backend-parsed change-control packets, generated changelog source status, and changelog hygiene evidence without running health probes, generating files, or mutating media/state.",
+        "query_keys": ["limit"],
+        "purpose": "Read backend-parsed change-control packets, generated changelog source status, and changelog hygiene evidence with optional row limiting, without running health probes, generating files, or mutating media/state.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/maintenance/productization",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_productization_status.v1",
+        "purpose": "Read backend-owned installer/updater/AppData productization readiness, migration posture, release channel, and close-readiness evidence without downloading updates, writing config, launching work, or touching media files.",
     },
     {
         "method": "GET",
@@ -358,6 +380,14 @@ LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "response_schema": "desktop_settings_workspace.v1",
         "purpose": "Read-only, redacted settings workspace snapshot.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/settings/preset-library",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "preset_library.v1",
+        "purpose": "Read the backend State JSON PresetV2 library without saving active settings, launching work, mutating queue state, or touching media files.",
     },
     {
         "method": "GET",

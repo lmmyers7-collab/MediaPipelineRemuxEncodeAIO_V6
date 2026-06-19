@@ -1,4 +1,24 @@
 /* ===== HOME PAGE COMPONENTS — Stage 12 ===== */
+.home-quick-controls-panel {
+  margin-bottom: var(--space-4);
+  padding: var(--space-4);
+}
+
+.home-quick-controls-panel .panel-heading {
+  margin-bottom: var(--space-3);
+}
+
+.home-quick-control-row {
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.home-quick-control-row .primary-button,
+.home-quick-control-row .secondary-button {
+  min-height: 40px;
+  padding: var(--space-3) var(--space-5);
+}
+
 .home-next-queue-panel {
   padding-bottom: var(--space-5);
 }
@@ -16,15 +36,45 @@
   grid-template-columns: minmax(0, 1fr) auto;
   gap: var(--space-4);
   align-items: baseline;
-  padding: var(--space-2) 0;
+  min-height: 2.5rem;
+  padding: var(--space-2);
   border-bottom: 1px solid var(--grey-700);
+  border-left: 3px solid transparent;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+.home-next-queue-list li:hover,
+.home-next-queue-list li:focus-visible {
+  background: var(--focus-row-bg);
+}
+
+.home-next-queue-list li.is-selected {
+  border-left-color: var(--semantic-selected-border);
+  background: var(--semantic-selected-bg);
 }
 
 .home-next-queue-title {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--space-2);
   min-width: 0;
+  max-width: 100%;
   color: var(--grey-100);
+}
+
+.home-next-queue-title-main {
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.home-next-queue-episode {
+  flex: 0 0 auto;
+  color: var(--grey-100);
+  font-size: var(--text-xs);
+  font-weight: 600;
   white-space: nowrap;
 }
 
@@ -34,6 +84,12 @@
   white-space: nowrap;
 }
 
+#home-next-queue-detail,
+#home-recent-completed-detail,
+#home-promotion-entry-message {
+  margin-top: var(--space-3);
+}
+
 @media (max-width: 900px) {
   .home-next-queue-list li {
     grid-template-columns: minmax(0, 1fr);
@@ -41,6 +97,10 @@
   }
 
   .home-next-queue-title {
+    flex-wrap: wrap;
+  }
+
+  .home-next-queue-title-main {
     white-space: normal;
   }
 }
@@ -87,6 +147,10 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.home-compact-table tr[data-selectable-row="true"] td {
+  cursor: pointer;
 }
 
 .home-compact-table td.home-completed-file-cell {
@@ -1471,6 +1535,49 @@ input[aria-invalid="true"] {
   align-items: center;
 }
 
+.settings-library-state-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.settings-library-state-strip span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.75rem;
+  padding: 0 var(--space-2);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-pill);
+  background: var(--grey-900);
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.settings-library-state-strip span[data-state="saved"],
+.settings-library-state-strip span[data-state="ready"] {
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-text);
+}
+
+.settings-library-state-strip span[data-state="changed"],
+.settings-library-state-strip span[data-state="active"] {
+  border-color: var(--semantic-info-border);
+  color: var(--semantic-info-text);
+}
+
+.settings-library-state-strip span[data-state="warning"],
+.settings-library-state-strip span[data-state="stale"] {
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
+}
+
+.settings-library-state-strip span[data-state="empty"] {
+  border-color: var(--semantic-disabled-border);
+  color: var(--semantic-disabled-text);
+}
+
 .settings-library-command-box .action-row {
   margin-top: 0;
 }
@@ -1552,6 +1659,10 @@ input[aria-invalid="true"] {
 
 .settings-library-state.is-readonly {
   color: var(--semantic-warning-text);
+}
+
+.settings-library-state.is-invalid {
+  color: var(--semantic-danger-text);
 }
 
 .settings-library-override-section {
@@ -1775,6 +1886,10 @@ input[aria-invalid="true"] {
   gap: var(--space-4);
 }
 
+.settings-library-route-map-context {
+  margin: 0;
+}
+
 .settings-library-route-map-toolbar {
   display: grid;
   grid-template-columns: repeat(4, minmax(10rem, 1fr));
@@ -1820,6 +1935,77 @@ input[aria-invalid="true"] {
 .settings-library-route-map-node strong {
   color: var(--grey-100);
   font-size: var(--text-sm);
+}
+
+.settings-library-route-map-node[data-state="current"],
+.settings-library-route-map-node[data-state="ready"],
+.settings-library-route-map-node[data-state="ok"] {
+  border-color: var(--semantic-success-border);
+}
+
+.settings-library-route-map-node[data-state="review"],
+.settings-library-route-map-node[data-state="warning"],
+.settings-library-route-map-node[data-state="unknown"],
+.settings-library-route-map-node[data-state="missing"] {
+  border-color: var(--semantic-warning-border);
+}
+
+.settings-library-route-map-node[data-state="blocked"],
+.settings-library-route-map-node[data-state="failed"],
+.settings-library-route-map-node[data-state="error"] {
+  border-color: var(--semantic-danger-border);
+}
+
+.settings-library-route-map-panel td[data-state="current"],
+.settings-library-route-map-panel td[data-state="ready"],
+.settings-library-route-map-panel td[data-state="ok"],
+.settings-library-route-map-panel td[data-state="valid"],
+.settings-library-route-map-panel td[data-state="saved"] {
+  color: var(--semantic-success-text);
+  font-weight: 700;
+}
+
+.settings-library-route-map-panel td[data-state="explicit"],
+.settings-library-route-map-panel td[data-state="changed"] {
+  color: var(--semantic-info-text);
+  font-weight: 700;
+}
+
+.settings-library-route-map-panel td[data-state="inherited"],
+.settings-library-route-map-panel td[data-state="defaulted"],
+.settings-library-route-map-panel td[data-state="synthesized_builtin_default"],
+.settings-library-route-map-panel td[data-state="same"] {
+  color: var(--semantic-disabled-text);
+  font-weight: 700;
+}
+
+.settings-library-route-map-panel td[data-state="review"],
+.settings-library-route-map-panel td[data-state="warning"],
+.settings-library-route-map-panel td[data-state="unknown"],
+.settings-library-route-map-panel td[data-state="missing"],
+.settings-library-route-map-panel td[data-state="not_configured"],
+.settings-library-route-map-panel td[data-state="conflict"] {
+  color: var(--semantic-warning-text);
+  font-weight: 700;
+}
+
+.settings-library-route-map-panel td[data-state="blocked"],
+.settings-library-route-map-panel td[data-state="failed"],
+.settings-library-route-map-panel td[data-state="error"],
+.settings-library-route-map-panel td[data-state="invalid"],
+.settings-library-route-map-panel td[data-state="invalid_unresolved"] {
+  color: var(--semantic-danger-text);
+  font-weight: 700;
+}
+
+.settings-library-route-map-panel td[data-state] .muted {
+  color: currentColor;
+  opacity: 0.75;
+}
+
+.settings-library-route-map-panel .settings-library-route-proof-row td:first-child {
+  padding-left: var(--space-5);
+  color: var(--grey-300);
 }
 
 .settings-library-route-map-section {
@@ -1967,6 +2153,10 @@ body.light-mode .settings-library-state.is-custom {
 
 body.light-mode .settings-library-state.is-readonly {
   color: var(--semantic-warning-text);
+}
+
+body.light-mode .settings-library-state.is-invalid {
+  color: var(--semantic-danger-text);
 }
 
 body.light-mode .settings-library-override-unavailable {

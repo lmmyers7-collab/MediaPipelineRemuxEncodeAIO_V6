@@ -1,0 +1,66 @@
+{
+  "id": "MP-CHANGE-2026-0618-019",
+  "title": "Add startup reconciliation dry-run evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Adds a backend-owned startup reconciliation dry-run that reports pending-publish, ActiveJobs, and SQLite mirror ambiguity without repairing or mutating state.",
+  "reason": "The autonomy pilot needs restart/crash ambiguity to be visible before a long unattended run. This slice adds proven-only dry-run evidence and keeps all repair, drain, publish, cleanup, and source movement out of scope.",
+  "affected_areas": [
+    "diagnostics",
+    "local-api",
+    "repair-reconcile",
+    "startup recovery",
+    "state evidence"
+  ],
+  "behavior_before": "Repair/reconcile dry-runs existed for selected completed and pending-publish review cases, but there was no aggregate startup reconciliation dry-run covering pending manifests, orphaned parked outputs, ActiveJobs, and SQLite mirror posture.",
+  "behavior_after": "POST /api/startup/reconcile-dry-run and the facade startup dry-run report machine-readable restart ambiguity from backend state only, suppress command journaling, expose no mutation route, and never write, move, delete, drain, publish, repair, migrate, rebuild, or clean up media/state files.",
+  "files_touched": [
+    "docs/generated/summaries/docs/inventories/COMMAND_OWNERSHIP_MATRIX.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-019.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/commands_repair_reconcile.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/dry_run.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_dry_run.py.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-019.json",
+    "src/mediapipeline/contracts/api_commands.py",
+    "src/mediapipeline/core/api/commands.py",
+    "src/mediapipeline/core/api/commands_repair_reconcile.py",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "src/mediapipeline/core/repair_reconcile/facade.py",
+    "src/mediapipeline/desktop/api/contract_command.py",
+    "src/mediapipeline/desktop/api/contract_payload.py",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_api_contract_payload.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_api_contract_payload.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "manual_validation": [
+    "Initial focused unittest for tests.python.desktop.test_repair_reconcile_dry_run failed as expected before implementation: missing plan_startup_reconciliation_dry_run and 404 for /api/startup/reconcile-dry-run.",
+    "Python no-bytecode import check for touched modules - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_api_command_contracts - passed (42 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_repair_reconcile_dry_run_routes_return_schema_and_suppress_journal tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token - passed (2 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run - passed (9 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_api_contract_payload tests.python.desktop.test_api_command_contracts tests.webview.test_webview_frontend_mutation_boundary tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_repair_reconcile_dry_run_routes_return_schema_and_suppress_journal tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token - passed (75 tests)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <touched files> - passed",
+    "git diff --check for touched files - passed (line-ending warnings only)",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-LocalApiRepairReconcileDryRunContractSmoke.ps1 - passed (73 tests, 550 subtests)"
+  ],
+  "rollback_plan": "Remove the startup reconciliation dry-run route, command payload contract, facade adapter, dry-run helper, contract/inventory entries, tests, generated summaries, and this change packet. Rollback is evidence-only and does not touch media, manifests, ActiveJobs, pending payloads, or SQLite mirror files.",
+  "related_changes": [
+    "MP-CHANGE-2026-0617-906"
+  ],
+  "notes": "This is a proven-only dry-run slice. The startup dry-run opens SQLite with mode=ro and does not call ActiveJobs cleanup/reconcile helpers. No startup repair mutation, pending-publish drain, ActiveJobs cleanup, SQLite migration/rebuild, source movement, cleanup, FFmpeg, subtitle, or audio behavior is intentionally changed."
+}

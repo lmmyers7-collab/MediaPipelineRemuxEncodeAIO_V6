@@ -19,6 +19,7 @@ from mediapipeline.core.rename.policy import (
     annotate_rename_plan_path_authority,
     normalize_rename_template_preset,
     rename_configured_media_roots_from_request,
+    rename_cleaning_filter_catalog_payload,
     rename_movie_filter_catalog_payload,
     rename_plan_kwargs_from_request,
     rename_plan_build_exception_result,
@@ -96,7 +97,11 @@ class RenameFacadeMixin:
             request,
             parse_remove_terms=parser if callable(parser) else None,
             clean_movie_name=cleaner,
+            build_auto_tv_name=getattr(self.service, "_build_auto_tv_rename_name", None),
         )
+
+    def get_rename_cleaning_filter_catalog(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
+        return rename_cleaning_filter_catalog_payload(config)
 
     def get_rename_movie_filter_catalog(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
         return rename_movie_filter_catalog_payload(config)

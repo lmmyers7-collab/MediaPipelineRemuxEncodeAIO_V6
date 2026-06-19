@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0619-018",
+  "title": "Fix Launch backend preflight aggregation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Limit Launch backend preflight aggregation to active launch targets so an unstaged CSV rerun path does not make normal Pipeline preflight look blocked.",
+  "reason": "The Launch readiness panel refreshed Pipeline plus CSV rerun start/preview preflights every time. With no CSV path staged, both rerun preflights correctly returned blocked and the combined Backend Preflight status showed Blocked even when Pipeline preflight itself was startable.",
+  "affected_areas": [
+    "launch",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Refreshing Launch Backend Preflight with no CSV path staged requested Pipeline, CSV Rerun Start, and CSV Rerun Preview; the empty rerun CSV path blockers could dominate the combined status.",
+  "behavior_after": "Refreshing Launch Backend Preflight always requests Pipeline and requests CSV Rerun Start/Preview only when a CSV path is staged; normal Pipeline readiness is no longer blocked by inactive rerun controls.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-018.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-018.json",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_launch_command_buttons_smoke.py -q - passed (6 passed)",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_launch_queue_readiness_smoke.py -q - passed (1 passed)",
+    "In-app Browser against temporary Local API on 127.0.0.1:16525 - Launch > Readiness > Refresh Backend Preflight rendered Status: Review, Targets: 1, blocked=0, requested=1, and only Pipeline rows when no CSV path was staged",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/launchView.preflight.js tests/webview/test_webview_launch_command_buttons_smoke.py tests/webview/test_webview_browser_launch_queue_readiness_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0619-018.json - passed (4 summaries written)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (440 packet(s) valid)"
+  ],
+  "rollback_plan": "Revert launchView.preflight.js, the focused WebView smoke expectations, and this change packet; the UI will again request unstaged CSV rerun backend preflights during normal Pipeline readiness refresh.",
+  "related_changes": [],
+  "notes": ""
+}

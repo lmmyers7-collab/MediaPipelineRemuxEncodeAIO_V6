@@ -1638,6 +1638,7 @@
       "/api/queue/strategy",
       "/api/rename/apply",
       "/api/rename/browse",
+      "/api/rename/filter-cases",
       "/api/rename/preview",
       "/api/rerun/start",
       "/api/sample-validation/append",
@@ -2019,6 +2020,12 @@
       "rename-confirm-warning",
       "rename-drop-zone",
       "rename-force-pipeline",
+      "rename-log-bad-case-button",
+      "rename-log-bad-case-status",
+      "rename-log-case-cancel-button",
+      "rename-log-case-dialog",
+      "rename-log-case-status-select",
+      "rename-log-case-submit-button",
       "rename-mode",
       "rename-move-checked-down-button",
       "rename-move-checked-up-button",
@@ -2119,6 +2126,12 @@
       "settings-library-reset-button",
       "settings-library-save-button",
       "settings-library-warning-summary",
+      "settings-library-watch-auto-run",
+      "settings-library-watch-panel",
+      "settings-library-watch-preview-button",
+      "settings-library-watch-respect-schedule",
+      "settings-library-watch-save-button",
+      "settings-library-watch-stage-button",
       "settings-media-policy-rows",
       "settings-network-coordinator-local-encode",
       "settings-network-role",
@@ -2138,6 +2151,9 @@
       "settings-raw-action-plan-rows",
       "settings-raw-triage-rows",
       "settings-rename-filter-release-groups",
+      "settings-rename-log-case-form",
+      "settings-rename-log-case-status-select",
+      "settings-rename-log-case-submit-button",
       "settings-rename-preview-button",
       "settings-rename-preview-input",
       "settings-rename-preview-output",
@@ -2202,10 +2218,11 @@
       "pointerdown",
       "pointermove",
       "pointerup",
+      "submit",
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3390
+    "top_level_declaration_count": 3432
   },
   "scripts": [
     {
@@ -9259,543 +9276,633 @@
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterEventsBound",
+          "name": "renameBadCaseInFlight",
           "line": 34,
           "kind": "let"
         },
         {
-          "name": "lastRenamePreviewSignature",
+          "name": "renameCleaningFilterEventsBound",
           "line": 35,
           "kind": "let"
         },
         {
-          "name": "renamePreviewStale",
+          "name": "lastRenamePreviewSignature",
           "line": 36,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterSaveMessage",
+          "name": "renamePreviewStale",
           "line": 37,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterSaveMessageUntil",
+          "name": "renameCleaningFilterSaveMessage",
           "line": 38,
           "kind": "let"
         },
         {
-          "name": "checkedRenameSourceKeys",
+          "name": "renameCleaningFilterSaveMessageUntil",
           "line": 39,
-          "kind": "const"
+          "kind": "let"
         },
         {
-          "name": "renamePathOrigins",
+          "name": "checkedRenameSourceKeys",
           "line": 40,
           "kind": "const"
         },
         {
+          "name": "renamePathOrigins",
+          "line": 41,
+          "kind": "const"
+        },
+        {
           "name": "byAnyId",
-          "line": 42,
+          "line": 43,
           "kind": "function"
         },
         {
           "name": "renameCleaningNode",
-          "line": 50,
+          "line": 51,
           "kind": "function"
         },
         {
           "name": "collectRenameRequest",
-          "line": 54,
+          "line": 55,
           "kind": "function"
         },
         {
           "name": "renameRequestSignatureFromRequest",
-          "line": 76,
+          "line": 77,
           "kind": "function"
         },
         {
           "name": "renameCurrentRequestSignature",
-          "line": 80,
+          "line": 81,
           "kind": "function"
         },
         {
           "name": "renamePreviewStatusText",
-          "line": 84,
+          "line": 85,
           "kind": "function"
         },
         {
           "name": "updateRenamePreviewFreshnessState",
-          "line": 88,
+          "line": 89,
           "kind": "function"
         },
         {
           "name": "renameMarkInputChanged",
-          "line": 103,
+          "line": 104,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterTextareas",
-          "line": 108,
+          "line": 109,
           "kind": "function"
         },
         {
           "name": "renameMovieFilterCheckboxes",
-          "line": 112,
+          "line": 113,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterOptions",
-          "line": 116,
+          "line": 117,
           "kind": "function"
         },
         {
           "name": "parseRenameFilterTerms",
-          "line": 125,
+          "line": 126,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterTermsText",
-          "line": 138,
+          "line": 139,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterTerms",
-          "line": 147,
+          "line": 148,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterState",
-          "line": 155,
+          "line": 156,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterConfigPatch",
-          "line": 163,
+          "line": 164,
           "kind": "function"
         },
         {
           "name": "renderRenameCleaningFilterEditor",
-          "line": 171,
+          "line": 172,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFilterDraft",
-          "line": 192,
+          "line": 193,
           "kind": "function"
         },
         {
           "name": "stageRenameCleaningFilterPatch",
-          "line": 204,
+          "line": 205,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFilterState",
-          "line": 229,
+          "line": 230,
           "kind": "function"
         },
         {
           "name": "resetRenameCleaningFilters",
-          "line": 257,
+          "line": 258,
           "kind": "function"
         },
         {
           "name": "loadRenameCleaningFilterState",
-          "line": 272,
+          "line": 273,
           "kind": "function"
         },
         {
           "name": "loadRenameMovieFilterCatalog",
-          "line": 300,
+          "line": 301,
           "kind": "function"
         },
         {
           "name": "renameCleanFilenamePreviewQuery",
-          "line": 355,
+          "line": 356,
           "kind": "function"
         },
         {
           "name": "renderRenameFilterPreviewPayload",
-          "line": 367,
+          "line": 368,
           "kind": "function"
         },
         {
           "name": "updateRenameFilterPreview",
-          "line": 389,
+          "line": 390,
           "kind": "function"
         },
         {
           "name": "initRenameCleaningFilterEditorEvents",
-          "line": 434,
+          "line": 435,
           "kind": "function"
         },
         {
           "name": "renameSourceKey",
-          "line": 467,
+          "line": 468,
           "kind": "function"
         },
         {
           "name": "getSelectedRenameRow",
-          "line": 471,
+          "line": 472,
           "kind": "function"
         },
         {
           "name": "getCheckedRenameRows",
-          "line": 476,
+          "line": 477,
           "kind": "function"
         },
         {
           "name": "renameRenderedRowsCount",
-          "line": 480,
+          "line": 481,
           "kind": "function"
         },
         {
           "name": "renameRenderCapText",
-          "line": 485,
+          "line": 486,
           "kind": "function"
         },
         {
           "name": "updateRenameTableLegend",
-          "line": 491,
+          "line": 492,
           "kind": "function"
         },
         {
           "name": "renameCurrentFinalName",
-          "line": 499,
+          "line": 500,
           "kind": "function"
         },
         {
           "name": "renameRowCanApply",
-          "line": 504,
+          "line": 505,
           "kind": "function"
         },
         {
           "name": "renameImportantRowReason",
-          "line": 510,
+          "line": 511,
           "kind": "function"
         },
         {
           "name": "renameRowStatusDisplay",
-          "line": 522,
+          "line": 523,
           "kind": "function"
         },
         {
           "name": "getRenameApplyScopeRows",
-          "line": 529,
+          "line": 530,
           "kind": "function"
         },
         {
           "name": "syncRenameCheckedCount",
-          "line": 538,
+          "line": 539,
           "kind": "function"
         },
         {
           "name": "setRenameRowChecked",
-          "line": 551,
+          "line": 552,
           "kind": "function"
         },
         {
           "name": "checkApplicableRenameRows",
-          "line": 559,
+          "line": 560,
           "kind": "function"
         },
         {
           "name": "clearCheckedRenameRows",
-          "line": 567,
+          "line": 568,
           "kind": "function"
         },
         {
           "name": "renamePathLines",
-          "line": 572,
+          "line": 573,
           "kind": "function"
         },
         {
           "name": "setRenamePathLines",
-          "line": 576,
+          "line": 577,
           "kind": "function"
         },
         {
           "name": "renameSourcePathFromRow",
-          "line": 584,
+          "line": 585,
           "kind": "function"
         },
         {
           "name": "renameSourceLabelFromRow",
-          "line": 588,
+          "line": 589,
           "kind": "function"
         },
         {
-          "name": "renameCurrentPathValues",
-          "line": 592,
+          "name": "renamePathSegments",
+          "line": 593,
           "kind": "function"
         },
         {
-          "name": "renamePathOriginKey",
-          "line": 596,
+          "name": "renameFileLeafFromPath",
+          "line": 597,
           "kind": "function"
         },
         {
-          "name": "rememberRenamePathOrigins",
-          "line": 600,
+          "name": "renameParentFolderLeafFromPath",
+          "line": 602,
           "kind": "function"
         },
         {
-          "name": "pruneRenamePathOrigins",
-          "line": 609,
+          "name": "renameFolderLeafFromValue",
+          "line": 607,
           "kind": "function"
         },
         {
-          "name": "renamePathOriginCounts",
-          "line": 616,
+          "name": "renameExpectedShowFromName",
+          "line": 612,
           "kind": "function"
         },
         {
-          "name": "renamePathOriginSummary",
-          "line": 625,
+          "name": "renameExpectedSeasonFromName",
+          "line": 617,
           "kind": "function"
         },
         {
-          "name": "renderRenameFileSourceSummary",
+          "name": "renameSeasonNumberFromWorkbench",
+          "line": 622,
+          "kind": "function"
+        },
+        {
+          "name": "compactRenameNote",
+          "line": 629,
+          "kind": "function"
+        },
+        {
+          "name": "renameBadCasePayloadFromRow",
           "line": 633,
           "kind": "function"
         },
         {
+          "name": "submitRenameBadCasePayload",
+          "line": 663,
+          "kind": "function"
+        },
+        {
+          "name": "setRenameBadCaseBusy",
+          "line": 670,
+          "kind": "function"
+        },
+        {
+          "name": "renameLogCaseInput",
+          "line": 675,
+          "kind": "function"
+        },
+        {
+          "name": "setRenameLogCaseInputValue",
+          "line": 679,
+          "kind": "function"
+        },
+        {
+          "name": "renameBadCaseDialogOverrides",
+          "line": 684,
+          "kind": "function"
+        },
+        {
+          "name": "syncRenameBadCaseButton",
+          "line": 697,
+          "kind": "function"
+        },
+        {
+          "name": "openRenameBadCaseDialog",
+          "line": 708,
+          "kind": "function"
+        },
+        {
+          "name": "submitRenameBadCaseDialog",
+          "line": 732,
+          "kind": "function"
+        },
+        {
+          "name": "renameCurrentPathValues",
+          "line": 765,
+          "kind": "function"
+        },
+        {
+          "name": "renamePathOriginKey",
+          "line": 769,
+          "kind": "function"
+        },
+        {
+          "name": "rememberRenamePathOrigins",
+          "line": 773,
+          "kind": "function"
+        },
+        {
+          "name": "pruneRenamePathOrigins",
+          "line": 782,
+          "kind": "function"
+        },
+        {
+          "name": "renamePathOriginCounts",
+          "line": 789,
+          "kind": "function"
+        },
+        {
+          "name": "renamePathOriginSummary",
+          "line": 798,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameFileSourceSummary",
+          "line": 806,
+          "kind": "function"
+        },
+        {
           "name": "appendRenamePaths",
-          "line": 654,
+          "line": 827,
           "kind": "function"
         },
         {
           "name": "addRenamePathFromInput",
-          "line": 678,
+          "line": 851,
           "kind": "function"
         },
         {
           "name": "browseRenamePaths",
-          "line": 691,
+          "line": 864,
           "kind": "function"
         },
         {
           "name": "clearRenamePaths",
-          "line": 738,
+          "line": 911,
           "kind": "function"
         },
         {
           "name": "useSelectedQueueRowForRename",
-          "line": 764,
+          "line": 937,
           "kind": "function"
         },
         {
           "name": "useLoadedQueueRowsForRename",
-          "line": 776,
+          "line": 949,
           "kind": "function"
         },
         {
           "name": "renameLineKey",
-          "line": 788,
+          "line": 961,
           "kind": "function"
         },
         {
           "name": "checkedOrSelectedRenameKeys",
-          "line": 792,
+          "line": 965,
           "kind": "function"
         },
         {
           "name": "moveCheckedRenamePaths",
-          "line": 797,
+          "line": 970,
           "kind": "function"
         },
         {
           "name": "naturalCompareText",
-          "line": 831,
+          "line": 1004,
           "kind": "function"
         },
         {
           "name": "naturalSortRenamePaths",
-          "line": 846,
+          "line": 1019,
           "kind": "function"
         },
         {
           "name": "syncRenameSelectedInputs",
-          "line": 855,
-          "kind": "function"
-        },
-        {
-          "name": "captureRenameSelectionScroll",
-          "line": 863,
-          "kind": "function"
-        },
-        {
-          "name": "restoreRenameSelectionScroll",
-          "line": 867,
-          "kind": "function"
-        },
-        {
-          "name": "selectRenameRow",
-          "line": 871,
-          "kind": "function"
-        },
-        {
-          "name": "renamePreviewSlice",
-          "line": 882,
-          "kind": "const"
-        },
-        {
-          "name": "renameBulkScopeRows",
-          "line": 912,
-          "kind": "function"
-        },
-        {
-          "name": "renameBulkScopeLabel",
-          "line": 922,
-          "kind": "function"
-        },
-        {
-          "name": "renameSplitFilename",
-          "line": 929,
-          "kind": "function"
-        },
-        {
-          "name": "renameBulkEditedName",
-          "line": 936,
-          "kind": "function"
-        },
-        {
-          "name": "renameBulkHasEditInput",
-          "line": 948,
-          "kind": "function"
-        },
-        {
-          "name": "renameNameHasPathSeparator",
-          "line": 956,
-          "kind": "function"
-        },
-        {
-          "name": "renameSetFinalOverride",
-          "line": 960,
-          "kind": "function"
-        },
-        {
-          "name": "renderRenameBulkEditor",
-          "line": 969,
-          "kind": "function"
-        },
-        {
-          "name": "stageRenameBulkEdit",
-          "line": 987,
-          "kind": "function"
-        },
-        {
-          "name": "usePipelineNamesForRenameScope",
-          "line": 1017,
-          "kind": "function"
-        },
-        {
-          "name": "setRenameBulkForce",
           "line": 1028,
           "kind": "function"
         },
         {
-          "name": "clearRenameBulkOverrides",
+          "name": "captureRenameSelectionScroll",
+          "line": 1036,
+          "kind": "function"
+        },
+        {
+          "name": "restoreRenameSelectionScroll",
+          "line": 1040,
+          "kind": "function"
+        },
+        {
+          "name": "selectRenameRow",
           "line": 1044,
           "kind": "function"
         },
         {
+          "name": "renamePreviewSlice",
+          "line": 1055,
+          "kind": "const"
+        },
+        {
+          "name": "renameBulkScopeRows",
+          "line": 1085,
+          "kind": "function"
+        },
+        {
+          "name": "renameBulkScopeLabel",
+          "line": 1095,
+          "kind": "function"
+        },
+        {
+          "name": "renameSplitFilename",
+          "line": 1102,
+          "kind": "function"
+        },
+        {
+          "name": "renameBulkEditedName",
+          "line": 1109,
+          "kind": "function"
+        },
+        {
+          "name": "renameBulkHasEditInput",
+          "line": 1121,
+          "kind": "function"
+        },
+        {
+          "name": "renameNameHasPathSeparator",
+          "line": 1129,
+          "kind": "function"
+        },
+        {
+          "name": "renameSetFinalOverride",
+          "line": 1133,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameBulkEditor",
+          "line": 1142,
+          "kind": "function"
+        },
+        {
+          "name": "stageRenameBulkEdit",
+          "line": 1160,
+          "kind": "function"
+        },
+        {
+          "name": "usePipelineNamesForRenameScope",
+          "line": 1190,
+          "kind": "function"
+        },
+        {
+          "name": "setRenameBulkForce",
+          "line": 1201,
+          "kind": "function"
+        },
+        {
+          "name": "clearRenameBulkOverrides",
+          "line": 1217,
+          "kind": "function"
+        },
+        {
           "name": "renameApplyReadinessSlice",
-          "line": 1059,
+          "line": 1232,
           "kind": "const"
         },
         {
           "name": "applyRenameSelectedOverride",
-          "line": 1089,
+          "line": 1262,
           "kind": "function"
         },
         {
           "name": "clearRenameSelectedOverride",
-          "line": 1104,
+          "line": 1277,
           "kind": "function"
         },
         {
           "name": "replaceRenamePathText",
-          "line": 1120,
+          "line": 1293,
           "kind": "function"
         },
         {
           "name": "renameApplyResultSlice",
-          "line": 1144,
+          "line": 1317,
           "kind": "const"
         },
         {
           "name": "applySelectedRename",
-          "line": 1166,
+          "line": 1339,
           "kind": "function"
         },
         {
           "name": "renderRenamePreview",
-          "line": 1170,
+          "line": 1343,
           "kind": "function"
         },
         {
           "name": "renderRenameRows",
-          "line": 1195,
+          "line": 1368,
           "kind": "function"
         },
         {
           "name": "setRenamePreviewBusy",
-          "line": 1245,
+          "line": 1418,
           "kind": "function"
         },
         {
           "name": "setRenameApplyBusy",
-          "line": 1250,
+          "line": 1423,
           "kind": "function"
         },
         {
           "name": "syncRenameCommandButtons",
-          "line": 1255,
+          "line": 1428,
           "kind": "function"
         },
         {
           "name": "refreshRenamePreview",
-          "line": 1332,
+          "line": 1506,
           "kind": "function"
         },
         {
           "name": "renameDialogById",
-          "line": 1499,
+          "line": 1678,
           "kind": "function"
         },
         {
           "name": "renameOpenConfirmDialog",
-          "line": 1504,
+          "line": 1683,
           "kind": "function"
         },
         {
           "name": "renameOpenResultDialog",
-          "line": 1562,
+          "line": 1741,
           "kind": "function"
         },
         {
           "name": "renameApplicablePreviewRows",
-          "line": 1632,
+          "line": 1811,
           "kind": "function"
         },
         {
           "name": "applyRenameWorkbench",
-          "line": 1636,
+          "line": 1815,
           "kind": "function"
         },
         {
           "name": "renameSyncModeFieldVisibility",
-          "line": 1692,
+          "line": 1871,
           "kind": "function"
         },
         {
           "name": "renameInitDropZone",
-          "line": 1708,
+          "line": 1887,
           "kind": "function"
         },
         {
           "name": "renameInitWorkbenchEvents",
-          "line": 1741,
+          "line": 1920,
           "kind": "function"
         }
       ],
@@ -9832,6 +9939,7 @@
       "api_routes": [
         "/api/rename/apply",
         "/api/rename/browse",
+        "/api/rename/filter-cases",
         "/api/rename/preview"
       ],
       "dom_ids_touched": [
@@ -9855,6 +9963,12 @@
         "rename-confirm-warning",
         "rename-drop-zone",
         "rename-force-pipeline",
+        "rename-log-bad-case-button",
+        "rename-log-bad-case-status",
+        "rename-log-case-cancel-button",
+        "rename-log-case-dialog",
+        "rename-log-case-status-select",
+        "rename-log-case-submit-button",
         "rename-mode",
         "rename-move-checked-down-button",
         "rename-move-checked-up-button",
@@ -9892,7 +10006,8 @@
         "dragleave",
         "dragover",
         "drop",
-        "input"
+        "input",
+        "submit"
       ]
     },
     {
@@ -10824,1313 +10939,1368 @@
           "kind": "let"
         },
         {
-          "name": "settingsRuntimeActiveStates",
+          "name": "settingsRenameLogCaseInFlight",
+          "line": 81,
+          "kind": "let"
+        },
+        {
+          "name": "settingsRenameLogCaseEventsBound",
           "line": 82,
+          "kind": "let"
+        },
+        {
+          "name": "settingsRuntimeActiveStates",
+          "line": 84,
           "kind": "const"
         },
         {
           "name": "settingsRuntimeInactiveStages",
-          "line": 83,
+          "line": 85,
           "kind": "const"
         },
         {
           "name": "settingsRuntimeState",
-          "line": 85,
+          "line": 87,
           "kind": "function"
         },
         {
           "name": "settingsRuntimeRestartWarningNeeded",
-          "line": 97,
+          "line": 99,
           "kind": "function"
         },
         {
           "name": "settingsRuntimeRestartConfirmationLine",
-          "line": 101,
+          "line": 103,
           "kind": "function"
         },
         {
           "name": "settingsRuntimeRestartNoticeLines",
-          "line": 109,
+          "line": 111,
           "kind": "function"
         },
         {
           "name": "maybeShowSettingsRuntimeRestartNotice",
-          "line": 130,
+          "line": 132,
           "kind": "function"
         },
         {
           "name": "setSettingsCommandBusy",
-          "line": 138,
+          "line": 140,
           "kind": "function"
         },
         {
           "name": "rejectSettingsCommandWhileBusy",
-          "line": 146,
+          "line": 149,
           "kind": "function"
         },
         {
           "name": "settingsMetadata",
-          "line": 160,
-          "kind": "const"
-        },
-        {
-          "name": "settingsBuilderFields",
-          "line": 161,
-          "kind": "const"
-        },
-        {
-          "name": "fileSafetySettingsBuilderFields",
-          "line": 162,
-          "kind": "const"
-        },
-        {
-          "name": "networkSettingsBuilderFields",
           "line": 163,
           "kind": "const"
         },
         {
-          "name": "queueSettingsBuilderFields",
+          "name": "settingsBuilderFields",
           "line": 164,
           "kind": "const"
         },
         {
-          "name": "videoDetailSettingsBuilderFields",
+          "name": "fileSafetySettingsBuilderFields",
           "line": 165,
           "kind": "const"
         },
         {
-          "name": "qualityDetailSettingsBuilderFields",
+          "name": "networkSettingsBuilderFields",
           "line": 166,
           "kind": "const"
         },
         {
-          "name": "runtimeSettingsBuilderFields",
+          "name": "queueSettingsBuilderFields",
           "line": 167,
           "kind": "const"
         },
         {
-          "name": "pendingPublishSettingsBuilderFields",
+          "name": "videoDetailSettingsBuilderFields",
           "line": 168,
           "kind": "const"
         },
         {
-          "name": "finalLibraryPromotionSettingsBuilderFields",
+          "name": "qualityDetailSettingsBuilderFields",
           "line": 169,
           "kind": "const"
         },
         {
-          "name": "subtitleSettingsBuilderFields",
+          "name": "runtimeSettingsBuilderFields",
           "line": 170,
           "kind": "const"
         },
         {
-          "name": "audioSettingsBuilderFields",
+          "name": "pendingPublishSettingsBuilderFields",
           "line": 171,
           "kind": "const"
         },
         {
-          "name": "settingsSafetyLockDefinitions",
+          "name": "finalLibraryPromotionSettingsBuilderFields",
           "line": 172,
           "kind": "const"
         },
         {
-          "name": "settingsImpactGroups",
+          "name": "subtitleSettingsBuilderFields",
           "line": 173,
           "kind": "const"
         },
         {
-          "name": "settingsSpecificImpactHints",
+          "name": "audioSettingsBuilderFields",
           "line": 174,
           "kind": "const"
         },
         {
-          "name": "settingsChoiceLabels",
+          "name": "settingsSafetyLockDefinitions",
           "line": 175,
           "kind": "const"
         },
         {
-          "name": "settingsFriendlyPersistedKeyAliases",
+          "name": "settingsImpactGroups",
           "line": 176,
           "kind": "const"
         },
         {
-          "name": "settingsAdvancedFallbackKeys",
+          "name": "settingsSpecificImpactHints",
           "line": 177,
           "kind": "const"
         },
         {
-          "name": "settingsPatchComplexBackendKeys",
+          "name": "settingsChoiceLabels",
           "line": 178,
           "kind": "const"
         },
         {
-          "name": "settingsAdvancedToggleEventsBound",
+          "name": "settingsFriendlyPersistedKeyAliases",
           "line": 179,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "settingsMetadataFieldsModule",
+          "name": "settingsAdvancedFallbackKeys",
+          "line": 180,
+          "kind": "const"
+        },
+        {
+          "name": "settingsPatchComplexBackendKeys",
           "line": 181,
           "kind": "const"
         },
         {
+          "name": "settingsAdvancedToggleEventsBound",
+          "line": 182,
+          "kind": "let"
+        },
+        {
+          "name": "settingsMetadataFieldsModule",
+          "line": 184,
+          "kind": "const"
+        },
+        {
           "name": "settingsMetadataFields",
-          "line": 183,
+          "line": 186,
           "kind": "const"
         },
         {
           "name": "settingsFieldDefinition",
-          "line": 190,
-          "kind": "const"
-        },
-        {
-          "name": "settingsFieldDefaultValue",
           "line": 193,
           "kind": "const"
         },
         {
+          "name": "settingsFieldDefaultValue",
+          "line": 196,
+          "kind": "const"
+        },
+        {
           "name": "formatSettingsChoiceLabel",
-          "line": 194,
+          "line": 197,
           "kind": "const"
         },
         {
           "name": "settingsFieldAllowedValues",
-          "line": 195,
+          "line": 198,
           "kind": "const"
         },
         {
           "name": "settingsHasBackendFieldDefinitions",
-          "line": 200,
-          "kind": "const"
-        },
-        {
-          "name": "settingsFieldLabel",
           "line": 203,
           "kind": "const"
         },
         {
-          "name": "settingsPersistedKeyDisplayList",
-          "line": 204,
+          "name": "settingsFieldLabel",
+          "line": 206,
           "kind": "const"
         },
         {
-          "name": "settingsFieldHelpText",
+          "name": "settingsPersistedKeyDisplayList",
           "line": 207,
           "kind": "const"
         },
         {
-          "name": "settingsFieldIsAdvanced",
+          "name": "settingsFieldHelpText",
           "line": 210,
           "kind": "const"
         },
         {
+          "name": "settingsFieldIsAdvanced",
+          "line": 213,
+          "kind": "const"
+        },
+        {
           "name": "settingsMetadataValue",
-          "line": 211,
+          "line": 214,
           "kind": "const"
         },
         {
           "name": "settingsBuilderConfigValue",
-          "line": 213,
+          "line": 216,
           "kind": "function"
         },
         {
           "name": "settingsPatchLocalValidationHints",
-          "line": 219,
+          "line": 222,
           "kind": "function"
         },
         {
           "name": "settingsPatchLocalValidationHintLines",
-          "line": 223,
+          "line": 226,
           "kind": "function"
         },
         {
           "name": "settingsBuilderControlsModule",
-          "line": 227,
+          "line": 230,
           "kind": "const"
         },
         {
           "name": "settingsBuilderControls",
-          "line": 229,
+          "line": 232,
           "kind": "const"
         },
         {
           "name": "renderSettingsAdvancedControls",
-          "line": 253,
-          "kind": "const"
-        },
-        {
-          "name": "handleSettingsAdvancedToggleClick",
-          "line": 254,
-          "kind": "const"
-        },
-        {
-          "name": "applySettingsFieldMetadataToControls",
-          "line": 255,
-          "kind": "const"
-        },
-        {
-          "name": "refreshSettingsSelectChoices",
           "line": 256,
           "kind": "const"
         },
         {
-          "name": "refreshSettingsBuilderChoices",
+          "name": "handleSettingsAdvancedToggleClick",
           "line": 257,
           "kind": "const"
         },
         {
-          "name": "audioSettingsBuilderModule",
+          "name": "applySettingsFieldMetadataToControls",
+          "line": 258,
+          "kind": "const"
+        },
+        {
+          "name": "refreshSettingsSelectChoices",
           "line": 259,
           "kind": "const"
         },
         {
+          "name": "refreshSettingsBuilderChoices",
+          "line": 260,
+          "kind": "const"
+        },
+        {
+          "name": "audioSettingsBuilderModule",
+          "line": 262,
+          "kind": "const"
+        },
+        {
           "name": "audioSettingsBuilder",
-          "line": 261,
+          "line": 264,
           "kind": "const"
         },
         {
           "name": "refreshAudioSettingsBuilderChoices",
-          "line": 282,
-          "kind": "const"
-        },
-        {
-          "name": "syncAudioSettingsBuilderFromConfig",
           "line": 285,
           "kind": "const"
         },
         {
-          "name": "markAudioSettingsBuilderDirty",
-          "line": 286,
-          "kind": "const"
-        },
-        {
-          "name": "collectAudioSettingsBuilderPatch",
-          "line": 287,
-          "kind": "const"
-        },
-        {
-          "name": "applyAudioSettingsBuilderToPatch",
+          "name": "syncAudioSettingsBuilderFromConfig",
           "line": 288,
           "kind": "const"
         },
         {
-          "name": "renderAudioSettingsBuilderGuidance",
+          "name": "markAudioSettingsBuilderDirty",
           "line": 289,
           "kind": "const"
         },
         {
-          "name": "videoDetailSettingsBuilderModule",
+          "name": "collectAudioSettingsBuilderPatch",
+          "line": 290,
+          "kind": "const"
+        },
+        {
+          "name": "applyAudioSettingsBuilderToPatch",
           "line": 291,
           "kind": "const"
         },
         {
+          "name": "renderAudioSettingsBuilderGuidance",
+          "line": 292,
+          "kind": "const"
+        },
+        {
+          "name": "videoDetailSettingsBuilderModule",
+          "line": 294,
+          "kind": "const"
+        },
+        {
           "name": "videoDetailSettingsBuilder",
-          "line": 293,
+          "line": 296,
           "kind": "const"
         },
         {
           "name": "syncVideoDetailSettingsBuilderFromConfig",
-          "line": 313,
-          "kind": "const"
-        },
-        {
-          "name": "markVideoDetailSettingsBuilderDirty",
-          "line": 314,
-          "kind": "const"
-        },
-        {
-          "name": "collectVideoDetailSettingsBuilderPatch",
-          "line": 315,
-          "kind": "const"
-        },
-        {
-          "name": "applyVideoDetailSettingsBuilderToPatch",
           "line": 316,
           "kind": "const"
         },
         {
-          "name": "renderVideoDetailSettingsBuilderGuidance",
+          "name": "markVideoDetailSettingsBuilderDirty",
           "line": 317,
           "kind": "const"
         },
         {
-          "name": "qualityDetailSettingsBuilderModule",
+          "name": "collectVideoDetailSettingsBuilderPatch",
+          "line": 318,
+          "kind": "const"
+        },
+        {
+          "name": "applyVideoDetailSettingsBuilderToPatch",
           "line": 319,
           "kind": "const"
         },
         {
+          "name": "renderVideoDetailSettingsBuilderGuidance",
+          "line": 320,
+          "kind": "const"
+        },
+        {
+          "name": "qualityDetailSettingsBuilderModule",
+          "line": 322,
+          "kind": "const"
+        },
+        {
           "name": "qualityDetailSettingsBuilder",
-          "line": 321,
+          "line": 324,
           "kind": "const"
         },
         {
           "name": "syncQualityDetailSettingsBuilderFromConfig",
-          "line": 340,
-          "kind": "const"
-        },
-        {
-          "name": "markQualityDetailSettingsBuilderDirty",
-          "line": 341,
-          "kind": "const"
-        },
-        {
-          "name": "collectQualityDetailSettingsBuilderPatch",
-          "line": 342,
-          "kind": "const"
-        },
-        {
-          "name": "applyQualityDetailSettingsBuilderToPatch",
           "line": 343,
           "kind": "const"
         },
         {
-          "name": "renderQualityDetailSettingsBuilderGuidance",
+          "name": "markQualityDetailSettingsBuilderDirty",
           "line": 344,
           "kind": "const"
         },
         {
-          "name": "subtitleSettingsBuilderModule",
+          "name": "collectQualityDetailSettingsBuilderPatch",
+          "line": 345,
+          "kind": "const"
+        },
+        {
+          "name": "applyQualityDetailSettingsBuilderToPatch",
           "line": 346,
           "kind": "const"
         },
         {
+          "name": "renderQualityDetailSettingsBuilderGuidance",
+          "line": 347,
+          "kind": "const"
+        },
+        {
+          "name": "subtitleSettingsBuilderModule",
+          "line": 349,
+          "kind": "const"
+        },
+        {
           "name": "subtitleSettingsBuilder",
-          "line": 348,
+          "line": 351,
           "kind": "const"
         },
         {
           "name": "syncSubtitleSettingsBuilderFromConfig",
-          "line": 367,
-          "kind": "const"
-        },
-        {
-          "name": "markSubtitleSettingsBuilderDirty",
-          "line": 368,
-          "kind": "const"
-        },
-        {
-          "name": "collectSubtitleSettingsBuilderPatch",
-          "line": 369,
-          "kind": "const"
-        },
-        {
-          "name": "applySubtitleSettingsBuilderToPatch",
           "line": 370,
           "kind": "const"
         },
         {
-          "name": "settingsBdpgsOcrPathEvidence",
+          "name": "markSubtitleSettingsBuilderDirty",
           "line": 371,
           "kind": "const"
         },
         {
-          "name": "settingsBdpgsOcrPathEvidenceStatus",
+          "name": "collectSubtitleSettingsBuilderPatch",
           "line": 372,
           "kind": "const"
         },
         {
-          "name": "settingsBdpgsOcrPathEvidenceLines",
+          "name": "applySubtitleSettingsBuilderToPatch",
           "line": 373,
           "kind": "const"
         },
         {
-          "name": "renderSettingsBdpgsOcrPathEvidence",
+          "name": "settingsBdpgsOcrPathEvidence",
           "line": 374,
           "kind": "const"
         },
         {
-          "name": "settingsVobSubOcrPathEvidence",
+          "name": "settingsBdpgsOcrPathEvidenceStatus",
           "line": 375,
           "kind": "const"
         },
         {
-          "name": "settingsVobSubOcrPathEvidenceStatus",
+          "name": "settingsBdpgsOcrPathEvidenceLines",
           "line": 376,
           "kind": "const"
         },
         {
-          "name": "settingsVobSubOcrPathEvidenceLines",
+          "name": "renderSettingsBdpgsOcrPathEvidence",
           "line": 377,
           "kind": "const"
         },
         {
-          "name": "renderSettingsVobSubOcrPathEvidence",
+          "name": "settingsVobSubOcrPathEvidence",
           "line": 378,
           "kind": "const"
         },
         {
-          "name": "renderSubtitleSettingsBuilderGuidance",
+          "name": "settingsVobSubOcrPathEvidenceStatus",
           "line": 379,
           "kind": "const"
         },
         {
-          "name": "queueSettingsBuilderModule",
+          "name": "settingsVobSubOcrPathEvidenceLines",
+          "line": 380,
+          "kind": "const"
+        },
+        {
+          "name": "renderSettingsVobSubOcrPathEvidence",
           "line": 381,
           "kind": "const"
         },
         {
+          "name": "renderSubtitleSettingsBuilderGuidance",
+          "line": 382,
+          "kind": "const"
+        },
+        {
+          "name": "queueSettingsBuilderModule",
+          "line": 384,
+          "kind": "const"
+        },
+        {
           "name": "queueSettingsBuilder",
-          "line": 383,
+          "line": 386,
           "kind": "const"
         },
         {
           "name": "syncQueueSettingsBuilderFromConfig",
-          "line": 399,
-          "kind": "const"
-        },
-        {
-          "name": "markQueueSettingsBuilderDirty",
-          "line": 400,
-          "kind": "const"
-        },
-        {
-          "name": "collectQueueSettingsBuilderPatch",
-          "line": 401,
-          "kind": "const"
-        },
-        {
-          "name": "applyQueueSettingsBuilderToPatch",
           "line": 402,
           "kind": "const"
         },
         {
-          "name": "renderQueueSettingsBuilderGuidance",
+          "name": "markQueueSettingsBuilderDirty",
           "line": 403,
           "kind": "const"
         },
         {
-          "name": "runtimeSettingsBuilderModule",
+          "name": "collectQueueSettingsBuilderPatch",
+          "line": 404,
+          "kind": "const"
+        },
+        {
+          "name": "applyQueueSettingsBuilderToPatch",
           "line": 405,
           "kind": "const"
         },
         {
+          "name": "renderQueueSettingsBuilderGuidance",
+          "line": 406,
+          "kind": "const"
+        },
+        {
+          "name": "runtimeSettingsBuilderModule",
+          "line": 408,
+          "kind": "const"
+        },
+        {
           "name": "runtimeSettingsBuilder",
-          "line": 407,
+          "line": 410,
           "kind": "const"
         },
         {
           "name": "syncRuntimeSettingsBuilderFromConfig",
-          "line": 423,
-          "kind": "const"
-        },
-        {
-          "name": "markRuntimeSettingsBuilderDirty",
-          "line": 424,
-          "kind": "const"
-        },
-        {
-          "name": "collectRuntimeSettingsBuilderPatch",
-          "line": 425,
-          "kind": "const"
-        },
-        {
-          "name": "applyRuntimeSettingsBuilderToPatch",
           "line": 426,
           "kind": "const"
         },
         {
-          "name": "renderRuntimeSettingsBuilderGuidance",
+          "name": "markRuntimeSettingsBuilderDirty",
           "line": 427,
           "kind": "const"
         },
         {
-          "name": "fileSafetySettingsBuilderModule",
+          "name": "collectRuntimeSettingsBuilderPatch",
+          "line": 428,
+          "kind": "const"
+        },
+        {
+          "name": "applyRuntimeSettingsBuilderToPatch",
           "line": 429,
           "kind": "const"
         },
         {
+          "name": "renderRuntimeSettingsBuilderGuidance",
+          "line": 430,
+          "kind": "const"
+        },
+        {
+          "name": "fileSafetySettingsBuilderModule",
+          "line": 432,
+          "kind": "const"
+        },
+        {
           "name": "fileSafetySettingsBuilder",
-          "line": 431,
+          "line": 434,
           "kind": "const"
         },
         {
           "name": "syncFileSafetySettingsBuilderFromConfig",
-          "line": 449,
-          "kind": "const"
-        },
-        {
-          "name": "markFileSafetySettingsBuilderDirty",
-          "line": 450,
-          "kind": "const"
-        },
-        {
-          "name": "collectFileSafetySettingsBuilderPatch",
-          "line": 451,
-          "kind": "const"
-        },
-        {
-          "name": "applyFileSafetySettingsBuilderToPatch",
           "line": 452,
           "kind": "const"
         },
         {
-          "name": "renderFileSafetySettingsBuilderGuidance",
+          "name": "markFileSafetySettingsBuilderDirty",
           "line": 453,
           "kind": "const"
         },
         {
-          "name": "pendingPublishSettingsBuilderModule",
+          "name": "collectFileSafetySettingsBuilderPatch",
+          "line": 454,
+          "kind": "const"
+        },
+        {
+          "name": "applyFileSafetySettingsBuilderToPatch",
           "line": 455,
           "kind": "const"
         },
         {
+          "name": "renderFileSafetySettingsBuilderGuidance",
+          "line": 456,
+          "kind": "const"
+        },
+        {
+          "name": "pendingPublishSettingsBuilderModule",
+          "line": 458,
+          "kind": "const"
+        },
+        {
           "name": "pendingPublishSettingsBuilder",
-          "line": 457,
+          "line": 460,
           "kind": "const"
         },
         {
           "name": "syncPendingPublishSettingsBuilderFromConfig",
-          "line": 475,
-          "kind": "const"
-        },
-        {
-          "name": "markPendingPublishSettingsBuilderDirty",
-          "line": 476,
-          "kind": "const"
-        },
-        {
-          "name": "collectPendingPublishSettingsBuilderPatch",
-          "line": 477,
-          "kind": "const"
-        },
-        {
-          "name": "applyPendingPublishSettingsBuilderToPatch",
           "line": 478,
           "kind": "const"
         },
         {
-          "name": "renderPendingPublishSettingsBuilderGuidance",
+          "name": "markPendingPublishSettingsBuilderDirty",
           "line": 479,
           "kind": "const"
         },
         {
-          "name": "networkSettingsBuilderModule",
+          "name": "collectPendingPublishSettingsBuilderPatch",
+          "line": 480,
+          "kind": "const"
+        },
+        {
+          "name": "applyPendingPublishSettingsBuilderToPatch",
           "line": 481,
           "kind": "const"
         },
         {
+          "name": "renderPendingPublishSettingsBuilderGuidance",
+          "line": 482,
+          "kind": "const"
+        },
+        {
+          "name": "networkSettingsBuilderModule",
+          "line": 484,
+          "kind": "const"
+        },
+        {
           "name": "networkSettingsBuilder",
-          "line": 483,
+          "line": 486,
           "kind": "const"
         },
         {
           "name": "syncNetworkSettingsBuilderFromConfig",
-          "line": 500,
-          "kind": "const"
-        },
-        {
-          "name": "markNetworkSettingsBuilderDirty",
-          "line": 501,
-          "kind": "const"
-        },
-        {
-          "name": "collectNetworkSettingsBuilderPatch",
-          "line": 502,
-          "kind": "const"
-        },
-        {
-          "name": "applyNetworkSettingsBuilderToPatch",
           "line": 503,
           "kind": "const"
         },
         {
-          "name": "renderNetworkSettingsBuilderGuidance",
+          "name": "markNetworkSettingsBuilderDirty",
           "line": 504,
           "kind": "const"
         },
         {
-          "name": "settingsRawTriageModule",
+          "name": "collectNetworkSettingsBuilderPatch",
+          "line": 505,
+          "kind": "const"
+        },
+        {
+          "name": "applyNetworkSettingsBuilderToPatch",
           "line": 506,
           "kind": "const"
         },
         {
+          "name": "renderNetworkSettingsBuilderGuidance",
+          "line": 507,
+          "kind": "const"
+        },
+        {
+          "name": "settingsRawTriageModule",
+          "line": 509,
+          "kind": "const"
+        },
+        {
           "name": "settingsRawTriage",
-          "line": 508,
+          "line": 511,
           "kind": "const"
         },
         {
           "name": "setSettingsRows",
-          "line": 530,
-          "kind": "const"
-        },
-        {
-          "name": "renderSettingsRows",
-          "line": 531,
-          "kind": "const"
-        },
-        {
-          "name": "settingsRawTriageRows",
-          "line": 532,
-          "kind": "const"
-        },
-        {
-          "name": "settingsRawTriageStatus",
           "line": 533,
           "kind": "const"
         },
         {
-          "name": "settingsRawTriageSummaryLines",
+          "name": "renderSettingsRows",
           "line": 534,
           "kind": "const"
         },
         {
-          "name": "settingsRawTriageDetailLines",
+          "name": "settingsRawTriageRows",
           "line": 535,
           "kind": "const"
         },
         {
-          "name": "renderSettingsRawTriage",
+          "name": "settingsRawTriageStatus",
           "line": 536,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanRows",
+          "name": "settingsRawTriageSummaryLines",
           "line": 537,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanStatus",
+          "name": "settingsRawTriageDetailLines",
           "line": 538,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanSummaryLines",
+          "name": "renderSettingsRawTriage",
           "line": 539,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanDetailLines",
+          "name": "settingsRawActionPlanRows",
           "line": 540,
           "kind": "const"
         },
         {
-          "name": "renderSettingsRawActionPlan",
+          "name": "settingsRawActionPlanStatus",
           "line": 541,
           "kind": "const"
         },
         {
-          "name": "boundedSettingsValueText",
+          "name": "settingsRawActionPlanSummaryLines",
           "line": 542,
           "kind": "const"
         },
         {
+          "name": "settingsRawActionPlanDetailLines",
+          "line": 543,
+          "kind": "const"
+        },
+        {
+          "name": "renderSettingsRawActionPlan",
+          "line": 544,
+          "kind": "const"
+        },
+        {
+          "name": "boundedSettingsValueText",
+          "line": 545,
+          "kind": "const"
+        },
+        {
           "name": "settingsSafetyLocksModule",
-          "line": 548,
+          "line": 551,
           "kind": "const"
         },
         {
           "name": "settingsSafetyLocks",
-          "line": 550,
+          "line": 553,
           "kind": "const"
         },
         {
           "name": "settingsSafetyLockRows",
-          "line": 562,
-          "kind": "const"
-        },
-        {
-          "name": "settingsSafetyLockStatus",
-          "line": 563,
-          "kind": "const"
-        },
-        {
-          "name": "settingsSafetyLockSummaryLines",
-          "line": 564,
-          "kind": "const"
-        },
-        {
-          "name": "renderSettingsSafetyLocks",
           "line": 565,
           "kind": "const"
         },
         {
-          "name": "setSettingsBuilderControl",
+          "name": "settingsSafetyLockStatus",
           "line": 566,
+          "kind": "const"
+        },
+        {
+          "name": "settingsSafetyLockSummaryLines",
+          "line": 567,
+          "kind": "const"
+        },
+        {
+          "name": "renderSettingsSafetyLocks",
+          "line": 568,
+          "kind": "const"
+        },
+        {
+          "name": "setSettingsBuilderControl",
+          "line": 569,
           "kind": "function"
         },
         {
           "name": "syncSettingsBuilderFromConfig",
-          "line": 571,
+          "line": 574,
           "kind": "function"
         },
         {
           "name": "markSettingsBuilderDirty",
-          "line": 576,
+          "line": 579,
           "kind": "function"
         },
         {
           "name": "settingsBuilderInputValue",
-          "line": 581,
+          "line": 584,
           "kind": "function"
         },
         {
           "name": "readSettingsBuilderNumber",
-          "line": 586,
+          "line": 589,
           "kind": "function"
         },
         {
           "name": "readSettingsBuilderFloat",
-          "line": 592,
+          "line": 595,
           "kind": "function"
         },
         {
           "name": "settingsRawConfigValue",
-          "line": 598,
+          "line": 601,
           "kind": "function"
         },
         {
           "name": "parseSettingsPatchJson",
-          "line": 603,
+          "line": 606,
           "kind": "function"
         },
         {
           "name": "markSettingsPatchTouched",
-          "line": 608,
+          "line": 611,
           "kind": "function"
         },
         {
           "name": "settingsPatchIsTouched",
-          "line": 613,
+          "line": 616,
           "kind": "function"
         },
         {
           "name": "settingsPatchEffectiveChangedEntries",
-          "line": 618,
+          "line": 621,
           "kind": "function"
         },
         {
           "name": "settingsPatchHasUnsavedChanges",
-          "line": 623,
+          "line": 626,
           "kind": "function"
         },
         {
           "name": "writeSettingsPatchJson",
-          "line": 628,
+          "line": 631,
           "kind": "function"
         },
         {
           "name": "settingsPatchReview",
-          "line": 633,
+          "line": 636,
           "kind": "let"
         },
         {
           "name": "settingsPatchReviewFunction",
-          "line": 635,
+          "line": 638,
           "kind": "function"
         },
         {
           "name": "setFinalLibraryPromotionStatus",
-          "line": 640,
+          "line": 643,
           "kind": "function"
         },
         {
           "name": "finalLibraryPromotionBrowseDetailLines",
-          "line": 650,
+          "line": 653,
           "kind": "function"
         },
         {
           "name": "addFinalLibraryPromotionRule",
-          "line": 655,
+          "line": 658,
           "kind": "function"
         },
         {
           "name": "syncFinalLibraryPromotionSettingsBuilderFromConfig",
-          "line": 660,
+          "line": 663,
           "kind": "function"
         },
         {
           "name": "markFinalLibraryPromotionSettingsBuilderDirty",
-          "line": 665,
+          "line": 668,
           "kind": "function"
         },
         {
           "name": "collectFinalLibraryPromotionSettingsPatch",
-          "line": 670,
+          "line": 673,
           "kind": "function"
         },
         {
           "name": "renderFinalLibraryPromotionSettingsGuidance",
-          "line": 676,
+          "line": 679,
           "kind": "function"
         },
         {
           "name": "finalLibraryPromotionSettingsResultLines",
-          "line": 681,
+          "line": 684,
           "kind": "function"
         },
         {
           "name": "browseFinalLibraryPromotionRulePath",
-          "line": 686,
+          "line": 689,
           "kind": "function"
         },
         {
           "name": "previewFinalLibraryPromotionSettings",
-          "line": 728,
+          "line": 731,
           "kind": "function"
         },
         {
           "name": "saveFinalLibraryPromotionSettings",
-          "line": 773,
+          "line": 776,
           "kind": "function"
         },
         {
           "name": "collectSettingsBuilderPatch",
-          "line": 854,
+          "line": 857,
           "kind": "function"
         },
         {
           "name": "applySettingsBuilderToPatch",
-          "line": 859,
+          "line": 862,
           "kind": "function"
         },
         {
           "name": "settingsPolicyImpact",
-          "line": 864,
+          "line": 867,
           "kind": "let"
         },
         {
           "name": "settingsPolicyImpactFunction",
-          "line": 865,
+          "line": 868,
           "kind": "function"
         },
         {
           "name": "settingsPolicyImpactCall",
-          "line": 869,
+          "line": 872,
           "kind": "function"
         },
         {
           "name": "settingsPolicyImpactDo",
-          "line": 874,
+          "line": 877,
           "kind": "function"
         },
         {
           "name": "settingsMediaPolicyRows",
-          "line": 879,
-          "kind": "function"
-        },
-        {
-          "name": "settingsMediaPolicyStatus",
-          "line": 880,
-          "kind": "function"
-        },
-        {
-          "name": "settingsActiveMediaPolicyRows",
-          "line": 881,
-          "kind": "function"
-        },
-        {
-          "name": "settingsActiveMediaPolicyStatus",
           "line": 882,
           "kind": "function"
         },
         {
-          "name": "settingsActiveMediaPolicySummaryLines",
+          "name": "settingsMediaPolicyStatus",
           "line": 883,
           "kind": "function"
         },
         {
-          "name": "renderSettingsActiveMediaPolicyHandoff",
+          "name": "settingsActiveMediaPolicyRows",
           "line": 884,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicyRows",
+          "name": "settingsActiveMediaPolicyStatus",
           "line": 885,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicyTrustStatus",
+          "name": "settingsActiveMediaPolicySummaryLines",
           "line": 886,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicySummaryLines",
+          "name": "renderSettingsActiveMediaPolicyHandoff",
           "line": 887,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicyDetailLines",
+          "name": "settingsEffectivePolicyRows",
           "line": 888,
           "kind": "function"
         },
         {
-          "name": "renderSettingsEffectivePolicyTrustFromEntries",
+          "name": "settingsEffectivePolicyTrustStatus",
           "line": 889,
           "kind": "function"
         },
         {
-          "name": "renderSettingsEffectivePolicyTrustForError",
+          "name": "settingsEffectivePolicySummaryLines",
           "line": 890,
           "kind": "function"
         },
         {
-          "name": "settingsMediaPolicySummaryLines",
+          "name": "settingsEffectivePolicyDetailLines",
           "line": 891,
           "kind": "function"
         },
         {
-          "name": "renderSettingsMediaPolicyCrossCheck",
+          "name": "renderSettingsEffectivePolicyTrustFromEntries",
           "line": 892,
           "kind": "function"
         },
         {
-          "name": "settingsBackendPolicyImpact",
+          "name": "renderSettingsEffectivePolicyTrustForError",
           "line": 893,
           "kind": "function"
         },
         {
-          "name": "settingsBackendMediaPolicyReadiness",
+          "name": "settingsMediaPolicySummaryLines",
           "line": 894,
           "kind": "function"
         },
         {
-          "name": "settingsBackendMediaPolicyStatus",
+          "name": "renderSettingsMediaPolicyCrossCheck",
           "line": 895,
           "kind": "function"
         },
         {
-          "name": "settingsBackendMediaPolicySummaryLines",
+          "name": "settingsBackendPolicyImpact",
           "line": 896,
           "kind": "function"
         },
         {
-          "name": "renderSettingsBackendMediaPolicyReadiness",
+          "name": "settingsBackendMediaPolicyReadiness",
           "line": 897,
           "kind": "function"
         },
         {
-          "name": "settingsImpactGroupForKey",
+          "name": "settingsBackendMediaPolicyStatus",
           "line": 898,
           "kind": "function"
         },
         {
-          "name": "settingsPatchImpactEntries",
+          "name": "settingsBackendMediaPolicySummaryLines",
           "line": 899,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchImpactSummaryFromEntries",
+          "name": "renderSettingsBackendMediaPolicyReadiness",
           "line": 900,
           "kind": "function"
         },
         {
-          "name": "settingsBoolValue",
+          "name": "settingsImpactGroupForKey",
           "line": 901,
           "kind": "function"
         },
         {
-          "name": "settingsPatchCandidateValue",
+          "name": "settingsPatchImpactEntries",
           "line": 902,
           "kind": "function"
         },
         {
-          "name": "settingsStableJsonValue",
+          "name": "renderSettingsPatchImpactSummaryFromEntries",
           "line": 903,
           "kind": "function"
         },
         {
-          "name": "settingsPatchSignature",
+          "name": "settingsBoolValue",
           "line": 904,
           "kind": "function"
         },
         {
-          "name": "settingsPatchRequestExtras",
+          "name": "settingsPatchCandidateValue",
           "line": 905,
           "kind": "function"
         },
         {
+          "name": "settingsStableJsonValue",
+          "line": 906,
+          "kind": "function"
+        },
+        {
+          "name": "settingsPatchSignature",
+          "line": 907,
+          "kind": "function"
+        },
+        {
+          "name": "settingsPatchRequestExtras",
+          "line": 908,
+          "kind": "function"
+        },
+        {
           "name": "settingsPatchRequestSignature",
-          "line": 918,
+          "line": 921,
           "kind": "function"
         },
         {
           "name": "settingsCurrentPatchSignature",
-          "line": 924,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPatchListValue",
-          "line": 925,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPolicyDeltaStatus",
-          "line": 926,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPolicyDeltaRows",
           "line": 927,
           "kind": "function"
         },
         {
-          "name": "settingsPolicyDeltaSummaryLines",
+          "name": "settingsPatchListValue",
           "line": 928,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPolicyDeltaFromEntries",
+          "name": "settingsPolicyDeltaStatus",
           "line": 929,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPolicyDeltaForError",
+          "name": "settingsPolicyDeltaRows",
           "line": 930,
           "kind": "function"
         },
         {
-          "name": "settingsPatchReviewModule",
+          "name": "settingsPolicyDeltaSummaryLines",
+          "line": 931,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPolicyDeltaFromEntries",
           "line": 932,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPolicyDeltaForError",
+          "line": 933,
+          "kind": "function"
+        },
+        {
+          "name": "settingsPatchReviewModule",
+          "line": 935,
           "kind": "const"
         },
         {
           "name": "settingsPatchReviewCall",
-          "line": 1075,
+          "line": 1078,
           "kind": "function"
         },
         {
           "name": "settingsPatchSaveReadinessIssues",
-          "line": 1080,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPatchSaveReadinessStatus",
-          "line": 1081,
-          "kind": "function"
-        },
-        {
-          "name": "settingsSaveReviewRows",
-          "line": 1082,
-          "kind": "function"
-        },
-        {
-          "name": "settingsSaveReviewStatus",
           "line": 1083,
           "kind": "function"
         },
         {
-          "name": "settingsSaveReviewDetailLines",
+          "name": "settingsPatchSaveReadinessStatus",
           "line": 1084,
           "kind": "function"
         },
         {
-          "name": "renderSettingsSaveReviewFromEntries",
+          "name": "settingsSaveReviewRows",
           "line": 1085,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchSaveReadinessFromEntries",
+          "name": "settingsSaveReviewStatus",
           "line": 1086,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchImpactSummaryForError",
+          "name": "settingsSaveReviewDetailLines",
+          "line": 1087,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsSaveReviewFromEntries",
           "line": 1088,
           "kind": "function"
         },
         {
+          "name": "renderSettingsPatchSaveReadinessFromEntries",
+          "line": 1089,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPatchImpactSummaryForError",
+          "line": 1091,
+          "kind": "function"
+        },
+        {
           "name": "settingsPolicyImpactModule",
-          "line": 1095,
+          "line": 1098,
           "kind": "const"
         },
         {
           "name": "settingsLaunchImpactRows",
-          "line": 1131,
-          "kind": "function"
-        },
-        {
-          "name": "settingsLaunchImpactStatus",
-          "line": 1132,
-          "kind": "function"
-        },
-        {
-          "name": "settingsLaunchImpactSummaryLines",
-          "line": 1133,
-          "kind": "function"
-        },
-        {
-          "name": "renderSettingsLaunchImpactHandoffFromEntries",
           "line": 1134,
           "kind": "function"
         },
         {
-          "name": "renderSettingsLaunchImpactHandoffForError",
+          "name": "settingsLaunchImpactStatus",
           "line": 1135,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultModule",
+          "name": "settingsLaunchImpactSummaryLines",
           "line": 1136,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsLaunchImpactHandoffFromEntries",
+          "line": 1137,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsLaunchImpactHandoffForError",
+          "line": 1138,
+          "kind": "function"
+        },
+        {
+          "name": "settingsBackendResultModule",
+          "line": 1139,
           "kind": "const"
         },
         {
           "name": "settingsBackendResult",
-          "line": 1138,
+          "line": 1141,
           "kind": "const"
         },
         {
           "name": "settingsBackendResultCall",
-          "line": 1179,
+          "line": 1182,
           "kind": "function"
         },
         {
           "name": "settingsCommandProgressBars",
-          "line": 1184,
-          "kind": "function"
-        },
-        {
-          "name": "renderSettingsSaveProgress",
-          "line": 1185,
-          "kind": "function"
-        },
-        {
-          "name": "settingsProgressDetailLines",
-          "line": 1186,
-          "kind": "function"
-        },
-        {
-          "name": "settingsBackendResultRowKey",
           "line": 1187,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultRows",
+          "name": "renderSettingsSaveProgress",
           "line": 1188,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultDetailLines",
+          "name": "settingsProgressDetailLines",
           "line": 1189,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultStatus",
+          "name": "settingsBackendResultRowKey",
           "line": 1190,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultSummaryLines",
+          "name": "settingsBackendResultRows",
           "line": 1191,
           "kind": "function"
         },
         {
-          "name": "renderSettingsBackendResultFromEntries",
+          "name": "settingsBackendResultDetailLines",
           "line": 1192,
           "kind": "function"
         },
         {
-          "name": "renderSettingsBackendResultForError",
+          "name": "settingsBackendResultStatus",
           "line": 1193,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchSummary",
+          "name": "settingsBackendResultSummaryLines",
           "line": 1194,
           "kind": "function"
         },
         {
+          "name": "renderSettingsBackendResultFromEntries",
+          "line": 1195,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsBackendResultForError",
+          "line": 1196,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPatchSummary",
+          "line": 1197,
+          "kind": "function"
+        },
+        {
           "name": "syncSaveHeaderStatus",
-          "line": 1200,
+          "line": 1203,
           "kind": "function"
         },
         {
           "name": "renderSettingsBuilderGuidance",
-          "line": 1213,
+          "line": 1216,
           "kind": "function"
         },
         {
           "name": "settingsProfileSummaryLines",
-          "line": 1218,
+          "line": 1221,
           "kind": "function"
         },
         {
           "name": "renderSettings",
-          "line": 1223,
+          "line": 1226,
           "kind": "function"
         },
         {
           "name": "validateCurrentSettings",
-          "line": 1241,
+          "line": 1244,
           "kind": "function"
         },
         {
           "name": "appendSettingsRiskSummaryLines",
-          "line": 1262,
+          "line": 1265,
           "kind": "function"
         },
         {
           "name": "settingsBuilderFlushFailureMessage",
-          "line": 1281,
+          "line": 1284,
           "kind": "function"
         },
         {
           "name": "recordSettingsBuilderFlushFailure",
-          "line": 1286,
+          "line": 1289,
           "kind": "function"
         },
         {
           "name": "flushDirtySettingsBuilders",
-          "line": 1303,
+          "line": 1306,
           "kind": "function"
         },
         {
           "name": "resetSettingsBuilderSyncState",
-          "line": 1350,
+          "line": 1353,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFiltersFromSettingsSave",
-          "line": 1373,
+          "line": 1376,
+          "kind": "function"
+        },
+        {
+          "name": "settingsRenameLogCaseInput",
+          "line": 1383,
+          "kind": "function"
+        },
+        {
+          "name": "settingsRenameLogCaseValue",
+          "line": 1387,
+          "kind": "function"
+        },
+        {
+          "name": "settingsRenameLogCaseInteger",
+          "line": 1391,
+          "kind": "function"
+        },
+        {
+          "name": "settingsRenameLogCasePayload",
+          "line": 1402,
+          "kind": "function"
+        },
+        {
+          "name": "settingsRenameLogCaseRequiredIssues",
+          "line": 1422,
+          "kind": "function"
+        },
+        {
+          "name": "syncSettingsRenameLogCaseButton",
+          "line": 1431,
+          "kind": "function"
+        },
+        {
+          "name": "setSettingsRenameLogCaseBusy",
+          "line": 1436,
+          "kind": "function"
+        },
+        {
+          "name": "submitSettingsRenameLogCase",
+          "line": 1441,
+          "kind": "function"
+        },
+        {
+          "name": "initSettingsRenameLogCaseEvents",
+          "line": 1479,
           "kind": "function"
         },
         {
           "name": "previewSettingsPatch",
-          "line": 1380,
+          "line": 1491,
           "kind": "function"
         },
         {
           "name": "saveSettingsPatch",
-          "line": 1500,
+          "line": 1611,
           "kind": "function"
         },
         {
           "name": "reloadSettingsFromDisk",
-          "line": 1706,
+          "line": 1817,
           "kind": "function"
         },
         {
           "name": "getLastSettings",
-          "line": 1749,
+          "line": 1860,
           "kind": "function"
         },
         {
           "name": "settingsBrowsePathDetailLines",
-          "line": 1753,
+          "line": 1864,
           "kind": "function"
         },
         {
           "name": "browseSettingsPath",
-          "line": 1768,
+          "line": 1879,
           "kind": "function"
         },
         {
           "name": "initSettingsViewEvents",
-          "line": 1821,
+          "line": 1932,
           "kind": "function"
         },
         {
           "name": "previewBtn",
-          "line": 1891,
+          "line": 2004,
           "kind": "const"
         },
         {
           "name": "saveBtn",
-          "line": 1893,
+          "line": 2006,
           "kind": "const"
         },
         {
           "name": "reloadBtn",
-          "line": 1895,
+          "line": 2008,
           "kind": "const"
         }
       ],
@@ -12249,6 +12419,9 @@
         "settings-patch-json",
         "settings-patch-status",
         "settings-rename-filter-release-groups",
+        "settings-rename-log-case-form",
+        "settings-rename-log-case-status-select",
+        "settings-rename-log-case-submit-button",
         "settings-save-header-patch-status",
         "settings-save-header-preview-button",
         "settings-save-header-reload-button",
@@ -12256,7 +12429,8 @@
         "settings-save-header-save-button"
       ],
       "event_types": [
-        "click"
+        "click",
+        "submit"
       ]
     },
     {
@@ -12655,498 +12829,548 @@
           "kind": "function"
         },
         {
-          "name": "choiceLabel",
+          "name": "libraryWatchConfig",
           "line": 611,
           "kind": "function"
         },
         {
-          "name": "fieldHelpText",
-          "line": 617,
+          "name": "libraryWatchStatusLabel",
+          "line": 626,
           "kind": "function"
         },
         {
-          "name": "metadataTags",
-          "line": 621,
+          "name": "libraryWatchSummaryLines",
+          "line": 632,
           "kind": "function"
         },
         {
-          "name": "fieldIsAdvanced",
-          "line": 627,
+          "name": "libraryWatchHasActiveControl",
+          "line": 646,
           "kind": "function"
         },
         {
-          "name": "choiceValueLabel",
-          "line": 640,
-          "kind": "function"
-        },
-        {
-          "name": "inputTypeForField",
-          "line": 645,
-          "kind": "function"
-        },
-        {
-          "name": "fieldOwnValue",
+          "name": "syncLibraryWatchControlsFromConfig",
           "line": 652,
           "kind": "function"
         },
         {
-          "name": "buildOverrideControl",
-          "line": 658,
+          "name": "collectLibraryWatchAutoRunPatch",
+          "line": 664,
           "kind": "function"
         },
         {
-          "name": "effectiveOverrideValue",
-          "line": 693,
+          "name": "renderLibraryWatchPatchHandoff",
+          "line": 680,
           "kind": "function"
         },
         {
-          "name": "settingOverrideEvidence",
-          "line": 701,
+          "name": "stageLibraryWatchAutoRunPatch",
+          "line": 696,
           "kind": "function"
         },
         {
-          "name": "overrideValuesEqual",
-          "line": 706,
+          "name": "previewLibraryWatchAutoRunPatch",
+          "line": 712,
           "kind": "function"
         },
         {
-          "name": "overrideStateText",
-          "line": 710,
-          "kind": "function"
-        },
-        {
-          "name": "renderUseDefaultButton",
-          "line": 716,
-          "kind": "function"
-        },
-        {
-          "name": "routeNumberValue",
-          "line": 720,
-          "kind": "function"
-        },
-        {
-          "name": "routeFormatPercent",
+          "name": "saveLibraryWatchAutoRunPatch",
           "line": 726,
           "kind": "function"
         },
         {
-          "name": "routeFormatHeight",
-          "line": 733,
+          "name": "choiceLabel",
+          "line": 740,
           "kind": "function"
         },
         {
-          "name": "routeSafeIdPart",
-          "line": 739,
+          "name": "fieldHelpText",
+          "line": 746,
           "kind": "function"
         },
         {
-          "name": "routeElementId",
-          "line": 743,
+          "name": "metadataTags",
+          "line": 750,
           "kind": "function"
         },
         {
-          "name": "routeValueAvailable",
-          "line": 747,
+          "name": "fieldIsAdvanced",
+          "line": 756,
           "kind": "function"
         },
         {
-          "name": "routeValueFromBackendSource",
-          "line": 751,
+          "name": "choiceValueLabel",
+          "line": 769,
           "kind": "function"
         },
         {
-          "name": "routeMetadataMissingKeys",
-          "line": 758,
+          "name": "inputTypeForField",
+          "line": 774,
           "kind": "function"
         },
         {
-          "name": "routeSourceSummary",
-          "line": 766,
+          "name": "fieldOwnValue",
+          "line": 781,
           "kind": "function"
         },
         {
-          "name": "routeValuesFromObject",
-          "line": 776,
+          "name": "buildOverrideControl",
+          "line": 787,
           "kind": "function"
         },
         {
-          "name": "routeBoundariesFromValues",
-          "line": 783,
+          "name": "effectiveOverrideValue",
+          "line": 822,
           "kind": "function"
         },
         {
-          "name": "routeRailPercentages",
-          "line": 794,
+          "name": "settingOverrideEvidence",
+          "line": 830,
           "kind": "function"
         },
         {
-          "name": "routeValuesFromProfile",
-          "line": 806,
+          "name": "overrideValuesEqual",
+          "line": 835,
           "kind": "function"
         },
         {
-          "name": "routeValuesFromCard",
-          "line": 813,
-          "kind": "function"
-        },
-        {
-          "name": "effectiveLibraryOverrideValue",
-          "line": 821,
-          "kind": "function"
-        },
-        {
-          "name": "routeTriggerSummary",
-          "line": 829,
-          "kind": "function"
-        },
-        {
-          "name": "routeHeightPixelSummary",
-          "line": 834,
-          "kind": "function"
-        },
-        {
-          "name": "routeConsequenceSummary",
+          "name": "overrideStateText",
           "line": 839,
           "kind": "function"
         },
         {
-          "name": "routeUnknownHeightSummary",
+          "name": "renderUseDefaultButton",
           "line": 845,
           "kind": "function"
         },
         {
-          "name": "routeEstimatedGb",
-          "line": 850,
+          "name": "routeNumberValue",
+          "line": 849,
           "kind": "function"
         },
         {
-          "name": "routeFormatEstimatedGb",
-          "line": 856,
+          "name": "routeFormatPercent",
+          "line": 855,
           "kind": "function"
         },
         {
-          "name": "renderLibraryRouteOverrideField",
-          "line": 863,
+          "name": "routeFormatHeight",
+          "line": 862,
           "kind": "function"
         },
         {
-          "name": "renderLibraryRouteRail",
-          "line": 918,
+          "name": "routeSafeIdPart",
+          "line": 868,
           "kind": "function"
         },
         {
-          "name": "renderLibraryRouteBoundaryControls",
+          "name": "routeElementId",
+          "line": 872,
+          "kind": "function"
+        },
+        {
+          "name": "routeValueAvailable",
+          "line": 876,
+          "kind": "function"
+        },
+        {
+          "name": "routeValueFromBackendSource",
+          "line": 880,
+          "kind": "function"
+        },
+        {
+          "name": "routeMetadataMissingKeys",
+          "line": 887,
+          "kind": "function"
+        },
+        {
+          "name": "routeSourceSummary",
+          "line": 895,
+          "kind": "function"
+        },
+        {
+          "name": "routeValuesFromObject",
+          "line": 905,
+          "kind": "function"
+        },
+        {
+          "name": "routeBoundariesFromValues",
+          "line": 912,
+          "kind": "function"
+        },
+        {
+          "name": "routeRailPercentages",
+          "line": 923,
+          "kind": "function"
+        },
+        {
+          "name": "routeValuesFromProfile",
+          "line": 935,
+          "kind": "function"
+        },
+        {
+          "name": "routeValuesFromCard",
           "line": 942,
           "kind": "function"
         },
         {
+          "name": "effectiveLibraryOverrideValue",
+          "line": 950,
+          "kind": "function"
+        },
+        {
+          "name": "routeTriggerSummary",
+          "line": 958,
+          "kind": "function"
+        },
+        {
+          "name": "routeHeightPixelSummary",
+          "line": 963,
+          "kind": "function"
+        },
+        {
+          "name": "routeConsequenceSummary",
+          "line": 968,
+          "kind": "function"
+        },
+        {
+          "name": "routeUnknownHeightSummary",
+          "line": 974,
+          "kind": "function"
+        },
+        {
+          "name": "routeEstimatedGb",
+          "line": 979,
+          "kind": "function"
+        },
+        {
+          "name": "routeFormatEstimatedGb",
+          "line": 985,
+          "kind": "function"
+        },
+        {
+          "name": "renderLibraryRouteOverrideField",
+          "line": 992,
+          "kind": "function"
+        },
+        {
+          "name": "renderLibraryRouteRail",
+          "line": 1047,
+          "kind": "function"
+        },
+        {
+          "name": "renderLibraryRouteBoundaryControls",
+          "line": 1071,
+          "kind": "function"
+        },
+        {
           "name": "renderLibraryRouteBucket",
-          "line": 970,
+          "line": 1099,
           "kind": "function"
         },
         {
           "name": "renderLibraryRouteSizeLayout",
-          "line": 1017,
+          "line": 1146,
           "kind": "function"
         },
         {
           "name": "renderOverrideField",
-          "line": 1068,
+          "line": 1197,
           "kind": "function"
         },
         {
           "name": "fieldsForGroup",
-          "line": 1134,
+          "line": 1263,
           "kind": "function"
         },
         {
           "name": "renderFieldGrid",
-          "line": 1138,
+          "line": 1267,
           "kind": "function"
         },
         {
           "name": "renderOptionGrid",
-          "line": 1147,
+          "line": 1276,
           "kind": "function"
         },
         {
           "name": "renderFullFields",
-          "line": 1153,
+          "line": 1282,
           "kind": "function"
         },
         {
           "name": "renderNestedOptionPanel",
-          "line": 1157,
+          "line": 1286,
           "kind": "function"
         },
         {
           "name": "renderOverrideLayout",
-          "line": 1173,
+          "line": 1302,
           "kind": "function"
         },
         {
           "name": "renderOverrideSection",
-          "line": 1187,
+          "line": 1316,
           "kind": "function"
         },
         {
           "name": "profileMp4CompatibilityActive",
-          "line": 1202,
+          "line": 1331,
           "kind": "function"
         },
         {
           "name": "renderCompatibilityPresetEditorControl",
-          "line": 1207,
+          "line": 1336,
           "kind": "function"
         },
         {
           "name": "captureOpenOverrideSections",
-          "line": 1223,
+          "line": 1352,
           "kind": "function"
         },
         {
           "name": "renderCard",
-          "line": 1240,
+          "line": 1369,
           "kind": "function"
         },
         {
           "name": "libraryEditorHasActiveControl",
-          "line": 1306,
+          "line": 1435,
           "kind": "function"
         },
         {
           "name": "shouldDeferAutomaticLibraryRender",
-          "line": 1318,
+          "line": 1447,
           "kind": "function"
         },
         {
           "name": "renderSettingsLibraries",
-          "line": 1322,
+          "line": 1451,
           "kind": "function"
         },
         {
           "name": "libraryPaneId",
-          "line": 1346,
+          "line": 1476,
           "kind": "function"
         },
         {
           "name": "storedLibraryTabId",
-          "line": 1350,
+          "line": 1480,
           "kind": "function"
         },
         {
           "name": "activateLibraryTab",
-          "line": 1360,
+          "line": 1490,
           "kind": "function"
         },
         {
           "name": "closeOverrideSections",
-          "line": 1384,
+          "line": 1514,
           "kind": "function"
         },
         {
           "name": "activeLibraryCard",
-          "line": 1393,
+          "line": 1523,
           "kind": "function"
         },
         {
           "name": "activeLibraryProfileId",
-          "line": 1398,
-          "kind": "function"
-        },
-        {
-          "name": "activeLibraryName",
-          "line": 1402,
-          "kind": "function"
-        },
-        {
-          "name": "activeLibraryCanDelete",
-          "line": 1408,
-          "kind": "function"
-        },
-        {
-          "name": "renderActiveLibraryCommandState",
-          "line": 1413,
-          "kind": "function"
-        },
-        {
-          "name": "renderProfileCards",
-          "line": 1439,
-          "kind": "function"
-        },
-        {
-          "name": "rerenderLibraryCard",
-          "line": 1471,
-          "kind": "function"
-        },
-        {
-          "name": "readOverrideControlValue",
-          "line": 1482,
-          "kind": "function"
-        },
-        {
-          "name": "setOverrideControlValue",
-          "line": 1504,
-          "kind": "function"
-        },
-        {
-          "name": "libraryRouteRow",
-          "line": 1524,
-          "kind": "function"
-        },
-        {
-          "name": "setLibraryOverrideValue",
           "line": 1528,
           "kind": "function"
         },
         {
-          "name": "setLibraryRouteOverrideValue",
-          "line": 1545,
+          "name": "activeLibraryName",
+          "line": 1532,
           "kind": "function"
         },
         {
-          "name": "presetReasonForKey",
-          "line": 1549,
+          "name": "activeLibraryCanDelete",
+          "line": 1538,
           "kind": "function"
         },
         {
-          "name": "syncLibraryCompatibilityAvailability",
-          "line": 1555,
+          "name": "renderActiveLibraryCommandState",
+          "line": 1543,
           "kind": "function"
         },
         {
-          "name": "applyLibraryCompatibilityPreset",
+          "name": "renderProfileCards",
+          "line": 1569,
+          "kind": "function"
+        },
+        {
+          "name": "rerenderLibraryCard",
           "line": 1601,
           "kind": "function"
         },
         {
+          "name": "readOverrideControlValue",
+          "line": 1612,
+          "kind": "function"
+        },
+        {
+          "name": "setOverrideControlValue",
+          "line": 1634,
+          "kind": "function"
+        },
+        {
+          "name": "libraryRouteRow",
+          "line": 1654,
+          "kind": "function"
+        },
+        {
+          "name": "setLibraryOverrideValue",
+          "line": 1658,
+          "kind": "function"
+        },
+        {
+          "name": "setLibraryRouteOverrideValue",
+          "line": 1675,
+          "kind": "function"
+        },
+        {
+          "name": "presetReasonForKey",
+          "line": 1679,
+          "kind": "function"
+        },
+        {
+          "name": "syncLibraryCompatibilityAvailability",
+          "line": 1685,
+          "kind": "function"
+        },
+        {
+          "name": "applyLibraryCompatibilityPreset",
+          "line": 1731,
+          "kind": "function"
+        },
+        {
           "name": "clearLibraryCompatibilityPreset",
-          "line": 1614,
+          "line": 1744,
           "kind": "function"
         },
         {
           "name": "updateLibraryRouteText",
-          "line": 1627,
+          "line": 1757,
           "kind": "function"
         },
         {
           "name": "syncLibraryRouteReadouts",
-          "line": 1632,
+          "line": 1762,
           "kind": "function"
         },
         {
           "name": "applyLibraryRouteBoundary",
-          "line": 1669,
+          "line": 1799,
           "kind": "function"
         },
         {
           "name": "resetLibraryRouteBoundary",
-          "line": 1683,
+          "line": 1813,
           "kind": "function"
         },
         {
           "name": "localInheritedFields",
-          "line": 1693,
+          "line": 1823,
           "kind": "function"
         },
         {
           "name": "setLocalInheritedFields",
-          "line": 1701,
+          "line": 1831,
           "kind": "function"
         },
         {
           "name": "updateOverrideRowState",
-          "line": 1705,
+          "line": 1835,
           "kind": "function"
         },
         {
           "name": "setPathRowState",
-          "line": 1724,
+          "line": 1854,
           "kind": "function"
         },
         {
           "name": "profileFromCard",
-          "line": 1747,
+          "line": 1877,
           "kind": "function"
         },
         {
           "name": "profileCardsFromDom",
-          "line": 1786,
+          "line": 1916,
           "kind": "function"
         },
         {
           "name": "collectProfilesFromDom",
-          "line": 1790,
+          "line": 1920,
           "kind": "function"
         },
         {
           "name": "collectLibraryProfileResetsFromDom",
-          "line": 1794,
+          "line": 1924,
           "kind": "function"
         },
         {
           "name": "currentPatchIncludesLibraryProfiles",
-          "line": 1817,
+          "line": 1947,
           "kind": "function"
         },
         {
           "name": "libraryProfileResetRequest",
-          "line": 1827,
+          "line": 1957,
           "kind": "function"
         },
         {
           "name": "buildPatchFromLibraries",
-          "line": 1833,
+          "line": 1963,
           "kind": "function"
         },
         {
           "name": "currentSettingsPatchKeys",
-          "line": 1855,
+          "line": 1985,
           "kind": "function"
         },
         {
           "name": "renderLibraryPatchHandoff",
-          "line": 1865,
+          "line": 1995,
           "kind": "function"
         },
         {
           "name": "previewLibraryProfiles",
-          "line": 1882,
+          "line": 2012,
           "kind": "function"
         },
         {
           "name": "saveLibraryProfiles",
-          "line": 1898,
+          "line": 2028,
           "kind": "function"
         },
         {
           "name": "renderLibraryWarningSummary",
-          "line": 1914,
+          "line": 2044,
           "kind": "function"
         },
         {
           "name": "addLibraryCard",
-          "line": 1918,
+          "line": 2048,
           "kind": "function"
         },
         {
           "name": "deleteActiveLibrary",
-          "line": 1942,
+          "line": 2072,
           "kind": "function"
         },
         {
           "name": "replaceActiveLibraryValuesWithDefaults",
-          "line": 1975,
+          "line": 2105,
           "kind": "function"
         },
         {
           "name": "resetFromSaved",
-          "line": 2001,
+          "line": 2131,
           "kind": "function"
         },
         {
           "name": "initSettingsLibrariesEvents",
-          "line": 2007,
+          "line": 2138,
           "kind": "function"
         }
       ],
@@ -13167,6 +13391,12 @@
         "settings-library-reset-button",
         "settings-library-save-button",
         "settings-library-warning-summary",
+        "settings-library-watch-auto-run",
+        "settings-library-watch-panel",
+        "settings-library-watch-preview-button",
+        "settings-library-watch-respect-schedule",
+        "settings-library-watch-save-button",
+        "settings-library-watch-stage-button",
         "settings-patch-json",
         "settings-patch-status"
       ],
@@ -16907,343 +17137,358 @@
           "kind": "function"
         },
         {
-          "name": "failureClearRequest",
+          "name": "failureCountsForRows",
           "line": 908,
           "kind": "function"
         },
         {
+          "name": "failureMarkerSourcePath",
+          "line": 923,
+          "kind": "function"
+        },
+        {
+          "name": "applyLocalFailureMarkerClear",
+          "line": 931,
+          "kind": "function"
+        },
+        {
+          "name": "failureClearRequest",
+          "line": 956,
+          "kind": "function"
+        },
+        {
           "name": "renderFailureClearResult",
-          "line": 925,
+          "line": 973,
           "kind": "function"
         },
         {
           "name": "requestFailureMarkerClear",
-          "line": 959,
+          "line": 1007,
           "kind": "function"
         },
         {
           "name": "requestFailureRowClear",
-          "line": 1013,
+          "line": 1065,
           "kind": "function"
         },
         {
           "name": "auditRowSearchText",
-          "line": 1026,
+          "line": 1078,
           "kind": "function"
         },
         {
           "name": "auditActionOwner",
-          "line": 1040,
+          "line": 1092,
           "kind": "function"
         },
         {
           "name": "auditMatchesChip",
-          "line": 1052,
+          "line": 1104,
           "kind": "function"
         },
         {
           "name": "auditDiagnosticsActionsForRow",
-          "line": 1066,
+          "line": 1118,
           "kind": "function"
         },
         {
           "name": "renderReportDiagnosticsActions",
-          "line": 1083,
+          "line": 1135,
           "kind": "function"
         },
         {
           "name": "selectFailureRow",
-          "line": 1109,
+          "line": 1161,
           "kind": "function"
         },
         {
           "name": "toggleFailureRowSelection",
-          "line": 1115,
+          "line": 1167,
           "kind": "function"
         },
         {
           "name": "renderFailureDetail",
-          "line": 1131,
+          "line": 1183,
           "kind": "function"
         },
         {
           "name": "renderFailureRows",
-          "line": 1189,
+          "line": 1241,
           "kind": "function"
         },
         {
           "name": "renderAuditPreview",
-          "line": 1259,
+          "line": 1311,
           "kind": "function"
         },
         {
           "name": "reportNumber",
-          "line": 1288,
+          "line": 1340,
           "kind": "function"
         },
         {
           "name": "reportPreviewLoaded",
-          "line": 1293,
-          "kind": "function"
-        },
-        {
-          "name": "reportCountBy",
-          "line": 1305,
-          "kind": "function"
-        },
-        {
-          "name": "reportFormatCounts",
-          "line": 1320,
-          "kind": "function"
-        },
-        {
-          "name": "reportSortedCountEntries",
-          "line": 1325,
-          "kind": "function"
-        },
-        {
-          "name": "reportHumanLabel",
-          "line": 1331,
-          "kind": "function"
-        },
-        {
-          "name": "reportCompactCountPairs",
-          "line": 1339,
-          "kind": "function"
-        },
-        {
-          "name": "failureRootCauseLabel",
           "line": 1345,
           "kind": "function"
         },
         {
+          "name": "reportCountBy",
+          "line": 1357,
+          "kind": "function"
+        },
+        {
+          "name": "reportFormatCounts",
+          "line": 1372,
+          "kind": "function"
+        },
+        {
+          "name": "reportSortedCountEntries",
+          "line": 1377,
+          "kind": "function"
+        },
+        {
+          "name": "reportHumanLabel",
+          "line": 1383,
+          "kind": "function"
+        },
+        {
+          "name": "reportCompactCountPairs",
+          "line": 1391,
+          "kind": "function"
+        },
+        {
+          "name": "failureRootCauseLabel",
+          "line": 1397,
+          "kind": "function"
+        },
+        {
           "name": "failureRootCauseTone",
-          "line": 1359,
+          "line": 1411,
           "kind": "function"
         },
         {
           "name": "failureReviewNextStep",
-          "line": 1367,
+          "line": 1419,
           "kind": "function"
         },
         {
           "name": "failureReviewStatus",
-          "line": 1418,
+          "line": 1470,
           "kind": "function"
         },
         {
           "name": "failureReviewBoardLines",
-          "line": 1428,
+          "line": 1480,
           "kind": "function"
         },
         {
           "name": "failureReviewBoardTiles",
-          "line": 1491,
+          "line": 1543,
           "kind": "function"
         },
         {
           "name": "failureReviewTileNode",
-          "line": 1593,
+          "line": 1645,
           "kind": "function"
         },
         {
           "name": "renderFailureReviewBoard",
-          "line": 1610,
+          "line": 1662,
           "kind": "function"
         },
         {
           "name": "auditReviewStatus",
-          "line": 1619,
+          "line": 1671,
           "kind": "function"
         },
         {
           "name": "auditReviewBoardLines",
-          "line": 1630,
+          "line": 1682,
           "kind": "function"
         },
         {
           "name": "renderAuditReviewBoard",
-          "line": 1695,
+          "line": 1747,
           "kind": "function"
         },
         {
           "name": "reportTriageStatus",
-          "line": 1700,
+          "line": 1752,
           "kind": "function"
         },
         {
           "name": "reportTriageNextStep",
-          "line": 1720,
+          "line": 1772,
           "kind": "function"
         },
         {
           "name": "reportTriageLines",
-          "line": 1740,
+          "line": 1792,
           "kind": "function"
         },
         {
           "name": "renderReportTriage",
-          "line": 1768,
+          "line": 1820,
           "kind": "function"
         },
         {
           "name": "reportInvestigationStatus",
-          "line": 1778,
+          "line": 1830,
           "kind": "function"
         },
         {
           "name": "reportInvestigationChecklistLines",
-          "line": 1789,
-          "kind": "function"
-        },
-        {
-          "name": "renderReportInvestigation",
           "line": 1841,
           "kind": "function"
         },
         {
+          "name": "renderReportInvestigation",
+          "line": 1893,
+          "kind": "function"
+        },
+        {
           "name": "selectedAuditRowKeysList",
-          "line": 1846,
+          "line": 1898,
           "kind": "function"
         },
         {
           "name": "collectReportAuditScorePolicyForm",
-          "line": 1850,
+          "line": 1902,
           "kind": "function"
         },
         {
           "name": "reportAuditScoreInputId",
-          "line": 1868,
+          "line": 1920,
           "kind": "function"
         },
         {
           "name": "reportAuditScoreValue",
-          "line": 1872,
+          "line": 1924,
           "kind": "function"
         },
         {
           "name": "reportAuditScoreIssueValue",
-          "line": 1876,
+          "line": 1928,
           "kind": "function"
         },
         {
           "name": "reportSyncAuditScoreIssueDefaults",
-          "line": 1884,
+          "line": 1936,
           "kind": "function"
         },
         {
           "name": "bindReportAuditScoreGroupInputs",
-          "line": 1899,
+          "line": 1951,
           "kind": "function"
         },
         {
           "name": "renderReportAuditIssueRows",
-          "line": 1908,
+          "line": 1960,
           "kind": "function"
         },
         {
           "name": "renderAuditControls",
-          "line": 1959,
+          "line": 2011,
           "kind": "function"
         },
         {
           "name": "refreshReportsAuditData",
-          "line": 1985,
+          "line": 2037,
           "kind": "function"
         },
         {
           "name": "collectReportAuditStartRequest",
-          "line": 1992,
+          "line": 2044,
           "kind": "function"
         },
         {
           "name": "reportAuditLaunchPreflightLines",
-          "line": 2000,
+          "line": 2052,
           "kind": "function"
         },
         {
           "name": "renderReportAuditLaunchPreflight",
-          "line": 2012,
+          "line": 2064,
           "kind": "function"
         },
         {
           "name": "reportAuditSelectionRequest",
-          "line": 2016,
+          "line": 2068,
           "kind": "function"
         },
         {
           "name": "appendReportAuditCommandResult",
-          "line": 2024,
-          "kind": "function"
-        },
-        {
-          "name": "reportAuditJsonDetail",
-          "line": 2028,
-          "kind": "function"
-        },
-        {
-          "name": "formatReportAuditCommandDetail",
-          "line": 2039,
-          "kind": "function"
-        },
-        {
-          "name": "startReportAuditFromForm",
           "line": 2076,
           "kind": "function"
         },
         {
+          "name": "reportAuditJsonDetail",
+          "line": 2080,
+          "kind": "function"
+        },
+        {
+          "name": "formatReportAuditCommandDetail",
+          "line": 2091,
+          "kind": "function"
+        },
+        {
+          "name": "startReportAuditFromForm",
+          "line": 2128,
+          "kind": "function"
+        },
+        {
           "name": "saveReportAuditScorePolicy",
-          "line": 2130,
-          "kind": "function"
-        },
-        {
-          "name": "ignoreSelectedAuditRows",
-          "line": 2150,
-          "kind": "function"
-        },
-        {
-          "name": "exportAuditRerunCsv",
           "line": 2182,
           "kind": "function"
         },
         {
-          "name": "initReportsViewEvents",
-          "line": 2203,
+          "name": "ignoreSelectedAuditRows",
+          "line": 2202,
           "kind": "function"
         },
         {
-          "name": "auditEmptyStateMessage",
+          "name": "exportAuditRerunCsv",
+          "line": 2234,
+          "kind": "function"
+        },
+        {
+          "name": "initReportsViewEvents",
           "line": 2255,
           "kind": "function"
         },
         {
-          "name": "auditRowKey",
-          "line": 2269,
-          "kind": "function"
-        },
-        {
-          "name": "getSelectedAuditRow",
-          "line": 2280,
-          "kind": "function"
-        },
-        {
-          "name": "selectAuditRow",
-          "line": 2285,
-          "kind": "function"
-        },
-        {
-          "name": "toggleAuditRowSelection",
-          "line": 2291,
-          "kind": "function"
-        },
-        {
-          "name": "renderAuditDetail",
+          "name": "auditEmptyStateMessage",
           "line": 2307,
           "kind": "function"
         },
         {
+          "name": "auditRowKey",
+          "line": 2321,
+          "kind": "function"
+        },
+        {
+          "name": "getSelectedAuditRow",
+          "line": 2332,
+          "kind": "function"
+        },
+        {
+          "name": "selectAuditRow",
+          "line": 2337,
+          "kind": "function"
+        },
+        {
+          "name": "toggleAuditRowSelection",
+          "line": 2343,
+          "kind": "function"
+        },
+        {
+          "name": "renderAuditDetail",
+          "line": 2359,
+          "kind": "function"
+        },
+        {
           "name": "renderAuditRows",
-          "line": 2349,
+          "line": 2401,
           "kind": "function"
         }
       ],

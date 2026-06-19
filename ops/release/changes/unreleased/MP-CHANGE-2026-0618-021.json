@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0618-021",
+  "title": "Add retention dry-run report",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a backend-owned retention dry-run report for logs, JSONL/state files, scratch/temp orphans, failure reports, and cache artifacts without deleting or moving files.",
+  "reason": "The autonomy hardening plan needs cleanup visibility before any retention mutation can be considered. The first slice must prove cleanup candidates are allowlisted, source roots are excluded, and parked pending-publish files are not removal candidates.",
+  "affected_areas": [
+    "api",
+    "contracts",
+    "maintenance",
+    "safety",
+    "tests"
+  ],
+  "behavior_before": "The Local API did not expose a focused retention dry-run payload for autonomy cleanup budgets, so operators could not audit accumulated runtime artifacts through a machine-readable maintenance command.",
+  "behavior_after": "The Local API exposes a read-only retention dry-run command that reports eligible runtime artifacts and guardrail exclusions while leaving sources, pending publish files, and all filesystem state untouched.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-021.json.md",
+    "docs/generated/summaries/ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/maintenance/retention.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/maintenance/retention_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_local_api_maintenance_dry_run_contract_smoke.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_maintenance_retention_dry_run.py.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-021.json",
+    "ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1",
+    "src/mediapipeline/contracts/api_commands.py",
+    "src/mediapipeline/core/api/commands.py",
+    "src/mediapipeline/core/api/commands_maintenance.py",
+    "src/mediapipeline/core/maintenance/retention.py",
+    "src/mediapipeline/core/maintenance/retention_facade.py",
+    "src/mediapipeline/desktop/api/contract_command.py",
+    "src/mediapipeline/desktop/application/facade.py",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_application_facade_maintenance.py",
+    "tests/python/desktop/test_local_api_maintenance_dry_run_contract_smoke.py",
+    "tests/python/desktop/test_maintenance_retention_dry_run.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_maintenance_retention_dry_run.py"
+  ],
+  "manual_validation": [
+    "Normalized packet type from unsupported safety to supported feature for change-control schema validation",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1 - passed",
+    "pytest tests/python/desktop/test_maintenance_retention_dry_run.py -q - initially failed before implementation (missing facade method and 404 route)",
+    "pytest tests/python/desktop/test_maintenance_retention_dry_run.py tests/python/desktop/test_application_facade_maintenance.py tests/python/desktop/test_api_command_contracts.py tests/python/desktop/test_local_api_maintenance_dry_run_contract_smoke.py tests/python/desktop/test_api_route_inventory.py tests/python/desktop/test_application_facade_web_static.py tests/python/desktop/test_api_contract_payload.py -q - passed (94 passed, 438 subtests)",
+    "refresh_summaries targeted retention dry-run files - passed (2 written, 13 unchanged)"
+  ],
+  "rollback_plan": "Remove the retention dry-run implementation, route contract updates, tests, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0617-906",
+    "MP-CHANGE-2026-0618-019"
+  ],
+  "notes": "Dry-run only. This change must not delete, move, or rewrite source media, scratch files, parked pending-publish payloads, manifests, or state files."
+}

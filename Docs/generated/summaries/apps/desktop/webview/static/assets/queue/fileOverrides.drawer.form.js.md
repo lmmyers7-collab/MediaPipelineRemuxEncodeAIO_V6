@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-09
+last_modified: 2026-06-19
 last_reviewed: 2026-06-05
-sha256: 2cc7ec4a647dae130f85f51a028f5a43614b66b35551bf51063bbc6b352eb7ee
+sha256: 7446e3046578cdc687cebe69e9a8c6f014fdda70ad75046fe4f5b9b1fe2fc5ad
 ---
 # `apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js`
 

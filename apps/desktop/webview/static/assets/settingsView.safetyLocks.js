@@ -67,7 +67,7 @@
       reviewRows.length
         ? `- First review keys: ${reviewRows.slice(0, 6).map((row) => row.key).join(", ")}${reviewRows.length > 6 ? ", ..." : ""}.`
         : "- No high-risk saved safety toggles are active.",
-      "Mutation guardrail: this panel is read-only. To change a lock, stage Changes JSON and use backend Preview/Save.",
+      "Mutation guardrail: this panel is read-only. To change a lock, stage Changes JSON and use Save Settings.",
     ];
     return lines;
   }

@@ -106,36 +106,36 @@
 
       rows.push({
         key: "current-staged-patch",
-        signal: "Current staged patch",
-        posture: !hasPatch ? "idle" : changedEntries.length ? "staged" : "unchanged",
+        signal: "Current changes",
+        posture: !hasPatch ? "idle" : changedEntries.length ? "ready for review" : "unchanged",
         evidence: !hasPatch
           ? "Changes JSON is empty."
-          : `${entries.length} staged key(s); ${changedEntries.length} effective change(s); signature=${signature.slice(0, 16)}...`,
+          : `${entries.length} candidate key(s); ${changedEntries.length} effective change(s); signature=${signature.slice(0, 16)}...`,
         action: changedEntries.length
-          ? "Run Preview Patch and confirm the backend result matches the current staged JSON before saving."
+          ? "Use Save Settings to review these values before backend validation and PSD1 write."
           : "No effective save is needed unless this JSON is being prepared for a future edit.",
       });
 
       rows.push({
         key: "backend-preview",
-        signal: "Backend preview",
+        signal: "Optional backend dry run",
         evidence_ref: "preview",
-        posture: !preview ? "missing" : previewMatches && previewResult.ok === true ? "fresh preview" : previewMatches ? "preview issue" : "stale preview",
+        posture: !preview ? "not run" : previewMatches && previewResult.ok === true ? "matching preview" : previewMatches ? "preview review" : "previous preview",
         evidence: preview
           ? settingsBackendCommandEvidenceLine(preview)
-          : "No backend Preview Patch result has been captured in this page session.",
+          : "No optional backend preview result has been captured in this page session.",
         action: !preview
-          ? "Use Preview Patch before Save Patch for any non-trivial change."
+          ? "Save Settings still validates the current values before writing."
           : previewMatches && previewResult.ok === true
-            ? "Preview matches the current staged JSON. Review warnings/errors and redacted diff before saving."
+            ? "Dry run matches the current Changes JSON. Review any backend items before saving."
             : previewMatches
-              ? "Resolve backend preview warnings/errors before saving."
-              : "Patch JSON changed after the last preview. Preview again before saving.",
+              ? "Review backend dry-run items before saving."
+              : "Changes JSON changed after that preview. Save Settings will review the current values before writing.",
       });
 
       rows.push({
         key: "preview-risk-output",
-        signal: "Preview risk output",
+        signal: "Dry-run risk output",
         evidence_ref: "preview",
         posture: !preview ? "missing" : Array.isArray(previewResult.errors) && previewResult.errors.length ? "blocked" : previewData.diff_truncated ? "review" : Array.isArray(previewResult.warnings) && previewResult.warnings.length ? "review" : "available",
         evidence: preview
@@ -143,7 +143,7 @@
           : "No backend redacted diff or risk summary is available.",
         action: preview
           ? "Use the redacted diff and risk summary as the backend-owned evidence for what would change."
-          : "Run Preview Patch to get backend-owned redacted diff and risk classification.",
+          : "Save Settings will produce backend-owned write/reload evidence before any persisted change.",
       });
 
       rows.push({
@@ -151,7 +151,7 @@
         signal: "Save confirmation boundary",
         posture: "explicit confirmation required",
         evidence: "The backend save command requires confirm_save=true and the WebView asks for confirmation before sending it.",
-        action: "Cancel if the preview is stale, if warnings are unexplained, or if active pipeline work could observe a partially reviewed config change.",
+        action: "Cancel if the review dialog does not match your intended changes or active pipeline work could observe a partially reviewed config change.",
       });
 
       rows.push({
@@ -161,14 +161,14 @@
         posture: !save ? "not saved" : saveMatches && saveResult.ok === true ? "saved" : saveMatches ? "save issue" : "previous save",
         evidence: save
           ? settingsBackendCommandEvidenceLine(save)
-          : "No backend Save Patch result has been captured in this page session.",
+          : "No backend Save Settings result has been captured in this page session.",
         action: !save
-          ? "Save Patch must succeed before Launch can use these staged settings."
+          ? "Save Settings must succeed before Launch can use these settings."
           : saveMatches && saveResult.ok === true
             ? "Confirm reload and Saved Settings Trust before launching unattended work."
             : saveMatches
-              ? "Resolve backend save warnings/errors before relying on the patch."
-              : "The last save was for different JSON. Do not treat it as proof for the current patch.",
+              ? "Resolve backend save review items/errors before relying on the change."
+              : "The last save was for different JSON. Do not treat it as proof for the current changes.",
       });
 
       rows.push({
@@ -185,12 +185,12 @@
         evidence: saveMatches && saveResult.ok === true
           ? `writes_config=${saveData.writes_config === true ? "yes" : "no"}; reloaded=${saveData.reloaded === true ? "yes" : saveData.reloaded === false ? "no" : "n/a"}; config=${saveData.config_path || ""}`
           : save && saveResult.ok === true
-            ? "The last successful save/reload evidence belongs to different staged JSON."
-            : "No successful save/reload evidence is available for this staged patch.",
+            ? "The last successful save/reload evidence belongs to different JSON."
+            : "No successful save/reload evidence is available for the current changes.",
         action: saveMatches && saveResult.ok === true && saveData.reloaded === true
           ? "Refresh has backend proof that the active config was reloaded."
           : save && saveResult.ok === true && !saveMatches
-            ? "Preview/save the current staged JSON before treating reload evidence as relevant."
+            ? "Save the current Changes JSON before treating reload evidence as relevant."
             : "Use Reload From Disk or refresh after resolving save/reload issues; Launch uses saved backend settings only.",
       });
 
@@ -214,7 +214,7 @@
       }
       return list.find((row) => {
         const posture = String(row?.posture || "").toLowerCase();
-        return posture.includes("blocked") || posture.includes("issue") || posture.includes("stale");
+        return posture.includes("blocked") || posture.includes("issue");
       }) || list.find((row) => {
         const posture = String(row?.posture || "").toLowerCase();
         return posture.includes("missing") || posture.includes("not saved") || posture.includes("previous") || posture.includes("not proven") || posture.includes("review");
@@ -253,8 +253,8 @@
     function settingsBackendResultDetailLines(row) {
       if (!row) {
         return [
-          "Backend preview/save result detail:",
-          "Select a backend result row to inspect command evidence, warnings, errors, redacted diff, risk summary, and reload proof.",
+          "Backend save result detail:",
+          "Select a backend result row to inspect command evidence, review items, errors, redacted diff, risk summary, and reload proof.",
           "Mutation guardrail: this detail panel is read-only and cannot save settings, launch work, drain, rename, publish, or touch media files.",
         ];
       }
@@ -267,14 +267,14 @@
       const removedKeys = Array.isArray(data.removed_keys) ? data.removed_keys : [];
       const diffLines = Array.isArray(data.redacted_diff_lines) ? data.redacted_diff_lines : [];
       const lines = [
-        "Backend preview/save result detail:",
+        "Backend save result detail:",
         `Signal: ${row.signal || "unknown"}`,
         `Posture: ${row.posture || "unknown"}`,
         `Evidence: ${row.evidence || ""}`,
         `Operator action: ${row.action || ""}`,
         "",
-        "Patch identity:",
-        `Current staged signature: ${currentSignature ? `${currentSignature.slice(0, 48)}${currentSignature.length > 48 ? "..." : ""}` : "(invalid or empty)"}`,
+        "Save candidate identity:",
+        `Current signature: ${currentSignature ? `${currentSignature.slice(0, 48)}${currentSignature.length > 48 ? "..." : ""}` : "(invalid or empty)"}`,
         `Evidence signature: ${evidenceSignature ? `${evidenceSignature.slice(0, 48)}${evidenceSignature.length > 48 ? "..." : ""}` : "(none)"}`,
         `Evidence matches current JSON: ${evidenceSignature && currentSignature && evidenceSignature === currentSignature ? "yes" : "no"}`,
       ];
@@ -313,23 +313,23 @@
         lines.push(jsonDetailText({
           label: "Backend data JSON",
           value: data,
-          intro: "Read-only backend preview/save data for troubleshooting. Sensitive values are redacted before they reach this workspace.",
+          intro: "Read-only backend save data for troubleshooting. Sensitive values are redacted before they reach this workspace.",
         }));
       }
       if (!evidence && row.key === "save-confirmation-boundary") {
         lines.push("");
         lines.push("Save boundary:");
-        lines.push("The WebView sends Save Patch only after browser confirmation and includes confirm_save=true.");
+        lines.push("The WebView sends Save Settings only after dialog confirmation and includes confirm_save=true.");
         lines.push("The backend still rejects saves without confirmation and owns PSD1 serialization, backup creation, validation, and reload.");
       }
       if (!evidence && row.key === "current-staged-patch") {
         lines.push("");
-        lines.push("Current staged patch:");
+        lines.push("Current changes:");
         try {
           const entries = settingsPatchImpactEntries(parseSettingsPatchJson());
           const changed = entries.filter((entry) => entry.changed);
           const unknown = entries.filter((entry) => !entry.field);
-          lines.push(`Staged keys: ${entries.length}`);
+          lines.push(`Candidate keys: ${entries.length}`);
           lines.push(`Effective changes: ${changed.length}`);
           lines.push(`Unknown keys: ${unknown.length}`);
           changed.slice(0, 10).forEach((entry) => lines.push(`- ${entry.key}: ${formatConfigValue(entry.current)} -> ${formatConfigValue(entry.staged)} (${entry.status})`));
@@ -346,28 +346,27 @@
     function settingsBackendResultStatus(rows = []) {
       const postures = rows.map((row) => String(row.posture || "").toLowerCase());
       if (postures.some((posture) => posture.includes("blocked") || posture.includes("issue"))) return "Blocked review";
-      if (postures.some((posture) => posture.includes("stale") || posture.includes("missing") || posture.includes("not saved") || posture.includes("previous") || posture.includes("not proven") || posture.includes("review"))) return "Review";
+      if (postures.some((posture) => posture.includes("missing") || posture.includes("not saved") || posture.includes("previous") || posture.includes("not proven") || posture.includes("review"))) return "Review";
       if (postures.some((posture) => posture.includes("saved") || posture.includes("reloaded"))) return "Saved evidence";
       return "No backend result";
     }
 
     function settingsBackendResultSummaryLines(rows) {
-      const previewRow = rows.find((row) => row.signal === "Backend preview");
+      const previewRow = rows.find((row) => row.key === "backend-preview");
       const saveRow = rows.find((row) => row.signal === "Backend save");
       const reloadRow = rows.find((row) => row.signal === "Reload / saved state");
       const lines = [
-        "Backend preview/save handoff:",
+        "Backend save handoff:",
         `Status: ${settingsBackendResultStatus(rows)}`,
-        `Preview: ${previewRow?.posture || "missing"}`,
+        `Dry run: ${previewRow?.posture || "missing"}`,
         `Save: ${saveRow?.posture || "not saved"}`,
         `Reload: ${reloadRow?.posture || "not proven"}`,
-        "Preview Patch is non-writing. Save Patch is the only persistence command and still requires explicit confirmation.",
-        "Launch uses saved backend settings only; staged Changes JSON is not launch-active until save and reload succeed.",
+        "Save Settings is the persistence command and still requires explicit confirmation.",
+        "Launch uses saved backend settings only; current edits are not launch-active until save and reload succeed.",
       ];
       const reviewRows = rows.filter((row) => {
         const posture = String(row.posture || "").toLowerCase();
         return posture.includes("missing")
-          || posture.includes("stale")
           || posture.includes("issue")
           || posture.includes("blocked")
           || posture.includes("not saved")
@@ -379,7 +378,7 @@
         lines.push("", "Rows needing attention:");
         reviewRows.slice(0, 6).forEach((row) => lines.push(`- ${row.signal}: ${row.action}`));
       } else {
-        lines.push("", "No backend result contradiction detected for the current staged patch.");
+        lines.push("", "No backend result contradiction detected for the current changes.");
       }
       lines.push("", "Mutation guardrail: this handoff is read-only and cannot save settings, launch work, or touch media files.");
       return lines;
@@ -402,7 +401,7 @@
       setText("settings-backend-result-status", settingsBackendResultStatus(rows));
       setText("settings-backend-result-summary", settingsBackendResultSummaryLines(rows).join("\n"));
       renderSettingsSaveProgress();
-      setText("settings-backend-result-legend", "Backend result rows are read-only; Preview Patch and Save Patch remain backend-owned commands.");
+      setText("settings-backend-result-legend", "Backend result rows are read-only; Save Settings remains the backend-owned command.");
       setText("settings-backend-result-detail", settingsBackendResultDetailLines(selected).join("\n"));
       if (!rows.length) {
         clearRows(tbody, 4, "No backend settings result rows loaded.");
@@ -414,7 +413,7 @@
         const posture = String(item.posture || "").toLowerCase();
         row.dataset.status = posture.includes("blocked") || posture.includes("issue")
           ? "blocked"
-          : (posture.includes("stale") || posture.includes("missing") || posture.includes("not saved") || posture.includes("previous") || posture.includes("not proven") || posture.includes("review") ? "warning" : "match");
+          : (posture.includes("missing") || posture.includes("not saved") || posture.includes("previous") || posture.includes("not proven") || posture.includes("review") ? "warning" : "match");
         appendCells(row, [item.signal, item.posture, item.evidence, item.action]);
         const key = settingsBackendResultRowKey(item);
         makeRowSelectable(row, () => {
@@ -426,22 +425,22 @@
         });
         tbody.appendChild(row);
       });
-      updateTableStatusLegend("settings-backend-result-legend", tbody, "Backend preview/save result rows");
+      updateTableStatusLegend("settings-backend-result-legend", tbody, "Backend save result rows");
     }
 
     function renderSettingsBackendResultForError(message) {
       setText("settings-backend-result-status", "Invalid JSON");
       setText(
         "settings-backend-result-summary",
-        `Backend preview/save handoff unavailable because Changes JSON is invalid.\n${message}\nPreview Patch and Save Patch cannot run until this is valid JSON.`
+        `Backend save handoff unavailable because Changes JSON is invalid.\n${message}\nSave Settings cannot run until this is valid JSON.`
       );
       clearRows(byId("settings-backend-result-rows"), 4, "Backend result handoff unavailable because Changes JSON is invalid.");
       renderSettingsSaveProgress(null);
-      setText("settings-backend-result-legend", "Backend result rows are read-only; Preview Patch and Save Patch remain backend-owned commands.");
+      setText("settings-backend-result-legend", "Backend result rows are read-only; Save Settings remains the backend-owned command.");
       setText("settings-backend-result-detail", [
-        "Backend preview/save result detail:",
+        "Backend save result detail:",
         `Patch JSON is invalid: ${message}`,
-        "Fix Changes JSON before Preview Patch or Save Patch can run.",
+        "Fix Changes JSON before Save Settings can run.",
         "Mutation guardrail: invalid JSON handling is local UI feedback only and does not write config.",
       ].join("\n"));
     }

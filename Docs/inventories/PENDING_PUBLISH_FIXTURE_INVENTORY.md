@@ -2,7 +2,7 @@
 
 Purpose: inventory all pending-publish test files, describe what each covers and does not cover, document the fixture data patterns used, and note safety-property gaps. This is an observational document.
 
-Total pending-publish test files: 6 dedicated + 10 files with incidental pending-publish coverage, plus PowerShell transaction coverage in `ops/pipeline/tests`.
+Total pending-publish test files: 7 dedicated + 10 files with incidental pending-publish coverage, plus PowerShell transaction coverage in `ops/pipeline/tests`.
 No dedicated fixture JSON/JSONL files exist — all fixture data is generated dynamically in temporary directories or hardcoded as inline Python dicts.
 
 ---
@@ -40,6 +40,7 @@ Pending publish is a backend-owned media safety path. Future work should keep me
 | Test file | Lines | What it covers |
 |---|---|---|
 | `test_pending_publish_service.py` | 180+ | 5 core scenarios: missing payload health row; parked media-plus-sidecar row evidence; unknown state detection (`invalid_contract`); legacy manifest tolerance; duplicate manifest target detection |
+| `test_repair_reconcile_dry_run.py` | 200+ | Pending Publish repair/reconcile dry-run route builders: required response schema, strict no-mutation evidence, selected-row missing behavior, invalid manifest, duplicate target, orphan payload, active-work precondition, and command-journal suppression |
 
 ### Facade / Policy Layer
 
@@ -137,7 +138,8 @@ Service-layer tests hardcode rows directly in test methods:
 | Drain summary records media-plus-sidecar success and retryable failures | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
 | Failed media reveal preserves parked media, parked sidecar, and manifest while removing partial/server-side artifacts | `ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1` | Covered at PowerShell transaction layer |
 | Real deferred-publish drain command moves generated media out of pending state | `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` | Covered by generated-media smoke |
-| Recovery plan is dry-run only (no files moved) | Route contract (`effect: "none"`) + `app/api/commands_files.py` (`recovery_plan_dry_run` command name) | Contract-level only |
+| Recovery plan is dry-run only (no files moved) | Route contract (`effect: "none"`) + `src/mediapipeline/core/api/commands_files.py` (`recovery_plan_dry_run` command name) | Contract-level only |
+| Pending Publish repair/reconcile dry-runs are no-mutation evidence only | `test_repair_reconcile_dry_run.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py`, `test_application_facade_local_api.py`, `test_webview_frontend_mutation_boundary.py` | Covered for strict request fields, required dry-run schema, blocked preconditions, command-journal suppression, no WebView callers, and fixture hash/mtime preservation |
 | Open targets are allowlisted | `test_facade_diagnostics_open_policy.py` | Covered |
 
 ---
@@ -163,6 +165,7 @@ When a worker finishes encoding, it parks the output for the coordinator to publ
 - Completed-manifest fields fully reconcile with every pending-drain summary field across all media classes.
 - Coordinator-mode worker output parking — experimental; no coverage.
 - Recovery plan actions cause the correct drain behavior when a drain is later run — dry-run only; effect not verified.
+- Repair/reconcile mutation behavior — intentionally absent; backend dry-runs report `mutation_route_available=false` and do not prove future write/move/delete semantics.
 
 ---
 
@@ -171,4 +174,3 @@ When a worker finishes encoding, it parks the output for the coordinator to publ
 - Pending-publish command routes: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/pending-publish/open`, `POST /api/pending-publish/recovery-plan`, `GET /api/pending-publish`)
 - Pending-publish diagnostics targets: `DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md` (`pending_publish`, `last_stderr_log`, `latest_failure_json`)
 - Real-media validation for drain proof: `docs/implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`
-

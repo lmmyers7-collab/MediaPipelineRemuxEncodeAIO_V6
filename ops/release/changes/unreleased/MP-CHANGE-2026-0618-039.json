@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0618-039",
+  "title": "Harden Network Workers WebView lifecycle safety",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Harden Network Workers UI lifecycle gating, setup confirmation, route metadata usage, worker state trust, and settings handoff clarity.",
+  "reason": "Network Workers controls must clearly distinguish read-only evidence, dry-run checks, setup config writes, staged settings, and confirmed backend-owned lifecycle commands before operators use distributed mode.",
+  "affected_areas": [
+    "Network",
+    "WebView",
+    "tests"
+  ],
+  "behavior_before": "The Network Workers page exposed backend-owned routes but could make confirmed lifecycle, setup write, route summary, and worker-state evidence appear more ready or direct than the backend contract intended.",
+  "behavior_after": "Network Workers requires matching dry-run evidence before confirmed lifecycle actions, confirms setup write/secret commands, uses contract route paths, separates setup/lifecycle route posture, and renders worker state with clearer trust boundaries.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.network.js",
+    "apps/desktop/webview/static/assets/styles.controls.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.network.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/styles.controls.css.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "Docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-039.json.md",
+    "Docs/generated/summaries/tests/webview/test_webview_browser_network_smoke.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-039.json",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_network_read_only_boundary",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest -v tests.webview.test_webview_browser_network_smoke.WebViewBrowserNetworkSmoke.test_real_browser_network_worker_filters_warn_when_hiding_review_rows",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserNetworkSmoke.ps1",
+    "npm run webview:check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries"
+  ],
+  "rollback_plan": "Revert the Network WebView, Network settings builder, CSS, targeted WebView tests, generated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Implementation must not add frontend ownership of lifecycle, queue claims, done reports, settings persistence outside backend routes, publish, rename, or media/source mutation. Browser validation must use temporary Local API fixtures only."
+}

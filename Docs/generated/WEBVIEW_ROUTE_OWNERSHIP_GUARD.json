@@ -269,6 +269,12 @@
       ]
     },
     {
+      "route": "/api/rename/filter-cases",
+      "files": [
+        "apps/desktop/webview/static/assets/renameView.js"
+      ]
+    },
+    {
       "route": "/api/rename/preview",
       "files": [
         "apps/desktop/webview/static/assets/renameView.js"
@@ -389,6 +395,19 @@
       "files": [
         {
           "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js",
+          "has_confirmation": true
+        }
+      ],
+      "ok": true
+    },
+    {
+      "route": "/api/rename/filter-cases",
+      "confirmation": "confirm_append",
+      "pattern": {},
+      "note": "Rename filter corpus writes must remain explicitly backend-confirmed.",
+      "files": [
+        {
+          "path": "apps/desktop/webview/static/assets/renameView.js",
           "has_confirmation": true
         }
       ],

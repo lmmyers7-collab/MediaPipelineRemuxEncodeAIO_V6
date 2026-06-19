@@ -46,7 +46,7 @@
             </div>
           </div>
           <p class="note">Scan Sources asks the backend to inventory configured source roots, then curate the authoritative queue snapshot. Display filters, selected rows, and visible table limits do not change backend launch scope.</p>
-          <pre id="queue-filter-summary" class="prose-block" hidden aria-hidden="true">Queue filter inactive. No rows loaded.</pre>
+          <pre id="queue-filter-summary" class="prose-block queue-filter-summary" hidden aria-hidden="true">Queue filter inactive. No rows loaded.</pre>
           <div id="queue-source-inventory" class="queue-source-inventory" aria-live="polite">
             <section class="queue-source-tile queue-source-message-tile" data-tone="muted">
               <strong class="queue-source-tile-value">Source inventory not loaded</strong>
@@ -99,12 +99,18 @@
           <div class="table-toolbar queue-manual-order-toolbar" aria-label="Manual queue order controls">
             <span class="toolbar-label">Manual order:</span>
             <button type="button" class="secondary-button" id="queue-manual-save-order-btn" title="Save loaded backend queue rows as manual-order positions within their backend phase">Save Loaded Backend Order</button>
+            <button type="button" class="secondary-button" id="queue-manual-discard-order-btn" title="Discard staged manual-order moves and restore the loaded backend order">Discard Loaded Order Changes</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-top-btn" title="Move selected row(s) to the top of the current backend phase" aria-label="Move selected queue rows to top">⇤</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-up-btn" title="Move selected row(s) up within the current backend phase" aria-label="Move selected queue rows up">↑</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-down-btn" title="Move selected row(s) down within the current backend phase" aria-label="Move selected queue rows down">↓</button>
             <button type="button" class="secondary-button icon-button" id="queue-manual-move-bottom-btn" title="Move selected row(s) to the bottom of the current backend phase" aria-label="Move selected queue rows to bottom">⇥</button>
           </div>
-          <p id="queue-manual-order-status" class="note">Manual order controls are available when the strategy selector is Manual Order. They save loaded backend rows within their backend phase; display filters and render caps do not define Launch scope.</p>
+          <p id="queue-manual-order-status" class="note">Manual order controls are available when the strategy selector is Manual Order. Move controls stage loaded backend rows locally; Save Loaded Backend Order writes the staged positions. Display filters and render caps do not define Launch scope.</p>
+          <div id="queue-table-pagination" class="table-toolbar queue-table-pagination" aria-label="Queue table display pages" hidden>
+            <span id="queue-table-page-status" class="toolbar-label">Page 1 of 1</span>
+            <button type="button" class="secondary-button" id="queue-page-prev-btn" title="Show previous 250 filtered queue rows">Previous 250</button>
+            <button type="button" class="secondary-button" id="queue-page-next-btn" title="Show next 250 filtered queue rows">Next 250</button>
+          </div>
           <div class="table-wrap queue-table-wrap" data-queue-loading="false">
             <div id="queue-loading-screen" class="queue-loading-screen" role="status" aria-live="polite" aria-atomic="true" hidden>
               <span class="queue-loading-spinner" aria-hidden="true"></span>
@@ -333,6 +339,7 @@
                 <div class="fo-drawer-actions">
                   <button type="button" id="fo-drawer-save" class="primary-button" disabled>Save Override</button>
                   <button type="button" id="fo-series-preview-open" class="secondary-button">Apply to Series</button>
+                  <button type="button" id="fo-remux-pilot-promote" class="secondary-button" hidden>Promote 3-pilot remux fallback</button>
                   <button type="button" id="fo-drawer-clear" class="secondary-button">Clear Override</button>
                 </div>
                 <label class="fo-series-toggle">
@@ -340,6 +347,7 @@
                   <span>Auto-detect series scope</span>
                 </label>
                 <p id="fo-route-encode-advisory" class="fo-route-encode-advisory" aria-live="polite" data-tone="info" hidden></p>
+                <div id="fo-remux-pilot-proof" class="fo-remux-pilot-proof" aria-live="polite" hidden></div>
                 <p id="fo-drawer-status" class="fo-drawer-status" role="status" aria-live="polite" data-tone="info"></p>
               </div>
             </div>

@@ -129,8 +129,24 @@ class ApiCommandContractsTests(unittest.TestCase):
                 "preview_fingerprint": "fp",
                 "row_keys": ["client-owned"],
             },
+            "/api/queue/file-overrides/remux-pilot-promote": {
+                "pilot_source_paths": [
+                    r"C:\Media\TV\Show\Season 01\Show.S01E01.mkv",
+                    r"C:\Media\TV\Show\Season 01\Show.S01E02.mkv",
+                    r"C:\Media\TV\Show\Season 01\Show.S01E03.mkv",
+                ],
+                "confirm_apply": True,
+                "future_rule": True,
+            },
             "/api/backend/shutdown": {"force_active_work_shutdown": True, "token": "client-owned"},
             "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "selected_ids": ["1"]},
+            "/api/rename/filter-cases": {
+                "source_folder": "Show S01",
+                "source_file": "S01E01.mkv",
+                "expected_name": "Show - S01E01.mkv",
+                "confirm_append": True,
+                "fixture_path": "client-owned",
+            },
             "/api/settings/preview-patch": {"changes": {}, "values": {}},
             "/api/settings/save-patch": {"changes": {}, "confirm_save": True, "values": {}},
             "/api/settings/wizard/save": {"wizard": {}, "confirm_save": True, "values": {}},
@@ -139,8 +155,10 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/maintenance/release-dry-run": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
             "/api/maintenance/release-build": {"destination_root": "C:/Deploy", "output_root": "C:/Other"},
             "/api/maintenance/completed-backfill-dry-run": {"timeout_seconds": 600, "output_root": "C:/Other"},
+            "/api/maintenance/retention-dry-run": {"limit": 25, "path": r"C:\Media\Movie.mkv"},
             "/api/maintenance/dependency-atlas": {"timeout_seconds": 600, "output_root": "C:/Other"},
             "/api/maintenance/dependency-atlas/open-folder": {"path": "C:/Other"},
+            "/api/maintenance/archive-state-journals": {"confirm_archive": True, "path": "C:/Other"},
             "/api/diagnostics/tdarr-matrix-audit": {"action": "report", "path": "C:/Other"},
             "/api/diagnostics/tdarr-matrix/evidence/open": {
                 "run_id": "run-1",
@@ -156,6 +174,10 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
             "/api/metrics/sources": {"action": "add", "path": r"D:\Media", "label": "Drive D", "root": r"E:\Other"},
             "/api/metrics/backfill": {"scope": "enabled", "recursive": True},
+            "/api/completed/reconcile-manifest-dry-run": {"scope": "selected", "row_key": "row-1", "manifest_path": r"C:\Other\completed.jsonl"},
+            "/api/completed/repair-sidecar-metadata-dry-run": {"scope": "selected", "row_key": "row-1", "sidecar_json": {"output_path": "client-owned"}},
+            "/api/pending-publish/repair-manifest-dry-run": {"scope": "selected", "row_key": "row-1", "patch": [{"op": "replace"}]},
+            "/api/pending-publish/reconcile-orphan-payloads-dry-run": {"scope": "selected", "row_key": "row-1", "payload_path": r"C:\Other\Movie.mkv"},
             "/api/network/coordinator/start-dry-run": {"reason": "check", "path": r"C:\Media\Movie.mkv"},
             "/api/network/coordinator/stop-dry-run": {"reason": "check", "path": r"C:\Media\Movie.mkv"},
             "/api/network/coordinator/join-blob": {"confirm_create": True, "token": "client-owned"},
@@ -223,6 +245,41 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
         )
         self.assertEqual(
+            validate_api_payload(
+                "/api/queue/file-overrides/remux-pilot-promote",
+                {
+                    "pilot_source_paths": [
+                        r"C:\Media\TV\Show\Season 01\Show.S01E01.mkv",
+                        r"C:\Media\TV\Show\Season 01\Show.S01E02.mkv",
+                        r"C:\Media\TV\Show\Season 01\Show.S01E03.mkv",
+                    ],
+                    "confirm_apply": True,
+                    "reason": "operator verified three fallback pilots",
+                },
+            ),
+            {
+                "pilot_source_paths": [
+                    r"C:\Media\TV\Show\Season 01\Show.S01E01.mkv",
+                    r"C:\Media\TV\Show\Season 01\Show.S01E02.mkv",
+                    r"C:\Media\TV\Show\Season 01\Show.S01E03.mkv",
+                ],
+                "confirm_apply": True,
+                "reason": "operator verified three fallback pilots",
+            },
+        )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(
+                "/api/queue/file-overrides/remux-pilot-promote",
+                {
+                    "pilot_source_paths": [
+                        r"C:\Media\TV\Show\Season 01\Show.S01E01.mkv",
+                        r"C:\Media\TV\Show\Season 01\Show.S01E02.mkv",
+                        r"C:\Media\TV\Show\Season 01\Show.S01E03.mkv",
+                    ],
+                    "confirm_apply": "true",
+                },
+            )
+        self.assertEqual(
             validate_api_payload("/api/settings/save-patch", {"changes": {}, "confirm_save": True}),
             {"changes": {}, "confirm_save": True},
         )
@@ -238,6 +295,7 @@ class ApiCommandContractsTests(unittest.TestCase):
                     "include_optional_tools": False,
                     "include_tool_docs": False,
                     "keep_personal_config": False,
+                    "force": True,
                     "timeout_seconds": 900,
                 },
             ),
@@ -250,12 +308,17 @@ class ApiCommandContractsTests(unittest.TestCase):
                 "include_optional_tools": False,
                 "include_tool_docs": False,
                 "keep_personal_config": False,
+                "force": True,
                 "timeout_seconds": 900,
             },
         )
         self.assertEqual(
             validate_api_payload("/api/maintenance/completed-backfill-dry-run", {"timeout_seconds": 600}),
             {"timeout_seconds": 600},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/maintenance/retention-dry-run", {"limit": 25, "reason": "soak prep"}),
+            {"limit": 25, "reason": "soak prep"},
         )
         self.assertEqual(
             validate_api_payload(
@@ -265,6 +328,12 @@ class ApiCommandContractsTests(unittest.TestCase):
             {"timeout_seconds": 600, "min_overview_edge_count": 4, "min_overview_files": 2},
         )
         self.assertEqual(validate_api_payload("/api/maintenance/dependency-atlas/open-folder", {}), {})
+        self.assertEqual(
+            validate_api_payload("/api/maintenance/archive-state-journals", {"confirm_archive": True, "reason": "launch recovery"}),
+            {"confirm_archive": True, "reason": "launch recovery"},
+        )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/maintenance/archive-state-journals", {"confirm_archive": "true"})
         self.assertEqual(
             validate_api_payload(
                 "/api/diagnostics/tdarr-matrix-audit",
@@ -324,6 +393,33 @@ class ApiCommandContractsTests(unittest.TestCase):
         )
         self.assertEqual(
             validate_api_payload(
+                "/api/rename/filter-cases",
+                {
+                    "source_folder": "Show S01",
+                    "source_file": "S01E01.mkv",
+                    "expected_name": "Show - S01E01.mkv",
+                    "expected_show": "Show",
+                    "expected_season": 1,
+                    "season_number": 1,
+                    "status": "pending",
+                    "notes": "bad source title suffix",
+                    "confirm_append": True,
+                },
+            ),
+            {
+                "source_folder": "Show S01",
+                "source_file": "S01E01.mkv",
+                "expected_name": "Show - S01E01.mkv",
+                "expected_show": "Show",
+                "expected_season": 1,
+                "season_number": 1,
+                "status": "pending",
+                "notes": "bad source title suffix",
+                "confirm_append": True,
+            },
+        )
+        self.assertEqual(
+            validate_api_payload(
                 "/api/rename/apply",
                 {
                     "paths": [],
@@ -349,6 +445,29 @@ class ApiCommandContractsTests(unittest.TestCase):
             validate_api_payload("/api/network/coordinator/start-dry-run", {"reason": "operator check"}),
             {"reason": "operator check"},
         )
+        for route in [
+            "/api/completed/reconcile-manifest-dry-run",
+            "/api/completed/repair-sidecar-metadata-dry-run",
+            "/api/pending-publish/repair-manifest-dry-run",
+            "/api/pending-publish/reconcile-orphan-payloads-dry-run",
+        ]:
+            with self.subTest(route=route):
+                self.assertEqual(
+                    validate_api_payload(route, {"scope": "selected", "row_key": "row-1", "limit": 25, "reason": "operator review"}),
+                    {"scope": "selected", "row_key": "row-1", "limit": 25, "reason": "operator review"},
+                )
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload(route, {"scope": "selected", "limit": 25})
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload(route, {"scope": "selected", "row_key": "   "})
+        self.assertEqual(
+            validate_api_payload("/api/startup/reconcile-dry-run", {"scope": "all", "limit": 25, "reason": "operator review"}),
+            {"scope": "all", "limit": 25, "reason": "operator review"},
+        )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/startup/reconcile-dry-run", {"scope": "selected", "row_key": "row-1"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/startup/reconcile-dry-run", {"scope": "all", "manifest_path": r"C:\Other\pending.json"})
         self.assertEqual(
             validate_api_payload("/api/network/coordinator/start", {"confirm_start": True, "reason": "operator start"}),
             {"confirm_start": True, "reason": "operator start"},
@@ -468,6 +587,15 @@ class ApiCommandContractsTests(unittest.TestCase):
                 "allow_outside_configured_roots",
                 {"paths": [], "selected_sources": [], "confirm_apply": True},
             ),
+            (
+                "/api/rename/filter-cases",
+                "confirm_append",
+                {
+                    "source_folder": "Show S01",
+                    "source_file": "S01E01.mkv",
+                    "expected_name": "Show - S01E01.mkv",
+                },
+            ),
             ("/api/final-library-promotion/promote-queue", "confirm_promote", {"row_keys": ["row-1"]}),
         ]
 
@@ -505,6 +633,7 @@ class ApiCommandContractsTests(unittest.TestCase):
             ("/api/maintenance/release-dry-run", "include_tool_docs", {"destination_root": "C:/Deploy"}),
             ("/api/maintenance/release-dry-run", "include_tauri_preview_binary", {"destination_root": "C:/Deploy"}),
             ("/api/maintenance/release-dry-run", "keep_personal_config", {"destination_root": "C:/Deploy"}),
+            ("/api/maintenance/release-dry-run", "force", {"destination_root": "C:/Deploy"}),
             ("/api/maintenance/release-build", "zip_package", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "verify", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "include_tests", {"destination_root": "C:/Deploy", "confirm_create": True}),
@@ -527,7 +656,7 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_command_ownership_matrix_lists_every_post_command_route(self) -> None:
         matrix = (REPO_ROOT / "docs" / "inventories" / "COMMAND_OWNERSHIP_MATRIX.md").read_text(encoding="utf-8")
 
-        self.assertIn("Total command routes: 70 POST routes across 11 contract groups.", matrix)
+        self.assertIn(f"Total command routes: {len(COMMAND_ROUTE_METHODS)} POST routes across 11 contract groups.", matrix)
         for route in COMMAND_ROUTE_METHODS:
             with self.subTest(route=route):
                 self.assertIn(f"`POST {route}`", matrix)

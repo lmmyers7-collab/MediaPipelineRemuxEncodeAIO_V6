@@ -3,9 +3,9 @@ file: package.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: f6d305137dad114b9467e6ee853df564d2d7b0b7fdc856d33a589b7f9b58e47e
+sha256: 84019ffcbaf306f37346e0feddc5580e87c4fda9704df3f951cfbbb30e157f36
 ---
 # `package.json`
 

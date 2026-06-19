@@ -1,0 +1,68 @@
+{
+  "id": "MP-CHANGE-2026-0618-008",
+  "title": "Add rename bad-case logging to Settings Rename tab",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Expose the rename filter bad-case corpus append control in the Settings Rename subtab instead of only on the Rename workbench.",
+  "reason": "The operator expected bad rename case logging next to rename filter settings so new misses can be recorded without navigating to a selected rename preview row.",
+  "affected_areas": [
+    "change control",
+    "rename",
+    "settings",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Bad rename case logging was available from the Rename workbench selected-row dialog, while Settings > Rename only exposed cleaning filter editing and preview controls.",
+  "behavior_after": "Settings > Rename includes a manual bad-case logging form that appends through the backend rename filter-case command, while the Rename workbench selected-row dialog remains available.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/renameView.js",
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/renameView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_ROUTE_OWNERSHIP_GUARD.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_rename_workbench.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-008.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_rename_workbench.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_rename_workbench.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_inventory_docs.py"
+  ],
+  "manual_validation": [
+    "Browser check http://127.0.0.1:8767 found Settings Rename case-log form and all expected controls",
+    "change packet marked complete after focused WebView, browser, and summary validation",
+    "git diff --check - passed with line-ending warnings only",
+    "node --check apps/desktop/webview/static/assets/renameView.js - passed",
+    "node --check apps/desktop/webview/static/assets/settingsView.js - passed",
+    "node ops/scripts/dev/check-webview-route-ownership.mjs --check - passed",
+    "node ops/scripts/dev/webview-public-contract.mjs --check - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors - passed",
+    "python -m unittest tests.python.desktop.test_rename_workbench tests.webview.test_webview_frontend_mutation_boundary tests.webview.test_webview_inventory_docs - passed",
+    "refresh_summaries - passed; 2 written, 49 unchanged",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0617-904 metadata issue and 12 unrelated uncovered diagnostics/command-boundary files"
+  ],
+  "rollback_plan": "Remove the Settings Rename bad-case logging form and its JavaScript binding, keep the existing Rename workbench dialog, regenerate summaries and webview inventories, and revert this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-006"
+  ],
+  "notes": "WebView placement and command wiring only. No FFmpeg, subtitle, audio, publish/drain, source/scratch/output movement, settings persistence, or rename apply behavior is intentionally changed."
+}

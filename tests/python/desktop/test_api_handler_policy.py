@@ -11,6 +11,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api.handler_policy import (
     OPTIONS_RESPONSE_HEADERS,
     bounded_error_text,
+    cors_response_headers,
     not_found_payload,
     options_response_headers,
     route_exception_journal_payload,
@@ -43,6 +44,12 @@ class LocalApiHandlerPolicyTests(unittest.TestCase):
         headers = dict(options_response_headers("http://localhost:8765"))
 
         self.assertEqual(headers["Access-Control-Allow-Origin"], "http://localhost:8765")
+        self.assertEqual(headers["Vary"], "Origin")
+
+    def test_cors_response_headers_reflect_authorized_origin(self) -> None:
+        headers = dict(cors_response_headers("tauri://localhost"))
+
+        self.assertEqual(headers["Access-Control-Allow-Origin"], "tauri://localhost")
         self.assertEqual(headers["Vary"], "Origin")
 
     def test_error_payload_helpers_preserve_handler_contract(self) -> None:

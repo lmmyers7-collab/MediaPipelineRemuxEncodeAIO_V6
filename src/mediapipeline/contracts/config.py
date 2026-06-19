@@ -20,6 +20,8 @@ from mediapipeline.contracts.config_defaults import (
     _list_default,
     _rename_movie_filter_options_default,
     _rename_movie_remove_terms_default,
+    _rename_tv_filter_options_default,
+    _rename_tv_remove_terms_default,
 )
 from mediapipeline.contracts.config_schema_extras import (
     _final_library_promotion_rules_schema_extra,
@@ -39,8 +41,9 @@ from mediapipeline.contracts.height_tolerance import (
     DEFAULT_ROUTE_1440P_UPPER_HEIGHT_TOLERANCE_PERCENT,
     DEFAULT_ROUTE_4K_LOWER_HEIGHT_TOLERANCE_PERCENT,
 )
-from mediapipeline.core.rename.constants import RENAME_MOVIE_FILTER_OPTION_KEYS
+from mediapipeline.core.rename.constants import RENAME_MOVIE_FILTER_OPTION_KEYS, RENAME_TV_FILTER_OPTION_KEYS
 from mediapipeline.core.rename.movie import rename_movie_filter_default_terms
+from mediapipeline.core.rename.tv import rename_tv_filter_default_terms
 from mediapipeline.core.validation.strict_json import loads_strict_json
 
 CONFIG_SCHEMA_VERSION: Literal[1] = 1
@@ -98,6 +101,16 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "SizeGuardMode",
     "MaxEncodeGrowthPercent",
     "CompatibilityEncodeGrowthPercent",
+    "EncodeWasteGuardMode",
+    "EncodeWasteGuardPreflightEnabled",
+    "EncodeWasteGuardMinProgressPercent",
+    "EncodeWasteGuardMinElapsedSeconds",
+    "EncodeWasteGuardOversizeMarginPercent",
+    "EncodeWasteGuardConsecutiveSamples",
+    "EncodeWasteGuardPollSeconds",
+    "EncodeWasteGuardPreflightSampleSeconds",
+    "EncodeWasteGuardPreflightSampleCount",
+    "EncodeWasteGuardPreflightTimeoutSeconds",
     "MinFreeSpaceGB",
     "OutsourceMinFreeSpaceGB",
     "DeferredPublish",
@@ -159,6 +172,9 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "RenameMovieFilterOptions",
     "RenameMovieFilterTerms",
     "RenameMovieRemoveTerms",
+    "RenameTVFilterOptions",
+    "RenameTVFilterTerms",
+    "RenameTVRemoveTerms",
     "ValidExtensions",
     "FileStabilityWait",
     "EnableWatchFolders",
@@ -346,6 +362,9 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "RenameMovieFilterOptions",
     "RenameMovieFilterTerms",
     "RenameMovieRemoveTerms",
+    "RenameTVFilterOptions",
+    "RenameTVFilterTerms",
+    "RenameTVRemoveTerms",
     "MaxParallelEncodes",
     "ParallelEncodeMode",
     "DebugMode",
@@ -417,6 +436,7 @@ LIST_CONFIG_KEYS: tuple[str, ...] = (
     "ValidExtensions",
     "WatchFolderRoots",
     "RenameMovieRemoveTerms",
+    "RenameTVRemoveTerms",
     "RobocopyFlags",
     "PriorityMarkers",
 )
@@ -761,6 +781,16 @@ class Config(BaseModel):
     SizeGuardMode: Literal["advisory", "strict", "fallback_remux", "off"] = "advisory"
     MaxEncodeGrowthPercent: int = Field(default=5, ge=0, le=1000)
     CompatibilityEncodeGrowthPercent: int = Field(default=15, ge=0, le=1000)
+    EncodeWasteGuardMode: Literal["off", "dry_run", "enforce"] = "off"
+    EncodeWasteGuardPreflightEnabled: bool = False
+    EncodeWasteGuardMinProgressPercent: int = Field(default=15, ge=0, le=95)
+    EncodeWasteGuardMinElapsedSeconds: int = Field(default=120, ge=0, le=86400)
+    EncodeWasteGuardOversizeMarginPercent: int = Field(default=20, ge=0, le=1000)
+    EncodeWasteGuardConsecutiveSamples: int = Field(default=2, ge=1, le=10)
+    EncodeWasteGuardPollSeconds: int = Field(default=10, ge=1, le=600)
+    EncodeWasteGuardPreflightSampleSeconds: int = Field(default=30, ge=5, le=600)
+    EncodeWasteGuardPreflightSampleCount: int = Field(default=3, ge=1, le=10)
+    EncodeWasteGuardPreflightTimeoutSeconds: int = Field(default=900, ge=30, le=86400)
 
     MinFreeSpaceGB: int = Field(default=50, ge=0)
     OutsourceMinFreeSpaceGB: int = Field(default=50, ge=0)
@@ -879,6 +909,9 @@ class Config(BaseModel):
     RenameMovieFilterOptions: dict[str, bool] = Field(default_factory=_rename_movie_filter_options_default)
     RenameMovieFilterTerms: dict[str, list[str]] = Field(default_factory=rename_movie_filter_default_terms)
     RenameMovieRemoveTerms: list[str] = Field(default_factory=_rename_movie_remove_terms_default)
+    RenameTVFilterOptions: dict[str, bool] = Field(default_factory=_rename_tv_filter_options_default)
+    RenameTVFilterTerms: dict[str, list[str]] = Field(default_factory=rename_tv_filter_default_terms)
+    RenameTVRemoveTerms: list[str] = Field(default_factory=_rename_tv_remove_terms_default)
     ValidExtensions: list[str] = Field(
         default_factory=lambda: [".mkv", ".mp4", ".avi", ".mov", ".m4v", ".ts", ".m2ts"]
     )
@@ -1037,6 +1070,31 @@ class Config(BaseModel):
     def _normalize_rename_movie_remove_terms(cls, value: list[str]) -> list[str]:
         return _normalize_config_term_list(value)
 
+    @field_validator("RenameTVFilterOptions", mode="before")
+    @classmethod
+    def _normalize_rename_tv_filter_options(cls, value: Any) -> dict[str, bool]:
+        raw_options = _mapping_from_json_or_mapping(value, label="RenameTVFilterOptions")
+        options = _rename_tv_filter_options_default()
+        for key in RENAME_TV_FILTER_OPTION_KEYS:
+            if key in raw_options:
+                options[key] = _coerce_config_bool(raw_options[key], default=True)
+        return options
+
+    @field_validator("RenameTVFilterTerms", mode="before")
+    @classmethod
+    def _normalize_rename_tv_filter_terms(cls, value: Any) -> dict[str, list[str]]:
+        raw_terms = _mapping_from_json_or_mapping(value, label="RenameTVFilterTerms")
+        terms = rename_tv_filter_default_terms()
+        for key in RENAME_TV_FILTER_OPTION_KEYS:
+            if key in raw_terms:
+                terms[key] = _normalize_config_term_list(raw_terms[key])
+        return terms
+
+    @field_validator("RenameTVRemoveTerms")
+    @classmethod
+    def _normalize_rename_tv_remove_terms(cls, value: list[str]) -> list[str]:
+        return _normalize_config_term_list(value)
+
     @field_validator("FinalLibraryPromotionRules", mode="before")
     @classmethod
     def _coerce_final_library_promotion_rules(cls, value: Any) -> list[dict[str, Any]]:
@@ -1089,6 +1147,7 @@ class Config(BaseModel):
         "RoutingProfile",
         "RouteThresholdMode",
         "SizeGuardMode",
+        "EncodeWasteGuardMode",
         "QualityMetric",
         "QualitySampleMode",
         "QualityFailAction",

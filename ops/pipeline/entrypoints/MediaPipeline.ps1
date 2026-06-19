@@ -756,6 +756,72 @@ if ($EmitQueuePlan) {
     exit 0
 }
 
+$autonomyGateNetworkRole = ''
+if ($config.ContainsKey('NetworkRole')) {
+    $autonomyGateNetworkRole = [string]$config['NetworkRole']
+}
+$autonomyGateConfig = [ordered]@{
+    NetworkRole              = [string]$autonomyGateNetworkRole
+    SourceMovies             = [string]$SourceMovies
+    SourceTV                 = [string]$SourceTV
+    Outsource                = [string]$Outsource
+    LocalBase                = [string]$LocalBase
+    MinFreeSpaceGB           = [int]$script:MinFreeSpaceGB
+    OutsourceMinFreeSpaceGB  = [int]$script:OutsourceMinFreeSpaceGB
+}
+$autonomyGatePayload = [ordered]@{
+    app_root                 = [string]$scriptRoot
+    workspace_root           = [string]$repoRootForModules
+    pipeline_path            = [string]$pipelineScriptPath
+    config_path              = [string]$configPath
+    audit_script_path        = ''
+    rerun_script_path        = ''
+    powershell_host          = [string]$currentPowerShellPath
+    local_base               = [string]$LocalBase
+    state_root               = [string]$LocalState
+    active_jobs_path         = [string]$script:LocalStateLayout.ActiveJobs
+    failed_reports_path      = [string]$LocalFailureReports
+    failed_markers_path      = [string]$LocalFailureMarkers
+    pending_push_path        = [string]$LocalPendingPush
+    completed_manifest_path  = [string]$CompletedJobsManifest
+    queue_snapshot_path      = [string]$queueSnapshotPath
+    progress_file            = [string]$ProgressFile
+    event_file               = [string]$PipelineEventLogFile
+    log_file                 = [string]$LogFile
+    source_movies            = [string]$SourceMovies
+    source_tv                = [string]$SourceTV
+    config_data              = $autonomyGateConfig
+}
+$autonomyGateJson = $autonomyGatePayload | ConvertTo-Json -Depth 12 -Compress
+$autonomyGateOutput = @(& $pythonPath -m mediapipeline.tools.autonomy_health_gate --paths-json $autonomyGateJson 2>&1)
+$autonomyGateExit = if ($null -ne $LASTEXITCODE) { [int]$LASTEXITCODE } else { 1 }
+$autonomyGateText = ($autonomyGateOutput | Out-String).Trim()
+if ($autonomyGateExit -eq 76) {
+    $autonomyGateReason = 'Autonomy health is blocked.'
+    try {
+        $autonomyGatePayloadOut = $autonomyGateText | ConvertFrom-Json -Depth 50
+        if ($autonomyGatePayloadOut.blockers -and @($autonomyGatePayloadOut.blockers).Count -gt 0) {
+            $autonomyGateReason = [string]$autonomyGatePayloadOut.blockers[0].message
+        }
+    } catch {}
+    Write-Log "AUTONOMY HEALTH: blocked; new queue work will not start. $autonomyGateReason" 'ERROR'
+    Set-ProgressStage -Stage 'idle' -Status 'Autonomy health blocked' -Percent $null -SaveNow
+    & $Script:ExitCleanup
+    exit 76
+}
+if ($autonomyGateExit -ne 0) {
+    Write-Log "AUTONOMY HEALTH: gate evaluation failed closed (exit $autonomyGateExit). $autonomyGateText" 'ERROR'
+    Set-ProgressStage -Stage 'idle' -Status 'Autonomy health unavailable' -Percent $null -SaveNow
+    & $Script:ExitCleanup
+    exit 76
+}
+try {
+    $autonomyGatePayloadOut = $autonomyGateText | ConvertFrom-Json -Depth 50
+    Write-Log "AUTONOMY HEALTH: $($autonomyGatePayloadOut.overall_status); launch gate allows new work."
+} catch {
+    Write-Log "AUTONOMY HEALTH: passed; launch gate output could not be summarized: $_" 'WARN'
+}
+
 Invoke-MediaPipelineRun -EnginePlan $enginePlan | Out-Null
 
 Reset-ProgressItemContext

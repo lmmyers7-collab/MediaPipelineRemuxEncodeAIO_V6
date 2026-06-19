@@ -7,6 +7,15 @@
     evidenceRows: [],
     activeProfileId: "",
     initialized: false,
+    traceRequestId: 0,
+    compareRequestId: 0,
+    validationRequestId: 0,
+    editorState: {
+      activeProfileId: "",
+      dirty: false,
+      patchState: "none",
+      patchCurrent: false,
+    },
   };
 
   function byId(id) {
@@ -29,6 +38,14 @@
   function setText(id, value) {
     const node = byId(id);
     if (node) node.textContent = text(value);
+  }
+
+  function setStateText(id, value, stateValue = "") {
+    const node = byId(id);
+    if (!node) return;
+    node.textContent = text(value);
+    if (stateValue) node.dataset.state = stateValue;
+    else delete node.dataset.state;
   }
 
   function apiGetLocal(path) {
@@ -59,6 +76,33 @@
     if (Array.isArray(value)) return value.length ? value.map(text).join(", ") : "none";
     if (typeof value === "object") return JSON.stringify(value);
     return text(value);
+  }
+
+  function stateTone(value) {
+    const stateValue = statusText(value).toLowerCase();
+    if (["current", "ok", "ready", "saved", "valid", "complete", "completed"].includes(stateValue)) return "ready";
+    if (["blocked", "failed", "error", "invalid"].includes(stateValue)) return "blocked";
+    if (["review", "warning", "missing", "stale", "unknown"].includes(stateValue)) return "warning";
+    if (["changed", "active", "pending", "loading"].includes(stateValue)) return stateValue;
+    return "unknown";
+  }
+
+  function errorMessage(error) {
+    if (error instanceof Error) return error.message;
+    return text(error) || "Unknown error";
+  }
+
+  function compareValueStateTone(value) {
+    const stateValue = statusText(value).toLowerCase();
+    if (["explicit", "override", "custom", "library_override"].includes(stateValue)) return "explicit";
+    if (["inherited", "default", "defaulted", "synthesized_builtin_default", "builtin_default"].includes(stateValue)) return "inherited";
+    if (["missing", "not_configured", "not reported", "unknown"].includes(stateValue)) return "missing";
+    if (["conflict", "warning", "stale"].includes(stateValue)) return "conflict";
+    if (["invalid", "invalid_unresolved", "blocked", "failed", "error"].includes(stateValue)) return "invalid";
+    if (["current", "ok", "ready", "saved", "valid", "complete", "completed"].includes(stateValue)) return "valid";
+    if (["changed", "different"].includes(stateValue)) return "changed";
+    if (["same", "unchanged", "matched"].includes(stateValue)) return "same";
+    return "unknown";
   }
 
   function renderOptions(select, rows, currentValue, labelFn, emptyLabel = "No options loaded") {
@@ -92,7 +136,7 @@
       (row) => `${profileLabel(row.profile)} (${statusText(row.profile?.profile_status)})`,
       "No library profiles loaded"
     );
-    state.activeProfileId = selected;
+    if (selected) state.activeProfileId = selected;
 
     const left = byId("library-route-compare-left");
     const right = byId("library-route-compare-right");
@@ -147,6 +191,58 @@
       const label = text(item.row.display_name || item.row.lookup_title || item.row.source_path || item.row.output_path || item.row.record_id);
       return `${source}: ${label || "row"}`;
     });
+  }
+
+  function warningLinesForPayload(label, payload) {
+    const warnings = Array.isArray(payload?.warnings) ? payload.warnings : [];
+    return warnings.map((line) => `${label}: ${text(line)}`).filter((line) => line.trim() !== `${label}:`);
+  }
+
+  function renderRouteContext(profile) {
+    const profileName = profileLabel(profile);
+    const routeStatus = statusText(profile?.profile_status);
+    const profileCount = routeProfiles().length;
+    const editorProfile = text(state.editorState.activeProfileId);
+    const editorMatchesRoute = !editorProfile || editorProfile === text(profile?.library_id);
+    const contextLines = [];
+    if (state.routeMap?.schema_version) {
+      contextLines.push(`Active route-map profile: ${profileName} (${routeStatus}).`);
+      contextLines.push(`Evidence authority: ${text(state.routeMap.evidence_authority) || "backend"} saved config and Library Profile state.`);
+      contextLines.push(state.routeMap.guardrail || "Evidence only; no settings save, launch, queue, or filesystem mutation is performed.");
+    } else {
+      contextLines.push("Saved backend route-map evidence has not loaded.");
+    }
+    if (state.editorState.dirty) {
+      const scope = editorMatchesRoute ? "this selected library" : "another selected editor library";
+      const patchLabel = state.editorState.patchCurrent
+        ? "a LibraryProfiles patch is staged"
+        : state.editorState.patchState === "stale"
+          ? "the existing LibraryProfiles patch is stale"
+          : "no current LibraryProfiles patch is staged";
+      contextLines.push(`Editor scope: ${scope} has unsaved editor state; ${patchLabel}. Route-map rows still show saved backend evidence until backend Save/refresh.`);
+    } else if (state.editorState.patchState === "staged") {
+      contextLines.push("Editor scope: LibraryProfiles is staged in Changes JSON but not saved. Route-map rows still show saved backend evidence.");
+    }
+    setStateText(
+      "library-route-map-status",
+      state.routeMap?.schema_version ? `${profileCount} profile(s) · ${profileName}` : "Not loaded",
+      state.routeMap?.schema_version ? stateTone(routeStatus) : "unknown"
+    );
+    setText("library-route-map-context", contextLines.join(" "));
+    const warnings = [
+      ...(Array.isArray(state.routeMap?.warnings) ? state.routeMap.warnings.map((line) => `Route map: ${text(line)}`) : []),
+      ...warningLinesForPayload("Trace", state.trace),
+      ...warningLinesForPayload("Compare", state.compare),
+      ...warningLinesForPayload("Validation", state.validation),
+    ];
+    if (state.editorState.dirty) {
+      warnings.unshift("Editor: staged or dirty profile edits are not reflected in saved backend route-map evidence yet.");
+    }
+    const warningNode = byId("library-route-map-warning-summary");
+    if (warningNode) {
+      warningNode.textContent = warnings.filter(Boolean).join("\n");
+      warningNode.hidden = !warnings.length;
+    }
   }
 
   function selectedTraceQuery() {
@@ -246,14 +342,19 @@
     if (!body) return;
     const rows = Array.isArray(compare?.rows) ? compare.rows.slice(0, 120) : [];
     if (!rows.length) return emptyRows("library-route-compare-rows", "No profile comparison loaded.", 4);
-    body.innerHTML = rows.map((row) => `
-      <tr class="${row.changed ? "is-selected" : ""}">
-        <td>${escapeHtml(row.label || row.field)}</td>
-        <td>${escapeHtml(valueText(row.left?.effective_value))} <span class="muted">${escapeHtml(statusText(row.left?.state || row.left?.status))}</span></td>
-        <td>${escapeHtml(valueText(row.right?.effective_value))} <span class="muted">${escapeHtml(statusText(row.right?.state || row.right?.status))}</span></td>
-        <td>${escapeHtml(row.changed ? "changed" : "same")}</td>
-      </tr>
-    `).join("");
+    body.innerHTML = rows.map((row) => {
+      const leftState = statusText(row.left?.state || row.left?.status);
+      const rightState = statusText(row.right?.state || row.right?.status);
+      const rowState = statusText(row.status || (row.changed ? "changed" : "same"));
+      return `
+        <tr class="${row.changed ? "is-selected" : ""}">
+          <td>${escapeHtml(row.label || row.field)}</td>
+          <td data-state="${escapeHtml(compareValueStateTone(leftState))}">${escapeHtml(valueText(row.left?.effective_value))} <span class="muted">${escapeHtml(leftState)}</span></td>
+          <td data-state="${escapeHtml(compareValueStateTone(rightState))}">${escapeHtml(valueText(row.right?.effective_value))} <span class="muted">${escapeHtml(rightState)}</span></td>
+          <td data-state="${escapeHtml(compareValueStateTone(rowState))}">${escapeHtml(rowState)}</td>
+        </tr>
+      `;
+    }).join("");
   }
 
   function renderNavigationRows(profile) {
@@ -276,19 +377,36 @@
     if (!body) return;
     const sections = Array.isArray(validation?.proof_sections) ? validation.proof_sections : [];
     if (!sections.length) return emptyRows("library-route-validation-rows", "No validation handoff loaded.", 4);
-    body.innerHTML = sections.map((section) => `
+    const sectionRows = sections.map((section) => `
       <tr>
         <td>${escapeHtml(section.label || section.proof_type)}</td>
         <td data-state="${escapeHtml(statusText(section.status))}">${escapeHtml(statusText(section.status))}</td>
         <td>${escapeHtml(section.row_count ?? 0)}</td>
         <td>${escapeHtml([section.source_schema, ...(section.source_warnings || [])].filter(Boolean).join("; ") || "not reported")}</td>
       </tr>
-    `).join("");
+    `);
+    const proofRows = (Array.isArray(validation?.proof_rows) ? validation.proof_rows : []).slice(0, 8).map((row) => {
+      const rowLabel = text(row.record_id || row.row_key || row.command || row.recorded_at || row.sample_category || row.route || "proof row");
+      const context = [
+        row.source_path ? `source: ${row.source_path}` : "",
+        row.output_path ? `output: ${row.output_path}` : "",
+        row.message ? `message: ${row.message}` : "",
+        row.ready_to_drain === true ? "ready to drain" : "",
+      ].filter(Boolean).join("; ");
+      return `
+        <tr class="settings-library-route-proof-row">
+          <td>${escapeHtml(row.proof_type || "proof row")}</td>
+          <td data-state="${escapeHtml(statusText(row.status))}">${escapeHtml(statusText(row.status))}</td>
+          <td>${escapeHtml(rowLabel)}</td>
+          <td>${escapeHtml(context || "not reported")}</td>
+        </tr>
+      `;
+    });
+    body.innerHTML = [...sectionRows, ...proofRows].join("");
   }
 
   function renderAll() {
     const profile = activeProfile();
-    setText("library-route-map-status", state.routeMap?.schema_version ? `${routeProfiles().length} profile(s)` : "Not loaded");
     renderProfileSelectors();
     renderTraceSelector();
     renderRouteGraph(profile);
@@ -298,13 +416,35 @@
     renderCompareRows(state.compare);
     renderNavigationRows(profile);
     renderValidationRows(state.validation);
+    renderRouteContext(profile);
   }
 
   async function refreshTrace() {
     const query = selectedTraceQuery();
     const path = `/api/libraries/route-map/trace${query ? `?${query}` : ""}`;
-    state.trace = await apiGetLocal(path);
-    renderTraceRows(state.trace);
+    const requestId = ++state.traceRequestId;
+    emptyRows("library-route-trace-rows", "Loading selected-file trace...", 4);
+    try {
+      const trace = await apiGetLocal(path);
+      if (requestId !== state.traceRequestId) return;
+      state.trace = trace;
+      renderTraceRows(state.trace);
+    } catch (error) {
+      if (requestId !== state.traceRequestId) return;
+      const message = errorMessage(error);
+      state.trace = {
+        warnings: [`Trace request failed: ${message}`],
+        trace_steps: [{
+          step: "request",
+          status: "error",
+          summary: `Trace request failed: ${message}`,
+          gaps: [],
+        }],
+      };
+      renderTraceRows(state.trace);
+    } finally {
+      if (requestId === state.traceRequestId) renderRouteContext(activeProfile());
+    }
   }
 
   async function refreshCompare() {
@@ -313,13 +453,58 @@
     const params = new URLSearchParams();
     if (left) params.set("left_id", left);
     if (right) params.set("right_id", right);
-    state.compare = await apiGetLocal(`/api/libraries/route-map/compare?${params.toString()}`);
-    renderCompareRows(state.compare);
+    const requestId = ++state.compareRequestId;
+    emptyRows("library-route-compare-rows", "Loading profile comparison...", 4);
+    try {
+      const compare = await apiGetLocal(`/api/libraries/route-map/compare?${params.toString()}`);
+      if (requestId !== state.compareRequestId) return;
+      state.compare = compare;
+      renderCompareRows(state.compare);
+    } catch (error) {
+      if (requestId !== state.compareRequestId) return;
+      const message = errorMessage(error);
+      state.compare = {
+        warnings: [`Compare request failed: ${message}`],
+        rows: [{
+          label: "Profile compare request",
+          left: { effective_value: "compare endpoint", state: "error" },
+          right: { effective_value: message, state: "error" },
+          status: "error",
+          changed: true,
+        }],
+      };
+      renderCompareRows(state.compare);
+    } finally {
+      if (requestId === state.compareRequestId) renderRouteContext(activeProfile());
+    }
   }
 
   async function refreshValidation() {
-    state.validation = await apiGetLocal("/api/libraries/route-map/validation?limit=20");
-    renderValidationRows(state.validation);
+    const requestId = ++state.validationRequestId;
+    emptyRows("library-route-validation-rows", "Loading validation handoff...", 4);
+    try {
+      const validation = await apiGetLocal("/api/libraries/route-map/validation?limit=20");
+      if (requestId !== state.validationRequestId) return;
+      state.validation = validation;
+      renderValidationRows(state.validation);
+    } catch (error) {
+      if (requestId !== state.validationRequestId) return;
+      const message = errorMessage(error);
+      state.validation = {
+        warnings: [`Validation request failed: ${message}`],
+        proof_sections: [{
+          label: "Validation request",
+          proof_type: "request",
+          status: "error",
+          row_count: 0,
+          source_warnings: [message],
+        }],
+        proof_rows: [],
+      };
+      renderValidationRows(state.validation);
+    } finally {
+      if (requestId === state.validationRequestId) renderRouteContext(activeProfile());
+    }
   }
 
   async function refreshReadOnlyDetails() {
@@ -340,10 +525,31 @@
     await refreshReadOnlyDetails();
   }
 
+  function selectProfile(libraryId, options = {}) {
+    const nextId = text(libraryId);
+    if (!nextId) return;
+    state.activeProfileId = nextId;
+    renderAll();
+    if (options.source !== "library-editor") {
+      window.mediaPipelineSettingsLibraries?.activateLibraryProfile?.(nextId, { source: "route-map" });
+    }
+  }
+
+  function setEditorState(editorState = {}) {
+    state.editorState = {
+      ...state.editorState,
+      ...editorState,
+      activeProfileId: text(editorState.activeProfileId || state.editorState.activeProfileId),
+      patchState: text(editorState.patchState || state.editorState.patchState || "none"),
+      dirty: editorState.dirty === true,
+      patchCurrent: editorState.patchCurrent === true,
+    };
+    if (state.editorState.activeProfileId) state.activeProfileId = state.editorState.activeProfileId;
+    renderAll();
+  }
+
   function focusLibraryControl(libraryId, selector) {
-    const tab = Array.from(byId("settings-library-profile-nav")?.querySelectorAll("[data-library-profile-nav]") || [])
-      .find((item) => item.getAttribute("data-library-profile-nav") === libraryId);
-    tab?.click?.();
+    selectProfile(libraryId, { source: "navigation" });
     const target = selector ? document.querySelector(selector) : null;
     const focusTarget = target?.matches?.("input, select, textarea, button, a") ? target : target?.querySelector?.("input, select, textarea, button, a");
     if (target) {
@@ -358,8 +564,7 @@
     if (state.initialized) return;
     state.initialized = true;
     byId("library-route-map-profile-select")?.addEventListener("change", (event) => {
-      state.activeProfileId = event.target?.value || "";
-      renderAll();
+      selectProfile(event.target?.value || "", { source: "route-map" });
     });
     byId("library-route-trace-selector")?.addEventListener("change", () => { refreshTrace(); });
     byId("library-route-compare-left")?.addEventListener("change", () => { refreshCompare(); });
@@ -382,5 +587,7 @@
     renderRouteMap,
     refreshLibraryRouteMap,
     initLibraryRouteMapEvents,
+    selectProfile,
+    setEditorState,
   };
 })();

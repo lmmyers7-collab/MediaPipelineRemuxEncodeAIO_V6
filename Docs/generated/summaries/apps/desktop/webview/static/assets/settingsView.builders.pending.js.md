@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.builders.pending.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-11
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: b4accabdceea81f8370d94bdfaca37161a9c6a6521bc00e3b17901ad1be5aa41
+sha256: 21c87ac689f8ad79e8eafa0387f05f507ff496ab399c0b65dc26e2fcb8aec4d1
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.pending.js`
 

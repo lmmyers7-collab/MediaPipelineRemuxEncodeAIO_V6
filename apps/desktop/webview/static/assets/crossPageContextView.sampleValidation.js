@@ -395,6 +395,8 @@
       const log = context.sampleValidation || {};
       const records = Array.isArray(log.records) ? log.records : [];
       const request = buildSampleValidationRequest(context || {});
+      const pendingFailure = (Array.isArray(context.failures) ? context.failures : [])
+        .find((item) => item?.name === "pending publish");
       return [
         "Backend-owned sample validation records:",
         "Purpose: persist operator observations from a real sample run without changing pipeline truth.",
@@ -404,6 +406,7 @@
         `Proposed evidence coverage: ${sampleValidationCheckedSummary(request.checks)}`,
         `Recent records loaded: ${records.length}`,
         `Log path: ${log.log_path || "not reported"}`,
+        pendingFailure ? `Pending Publish proof unavailable: ${pendingFailure.message || "route read failed"}. Treat final-placement evidence as blocked until refresh succeeds.` : "Pending Publish proof: loaded or not required by the selected sample.",
         `WebView cutover gate: ${sampleValidationCutoverPayload(log).operator_status || "not loaded"}`,
         `Real-media validation audit: ${sampleValidationAuditPayload(log).operator_status || "not loaded"}`,
         `Real-media policy alignment: ${sampleValidationPolicyAlignmentPayload(log).operator_status || "not loaded"}`,
@@ -429,6 +432,7 @@
       const log = context.sampleValidation || {};
       const readiness = log.readiness || {};
       const reconciliation = log.reconciliation || {};
+      if ((Array.isArray(context.failures) ? context.failures : []).some((item) => item?.name === "pending publish")) return "Pending proof blocked";
       if (readiness.operator_status === "blocked") return "Readiness blocked";
       if (Array.isArray(log.errors) && log.errors.length) return "Log error";
       if (reconciliation.operator_status === "blocked") return "Evidence blocked";
@@ -442,11 +446,42 @@
       return "Evidence log loaded";
     }
 
+    function sampleValidationStatusState(label) {
+      const text = String(label || "").toLowerCase();
+      if (text.includes("blocked") || text.includes("error")) return "blocked";
+      if (text.includes("stale") || text.includes("review") || text.includes("needs")) return "warning";
+      if (text.includes("ready") || text.includes("loaded")) return "ready";
+      return "unknown";
+    }
+
+    function renderSampleValidationDecisionStrip(context = {}) {
+      const strip = byId("sample-validation-decision-strip");
+      const summary = byId("sample-validation-decision-strip-summary");
+      if (!strip || !summary) return;
+      const sample = crossPageSampleRows(context || {})[0] || null;
+      const request = buildSampleValidationRequest(context || {});
+      const checkEntries = SAMPLE_VALIDATION_CHECK_FIELDS.map(([key]) => key);
+      const checkedCount = checkEntries.filter((key) => Boolean(request.checks?.[key])).length;
+      const status = sampleValidationStatus(context || {});
+      const stateName = sampleValidationStatusState(status);
+      strip.dataset.state = stateName;
+      summary.textContent = [
+        `Decision: ${request.operator_decision || "hold_review"}`,
+        `Category: ${request.sample_category || "general"}`,
+        `Checks: ${checkedCount}/${checkEntries.length}`,
+        `Sample: ${sample?.seed?.display || "none selected"}`,
+        `Gate: ${status}`,
+      ].join(" | ");
+    }
+
     function renderSampleValidationRecordPanel(context = {}) {
       const sample = crossPageSampleRows(context || {})[0] || null;
       syncSampleValidationCheckControls(sampleValidationChecks(sampleValidationEvidence(sample)));
-      setText("sample-validation-status", sampleValidationStatus(context || {}));
+      const status = sampleValidationStatus(context || {});
+      if (typeof setPanelStatus === "function") setPanelStatus("sample-validation-status", status, sampleValidationStatusState(status));
+      else setText("sample-validation-status", status);
       setText("sample-validation-summary", sampleValidationSummaryLines(context || {}).join("\n"));
+      renderSampleValidationDecisionStrip(context || {});
       renderSampleValidationCompletedPacketHandoff(context || {});
       renderSampleValidationAcceptanceGate(context || {});
       renderSampleValidationRecordReview(context || {});
@@ -564,9 +599,38 @@
       return lines;
     }
 
+    function setSampleValidationActionBusy(kind, busy) {
+      const buttons = [
+        byId("sample-validation-preview-button"),
+        byId("sample-validation-strip-preview-button"),
+        byId("sample-validation-append-button"),
+        byId("sample-validation-clear-checks-button"),
+        byId("sample-validation-strip-clear-checks-button"),
+      ].filter(Boolean);
+      buttons.forEach((button) => {
+        if (!button.dataset.idleText) button.dataset.idleText = button.textContent || "";
+        button.disabled = Boolean(busy);
+        if (busy) button.setAttribute("aria-busy", "true");
+        else button.removeAttribute("aria-busy");
+        if (busy && kind === "preview" && button.id.includes("preview")) button.textContent = "Previewing...";
+        else if (busy && kind === "append" && button.id.includes("append")) button.textContent = "Appending...";
+        else if (busy && kind === "clear" && button.id.includes("clear")) button.textContent = "Clearing...";
+        else if (!busy) button.textContent = button.dataset.idleText;
+      });
+      const active = kind === "append"
+        ? byId("sample-validation-append-button")
+        : kind === "clear"
+          ? byId("sample-validation-clear-checks-button") || byId("sample-validation-strip-clear-checks-button")
+          : byId("sample-validation-preview-button") || byId("sample-validation-strip-preview-button");
+      if (typeof setInlineActionStatus === "function" && active) {
+        setInlineActionStatus(active, busy ? `${kind} in progress...` : `${kind} finished`, busy ? "loading" : "ready");
+      }
+    }
+
     async function previewSampleValidationRecord() {
       if (state.sampleValidationInFlight) return;
       state.sampleValidationInFlight = true;
+      setSampleValidationActionBusy("preview", true);
       setText("sample-validation-result", "Previewing backend-owned sample validation record...");
       try {
         const result = await apiPost("/api/sample-validation/preview", buildSampleValidationRequest(state.lastCrossPageContext));
@@ -575,6 +639,7 @@
         setText("sample-validation-result", `Preview failed: ${error?.message || String(error)}`);
       } finally {
         state.sampleValidationInFlight = false;
+        setSampleValidationActionBusy("preview", false);
       }
     }
 
@@ -591,6 +656,7 @@
         }
       }
       state.sampleValidationInFlight = true;
+      setSampleValidationActionBusy("append", true);
       setText("sample-validation-result", "Appending backend-owned sample validation record...");
       try {
         const result = await apiPost("/api/sample-validation/append", request);
@@ -610,12 +676,23 @@
         });
       } finally {
         state.sampleValidationInFlight = false;
+        setSampleValidationActionBusy("append", false);
       }
+    }
+
+    function clearManualSampleValidationChecks() {
+      setSampleValidationActionBusy("clear", true);
+      state.sampleValidationManualChecks = {};
+      renderSampleValidationRecordPanel(state.lastCrossPageContext || {});
+      setText("sample-validation-result", "Manual sample-validation checks cleared. Loaded backend evidence still pre-checks matching items.");
+      window.setTimeout(() => setSampleValidationActionBusy("clear", false), 150);
     }
 
     function initSampleValidationViewEvents() {
       const previewButton = byId("sample-validation-preview-button");
       if (previewButton) previewButton.addEventListener("click", previewSampleValidationRecord);
+      const stripPreviewButton = byId("sample-validation-strip-preview-button");
+      if (stripPreviewButton) stripPreviewButton.addEventListener("click", previewSampleValidationRecord);
       const appendButton = byId("sample-validation-append-button");
       if (appendButton) appendButton.addEventListener("click", appendSampleValidationRecord);
       const useSampleSetCategoryButton = byId("sample-validation-use-sample-set-category-button");
@@ -635,13 +712,9 @@
         });
       });
       const clearChecksButton = byId("sample-validation-clear-checks-button");
-      if (clearChecksButton) {
-        clearChecksButton.addEventListener("click", () => {
-          state.sampleValidationManualChecks = {};
-          renderSampleValidationRecordPanel(state.lastCrossPageContext || {});
-          setText("sample-validation-result", "Manual sample-validation checks cleared. Loaded backend evidence still pre-checks matching items.");
-        });
-      }
+      if (clearChecksButton) clearChecksButton.addEventListener("click", clearManualSampleValidationChecks);
+      const stripClearChecksButton = byId("sample-validation-strip-clear-checks-button");
+      if (stripClearChecksButton) stripClearChecksButton.addEventListener("click", clearManualSampleValidationChecks);
       const decisionSelect = byId("sample-validation-decision");
       if (decisionSelect) {
         decisionSelect.addEventListener("change", () => {

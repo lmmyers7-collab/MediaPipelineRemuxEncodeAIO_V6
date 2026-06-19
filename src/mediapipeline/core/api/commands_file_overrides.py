@@ -68,6 +68,11 @@ from .file_overrides.route_preview import (
     _validate_route_preview_proposal,
 )
 from .file_overrides.selectors import _override_exact_selector_validation
+from .file_overrides.remux_pilot import (
+    REMUX_PILOT_PROMOTE_COMMAND,
+    file_override_remux_pilot_promote_payload,
+    unsupported_remux_pilot_promote_key_errors,
+)
 from .file_overrides.series import (
     file_override_series_apply_payload,
     file_override_series_preview_payload,
@@ -316,6 +321,36 @@ class LocalApiFileOverridesCommandPayloadMixin:
                 row_source_path,
                 state_db_root=getattr(resolved, "state_root", None),
             ),
+        )
+        return _fo_command_result_payload(payload)
+
+    def _file_overrides_remux_pilot_promote_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        """POST /api/queue/file-overrides/remux-pilot-promote — 3-pilot fallback remux promotion."""
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload(REMUX_PILOT_PROMOTE_COMMAND, "queue")
+
+        def promote_error(message: str, errors: list[str] | None = None) -> dict[str, Any]:
+            return _fo_command_result_payload({
+                "ok":       False,
+                "command":  REMUX_PILOT_PROMOTE_COMMAND,
+                "data_schema": "queue_remux_pilot_promotion.v1",
+                "severity": "error",
+                "message":  message,
+                "errors":   errors or [message],
+                "blockers": [{"code": "blocked", "message": error} for error in (errors or [message])],
+            })
+
+        top_level_errors = unsupported_remux_pilot_promote_key_errors(request)
+        if top_level_errors:
+            return promote_error("Invalid remux pilot promotion payload.", top_level_errors)
+        if request.get("confirm_apply") is not True:
+            return promote_error("'confirm_apply' must be boolean true before applying remux pilot promotion.")
+
+        payload = file_override_remux_pilot_promote_payload(
+            resolved=resolved,
+            pilot_source_paths=request.get("pilot_source_paths"),
+            reason=str(request.get("reason") or "").strip(),
         )
         return _fo_command_result_payload(payload)
 

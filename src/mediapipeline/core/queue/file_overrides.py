@@ -551,7 +551,6 @@ def _validate_track_selector_list(errors: list[str], field_path: str, value: Any
     if not value:
         errors.append(f"'{field_path}' must contain at least one track selector; omit the field to inherit.")
         return
-    supported = SUPPORTED_AUDIO_TRACK_SELECTOR_KEYS if kind == "audio" else SUPPORTED_SUBTITLE_TRACK_SELECTOR_KEYS
     for index, selector in enumerate(value):
         selector_path = f"{field_path}[{index}]"
         _validate_track_selector_object(errors, selector_path, selector, kind=kind)

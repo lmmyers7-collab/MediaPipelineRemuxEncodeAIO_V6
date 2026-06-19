@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0619-007",
+  "title": "Simplify WebView table controls",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Remove row-search, alternate density choices, and column filter-row UI from shared WebView tables.",
+  "reason": "The operator only uses the default table presentation and does not need the extra density presets, row-search box, or per-column filter row controls shown in the GPU details table.",
+  "affected_areas": [
+    "network",
+    "telemetry",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Enhanced WebView tables rendered a row-search box, a density selector with Compact, Default, and Comfortable choices, and a Column filters toggle that could reveal per-column filter input rows.",
+  "behavior_after": "Enhanced WebView tables keep the default presentation without rendering row-search, alternate density choices, or column filter-row controls.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/dom/table.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/dom/table.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-007.json.md",
+    "Docs/generated/summaries/tests/webview/test_webview_browser_large_table_smoke.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_browser_telemetry_smoke.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_css_design_tokens.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-007.json",
+    "tests/webview/test_webview_browser_large_table_smoke.py",
+    "tests/webview/test_webview_browser_telemetry_smoke.py",
+    "tests/webview/test_webview_css_design_tokens.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "npm run webview:check - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests.test_shared_data_table_controls_are_wired - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserTelemetrySmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1 - failed on unrelated Queue detail shortcut visibility: #queue-detail computed display:none from existing evidence prose-block CSS while panel remained visible",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_css_design_tokens - failed on unrelated pre-existing launch button class and opacity token assertions",
+    "Local API startup with apps/desktop app root - passed; server reached server_listening on http://127.0.0.1:63520",
+    "In-app Browser localhost check - blocked by Browser URL policy before DOM inspection",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed on unrelated packet/type and uncovered worktree paths: MP-CHANGE-2026-0619-002 invalid type ux; settings/backendResult.js; settingsView.safetyLocks.js; Test-WebViewBrowserVisualClutterScreenshots.ps1; Test-WebViewSettingsPatchEvidenceSmoke.ps1; test_webview_browser_visual_clutter_screenshots.py"
+  ],
+  "rollback_plan": "Revert the shared WebView table helper change, CSS cleanup, Network stale density attributes, smoke/static expectation updates, regenerated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Created for the 2026-06-19 operator request to simplify the GPU details table controls.\n2026-06-19: Shared table helper now omits row-search, density preset, and column-filter-row controls; retained column visibility, sort, resize, sticky columns, and row summary.\n2026-06-19: Removed stale compact-density table attributes from Network path-map wrappers after deleting alternate density styling."
+}

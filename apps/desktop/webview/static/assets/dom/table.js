@@ -13,12 +13,21 @@
     const enhancedTableBodies = new Set([
       "active-job-detail-rows",
       "api-contract-rows",
+      "api-contract-safety-rows",
       "audit-launch-log-rows",
       "audit-preview-rows",
       "command-rows",
       "completed-history-rows",
       "completed-rows",
       "diagnostics-log-rows",
+      "diagnostics-first-response-rows",
+      "diagnostics-state-triage-rows",
+      "diagnostics-state-summary-rows",
+      "diagnostics-owner-handoff-rows",
+      "diagnostics-command-drilldown-rows",
+      "diagnostics-command-owner-rows",
+      "diagnostics-command-evidence-rows",
+      "diagnostics-command-resolution-rows",
       "failure-rows",
       "maintenance-change-ledger-rows",
       "metrics-sources-rows",
@@ -35,14 +44,25 @@
       "settings-rows",
       "tdarr-matrix-audit-findings-rows",
       "tdarr-matrix-audit-bucket-rows",
+      "tdarr-matrix-proof-pack-rows",
+      "tdarr-matrix-run-compare-rows",
     ]);
     const stickyColumnCounts = {
       "api-contract-rows": 2,
+      "api-contract-safety-rows": 1,
       "audit-launch-log-rows": 2,
       "audit-preview-rows": 2,
       "completed-history-rows": 2,
       "completed-rows": 2,
       "diagnostics-log-rows": 1,
+      "diagnostics-first-response-rows": 1,
+      "diagnostics-state-triage-rows": 2,
+      "diagnostics-state-summary-rows": 1,
+      "diagnostics-owner-handoff-rows": 2,
+      "diagnostics-command-drilldown-rows": 2,
+      "diagnostics-command-owner-rows": 1,
+      "diagnostics-command-evidence-rows": 1,
+      "diagnostics-command-resolution-rows": 1,
       "failure-rows": 2,
       "maintenance-change-ledger-rows": 1,
       "metrics-sources-rows": 1,
@@ -58,7 +78,10 @@
       "settings-rows": 1,
       "tdarr-matrix-audit-findings-rows": 2,
       "tdarr-matrix-audit-bucket-rows": 1,
+      "tdarr-matrix-proof-pack-rows": 1,
+      "tdarr-matrix-run-compare-rows": 1,
     };
+    const tableEmptyStateObservers = new WeakMap();
 
     function clearRows(tbody, columns, message) {
       if (!tbody) return;
@@ -69,6 +92,7 @@
       cell.textContent = message;
       row.appendChild(cell);
       tbody.appendChild(row);
+      syncTableEmptyState(tbody);
     }
 
     function appendCells(row, values, cellClasses) {
@@ -278,6 +302,16 @@
       next.click();
     }
 
+    function selectRowInGroup(row) {
+      if (!row) return;
+      const rows = selectableRowsFor(row);
+      rows.forEach((candidate) => {
+        const selected = candidate === row;
+        candidate.setAttribute("aria-selected", selected ? "true" : "false");
+        candidate.classList.toggle("is-selected", selected);
+      });
+    }
+
     function makeRowSelectable(row, onSelect, options = {}) {
       if (!row) return;
       const selected = Boolean(options.selected);
@@ -287,11 +321,15 @@
       row.setAttribute("aria-selected", selected ? "true" : "false");
       row.classList.toggle("is-selected", selected);
       if (options.label) row.setAttribute("aria-label", options.label);
-      row.addEventListener("click", (event) => onSelect(event));
+      const activate = (event) => {
+        if (options.manageSelection !== false) selectRowInGroup(row);
+        if (typeof onSelect === "function") onSelect(event);
+      };
+      row.addEventListener("click", activate);
       row.addEventListener("keydown", (event) => {
         if (event.key === "Enter" || event.key === " ") {
           event.preventDefault();
-          onSelect(event);
+          activate(event);
         } else if (event.key === "ArrowDown") {
           event.preventDefault();
           moveSelectableRowFocus(row, 1);
@@ -303,6 +341,31 @@
       if (options.scrollOnRender === true) {
         scrollSelectedRowIntoView(row);
       }
+    }
+
+    function directEmptyStateForWrap(wrap) {
+      return Array.from(wrap?.children || []).find((child) => child?.classList?.contains("empty-state")) || null;
+    }
+
+    function syncTableEmptyState(tbody) {
+      const table = tbody?.closest?.("table");
+      const wrap = table?.closest?.(".table-wrap");
+      const empty = directEmptyStateForWrap(wrap);
+      if (!empty) return false;
+      const isEmpty = allTableDataRows(tbody).length === 0;
+      empty.hidden = !isEmpty;
+      empty.style.display = isEmpty ? "" : "none";
+      empty.dataset.emptyState = isEmpty ? "visible" : "hidden";
+      return isEmpty;
+    }
+
+    function installTableEmptyStateObserver(table, tbody, wrap) {
+      if (!table || !tbody || !wrap || tableEmptyStateObservers.has(tbody)) return;
+      syncTableEmptyState(tbody);
+      if (typeof MutationObserver !== "function") return;
+      const observer = new MutationObserver(() => syncTableEmptyState(tbody));
+      observer.observe(tbody, { childList: true });
+      tableEmptyStateObservers.set(tbody, observer);
     }
 
     function setOptionalDataset(node, key, value) {
@@ -346,9 +409,9 @@
           setOptionalDataset(button, actionDataset, kind);
           setOptionalDataset(button, targetDataset, target);
           if (kind === "tail" && onTail) {
-            button.addEventListener("click", () => onTail(target, action));
+            button.addEventListener("click", () => onTail(target, action, button));
           } else if (onOpen) {
-            button.addEventListener("click", () => onOpen(target, action));
+            button.addEventListener("click", () => onOpen(target, action, button));
           }
           container.appendChild(button);
         });
@@ -516,16 +579,6 @@
       state.applying = false;
     }
 
-    function rowMatchesFilters(row, state) {
-      const basic = normalizedTableText(state.basicFilter).toLowerCase();
-      if (basic && !normalizedTableText(row.textContent).toLowerCase().includes(basic)) return false;
-      for (const [index, value] of state.columnFilters.entries()) {
-        const needle = normalizedTableText(value).toLowerCase();
-        if (needle && !cellText(row, index).toLowerCase().includes(needle)) return false;
-      }
-      return true;
-    }
-
     function statusSummary(rows) {
       const counts = new Map();
       rows.forEach((row) => {
@@ -552,18 +605,6 @@
       const statusText = statusSummary(visibleRows);
       const columnText = hiddenColumnCount ? ` | ${hiddenColumnCount} columns hidden` : "";
       state.summaryNode.textContent = statusText ? `${countText} | ${statusText}${columnText}` : `${countText}${columnText}`;
-    }
-
-    function applyTableFilters(state) {
-      allTableDataRows(state.tbody).forEach((row) => {
-        row.hidden = !rowMatchesFilters(row, state);
-      });
-    }
-
-    function syncColumnFilterVisibility(state) {
-      if (!state.filterRow) return;
-      state.filterRow.hidden = !state.columnFiltersVisible;
-      state.filterToggle?.setAttribute("aria-expanded", state.columnFiltersVisible ? "true" : "false");
     }
 
     function applyColumnVisibility(state) {
@@ -630,7 +671,6 @@
 
     function applyTableUiState(state) {
       applyColumnVisibility(state);
-      applyTableFilters(state);
       applyTableSort(state);
       updateSortIndicators(state);
       updateStickyColumnOffsets(state);
@@ -714,33 +754,6 @@
       });
     }
 
-    function ensureColumnFilterRow(state) {
-      if (state.filterRow) return state.filterRow;
-      const headerRow = primaryHeaderRow(state.table);
-      if (!headerRow?.parentNode) return null;
-      const row = document.createElement("tr");
-      row.className = "table-filter-row";
-      row.hidden = true;
-      state.headers.forEach((th, index) => {
-        const cell = document.createElement("th");
-        cell.scope = "col";
-        const input = document.createElement("input");
-        input.type = "search";
-        input.className = "table-column-filter";
-        input.placeholder = "Filter";
-        input.setAttribute("aria-label", `Filter ${headerText(th, index)} column`);
-        input.addEventListener("input", () => {
-          state.columnFilters.set(index, input.value);
-          applyTableUiState(state);
-        });
-        cell.appendChild(input);
-        row.appendChild(cell);
-      });
-      headerRow.parentNode.insertBefore(row, headerRow.nextSibling);
-      state.filterRow = row;
-      return row;
-    }
-
     function buildColumnMenu(state, label) {
       const details = document.createElement("details");
       details.className = "table-column-menu";
@@ -782,58 +795,6 @@
       toolbar.setAttribute("role", "group");
       toolbar.setAttribute("aria-label", `${label} display controls`);
 
-      const searchId = `${state.table.id}-table-filter`;
-      const searchLabel = document.createElement("label");
-      searchLabel.className = "visually-hidden";
-      searchLabel.htmlFor = searchId;
-      searchLabel.textContent = `Filter ${label} rows`;
-      const search = document.createElement("input");
-      search.id = searchId;
-      search.type = "search";
-      search.className = "table-ui-filter";
-      search.placeholder = "Filter rows";
-      search.addEventListener("input", () => {
-        state.basicFilter = search.value;
-        applyTableUiState(state);
-      });
-
-      const densityLabel = document.createElement("label");
-      densityLabel.className = "visually-hidden";
-      const densityId = `${state.table.id}-table-density`;
-      densityLabel.htmlFor = densityId;
-      densityLabel.textContent = `Set ${label} display density`;
-      const density = document.createElement("select");
-      density.id = densityId;
-      density.className = "table-density-control";
-      density.setAttribute("aria-label", `Set ${label} display density`);
-      [
-        ["compact", "Compact"],
-        ["default", "Default"],
-        ["comfortable", "Comfortable"],
-      ].forEach(([value, text]) => {
-        const option = document.createElement("option");
-        option.value = value;
-        option.textContent = text;
-        density.appendChild(option);
-      });
-      density.value = "default";
-      density.addEventListener("change", () => {
-        state.wrap.dataset.tableDensity = density.value || "default";
-      });
-
-      const filterToggle = document.createElement("button");
-      filterToggle.type = "button";
-      filterToggle.className = "secondary-button table-column-filter-toggle";
-      filterToggle.textContent = "Column filters";
-      filterToggle.setAttribute("aria-expanded", "false");
-      filterToggle.addEventListener("click", () => {
-        ensureColumnFilterRow(state);
-        state.columnFiltersVisible = !state.columnFiltersVisible;
-        syncColumnFilterVisibility(state);
-        updateStickyColumnOffsets(state);
-      });
-      state.filterToggle = filterToggle;
-
       const summary = document.createElement("span");
       summary.className = "table-ui-summary";
       summary.setAttribute("role", "status");
@@ -841,11 +802,6 @@
       state.summaryNode = summary;
 
       toolbar.append(
-        searchLabel,
-        search,
-        filterToggle,
-        densityLabel,
-        density,
         buildColumnMenu(state, label),
         summary,
       );
@@ -877,13 +833,8 @@
         colgroup: null,
         toolbar: null,
         summaryNode: null,
-        filterToggle: null,
-        filterRow: null,
-        basicFilter: "",
-        columnFilters: new Map(),
         hiddenColumns: new Set(),
         columnCheckboxes: new Map(),
-        columnFiltersVisible: false,
         sortColumn: -1,
         sortDirection: "asc",
         stickyColumns: stickyColumnsFor(table, tbody, headers),
@@ -899,9 +850,9 @@
       const headers = tableHeaders(table);
       const wrap = table.closest(".table-wrap");
       if (!tbody || !headers.length || !wrap) return null;
+      installTableEmptyStateObserver(table, tbody, wrap);
       table.classList.add("data-table");
       wrap.classList.add("data-table-wrap");
-      wrap.dataset.tableDensity = wrap.dataset.tableDensity || "default";
       if (!shouldEnhanceTable(table, tbody, headers)) {
         return null;
       }
@@ -911,9 +862,7 @@
       table.style.minWidth = `${Math.max(840, headers.length * 138)}px`;
       ensureTableColgroup(state);
       installSortableHeaders(state);
-      ensureColumnFilterRow(state);
       ensureTableToolbar(state);
-      syncColumnFilterVisibility(state);
       applyTableUiState(state);
       if (typeof MutationObserver === "function") {
         state.observer = new MutationObserver(() => {
@@ -948,6 +897,7 @@
       restoreScrollablePositions,
       scrollSelectedRowIntoView,
       selectableRowsFor,
+      selectRowInGroup,
       moveSelectableRowFocus,
       makeRowSelectable,
       setOptionalDataset,

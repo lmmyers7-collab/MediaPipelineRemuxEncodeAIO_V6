@@ -29,7 +29,6 @@ from __future__ import annotations
 from typing import Any
 
 from mediapipeline.core.queue.strategy import (
-    DEFAULT_STRATEGY,
     VALID_STRATEGIES,
     read_queue_strategy,
     set_queue_strategy,

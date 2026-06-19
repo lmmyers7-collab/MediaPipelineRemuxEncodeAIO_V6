@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0618-914",
+  "title": "Reduce WebView validation prose clutter",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Converted the Home Pipeline Overview cross-page context from a visible multiline prose block into compact status tiles, hid its raw context summary behind a details disclosure, added the shared mediaPipelineDom review tile renderer, and added a browser-backed screenshot/clutter smoke that captures every requested page/subtab state plus compact viewport checks.",
+  "reason": "Visible validation/evidence prose was competing with operational status. Vital counts and next-action information should scan as tiles, while explanatory or copy-oriented detail should stay available without occupying the default workbench surface.",
+  "affected_areas": [
+    "WebView",
+    "browser-smoke"
+  ],
+  "behavior_before": "The Home Pipeline Overview surfaced queue, completed-output, pending-publish, diagnostic, and next-step context as a visible multiline prose block. Evidence panels could also expose direct prose/callout blocks without an explicit visual keep reason.",
+  "behavior_after": "The Home Pipeline Overview shows Queue, Completed, Pending Publish, Diagnostics, and Next Step review tiles, while the raw context is collapsed under Detailed context. Direct evidence prose/callout blocks without an allowed visual reason are hidden by default, and the new screenshot smoke records visible clutter offenders, overflow, screenshots, and missing requested subtabs in a manifest.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/crossPageContextView.js",
+    "apps/desktop/webview/static/assets/dom/status.js",
+    "apps/desktop/webview/static/assets/domHelpers.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-home.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/crossPageContextView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/dom/status.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/domHelpers.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-home.html.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-914.json",
+    "ops/scripts/smoke/Test-WebViewBrowserVisualClutterScreenshots.ps1",
+    "tests/webview/test_webview_browser_visual_clutter_screenshots.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_visual_clutter_screenshots.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m py_compile tests/webview/test_webview_browser_visual_clutter_screenshots.py - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 434 packet(s) valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries - passed; 4 summaries written, 246 unchanged",
+    "node --check apps/desktop/webview/static/assets/crossPageContextView.js - passed",
+    "node --check apps/desktop/webview/static/assets/dom/status.js - passed",
+    "node --check apps/desktop/webview/static/assets/domHelpers.js - passed",
+    "npm run webview:prework:check - failed in existing lint budget gate: warnings 721 > 664, complexity 107 > 101, max-lines-per-function 34 > 33, no-undef 430 > 381, no-unused-vars 148 > 146",
+    "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1 - passed with malformed ActiveJobs fixture warnings",
+    "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserLayoutManagerSmoke.ps1 - failed because Settings managed-panel expectation still looks for Staged Changes while current UI exposes Current Changes",
+    "ops/scripts/smoke/Test-WebViewBrowserSampleValidationSmoke.ps1 - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserVisualClutterScreenshots.ps1 - passed; manifest LocalBase/UiScreenshots/validation-clutter-cleanup-20260618-231127/manifest.json recorded 39 desktop screenshots, 78 compact checks, 0 visible clutter offenders, 0 horizontal overflow, and 3 missing requested Launch/Audit entries because the current UI has no Audit launch subtab"
+  ],
+  "rollback_plan": "Revert the review tile helper/export additions, restore the Home Pipeline Overview raw pre block to the default visible surface, remove the evidence prose hiding CSS rules, and remove the visual clutter screenshot smoke wrapper/test.",
+  "related_changes": [],
+  "notes": "Frontend-only change. No backend API, route, media policy, queue, publish, rename, settings-save, or filesystem mutation behavior was changed. Screenshot artifact: LocalBase/UiScreenshots/validation-clutter-cleanup-20260618-231127/manifest.json; 39 desktop entries, 78 compact checks, 0 clutter offenders, 0 overflow, Launch/Audit requested subtab missing in current UI."
+}

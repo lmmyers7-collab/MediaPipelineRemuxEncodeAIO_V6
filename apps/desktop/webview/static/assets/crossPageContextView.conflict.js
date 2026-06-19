@@ -289,7 +289,8 @@
 
     function renderCrossPageConflictBoard(context = {}) {
       const rows = crossPageConflictRows(context || {});
-      setText("cross-page-conflict-status", crossPageConflictStatus(context || {}));
+      if (typeof setPanelStatus === "function") setPanelStatus("cross-page-conflict-status", crossPageConflictStatus(context || {}));
+      else setText("cross-page-conflict-status", crossPageConflictStatus(context || {}));
       const tbody = byId("cross-page-conflict-rows");
       if (!tbody) return;
       if (!rows.length) {

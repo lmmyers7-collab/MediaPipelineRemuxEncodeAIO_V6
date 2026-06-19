@@ -109,6 +109,40 @@ function Get-MediaPipelineRenameMovieRemoveTermsDefault {
     return @('sample','trailer','extras','featurette','deleted scenes','behind the scenes')
 }
 
+function Get-MediaPipelineRenameTVFilterOptionsDefault {
+    $options = [ordered]@{}
+    foreach ($category in @(Get-MediaPipelineRenameTVFilterCategoryNames)) {
+        $options[$category] = $true
+    }
+    return $options
+}
+
+function Get-MediaPipelineRenameTVFilterTermsDefault {
+    return [ordered]@{
+        video_source = @(
+            '2160p','1080p','720p','480p','uhd','hdr','hdr10','dv','dolby vision',
+            'hevc','h264','h.264','h265','h.265','x264','x265','av1','bd','bdrip',
+            'blu ray','blu-ray','bluray','web dl','webdl','webrip','hdtv','dvd','dvdrip',
+            'remux','10 bit','8 bit'
+        )
+        audio_channels = @(
+            'flac','aac','opus','ac3','eac3','ddp','dts','truehd','atmos','1.0','2.0','5.1','7.1','6ch','6 ch','8ch','8 ch'
+        )
+        release_flags = @('proper','repack','rerip','uncensored','censored')
+        services_containers = @('mkv','mp4')
+        languages_subs_dubs = @('dual audio','multi audio','eng sub','eng subs','multi sub','multi subs','subs','sub','subbed','dubbed')
+        release_groups = @(
+            'chotab','subsplease','erai raws','erai-raws','judas','ember','bonkai','neohevc','animetime',
+            'lostyears','nai','asw','sam','tnp','dedsec','mtbb','smugcat','commie','horriblesubs','kametsu',
+            'db','kawaiika','tlacatlc6','ttga'
+        )
+    }
+}
+
+function Get-MediaPipelineRenameTVRemoveTermsDefault {
+    return @('sample','trailer','extras','featurette','deleted scenes','behind the scenes')
+}
+
 function Get-MediaPipelineEncodeTuningFlags {
     param(
         [string] $Preset,
@@ -238,6 +272,16 @@ function Get-MediaPipelineConfigDefaultValues {
         SizeGuardMode              = Get-MediaPipelineSizeGuardModeDefault
         MaxEncodeGrowthPercent     = 5
         CompatibilityEncodeGrowthPercent = 15
+        EncodeWasteGuardMode       = Get-MediaPipelineEncodeWasteGuardModeDefault
+        EncodeWasteGuardPreflightEnabled = $false
+        EncodeWasteGuardMinProgressPercent = 15
+        EncodeWasteGuardMinElapsedSeconds = 120
+        EncodeWasteGuardOversizeMarginPercent = 20
+        EncodeWasteGuardConsecutiveSamples = 2
+        EncodeWasteGuardPollSeconds = 10
+        EncodeWasteGuardPreflightSampleSeconds = 30
+        EncodeWasteGuardPreflightSampleCount = 3
+        EncodeWasteGuardPreflightTimeoutSeconds = 900
         MinFreeSpaceGB             = 50
         OutsourceMinFreeSpaceGB    = 50
         DeferredPublish            = $false
@@ -312,6 +356,9 @@ function Get-MediaPipelineConfigDefaultValues {
         RenameMovieFilterOptions   = Get-MediaPipelineRenameMovieFilterOptionsDefault
         RenameMovieFilterTerms     = Get-MediaPipelineRenameMovieFilterTermsDefault
         RenameMovieRemoveTerms     = Get-MediaPipelineRenameMovieRemoveTermsDefault
+        RenameTVFilterOptions      = Get-MediaPipelineRenameTVFilterOptionsDefault
+        RenameTVFilterTerms        = Get-MediaPipelineRenameTVFilterTermsDefault
+        RenameTVRemoveTerms        = Get-MediaPipelineRenameTVRemoveTermsDefault
         ValidExtensions            = @('.mkv','.mp4','.avi','.mov','.m4v','.ts','.m2ts')
         FileStabilityWait          = 15
         EnableWatchFolders         = $false

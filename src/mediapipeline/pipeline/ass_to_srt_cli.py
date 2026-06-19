@@ -343,8 +343,6 @@ class ChildProcessGuard:
 
         if _IS_WINDOWS and self._job_handle:
             try:
-                PROCESS_SET_QUOTA = 0x0100
-                PROCESS_TERMINATE = 0x0001
                 hProc = self._OpenProcess(
                     self._proc_access, False, proc.pid)
                 if hProc:

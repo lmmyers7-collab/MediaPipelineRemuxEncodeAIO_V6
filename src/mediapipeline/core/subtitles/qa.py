@@ -63,15 +63,6 @@ _IMAGE_SUBTITLE_CODECS = {
     "vobsub",
     "dvd_subtitle",
 }
-_TEXT_SUBTITLE_CODECS = {
-    "ass",
-    "ssa",
-    "subrip",
-    "srt",
-    "tx3g",
-    "mov_text",
-    "webvtt",
-}
 _SUCCESS_STATUSES = {"", "ok", "pass", "passed", "success", "succeeded", "generated", "converted", "preserved"}
 
 

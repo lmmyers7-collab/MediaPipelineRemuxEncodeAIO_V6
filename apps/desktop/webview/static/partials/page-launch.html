@@ -2,7 +2,6 @@
         <h1 class="visually-hidden">Launch</h1>
         <div class="settings-tab-bar launch-tab-bar" role="tablist" aria-label="Launch sections">
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-launch-tab="pipeline">Pipeline Processor</button>
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="audit">Audit</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="rerun">CSV Rerun</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="history">History</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="readiness">Readiness</button>
@@ -59,25 +58,25 @@
                     <strong class="pipeline-gate-value">Review</strong>
                     <span class="pipeline-gate-note">Refresh</span>
                   </button>
-                  <button type="button" id="pipeline-gate-queue" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Queue gate: Review. Load Queue before trusting visible launch scope.">
+                  <button type="button" id="pipeline-gate-queue" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Queue gate: Review. Queue evidence is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Queue</span>
                     <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Load Queue</span>
+                    <span class="pipeline-gate-note">Review Queue</span>
                   </button>
-                  <button type="button" id="pipeline-gate-settings" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Settings gate: Review. Load saved settings before starting work.">
+                  <button type="button" id="pipeline-gate-settings" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Settings gate: Review. Saved settings evidence is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Settings</span>
                     <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Load Settings</span>
+                    <span class="pipeline-gate-note">Review Settings</span>
                   </button>
-                  <button type="button" id="pipeline-gate-schedule" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Schedule gate: Review. Load schedule evidence before starting work.">
+                  <button type="button" id="pipeline-gate-schedule" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Schedule gate: Review. Schedule evidence is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Schedule</span>
                     <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Load Schedule</span>
+                    <span class="pipeline-gate-note">Review Schedule</span>
                   </button>
-                  <button type="button" id="pipeline-gate-active" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Active gate: Review. Load backend state before starting work.">
+                  <button type="button" id="pipeline-gate-active" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Active gate: Review. Backend state is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Active</span>
                     <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Load State</span>
+                    <span class="pipeline-gate-note">Review State</span>
                   </button>
                   <button type="button" id="pipeline-gate-last" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Last gate: Review. No recent launch result loaded.">
                     <span class="pipeline-gate-label">Last</span>
@@ -158,6 +157,7 @@
                 <span id="pipeline-start-disabled-reason" class="pipeline-controller-action-note">Backend start still re-checks queue, schedule, settings, and process locks; Queue tab display filters and row selection are not submitted.</span>
               </div>
               <p class="pipeline-startup-banner note" hidden></p>
+              <pre id="launch-latest-command-evidence" class="prose-block">No Launch command result loaded. Pipeline, CSV rerun, and Pending Publish command results will appear here immediately after submission or cancellation.</pre>
             </div>
             <div class="pipeline-controller-controls" aria-label="Running pipeline controls" data-live-state="idle">
               <div class="panel-heading panel-subheading pipeline-controller-subheading">
@@ -207,133 +207,6 @@
           <pre id="pipeline-launch-preflight" class="prose-block">No pipeline launch evidence loaded.</pre>
           <pre id="pipeline-launch-detail" class="prose-block">No launch result evidence.</pre>
         </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="audit" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Audit Mode Start</h2>
-            <strong id="audit-launch-status">Idle</strong>
-          </div>
-          <div class="form-grid launch-form-grid">
-            <label>
-              Library Root
-              <input id="audit-start-library-root" type="text" autocomplete="off">
-            </label>
-            <label class="check-row launch-check-row"><input id="audit-start-include-sidecars" type="checkbox" checked> Include Sidecars</label>
-            <label class="check-row launch-check-row"><input id="audit-start-show-console" type="checkbox"> Show Console</label>
-          </div>
-          <div class="panel-heading panel-subheading">
-            <h3>Score Policy</h3>
-            <strong id="audit-score-policy-status">Not loaded</strong>
-          </div>
-          <pre id="audit-score-policy-summary" class="prose-block">No audit score policy loaded.</pre>
-          <details class="settings-advanced-disclosure" data-advanced>
-            <summary>Advanced score controls</summary>
-            <div class="table-wrap detail-table-wrap">
-              <table aria-label="Audit score point issues">
-                <thead>
-                  <tr>
-                    <th scope="col">Point issue</th>
-                    <th scope="col" class="num">Points</th>
-                    <th scope="col">Applies when</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td><label for="audit-score-redownload-bucket">Redownload candidate bucket</label></td>
-                    <td class="num"><input id="audit-score-redownload-bucket" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any effective issue has bucket REDOWNLOAD_CANDIDATE, including ffprobe-open-failed, missing-video-stream, or missing-audio-stream.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-high-issue">High issue-code marker</label></td>
-                    <td class="num"><input id="audit-score-high-issue" type="number" min="0" max="1000" step="1"></td>
-                    <td>Score applied to every high issue-code marker listed below after redownload candidate bucket markers are handled.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-rerun-bucket">Rerun pipeline bucket</label></td>
-                    <td class="num"><input id="audit-score-rerun-bucket" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any remaining effective issue has bucket RERUN_PIPELINE and was not already matched by a higher-priority bucket or issue-code marker.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-medium-issue">Medium issue-code marker</label></td>
-                    <td class="num"><input id="audit-score-medium-issue" type="number" min="0" max="1000" step="1"></td>
-                    <td>Score applied to every medium issue-code marker listed below after redownload, high, and rerun bucket markers are handled.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-review-bucket">Review bucket</label></td>
-                    <td class="num"><input id="audit-score-review-bucket" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any remaining effective issue has bucket REVIEW and was not already matched by a medium or high issue-code marker.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-fallback-issue">Fallback issue marker</label></td>
-                    <td class="num"><input id="audit-score-fallback-issue" type="number" min="0" max="1000" step="1"></td>
-                    <td>Any effective issue not matched by redownload, high, rerun, medium, or review markers.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-redownload-bonus">Redownload candidate bonus</label></td>
-                    <td class="num"><input id="audit-score-redownload-bonus" type="number" min="0" max="1000" step="1"></td>
-                    <td>Added once when at least one effective REDOWNLOAD_CANDIDATE issue is present.</td>
-                  </tr>
-                  <tr>
-                    <td><label for="audit-score-rerun-bonus">Rerun pipeline bonus</label></td>
-                    <td class="num"><input id="audit-score-rerun-bonus" type="number" min="0" max="1000" step="1"></td>
-                    <td>Added once when no redownload issue is present and at least one effective RERUN_PIPELINE issue is present.</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-            <div class="action-row action-row-left wrap-actions">
-              <button type="button" id="audit-score-policy-save-button" class="secondary-button">Save Score Policy</button>
-              <button type="button" id="audit-score-policy-reset-button" class="secondary-button">Reset Score Defaults</button>
-            </div>
-            <pre id="audit-score-policy-detail" class="prose-block">Score policy changes apply to future backend audit report generation.</pre>
-          </details>
-          <div class="panel-heading panel-subheading">
-            <h3>Audit Progress</h3>
-            <strong id="audit-launch-progress-status">Not loaded</strong>
-          </div>
-          <div id="audit-launch-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No audit progress loaded.</p>
-          </div>
-          <pre id="audit-launch-progress-summary" class="prose-block">No audit progress loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Latest Audit Log</h3>
-            <strong id="audit-launch-log-status">No rows</strong>
-          </div>
-          <pre id="audit-launch-log-summary" class="prose-block">No audit log loaded.</pre>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Select</th>
-                  <th scope="col" class="num">Score</th>
-                  <th scope="col">Priority</th>
-                  <th scope="col">Bucket</th>
-                  <th scope="col">Media</th>
-                  <th scope="col">Title</th>
-                  <th scope="col">Issue</th>
-                </tr>
-              </thead>
-              <tbody id="audit-launch-log-rows">
-                <tr><td colspan="7">No audit rows loaded.</td></tr>
-              </tbody>
-            </table>
-            <div class="empty-state" data-empty-state="hidden" style="display:none">
-              <span class="empty-state-label">Audit log not loaded</span>
-              <span class="empty-state-hint">Audit rows appear here after the backend produces an audit CSV.</span>
-            </div>
-          </div>
-          <p id="audit-launch-log-table-legend" class="note table-legend">Audit log rows: no selectable rows.</p>
-          <pre id="audit-launch-log-detail" class="prose-block">No audit row selected.</pre>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="audit-ignore-selected-button" class="secondary-button">Ignore Selected</button>
-            <button type="button" id="audit-export-rerun-csv-button" class="secondary-button">Export Rerun CSV</button>
-          </div>
-          <pre id="audit-export-detail" class="prose-block">No audit rerun CSV export submitted.</pre>
-          <pre id="audit-launch-preflight" class="prose-block">No audit launch preflight loaded.</pre>
-          <div class="action-row action-row-left">
-            <button type="button" id="audit-start-button" class="primary-button">Start Audit</button>
-          </div>
-          <pre id="audit-launch-detail" class="prose-block">No audit launch result.</pre>
-        </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="rerun" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Rerun from CSV</h2>
@@ -365,9 +238,9 @@
           </div>
           <pre id="rerun-launch-detail" class="prose-block">No CSV rerun launch result.</pre>
         </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="evidence">
+        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Commands Evidence</h2>
+            <h2>Command History</h2>
             <strong id="launch-history-status">No launches</strong>
           </div>
           <pre id="launch-history" class="prose-block">No launch command history loaded.</pre>
@@ -409,6 +282,8 @@
             <strong id="launch-readiness-status">Not loaded</strong>
           </div>
           <pre id="launch-readiness" class="prose-block">No launch readiness loaded.</pre>
+          <div id="launch-readiness-actions" class="action-row action-row-left wrap-actions" hidden></div>
+          <p id="launch-readiness-action-status" class="note">No backend recovery action is advertised.</p>
         </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
           <div class="panel-heading">
@@ -658,7 +533,7 @@
             </div>
           </div>
           <pre id="launch-backend-preflight-summary" class="prose-block">No backend launch preflight loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
+          <div class="table-wrap detail-table-wrap launch-backend-preflight-table-wrap">
             <table>
               <thead>
                 <tr>

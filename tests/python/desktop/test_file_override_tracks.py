@@ -62,6 +62,7 @@ def _resolved(root: Path) -> ResolvedPaths:
         source_tv=root / "TV",
         state_root=root / "State",
         file_overrides_path=root / "State" / "file_overrides.json",
+        completed_manifest_path=root / "State" / "Completed" / "completed_jobs.jsonl",
     )
 
 
@@ -253,6 +254,41 @@ def _write_queue_snapshot(resolved: ResolvedPaths, rows: list[dict]) -> Path:
     return snapshot_path
 
 
+def _write_completed_manifest(resolved: ResolvedPaths, rows: list[dict]) -> Path:
+    manifest_path = resolved.completed_manifest_path  # type: ignore[assignment]
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        "\n".join(json.dumps(row, sort_keys=True) for row in rows) + "\n",
+        encoding="utf-8",
+    )
+    return manifest_path
+
+
+def _completed_pilot_row(
+    source_path: Path,
+    *,
+    route: str = "remux",
+    route_reason_code: str = "oversized_encode_remux_fallback",
+    media_type: str = "tv",
+    publish_state: str = "published",
+    size_policy: dict | None = None,
+) -> dict:
+    return {
+        "source_path": str(source_path),
+        "output_path": str(source_path.with_suffix(".mkv")),
+        "encoded_at": "2026-06-19T12:00:00Z",
+        "media_type": media_type,
+        "route": route,
+        "route_reason_code": route_reason_code,
+        "publish_state": publish_state,
+        "size_policy": size_policy if size_policy is not None else {
+            "mode": "fallback_remux",
+            "should_fallback_remux": True,
+            "fallback_remux_triggered": True,
+        },
+    }
+
+
 def _snapshot_row(source_path: Path, *, audio_tracks: list[dict] | None = None, subtitle_tracks: list[dict] | None = None) -> dict:
     return {
         "source_path": str(source_path),
@@ -354,6 +390,10 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(
             POST_ROUTE_HANDLERS["/api/queue/file-overrides/series-apply"].method_name,
             "_file_overrides_series_apply_payload",
+        )
+        self.assertEqual(
+            POST_ROUTE_HANDLERS["/api/queue/file-overrides/remux-pilot-promote"].method_name,
+            "_file_overrides_remux_pilot_promote_payload",
         )
 
     def test_series_preview_detects_show_root_protects_manual_and_apply_replaces_prior_batch(self) -> None:
@@ -624,6 +664,233 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertIn("maxChannels", "\n".join(invalid["errors"]))
         self.assertFalse(non_tv["ok"])
         self.assertIn("only for TV", non_tv["message"])
+
+    def test_remux_pilot_promote_applies_current_queue_only_and_protects_manual_overrides(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            pilots = [
+                tv_root / "Fallback Show" / "Season 01" / f"Fallback.Show.S01E0{episode}.mkv"
+                for episode in range(1, 4)
+            ]
+            rows = [
+                _tv_snapshot_row(tv_root, "Fallback Show", "Season 01", "Fallback.Show.S01E04.mkv", episode_number=4),
+                _tv_snapshot_row(tv_root, "Fallback Show", "Season 01", "Fallback.Show.S01E05.mkv", episode_number=5),
+                _tv_snapshot_row(tv_root, "Fallback Show", "Specials", "Fallback.Show.S00E01.mkv", season_number=0, episode_number=1),
+                _tv_snapshot_row(tv_root, "Other Show", "Season 01", "Other.Show.S01E01.mkv"),
+            ]
+            _write_queue_snapshot(resolved, rows)
+            _write_completed_manifest(resolved, [_completed_pilot_row(path) for path in pilots])
+            manual = Path(rows[1]["source_path"])
+            prior_batch = Path(rows[2]["source_path"])
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                manual,
+                {"routing": {"profile": "encode"}},
+            )
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                prior_batch,
+                {"routing": {"profile": "encode"}},
+                batch_metadata={"origin": "series_batch", "batch_id": "series-old"},
+                replace_existing=True,
+            )
+            harness = _TrackMetadataHarness(resolved)
+
+            promoted = harness._file_overrides_remux_pilot_promote_payload(
+                {
+                    "pilot_source_paths": [str(path) for path in pilots],
+                    "confirm_apply": True,
+                    "reason": "operator verified fallback pilots",
+                }
+            )
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+            entries = manifest["entries"]
+
+        self.assertTrue(promoted["ok"], promoted)
+        self.assertEqual(promoted["command"], "queue.file_overrides.remux_pilot_promote")
+        self.assertEqual(promoted["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(promoted["data_schema"], "queue_remux_pilot_promotion.v1")
+        self.assertEqual(promoted["detected_series"]["show_name"], "Fallback Show")
+        self.assertEqual(promoted["counts"]["eligible_update_count"], 2)
+        self.assertEqual(promoted["counts"]["protected_manual"], 1)
+        self.assertEqual(promoted["counts"]["replace_prior_batch"], 1)
+        self.assertEqual(len(promoted["pilot_evidence"]), 3)
+        self.assertEqual(entries[normalize_file_override_path(rows[0]["source_path"])]["routing"]["profile"], "remux")
+        self.assertEqual(entries[normalize_file_override_path(rows[2]["source_path"])]["routing"]["profile"], "remux")
+        self.assertEqual(entries[normalize_file_override_path(manual)]["routing"]["profile"], "encode")
+        self.assertFalse(any(normalize_file_override_path(path) in entries for path in pilots))
+
+    def test_remux_pilot_promote_blocks_invalid_pilot_counts_without_writing(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            rows = [_tv_snapshot_row(tv_root, "Count Show", "Season 01", "Count.Show.S01E04.mkv", episode_number=4)]
+            pilots = [
+                tv_root / "Count Show" / "Season 01" / f"Count.Show.S01E0{episode}.mkv"
+                for episode in range(1, 5)
+            ]
+            _write_queue_snapshot(resolved, rows)
+            _write_completed_manifest(resolved, [_completed_pilot_row(path) for path in pilots])
+            harness = _TrackMetadataHarness(resolved)
+
+            too_few = harness._file_overrides_remux_pilot_promote_payload(
+                {"pilot_source_paths": [str(path) for path in pilots[:2]], "confirm_apply": True}
+            )
+            too_many = harness._file_overrides_remux_pilot_promote_payload(
+                {"pilot_source_paths": [str(path) for path in pilots], "confirm_apply": True}
+            )
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+
+        self.assertFalse(too_few["ok"])
+        self.assertIn("exactly 3", "\n".join(too_few["errors"]))
+        self.assertFalse(too_many["ok"])
+        self.assertIn("exactly 3", "\n".join(too_many["errors"]))
+        self.assertEqual(manifest["entries"], {})
+
+    def test_remux_pilot_promote_blocks_mixed_series_and_missing_completed_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            fallback_pilots = [
+                tv_root / "Fallback Show" / "Season 01" / f"Fallback.Show.S01E0{episode}.mkv"
+                for episode in range(1, 3)
+            ]
+            other_pilot = tv_root / "Other Show" / "Season 01" / "Other.Show.S01E01.mkv"
+            _write_queue_snapshot(
+                resolved,
+                [_tv_snapshot_row(tv_root, "Fallback Show", "Season 01", "Fallback.Show.S01E04.mkv", episode_number=4)],
+            )
+            _write_completed_manifest(
+                resolved,
+                [_completed_pilot_row(path) for path in [*fallback_pilots, other_pilot]],
+            )
+            harness = _TrackMetadataHarness(resolved)
+
+            mixed = harness._file_overrides_remux_pilot_promote_payload(
+                {"pilot_source_paths": [*(str(path) for path in fallback_pilots), str(other_pilot)], "confirm_apply": True}
+            )
+            missing = harness._file_overrides_remux_pilot_promote_payload(
+                {
+                    "pilot_source_paths": [str(path) for path in [*fallback_pilots, tv_root / "Fallback Show" / "Season 01" / "Fallback.Show.S01E03.mkv"]],
+                    "confirm_apply": True,
+                }
+            )
+
+        self.assertFalse(mixed["ok"])
+        self.assertIn("same detected series", "\n".join(mixed["errors"]))
+        self.assertFalse(missing["ok"])
+        self.assertIn("completed", "\n".join(missing["errors"]).lower())
+
+    def test_remux_pilot_promote_blocks_non_fallback_or_forced_encode_pilot_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            pilots = [
+                tv_root / "Evidence Show" / "Season 01" / f"Evidence.Show.S01E0{episode}.mkv"
+                for episode in range(1, 4)
+            ]
+            _write_queue_snapshot(
+                resolved,
+                [_tv_snapshot_row(tv_root, "Evidence Show", "Season 01", "Evidence.Show.S01E04.mkv", episode_number=4)],
+            )
+            harness = _TrackMetadataHarness(resolved)
+
+            _write_completed_manifest(
+                resolved,
+                [
+                    _completed_pilot_row(pilots[0], route_reason_code="manual_remux"),
+                    _completed_pilot_row(pilots[1]),
+                    _completed_pilot_row(pilots[2]),
+                ],
+            )
+            non_fallback = harness._file_overrides_remux_pilot_promote_payload(
+                {"pilot_source_paths": [str(path) for path in pilots], "confirm_apply": True}
+            )
+            _write_completed_manifest(
+                resolved,
+                [
+                    _completed_pilot_row(pilots[0], route="encode", route_reason_code="operator_forced_encode"),
+                    _completed_pilot_row(pilots[1]),
+                    _completed_pilot_row(pilots[2]),
+                ],
+            )
+            forced_encode = harness._file_overrides_remux_pilot_promote_payload(
+                {"pilot_source_paths": [str(path) for path in pilots], "confirm_apply": True}
+            )
+            _write_completed_manifest(
+                resolved,
+                [
+                    _completed_pilot_row(pilots[0], media_type="movie"),
+                    _completed_pilot_row(pilots[1]),
+                    _completed_pilot_row(pilots[2]),
+                ],
+            )
+            non_tv = harness._file_overrides_remux_pilot_promote_payload(
+                {"pilot_source_paths": [str(path) for path in pilots], "confirm_apply": True}
+            )
+
+        self.assertFalse(non_fallback["ok"])
+        self.assertIn("oversized_encode_remux_fallback", "\n".join(non_fallback["errors"]))
+        self.assertFalse(forced_encode["ok"])
+        self.assertIn("final route", "\n".join(forced_encode["errors"]).lower())
+        self.assertFalse(non_tv["ok"])
+        self.assertIn("not completed TV media", "\n".join(non_tv["errors"]))
+
+    def test_remux_pilot_promote_blocks_stale_queue_snapshot_without_current_series_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            pilots = [
+                tv_root / "Gone Show" / "Season 01" / f"Gone.Show.S01E0{episode}.mkv"
+                for episode in range(1, 4)
+            ]
+            _write_queue_snapshot(
+                resolved,
+                [_tv_snapshot_row(tv_root, "Other Show", "Season 01", "Other.Show.S01E01.mkv")],
+            )
+            _write_completed_manifest(resolved, [_completed_pilot_row(path) for path in pilots])
+            harness = _TrackMetadataHarness(resolved)
+
+            promoted = harness._file_overrides_remux_pilot_promote_payload(
+                {"pilot_source_paths": [str(path) for path in pilots], "confirm_apply": True}
+            )
+
+        self.assertFalse(promoted["ok"])
+        self.assertIn("current queue", "\n".join(promoted["errors"]).lower())
+
+    def test_remux_pilot_promote_write_failure_leaves_manifest_unchanged(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            pilots = [
+                tv_root / "Atomic Pilot Show" / "Season 01" / f"Atomic.Pilot.Show.S01E0{episode}.mkv"
+                for episode in range(1, 4)
+            ]
+            rows = [
+                _tv_snapshot_row(tv_root, "Atomic Pilot Show", "Season 01", "Atomic.Pilot.Show.S01E04.mkv", episode_number=4),
+                _tv_snapshot_row(tv_root, "Atomic Pilot Show", "Season 01", "Atomic.Pilot.Show.S01E05.mkv", episode_number=5),
+            ]
+            _write_queue_snapshot(resolved, rows)
+            _write_completed_manifest(resolved, [_completed_pilot_row(path) for path in pilots])
+            harness = _TrackMetadataHarness(resolved)
+            before = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+
+            with patch("mediapipeline.core.queue.file_overrides._write_atomic", side_effect=OSError("disk full")):
+                failed = harness._file_overrides_remux_pilot_promote_payload(
+                    {"pilot_source_paths": [str(path) for path in pilots], "confirm_apply": True}
+                )
+            after = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+
+        self.assertFalse(failed["ok"])
+        self.assertIn("Failed to write series overrides", failed["message"])
+        self.assertEqual(after, before)
 
     def test_folder_preview_reports_known_files_from_queue_snapshot_without_probe_or_write(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

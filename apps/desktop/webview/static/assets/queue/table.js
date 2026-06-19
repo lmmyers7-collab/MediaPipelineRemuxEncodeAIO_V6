@@ -94,7 +94,7 @@
     if (item?.blocked_reason || item?.blocked_reason_code) return { label: "Blocked", state: "blocked" };
     if (normalized === "blocked" || normalized === "failed") return { label: "Blocked", state: "blocked" };
     if (normalized === "completed" || normalized === "skipped") return { label: "Done", state: "done" };
-    if (queueIsRunnableWarning(item, normalized)) return { label: "Queued", state: "queued" };
+    if (queueIsRunnableWarning(item, normalized)) return { label: "Review", state: "review" };
     if (["warning", "changed", "validation-needed", "health-check", "parked", "paused", "retrying", "unknown", "empty"].includes(normalized)) {
       return { label: "Review", state: "review" };
     }
@@ -307,7 +307,8 @@
       ? Boolean(key && selectedKeys.has(key))
       : Boolean(key && key === context.selectedQueueRowKey);
     row.dataset.rowKey = key;
-    row.dataset.status = queueDisplayRowStatus(item, context.queueTableRowStatus);
+    row.dataset.status = String(context.queueTableRowStatus(item) || "queued");
+    row.dataset.filterStatus = queueDisplayRowStatus(item, context.queueTableRowStatus);
     if (level !== "normal") row.dataset.priorityLevel = level;
     if (selected) row.dataset.prioritySelected = "true";
     if (context.manualOrderEnabled) row.dataset.manualOrderDraggable = "true";

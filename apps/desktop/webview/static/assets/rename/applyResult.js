@@ -14,14 +14,18 @@
       const request = payload.request && typeof payload.request === "object" ? payload.request : {};
       const rows = Array.isArray(data.rows) ? data.rows : [];
       const selectedSources = Array.isArray(request.selected_sources) ? request.selected_sources : [];
+      const counts = renameApplyOutcomeCounts(data, rows);
       const lines = [
         `Command: ${payload.command || "rename.apply"}`,
         `Result: ${payload.ok ? "ok" : payload.severity || "error"}`,
         `Message: ${payload.message || ""}`,
         `Selected rows: ${data.selected ?? selectedSources.length ?? ""}`,
         `Applied rows: ${data.applied_count ?? rows.length}`,
-        `Renamed media files: ${data.renamed ?? ""}`,
-        `Unchanged media files: ${data.unchanged ?? ""}`,
+        `Renamed media files: ${counts.renamed}`,
+        `Unchanged media files: ${counts.unchanged}`,
+        `Skipped rows: ${counts.skipped}`,
+        `Protected rows: ${counts.protected}`,
+        `Failed rows: ${counts.failed}`,
         `Sidecar moves: ${data.sidecars ?? ""}`,
         `Media operations: ${data.media_operations ?? ""}`,
         `Sidecar operations: ${data.sidecar_operations ?? ""}`,
@@ -53,6 +57,33 @@
       return Number.isFinite(numberValue) ? numberValue : fallback;
     }
 
+    function renameApplyOutcomeCounts(data, rows) {
+      const sourceRows = Array.isArray(rows) ? rows : [];
+      const explicit = {
+        renamed: Number.isFinite(Number(data.renamed)),
+        unchanged: Number.isFinite(Number(data.unchanged)),
+        skipped: Number.isFinite(Number(data.skipped_count ?? data.skipped)),
+        protected: Number.isFinite(Number(data.protected_count ?? data.protected)),
+        failed: Number.isFinite(Number(data.failed_count)),
+      };
+      const counts = {
+        renamed: explicit.renamed ? renameApplyOutcomeNumber(data.renamed, 0) : 0,
+        unchanged: explicit.unchanged ? renameApplyOutcomeNumber(data.unchanged, 0) : 0,
+        skipped: explicit.skipped ? renameApplyOutcomeNumber(data.skipped_count ?? data.skipped, 0) : 0,
+        protected: explicit.protected ? renameApplyOutcomeNumber(data.protected_count ?? data.protected, 0) : 0,
+        failed: explicit.failed ? renameApplyOutcomeNumber(data.failed_count, 0) : 0,
+      };
+      sourceRows.forEach((row) => {
+        const status = String(row.status || row.outcome || "").toLowerCase();
+        if (!explicit.renamed && (status === "success" || status === "renamed" || row.renamed === true)) counts.renamed += 1;
+        else if (!explicit.unchanged && (status === "match" || status === "unchanged" || status === "noop" || status === "no-op" || row.unchanged === true)) counts.unchanged += 1;
+        else if (!explicit.protected && (status === "protected" || row.protected === true)) counts.protected += 1;
+        else if (!explicit.skipped && (status === "skipped" || row.skipped === true)) counts.skipped += 1;
+        else if (!explicit.failed && (status === "failed" || status === "error" || row.failed === true)) counts.failed += 1;
+      });
+      return counts;
+    }
+
     function renameApplyOutcomeStatus(result) {
       const payload = renameApplyOutcomePayload(result);
       if (!payload || !Object.keys(payload).length) return "No apply";
@@ -61,12 +92,12 @@
       const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
       const errors = Array.isArray(payload.errors) ? payload.errors : [];
       if (!payload.ok || errors.length) return "Failed";
-      if (warnings.length) return "Review";
-      const renamed = renameApplyOutcomeNumber(data.renamed, 0);
-      const applied = renameApplyOutcomeNumber(data.applied_count, rows.length);
-      const unchanged = renameApplyOutcomeNumber(data.unchanged, 0);
-      if (renamed > 0 || applied > 0) return "Applied";
-      if (unchanged > 0) return "No changes";
+      const counts = renameApplyOutcomeCounts(data, rows);
+      const mediaOperations = renameApplyOutcomeNumber(data.media_operations, counts.renamed);
+      const sidecarOperations = renameApplyOutcomeNumber(data.sidecar_operations, data.sidecars || 0);
+      if (warnings.length || counts.skipped || counts.protected) return "Review";
+      if (counts.renamed > 0 || mediaOperations > 0 || sidecarOperations > 0) return "Applied";
+      if (counts.unchanged > 0) return "No changes";
       return "Recorded";
     }
 
@@ -91,7 +122,7 @@
             "Backend result",
             "waiting",
             "No rename.apply command result is loaded.",
-            "Apply checked or selected rows only after preview/readiness agree.",
+            "Apply checked rows only after preview/readiness agree.",
           ),
         ];
       }
@@ -103,57 +134,62 @@
       const errors = Array.isArray(payload.errors) ? payload.errors : [];
       const selected = renameApplyOutcomeNumber(data.selected, selectedSources.length);
       const applied = renameApplyOutcomeNumber(data.applied_count, rows.length);
-      const renamed = renameApplyOutcomeNumber(data.renamed, 0);
-      const unchanged = renameApplyOutcomeNumber(data.unchanged, 0);
+      const counts = renameApplyOutcomeCounts(data, rows);
       const sidecars = renameApplyOutcomeNumber(data.sidecars, 0);
-      const mediaOperations = renameApplyOutcomeNumber(data.media_operations, renamed);
+      const mediaOperations = renameApplyOutcomeNumber(data.media_operations, counts.renamed);
       const sidecarOperations = renameApplyOutcomeNumber(data.sidecar_operations, sidecars);
       return [
         renameApplyOutcomeRow(
           "Backend result",
-          payload.ok && !errors.length ? (warnings.length ? "review" : "ok") : "failed",
+          payload.ok && !errors.length ? (warnings.length ? "review" : "ready") : "blocked",
           `${payload.command || "rename.apply"} returned ${payload.ok ? "ok" : payload.severity || "error"}; message=${payload.message || "(none)"}.`,
           payload.ok && !errors.length ? "Compare row counts below and inspect command history for durable backend evidence." : "Do not assume any rename completed; inspect warnings/errors and backend command history.",
         ),
         renameApplyOutcomeRow(
           "Selected scope",
-          selected ? "ok" : "review",
+          selected ? "ready" : "review",
           `${selected} selected source(s) submitted; request mode=${request.mode || "(unknown)"}; confirmed=${request.confirm_apply === true ? "yes" : "not reported"}.`,
-          "Confirm selected_sources matches the intended checked/selected preview scope.",
+          "Confirm selected_sources matches the checked preview rows.",
         ),
         renameApplyOutcomeRow(
           "Applied rows",
-          applied ? "ok" : "review",
-          `${applied} applied row(s); ${renamed} renamed media file(s); ${unchanged} unchanged/no-op file(s).`,
-          applied ? "Spot-check renamed rows below and confirm expected no-op rows were intentional." : "If no rows applied, read backend message before retrying.",
+          counts.renamed || mediaOperations ? "changed" : applied ? "review" : "review",
+          `${applied} applied row(s); ${counts.renamed} renamed media file(s); ${counts.unchanged} unchanged/no-op file(s).`,
+          counts.renamed || mediaOperations ? "Spot-check renamed rows below and confirm expected no-op rows were intentional." : "If no files changed, read backend message before retrying.",
+        ),
+        renameApplyOutcomeRow(
+          "Skipped / protected rows",
+          counts.failed ? "blocked" : (counts.skipped || counts.protected ? "review" : "ready"),
+          `${counts.skipped} skipped row(s); ${counts.protected} protected row(s); ${counts.failed} failed row(s).`,
+          counts.skipped || counts.protected || counts.failed ? "Inspect backend reasons before another batch apply." : "No skipped, protected, or failed row evidence reported.",
         ),
         renameApplyOutcomeRow(
           "Sidecar operations",
-          sidecarOperations || sidecars ? "review" : "ok",
+          sidecarOperations || sidecars ? "review" : "ready",
           `${sidecars} sidecar move(s) reported; media operations=${mediaOperations}; sidecar operations=${sidecarOperations}.`,
           sidecarOperations || sidecars ? "Verify associated .pipeline.json/SRT sidecars followed the media file where expected." : "No sidecar move evidence reported.",
         ),
         renameApplyOutcomeRow(
           "Undo / rollback evidence",
-          data.undo_manifest ? "ok" : "review",
+          data.undo_manifest ? "ready" : "review",
           data.undo_manifest ? `Undo manifest: ${data.undo_manifest}` : "No undo manifest path reported in the backend result.",
           data.undo_manifest ? "Keep this path for manual recovery review if a later row looks wrong." : "Do not rely on WebView for undo; inspect backend logs before manual repair.",
         ),
         renameApplyOutcomeRow(
           "Warnings and errors",
-          errors.length ? "failed" : warnings.length ? "review" : "ok",
+          errors.length ? "blocked" : warnings.length ? "review" : "ready",
           `${warnings.length} warning(s), ${errors.length} error(s).${warnings.length ? ` warnings=${warnings.slice(0, 3).join(" | ")}` : ""}${errors.length ? ` errors=${errors.slice(0, 3).join(" | ")}` : ""}`,
           errors.length || warnings.length ? "Resolve backend-reported issues before another batch apply." : "No backend warning/error evidence reported.",
         ),
         renameApplyOutcomeRow(
           "Paths textarea update",
-          rows.length ? "ok" : "review",
+          rows.length ? "changed" : "review",
           rows.length ? `${rows.length} backend result row(s) available for local Paths textarea replacement.` : "No backend rows available for local Paths textarea replacement.",
           "Treat updated textarea paths as local convenience only; backend command result remains source of truth.",
         ),
         renameApplyOutcomeRow(
           "Mutation boundary",
-          "ok",
+          "ready",
           "Only /api/rename/apply can mutate files. This outcome review cannot rename, undo, retry, delete, or touch files.",
           "For any doubt, compare preview, command history, output folders, and backend logs before applying another batch.",
         ),
@@ -175,10 +211,11 @@
       const data = payload.data && typeof payload.data === "object" ? payload.data : {};
       const blocked = rows.filter((row) => ["failed", "blocked"].includes(String(row.posture || "").toLowerCase())).length;
       const review = rows.filter((row) => String(row.posture || "").toLowerCase() === "review").length;
+      const counts = renameApplyOutcomeCounts(data, Array.isArray(data.rows) ? data.rows : []);
       return [
         "Backend rename apply outcome review:",
         `Status: ${status}; checkpoints needing review=${review}; failed/blocked=${blocked}`,
-        `Applied: selected=${data.selected ?? ""}; applied=${data.applied_count ?? ""}; renamed=${data.renamed ?? ""}; unchanged=${data.unchanged ?? ""}; sidecars=${data.sidecars ?? ""}`,
+        `Applied: selected=${data.selected ?? ""}; applied=${data.applied_count ?? ""}; renamed=${counts.renamed}; unchanged=${counts.unchanged}; skipped=${counts.skipped}; protected=${counts.protected}; failed=${counts.failed}; sidecars=${data.sidecars ?? ""}`,
         `Undo manifest: ${data.undo_manifest || "(not reported)"}`,
         "Next step: verify rows/sidecars on disk only after command result and history agree.",
         "Mutation guardrail: this panel is read-only and cannot rename, undo, retry, delete, or touch files.",
@@ -236,9 +273,12 @@
       }
       const payload = result.raw && typeof result.raw === "object" ? result.raw : result;
       const data = payload.data && typeof payload.data === "object" ? payload.data : {};
-      const renamed = data.renamed ?? "";
+      const counts = renameApplyOutcomeCounts(data, Array.isArray(data.rows) ? data.rows : []);
       const applied = data.applied_count ?? (Array.isArray(data.rows) ? data.rows.length : "");
-      setText("rename-last-apply-status", payload.ok ? `${renamed} renamed / ${applied} applied` : payload.severity || "failed");
+      const status = renameApplyOutcomeStatus(payload);
+      setText("rename-last-apply-status", payload.ok ? `${status}: ${counts.renamed} renamed / ${counts.unchanged} unchanged / ${applied} applied` : payload.severity || "failed");
+      const statusNode = byId("rename-last-apply-status");
+      if (statusNode) statusNode.dataset.state = renameApplyOutcomeStatusState(status);
       setText("rename-last-apply-detail", renameApplyResultLines(payload).join("\n"));
       renderRenameApplyOutcomeReview(payload);
     }

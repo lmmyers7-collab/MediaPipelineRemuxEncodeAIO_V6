@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/schemas/config.v1.schema.json
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: config
-last_modified: 2026-06-14
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: b97dae8546b466e1cf4fb21c1e22b7e7c93f68427bbf62bb22bce8a5539ed5e5
+sha256: 5edc37d76ec6d147831b16e344916280943b069b7e8c6af705085bb9989196ce
 ---
 # `src/mediapipeline/contracts/schemas/config.v1.schema.json`
 

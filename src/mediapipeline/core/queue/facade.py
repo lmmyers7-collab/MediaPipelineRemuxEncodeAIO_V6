@@ -7,6 +7,7 @@ from typing import TYPE_CHECKING
 
 from mediapipeline.core.queue.file_overrides import read_file_overrides
 from mediapipeline.core.queue.priority_manifest import (
+    PriorityManifestReadError,
     get_manifest_entry,
     get_manifest_level,
     has_manifest_priority_entry,
@@ -170,7 +171,16 @@ class QueueFacadeMixin:
             )
         priority_manifest: dict[str, object] | None = None
         if resolved.priority_manifest_path is not None:
-            priority_manifest = read_priority_manifest(resolved.priority_manifest_path)
+            try:
+                priority_manifest = read_priority_manifest(resolved.priority_manifest_path, fail_closed=True)
+            except PriorityManifestReadError as exc:
+                return self._queue_preview_with_progress_warning(
+                    str(snapshot_path),
+                    f"Queue priority manifest could not be read; queue preview is blocked until repaired: {exc}",
+                    status="blocked",
+                    queue_scan_status=queue_scan_status,
+                    source_inventory=source_inventory,
+                )
         file_override_manifest = None
         if resolved.file_overrides_path is not None:
             file_override_manifest = read_file_overrides(resolved.file_overrides_path)

@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0618-029",
+  "title": "Add GitHub release environment initializer",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a dry-run-first helper for preparing GitHub beta/stable release environments and checking required signing/updater secret names.",
+  "reason": "The beta workflow can be dispatched only after GitHub environments and protected release secrets are prepared. Operators need a repeatable setup command that is safe by default and explicit when applying external GitHub changes.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests"
+  ],
+  "behavior_before": "Operators had setup and dispatch preflights, but no helper to create/check beta-release and stable-release environments or report missing environment secret names.",
+  "behavior_after": "Operators can dry-run the GitHub environment setup commands, then explicitly apply environment creation and required secret-name checks through GitHub CLI.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-029.json.md",
+    "docs/generated/summaries/ops/scripts/release/Initialize-PrivateBetaGitHubReleaseSetup.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_github_release_setup.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-029.json",
+    "ops/scripts/release/Initialize-PrivateBetaGitHubReleaseSetup.ps1",
+    "tests/python/tooling/test_private_beta_github_release_setup.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_private_beta_github_release_setup.py"
+  ],
+  "manual_validation": [
+    "Initialize-PrivateBetaGitHubReleaseSetup.ps1 dry-run - passed and printed environment/secret setup commands",
+    "git diff --check targeted GitHub release initializer files - passed",
+    "pytest private beta GitHub release setup/setup/dispatch tooling suite - passed (7 passed)",
+    "pytest tests/python/tooling/test_private_beta_github_release_setup.py -q - passed (2 passed)",
+    "refresh_summaries targeted GitHub release initializer paths - passed",
+    "validate_changes --require-worktree-coverage - failed due unrelated uncovered dirty files: apps/desktop/webview/static/assets/diagnosticsBridge.js; apps/desktop/webview/static/assets/diagnosticsView.log.js"
+  ],
+  "rollback_plan": "Remove the GitHub release environment initializer script, tests, docs references, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-023",
+    "MP-CHANGE-2026-0618-027"
+  ],
+  "notes": "The initializer defaults to dry-run and must not create GitHub environments unless -Apply is passed. It never prints or writes secret values."
+}

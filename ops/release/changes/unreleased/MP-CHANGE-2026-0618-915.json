@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0618-915",
+  "title": "Relabel Launch command history",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Relabel the Launch History command review so it is no longer rendered or described as an evidence panel.",
+  "reason": "The History tab command review contains selectable rows and diagnostics buttons, so presenting it with an evidence badge and advisory-evidence copy made an interactive review surface look like read-only evidence.",
+  "affected_areas": [
+    "webview"
+  ],
+  "behavior_before": "Launch History rendered the command history section as data-panel-type=\"evidence\", showed a Commands Evidence heading with an evidence badge, and described accepted command correlation as advisory evidence.",
+  "behavior_after": "Launch History renders the command history section as an interactive panel with a Command History heading and uses advisory context/checklist context language for command review details.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchHistoryView.js",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchHistoryView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-915.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-915.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_local_api.py::LocalApiServerTests::test_local_api_serves_read_only_web_prototype -q - failed at unrelated existing Network tab expectation data-network-tab=coordinator",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_web_static.py::ApplicationFacadeWebStaticTests::test_webview_panel_types_and_evidence_panels_are_read_only -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_launch_queue_readiness_smoke.py::WebViewBrowserLaunchQueueReadinessSmoke::test_real_browser_renders_launch_queue_readiness_without_mutation_posts -q - failed due existing /api/ui-preferences posts treated as unexpected",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed after completion due unrelated MP-CHANGE-2026-0619-002 invalid type ux and uncovered dirty files: apps/desktop/webview/static/assets/settings/backendResult.js; apps/desktop/webview/static/assets/settingsView.safetyLocks.js; ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0619-002 invalid type ux and uncovered dirty files: apps/desktop/webview/static/assets/settings/backendResult.js; apps/desktop/webview/static/assets/settingsView.safetyLocks.js; ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1 - passed",
+    "render_index Launch slice check - passed: Launch History panel is interactive, Command History heading present, Launch Commands Evidence heading absent",
+    "rg old Launch History evidence strings - passed: no old Launch History evidence strings found"
+  ],
+  "rollback_plan": "Revert the Launch History panel type/title, launch command review copy changes, matching test expectation updates, regenerated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Relabeled Launch History command review so it is presented as operator review/context instead of an evidence panel."
+}

@@ -26,12 +26,8 @@
             <strong id="network-local-api">not loaded</strong>
           </section>
         </div>
-        <div class="settings-tab-bar network-tab-bar" role="tablist" aria-label="Network role dashboards">
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-network-tab="coordinator">Coordinator</button>
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-network-tab="worker">Worker</button>
-        </div>
-
-        <div class="settings-tab-pane network-tab-panel is-active" data-network-tab-panel="coordinator">
+        <div id="network-role-dashboards" class="network-role-dashboard-stack" aria-label="Saved network role dashboard">
+          <div class="settings-tab-pane network-tab-panel" data-network-role-panel="coordinator" hidden>
           <section class="panel network-overview-panel" data-panel-type="evidence">
             <div class="panel-heading">
               <h2>Coordinator At A Glance</h2>
@@ -96,7 +92,7 @@
           </section>
         </div>
 
-        <div class="settings-tab-pane network-tab-panel" data-network-tab-panel="worker">
+          <div class="settings-tab-pane network-tab-panel" data-network-role-panel="worker" hidden>
           <section class="panel network-overview-panel" data-panel-type="evidence">
             <div class="panel-heading">
               <h2>Worker At A Glance</h2>
@@ -139,6 +135,7 @@
               </section>
             </div>
           </section>
+          </div>
         </div>
 
         <section class="panel" data-panel-type="interactive">
@@ -178,12 +175,12 @@
             <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="start" data-network-lifecycle-dry-run="true">Check coordinator start</button>
             <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="stop" data-network-lifecycle-dry-run="true">Check coordinator stop</button>
             <button type="button" class="primary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="start">Start coordinator</button>
-            <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="stop">Stop coordinator now</button>
+            <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="stop">Request coordinator stop</button>
             <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="start" data-network-lifecycle-dry-run="true">Check worker start</button>
             <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="stop" data-network-lifecycle-dry-run="true">Check worker stop</button>
             <button type="button" class="secondary-button" data-network-test-connection>Test worker connection</button>
             <button type="button" class="primary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="start">Start worker polling</button>
-            <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="stop">Stop worker now</button>
+            <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="stop">Request worker stop</button>
           </div>
           <div class="network-future-controls">
             <p class="note">Unavailable future controls stay disabled until backend-owned routes, preconditions, and tests exist.</p>
@@ -248,13 +245,13 @@
             <form method="dialog" class="network-role-setup-form">
               <div class="network-role-setup-heading">
                 <div>
-                  <p class="settings-mini-label">Backend-owned lifecycle command</p>
-                  <h3 id="network-lifecycle-confirm-title">Confirm network lifecycle command</h3>
+                  <p class="settings-mini-label">Backend-owned Network command</p>
+                  <h3 id="network-lifecycle-confirm-title">Confirm network command</h3>
                 </div>
                 <strong id="network-lifecycle-confirm-designation">Network</strong>
               </div>
               <p id="network-lifecycle-confirm-summary" class="note">Review the backend command impact before confirming.</p>
-              <pre id="network-lifecycle-confirm-detail" class="prose-block">No lifecycle command selected.</pre>
+              <pre id="network-lifecycle-confirm-detail" class="prose-block">No Network command selected.</pre>
               <div class="action-row action-row-left wrap-actions network-role-setup-actions">
                 <button type="button" id="network-lifecycle-confirm-cancel" class="secondary-button" value="cancel">Cancel</button>
                 <button type="button" id="network-lifecycle-confirm-submit" class="primary-button" value="confirm">Confirm command</button>
@@ -404,7 +401,7 @@
               <strong id="settings-network-path-map-status">0 rows</strong>
             </div>
             <textarea id="settings-network-path-map" class="visually-hidden" rows="1" spellcheck="false" placeholder='{"C:\\Encode": "\\\\SERVER\\Share\\Encode"}' aria-hidden="true" tabindex="-1"></textarea>
-            <div class="table-wrap network-path-map-table-wrap" data-table-density="compact">
+            <div class="table-wrap network-path-map-table-wrap">
               <table>
                 <thead>
                   <tr>
@@ -504,7 +501,7 @@
                     <strong id="network-role-setup-path-map-status">0 rows</strong>
                   </div>
                   <textarea id="network-role-setup-path-map" class="visually-hidden" rows="1" spellcheck="false" placeholder='{"C:\\Encode": "\\\\SERVER\\Share\\Encode"}' data-role-setup-source="settings-network-path-map" aria-hidden="true" tabindex="-1"></textarea>
-                  <div class="table-wrap network-path-map-table-wrap" data-table-density="compact">
+                  <div class="table-wrap network-path-map-table-wrap">
                     <table>
                       <thead>
                         <tr>

@@ -7,7 +7,7 @@
 
   function noop() {}
 
-  const COMPLETED_TABLE_COLUMN_COUNT = 8;
+  const COMPLETED_TABLE_COLUMN_COUNT = 7;
 
   function normalizeDeps(deps = {}) {
     return {
@@ -37,6 +37,8 @@
       makeRowSelectable: typeof deps.makeRowSelectable === "function" ? deps.makeRowSelectable : noop,
       renderCompletedTrustDecision: typeof deps.renderCompletedTrustDecision === "function" ? deps.renderCompletedTrustDecision : noop,
       renderCompletedDetail: typeof deps.renderCompletedDetail === "function" ? deps.renderCompletedDetail : noop,
+      renderCompletedActiveOutputContext: typeof deps.renderCompletedActiveOutputContext === "function" ? deps.renderCompletedActiveOutputContext : noop,
+      renderCompletedEvidenceCopyState: typeof deps.renderCompletedEvidenceCopyState === "function" ? deps.renderCompletedEvidenceCopyState : noop,
       renderCompletedFinalTrust: typeof deps.renderCompletedFinalTrust === "function" ? deps.renderCompletedFinalTrust : noop,
       renderCompletedOutputAcceptance: typeof deps.renderCompletedOutputAcceptance === "function" ? deps.renderCompletedOutputAcceptance : noop,
       renderCompletedPilotEvidencePacket: typeof deps.renderCompletedPilotEvidencePacket === "function" ? deps.renderCompletedPilotEvidencePacket : noop,
@@ -367,6 +369,18 @@
     return row;
   }
 
+  function completedRowsToRender(ctx, rows, renderLimit) {
+    const rowList = Array.isArray(rows) ? rows : [];
+    const limit = Number(renderLimit || 0);
+    if (!limit || rowList.length <= limit) return rowList;
+    const selectedKey = String(ctx.state.selectedCompletedRowKey || "");
+    const selectedIndex = selectedKey
+      ? rowList.findIndex((item) => String(item?.row_key || "") === selectedKey)
+      : -1;
+    if (selectedIndex < 0 || selectedIndex < limit) return rowList.slice(0, limit);
+    return [...rowList.slice(0, Math.max(limit - 1, 0)), rowList[selectedIndex]];
+  }
+
   function renderCompletedTableRows(ctx, { tbodyId, legendId, rows, sourceRows, emptyMessage, legendLabel, rowLabel, renderLimit = 250 }) {
     const tbody = ctx.byId(tbodyId);
     const rowList = Array.isArray(rows) ? rows : [];
@@ -378,7 +392,7 @@
     }
     tbody.replaceChildren();
     const allowPromotionAction = tbodyId === "completed-rows";
-    rowList.slice(0, renderLimit).forEach((item) => {
+    completedRowsToRender(ctx, rowList, renderLimit).forEach((item) => {
       tbody.appendChild(renderCompletedRow(ctx, item, rowLabel, { allowPromotionAction }));
     });
     ctx.updateTableStatusLegend(legendId, tbody, legendLabel);
@@ -494,9 +508,11 @@
     });
     renderCompletedHistoryRowsImpl(ctx);
     if (ctx.state.selectedCompletedRowKey) ctx.renderCompletedDetail(ctx.getSelectedCompletedRow());
+    ctx.renderCompletedActiveOutputContext(ctx.getSelectedCompletedRow());
     ctx.renderCompletedOutputAcceptance(ctx.state.lastCompletedPayload, lastCompletedRows, ctx.state.lastCompletedPendingProofRows);
     ctx.renderCompletedFinalTrust(ctx.state.lastCompletedPayload, lastCompletedRows, ctx.state.lastCompletedPendingProofRows, ctx.state.lastCompletedPendingPayload);
     ctx.renderCompletedPilotEvidencePacket(ctx.state.lastCompletedPayload, lastCompletedRows, ctx.state.lastCompletedPendingProofRows, ctx.state.lastCompletedPendingPayload);
+    ctx.renderCompletedEvidenceCopyState();
   }
 
   function renderCompletedHistoryRowsImpl(ctx) {

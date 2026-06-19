@@ -4,6 +4,10 @@ Date: 2026-05-20
 
 Maps all 13 WebView pages to their available test coverage: Python backend unit tests, non-browser WebView smokes, browser-backed WebView smokes, and identified gaps. Does not include manual test coverage (see `docs/operator/WEBVIEW_MANUAL_OPERATOR_TEST_SCRIPT.md`).
 
+All-surface rationalization: `docs/ai-audits/2026-06-18-test-coverage-rationalization.md` records a 2026-06-18 live-worktree pass over Python tests, WebView tests, browser/non-browser smokes, PowerShell checks, smoke wrappers, and `ops/scripts/release/test.ps1`. It classifies the suite by proof tier and subsystem, flags overlap candidates, and recommends consolidation sequencing. Its default safety rule is that static/browser, Python/PowerShell, and wrapper/module pairs should not be removed merely because names overlap; they often prove different rungs.
+
+Generated drift aids: `docs/generated/SMOKE_WRAPPER_MAP.json` is the machine-readable smoke-wrapper map checked against smoke docs and the release layout gate, while `docs/generated/DUPLICATE_TEST_NAMES.md` lists exact duplicate Python test names as consolidation review candidates only. Treat `docs/ai-audits/2026-06-17-test-coverage-gap-analysis.md` as the missing-coverage backlog and the rationalization report as the consolidation layer.
+
 ---
 
 ## Coverage Tiers
@@ -24,6 +28,8 @@ Maps all 13 WebView pages to their available test coverage: Python backend unit 
 ## Cross-Page Command Boundary Coverage
 
 `test_webview_frontend_mutation_boundary.py` is a static Python gate over backend-served WebView assets. It verifies every WebView `apiPost(...)` call uses a literal documented POST route, command calls stay in the expected owning JS module, shell-open routes submit backend selector keys (`row_key`/`target`) instead of raw path keys, write routes keep explicit confirmation payloads, only `apiClient.js` owns `fetch(...)`, frontend assets do not use direct filesystem/process/Tauri shell APIs, frontend media-policy risk helpers remain labelled advisory-only, and repair/reconcile stays design-only/read-only until backend dry-run, rollback/source-file policy, atomic journal, and command-route contracts are deliberately promoted. Network lifecycle/setup controls are separately pinned by `test_webview_network_read_only_boundary.py`: the Network page may call only documented backend-owned lifecycle dry-run/start/stop, worker test-connection, discovery, join-blob, and join-import routes, with no frontend-owned lifecycle, claim, done-report, queue, settings-save, publish, rename, or media mutation implementation. The only direct `window.__TAURI__` access allowed in WebView assets is `tauriLifecycleBridge.js`, and that bridge is checked as an event listener/re-dispatcher only: no `apiPost`, `fetch`, invoke, shell, process, filesystem, open, write, remove, or mutation command surface. This test does not render UI, run media, open files, or prove backend command behavior; it prevents frontend-owned mutation drift before browser or Local API smokes run.
+
+`test_webview_command_boundary_audit.py` pins the generated `docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json` report from `ops/scripts/dev/check-webview-command-boundary.mjs`. The report classifies every action-like WebView control, verifies literal or contract-derived API dispatch, checks routes against `LOCAL_API_ROUTE_CONTRACT`, enforces owning-page/helper route effects, requires confirmation evidence for mutation routes, keeps shell-open payloads selector-key based, and preserves the single allowed dynamic dispatch path for backend-contract Network lifecycle routes. This is a static/generated guard only; backend command behavior and real browser no-mutation evidence still come from the Local API and WebView smoke tiers.
 
 ---
 
@@ -281,15 +287,15 @@ Pending publish ownership is now represented in both `docs/architecture/MODULE_M
 ### Maintenance
 
 **Module**: `maintenanceView.js`
-**API routes**: `GET /api/maintenance`, `GET /api/maintenance/change-ledger`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run`
+**API routes**: `GET /api/maintenance`, `GET /api/maintenance/change-ledger`, `POST /api/maintenance/release-dry-run`, `POST /api/maintenance/completed-backfill-dry-run`, `POST /api/maintenance/retention-dry-run`
 
 | Coverage type | Files / Wrappers |
 |---|---|
-| Python unit tests | `test_facade_maintenance_policy.py`, `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` (facade Maintenance workspace environment-health rows, Release Package dry-run plan/progress behavior, and maintenance command-lock fail-closed behavior); `test_maintenance_change_ledger.py` (packet parsing, invalid JSON/missing-field hygiene, counts, Python-impact grouping, route auth/contract/read-only metadata) |
-| Non-browser smokes | `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` (executes backend-owned ops/release/metadata/backfill dry-run POST routes against temporary state, verifies token enforcement, command history, no release manifest/zip, no completed-manifest rewrite, and unchanged temp source/output bytes) |
+| Python unit tests | `test_facade_maintenance_policy.py`, `test_facade_maintenance_command_policy.py`, `test_application_facade_maintenance.py` (facade Maintenance workspace environment-health rows, Release Package dry-run plan/progress behavior, and maintenance command-lock fail-closed behavior); `test_maintenance_retention_dry_run.py` (retention candidate allowlist, source/output/pending-publish exclusions, no-delete/no-move evidence, authenticated unjournaled Local API route); `test_maintenance_change_ledger.py` (packet parsing, invalid JSON/missing-field hygiene, counts, Python-impact grouping, route auth/contract/read-only metadata) |
+| Non-browser smokes | `Test-LocalApiMaintenanceDryRunContractSmoke.ps1` (executes backend-owned ops/release/metadata/backfill/retention dry-run POST routes against temporary state, verifies token enforcement, command history, no release manifest/zip, no completed-manifest rewrite, no retention delete/move/write plan, and unchanged temp source/output bytes) |
 | Browser-backed smokes | `Test-WebViewBrowserMaintenanceReportsSmoke.ps1` (Maintenance health/readiness, release dry-run result rendering, completed-manifest backfill dry-run result rendering, dry-run history, Reports failure-marker clear dry-run preview, no non-dry-run mutation posts); `Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1` (Change Ledger summary/table/detail/hygiene, filters, empty state, read-only `GET /api/maintenance/change-ledger`, no media/queue/settings/pending-publish/rename mutation posts) |
 
-**Gaps**: Browser smoke remains presentation-only for Maintenance POSTs by design; the browser-free Local API smoke now executes the backend dry-run command routes. The Change Ledger browser smoke uses a representative fixture payload for UI behavior while `test_maintenance_change_ledger.py` proves the real packet reader/route contract. No smoke executes real release packaging or real completed-manifest rewrite.
+**Gaps**: Browser smoke remains presentation-only for Maintenance POSTs by design; the browser-free Local API smoke now executes the backend dry-run command routes. The Change Ledger browser smoke uses a representative fixture payload for UI behavior while `test_maintenance_change_ledger.py` proves the real packet reader/route contract. No smoke executes real release packaging, real completed-manifest rewrite, or retention cleanup mutation.
 
 ---
 
@@ -373,6 +379,7 @@ This is runtime PowerShell coverage, not WebView/Tauri prompt coverage and not r
 | Malformed state recovery | Medium | Some diagnostics/state-summary unit tests exist; browser coverage is incomplete |
 | Packaging/install confidence for Tauri/WebView2 | Medium | Release self-test and Tauri build gate pass locally; clean-machine install validation remains operator/manual |
 | PG-1 live Tauri close-readiness test (window dialog) | Medium | Structural Rust patterns verified by `test_tauri_pg1_close_adversarial_scaffold.py` (25 tests); live Tauri dialog rendering requires manual or adversarial-backend Tauri run — see VALIDATION_LADDER_RUNBOOK.md Rung 5 |
+| Test-suite consolidation without same-rung replacement | High | Use `docs/ai-audits/2026-06-18-test-coverage-rationalization.md` before removing overlap candidates; do not reduce source/path, media, pending-publish, command journal, strict JSON, close-readiness, network, or Tauri coverage without stronger replacement evidence |
 
 ---
 

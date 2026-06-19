@@ -3,9 +3,9 @@ file: src/mediapipeline/core/network/url_policy.py
 pipeline_stage: network
 token_priority: medium
 owner_domain: network
-last_modified: 2026-06-14
+last_modified: 2026-06-17
 last_reviewed: 2026-06-14
-sha256: 0e9ecd65c695457415f0a3a9675d7bcd01efe3bc0ac217a031def62ca12a71d0
+sha256: 3621b6013e4be7f338a669271b72f02b2210042a2c08ed4ee8afd08806b479f3
 ---
 # `src/mediapipeline/core/network/url_policy.py`
 

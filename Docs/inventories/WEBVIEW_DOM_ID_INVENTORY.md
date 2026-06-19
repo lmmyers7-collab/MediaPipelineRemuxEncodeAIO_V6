@@ -4,7 +4,7 @@ Date: 2026-06-16
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1708. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1742. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -202,7 +202,21 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `rename-browse-files-button` | `<button>` | Open backend-owned Windows file browser for Rename source files |
 | `rename-browse-folder-button` | `<button>` | Open backend-owned Windows folder browser for a Rename source folder |
 | `rename-add-path-button` | `<button>` | Add the typed media path to the rename textarea |
-| `rename-apply-selected-button` | `<button>` | Trigger `/api/rename/apply` (guarded) |
+| `rename-apply-button` | `<button>` | Trigger `/api/rename/apply` (guarded) |
+| `rename-log-bad-case-button` | `<button>` | Open selected-row bad rename case dialog |
+| `rename-log-bad-case-status` | `<span>` | Selected-row bad rename case append status |
+| `rename-log-case-dialog` | `<dialog>` | Bad rename case append dialog |
+| `rename-log-case-title` | `<h2>` | Bad rename case append dialog title |
+| `rename-log-case-source-folder` | `<input>` | Bad rename case source folder field |
+| `rename-log-case-source-file` | `<input>` | Bad rename case source file field |
+| `rename-log-case-expected-name` | `<input>` | Bad rename case expected output filename field |
+| `rename-log-case-expected-show` | `<input>` | Bad rename case expected show title field |
+| `rename-log-case-expected-season` | `<input>` | Bad rename case expected season field |
+| `rename-log-case-status-select` | `<select>` | Bad rename case status selector |
+| `rename-log-case-notes` | `<textarea>` | Bad rename case notes field |
+| `rename-log-case-message` | `<p>` | Bad rename case append result message |
+| `rename-log-case-cancel-button` | `<button>` | Close bad rename case dialog |
+| `rename-log-case-submit-button` | `<button>` | Append bad rename case through backend route |
 | `rename-check-applicable-button` | `<button>` | Check applicable rows |
 | `rename-clear-checks-button` | `<button>` | Clear checked rows |
 | `rename-move-checked-up-button` | `<button>` | Move checked rows up |
@@ -356,6 +370,14 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `settings-file-safety-watch-debounce` | `<input>` | File Safety builder watch-folder debounce seconds |
 | `settings-file-safety-watch-respect-schedule` | `<input>` | File Safety builder watch-folder schedule-respect toggle |
 | `settings-file-safety-watch-roots` | `<input>` | File Safety builder explicit watch root list |
+| `settings-library-watch-panel` | `<section>` | Libraries page watch-folder auto-run toggle panel |
+| `settings-library-watch-status` | `<strong>` | Libraries page watch-folder auto-run status badge |
+| `settings-library-watch-auto-run` | `<input>` | Libraries page watch-folder auto-run toggle |
+| `settings-library-watch-respect-schedule` | `<input>` | Libraries page watch-folder schedule-respect toggle |
+| `settings-library-watch-stage-button` | `<button>` | Stage Libraries watch-folder auto-run patch |
+| `settings-library-watch-preview-button` | `<button>` | Preview Libraries watch-folder auto-run patch |
+| `settings-library-watch-save-button` | `<button>` | Save Libraries watch-folder auto-run patch |
+| `settings-library-watch-summary` | `<pre>` | Libraries page watch-folder auto-run patch summary |
 | `settings-quality-builder-status` | `<strong>` | Quality Verification builder status badge |
 | `settings-builder-quality-enable` | `<input>` | Quality Verification builder enable toggle |
 | `settings-builder-quality-metric` | `<select>` | Quality Verification builder metric selector |
@@ -369,6 +391,18 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `settings-quality-apply-button` | `<button>` | Merge Quality Verification Patch |
 | `settings-quality-reset-button` | `<button>` | Reset Quality Verification builder from current settings |
 | `settings-quality-guidance` | `<pre>` | Quality Verification builder guidance and staged-value summary |
+| `settings-rename-log-case-status` | `<strong>` | Rename filter case append status badge |
+| `settings-rename-log-case-form` | `<form>` | Manual rename bad-case corpus append form |
+| `settings-rename-log-case-source-folder` | `<input>` | Source folder text for bad rename case |
+| `settings-rename-log-case-source-file` | `<input>` | Source filename text for bad rename case |
+| `settings-rename-log-case-season-number` | `<input>` | Season number used by TV auto rename validation |
+| `settings-rename-log-case-expected-name` | `<input>` | Expected output filename for bad rename case |
+| `settings-rename-log-case-expected-show` | `<input>` | Expected show/folder text for bad rename case |
+| `settings-rename-log-case-expected-season` | `<input>` | Expected parsed season for bad rename case |
+| `settings-rename-log-case-status-select` | `<select>` | Pending/active regression status selector |
+| `settings-rename-log-case-notes` | `<textarea>` | Operator notes for bad rename case |
+| `settings-rename-log-case-submit-button` | `<button>` | Append bad rename case through backend command |
+| `settings-rename-log-case-message` | `<span>` | Append result message |
 
 ---
 
@@ -593,7 +627,7 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1708
+Count: 1742
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1624,6 +1658,20 @@ rename-file-source-summary
 rename-force-pipeline
 rename-last-apply-detail
 rename-last-apply-status
+rename-log-bad-case-button
+rename-log-bad-case-status
+rename-log-case-cancel-button
+rename-log-case-dialog
+rename-log-case-expected-name
+rename-log-case-expected-season
+rename-log-case-expected-show
+rename-log-case-message
+rename-log-case-notes
+rename-log-case-source-file
+rename-log-case-source-folder
+rename-log-case-status-select
+rename-log-case-submit-button
+rename-log-case-title
 rename-mode
 rename-movie-year
 rename-paths
@@ -1977,6 +2025,14 @@ settings-library-profile-nav
 settings-library-reset-button
 settings-library-save-button
 settings-library-warning-summary
+settings-library-watch-auto-run
+settings-library-watch-panel
+settings-library-watch-preview-button
+settings-library-watch-respect-schedule
+settings-library-watch-save-button
+settings-library-watch-stage-button
+settings-library-watch-status
+settings-library-watch-summary
 settings-media-policy-legend
 settings-media-policy-rows
 settings-media-policy-status
@@ -2069,6 +2125,18 @@ settings-rename-filter-languages-subs-dubs
 settings-rename-filter-release-groups
 settings-rename-filter-services-containers
 settings-rename-filter-video-source
+settings-rename-log-case-expected-name
+settings-rename-log-case-expected-season
+settings-rename-log-case-expected-show
+settings-rename-log-case-form
+settings-rename-log-case-message
+settings-rename-log-case-notes
+settings-rename-log-case-season-number
+settings-rename-log-case-source-file
+settings-rename-log-case-source-folder
+settings-rename-log-case-status
+settings-rename-log-case-status-select
+settings-rename-log-case-submit-button
 settings-rename-preview-button
 settings-rename-preview-input
 settings-rename-preview-output

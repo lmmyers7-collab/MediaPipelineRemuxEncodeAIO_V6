@@ -16,13 +16,21 @@ function Get-PendingObjectProperty {
 
     if ($null -eq $Object) { return $null }
     if ($Object -is [System.Collections.Specialized.OrderedDictionary] -and $Object.Contains($Name)) {
-        return $Object[$Name]
+        $value = $Object[$Name]
+        if ($value -is [System.Array]) { return ,$value }
+        return $value
     }
     if ($Object -is [System.Collections.IDictionary] -and $Object.Contains($Name)) {
-        return $Object[$Name]
+        $value = $Object[$Name]
+        if ($value -is [System.Array]) { return ,$value }
+        return $value
     }
     $prop = $Object.PSObject.Properties[$Name]
-    if ($prop) { return $prop.Value }
+    if ($prop) {
+        $value = $prop.Value
+        if ($value -is [System.Array]) { return ,$value }
+        return $value
+    }
     return $null
 }
 
@@ -120,6 +128,31 @@ function Get-PendingManifestFilePathText {
 
     if ($ManifestFile -is [System.IO.FileInfo]) { return [string]$ManifestFile.FullName }
     return [string]$ManifestFile
+}
+
+function Get-PendingPublishRetryLimit {
+    $retryLimit = 3
+    try {
+        $configured = Get-Variable -Name PendingPublishRetryLimit -Scope Script -ValueOnly -ErrorAction SilentlyContinue
+        if ($null -ne $configured -and [int]$configured -gt 0) {
+            $retryLimit = [int]$configured
+        }
+    } catch {
+        $retryLimit = 3
+    }
+    return [int]$retryLimit
+}
+
+function Get-PendingManifestRetryCount {
+    param($Manifest)
+
+    try {
+        $value = Get-PendingObjectProperty -Object $Manifest -Name 'retry_count'
+        if ($null -ne $value -and -not [string]::IsNullOrWhiteSpace([string]$value)) {
+            return [int]$value
+        }
+    } catch {}
+    return 0
 }
 
 function Test-PendingManifestPathBoundary {
@@ -473,6 +506,12 @@ function Test-PendingManifestTrustedForDrain {
     $drainableStates = @('parked', 'parked_recovered', 'missing_payload', 'retry_copy_failed', 'retry_reveal_failed', 'retry_sidecar_file_failed', 'retry_sidecar_backup_failed', 'retry_sidecar_failed')
     if ($state -notin $drainableStates) {
         return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'DRAIN_STATE_UNSUPPORTED' -Reason "Manifest state '$state' is not drainable automatically." -Status 'invalid_manifest' -ManifestPath $manifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
+    }
+
+    $retryLimit = Get-PendingPublishRetryLimit
+    $retryCount = Get-PendingManifestRetryCount -Manifest $Manifest
+    if ($retryCount -ge $retryLimit) {
+        return New-PendingManifestTrustResult -Ok:$false -ReasonCode 'RETRY_EXHAUSTED' -Reason "Pending publish retry_count $retryCount is at or above retry limit $retryLimit; leaving parked for operator review." -Status 'retry_exhausted' -ManifestPath $manifestPath -LocalFile $localFile -ServerOut $serverOut -SourcePath $sourcePath
     }
 
     $localBoundary = Test-PendingManifestPathBoundary -Path $localFile -Root $pendingRoot -AllowMissingLeaf

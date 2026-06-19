@@ -50,6 +50,43 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             function byId(id) { return document.getElementById(id); }
             function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
             function value(id) { const node = byId(id); return node ? node.value || "" : ""; }
+            function state(id) { const node = byId(id); return node ? node.dataset.state || "" : ""; }
+            function inlineStatus(selector) {
+              const node = document.querySelector(selector);
+              const status = node?.nextElementSibling;
+              return status?.classList?.contains("inline-action-status") ? status.textContent || "" : "";
+            }
+            function inlineActionText(node) {
+              const status = node?.nextElementSibling;
+              return status?.classList?.contains("inline-action-status") ? status.textContent || "" : "";
+            }
+            function selectorText(selector) {
+              const node = document.querySelector(selector);
+              return node ? node.innerText || node.textContent || "" : "";
+            }
+            function tdarrButton(action) {
+              const node = document.querySelector('[data-tdarr-matrix-audit-action="' + action + '"]');
+              if (!node) throw new Error("missing Tdarr Matrix action " + action);
+              return node;
+            }
+            function tdarrGate(action) {
+              const node = tdarrButton(action);
+              return {
+                action,
+                disabled: Boolean(node.disabled),
+                gateState: node.dataset.gateState || "",
+                severity: node.dataset.severity || "",
+                title: node.title || "",
+                inline: inlineActionText(node),
+              };
+            }
+            function assertTdarrGate(action, disabled, label) {
+              const gate = tdarrGate(action);
+              if (gate.disabled !== disabled) {
+                throw new Error(label + " expected " + action + " disabled=" + disabled + " but saw " + JSON.stringify(gate));
+              }
+              return gate;
+            }
             function requireText(id, fragments) {
               const actual = text(id);
               for (const fragment of fragments) {
@@ -133,6 +170,300 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 const data = raw.data || {};
                 return entry.command === "diagnostics.open" && (request.target === target || data.target === target);
               });
+            }
+            function checkPanelStatus(id, expectedText, expectedState, label) {
+              const actualText = text(id);
+              const actualState = state(id);
+              if (!actualText.includes(expectedText) || actualState !== expectedState) {
+                throw new Error(label + " expected " + expectedText + "/" + expectedState + " but saw " + actualText + "/" + actualState);
+              }
+              return { id, text: actualText, state: actualState };
+            }
+            function checkReadBeforeOpen(groupText, readLabel, openLabel, label) {
+              const readIndex = groupText.indexOf(readLabel);
+              const openIndex = groupText.indexOf(openLabel);
+              if (readIndex < 0 || openIndex < 0 || readIndex > openIndex) {
+                throw new Error(label + " expected " + readLabel + " before " + openLabel + "\\nActual:\\n" + groupText);
+              }
+            }
+            function delay(ms) {
+              return new Promise((resolve) => setTimeout(resolve, ms));
+            }
+            async function runDiagnosticsHardeningChecks() {
+              const checks = {
+                groupedAccess: {},
+                commandEvidence: {},
+                duplicateSuppression: {},
+                staleRefresh: {},
+                logStates: [],
+                tailStates: [],
+                tdarr: {},
+              };
+
+              window.showPage("diagnostics");
+              const groupedText = selectorText(".diagnostics-open-target-groups");
+              ["Logs", "Config / Workspace", "State Artifacts", "Failure Evidence", "Validation Evidence"].forEach((label) => {
+                if (!groupedText.includes(label)) throw new Error("missing grouped allowlisted file access section " + label);
+              });
+              checkReadBeforeOpen(groupedText, "Read Last Stderr", "Open Run Logs", "Logs group read/open order");
+              checkReadBeforeOpen(groupedText, "Read Queue Snapshot", "Open Queue Snapshot", "State Artifacts group read/open order");
+              checks.groupedAccess = { groupsPresent: true, readBeforeOpen: true };
+
+              const commandDetail = document.getElementById("diagnostics-command-drilldown-summary");
+              const commandRaw = document.getElementById("diagnostics-command-history");
+              if (!commandDetail || !commandRaw || !(commandDetail.compareDocumentPosition(commandRaw) & Node.DOCUMENT_POSITION_FOLLOWING)) {
+                throw new Error("Command Detail must appear before raw Commands Evidence.");
+              }
+              checks.commandEvidence.commandDetailBeforeRaw = true;
+              checks.commandEvidence.rawEvidenceNote = selectorText("#diagnostics-command-history").includes("Structured command drilldown above");
+              if (!text("api-contract-safety-summary").includes("route presence is evidence only")) {
+                throw new Error("contract safety summary must distinguish route presence from safe action");
+              }
+              checks.commandEvidence.contractRoutePresenceBoundary = true;
+
+              const originalApiGet = window.apiGet;
+              const originalApiPost = window.apiPost;
+              const originalConfirm = window.confirm;
+              try {
+                const duplicateTailButton = document.createElement("button");
+                duplicateTailButton.id = "diagnostics-duplicate-tail-button";
+                duplicateTailButton.type = "button";
+                duplicateTailButton.textContent = "Duplicate Tail Fixture";
+                document.body.appendChild(duplicateTailButton);
+                let finishTail = null;
+                window.apiGet = async (path) => {
+                  if (!String(path || "").includes("/api/diagnostics/tail")) throw new Error("unexpected duplicate tail path " + path);
+                  return new Promise((resolve) => {
+                    finishTail = () => resolve({
+                      ok: true,
+                      target: "last_stderr_log",
+                      label: "Last Stderr",
+                      exists: true,
+                      is_file: true,
+                      text: "duplicate fixture tail",
+                      max_bytes: 65536,
+                    });
+                  });
+                };
+                const firstTail = window.requestDiagnosticsTail("last_stderr_log", duplicateTailButton);
+                await waitFor(() => inlineActionText(duplicateTailButton).includes("Reading"), "duplicate tail first busy");
+                await window.requestDiagnosticsTail("last_stderr_log", duplicateTailButton);
+                checks.duplicateSuppression.tail = inlineActionText(duplicateTailButton);
+                if (!checks.duplicateSuppression.tail.includes("already in progress")) {
+                  throw new Error("duplicate tail click did not show in-place suppression feedback: " + checks.duplicateSuppression.tail);
+                }
+                finishTail();
+                await firstTail;
+
+                const duplicateOpenButton = document.createElement("button");
+                duplicateOpenButton.id = "diagnostics-duplicate-open-button";
+                duplicateOpenButton.type = "button";
+                duplicateOpenButton.textContent = "Duplicate Open Fixture";
+                document.body.appendChild(duplicateOpenButton);
+                let finishOpen = null;
+                window.apiPost = async (path, body) => {
+                  if (path !== "/api/diagnostics/open") throw new Error("unexpected duplicate open path " + path);
+                  return new Promise((resolve) => {
+                    finishOpen = () => resolve({
+                      command: "diagnostics.open",
+                      ok: true,
+                      message: "Fixture open completed.",
+                      request: body || {},
+                    });
+                  });
+                };
+                const firstOpen = window.requestDiagnosticsOpen("queue_snapshot", duplicateOpenButton);
+                await waitFor(() => inlineActionText(duplicateOpenButton).includes("Opening"), "duplicate open first busy");
+                await window.requestDiagnosticsOpen("queue_snapshot", duplicateOpenButton);
+                checks.duplicateSuppression.open = inlineActionText(duplicateOpenButton);
+                if (!checks.duplicateSuppression.open.includes("already in progress")) {
+                  throw new Error("duplicate open click did not show in-place suppression feedback: " + checks.duplicateSuppression.open);
+                }
+                finishOpen();
+                await firstOpen;
+              } finally {
+                window.apiGet = originalApiGet;
+                window.apiPost = originalApiPost;
+                window.confirm = originalConfirm;
+              }
+
+              window.mediaPipelineDiagnosticsView.renderDiagnosticsRefreshFailures([
+                { name: "diagnostics", message: "fixture diagnostics refresh failed" },
+                { name: "diagnostics state summary", message: "fixture state refresh failed" },
+                { name: "commands", message: "fixture command refresh failed" },
+                { name: "contract", message: "fixture contract refresh failed" },
+              ]);
+              checks.staleRefresh.diagnostics = checkPanelStatus("diagnostics-pipeline-log-status", "showing stale data", "warning", "diagnostics stale marker");
+              checks.staleRefresh.state = checkPanelStatus("diagnostics-state-summary-status", "showing stale data", "warning", "state stale marker");
+              checks.staleRefresh.commands = checkPanelStatus("diagnostics-command-status", "showing stale data", "warning", "commands stale marker");
+              checks.staleRefresh.contract = checkPanelStatus("api-contract-status", "showing stale data", "warning", "contract stale marker");
+
+              [
+                [{ log_tail: "pipeline loaded", launch_logs: "launch loaded" }, "Loaded", "ready", "loaded"],
+                [{ log_tail: "", launch_logs: "" }, "Empty", "empty", "empty"],
+                [{ log_tail: "", log_tail_missing: true, launch_logs: "", launch_logs_missing: true }, "Missing", "warning", "missing"],
+                [{ log_tail: "", log_tail_unavailable: true, launch_logs: "", launch_logs_unavailable: true }, "Unavailable", "warning", "unavailable"],
+                [{ log_tail: "pipeline partial", log_tail_truncated: true, launch_logs: "launch partial", launch_logs_truncated: true }, "Loaded truncated", "warning", "truncated"],
+                [{ log_tail: "", log_tail_error: "fixture read failed", launch_logs: "", launch_logs_error: "fixture launch read failed" }, "Read error", "blocked", "read-error"],
+              ].forEach(([payloadCase, expectedText, expectedState, label]) => {
+                window.renderDiagnostics(payloadCase);
+                checks.logStates.push({
+                  label,
+                  pipeline: checkPanelStatus("diagnostics-pipeline-log-status", expectedText, expectedState, "pipeline log " + label),
+                  launch: checkPanelStatus("diagnostics-launch-log-status", expectedText, expectedState, "launch log " + label),
+                });
+              });
+
+              [
+                [{ ok: true, target: "last_stderr_log", label: "Last Stderr", exists: true, is_file: true, text: "tail loaded" }, "Loaded", "ready", "loaded"],
+                [{ ok: true, target: "last_stderr_log", label: "Last Stderr", exists: true, is_file: true, text: "" }, "Empty", "empty", "empty"],
+                [{ ok: false, target: "last_stderr_log", label: "Last Stderr", warnings: ["No path is configured for Last Stderr."] }, "Missing", "warning", "missing"],
+                [{ ok: false, target: "active_jobs", label: "Active Jobs", warnings: ["Target resolved to a non-regular file."] }, "Unavailable", "warning", "unavailable"],
+                [{ ok: true, target: "cluster_log", label: "Cluster Log", exists: true, is_file: true, text: "tail partial", truncated: true }, "Loaded truncated", "warning", "truncated"],
+                [{ ok: false, target: "cluster_log", label: "Cluster Log", errors: ["fixture read failed"] }, "Read error", "blocked", "read-error"],
+              ].forEach(([payloadCase, expectedText, expectedState, label]) => {
+                window.renderDiagnosticsTail(payloadCase);
+                checks.tailStates.push({
+                  label,
+                  fileLog: checkPanelStatus("diagnostics-tail-status", expectedText, expectedState, "file log " + label),
+                });
+              });
+
+              const latestTdarrPayload = {
+                latest_run_id: "tdarr-fixture-run-1",
+                run: { run_id: "tdarr-fixture-run-1", report_exists: true },
+                runs: [{ run_id: "tdarr-fixture-run-1" }, { run_id: "tdarr-fixture-run-0" }],
+                findings: [{
+                  finding_key: "fixture-finding",
+                  run_id: "tdarr-fixture-run-1",
+                  severity: "error",
+                  diagnostic_bucket: "video",
+                  route: "encode",
+                  message: "fixture proof failure",
+                  evidence_targets: ["report"],
+                }],
+                finding_count: 1,
+                proof_pack_rows: [{
+                  test_name: "fixture proof",
+                  pack: "proof-pack",
+                  diagnostic_bucket: "video",
+                  view: "encode",
+                  status: "passed",
+                  run_id: "tdarr-fixture-run-1",
+                  evidence: "fixture proof evidence",
+                }],
+                smoke_pack_rows: [{
+                  test_name: "fixture smoke",
+                  pack: "smoke-pack",
+                  diagnostic_bucket: "startup",
+                  view: "smoke",
+                  status: "passed",
+                  run_id: "tdarr-fixture-run-1",
+                  evidence: "fixture smoke evidence",
+                }],
+                bucket_summary: [{ diagnostic_bucket: "video", finding_count: 1, severity: "error" }],
+              };
+              window.renderTdarrMatrixConsole({ latest_run_id: "", run: {}, runs: [], findings: [], proof_pack_rows: [], smoke_pack_rows: [], bucket_summary: [] });
+              checks.tdarr.initial = {
+                prepare: assertTdarrGate("prepare-proof-pack", false, "initial Tdarr gate"),
+                proof: assertTdarrGate("proof-pack", true, "initial Tdarr gate"),
+                strict: assertTdarrGate("strict-report", true, "initial Tdarr gate"),
+                cleanupPlan: assertTdarrGate("cleanup-plan", true, "initial Tdarr gate"),
+                cleanupArchive: assertTdarrGate("cleanup-archive", true, "initial Tdarr gate"),
+                delete: assertTdarrGate("cleanup-delete", true, "initial Tdarr gate"),
+              };
+              if (checks.tdarr.initial.strict.severity !== "warning" || tdarrGate("cleanup-delete").gateState !== "blocked") {
+                throw new Error("initial Tdarr severity/gate states are not explicit enough: " + JSON.stringify(checks.tdarr.initial));
+              }
+
+              const tdarrPosts = [];
+              let tdarrLatestCalls = 0;
+              try {
+                window.apiGet = async (path) => {
+                  const route = String(path || "");
+                  if (route.includes("/api/diagnostics/tdarr-matrix/latest")) {
+                    tdarrLatestCalls += 1;
+                    return latestTdarrPayload;
+                  }
+                  if (route.includes("/api/diagnostics/tdarr-matrix/compare")) {
+                    return { counts: { new: 1, resolved: 0, repeated: 0, changed: 0 }, rows: [] };
+                  }
+                  throw new Error("unexpected Tdarr apiGet " + route);
+                };
+                window.apiPost = async (path, body) => {
+                  if (path !== "/api/diagnostics/tdarr-matrix-audit") throw new Error("unexpected Tdarr apiPost " + path);
+                  tdarrPosts.push({ path, body: body || {} });
+                  if (body?.action === "cleanup-delete") {
+                    return {
+                      command: "diagnostics.tdarr_matrix_audit",
+                      ok: false,
+                      severity: "Failed",
+                      message: "Backend rejected fixture delete.",
+                      data: { action: "cleanup-delete", finding_count: 0, manifest_count: 0 },
+                    };
+                  }
+                  return {
+                    command: "diagnostics.tdarr_matrix_audit",
+                    ok: true,
+                    message: "Fixture " + body?.action + " completed.",
+                    data: { action: body?.action || "unknown", finding_count: 1, manifest_count: 1, run_id: "tdarr-fixture-run-1" },
+                  };
+                };
+
+                click("#tdarr-matrix-audit-load-latest", "tdarr load latest");
+                await waitFor(() => text("tdarr-matrix-audit-status").includes("Latest loaded"), "tdarr latest loaded");
+                checks.tdarr.afterLatest = {
+                  proof: assertTdarrGate("proof-pack", false, "after latest Tdarr gate"),
+                  strict: assertTdarrGate("strict-report", false, "after latest Tdarr gate"),
+                  cleanupPlan: assertTdarrGate("cleanup-plan", false, "after latest Tdarr gate"),
+                  cleanupArchive: assertTdarrGate("cleanup-archive", true, "after latest Tdarr gate"),
+                  delete: assertTdarrGate("cleanup-delete", true, "after latest Tdarr gate"),
+                  latestCalls: tdarrLatestCalls,
+                };
+
+                click('[data-tdarr-matrix-audit-action="cleanup-plan"]', "tdarr cleanup plan");
+                await waitFor(() => tdarrPosts.some((entry) => entry.body.action === "cleanup-plan") && !tdarrButton("cleanup-archive").disabled, "tdarr cleanup plan enables archive");
+                checks.tdarr.afterCleanupPlan = { cleanupArchive: assertTdarrGate("cleanup-archive", false, "after cleanup plan Tdarr gate") };
+
+                click('[data-tdarr-matrix-audit-action="cleanup-archive"]', "tdarr cleanup archive");
+                await waitFor(
+                  () => tdarrPosts.some((entry) => entry.body.action === "cleanup-archive")
+                    && tdarrButton("cleanup-delete").disabled
+                    && tdarrGate("cleanup-delete").gateState === "blocked",
+                  "tdarr cleanup archive keeps delete typed-gated",
+                );
+                checks.tdarr.afterArchive = { deleteBeforeText: assertTdarrGate("cleanup-delete", true, "after archive Tdarr delete gate") };
+                setInput("#tdarr-matrix-delete-confirm", "WRONG", "tdarr delete confirm");
+                checks.tdarr.afterWrongText = { delete: assertTdarrGate("cleanup-delete", true, "wrong delete text Tdarr gate") };
+                setInput("#tdarr-matrix-delete-confirm", "DELETE VERIFIED MATRIX", "tdarr delete confirm");
+                checks.tdarr.afterTypedText = { delete: assertTdarrGate("cleanup-delete", false, "typed delete text Tdarr gate") };
+
+                window.confirm = () => false;
+                click('[data-tdarr-matrix-audit-action="cleanup-delete"]', "tdarr cleanup delete cancel");
+                await waitFor(() => text("tdarr-matrix-audit-status").includes("Cancelled"), "tdarr delete cancellation");
+                if (tdarrPosts.some((entry) => entry.body.action === "cleanup-delete")) {
+                  throw new Error("cancelled Tdarr delete still posted to backend fixture");
+                }
+                checks.tdarr.cancelledDelete = text("tdarr-matrix-audit-detail");
+
+                window.confirm = () => true;
+                click('[data-tdarr-matrix-audit-action="cleanup-delete"]', "tdarr cleanup delete backend rejection");
+                await waitFor(() => text("tdarr-matrix-audit-status").includes("Failed") && text("tdarr-matrix-audit-detail").includes("Backend rejected fixture delete."), "tdarr delete backend rejection");
+                const deletePost = tdarrPosts.find((entry) => entry.body.action === "cleanup-delete");
+                if (!deletePost?.body?.confirm_delete_full_matrix) {
+                  throw new Error("Tdarr delete backend request did not carry confirm_delete_full_matrix: " + JSON.stringify(deletePost));
+                }
+                checks.tdarr.backendRejectedDelete = {
+                  status: checkPanelStatus("tdarr-matrix-audit-status", "Failed", "blocked", "tdarr delete rejection status"),
+                  detail: text("tdarr-matrix-audit-detail"),
+                  posts: tdarrPosts.map((entry) => entry.body.action),
+                };
+              } finally {
+                window.apiGet = originalApiGet;
+                window.apiPost = originalApiPost;
+                window.confirm = originalConfirm;
+              }
+              return checks;
             }
             [
               "renderQueue", "selectQueueRow",
@@ -465,12 +796,12 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             ]);
             click('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]', "state triage stderr tail");
             await waitFor(
-              () => text("diagnostics-tail-status").includes("Loaded") && text("diagnostics-tail-text").includes("source_locked"),
+              () => text("diagnostics-tail-status").includes("Loaded") && text("diagnostics-tail-text").includes("source_locked") && inlineStatus('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]').includes("Tail loaded"),
               "diagnostics state triage tail read",
             );
             click('[data-diagnostics-state-triage-action="open"][data-diagnostics-state-triage-target="last_stderr_log"]', "state triage stderr open");
             await waitFor(
-              () => historyHasTarget("last_stderr_log"),
+              () => historyHasTarget("last_stderr_log") && inlineStatus('[data-diagnostics-state-triage-action="open"][data-diagnostics-state-triage-target="last_stderr_log"]').includes("Opened"),
               "diagnostics state triage open command result",
             );
             clickStateSummaryRow("queue_snapshot");
@@ -552,7 +883,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             );
             click('[data-diagnostics-owner-navigate="pending"]', "pending owner navigate");
             await waitFor(
-              () => visiblePage("pending") && text("pending-detail").includes("Row state: do-not-drain") && text("pending-detail").includes("unreadable_manifest") && text("diagnostics-owner-handoff-nav-status").includes("No backend command was sent"),
+              () => visiblePage("pending") && text("pending-detail").includes("Row state: do-not-drain") && text("pending-detail").includes("unreadable_manifest") && text("diagnostics-owner-handoff-nav-status").includes("No backend command was sent") && text("pending-diagnostics-status").includes("Diagnostics handoff selected this row locally"),
               "pending owner row navigation",
             );
 
@@ -583,13 +914,16 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               "Opened completed manifest file.",
               "Opened pending publish folder.",
             ]);
-            return {
+            const resultPayload = {
               ok: true,
               queueStatus: text("queue-diagnostics-status"),
               completedStatus: text("completed-diagnostics-status"),
               pendingStatus: text("pending-diagnostics-status"),
               tailStatus: text("diagnostics-tail-status"),
+              tailStatusState: state("diagnostics-tail-status"),
               tailEvidence: text("diagnostics-tail-evidence"),
+              stateTriageTailInlineStatus: inlineStatus('[data-diagnostics-state-triage-action="tail"][data-diagnostics-state-triage-target="last_stderr_log"]'),
+              stateTriageOpenInlineStatus: inlineStatus('[data-diagnostics-state-triage-action="open"][data-diagnostics-state-triage-target="last_stderr_log"]'),
               historyTargets,
               tableClickRows: Boolean(payload.tableClickRows),
               queueFilterSummary: text("queue-filter-summary"),
@@ -605,6 +939,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               ownerHandoffStatus: text("diagnostics-owner-handoff-status"),
               ownerHandoffDetail: text("diagnostics-owner-handoff-detail"),
               ownerHandoffNavStatus: text("diagnostics-owner-handoff-nav-status"),
+              pendingDiagnosticsStatus: text("pending-diagnostics-status"),
               stateSummaryStatus: text("diagnostics-state-summary-status"),
               stateSummaryText: text("diagnostics-state-summary"),
               firstResponseSummary: text("diagnostics-first-response-summary"),
@@ -617,6 +952,8 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               contractSafetyDetail: text("api-contract-safety-detail"),
               commandHistoryCount: history.length,
             };
+            resultPayload.hardeningChecks = await runDiagnosticsHardeningChecks();
+            return resultPayload;
           })()
           `;
         }
@@ -670,12 +1007,63 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               const exception = details.exception || {};
               throw new Error(exception.description || exception.value || details.text || "browser evaluation failed");
             }
+            const resultValue = result.result?.value || {};
+            const responsiveChecks = [];
+            for (const width of [375, 768, 1440]) {
+              await client.send("Emulation.setDeviceMetricsOverride", {
+                width,
+                height: 1000,
+                deviceScaleFactor: 1,
+                mobile: width <= 375,
+              });
+              await sleep(150);
+              const responsive = await client.send("Runtime.evaluate", {
+                expression: `
+                  (function () {
+                    if (typeof window.showPage === "function") window.showPage("diagnostics");
+                    const tabs = ["triage", "investigation", "logs", "progress", "advanced"];
+                    const panels = [];
+                    for (const tab of tabs) {
+                      const button = document.querySelector('button.settings-tab-btn[data-diag-tab="' + tab + '"]');
+                      if (button) button.click();
+                      const panel = document.querySelector('div.settings-tab-pane[data-diag-tab="' + tab + '"]') || document;
+                      const badWraps = Array.from(panel.querySelectorAll(".table-wrap, .detail-table-wrap")).filter((node) => {
+                        const style = window.getComputedStyle(node);
+                        return node.scrollWidth > node.clientWidth + 4 && style.overflowX === "visible";
+                      }).map((node) => node.id || node.className || node.tagName).slice(0, 6);
+                      const badActionButtons = Array.from(panel.querySelectorAll(".action-row button, .diagnostics-open-target-group button")).filter((node) => {
+                        if (node.closest(".table-wrap, .detail-table-wrap")) return false;
+                        const rect = node.getBoundingClientRect();
+                        return rect.width > 0 && (rect.left < -4 || rect.right > window.innerWidth + 4);
+                      }).map((node) => (node.textContent || node.id || "").trim()).filter(Boolean).slice(0, 6);
+                      panels.push({ tab, badWraps, badActionButtons });
+                    }
+                    return { width: window.innerWidth, panels };
+                  })()
+                `,
+                returnByValue: true,
+              });
+              if (responsive.exceptionDetails) {
+                const detail = responsive.exceptionDetails.exception?.description
+                  || responsive.exceptionDetails.exception?.value
+                  || responsive.exceptionDetails.text
+                  || "responsive evaluation failed";
+                throw new Error(detail);
+              }
+              const value = responsive.result?.value || {};
+              const failures = (value.panels || []).filter((panel) => (panel.badWraps || []).length || (panel.badActionButtons || []).length);
+              if (failures.length) {
+                throw new Error(`Diagnostics responsive assertion failed at ${width}px: ${JSON.stringify(failures)}`);
+              }
+              responsiveChecks.push(value);
+            }
+            resultValue.responsiveChecks = responsiveChecks;
             await sleep(750);
             const errorEvents = client.consoleEvents.filter((entry) => entry.startsWith("error:") || entry.startsWith("warning:"));
             if (client.exceptions.length || errorEvents.length) {
               throw new Error(`Browser console/exception noise: ${client.exceptions.concat(errorEvents).join("; ")}`);
             }
-            console.log(JSON.stringify({ ok: true, result: result.result?.value || {} }));
+            console.log(JSON.stringify({ ok: true, result: resultValue }));
           } finally {
             if (client) client.close();
             await terminateBrowser(browser);
@@ -821,6 +1209,62 @@ def _install_runtime_diagnostics_fixture(root: Path, resolved: object, service: 
     ]
 
 
+def _assert_diagnostics_hardening_checks(testcase: unittest.TestCase, browser_result: dict[str, object]) -> None:
+    checks = browser_result["hardeningChecks"]
+    assert isinstance(checks, dict)
+    grouped = checks["groupedAccess"]
+    command = checks["commandEvidence"]
+    duplicates = checks["duplicateSuppression"]
+    stale = checks["staleRefresh"]
+    tdarr = checks["tdarr"]
+    assert isinstance(grouped, dict)
+    assert isinstance(command, dict)
+    assert isinstance(duplicates, dict)
+    assert isinstance(stale, dict)
+    assert isinstance(tdarr, dict)
+
+    testcase.assertTrue(grouped["groupsPresent"])
+    testcase.assertTrue(grouped["readBeforeOpen"])
+    testcase.assertTrue(command["commandDetailBeforeRaw"])
+    testcase.assertTrue(command["contractRoutePresenceBoundary"])
+    testcase.assertIn("already in progress", duplicates["tail"])
+    testcase.assertIn("already in progress", duplicates["open"])
+    testcase.assertEqual(stale["diagnostics"]["state"], "warning")
+    testcase.assertEqual(stale["state"]["state"], "warning")
+    testcase.assertEqual(stale["commands"]["state"], "warning")
+    testcase.assertEqual(stale["contract"]["state"], "warning")
+
+    log_states = checks["logStates"]
+    tail_states = checks["tailStates"]
+    assert isinstance(log_states, list)
+    assert isinstance(tail_states, list)
+    testcase.assertEqual([item["label"] for item in log_states], ["loaded", "empty", "missing", "unavailable", "truncated", "read-error"])
+    testcase.assertEqual([item["label"] for item in tail_states], ["loaded", "empty", "missing", "unavailable", "truncated", "read-error"])
+    testcase.assertEqual(log_states[-1]["pipeline"]["state"], "blocked")
+    testcase.assertEqual(tail_states[-1]["fileLog"]["state"], "blocked")
+
+    testcase.assertTrue(tdarr["initial"]["proof"]["disabled"])
+    testcase.assertTrue(tdarr["initial"]["cleanupArchive"]["disabled"])
+    testcase.assertTrue(tdarr["initial"]["delete"]["disabled"])
+    testcase.assertEqual(tdarr["initial"]["strict"]["severity"], "warning")
+    testcase.assertFalse(tdarr["afterLatest"]["proof"]["disabled"])
+    testcase.assertFalse(tdarr["afterLatest"]["strict"]["disabled"])
+    testcase.assertFalse(tdarr["afterLatest"]["cleanupPlan"]["disabled"])
+    testcase.assertTrue(tdarr["afterLatest"]["cleanupArchive"]["disabled"])
+    testcase.assertFalse(tdarr["afterCleanupPlan"]["cleanupArchive"]["disabled"])
+    testcase.assertTrue(tdarr["afterArchive"]["deleteBeforeText"]["disabled"])
+    testcase.assertTrue(tdarr["afterWrongText"]["delete"]["disabled"])
+    testcase.assertFalse(tdarr["afterTypedText"]["delete"]["disabled"])
+    testcase.assertIn("cancelled before any backend request", tdarr["cancelledDelete"])
+    testcase.assertIn("Backend rejected fixture delete.", tdarr["backendRejectedDelete"]["detail"])
+    testcase.assertIn("cleanup-delete", tdarr["backendRejectedDelete"]["posts"])
+
+    responsive = browser_result["responsiveChecks"]
+    assert isinstance(responsive, list)
+    testcase.assertEqual(len(responsive), 3)
+    testcase.assertEqual(len(responsive[0]["panels"]), 5)
+
+
 class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
     def test_real_browser_clicks_read_only_diagnostics_handoffs_for_backend_risk_rows(self) -> None:
         browser_path = _find_browser()
@@ -885,6 +1329,9 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         self.assertTrue(result["ok"])
         browser_result = result["result"]
         self.assertIn("Loaded", browser_result["tailStatus"])
+        self.assertEqual(browser_result["tailStatusState"], "ready")
+        self.assertIn("Tail loaded", browser_result["stateTriageTailInlineStatus"])
+        self.assertIn("Opened", browser_result["stateTriageOpenInlineStatus"])
         self.assertIn("Tail posture (backend): blocked", browser_result["tailEvidence"])
         self.assertIn("Evidence authority: backend", browser_result["tailEvidence"])
         self.assertIn("Diagnostics tail evidence is read-only", browser_result["tailEvidence"])
@@ -909,10 +1356,12 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         self.assertIn("Owner page: Pending Publish", browser_result["ownerHandoffDetail"])
         self.assertIn("Opened Pending Publish", browser_result["ownerHandoffNavStatus"])
         self.assertIn("No backend command was sent", browser_result["ownerHandoffNavStatus"])
+        self.assertIn("Diagnostics handoff selected this row locally", browser_result["pendingDiagnosticsStatus"])
         self.assertIn("Contract safety review:", browser_result["contractSafetySummary"])
         self.assertIn("Mutation guardrail: this panel is read-only", browser_result["contractSafetySummary"])
         self.assertIn("Mutation boundary:", browser_result["contractSafetyDetail"])
         self.assertIn("Frontend code stages intent and displays results only", browser_result["contractSafetyDetail"])
+        _assert_diagnostics_hardening_checks(self, browser_result)
 
     def test_real_browser_clicks_table_rows_before_read_only_diagnostics_handoffs(self) -> None:
         browser_path = _find_browser()
@@ -976,6 +1425,9 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         browser_result = result["result"]
         self.assertTrue(browser_result["tableClickRows"])
         self.assertIn("Tail posture (backend): blocked", browser_result["tailEvidence"])
+        self.assertEqual(browser_result["tailStatusState"], "ready")
+        self.assertIn("Tail loaded", browser_result["stateTriageTailInlineStatus"])
+        self.assertIn("Opened", browser_result["stateTriageOpenInlineStatus"])
         self.assertIn("Evidence authority: backend", browser_result["tailEvidence"])
         self.assertIn("Row state: blocked", browser_result["queueDetail"])
         self.assertIn("tv_parse_unreliable", browser_result["queueDetail"])
@@ -1005,13 +1457,11 @@ class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):
         self.assertIn("Owner page: Pending Publish", browser_result["ownerHandoffDetail"])
         self.assertIn("Opened Pending Publish", browser_result["ownerHandoffNavStatus"])
         self.assertIn("No backend command was sent", browser_result["ownerHandoffNavStatus"])
+        self.assertIn("Diagnostics handoff selected this row locally", browser_result["pendingDiagnosticsStatus"])
         self.assertIn("Contract safety review:", browser_result["contractSafetySummary"])
         self.assertIn("Mutation boundary:", browser_result["contractSafetyDetail"])
+        _assert_diagnostics_hardening_checks(self, browser_result)
 
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

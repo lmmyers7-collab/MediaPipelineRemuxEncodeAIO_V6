@@ -174,6 +174,7 @@ def _rename_readiness_runner_source() -> str:
           }
         }
 
+        (async () => {
         context.getSelectedQueueRow = () => ({
           source_path: "C:/Queue/Selected Rename Source.mkv",
           display_name: "Selected Rename Source.mkv",
@@ -224,12 +225,42 @@ def _rename_readiness_runner_source() -> str:
         context.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
         context.selectRenameRow(first);
         context.renderRenameApplyReadiness();
-        requireContains("batch safety unchecked scope", text("rename-batch-safety"), ["Apply scope", "if none are checked", "all applicable safe preview rows"]);
+        if (context.document.getElementById("rename-log-bad-case-button").disabled) {
+          throw new Error("bad rename case log button did not enable after selecting a preview row");
+        }
+        const logPayload = context.mediaPipelineRenameView.renameBadCasePayloadFromRow(first);
+        if (logPayload.source_folder !== "Season 02") throw new Error("bad case source_folder was not derived from selected source path: " + JSON.stringify(logPayload));
+        if (logPayload.source_file !== "Serial Experiments Lain E01 Weird.mkv") throw new Error("bad case source_file was not derived from selected source path: " + JSON.stringify(logPayload));
+        if (logPayload.expected_name !== "Serial Experiments Lain - S02E01 - Weird.mkv") throw new Error("bad case expected_name did not use current final name: " + JSON.stringify(logPayload));
+        if (logPayload.confirm_append !== true) throw new Error("bad case payload omitted confirm_append=true: " + JSON.stringify(logPayload));
+        context.mediaPipelineRenameView.openRenameBadCaseDialog();
+        setValue("rename-log-case-expected-name", "Serial Experiments Lain - S02E01 - Weird Fixed.mkv");
+        setValue("rename-log-case-status-select", "pending");
+        const badCasePosts = [];
+        const originalApiPost = context.apiPost;
+        context.apiPost = async (url, body) => {
+          badCasePosts.push({ url: String(url || ""), body: JSON.parse(JSON.stringify(body || {})) });
+          return { ok: true, command: "rename.filter_case.append", message: "logged", data: { case_id: "serial-experiments-lain-e01", status: "pending" } };
+        };
+        await context.mediaPipelineRenameView.submitRenameBadCaseDialog();
+        context.apiPost = originalApiPost;
+        const badCasePost = badCasePosts.find((entry) => entry.url === "/api/rename/filter-cases");
+        if (!badCasePost) throw new Error("bad rename case logging did not post /api/rename/filter-cases");
+        if (badCasePost.body.confirm_append !== true) throw new Error("bad rename case post omitted confirm_append=true: " + JSON.stringify(badCasePost.body));
+        if (badCasePost.body.expected_name !== "Serial Experiments Lain - S02E01 - Weird Fixed.mkv") throw new Error("bad rename case post did not use edited expected name: " + JSON.stringify(badCasePost.body));
+        requireContains("bad case visible result", text("rename-log-case-message"), ["logged", "no filesystem rename"]);
+        const logDialog = context.document.getElementById("rename-log-case-dialog");
+        if (logDialog && logDialog.open) logDialog.close("done");
+        requireContains("batch safety unchecked scope", text("rename-batch-safety"), ["Apply scope", "checked rows are required", "selected_sources"]);
         requireNotContains("batch safety unchecked scope", text("rename-batch-safety"), ["selected detail row"]);
+        requireContains("no checked readiness", text("rename-apply-readiness-status"), ["Blocked"]);
+        requireContains("unchecked apply button", text("rename-apply-button"), ["Check rows before apply"]);
+        requireContains("unchecked apply hint", text("rename-apply-status-hint"), ["No rows checked", "Check Applicable"]);
+        context.checkApplicableRenameRows();
         requireContains("ready status", text("rename-apply-readiness-status"), ["Ready"]);
-        requireContains("ready cells", readinessCellText(), ["Apply scope", "all applicable preview rows", "Mutation boundary", "/api/rename/apply"]);
-        requireContains("all safe apply button", text("rename-apply-button"), ["Apply all 1 safe rename"]);
-        requireContains("all safe apply hint", text("rename-apply-status-hint"), ["No rows checked", "all safe rows"]);
+        requireContains("ready cells", readinessCellText(), ["Apply scope", "checked rows", "Mutation boundary", "/api/rename/apply"]);
+        requireContains("checked apply button", text("rename-apply-button"), ["Apply 1 checked rename"]);
+        requireContains("checked apply hint", text("rename-apply-status-hint"), ["Checked 1 ready/match row", "skipped 0"]);
         setValue("rename-show", "Serial Experiments Lain Changed");
         context.syncRenameCommandButtons();
         requireContains("stale apply button", text("rename-apply-button"), ["Preview out of date"]);
@@ -293,10 +324,11 @@ def _rename_readiness_runner_source() -> str:
         context.renderRenamePreview({ rows: [duplicateA, duplicateB], counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
         context.checkApplicableRenameRows();
         context.renderRenameApplyReadiness();
+        requireContains("duplicate checked count", text("rename-selected-count"), ["0 checked"]);
         requireContains("duplicate status", text("rename-apply-readiness-status"), ["Blocked"]);
         requireContains("duplicate cells", readinessCellText(), ["Duplicate destinations", "duplicate target", "selected_sources"]);
         context.applySelectedRename();
-        requireContains("duplicate apply detail", text("rename-detail"), ["blocked by apply readiness", "duplicate destination target"]);
+        requireContains("duplicate apply detail", text("rename-detail"), ["No rows checked", "duplicate"]);
         if (context.__renameApplyPosts.some((url) => url === "/api/rename/apply")) {
           throw new Error("duplicate-target apply readiness blocker still posted to /api/rename/apply");
         }
@@ -305,6 +337,10 @@ def _rename_readiness_runner_source() -> str:
           throw new Error(`console errors were recorded: ${errors.join("; ")}`);
         }
         console.log(JSON.stringify({ ok: true, status: text("rename-apply-readiness-status") }));
+        })().catch((error) => {
+          console.error(error && error.stack ? error.stack : String(error));
+          process.exitCode = 1;
+        });
         """
     )
 

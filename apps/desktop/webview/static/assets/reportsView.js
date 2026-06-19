@@ -16,9 +16,27 @@
   let activeFailureFilterChip = "all";
   let activeAuditFilterChip = "all";
   let reportAuditStartBusy = false;
+  let reportAuditCommandBusy = "";
+  let failureClearBusy = false;
   let reportsTabNavInitialized = false;
   let reportsViewEventsInitialized = false;
   const REPORTS_TAB_STORAGE_KEY = "mediapipeline-reports-tab";
+  const REPORTS_ROW_RENDER_LIMIT = 250;
+  const failureClearButtonIds = [
+    "failure-preview-selected-clear-button",
+    "failure-clear-selected-button",
+    "failure-preview-visible-clear-button",
+    "failure-clear-visible-button",
+    "failure-preview-all-clear-button",
+    "failure-clear-all-button",
+  ];
+  const reportAuditCommandButtonIds = [
+    "report-audit-start-button",
+    "report-audit-score-policy-save-button",
+    "report-audit-score-policy-reset-button",
+    "report-audit-ignore-selected-button",
+    "report-audit-export-rerun-csv-button",
+  ];
   const reportAuditScoreFieldIds = {
     redownload_bucket: "report-audit-score-redownload-bucket",
     high_issue: "report-audit-score-high-issue",
@@ -35,6 +53,64 @@
     return ["failures", "audit", "files"];
   }
 
+  function rowKeySet(rows, keyFn) {
+    return new Set((Array.isArray(rows) ? rows : []).map((row) => keyFn(row)).filter(Boolean));
+  }
+
+  function hiddenSelectedCount(selectedKeys, visibleRows, keyFn) {
+    const visibleKeys = rowKeySet(visibleRows, keyFn);
+    return Array.from(selectedKeys || []).filter((key) => key && !visibleKeys.has(key)).length;
+  }
+
+  function reportTableStatusText(visibleCount, totalCount, selectedCount = 0, hiddenCount = 0) {
+    const parts = [`${visibleCount} / ${totalCount} row${totalCount === 1 ? "" : "s"}`];
+    if (selectedCount) parts.push(`${selectedCount} selected`);
+    if (hiddenCount) parts.push(`${hiddenCount} selected hidden by filter`);
+    if (visibleCount > REPORTS_ROW_RENDER_LIMIT) {
+      parts.push(`showing first ${REPORTS_ROW_RENDER_LIMIT} of ${visibleCount}`);
+    }
+    return parts.join(", ");
+  }
+
+  function reportRenderedRows(rows) {
+    return (Array.isArray(rows) ? rows : []).slice(0, REPORTS_ROW_RENDER_LIMIT);
+  }
+
+  function reportRenderedRowsNote(rows, label) {
+    const count = Array.isArray(rows) ? rows.length : 0;
+    return count > REPORTS_ROW_RENDER_LIMIT
+      ? `Only the first ${REPORTS_ROW_RENDER_LIMIT} ${label} are rendered; this action still applies to all ${count} filtered-visible rows.`
+      : "";
+  }
+
+  function setButtonsBusy(ids, busy, activeId = "") {
+    ids.forEach((id) => {
+      const button = byId(id);
+      if (!button) return;
+      button.disabled = Boolean(busy);
+      button.setAttribute("aria-busy", String(Boolean(busy && (!activeId || activeId === id))));
+    });
+  }
+
+  function setFailureClearBusy(busy, activeId = "") {
+    failureClearBusy = Boolean(busy);
+    setButtonsBusy(failureClearButtonIds, failureClearBusy, activeId);
+  }
+
+  function setReportAuditCommandBusy(command, activeId = "") {
+    reportAuditCommandBusy = command || "";
+    setButtonsBusy(reportAuditCommandButtonIds, Boolean(reportAuditCommandBusy), activeId);
+  }
+
+  function reportAuditBusyResult(command) {
+    return {
+      command,
+      ok: false,
+      severity: "warning",
+      message: `Another Reports audit command is already in progress: ${reportAuditCommandBusy}.`,
+    };
+  }
+
   function activateReportsTab(tabId) {
     const page = document.querySelector('[data-page-panel="reports"]');
     if (!page) return;
@@ -44,9 +120,12 @@
     buttons.forEach((button) => {
       const active = button.dataset.reportsTab === selected;
       button.setAttribute("aria-selected", String(active));
+      button.classList.toggle("is-active", active);
     });
     panels.forEach((panel) => {
-      panel.classList.toggle("is-active", panel.dataset.reportsTabPanel === selected);
+      const active = panel.dataset.reportsTabPanel === selected;
+      panel.classList.toggle("is-active", active);
+      panel.hidden = !active;
     });
     try { localStorage.setItem(REPORTS_TAB_STORAGE_KEY, selected); } catch (_) {}
     if (typeof window.mediaPipelineAppLifecycle?.syncTabAccessibility === "function") window.mediaPipelineAppLifecycle.syncTabAccessibility();
@@ -249,7 +328,7 @@
         button.className = "secondary-button";
         button.textContent = "Open";
         button.dataset.openDiagnostics = target;
-        button.addEventListener("click", () => requestDiagnosticsOpen(target));
+        button.addEventListener("click", () => requestDiagnosticsOpen(target, button));
         action.appendChild(button);
       }
       row.appendChild(action);
@@ -560,7 +639,10 @@
   function failureSeverity(item) {
     const triage = failureTriage(item);
     const severity = String(triage.severity || "").toLowerCase();
-    if (severity) return severity;
+    if (["blocked", "error", "failed", "critical", "danger", "fatal"].includes(severity)) return "error";
+    if (["warning", "warn", "retrying", "review", "stale"].includes(severity)) return "warning";
+    if (["ok", "ready", "match", "completed"].includes(severity)) return "match";
+    if (severity) return "unknown";
     const retryState = failureRetryStateForRow(item);
     if (retryState?.status_state === "blocked") return "blocked";
     if (retryState?.retry_allowed || item?.reason || item?.error_code) return "warning";
@@ -809,6 +891,35 @@
     actions.push({ kind, target, label, reason });
   }
 
+  function reportOwnerPage(owner) {
+    const text = String(owner || "").toLowerCase();
+    if (!text || text === "no action") return null;
+    if (text.includes("pending publish")) return { page: "pending", label: "Pending Publish" };
+    if (text.includes("queue")) return { page: "queue", label: "Queue" };
+    if (text.includes("settings")) return { page: "settings", label: "Settings" };
+    if (text.includes("completed")) return { page: "completed", label: "Completed" };
+    if (text.includes("launch") || text.includes("rerun")) return { page: "launch", label: "Launch" };
+    if (text.includes("diagnostics") || text.includes("manual")) return { page: "diagnostics", label: "Diagnostics" };
+    if (text.includes("reports")) return { page: "reports", label: "Reports" };
+    return null;
+  }
+
+  function appendReportOwnerNavigationButton(container, owner) {
+    const target = reportOwnerPage(owner);
+    if (!container || !target) return;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "secondary-button";
+    button.textContent = `Go to ${target.label}`;
+    button.title = `Navigate locally to ${target.label}; Reports does not perform the owner action.`;
+    button.dataset.reportOwnerNavigate = target.page;
+    button.addEventListener("click", (event) => {
+      event.stopPropagation();
+      if (typeof window.showPage === "function") window.showPage(target.page);
+    });
+    container.appendChild(button);
+  }
+
   function failureDiagnosticsActionsForRow(item) {
     const actions = [];
     reportAddDiagnosticsAction(actions, "tail", "latest_failure_report", "Read Latest Failure", "Read the backend failure report before rerun or cleanup decisions.");
@@ -854,6 +965,15 @@
       "retry_safe_next_action",
     ]);
     return textRows.filter((row) => failureMatchesChip(row, activeFailureFilterChip));
+  }
+
+  function hiddenSelectedFailureCount(rows = visibleFailureRows()) {
+    return hiddenSelectedCount(selectedFailureRowKeys, rows, failureRowKey);
+  }
+
+  function hiddenFailureSelectionMessage(actionLabel = "selected marker cleanup") {
+    const count = hiddenSelectedFailureCount();
+    return `${count} selected failure row${count === 1 ? " is" : "s are"} hidden by the active filter/search. Return to All and clear search, or deselect hidden rows before ${actionLabel}.`;
   }
 
   function failureMarkerPath(item) {
@@ -956,18 +1076,32 @@
   function failureClearRequest(scope, dryRun) {
     const clearAll = scope === "all" || scope === "all_markers";
     const apiScope = scope === "all" ? "all_markers" : scope;
+    const visibleRows = visibleFailureRows();
+    if (!clearAll && scope === "selected" && hiddenSelectedFailureCount(visibleRows)) {
+      return { error: hiddenFailureSelectionMessage(dryRun ? "previewing selected markers" : "clearing selected markers") };
+    }
     const markerPaths = clearAll ? [] : scope === "visible" ? visibleFailureMarkerPaths() : selectedFailureMarkerPaths();
     if (clearAll) {
       const markerCount = reportNumber(lastFailurePreviewPayload.count || lastFailureRows.length);
-      if (!markerCount && !lastFailureRows.length) {
-        return { error: "No marker rows are loaded." };
-      }
       return { scope: "all_markers", marker_paths: [], dry_run: dryRun, confirm_clear: !dryRun, all_markers: true, marker_count: markerCount };
+    }
+    if (scope === "visible" && visibleRows.length > REPORTS_ROW_RENDER_LIMIT) {
+      setText("failure-clear-summary", reportRenderedRowsNote(visibleRows, "failure rows"));
     }
     if (!markerPaths.length) {
       return { error: clearAll ? "No marker rows are loaded." : scope === "visible" ? "No visible marker rows are loaded." : "Select one or more failure marker rows first." };
     }
-    return { scope: apiScope, marker_paths: markerPaths, dry_run: dryRun, confirm_clear: !dryRun, all_markers: false, marker_count: markerPaths.length };
+    return {
+      scope: apiScope,
+      marker_paths: markerPaths,
+      dry_run: dryRun,
+      confirm_clear: !dryRun,
+      all_markers: false,
+      marker_count: markerPaths.length,
+      visible_count: visibleRows.length,
+      rendered_count: Math.min(visibleRows.length, REPORTS_ROW_RENDER_LIMIT),
+      capped_visible_scope: scope === "visible" && visibleRows.length > REPORTS_ROW_RENDER_LIMIT,
+    };
   }
 
   function renderFailureClearResult(result) {
@@ -979,6 +1113,7 @@
       `Command accepted: ${result?.ok ? "yes" : "no"}`,
       `Dry run: ${data.dry_run ? "yes" : "no"}`,
       `Scope: ${data.scope || ""}`,
+      data.scope === "all_markers" ? "Scope note: all backend failure markers; backend enumerates marker paths." : "",
       `Planned marker clears: ${planned.length}`,
       `Moved markers: ${data.markers || 0}`,
       `Writes active marker folder: ${data.writes_failure_markers ? "yes" : "no"}`,
@@ -1005,26 +1140,36 @@
   }
 
   async function requestFailureMarkerClear(scope, dryRun) {
+    if (failureClearBusy) {
+      setText("failure-clear-status", "Busy");
+      setText("failure-clear-summary", "Another Reports marker cleanup command is already in progress.");
+      return;
+    }
     const request = failureClearRequest(scope, dryRun);
     if (request.error) {
       setText("failure-clear-status", "Blocked");
       setText("failure-clear-summary", request.error);
       return;
     }
-    if (!dryRun) {
-      const count = request.all_markers
-        ? reportNumber(request.marker_count)
-        : Array.isArray(request.marker_paths) ? request.marker_paths.length : 0;
-      const targetText = request.all_markers
-        ? "all backend failure markers"
-        : `${count} failure error${count === 1 ? "" : "s"}`;
-      const message = request.all_markers
-        ? `Clear ${targetText}?\n\nThis moves marker JSON out of the active marker folder so the pipeline can retry those source files. It does not delete media files, logs, reports, manifests, source files, or output files.`
-        : "Clear this error?\n\nThis moves the active failure marker out of the blocking folder so the file can be retried later. It does not delete media files, logs, reports, manifests, source files, or output files.";
+    if (!dryRun && !request.all_markers) {
+      const count = Array.isArray(request.marker_paths) ? request.marker_paths.length : 0;
+      const targetText = `${count} failure error${count === 1 ? "" : "s"}`;
+      const cappedNote = request.capped_visible_scope
+        ? `\n\n${reportRenderedRowsNote(visibleFailureRows(), "failure rows")}`
+        : "";
+      const message = `Clear ${targetText}?\n\nThis moves the active failure marker JSON out of the blocking folder so the file can be retried later. It does not delete media files, logs, reports, manifests, source files, or output files.${cappedNote}`;
       if (!window.confirm(message)) return;
     }
+    const activeButtonId = scope === "selected"
+      ? dryRun ? "failure-preview-selected-clear-button" : "failure-clear-selected-button"
+      : scope === "visible"
+        ? dryRun ? "failure-preview-visible-clear-button" : "failure-clear-visible-button"
+        : dryRun ? "failure-preview-all-clear-button" : "failure-clear-all-button";
+    setFailureClearBusy(true, activeButtonId);
     setText("failure-clear-status", dryRun ? "Previewing..." : "Clearing...");
-    setText("failure-clear-summary", dryRun ? "Previewing backend marker clear. No marker files will move." : "Clearing backend marker files after confirmation.");
+    setText("failure-clear-summary", dryRun
+      ? `Previewing backend marker clear. No marker files will move.${request.capped_visible_scope ? `\n${reportRenderedRowsNote(visibleFailureRows(), "failure rows")}` : ""}`
+      : request.all_markers ? "Clearing all backend marker files." : "Clearing backend marker files after confirmation.");
     try {
       const payload = {
         scope: request.scope,
@@ -1059,6 +1204,8 @@
       };
       if (typeof appendCommandResult === "function") appendCommandResult(result);
       renderFailureClearResult(result);
+    } finally {
+      setFailureClearBusy(false);
     }
   }
 
@@ -1113,6 +1260,30 @@
     if (selected === "high") return priority === "HIGH" || Number(item?.priority_score || 0) >= 80;
     if (selected === "duplicates") return text.includes("duplicate") || Boolean(item?.duplicate_group || item?.duplicate_group_key || item?.duplicate_group_size);
     return text.includes(selected);
+  }
+
+  function visibleAuditRows() {
+    const filterText = byId("audit-preview-filter")?.value || "";
+    return filterRows(lastAuditRows, filterText, [
+      "path",
+      "relative_path",
+      "lookup_title",
+      "media_type",
+      "effective_bucket",
+      "priority_fix_level",
+      "primary_issue_code",
+      "primary_suggested_action",
+      "issue_messages",
+    ]).filter((row) => auditMatchesChip(row, activeAuditFilterChip));
+  }
+
+  function hiddenSelectedAuditCount(rows = visibleAuditRows()) {
+    return hiddenSelectedCount(selectedAuditRowKeys, rows, auditRowKey);
+  }
+
+  function hiddenAuditSelectionMessage(actionLabel = "audit selected action") {
+    const count = hiddenSelectedAuditCount();
+    return `${count} selected audit row${count === 1 ? " is" : "s are"} hidden by the active filter/search. Return to All and clear search, or deselect hidden rows before ${actionLabel}.`;
   }
 
   function auditDiagnosticsActionsForRow(item) {
@@ -1236,12 +1407,14 @@
     ];
     setText("failure-detail", detail.join("\n"));
     renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForRow(item), "Reports failure selected row");
+    appendReportOwnerNavigationButton(byId("failure-diagnostics-actions"), failureActionOwner(item));
   }
 
   function renderFailureRows() {
     setReportChipPressed("[data-failure-filter-chip]", activeFailureFilterChip);
     const rows = visibleFailureRows();
-    setText("failure-status", `${rows.length} / ${lastFailureRows.length} row${lastFailureRows.length === 1 ? "" : "s"}`);
+    const hiddenCount = hiddenSelectedFailureCount(rows);
+    setText("failure-status", reportTableStatusText(rows.length, lastFailureRows.length, selectedFailureRowKeys.size, hiddenCount));
     const tbody = byId("failure-rows");
     if (!rows.length) {
       clearRows(tbody, 7, lastFailureRows.length ? "No failure rows match the filter." : lastFailureEmptyMessage);
@@ -1249,9 +1422,10 @@
       return;
     }
     tbody.replaceChildren();
-    rows.slice(0, 250).forEach((item) => {
+    reportRenderedRows(rows).forEach((item) => {
       const row = document.createElement("tr");
-      row.dataset.status = failureSeverity(item);
+      const severity = failureSeverity(item);
+      row.dataset.status = severity;
       const key = failureRowKey(item);
       row.dataset.rowKey = key;
       const selectCell = document.createElement("td");
@@ -1263,8 +1437,14 @@
       checkbox.addEventListener("change", () => toggleFailureRowSelection(item, checkbox.checked));
       selectCell.appendChild(checkbox);
       row.appendChild(selectCell);
+      const statusCell = document.createElement("td");
+      if (typeof setCellStatusChip === "function") {
+        setCellStatusChip(statusCell, failureStatusLabel(item), severity);
+      } else {
+        statusCell.textContent = failureStatusLabel(item);
+      }
+      row.appendChild(statusCell);
       appendCells(row, [
-        failureStatusLabel(item),
         failureFileText(item),
         failureTableEvidenceText(item),
         failureSuggestedActionText(item),
@@ -1282,6 +1462,7 @@
         selectFailureRow(item);
       });
       actions.appendChild(detailsButton);
+      appendReportOwnerNavigationButton(actions, failureActionOwner(item));
       const markerPaths = failureClearMarkerPathsForRow(item);
       const clearAvailable = markerPaths.length > 0;
       const clearButton = document.createElement("button");
@@ -2055,7 +2236,8 @@
       `Library root: ${request.library_root || "(backend configured Outsource fallback)"}`,
       `Include sidecars: ${request.include_sidecars ? "yes" : "no"}`,
       `Show console: ${request.show_console ? "yes" : "no"}`,
-      "Boundary: Reports submits /api/audit/start only. Backend launch locking, config identity, duplicate-audit detection, and audit/pipeline concurrency policy remain authoritative.",
+      "Readiness preview: informational only; this is not a backend dry-run.",
+      "Boundary: Reports submits /api/audit/start only after confirmation. Backend launch locking, config identity, duplicate-audit detection, and audit/pipeline concurrency policy remain authoritative.",
       "Concurrency: an active backend pipeline does not by itself block audit start; an active audit or CSV rerun still blocks this request.",
     ];
     return lines;
@@ -2126,13 +2308,8 @@
   }
 
   async function startReportAuditFromForm() {
-    if (reportAuditStartBusy) {
-      const result = {
-        command: "audit.start",
-        ok: false,
-        severity: "warning",
-        message: "Another Reports audit start command is already in progress.",
-      };
+    if (reportAuditStartBusy || reportAuditCommandBusy) {
+      const result = reportAuditBusyResult("audit.start");
       appendReportAuditCommandResult(result);
       setText("report-audit-launch-status", "Busy");
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result));
@@ -2153,6 +2330,7 @@
       return;
     }
     reportAuditStartBusy = true;
+    setReportAuditCommandBusy("audit.start", "report-audit-start-button");
     setText("report-audit-launch-status", "Starting...");
     setText("report-audit-launch-detail", formatReportAuditCommandDetail({
       command: "audit.start",
@@ -2176,13 +2354,22 @@
       setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
     } finally {
       reportAuditStartBusy = false;
+      setReportAuditCommandBusy("");
     }
   }
 
   async function saveReportAuditScorePolicy(reset = false) {
+    if (reportAuditCommandBusy) {
+      const result = reportAuditBusyResult("audit.score_policy");
+      appendReportAuditCommandResult(result);
+      setText("report-audit-score-policy-status", "Busy");
+      setText("report-audit-score-policy-detail", formatReportAuditCommandDetail(result));
+      return;
+    }
     const request = reset ? { reset: true } : { policy: collectReportAuditScorePolicyForm() };
     const message = reset ? "Reset audit score policy to defaults?" : "Save audit score policy for future audit runs?";
     if (!window.confirm(message)) return;
+    setReportAuditCommandBusy("audit.score_policy", reset ? "report-audit-score-policy-reset-button" : "report-audit-score-policy-save-button");
     setText("report-audit-score-policy-status", reset ? "Resetting..." : "Saving...");
     setText("report-audit-score-policy-detail", reset ? "Resetting audit score policy..." : "Saving audit score policy...");
     try {
@@ -2196,14 +2383,28 @@
       appendReportAuditCommandResult(result);
       setText("report-audit-score-policy-status", "Error");
       setText("report-audit-score-policy-detail", formatReportAuditCommandDetail(result, request));
+    } finally {
+      setReportAuditCommandBusy("");
     }
   }
 
   async function ignoreSelectedAuditRows() {
+    if (reportAuditCommandBusy) {
+      const result = reportAuditBusyResult("audit.ignore");
+      appendReportAuditCommandResult(result);
+      setText("report-audit-export-status", "Busy");
+      setText("report-audit-export-detail", formatReportAuditCommandDetail(result));
+      return;
+    }
     const rowKeys = selectedAuditRowKeysList();
     if (!rowKeys.length) {
       setText("report-audit-export-status", "Select rows");
       setText("report-audit-export-detail", "Select one or more audit rows before setting audit ignore.");
+      return;
+    }
+    if (hiddenSelectedAuditCount()) {
+      setText("report-audit-export-status", "Blocked");
+      setText("report-audit-export-detail", hiddenAuditSelectionMessage("ignoring selected rows"));
       return;
     }
     if (!window.confirm(`Ignore ${rowKeys.length} selected audit row(s) from audit triage/export?`)) return;
@@ -2212,6 +2413,7 @@
       action: "add",
       reason: "Ignored from audit triage by operator.",
     };
+    setReportAuditCommandBusy("audit.ignore", "report-audit-ignore-selected-button");
     setText("report-audit-export-status", "Ignoring...");
     setText("report-audit-export-detail", "Saving audit ignore entries...");
     try {
@@ -2228,13 +2430,30 @@
       appendReportAuditCommandResult(result);
       setText("report-audit-export-status", "Error");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
+    } finally {
+      setReportAuditCommandBusy("");
     }
   }
 
   async function exportAuditRerunCsv() {
+    if (reportAuditCommandBusy) {
+      const result = reportAuditBusyResult("audit.export_rerun_csv");
+      appendReportAuditCommandResult(result);
+      setText("report-audit-export-status", "Busy");
+      setText("report-audit-export-detail", formatReportAuditCommandDetail(result));
+      return;
+    }
     const request = reportAuditSelectionRequest();
-    const scope = request.row_keys.length ? `${request.row_keys.length} selected row(s)` : "all loaded non-ignored rows";
+    if (request.row_keys.length && hiddenSelectedAuditCount()) {
+      setText("report-audit-export-status", "Blocked");
+      setText("report-audit-export-detail", hiddenAuditSelectionMessage("exporting selected rows"));
+      return;
+    }
+    const scope = request.row_keys.length
+      ? `${request.row_keys.length} selected row(s)`
+      : "all loaded non-ignored rows (current filter is display-only)";
     if (!window.confirm(`Export rerun CSV for ${scope}?`)) return;
+    setReportAuditCommandBusy("audit.export_rerun_csv", "report-audit-export-rerun-csv-button");
     setText("report-audit-export-status", "Exporting...");
     setText("report-audit-export-detail", "Exporting backend-owned rerun CSV...");
     try {
@@ -2249,6 +2468,8 @@
       appendReportAuditCommandResult(result);
       setText("report-audit-export-status", "Error");
       setText("report-audit-export-detail", formatReportAuditCommandDetail(result, request));
+    } finally {
+      setReportAuditCommandBusy("");
     }
   }
 
@@ -2396,25 +2617,18 @@
     ];
     setText("audit-preview-detail", detail.join("\n"));
     renderReportDiagnosticsActions("audit-preview-diagnostics-actions", auditDiagnosticsActionsForRow(item), "Reports audit selected row");
+    appendReportOwnerNavigationButton(byId("audit-preview-diagnostics-actions"), auditActionOwner(item));
   }
 
   function renderAuditRows() {
     setReportChipPressed("[data-audit-filter-chip]", activeAuditFilterChip);
-    const filterText = byId("audit-preview-filter")?.value || "";
-    const rows = filterRows(lastAuditRows, filterText, [
-      "path",
-      "relative_path",
-      "lookup_title",
-      "media_type",
-      "effective_bucket",
-      "priority_fix_level",
-      "primary_issue_code",
-      "primary_suggested_action",
-      "issue_messages",
-    ]).filter((row) => auditMatchesChip(row, activeAuditFilterChip));
+    const rows = visibleAuditRows();
     const selectedCount = selectedAuditRowKeys.size;
-    setText("audit-preview-status", `${rows.length} / ${lastAuditRows.length} row${lastAuditRows.length === 1 ? "" : "s"}${selectedCount ? `, ${selectedCount} selected` : ""}`);
-    setText("report-audit-export-status", selectedCount ? `${selectedCount} selected` : "All loaded");
+    const hiddenCount = hiddenSelectedAuditCount(rows);
+    setText("audit-preview-status", reportTableStatusText(rows.length, lastAuditRows.length, selectedCount, hiddenCount));
+    setText("report-audit-export-status", selectedCount
+      ? `${selectedCount} selected${hiddenCount ? `, ${hiddenCount} hidden by filter` : ""}`
+      : "All loaded (filter not applied)");
     const tbody = byId("audit-preview-rows");
     if (!rows.length) {
       clearRows(tbody, 8, lastAuditRows.length ? "No audit rows match the filter." : lastAuditEmptyMessage);
@@ -2422,7 +2636,7 @@
       return;
     }
     tbody.replaceChildren();
-    rows.slice(0, 250).forEach((item) => {
+    reportRenderedRows(rows).forEach((item) => {
       const row = document.createElement("tr");
       const bucket = String(item.effective_bucket || "").toUpperCase();
       const priority = String(item.priority_fix_level || "").toUpperCase();

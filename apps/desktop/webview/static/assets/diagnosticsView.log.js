@@ -249,12 +249,15 @@
       acc[severity] = (acc[severity] || 0) + 1;
       return acc;
     }, {});
-    setText(
-      "diagnostics-log-status",
-      readLastDiagnosticsLogRows().length
-        ? `${filteredRows.length} / ${readLastDiagnosticsLogRows().length} line${readLastDiagnosticsLogRows().length === 1 ? "" : "s"}; ${counts.error || 0} error; ${counts.warning || 0} warning`
-        : "No lines"
-    );
+    const statusText = readLastDiagnosticsLogRows().length
+      ? `${filteredRows.length} / ${readLastDiagnosticsLogRows().length} line${readLastDiagnosticsLogRows().length === 1 ? "" : "s"}; ${counts.error || 0} error; ${counts.warning || 0} warning`
+      : "No lines";
+    const statusState = counts.error ? "blocked" : counts.warning ? "warning" : readLastDiagnosticsLogRows().length ? "ready" : "empty";
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-log-status", statusText, statusState);
+    } else {
+      setText("diagnostics-log-status", statusText);
+    }
     renderDiagnosticsLogGuidance(filteredRows);
     const tbody = byId("diagnostics-log-rows");
     if (!tbody) return;

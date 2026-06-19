@@ -41,13 +41,18 @@
       ticker.title = text;
       ticker.dataset.state = "pending";
     }
-    setText("queue-filter-summary", [
+    setText("queue-open-status", "Scanning sources and curating queue snapshot...");
+    window.mediaPipelineQueueView?.renderQueueScanLoadingState?.();
+    const scanSummaryLines = [
       "Queue source scan requested.",
       "The backend builds a fast source inventory first, then curates authoritative queue rows through the queue-plan dry run.",
       "Mutation guardrail: filters, launch scope, queue state commands, source files, and processing commands remain backend-owned.",
-    ].join("\n"));
-    setText("queue-open-status", "Scanning sources and curating queue snapshot...");
-    window.mediaPipelineQueueView?.renderQueueScanLoadingState?.();
+    ];
+    if (typeof window.mediaPipelineQueueView?.setQueueFilterSummary === "function") {
+      window.mediaPipelineQueueView.setQueueFilterSummary(scanSummaryLines);
+    } else {
+      setText("queue-filter-summary", scanSummaryLines.join("\n"));
+    }
   }
 
   async function refreshCurrentOutputStatus() {
@@ -65,6 +70,7 @@
       const finalLibraryPromotion = attachRefreshMetadata("final library promotion", promotionRaw);
       scrollSnapshot = window.mediaPipelineDom?.captureScrollablePositions?.();
       renderCompleted(completed);
+      window.mediaPipelineCompletedView?.markPublishReconciliationStale?.("Current Output Status was refreshed after the last backend reconciliation snapshot.");
       window.mediaPipelineCompletedView?.renderFinalLibraryPromotion?.(finalLibraryPromotion);
       window.mediaPipelineAppHome?.renderHomePromotionEntry?.(finalLibraryPromotion);
       renderHomeRecentCompleted(completed || {});
@@ -93,7 +99,14 @@
       return String(value);
     }
   }
-  
+
+  function refreshButtons() {
+    return [
+      { button: byId("refresh-button"), label: "Refresh", busyLabel: "Refreshing..." },
+      { button: byId("home-refresh-button"), label: "Refresh Home", busyLabel: "Refreshing Home..." },
+    ].filter((entry) => entry.button);
+  }
+
     function renderRefreshInProgress(options = {}) {
     const node = byId("refresh-health");
     if (node) {
@@ -102,24 +115,23 @@
       node.setAttribute("aria-busy", "true");
       node.title = `Refresh started ${refreshTimeLabel(lastRefreshStartedAt)}. Previous completed refresh: ${refreshTimeLabel(lastRefreshCompletedAt)}.`;
     }
-    const button = byId("refresh-button");
-    if (button) {
+    refreshButtons().forEach(({ button, busyLabel }) => {
       button.disabled = true;
-      button.textContent = "Refreshing...";
+      button.textContent = busyLabel;
       button.setAttribute("aria-busy", "true");
       button.title = "Refreshing backend health, queue, completed, pending publish, diagnostics, settings, network, schedule, and contract state.";
-    }
+    });
     if (options && options.queueRefresh === true) setQueueRefreshButtonBusy(true);
   }
-  
+
     function renderRefreshHealth(failures, options = {}) {
     const node = byId("refresh-health");
-    const button = byId("refresh-button");
-    if (button) {
+    const buttons = refreshButtons();
+    buttons.forEach(({ button, label }) => {
       button.disabled = false;
-      button.textContent = "Refresh";
+      button.textContent = label;
       button.removeAttribute("aria-busy");
-    }
+    });
     const queueScanRunning = Boolean(window.mediaPipelineQueueView?.queueScanIsRunning?.());
     if (options && options.queueRefresh === true) {
       setQueueRefreshButtonBusy(queueScanRunning);
@@ -134,15 +146,15 @@
       node.textContent = "Refresh: ok";
       node.dataset.state = "ok";
       node.title = `All backend reads completed. ${timing}`;
-      if (button) button.title = `Refresh all WebView read-only state. ${timing}`;
+      buttons.forEach(({ button }) => { button.title = `Refresh all WebView read-only state. ${timing}`; });
       return;
     }
     node.textContent = `Refresh: ${items.length} issue${items.length === 1 ? "" : "s"}`;
     node.dataset.state = items.some((item) => item.required) ? "failed" : "warning";
     node.title = [...items.map((item) => `${item.name}: ${item.message}`), timing].join("\n");
-    if (button) button.title = `Refresh all WebView read-only state. Last result had ${items.length} issue${items.length === 1 ? "" : "s"}.`;
+    buttons.forEach(({ button }) => { button.title = `Refresh all WebView read-only state. Last result had ${items.length} issue${items.length === 1 ? "" : "s"}.`; });
   }
-  
+
     function attachRefreshMetadata(name, payload) {
     if (!payload || typeof payload !== "object") return payload;
     try {
@@ -160,7 +172,7 @@
     }
     return payload;
   }
-  
+
   function pageRefreshBusyLabel(button) {
     const page = String(button?.dataset?.pageRefreshButton || "").trim().toLowerCase();
     if (page === "diagnostics") return "Reading diagnostics...";
@@ -191,7 +203,7 @@
       }
     });
   }
-  
+
     function refreshFailure(name, result, required = false) {
     if (result.status === "fulfilled") return null;
     const reason = result.reason;

@@ -58,6 +58,43 @@ def _browser_completed_pending_proof_runner_source() -> str:
                 if (!actual.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actual);
               }
             }
+            let completedTabsInitialized = false;
+            function ensureCompletedTabsInitialized() {
+              if (completedTabsInitialized) return;
+              if (window.mediaPipelineAppLifecycle?.initCompletedTabNav) {
+                window.mediaPipelineAppLifecycle.initCompletedTabNav();
+              }
+              completedTabsInitialized = true;
+            }
+            function clickCompletedTab(tabId) {
+              ensureCompletedTabsInitialized();
+              const node = document.querySelector('.settings-tab-btn[data-completed-tab="' + tabId + '"]');
+              if (!node) throw new Error("missing Completed tab " + tabId);
+              node.click();
+              document.querySelectorAll(".settings-tab-btn[data-completed-tab]").forEach((button) => {
+                button.setAttribute("aria-selected", String(button.dataset.completedTab === tabId));
+              });
+              document.querySelectorAll(".settings-tab-pane[data-completed-tab]").forEach((pane) => {
+                pane.classList.toggle("is-active", pane.dataset.completedTab === tabId);
+              });
+            }
+            function requireDisplayState(id, expectedVisible) {
+              const node = byId(id);
+              if (!node) throw new Error("missing " + id);
+              const display = window.getComputedStyle(node).display;
+              const visible = display !== "none" && node.getClientRects().length > 0;
+              if (visible !== expectedVisible) {
+                throw new Error(id + " expected visible=" + expectedVisible + " but display was " + display + " and rect count was " + node.getClientRects().length);
+              }
+            }
+            function requireSelectedOutputHistoryPaneActive(expectedActive) {
+              const node = byId("completed-active-output-context");
+              if (!node) throw new Error("missing completed-active-output-context");
+              const pane = node.closest('.settings-tab-pane[data-completed-tab="history"]');
+              if (!pane) throw new Error("selected output context is not inside the History tab pane");
+              const active = pane.classList.contains("is-active");
+              if (active !== expectedActive) throw new Error("History pane active=" + active + ", expected " + expectedActive);
+            }
             [
               "renderCompleted",
               "renderPendingPublish",
@@ -86,6 +123,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPolicyOutputCategorySignal",
               "completedOutputPlacement",
               "renderCompletedTrustDecision",
+              "markPublishReconciliationStale",
+              "renderCompletedEvidenceCopyState",
               "pendingSampleValidationComparisonLines",
               "copyCompletedEvidencePacket"
             ].forEach(requireFunction);
@@ -242,6 +281,12 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "Post-run capture: Preview Record now includes a copyable",
               "Mutation guardrail: this comparison is read-only",
             ]);
+            clickCompletedTab("evidence");
+            requireSelectedOutputHistoryPaneActive(false);
+            requireDisplayState("completed-active-output-context", false);
+            clickCompletedTab("history");
+            requireSelectedOutputHistoryPaneActive(true);
+            clickCompletedTab("evidence");
             if (!document.getElementById("completed-copy-evidence-button")) throw new Error("expected Copy Evidence Packet button");
             let copiedEvidence = "";
             Object.defineProperty(navigator, "clipboard", {
@@ -256,6 +301,27 @@ def _browser_completed_pending_proof_runner_source() -> str:
                 "did not append evidence",
                 "touch media"
               ]);
+              return true;
+            }).then(() => {
+              Object.defineProperty(navigator, "clipboard", {
+                configurable: true,
+                value: { writeText: async () => { throw new Error("clipboard denied"); } }
+              });
+              return window.mediaPipelineCompletedView.copyCompletedEvidencePacket();
+            }).then((copied) => {
+              if (copied !== false) throw new Error("expected evidence packet copy failure");
+              requireText("completed-copy-evidence-status", ["Copy failed: clipboard denied"]);
+              const copyButton = byId("completed-copy-evidence-button");
+              if (!copyButton || copyButton.disabled) throw new Error("copy button should remain enabled while packet text exists after copy failure");
+              byId("completed-pilot-evidence-markdown").textContent = "No copyable pilot evidence packet loaded.";
+              window.mediaPipelineCompletedView.renderCompletedEvidenceCopyState();
+              if (!copyButton.disabled) throw new Error("copy button should disable when no evidence packet text exists");
+              return window.mediaPipelineCompletedView.copyCompletedEvidencePacket();
+            }).then((copied) => {
+              if (copied !== false) throw new Error("empty evidence copy should return false");
+              requireText("completed-copy-evidence-status", ["No evidence packet text is available to copy."]);
+              window.renderCompleted(payload.completed);
+              window.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
               return true;
             }).then(() => {
 
@@ -286,7 +352,11 @@ def _browser_completed_pending_proof_runner_source() -> str:
               throw new Error("expected selected Pending row to have exact Completed output correlation");
             }
 
-            return window.mediaPipelineCompletedView.requestPublishReconciliation().then(() => {
+            const reconciliationPromise = window.mediaPipelineCompletedView.requestPublishReconciliation();
+            requireText("publish-reconciliation-status", ["Loading"]);
+            requireText("publish-reconciliation-summary", ["Previous reconciliation rows are hidden"]);
+            requireText("publish-reconciliation-rows", ["previous proof rows are hidden"]);
+            return reconciliationPromise.then(() => {
               requireText("publish-reconciliation-status", ["Review overlaps"]);
               requireText("completed-reconciliation-hint", ["Backend publish reconciliation:", "Use Advanced"]);
               requireText("publish-reconciliation-summary", [
@@ -307,6 +377,19 @@ def _browser_completed_pending_proof_runner_source() -> str:
                 "Proof order: Completed Manifest row",
                 "Mutation guardrail: this backend row",
               ]);
+              window.mediaPipelineCompletedView.markPublishReconciliationStale("Smoke test refreshed Completed output status after reconciliation.");
+              requireText("publish-reconciliation-status", ["Stale"]);
+              requireText("publish-reconciliation-summary", ["Stale snapshot:", "Refresh Backend Reconciliation"]);
+              requireText("completed-reconciliation-hint", ["Backend publish reconciliation: stale."]);
+              requireText("completed-trust-decision-summary", ["publish reconciliation stale"]);
+              const staleBackendRow = document.querySelector("#publish-reconciliation-rows tr[data-row-key]");
+              if (staleBackendRow && staleBackendRow.dataset.status !== "stale") {
+                throw new Error("stale reconciliation rows should be visibly marked stale");
+              }
+              window.renderPublishReconciliation({ status: "error", rows: [], summary_lines: ["Backend publish reconciliation failed: smoke error"] });
+              requireText("publish-reconciliation-status", ["Error"]);
+              requireText("publish-reconciliation-summary", ["smoke error"]);
+              requireText("publish-reconciliation-rows", ["Backend reconciliation failed."]);
               return true;
             }).then(() => {
             const sameLeafCompleted = JSON.parse(JSON.stringify(payload.completed));
@@ -750,7 +833,3 @@ class WebViewBrowserCompletedPendingProofSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

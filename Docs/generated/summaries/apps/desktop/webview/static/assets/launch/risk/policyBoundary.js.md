@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/risk/policyBoundary.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-04
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: d7c5c4f897e3f9ab36e4641f6efc04905ab2912cf1d429d3b36d00591c6c94bf
+sha256: c693acb8172ff128e55f9f0c4f8c25f220184f23bdf046bab71b7a5cd942d50f
 ---
 # `apps/desktop/webview/static/assets/launch/risk/policyBoundary.js`
 

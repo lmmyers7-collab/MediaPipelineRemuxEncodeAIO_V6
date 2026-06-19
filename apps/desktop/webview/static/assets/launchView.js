@@ -32,12 +32,6 @@
   let selectedLaunchCompactGateKey = "";
   let selectedLaunchRealMediaProofKey = "";
   let selectedLaunchSampleExecutionKey = "";
-  let selectedLaunchAuditLogRowKey = "";
-  let selectedLaunchAuditLogRowKeys = new Set();
-  let lastLaunchAuditLogRows = [];
-  let lastLaunchAuditPayload = {};
-  let lastLaunchAuditControls = {};
-  let lastLaunchAuditLogEmptyMessage = "No audit rows loaded.";
   let lastLaunchRealMediaProofContext = {};
   let lastLaunchCommandState = { snapshot: null, closeReadiness: null };
 
@@ -69,6 +63,7 @@
   const {
     launchPipelineIsActive = function () { return false; },
     pipelineProgressIsStuck = function () { return false; },
+    pipelineProgressIsStale = function () { return false; },
     launchPauseRequested = function () { return false; },
     latestCommandEntry = function () { return null; },
     commandEntryState = function () { return ""; },
@@ -87,7 +82,6 @@
   const {
     launchPreflightRequestMatches = function () { return false; },
     collectPipelineStartRequest = function () { return { mode: "validate", sleep_seconds: 30, show_config: false, show_console: false, schedule_override: "" }; },
-    collectAuditStartRequest = function () { return { library_root: "", include_sidecars: false, show_console: false }; },
     collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), stage_mode: "copy", original_mode: "keep", return_mode: "park", show_console: false }; },
   } = launchStartRequest;
 
@@ -108,6 +102,7 @@
       pipelineControllerStageSummary,
       pipelineControllerState,
       pipelineProgressIsStuck,
+      pipelineProgressIsStale,
       setText: typeof setText === "function" ? setText : window.setText,
       state: launchCoordinatorState,
     })
@@ -151,11 +146,11 @@
       appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
       byId: typeof byId === "function" ? byId : window.byId,
       clearStartupBanner,
-      collectAuditStartRequest,
       collectPipelineStartRequest,
       collectRerunStartRequest,
       launchBackendPreflightOverallStatus: (...args) => launchBackendPreflightOverallStatus(...args),
       launchBackendPreflightPayloadForTarget: (...args) => launchBackendPreflightPayloadForTarget(...args),
+      launchBackendPreflightRows: (...args) => launchBackendPreflightRows(...args),
       launchPauseRequested,
       launchPipelineIsActive,
       launchPreflightRequestMatches,
@@ -164,6 +159,7 @@
       launchStartDecisionStatus: (...args) => launchStartDecisionStatus(...args),
       launchStartDecisionWorstPosture: (...args) => launchStartDecisionWorstPosture(...args),
       pipelineProgressIsStuck,
+      pipelineProgressIsStale,
       pipelineSingleFileValue,
       renderPipelineControllerStatus,
       setPipelineControlMessage,
@@ -176,20 +172,23 @@
     controlActionLabels = { pause: "Pause / Resume", rescan: "Rescan", stop: "Stop After Current", kill: "Force Stop" },
     updateLaunchCommandButtonStates = function () {},
     setLaunchCommandBusy = function (isBusy) { launchCoordinatorState.launchCommandInFlight = isBusy; },
+    setLaunchCommandButtonState = function () {},
     rejectLaunchCommandWhileBusy = function () { return false; },
     setControlCommandBusy = function (isBusy) { launchCoordinatorState.controlCommandInFlight = isBusy; },
     rejectControlCommandWhileBusy = function () { return false; },
     confirmControlAction = function () { return true; },
+    nextLaunchCommandFrame = async function () {},
   } = launchCommandButtons;
 
   function launchTabIds() {
-    return ["pipeline", "audit", "rerun", "history", "readiness"];
+    return ["pipeline", "rerun", "history", "readiness"];
   }
 
-  function activateLaunchTab(tabId) {
+  function activateLaunchTab(tabId, options = {}) {
     const page = document.querySelector('[data-page-panel="launch"]');
     if (!page) return;
     const selected = launchTabIds().includes(tabId) ? tabId : "pipeline";
+    const persist = options?.persist !== false;
     const buttons = Array.from(page.querySelectorAll(".settings-tab-btn[data-launch-tab]"));
     const panels = Array.from(page.querySelectorAll(":scope > .launch-tab-panel[data-launch-tab-panel]"));
     buttons.forEach((button) => {
@@ -199,7 +198,9 @@
     panels.forEach((panel) => {
       panel.classList.toggle("is-active", panel.dataset.launchTabPanel === selected);
     });
-    try { localStorage.setItem(LAUNCH_TAB_STORAGE_KEY, selected); } catch (_) {}
+    if (persist) {
+      try { localStorage.setItem(LAUNCH_TAB_STORAGE_KEY, selected); } catch (_) {}
+    }
     if (typeof window.mediaPipelineAppLifecycle?.syncTabAccessibility === "function") window.mediaPipelineAppLifecycle.syncTabAccessibility();
     if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
   }
@@ -224,385 +225,6 @@
     activateLaunchTab(button.dataset.launchTab || "pipeline");
   });
 
-
-  function launchAuditLogRowKey(item) {
-    if (item?.row_key) return String(item.row_key);
-    return [
-      item?.source_csv || "",
-      item?.path || "",
-      item?.relative_path || "",
-      item?.primary_issue_code || "",
-      item?.priority_score || "",
-    ].join("\u001f").toLowerCase();
-  }
-
-  function launchAuditLogEmptyStateMessage(audit, rows) {
-    if (audit?.error) {
-      return `Audit log unavailable: ${audit.error}. Run a fresh audit from this panel or inspect Diagnostics > Audit Reports.`;
-    }
-    const warnings = Array.isArray(audit?.warnings) ? audit.warnings.filter(Boolean) : [];
-    if (warnings.length) return `Audit log loaded with warning: ${warnings.join(" | ")}`;
-    if (!rows.length) return "No audit rows found. Run Audit from this panel, or use Reports priority mode if you only need priority rows.";
-    return "No audit rows available.";
-  }
-
-  function getSelectedLaunchAuditLogRow() {
-    if (!selectedLaunchAuditLogRowKey) return null;
-    return lastLaunchAuditLogRows.find((row) => launchAuditLogRowKey(row) === selectedLaunchAuditLogRowKey) || null;
-  }
-
-  const auditScoreFieldIds = {
-    redownload_bucket: "audit-score-redownload-bucket",
-    high_issue: "audit-score-high-issue",
-    rerun_bucket: "audit-score-rerun-bucket",
-    medium_issue: "audit-score-medium-issue",
-    review_bucket: "audit-score-review-bucket",
-    fallback_issue: "audit-score-fallback-issue",
-    redownload_bonus: "audit-score-redownload-bonus",
-    rerun_bonus: "audit-score-rerun-bonus",
-  };
-  const auditScoreGroupDefaultKeys = { high: "high_issue", medium: "medium_issue" };
-
-  function auditRowKey(item) {
-    return String(item?.row_key || launchAuditLogRowKey(item));
-  }
-
-  function selectedAuditRowKeys() {
-    return Array.from(selectedLaunchAuditLogRowKeys).filter(Boolean);
-  }
-
-  function collectAuditScorePolicyForm() {
-    const policy = {};
-    Object.entries(auditScoreFieldIds).forEach(([key, id]) => {
-      const raw = Number(byId(id)?.value);
-      policy[key] = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
-    });
-    policy.issue_code_weights = {};
-    const details = byId("audit-score-redownload-bucket")?.closest("details");
-    const issueInputs = details ? Array.from(details.querySelectorAll("[data-audit-score-issue-code]")) : [];
-    issueInputs.forEach((input) => {
-      const code = String(input.dataset.auditScoreIssueCode || "").trim();
-      if (!code) return;
-      const raw = Number(input.value);
-      policy.issue_code_weights[code] = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
-    });
-    return policy;
-  }
-
-  function auditScoreInputId(code) {
-    return `audit-score-issue-${String(code || "").replace(/[^A-Za-z0-9_-]/g, "-")}`;
-  }
-
-  function auditScoreValue(policy, defaults, key) {
-    return policy[key] ?? defaults[key] ?? 0;
-  }
-
-  function auditScoreIssueValue(policy, defaults, marker) {
-    const code = String(marker?.code || "");
-    const groupKey = auditScoreGroupDefaultKeys[String(marker?.group || "")] || "";
-    return policy.issue_code_weights?.[code]
-      ?? defaults.issue_code_weights?.[code]
-      ?? (groupKey ? auditScoreValue(policy, defaults, groupKey) : 0);
-  }
-
-  function syncAuditScoreIssueDefaults(group) {
-    const groupKey = auditScoreGroupDefaultKeys[group];
-    if (!groupKey) return;
-    const source = byId(auditScoreFieldIds[groupKey]);
-    if (!source) return;
-    const raw = Number(source.value);
-    const value = Number.isFinite(raw) ? Math.max(0, Math.min(1000, Math.round(raw))) : 0;
-    const details = byId("audit-score-redownload-bucket")?.closest("details");
-    if (!details) return;
-    details.querySelectorAll(`[data-audit-score-issue-group="${group}"]`).forEach((input) => {
-      if (input.dataset.auditScoreDirty === "true") return;
-      input.value = String(value);
-    });
-  }
-
-  function bindAuditScoreGroupInputs() {
-    Object.entries(auditScoreGroupDefaultKeys).forEach(([group, key]) => {
-      const input = byId(auditScoreFieldIds[key]);
-      if (!input || input.dataset.auditScoreGroupBound === "true") return;
-      input.dataset.auditScoreGroupBound = "true";
-      input.addEventListener("input", () => syncAuditScoreIssueDefaults(group));
-    });
-  }
-
-  function renderLaunchAuditIssueRows(score, group, beforeKey) {
-    const details = byId("audit-score-redownload-bucket")?.closest("details");
-    const anchor = byId(auditScoreFieldIds[beforeKey])?.closest("tr");
-    if (!details || !anchor || !anchor.parentNode) return;
-    details.querySelectorAll(`[data-audit-score-policy-dynamic-row="${group}"]`).forEach((row) => row.remove());
-    const policy = score.policy && typeof score.policy === "object" ? score.policy : {};
-    const defaults = score.defaults && typeof score.defaults === "object" ? score.defaults : {};
-    const markers = Array.isArray(score.markers) ? score.markers : [];
-    markers
-      .filter((marker) => marker?.type === "issue_code" && marker?.group === group)
-      .forEach((marker) => {
-        const code = String(marker.code || "");
-        if (!code) return;
-        const row = document.createElement("tr");
-        row.dataset.auditScorePolicyDynamicRow = group;
-
-        const issueCell = document.createElement("td");
-        const label = document.createElement("label");
-        label.setAttribute("for", auditScoreInputId(code));
-        label.append(`${group === "high" ? "High" : "Medium"} issue: `);
-        const codeNode = document.createElement("code");
-        codeNode.textContent = code;
-        label.appendChild(codeNode);
-        issueCell.appendChild(label);
-
-        const pointsCell = document.createElement("td");
-        pointsCell.className = "num";
-        const input = document.createElement("input");
-        input.id = auditScoreInputId(code);
-        input.type = "number";
-        input.min = "0";
-        input.max = "1000";
-        input.step = "1";
-        const issueValue = auditScoreIssueValue(policy, defaults, marker);
-        const groupKey = auditScoreGroupDefaultKeys[group] || "";
-        const groupValue = groupKey ? auditScoreValue(policy, defaults, groupKey) : issueValue;
-        input.value = String(issueValue);
-        input.dataset.auditScoreIssueCode = code;
-        input.dataset.auditScoreIssueGroup = group;
-        input.dataset.auditScoreDirty = issueValue === groupValue ? "false" : "true";
-        input.addEventListener("input", () => { input.dataset.auditScoreDirty = "true"; });
-        pointsCell.appendChild(input);
-
-        const appliesCell = document.createElement("td");
-        appliesCell.textContent = marker.applies_when || "";
-
-        row.append(issueCell, pointsCell, appliesCell);
-        anchor.parentNode.insertBefore(row, anchor);
-      });
-  }
-
-  function renderLaunchAuditControls(payload) {
-    lastLaunchAuditControls = payload && typeof payload === "object" ? payload : {};
-    const score = lastLaunchAuditControls.score_policy && typeof lastLaunchAuditControls.score_policy === "object"
-      ? lastLaunchAuditControls.score_policy
-      : {};
-    const policy = score.policy && typeof score.policy === "object" ? score.policy : {};
-    const defaults = score.defaults && typeof score.defaults === "object" ? score.defaults : {};
-    Object.entries(auditScoreFieldIds).forEach(([key, id]) => {
-      const input = byId(id);
-      if (!input) return;
-      const value = policy[key] ?? defaults[key] ?? 0;
-      input.value = String(value);
-    });
-    bindAuditScoreGroupInputs();
-    renderLaunchAuditIssueRows(score, "high", "rerun_bucket");
-    renderLaunchAuditIssueRows(score, "medium", "review_bucket");
-    const ignoredCount = Number(lastLaunchAuditControls.ignore_manifest?.entry_count || 0);
-    setText("audit-score-policy-status", score.persisted ? "Saved" : "Defaults");
-    setText("audit-score-policy-summary", [
-      `Score policy source: ${score.persisted ? "saved state" : "defaults"}`,
-      `Audit ignore entries: ${ignoredCount}`,
-      `Policy path: ${score.path || "not configured"}`,
-      "Advanced score controls: enable Advanced mode, then open Advanced score controls to edit point issues.",
-      "Boundary: score and ignore controls affect audit reporting/export only; they do not write queue priority, file overrides, settings, or media files.",
-    ].join("\n"));
-  }
-
-  async function saveAuditScorePolicy(reset = false) {
-    const request = reset ? { reset: true } : { policy: collectAuditScorePolicyForm() };
-    if (!window.confirm(reset ? "Reset audit score policy to defaults?" : "Save audit score policy for future audit runs?")) return;
-    setText("audit-score-policy-detail", reset ? "Resetting audit score policy..." : "Saving audit score policy...");
-    try {
-      const result = await apiPost("/api/audit/score-policy", request);
-      appendCommandResult(result);
-      setText("audit-score-policy-detail", formatLaunchCommandDetail(result, request));
-      await refreshLaunchAuditData();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const result = { command: "audit.score_policy", ok: false, severity: "error", message };
-      appendCommandResult(result);
-      setText("audit-score-policy-detail", formatLaunchCommandDetail(result, request));
-    }
-  }
-
-  function auditSelectionRequest() {
-    return {
-      row_keys: selectedAuditRowKeys(),
-      priority_only: Boolean(lastLaunchAuditPayload.priority_only),
-      limit: 100,
-    };
-  }
-
-  async function refreshLaunchAuditData() {
-    const refresh = window.refreshAll;
-    if (typeof refresh === "function") {
-      await refresh();
-    }
-  }
-
-  async function ignoreSelectedAuditRows() {
-    const rowKeys = selectedAuditRowKeys();
-    if (!rowKeys.length) {
-      setText("audit-export-detail", "Select one or more audit rows before setting audit ignore.");
-      return;
-    }
-    if (!window.confirm(`Ignore ${rowKeys.length} selected audit row(s) from audit triage/export?`)) return;
-    const request = {
-      ...auditSelectionRequest(),
-      action: "add",
-      reason: "Ignored from audit triage by operator.",
-    };
-    setText("audit-export-detail", "Saving audit ignore entries...");
-    try {
-      const result = await apiPost("/api/audit/ignore", request);
-      appendCommandResult(result);
-      selectedLaunchAuditLogRowKeys = new Set();
-      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
-      await refreshLaunchAuditData();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const result = { command: "audit.ignore", ok: false, severity: "error", message };
-      appendCommandResult(result);
-      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
-    }
-  }
-
-  async function exportAuditRerunCsv() {
-    const request = auditSelectionRequest();
-    const scope = request.row_keys.length ? `${request.row_keys.length} selected row(s)` : "all loaded non-ignored rows";
-    if (!window.confirm(`Export rerun CSV for ${scope}?`)) return;
-    setText("audit-export-detail", "Exporting backend-owned rerun CSV...");
-    try {
-      const result = await apiPost("/api/audit/export-rerun-csv", request);
-      appendCommandResult(result);
-      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
-      await refreshLaunchAuditData();
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const result = { command: "audit.export_rerun_csv", ok: false, severity: "error", message };
-      appendCommandResult(result);
-      setText("audit-export-detail", formatLaunchCommandDetail(result, request));
-    }
-  }
-
-  function renderLaunchAuditLogDetail(item) {
-    if (!item) {
-      setText("audit-launch-log-detail", "No audit row selected. Select a row to inspect priority score, issue bucket, suggested action, and source CSV.");
-      return;
-    }
-    const detail = [
-      "Launch audit log selected row:",
-      `Title: ${item.lookup_title || ""}`,
-      `Media: ${item.media_type || ""}`,
-      `Bucket: ${item.effective_bucket || ""}`,
-      `Priority: ${item.priority_fix_level || ""} (${item.priority_score || 0})`,
-      `Issue: ${item.primary_issue_code || ""}`,
-      `Suggested action: ${item.primary_suggested_action || ""}`,
-      `Messages: ${item.issue_messages || ""}`,
-      `Path: ${item.path || ""}`,
-      `Relative: ${item.relative_path || ""}`,
-      `Source CSV: ${item.source_csv || ""}`,
-      "",
-      "Guardrail: this Launch copy of the audit log is read-only evidence. It cannot rerun, publish, rename, delete, save settings, or touch media.",
-    ];
-    setText("audit-launch-log-detail", detail.join("\n"));
-  }
-
-  function selectLaunchAuditLogRow(item) {
-    selectedLaunchAuditLogRowKey = launchAuditLogRowKey(item);
-    renderLaunchAuditLogDetail(item || null);
-    renderLaunchAuditLogRows();
-  }
-
-  function launchAuditLogRowStatus(item) {
-    const bucket = String(item?.effective_bucket || "").toUpperCase();
-    const priority = String(item?.priority_fix_level || "").toUpperCase();
-    if (bucket === "REDOWNLOAD_CANDIDATE") return "blocked";
-    if (bucket === "RERUN_PIPELINE" || priority === "HIGH") return "warning";
-    if (bucket === "OK") return "match";
-    return "";
-  }
-
-  function renderLaunchAuditLogRows() {
-    const selectedCount = selectedLaunchAuditLogRowKeys.size;
-    setText("audit-launch-log-status", `${lastLaunchAuditLogRows.length} row${lastLaunchAuditLogRows.length === 1 ? "" : "s"}${selectedCount ? `, ${selectedCount} selected` : ""}`);
-    const tbody = byId("audit-launch-log-rows");
-    if (!tbody) return;
-    if (!lastLaunchAuditLogRows.length) {
-      clearRows(tbody, 7, lastLaunchAuditLogEmptyMessage);
-      updateTableStatusLegend("audit-launch-log-table-legend", tbody, "Audit log rows");
-      return;
-    }
-    tbody.replaceChildren();
-    lastLaunchAuditLogRows.slice(0, 250).forEach((item) => {
-      const row = document.createElement("tr");
-      const key = auditRowKey(item);
-      row.dataset.status = launchAuditLogRowStatus(item);
-      row.dataset.rowKey = key;
-      const selectCell = document.createElement("td");
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.checked = selectedLaunchAuditLogRowKeys.has(key);
-      checkbox.setAttribute("aria-label", `Select audit row ${item.lookup_title || item.relative_path || item.path || ""}`);
-      checkbox.addEventListener("click", (event) => event.stopPropagation());
-      checkbox.addEventListener("change", () => {
-        if (checkbox.checked) selectedLaunchAuditLogRowKeys.add(key);
-        else selectedLaunchAuditLogRowKeys.delete(key);
-        renderLaunchAuditLogRows();
-      });
-      selectCell.appendChild(checkbox);
-      row.appendChild(selectCell);
-      appendCells(row, [
-        item.priority_score || "",
-        item.priority_fix_level || "",
-        item.effective_bucket || "",
-        item.media_type || "",
-        item.lookup_title || item.relative_path || item.path || "",
-        item.primary_issue_code || item.issue_messages || item.primary_suggested_action || "",
-      ], ["num", null, null, null, null, null]);
-      if (typeof makeRowSelectable === "function") {
-        makeRowSelectable(row, () => selectLaunchAuditLogRow(item), {
-          selected: Boolean(key && key === selectedLaunchAuditLogRowKey),
-          label: `Launch audit log row ${item.lookup_title || item.relative_path || item.path || ""}`,
-        });
-      } else {
-        row.addEventListener("click", () => selectLaunchAuditLogRow(item));
-      }
-      tbody.appendChild(row);
-    });
-    updateTableStatusLegend("audit-launch-log-table-legend", tbody, "Audit log rows");
-  }
-
-  function renderLaunchAuditLog(audit) {
-    const payload = audit && typeof audit === "object" ? audit : {};
-    lastLaunchAuditPayload = payload;
-    const rows = Array.isArray(payload.rows) ? payload.rows : [];
-    lastLaunchAuditLogRows = rows;
-    if (selectedLaunchAuditLogRowKey && !rows.some((row) => launchAuditLogRowKey(row) === selectedLaunchAuditLogRowKey)) {
-      selectedLaunchAuditLogRowKey = "";
-    }
-    selectedLaunchAuditLogRowKeys = new Set(
-      Array.from(selectedLaunchAuditLogRowKeys).filter((key) => rows.some((row) => auditRowKey(row) === key))
-    );
-    lastLaunchAuditLogEmptyMessage = launchAuditLogEmptyStateMessage(payload, rows);
-    const warnings = Array.isArray(payload.warnings) ? payload.warnings.filter(Boolean) : [];
-    const summary = [
-      payload.source ? `Source: ${payload.source}` : "",
-      `Priority CSV mode: ${payload.priority_only ? "yes" : "no"}`,
-      `Rows: ${payload.count || rows.length || 0}`,
-      `Ignored rows hidden: ${payload.ignored_count || 0}`,
-      `High priority: ${payload.high_priority_count || 0}`,
-      `Rerun: ${payload.rerun_count || 0}`,
-      `Redownload: ${payload.redownload_count || 0}`,
-      `Review: ${payload.review_count || 0}`,
-      `Duplicate groups: ${payload.duplicate_group_count || 0}`,
-      ...warnings,
-      !rows.length ? lastLaunchAuditLogEmptyMessage : "",
-      "Mutation guardrail: this is the same read-only audit-results evidence shown in Reports. Audit launch and report writing remain backend-owned.",
-    ].filter(Boolean);
-    setText("audit-launch-log-summary", summary.join("\n") || "No audit log loaded.");
-    renderLaunchAuditLogDetail(getSelectedLaunchAuditLogRow());
-    renderLaunchAuditLogRows();
-  }
   const launchRiskState = {
     get selectedLaunchSettingsRiskKey() {
       return selectedLaunchSettingsRiskKey;
@@ -635,6 +257,7 @@
   const launchRisk = typeof launchRiskModule.createLaunchRiskModule === "function"
     ? launchRiskModule.createLaunchRiskModule({
       appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
+      activateLaunchTab: (...args) => activateLaunchTab(...args),
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
       collectPipelineStartRequest: (...args) => collectPipelineStartRequest(...args),
@@ -714,10 +337,8 @@
   let renderLaunchBackendPreflight = launchPreflightFallbackRender;
   let refreshLaunchBackendPreflight = async function () {};
   let pipelineLaunchPreflightLines = launchPreflightFallbackLines;
-  let auditLaunchPreflightLines = launchPreflightFallbackLines;
   let rerunLaunchPreflightLines = launchPreflightFallbackLines;
   let renderLaunchPreflight = function (id, lines) { setText(id, (lines || []).join("\n")); };
-  let renderLaunchAuditProgress = launchPreflightFallbackRender;
   let renderAllLaunchPreflights = launchPreflightFallbackRender;
   let isPipelineControlCommand = function (entry) { return String(entry?.command || "").toLowerCase().startsWith("pipeline.control."); };
   let pipelineControlHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pipeline.control"); };
@@ -737,7 +358,25 @@
     setText("control-latest", pipelineControlHistoryLine(latest));
   }
 
+  function renderLaunchLatestCommandEvidence(history = []) {
+    const entries = Array.isArray(history) ? history : [];
+    const latest = entries.find((entry) => isLaunchCommand(entry)) || null;
+    if (!latest) {
+      setText("launch-latest-command-evidence", "No Launch command result loaded. Pipeline, CSV rerun, and Pending Publish command results will appear here immediately after submission or cancellation.");
+      return;
+    }
+    const line = typeof launchHistoryLine === "function"
+      ? launchHistoryLine(latest)
+      : commandEntrySummary(latest, "Launch command recorded.");
+    setText("launch-latest-command-evidence", [
+      "Latest Launch command:",
+      line,
+      "Full command journal and correlation details remain in the History subtab.",
+    ].join("\n"));
+  }
+
   function renderPipelineControlJournal(history = [], renderFullHistory = null) {
+    renderLaunchLatestCommandEvidence(history);
     renderPipelineControlLatest(history);
     if (typeof renderFullHistory === "function") renderFullHistory(history);
     renderPipelineControllerStatus();
@@ -825,6 +464,8 @@
       scheduleDisplayValue: typeof scheduleDisplayValue === "function" ? scheduleDisplayValue : window.scheduleDisplayValue,
       scheduleWatcherSummary: typeof scheduleWatcherSummary === "function" ? scheduleWatcherSummary : window.scheduleWatcherSummary,
       setText: typeof setText === "function" ? setText : window.setText,
+      showPage: typeof showPage === "function" ? showPage : window.showPage,
+      activateLaunchTab: (...args) => activateLaunchTab(...args),
       state: launchScopeState,
       updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
     })
@@ -929,7 +570,6 @@
       appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
-      collectAuditStartRequest: (...args) => collectAuditStartRequest(...args),
       collectPipelineStartRequest: (...args) => collectPipelineStartRequest(...args),
       collectRerunStartRequest: (...args) => collectRerunStartRequest(...args),
       commandHistoryCompactEvidenceLine: typeof window.commandHistoryCompactEvidenceLine === "function" ? window.commandHistoryCompactEvidenceLine : (typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null),
@@ -939,6 +579,7 @@
       getLastSnapshot: typeof window.getLastSnapshot === "function" ? () => window.getLastSnapshot() : () => null,
       getSelectedQueueRow: typeof window.getSelectedQueueRow === "function" ? () => window.getSelectedQueueRow() : (typeof getSelectedQueueRow === "function" ? () => getSelectedQueueRow() : () => null),
       launchPolicyAlignmentQueueIntentEvidence: (...args) => launchPolicyAlignmentQueueIntentEvidence(...args),
+      launchPreflightRequestMatches,
       launchPolicyBoundaryRows: (...args) => launchPolicyBoundaryRows(...args),
       launchPolicyBoundaryStatus: (...args) => launchPolicyBoundaryStatus(...args),
       launchRealMediaProofRows: (...args) => launchRealMediaProofRows(...args),
@@ -966,7 +607,6 @@
       pipelineModeLabel,
       queueLaunchDecisionRows: typeof window.queueLaunchDecisionRows === "function" ? window.queueLaunchDecisionRows : (typeof queueLaunchDecisionRows === "function" ? queueLaunchDecisionRows : null),
       queueLaunchDecisionStatus: typeof window.queueLaunchDecisionStatus === "function" ? window.queueLaunchDecisionStatus : (typeof queueLaunchDecisionStatus === "function" ? queueLaunchDecisionStatus : null),
-      renderAuditProgressInto: typeof window.renderAuditProgressInto === "function" ? window.renderAuditProgressInto : (typeof renderAuditProgressInto === "function" ? renderAuditProgressInto : null),
       renderLaunchPolicyBoundary: (...args) => renderLaunchPolicyBoundary(...args),
       renderLaunchRealMediaProofHandoff: (...args) => renderLaunchRealMediaProofHandoff(...args),
       renderLaunchScopeReconciliation: (...args) => renderLaunchScopeReconciliation(...args),
@@ -1000,10 +640,8 @@
   renderLaunchBackendPreflight = typeof launchPreflight.renderLaunchBackendPreflight === "function" ? launchPreflight.renderLaunchBackendPreflight : renderLaunchBackendPreflight;
   refreshLaunchBackendPreflight = typeof launchPreflight.refreshLaunchBackendPreflight === "function" ? launchPreflight.refreshLaunchBackendPreflight : refreshLaunchBackendPreflight;
   pipelineLaunchPreflightLines = typeof launchPreflight.pipelineLaunchPreflightLines === "function" ? launchPreflight.pipelineLaunchPreflightLines : pipelineLaunchPreflightLines;
-  auditLaunchPreflightLines = typeof launchPreflight.auditLaunchPreflightLines === "function" ? launchPreflight.auditLaunchPreflightLines : auditLaunchPreflightLines;
   rerunLaunchPreflightLines = typeof launchPreflight.rerunLaunchPreflightLines === "function" ? launchPreflight.rerunLaunchPreflightLines : rerunLaunchPreflightLines;
   renderLaunchPreflight = typeof launchPreflight.renderLaunchPreflight === "function" ? launchPreflight.renderLaunchPreflight : renderLaunchPreflight;
-  renderLaunchAuditProgress = typeof launchPreflight.renderLaunchAuditProgress === "function" ? launchPreflight.renderLaunchAuditProgress : renderLaunchAuditProgress;
   renderAllLaunchPreflights = typeof launchPreflight.renderAllLaunchPreflights === "function" ? launchPreflight.renderAllLaunchPreflights : renderAllLaunchPreflights;
   isPipelineControlCommand = typeof launchPreflight.isPipelineControlCommand === "function" ? launchPreflight.isPipelineControlCommand : isPipelineControlCommand;
   pipelineControlHistoryLine = typeof launchPreflight.pipelineControlHistoryLine === "function" ? launchPreflight.pipelineControlHistoryLine : pipelineControlHistoryLine;
@@ -1040,9 +678,6 @@
       "pipeline-start-schedule-override",
       "pipeline-start-show-config",
       "pipeline-start-show-console",
-      "audit-start-library-root",
-      "audit-start-include-sidecars",
-      "audit-start-show-console",
       "rerun-start-csv-path",
       "rerun-start-show-console",
     ].forEach((id) => {
@@ -1060,14 +695,6 @@
         updateLaunchCommandButtonStates();
       });
     });
-    const auditScoreSaveButton = byId("audit-score-policy-save-button");
-    if (auditScoreSaveButton) auditScoreSaveButton.addEventListener("click", () => saveAuditScorePolicy(false));
-    const auditScoreResetButton = byId("audit-score-policy-reset-button");
-    if (auditScoreResetButton) auditScoreResetButton.addEventListener("click", () => saveAuditScorePolicy(true));
-    const auditIgnoreSelectedButton = byId("audit-ignore-selected-button");
-    if (auditIgnoreSelectedButton) auditIgnoreSelectedButton.addEventListener("click", () => ignoreSelectedAuditRows());
-    const auditExportRerunButton = byId("audit-export-rerun-csv-button");
-    if (auditExportRerunButton) auditExportRerunButton.addEventListener("click", () => exportAuditRerunCsv());
     const pipelineFileBrowseButton = byId("pipeline-single-file-browse-button");
     if (pipelineFileBrowseButton) {
       pipelineFileBrowseButton.addEventListener("click", () => browsePipelineSingleFile());
@@ -1076,9 +703,30 @@
     if (pipelineFileClearButton) {
       pipelineFileClearButton.addEventListener("click", () => clearPipelineSingleFile());
     }
+    initLaunchRecoveryActionEvents();
     renderAllLaunchPreflights();
     syncPipelineModeControls();
     updateLaunchCommandButtonStates();
+  }
+
+  function initLaunchRecoveryActionEvents() {
+    const page = document.querySelector('[data-page-panel="launch"]') || document;
+    if (!page || page.__launchRecoveryEventsBound === true) return;
+    page.__launchRecoveryEventsBound = true;
+    page.addEventListener("click", async (event) => {
+      const button = event.target?.closest?.("[data-launch-recovery-action]");
+      if (!button) return;
+      event.preventDefault();
+      const action = String(button.dataset.launchRecoveryAction || "").toLowerCase();
+      if (action === "drain_pending_pushes") {
+        await startPendingPublishDrain();
+      } else if (action === "archive_state_journals") {
+        await startStateJournalArchive(button);
+      } else if (action === "pending_publish_recovery_plan") {
+        if (typeof window.showPage === "function") window.showPage("pending");
+        setText("launch-readiness-action-status", "Open Pending Publish and review the recovery plan before draining parked outputs.");
+      }
+    });
   }
 
   async function requestPipelineControl(action) {
@@ -1095,6 +743,11 @@
       setPipelineControlMessage(result.message);
       return;
     }
+    setPipelineControlMessage(`Confirming ${controlActionLabels[normalized] || normalized}...`);
+    document.querySelectorAll(`[data-control-action="${normalized}"]`).forEach((button) => {
+      button.dataset.commandState = "confirming";
+    });
+    await nextLaunchCommandFrame();
     if (!confirmControlAction(normalized)) {
       const result = {
         command: `pipeline.control.${normalized}`,
@@ -1104,6 +757,7 @@
       };
       appendCommandResult(result);
       setPipelineControlMessage(result.message);
+      updateLaunchCommandButtonStates();
       return;
     }
     setControlCommandBusy(true);
@@ -1219,6 +873,12 @@
     const request = collectPipelineStartRequest();
     renderLaunchPreflight("pipeline-launch-preflight", pipelineLaunchPreflightLines(request));
     const label = pipelineModeLabel(request.mode);
+    const startBtn = byId("pipeline-start-button");
+    const startBtnText = startBtn ? startBtn.textContent : "";
+    setLaunchCommandButtonState("pipeline-start-button", "confirming", "Confirming...");
+    setText("pipeline-launch-status", "Confirming");
+    setText("pipeline-launch-detail", pipelineStartConfirmMessage(request, label));
+    await nextLaunchCommandFrame();
     if (!window.confirm(pipelineStartConfirmMessage(request, label))) {
       const canceled = {
         command: "pipeline.start",
@@ -1229,10 +889,10 @@
       appendCommandResult(canceled);
       setText("pipeline-launch-status", "Canceled");
       setText("pipeline-launch-detail", canceled.message);
+      if (startBtn) startBtn.textContent = startBtnText || "Start Pipeline";
+      updateLaunchCommandButtonStates();
       return;
     }
-    const startBtn = byId("pipeline-start-button");
-    const startBtnText = startBtn ? startBtn.textContent : "";
     if (startBtn) startBtn.textContent = "Launching…";
     setLaunchCommandBusy(true);
     setStartupBanner("Spooling up tasks…");
@@ -1312,6 +972,12 @@
       schedule_override: "",
     };
     const confirmMessage = guard?.confirm_message || "Publish parked pending outputs now?";
+    const drainBtn = byId("pending-drain-button");
+    const drainBtnText = drainBtn ? drainBtn.textContent : "";
+    setLaunchCommandButtonState("pending-drain-button", "confirming", "Confirming...");
+    setText("pending-drain-status", "Confirming");
+    setText("pending-drain-detail", confirmMessage);
+    await nextLaunchCommandFrame();
     if (!window.confirm(confirmMessage)) {
       const canceled = {
         command: "pending_publish.drain",
@@ -1321,10 +987,11 @@
       };
       appendCommandResult(canceled);
       setText("pending-drain-status", "Canceled");
+      setText("pending-drain-detail", canceled.message);
+      if (drainBtn) drainBtn.textContent = drainBtnText || "Drain Parked Outputs";
+      updateLaunchCommandButtonStates();
       return;
     }
-    const drainBtn = byId("pending-drain-button");
-    const drainBtnText = drainBtn ? drainBtn.textContent : "";
     if (drainBtn) drainBtn.textContent = "Draining...";
     setLaunchCommandBusy(true);
     setText("pending-drain-status", "Draining...");
@@ -1364,52 +1031,70 @@
     }
   }
 
-  async function startAuditFromForm() {
-    if (rejectLaunchCommandWhileBusy("audit.start", "audit-launch-status", "audit-launch-detail")) return;
-    const request = collectAuditStartRequest();
-    renderLaunchPreflight("audit-launch-preflight", auditLaunchPreflightLines(request));
-    if (!window.confirm("Start audit?")) {
+  async function startStateJournalArchive(sourceButton = null) {
+    if (rejectLaunchCommandWhileBusy("maintenance.archive_state_journals", "launch-readiness-status", "launch-readiness-action-status")) return;
+    const request = {
+      confirm_archive: true,
+      reason: "launch recovery",
+    };
+    const confirmMessage = [
+      "Archive the oversized backend event journal now?",
+      "The backend may only move State\\Progress\\pipeline_events.jsonl into ArchivedEvents and create a fresh empty replacement.",
+      "Media, queue, pending publish, completed manifest, and final output files are not touched by this action.",
+    ].join("\n");
+    const button = sourceButton || null;
+    const buttonText = button ? button.textContent : "";
+    if (button) button.dataset.commandState = "confirming";
+    setText("launch-readiness-action-status", confirmMessage);
+    await nextLaunchCommandFrame();
+    if (!window.confirm(confirmMessage)) {
       const canceled = {
-        command: "audit.start",
+        command: "maintenance.archive_state_journals",
         ok: false,
         severity: "info",
-        message: "Audit start canceled.",
+        message: "State journal archive canceled.",
       };
       appendCommandResult(canceled);
-      setText("audit-launch-status", "Canceled");
-      setText("audit-launch-detail", canceled.message);
+      setText("launch-readiness-action-status", canceled.message);
+      if (button) {
+        button.dataset.commandState = "";
+        button.textContent = buttonText || "Archive Event Journal";
+      }
+      updateLaunchCommandButtonStates();
       return;
     }
+    if (button) button.textContent = "Archiving...";
     setLaunchCommandBusy(true);
-    setText("audit-launch-status", "Starting...");
-    renderJsonDetail("audit-launch-detail", {
+    renderJsonDetail("launch-readiness-action-status", {
       label: "Submitted request",
       value: request,
-      intro: "Audit start request confirmed by the operator and about to be submitted.",
+      intro: "State journal archive request confirmed by the operator and about to be submitted.",
     });
     try {
-      const result = await apiPost("/api/audit/start", request);
+      const result = await apiPost("/api/maintenance/archive-state-journals", request);
       appendCommandResult(result);
-      renderLaunchCommandResult("audit-launch-status", "audit-launch-detail", result, request);
+      renderLaunchCommandResult("launch-readiness-status", "launch-readiness-action-status", result, request);
       if ((result.refresh_hint || "") === "snapshot") {
         await refreshAll();
+      } else {
+        await refreshLaunchBackendPreflight();
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      appendCommandResult({
-        command: "audit.start",
+      const result = {
+        command: "maintenance.archive_state_journals",
         ok: false,
         severity: "error",
         message,
-      });
-      renderLaunchCommandResult("audit-launch-status", "audit-launch-detail", {
-        command: "audit.start",
-        ok: false,
-        severity: "error",
-        message,
-      }, request);
+      };
+      appendCommandResult(result);
+      renderLaunchCommandResult("launch-readiness-status", "launch-readiness-action-status", result, request);
     } finally {
       setLaunchCommandBusy(false);
+      if (button) {
+        button.dataset.commandState = "";
+        button.textContent = buttonText || "Archive Event Journal";
+      }
     }
   }
 
@@ -1431,6 +1116,16 @@
       setText("rerun-launch-detail", missing.message);
       return;
     }
+    const rerunButtonId = request.dry_run ? "rerun-dry-run-button" : "rerun-start-button";
+    const rerunBtn = byId(rerunButtonId);
+    const rerunBtnText = rerunBtn ? rerunBtn.textContent : "";
+    setLaunchCommandButtonState(rerunButtonId, "confirming", request.dry_run ? "Confirming Preview..." : "Confirming Start...");
+    setText("rerun-launch-status", "Confirming");
+    setText("rerun-launch-detail", request.dry_run
+      ? "Confirm CSV rerun preview. Dry-run should produce backend evidence without staging, moving, publishing, or touching media."
+      : "Confirm live CSV rerun with copy / keep / park policy."
+    );
+    await nextLaunchCommandFrame();
     if (!window.confirm(request.dry_run
       ? "Preview CSV rerun as a dry run? This should produce backend evidence without staging, moving, publishing, or touching media."
       : "Start live CSV rerun with copy / keep / park policy?"
@@ -1445,8 +1140,11 @@
       appendCommandResult(canceled);
       setText("rerun-launch-status", "Canceled");
       setText("rerun-launch-detail", canceled.message);
+      if (rerunBtn) rerunBtn.textContent = rerunBtnText || (request.dry_run ? "Preview CSV Rerun" : "Start CSV Rerun");
+      updateLaunchCommandButtonStates();
       return;
     }
+    if (rerunBtn) rerunBtn.textContent = request.dry_run ? "Previewing..." : "Starting...";
     setLaunchCommandBusy(true);
     setText("rerun-launch-status", request.dry_run ? "Previewing..." : "Starting...");
     renderJsonDetail("rerun-launch-detail", {
@@ -1479,6 +1177,7 @@
       }, request);
     } finally {
       setLaunchCommandBusy(false);
+      if (rerunBtn) rerunBtn.textContent = rerunBtnText || (request.dry_run ? "Preview CSV Rerun" : "Start CSV Rerun");
     }
   }
 
@@ -1507,13 +1206,7 @@
     pipelineStartConfirmMessage,
     startPipelineFromForm,
     startPendingPublishDrain,
-    collectAuditStartRequest,
-    startAuditFromForm,
-    renderLaunchAuditControls,
-    saveAuditScorePolicy,
-    ignoreSelectedAuditRows,
-    exportAuditRerunCsv,
-    renderLaunchAuditLog,
+    startStateJournalArchive,
     collectRerunStartRequest,
     startRerunFromForm,
     pipelineModeLabel,
@@ -1592,9 +1285,7 @@
     renderLaunchBackendPreflight,
     refreshLaunchBackendPreflight,
     pipelineLaunchPreflightLines,
-    auditLaunchPreflightLines,
     rerunLaunchPreflightLines,
-    renderLaunchAuditProgress,
     isLaunchCommand,
     renderLaunchCommandHistory,
     launchHistoryLine,
@@ -1602,6 +1293,7 @@
     activateLaunchTab,
     initLaunchTabNav,
     initLaunchViewEvents,
+    initLaunchRecoveryActionEvents,
   };
   window.requestPipelineControl = requestPipelineControl;
   window.isPipelineControlCommand = isPipelineControlCommand;
@@ -1615,10 +1307,7 @@
   window.browsePipelineSingleFile = browsePipelineSingleFile;
   window.clearPipelineSingleFile = clearPipelineSingleFile;
   window.startPipelineFromForm = startPipelineFromForm;
-  window.collectAuditStartRequest = collectAuditStartRequest;
-  window.startAuditFromForm = startAuditFromForm;
-  window.renderLaunchAuditControls = renderLaunchAuditControls;
-  window.renderLaunchAuditLog = renderLaunchAuditLog;
+  window.startStateJournalArchive = startStateJournalArchive;
   window.collectRerunStartRequest = collectRerunStartRequest;
   window.startRerunFromForm = startRerunFromForm;
   window.launchSettingsWorkspace = launchSettingsWorkspace;
@@ -1682,9 +1371,7 @@
   window.renderLaunchBackendPreflight = renderLaunchBackendPreflight;
   window.refreshLaunchBackendPreflight = refreshLaunchBackendPreflight;
   window.pipelineLaunchPreflightLines = pipelineLaunchPreflightLines;
-  window.auditLaunchPreflightLines = auditLaunchPreflightLines;
   window.rerunLaunchPreflightLines = rerunLaunchPreflightLines;
-  window.renderLaunchAuditProgress = renderLaunchAuditProgress;
   window.isLaunchCommand = isLaunchCommand;
   window.renderLaunchCommandHistory = renderLaunchCommandHistory;
   window.launchHistoryLine = launchHistoryLine;

@@ -11,6 +11,7 @@ _URL_RE = re.compile(r"\bhttps?://[^\s<>'\"]+", re.IGNORECASE)
 _SENSITIVE_ASSIGNMENT_RE = re.compile(
     r"(?i)\b([A-Za-z0-9_]*(?:token|secret|password|authorization|auth|apikey|api_key)[A-Za-z0-9_]*)=([^&#\s;]+)"
 )
+_BEARER_TOKEN_RE = re.compile(r"(?i)\b(Authorization:\s*Bearer\s+)([^\s;]+)")
 
 
 def redact_url(value: Any) -> str:
@@ -47,6 +48,7 @@ def redact_network_secret_text(value: Any) -> str:
         return redact_url(match.group(0))
 
     redacted = _URL_RE.sub(_redact_match, text)
+    redacted = _BEARER_TOKEN_RE.sub(lambda m: f"{m.group(1)}<redacted>", redacted)
     return _SENSITIVE_ASSIGNMENT_RE.sub(lambda m: f"{m.group(1)}=<redacted>", redacted)
 
 

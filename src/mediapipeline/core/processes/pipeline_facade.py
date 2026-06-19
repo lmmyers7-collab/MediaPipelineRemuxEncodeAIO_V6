@@ -17,6 +17,7 @@ from mediapipeline.core.processes.pipeline_policy import (
     parse_pipeline_sleep_seconds,
     pipeline_extra_args_error,
     pipeline_start_active_work_result,
+    pipeline_start_autonomy_blocked_result,
     pipeline_start_config_blocked_result,
     pipeline_start_exception_result,
     pipeline_start_extra_args_error_result,
@@ -120,6 +121,11 @@ class PipelineLaunchFacadeMixin:
             block_message = self._active_work_block_message(resolved, "Pipeline start")
             if block_message:
                 return pipeline_start_active_work_result(block_message)
+            autonomy_method = getattr(self, "_autonomy_health_for_resolved", None)
+            if callable(autonomy_method):
+                autonomy_health = autonomy_method(resolved)
+                if str((autonomy_health or {}).get("overall_status") or "").casefold() == "blocked":
+                    return pipeline_start_autonomy_blocked_result(autonomy_health)
             self._cancel_pipeline_schedule_stop_watcher("cleared before a new backend pipeline launch")
             launch_prep_messages: list[str] = []
             runtime_prep = getattr(self.service, "prepare_pipeline_runtime_for_launch", None)

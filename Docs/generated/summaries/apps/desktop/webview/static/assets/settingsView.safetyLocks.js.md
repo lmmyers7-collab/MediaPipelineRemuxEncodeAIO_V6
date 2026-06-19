@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.safetyLocks.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 2ede47797e711bc488645cf1d39369c6d9166683ed7e5fac31d897b87a43ab2e
+sha256: b9cf00a3a272fe65955711121bebb42b95acf3ede0c5df842dfffc07f78c8f72
 ---
 # `apps/desktop/webview/static/assets/settingsView.safetyLocks.js`
 

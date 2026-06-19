@@ -33,14 +33,6 @@
     return request;
   }
 
-  function collectAuditStartRequest() {
-    return {
-      library_root: byId("audit-start-library-root")?.value || "",
-      include_sidecars: Boolean(byId("audit-start-include-sidecars")?.checked),
-      show_console: Boolean(byId("audit-start-show-console")?.checked),
-    };
-  }
-
   function collectRerunStartRequest(options = {}) {
     const dryRun = typeof options === "boolean" ? options : Boolean(options.dry_run);
     return {
@@ -57,7 +49,6 @@
       launchRequestFieldValue,
       launchPreflightRequestMatches,
       collectPipelineStartRequest,
-      collectAuditStartRequest,
       collectRerunStartRequest,
     };
   }

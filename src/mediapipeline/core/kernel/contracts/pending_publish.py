@@ -8,6 +8,7 @@ from .base import ContractError, bool_field, int_field, list_field, require_mapp
 
 
 PENDING_PUSH_MANIFEST_SCHEMA_VERSION = "pending_push_manifest.v1"
+PENDING_PUSH_RETRY_LIMIT = 3
 PENDING_PUSH_MANIFEST_STATES = {
     "pending_move",
     "parked",

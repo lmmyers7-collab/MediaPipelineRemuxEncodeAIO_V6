@@ -246,6 +246,21 @@ def _browser_settings_launch_runner_source() -> str:
               if (!warning.includes("omitted designation-specific override")) {
                 throw new Error("missing designation-prune warning after staging TV LibraryProfiles patch: " + warning);
               }
+              localStorage.setItem("mediapipeline-library-profile", "movies");
+              byId("settings-library-add-button").click();
+              const addedPane = document.querySelector(".settings-library-profile-pane.is-active");
+              const addedId = addedPane ? addedPane.getAttribute("data-library-profile-pane") : "";
+              if (!addedId || !addedId.startsWith("library-")) {
+                throw new Error("Add Library did not activate the newly added profile; active pane was " + addedId);
+              }
+              const addedTab = document.querySelector('[data-library-profile-nav="' + addedId + '"]');
+              if (!addedTab || addedTab.getAttribute("aria-current") !== "location") {
+                throw new Error("Add Library did not mark the new profile tab current");
+              }
+              byId("settings-library-reset-button").click();
+              if (document.querySelector('[data-library-id="' + addedId + '"]')) {
+                throw new Error("Reset From Current did not remove unsaved added library " + addedId);
+              }
               window.showPage("settings");
             }
             async function requireLibraryRouteMapEvidence() {
@@ -273,6 +288,12 @@ def _browser_settings_launch_runner_source() -> str:
               window.mediaPipelineLibraryRouteMap.renderRouteMap(payload.routeMap, routeContext);
               const panel = document.querySelector(".settings-library-route-map-panel");
               if (!panel) throw new Error("missing Library Route Map panel");
+              if (!byId("settings-library-state-strip")) {
+                throw new Error("missing Library Profile staged/saved state strip");
+              }
+              if (!text("library-route-map-context").includes("Evidence authority:")) {
+                throw new Error("Library Route Map context did not identify saved backend evidence: " + text("library-route-map-context"));
+              }
               const routeMapButtons = Array.from(panel.querySelectorAll("button"))
                 .filter((button) => !Array.from(button.classList).some((className) => className.startsWith("pcb-btn")));
               if (routeMapButtons.length) {
@@ -283,6 +304,8 @@ def _browser_settings_launch_runner_source() -> str:
                 "library-route-trace-selector",
                 "library-route-compare-left",
                 "library-route-compare-right",
+                "library-route-map-context",
+                "library-route-map-warning-summary",
                 "library-route-map-graph",
                 "library-route-decision-rows",
                 "library-route-node-rows",
@@ -298,6 +321,17 @@ def _browser_settings_launch_runner_source() -> str:
                   && byId("library-route-decision-rows").querySelectorAll("tr").length > 0,
                 "Library Route Map graph and decision matrix"
               );
+              const profileSelect = byId("library-route-map-profile-select");
+              if (profileSelect.options.length > 1) {
+                profileSelect.selectedIndex = 1;
+                const selectedLibraryId = profileSelect.value;
+                profileSelect.dispatchEvent(new Event("change", { bubbles: true }));
+                await waitFor(
+                  () => Boolean(document.querySelector('[data-library-profile-pane="' + selectedLibraryId + '"].is-active'))
+                    && document.querySelector('[data-library-profile-nav="' + selectedLibraryId + '"]')?.getAttribute("aria-current") === "location",
+                  "Library Route Map profile selection synced Library Profile editor"
+                );
+              }
               const traceSelect = byId("library-route-trace-selector");
               if (!traceSelect || traceSelect.options.length < 1) {
                 throw new Error("Library Route Map trace selector did not load row evidence");
@@ -316,8 +350,8 @@ def _browser_settings_launch_runner_source() -> str:
                 left.dispatchEvent(new Event("change", { bubbles: true }));
                 right.dispatchEvent(new Event("change", { bubbles: true }));
                 await waitFor(
-                  () => byId("library-route-compare-rows").querySelectorAll("tr").length > 0,
-                  "Library Route Map compare rows"
+                  () => Boolean(byId("library-route-compare-rows").querySelector("td[data-state]")),
+                  "Library Route Map compare rows with semantic data-state coloring"
                 );
               }
               const navigation = panel.querySelector("[data-library-route-navigate]");
@@ -406,7 +440,7 @@ def _browser_settings_launch_runner_source() -> str:
             bdpgsRawActionRow.click();
             requireText("settings-raw-action-plan-detail", [
               "Area: BDPGS OCR path evidence",
-              "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative",
+              "Path policy: WebView can stage configured path text, but backend Save and saved path evidence remain authoritative",
               "WebView does not browse arbitrary paths or resolve paths",
               "backend-owned and allowlisted",
               "Mutation guardrail",
@@ -431,18 +465,18 @@ def _browser_settings_launch_runner_source() -> str:
             window.mediaPipelineSettingsView.renderSettingsPatchSummary();
             window.mediaPipelineLaunchView.renderAllLaunchPreflights();
 
-            requireText("settings-patch-summary-status", ["7 staged keys", "7 changed", "Backend preview remains the source of truth"]);
-            requireText("settings-save-readiness", ["Local save readiness checklist:", "Required operator action: use Preview Patch before Save Patch", "Mutation guardrail"]);
-            requireText("settings-policy-delta-summary", ["Staged media-policy delta", "Mutation guardrail"]);
-            requireText("settings-effective-policy-summary", ["Effective policy trust summary:", "Launch-active policy is the saved backend config", "WebView builder values and Changes JSON are candidates only"]);
+            requireText("settings-patch-summary-status", ["7 candidate keys", "7 changed", "Backend Save remains the source of truth"]);
+            requireText("settings-save-readiness", ["Local save readiness checklist:", "press Save Settings and review the change dialog", "Mutation guardrail"]);
+            requireText("settings-policy-delta-summary", ["Save-candidate media-policy delta", "Mutation guardrail"]);
+            requireText("settings-effective-policy-summary", ["Effective policy trust summary:", "Launch-active policy is the saved backend config", "WebView builder edits are candidates only"]);
             const stagedPolicyTrustRow = Array.from(document.querySelectorAll("#settings-effective-policy-rows tr"))
-              .find((row) => row.textContent.includes("Staged WebView patch activity"));
-            if (!stagedPolicyTrustRow) throw new Error("missing staged WebView patch activity effective-policy row");
+              .find((row) => row.textContent.includes("Current WebView changes"));
+            if (!stagedPolicyTrustRow) throw new Error("missing current WebView changes effective-policy row");
             stagedPolicyTrustRow.click();
-            requireText("settings-effective-policy-detail", ["Checkpoint: Staged WebView patch activity", "Effective changes: 7", "Run backend Preview Patch", "Mutation guardrail"]);
-            requireText("settings-launch-impact-summary", ["Settings-to-launch handoff:", "Launch uses saved backend settings, not unsaved Changes JSON"]);
-            requireText("settings-backend-result-summary", ["Backend preview/save handoff:", "Preview: missing", "Save: not saved"]);
-            requireText("settings-backend-result-detail", ["Backend preview/save result detail:", "Signal: Backend preview", "Patch identity:", "Evidence matches current JSON: no"]);
+            requireText("settings-effective-policy-detail", ["Checkpoint: Current WebView changes", "Effective changes: 7", "Use Save Settings", "Mutation guardrail"]);
+            requireText("settings-launch-impact-summary", ["Settings-to-launch handoff:", "Launch uses saved backend settings, not unsaved edits"]);
+            requireText("settings-backend-result-summary", ["Backend save handoff:", "Dry run: not run", "Save: not saved"]);
+            requireText("settings-backend-result-detail", ["Backend save result detail:", "Signal: Dry-run risk output", "Save candidate identity:", "Evidence matches current JSON: no"]);
 
             window.showPage("launch");
             window.mediaPipelineLaunchView.renderAllLaunchPreflights();
@@ -465,14 +499,14 @@ def _browser_settings_launch_runner_source() -> str:
             requireText("launch-policy-boundary-summary", [
               "Launch active media-policy boundary:",
               "Launch uses the active saved subtitle, audio, and pending-publish/source-safety policy",
-              "Staged candidates are not launch-active until backend Save Patch succeeds",
+              "Staged candidates are not launch-active until Save Settings succeeds",
               "Mutation guardrail",
             ]);
             requireText("launch-policy-boundary-detail", [
               "Launch active media-policy boundary:",
               "Area: Staged subtitle candidate",
               "Launch state: blocked",
-              "Not launch-active until backend Preview Patch, Save Patch, and settings reload/refresh succeed.",
+              "Not launch-active until Save Settings and settings reload/refresh succeed.",
             ]);
             const audioBoundaryRow = Array.from(document.querySelectorAll("#launch-policy-boundary-rows tr"))
               .find((row) => row.textContent.includes("Staged audio candidate"));
@@ -494,8 +528,8 @@ def _browser_settings_launch_runner_source() -> str:
               "cleanup remote=on",
               "Source deletion must remain explicit",
             ]);
-            requireText("launch-settings-intent-summary", ["Staged Settings patch", "unsaved effective change(s)", "Save Patch must succeed"]);
-            requireText("launch-settings-intent-summary", ["Launch uses saved backend settings", "staged Settings JSON does not count"]);
+            requireText("launch-settings-intent-summary", ["Unsaved Settings changes", "unsaved effective change(s)", "Save Settings must succeed"]);
+            requireText("launch-settings-intent-summary", ["Launch uses saved backend settings", "unsaved Settings changes do not count"]);
             requireText("launch-settings-intent-summary", ["Queue display scope", "Do not treat the visible Queue table as launch scope"]);
             const queueScopeIntentRow = Array.from(document.querySelectorAll("#launch-settings-intent-rows tr"))
               .find((row) => row.textContent.includes("Queue display scope"));
@@ -508,64 +542,34 @@ def _browser_settings_launch_runner_source() -> str:
               "Backend launch scope: unchanged",
             ]);
             const stagedSettingsIntentRow = Array.from(document.querySelectorAll("#launch-settings-intent-rows tr"))
-              .find((row) => row.textContent.includes("Staged Settings patch"));
-            if (!stagedSettingsIntentRow) throw new Error("missing staged settings launch-intent row");
+              .find((row) => row.textContent.includes("Unsaved Settings changes"));
+            if (!stagedSettingsIntentRow) throw new Error("missing unsaved settings launch-intent row");
             stagedSettingsIntentRow.click();
             requireText("launch-settings-intent-detail", ["Launch active policy boundary:", "First launch policy boundary row:"]);
 
             window.showPage("settings");
-            click("settings-preview-patch-button");
-            await waitFor(
-              () => text("settings-patch-status").includes("Preview ready") && historyHasPreview(),
-              "backend preview command evidence",
-            );
-            requireText("settings-patch-detail", ["Writes config: no", "Changed keys:", "RoutingProfile", "SizeGuardMode"]);
-            requireText("settings-save-progress-bars", ["Settings save/reload", "20%", "Previewed 7 changed key(s)", "source: settings.preview_patch"]);
-            requireText("settings-backend-result-summary", ["Preview: fresh preview", "Save: not saved"]);
-            requireText("settings-backend-result-summary", ["Preview Patch is non-writing", "Launch uses saved backend settings only"]);
-            requireText("settings-backend-result-detail", ["Signal: Backend preview", "Command result:", "OK: yes", "Writes config: no", "Risk summary:", "Settings save/reload progress:"]);
-            requireText("settings-effective-policy-summary", ["Effective policy trust summary:", "previewed=", "Backend Preview Patch is non-writing"]);
-            const riskRow = Array.from(document.querySelectorAll("#settings-backend-result-rows tr"))
-              .find((row) => row.textContent.includes("Preview risk output"));
-            if (!riskRow) throw new Error("missing backend result preview-risk row");
-            riskRow.click();
-            requireText("settings-backend-result-detail", ["Signal: Preview risk output", "Redacted diff lines:", "Changed keys:", "Evidence matches current JSON: yes"]);
-
             const historyBeforeCancel = window.getCommandHistory();
-            const originalConfirm = window.confirm;
-            let saveConfirmCount = 0;
-            let saveConfirmMessage = "";
-            window.confirm = (message) => {
-              saveConfirmCount += 1;
-              saveConfirmMessage = String(message || "");
-              return false;
-            };
-            try {
-              click("settings-save-patch-button");
-              await new Promise((resolve) => setTimeout(resolve, 150));
-            } finally {
-              window.confirm = originalConfirm;
+            click("settings-save-patch-button");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            if (!document.getElementById("settings-save-review-dialog")?.open) {
+              throw new Error("Save Settings review dialog did not open");
             }
-            if (saveConfirmCount !== 1) throw new Error("expected exactly one Save Patch confirmation prompt; got " + saveConfirmCount);
-            if (!saveConfirmMessage.includes("Save 7 setting patch key(s) to the active PSD1 config?")) {
-              throw new Error("Save Patch confirmation did not include the staged-key count. Actual:\\n" + saveConfirmMessage);
-            }
-            if (!saveConfirmMessage.includes("A matching backend Preview Patch result is available for this staged JSON.")) {
-              throw new Error("Save Patch confirmation did not mention matching preview evidence. Actual:\\n" + saveConfirmMessage);
-            }
+            requireText("settings-save-review-dialog", ["Review Settings Changes", "Changed", "Submitted", "Save Settings"]);
+            click("settings-save-review-cancel-button");
+            await new Promise((resolve) => setTimeout(resolve, 150));
             requireText("settings-patch-status", ["Save cancelled"]);
-            requireText("settings-patch-detail", ["Save Patch was cancelled before any backend save command was sent.", "No config backup was created", "no PSD1 file was written", "staged Changes JSON remains unsaved"]);
-            requireText("settings-backend-result-detail", ["Signal: Save confirmation boundary", "The WebView sends Save Patch only after browser confirmation", "Mutation guardrail"]);
+            requireText("settings-patch-detail", ["Save Settings was cancelled before any backend save command was sent.", "No config backup was created", "no PSD1 file was written", "current edits remain available"]);
+            requireText("settings-backend-result-detail", ["Signal: Save confirmation boundary", "The WebView sends Save Settings only after dialog confirmation", "Mutation guardrail"]);
 
             window.showPage("launch");
             window.mediaPipelineLaunchView.renderAllLaunchPreflights();
             requireText("launch-policy-boundary-summary", ["Launch active media-policy boundary:", "Rows needing attention before launch:"]);
-            requireText("launch-settings-intent-summary", ["Staged Settings patch", "unsaved effective change(s)", "Save Patch must succeed"]);
+            requireText("launch-settings-intent-summary", ["Unsaved Settings changes", "unsaved effective change(s)", "Save Settings must succeed"]);
             requireText("launch-settings-intent-summary", ["Recent command evidence", "saved backend settings"]);
 
             const history = window.getCommandHistory();
             if (history.length !== historyBeforeCancel.length) {
-              throw new Error("cancelled Save Patch changed command history length from " + historyBeforeCancel.length + " to " + history.length);
+              throw new Error("cancelled Save Settings changed command history length from " + historyBeforeCancel.length + " to " + history.length);
             }
             if (history.some((entry) => entry.command === "settings.save_patch" || entry.raw?.command === "settings.save_patch")) {
               throw new Error("settings save command was unexpectedly invoked by the browser smoke");
@@ -582,8 +586,7 @@ def _browser_settings_launch_runner_source() -> str:
               policyBoundaryStatus: text("launch-policy-boundary-status"),
               policyBoundarySummary: text("launch-policy-boundary-summary"),
               policyBoundaryDetail: text("launch-policy-boundary-detail"),
-              saveConfirmCount,
-              saveConfirmMessage,
+              saveReviewOpened: true,
               commandHistoryCount: history.length,
               commandHistory: history.map((entry) => entry.command || entry.raw?.command || ""),
             };
@@ -760,7 +763,7 @@ class WebViewBrowserSettingsLaunchSmoke(unittest.TestCase):
         browser_result = result["result"]
         self.assertEqual(browser_result["patchStatus"], "Save cancelled")
         self.assertEqual(browser_result["effectivePolicyStatus"], "Blocked review")
-        self.assertIn("Staged WebView patch activity", browser_result["effectivePolicyDetail"])
+        self.assertIn("Current WebView changes", browser_result["effectivePolicyDetail"])
         self.assertEqual(browser_result["backendResult"], "Review")
         self.assertIn(browser_result["launchIntent"], {"Blocked", "Review", "High review"})
         self.assertEqual(browser_result["policyBoundaryStatus"], "Blocked staged policy")
@@ -768,7 +771,6 @@ class WebViewBrowserSettingsLaunchSmoke(unittest.TestCase):
         self.assertIn("Remux / encode size posture", browser_result["launchRiskDetail"])
         self.assertIn("Launch active media-policy boundary:", browser_result["policyBoundarySummary"])
         self.assertIn("Staged publish/source candidate", browser_result["policyBoundaryDetail"])
-        self.assertIn("settings.preview_patch", browser_result["commandHistory"])
+        self.assertNotIn("settings.preview_patch", browser_result["commandHistory"])
         self.assertNotIn("settings.save_patch", browser_result["commandHistory"])
-        self.assertEqual(browser_result["saveConfirmCount"], 1)
-        self.assertIn("A matching backend Preview Patch result is available", browser_result["saveConfirmMessage"])
+        self.assertTrue(browser_result["saveReviewOpened"])

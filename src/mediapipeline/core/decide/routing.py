@@ -9,7 +9,6 @@ from mediapipeline.contracts.source_media import SourceAudioStream, SourceMediaI
 from mediapipeline.core.decide.encoding_rules import effective_resolution_limit_height, video_encode_filter_reasons
 from mediapipeline.core.decide.processing_decision import (
     AudioStreamDecision,
-    DecisionReason,
     EffectiveDecisionPolicy,
     ProcessingDecision,
     StreamActionSet,

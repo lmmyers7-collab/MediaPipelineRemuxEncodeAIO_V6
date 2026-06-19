@@ -245,6 +245,30 @@ MOVIE_LOWER_THE_AFTER = frozenset({"by", "for", "from", "in", "into", "of", "on"
 MOVIE_ROMAN_NUMERALS = frozenset({"i", "ii", "iii", "iv", "v", "vi", "vii", "viii", "ix", "x"})
 
 
+def _title_region_before_year(base: str, year_match: re.Match[str] | None) -> str:
+    if not year_match:
+        return ""
+    return base[: year_match.start()].strip(" .-_")
+
+
+def _normalize_movie_title_region(title: str, remove_terms: list[str] | None) -> str:
+    result = str(title or "")
+    for _ in range(5):
+        before = result
+        result = re.sub(r"\([^()]*\)", " ", result)
+        result = re.sub(r"\[[^\[\]]*\]", " ", result)
+        result = re.sub(r"\{[^{}]*\}", " ", result)
+        if result == before:
+            break
+    result = re.sub(r"[{}\[\]()]", " ", result)
+    result = remove_movie_filter_terms(result, remove_terms)
+    result = re.sub(r"[\._]", " ", result)
+    result = re.sub(r"\s-\s", " ", result)
+    result = re.sub(r"\s-|-\s", " ", result)
+    result = normalize_plex_filename_component(result, remove_terms)
+    return title_case_movie_name(result)
+
+
 def normalize_movie_filter_options(movie_filter_options: dict[str, bool] | None = None) -> dict[str, bool]:
     options = {key: True for key in RENAME_MOVIE_FILTER_OPTION_KEYS}
     for key, value in (movie_filter_options or {}).items():
@@ -384,13 +408,21 @@ def clean_pipeline_movie_name(
     filter_terms = normalize_movie_filter_terms(movie_filter_terms)
     base = remove_default_priority_markers(Path(file_name).stem)
     year = ""
+    year_match: re.Match[str] | None = None
     bracketed_year = re.search(r"[\(\[](19|20)(\d{2})[\)\]]", base)
     if bracketed_year:
+        year_match = bracketed_year
         year = bracketed_year.group(1) + bracketed_year.group(2)
     else:
         loose_year = re.search(r"\b(?:19|20)\d{2}\b", base)
         if loose_year:
+            year_match = loose_year
             year = loose_year.group(0)
+    title_region = _title_region_before_year(base, year_match)
+    if year and title_region and all(filter_options.values()):
+        title = _normalize_movie_title_region(title_region, remove_terms)
+        if title:
+            return f"{title} ({year})"
 
     title = base
     for _ in range(5):

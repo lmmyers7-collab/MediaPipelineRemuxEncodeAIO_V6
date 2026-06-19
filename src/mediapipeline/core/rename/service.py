@@ -18,16 +18,6 @@ from mediapipeline.core.rename.apply_runner import apply_rename_path_plan_for_se
 from mediapipeline.core.rename.constants import RENAME_TOOL_SIDECAR_SCHEMA_VERSION
 from mediapipeline.core.rename.discovery import discover_rename_media_files as discover_rename_media_files_helper
 from mediapipeline.core.rename.movie import (
-    MOVIE_AUDIO_TAG_PATTERN,
-    MOVIE_EDITION_TAG_PATTERN,
-    MOVIE_LOWER_THE_AFTER,
-    MOVIE_RELEASE_GROUP_TERMS,
-    MOVIE_ROMAN_NUMERALS,
-    MOVIE_SERVICE_CONTAINER_TAG_PATTERN,
-    MOVIE_SIZE_TAG_PATTERN,
-    MOVIE_SMALL_WORDS,
-    MOVIE_VIDEO_SOURCE_TAG_PATTERN,
-    RENAME_MOVIE_FILTER_DEFAULT_TERMS,
     clean_pipeline_movie_name,
     movie_filter_enabled,
     movie_filter_options_are_default,
@@ -50,19 +40,13 @@ from mediapipeline.core.rename.preview_runner import (
     naming_preview_script_path_for_service,
 )
 from mediapipeline.core.rename.tv import (
-    TV_AUDIO_CHANNEL_TAG_PATTERN,
-    TV_EXPLICIT_EPISODE_PATTERN,
-    TV_NXM_PATTERN,
-    TV_ORDINAL_WORDS,
-    TV_RELEASE_GROUP_SUFFIX_PATTERN,
-    TV_RELEASE_TAG_PATTERN,
-    TV_SEASON_EPISODE_PATTERN,
-    TV_SEASON_ONLY_PATTERN,
-    TV_SPECIALS_FOLDER_PATTERN,
     apply_tv_episode_title_template,
     build_auto_tv_rename_name,
     build_tv_rename_name,
     clean_pipeline_tv_name_part,
+    normalize_tv_filter_options,
+    normalize_tv_filter_terms,
+    rename_tv_filter_default_terms,
     extract_confident_tv_episode_title,
     resolve_tv_folder_season_info,
 )
@@ -83,26 +67,6 @@ from mediapipeline.desktop.subprocess_runner import run_capture
 
 
 class RenameServiceMixin:
-    _MOVIE_VIDEO_SOURCE_TAG_PATTERN = MOVIE_VIDEO_SOURCE_TAG_PATTERN
-    _MOVIE_EDITION_TAG_PATTERN = MOVIE_EDITION_TAG_PATTERN
-    _MOVIE_SERVICE_CONTAINER_TAG_PATTERN = MOVIE_SERVICE_CONTAINER_TAG_PATTERN
-    _MOVIE_AUDIO_TAG_PATTERN = MOVIE_AUDIO_TAG_PATTERN
-    _MOVIE_SIZE_TAG_PATTERN = MOVIE_SIZE_TAG_PATTERN
-    _MOVIE_RELEASE_GROUP_TERMS = MOVIE_RELEASE_GROUP_TERMS
-    _RENAME_MOVIE_FILTER_DEFAULT_TERMS = RENAME_MOVIE_FILTER_DEFAULT_TERMS
-    _MOVIE_SMALL_WORDS = MOVIE_SMALL_WORDS
-    _MOVIE_LOWER_THE_AFTER = MOVIE_LOWER_THE_AFTER
-    _MOVIE_ROMAN_NUMERALS = MOVIE_ROMAN_NUMERALS
-    _TV_SEASON_EPISODE_PATTERN = TV_SEASON_EPISODE_PATTERN
-    _TV_NXM_PATTERN = TV_NXM_PATTERN
-    _TV_SEASON_ONLY_PATTERN = TV_SEASON_ONLY_PATTERN
-    _TV_EXPLICIT_EPISODE_PATTERN = TV_EXPLICIT_EPISODE_PATTERN
-    _TV_SPECIALS_FOLDER_PATTERN = TV_SPECIALS_FOLDER_PATTERN
-    _TV_RELEASE_TAG_PATTERN = TV_RELEASE_TAG_PATTERN
-    _TV_AUDIO_CHANNEL_TAG_PATTERN = TV_AUDIO_CHANNEL_TAG_PATTERN
-    _TV_RELEASE_GROUP_SUFFIX_PATTERN = TV_RELEASE_GROUP_SUFFIX_PATTERN
-    _TV_ORDINAL_WORDS = TV_ORDINAL_WORDS
-
     def _normalize_movie_filter_options(self, movie_filter_options: dict[str, bool] | None = None) -> dict[str, bool]:
         return normalize_movie_filter_options(movie_filter_options)
 
@@ -114,6 +78,15 @@ class RenameServiceMixin:
 
     def _movie_filter_options_are_default(self, movie_filter_options: dict[str, bool] | None = None) -> bool:
         return movie_filter_options_are_default(movie_filter_options)
+
+    def _normalize_tv_filter_options(self, tv_filter_options: dict[str, bool] | None = None) -> dict[str, bool]:
+        return normalize_tv_filter_options(tv_filter_options)
+
+    def _normalize_tv_filter_terms(self, tv_filter_terms: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
+        return normalize_tv_filter_terms(tv_filter_terms)
+
+    def _rename_tv_filter_default_terms(self) -> dict[str, list[str]]:
+        return rename_tv_filter_default_terms()
 
     def _natural_sort_key(self, path: Path) -> tuple[object, ...]:
         return natural_sort_key(path)
@@ -162,6 +135,8 @@ class RenameServiceMixin:
         season_number: int,
         episode_number: int,
         remove_terms: list[str] | None,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
         include_episode_title: bool = True,
     ) -> str:
         return build_tv_rename_name(
@@ -170,20 +145,40 @@ class RenameServiceMixin:
             season_number=season_number,
             episode_number=episode_number,
             remove_terms=remove_terms,
+            tv_filter_options=tv_filter_options,
+            tv_filter_terms=tv_filter_terms,
             include_episode_title=include_episode_title,
         )
 
     def _strip_known_media_suffix(self, value: str) -> str:
         return strip_known_media_suffix(value)
 
-    def _clean_pipeline_tv_name_part(self, value: str, remove_terms: list[str] | None = None) -> str:
-        return clean_pipeline_tv_name_part(value, remove_terms)
+    def _clean_pipeline_tv_name_part(
+        self,
+        value: str,
+        remove_terms: list[str] | None = None,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
+    ) -> str:
+        return clean_pipeline_tv_name_part(value, remove_terms, tv_filter_options, tv_filter_terms)
 
-    def _resolve_tv_folder_season_info(self, source: Path, remove_terms: list[str] | None = None) -> dict[str, Any] | None:
-        return resolve_tv_folder_season_info(source, remove_terms)
+    def _resolve_tv_folder_season_info(
+        self,
+        source: Path,
+        remove_terms: list[str] | None = None,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
+    ) -> dict[str, Any] | None:
+        return resolve_tv_folder_season_info(source, remove_terms, tv_filter_options, tv_filter_terms)
 
-    def _extract_confident_tv_episode_title(self, stem: str, remove_terms: list[str] | None = None) -> str:
-        return extract_confident_tv_episode_title(stem, remove_terms)
+    def _extract_confident_tv_episode_title(
+        self,
+        stem: str,
+        remove_terms: list[str] | None = None,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
+    ) -> str:
+        return extract_confident_tv_episode_title(stem, remove_terms, tv_filter_options, tv_filter_terms)
 
     def _build_auto_tv_rename_name(
         self,
@@ -191,12 +186,16 @@ class RenameServiceMixin:
         *,
         season_number: int,
         remove_terms: list[str] | None,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
         include_episode_title: bool = True,
     ) -> str:
         return build_auto_tv_rename_name(
             source,
             season_number=season_number,
             remove_terms=remove_terms,
+            tv_filter_options=tv_filter_options,
+            tv_filter_terms=tv_filter_terms,
             include_episode_title=include_episode_title,
         )
 
@@ -323,6 +322,8 @@ class RenameServiceMixin:
         remove_terms: list[str] | None = None,
         movie_filter_options: dict[str, bool] | None = None,
         movie_filter_terms: dict[str, list[str]] | None = None,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
         final_name_overrides: dict[str, str] | None = None,
         rename_sidecars: bool = True,
         force_pipeline_name: bool = False,
@@ -343,6 +344,8 @@ class RenameServiceMixin:
             remove_terms=remove_terms,
             movie_filter_options=movie_filter_options,
             movie_filter_terms=movie_filter_terms,
+            tv_filter_options=tv_filter_options,
+            tv_filter_terms=tv_filter_terms,
             final_name_overrides=final_name_overrides,
             rename_sidecars=rename_sidecars,
             force_pipeline_name=force_pipeline_name,

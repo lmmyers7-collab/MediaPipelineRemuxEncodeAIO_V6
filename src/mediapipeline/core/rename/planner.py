@@ -27,6 +27,8 @@ def plan_rename_paths_for_service(
     remove_terms: list[str] | None = None,
     movie_filter_options: dict[str, bool] | None = None,
     movie_filter_terms: dict[str, list[str]] | None = None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
     final_name_overrides: dict[str, str] | None = None,
     rename_sidecars: bool = True,
     force_pipeline_name: bool = False,
@@ -123,6 +125,8 @@ def plan_rename_paths_for_service(
                         season_number=season_number,
                         episode_number=start_episode + offset,
                         remove_terms=remove_terms,
+                        tv_filter_options=tv_filter_options,
+                        tv_filter_terms=tv_filter_terms,
                         include_episode_title=include_tv_episode_title,
                     )
                 else:
@@ -132,6 +136,8 @@ def plan_rename_paths_for_service(
                         source,
                         season_number=season_number,
                         remove_terms=remove_terms,
+                        tv_filter_options=tv_filter_options,
+                        tv_filter_terms=tv_filter_terms,
                         include_episode_title=include_tv_episode_title,
                     )
                     if tv_preview_warning:

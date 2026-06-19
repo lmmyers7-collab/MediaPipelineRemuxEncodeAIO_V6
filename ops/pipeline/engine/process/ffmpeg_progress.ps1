@@ -68,6 +68,23 @@ function Get-MkvmergeWarningClassification {
     }
 }
 
+function Get-FFmpegWasteGuardContextValue {
+    param(
+        [AllowNull()] $Context,
+        [Parameter(Mandatory)] [string] $Name,
+        $DefaultValue = $null
+    )
+
+    if ($null -eq $Context) { return $DefaultValue }
+    if ($Context -is [System.Collections.IDictionary]) {
+        if ($Context.Contains($Name)) { return $Context[$Name] }
+        return $DefaultValue
+    }
+    $prop = $Context.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    return $DefaultValue
+}
+
 function Invoke-FFmpegWithProgress {
     param(
         [array]$FFArgs,
@@ -82,7 +99,9 @@ function Invoke-FFmpegWithProgress {
         # starve the desktop UI's main loop. 'inherit' is a no-op for
         # backwards compat; any unrecognized value falls back to inherit.
         [switch]$CpuEncode,
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [string]$OutputPath = '',
+        [AllowNull()] $WasteGuardContext = $null
     )
 
     $duration = 0
@@ -119,11 +138,17 @@ function Invoke-FFmpegWithProgress {
     $startedAt  = Get-Date
     $timedOut   = $false
     $stopped    = $false
+    $script:LastFFmpegAbortCode = ''
+    $script:LastFFmpegAbortReason = ''
+    $script:LastEncodeWasteGuardProjection = $null
     try {
     $lastPct     = -1
+    $lastObservedProgressPercent = 0.0
     $progressStep = [math]::Max(1, [int]$script:FFmpegProgressWriteStepPercent)
     $lastBeat    = Get-Date
     $lastFlagChk = Get-Date
+    $lastWasteGuardPollElapsed = -999999.0
+    $wasteGuardConsecutiveHits = 0
     try {
         if (-not [string]::IsNullOrWhiteSpace($LocalFailed)) {
             if (-not (Test-Path -LiteralPath $LocalFailed)) {
@@ -169,11 +194,12 @@ function Invoke-FFmpegWithProgress {
         }
         $pct = Get-FFmpegProgressPercentFromLine -Line $ln -DurationSeconds $duration
         if ($null -ne $pct) {
+            Set-Variable -Name lastObservedProgressPercent -Value ([double]$pct) -Scope 1
             if ($pct -ge ($lastPct + $progressStep)) {
                 $step = $pct - ($pct % $progressStep)
                 Write-Log "$Label : $step%"
-                $lastPct  = $step
-                $lastBeat = Get-Date
+                Set-Variable -Name lastPct -Value $step -Scope 1
+                Set-Variable -Name lastBeat -Value (Get-Date) -Scope 1
                 if ($ProgressStage) {
                     Set-ProgressStage -Stage $ProgressStage -Percent $step -Route $ProgressRoute -SaveNow
                 } else {
@@ -184,16 +210,76 @@ function Invoke-FFmpegWithProgress {
     }
 
     $pollHandler = {
+        param($ElapsedSeconds, $RunningProcess)
+
         if (((Get-Date) - $lastFlagChk).TotalSeconds -ge 5) {
             if (Test-Path -LiteralPath $PauseFlag -ErrorAction SilentlyContinue) {
                 # Cannot pause ffmpeg mid-encode; pause takes effect after current file
                 Write-Log "$Label : PAUSE flag detected — will pause after current file completes" "WARN"
             }
-            $lastFlagChk = Get-Date
+            Set-Variable -Name lastFlagChk -Value (Get-Date) -Scope 1
         }
 
         if (((Get-Date) - $lastBeat).TotalSeconds -gt 60) {
-            Write-Log "$Label : still running..." "DEBUG"; $lastBeat = Get-Date
+            Write-Log "$Label : still running..." "DEBUG"; Set-Variable -Name lastBeat -Value (Get-Date) -Scope 1
+        }
+
+        if ($null -ne $WasteGuardContext -and [bool](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'Enabled' -DefaultValue $false)) {
+            $mode = ([string](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'Mode' -DefaultValue 'off')).Trim().ToLowerInvariant()
+            if ($mode -ne 'off') {
+                $pollSeconds = [double](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'PollSeconds' -DefaultValue 10)
+                if ($pollSeconds -lt 0) { $pollSeconds = 0 }
+                if (([double]$ElapsedSeconds - $lastWasteGuardPollElapsed) -ge $pollSeconds) {
+                    Set-Variable -Name lastWasteGuardPollElapsed -Value ([double]$ElapsedSeconds) -Scope 1
+                    $guardOutputPath = [string](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'OutputPath' -DefaultValue $OutputPath)
+                    if (-not [string]::IsNullOrWhiteSpace($guardOutputPath) -and (Test-Path -LiteralPath $guardOutputPath -ErrorAction SilentlyContinue)) {
+                        $sourceSize = [long](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'SourceSizeBytes' -DefaultValue 0)
+                        if ($sourceSize -le 0 -and -not [string]::IsNullOrWhiteSpace($InputFile) -and (Test-Path -LiteralPath $InputFile -ErrorAction SilentlyContinue)) {
+                            $sourceSize = [long](Get-Item -LiteralPath $InputFile).Length
+                        }
+                        $outputSize = [long](Get-Item -LiteralPath $guardOutputPath).Length
+                        $projection = Measure-MediaEncodeWasteGuardProjection `
+                            -SourceSizeBytes $sourceSize `
+                            -OutputSizeBytes $outputSize `
+                            -ProgressPercent $lastObservedProgressPercent `
+                            -LimitRatio ([double](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'LimitRatio' -DefaultValue 1.05)) `
+                            -OversizeMarginPercent ([double](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'OversizeMarginPercent' -DefaultValue 20)) `
+                            -MinProgressPercent ([double](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'MinProgressPercent' -DefaultValue 15)) `
+                            -ElapsedSeconds ([double]$ElapsedSeconds) `
+                            -MinElapsedSeconds ([double](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'MinElapsedSeconds' -DefaultValue 120)) `
+                            -PreviousConsecutiveHits $wasteGuardConsecutiveHits `
+                            -ConsecutiveSamples ([int](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'ConsecutiveSamples' -DefaultValue 2))
+                        Set-Variable -Name wasteGuardConsecutiveHits -Value ([int]$projection.ConsecutiveHits) -Scope 1
+                        $script:LastEncodeWasteGuardProjection = $projection
+                        if ([bool]$projection.ShouldAbort) {
+                            $abortReason = ("projected encode output {0:N0} bytes exceeds waste guard threshold {1:N0} bytes at {2:N1}% progress" -f [double]$projection.ProjectedOutputBytes, [double]$projection.AbortThresholdBytes, [double]$projection.ProgressPercent)
+                            $eventData = @{
+                                mode                   = $mode
+                                projected_output_bytes = [double]$projection.ProjectedOutputBytes
+                                abort_threshold_bytes  = [double]$projection.AbortThresholdBytes
+                                allowed_output_bytes   = [double]$projection.AllowedOutputBytes
+                                source_size_bytes      = [long]$projection.SourceSizeBytes
+                                output_size_bytes      = [long]$projection.OutputSizeBytes
+                                progress_percent       = [double]$projection.ProgressPercent
+                                projected_ratio        = [double]$projection.ProjectedRatio
+                                consecutive_hits       = [int]$projection.ConsecutiveHits
+                            }
+                            if ($mode -eq 'dry_run' -or [bool](Get-FFmpegWasteGuardContextValue -Context $WasteGuardContext -Name 'DryRun' -DefaultValue $false)) {
+                                Write-Log "$Label : waste guard dry-run would abort: $abortReason" "WARN"
+                                Write-PipelineEvent -EventType 'encode_waste_guard_projection' -Stage $ProgressStage -Route $ProgressRoute -Status 'dry_run' -SourcePath $InputFile -Data $eventData | Out-Null
+                                return $null
+                            }
+                            Write-Log "$Label : waste guard aborting encode: $abortReason" "WARN"
+                            Write-PipelineEvent -EventType 'encode_waste_guard_projection' -Stage $ProgressStage -Route $ProgressRoute -Status 'aborting' -SourcePath $InputFile -Data $eventData | Out-Null
+                            return @{
+                                Abort = $true
+                                AbortCode = 'ENCODE_WASTE_GUARD_PROJECTED_OVERSIZE'
+                                AbortReason = $abortReason
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -214,12 +300,18 @@ function Invoke-FFmpegWithProgress {
 
     $timedOut = [bool]$result.TimedOut
     $stopped  = [bool]$result.Stopped
+    $aborted  = [bool](Get-FFmpegWasteGuardContextValue -Context $result -Name 'Aborted' -DefaultValue $false)
     if ($timedOut) {
         Write-Log "$Label : timeout after ${TimeoutSeconds}s — killing ffmpeg" "ERROR"
         if ($stderrLogPath) { try { [System.IO.File]::AppendAllText($stderrLogPath, "[KILLED: TIMEOUT after ${TimeoutSeconds}s]" + [Environment]::NewLine) } catch {} }
     } elseif ($stopped) {
         Write-Log "$Label : STOP requested — killing ffmpeg" "WARN"
         if ($stderrLogPath) { try { [System.IO.File]::AppendAllText($stderrLogPath, "[KILLED: STOP requested]" + [Environment]::NewLine) } catch {} }
+    } elseif ($aborted) {
+        $script:LastFFmpegAbortCode = [string](Get-FFmpegWasteGuardContextValue -Context $result -Name 'AbortCode' -DefaultValue ([string]$result.ErrorCode))
+        $script:LastFFmpegAbortReason = [string](Get-FFmpegWasteGuardContextValue -Context $result -Name 'AbortReason' -DefaultValue 'ffmpeg aborted by poll handler')
+        Write-Log "$Label : aborted by runner policy ($($script:LastFFmpegAbortCode))" "WARN"
+        if ($stderrLogPath) { try { [System.IO.File]::AppendAllText($stderrLogPath, "[KILLED: $($script:LastFFmpegAbortReason)]" + [Environment]::NewLine) } catch {} }
     }
     $exitCode = [int]$result.ExitCode
     $Global:ffmpegProcess = $null

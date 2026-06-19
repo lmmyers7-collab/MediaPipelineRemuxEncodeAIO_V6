@@ -55,12 +55,17 @@ def evaluate_schedule(
     grid = normalize_schedule_grid(schedule_grid)
     block_start = now.replace(minute=30 if now.minute >= 30 else 0, second=0, microsecond=0)
     current_day_index = now.weekday()
+    current_day = SCHEDULE_DAY_NAMES[current_day_index]
     current_block_index = now.hour * 2 + (1 if now.minute >= 30 else 0)
 
     if not schedule_enabled:
         return {
             "enabled": False,
             "allowed_now": True,
+            "current_day": current_day,
+            "current_day_index": current_day_index,
+            "current_block_index": current_block_index,
+            "current_block_start": block_start,
             "current_window_end": None,
             "next_allowed_start": None,
             "next_allowed_end": None,
@@ -118,6 +123,10 @@ def evaluate_schedule(
     return {
         "enabled": True,
         "allowed_now": allowed_now,
+        "current_day": current_day,
+        "current_day_index": current_day_index,
+        "current_block_index": current_block_index,
+        "current_block_start": block_start,
         "current_window_end": current_window_end,
         "next_allowed_start": next_allowed_start,
         "next_allowed_end": next_allowed_end,

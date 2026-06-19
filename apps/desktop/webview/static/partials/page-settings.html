@@ -15,15 +15,50 @@
         <!-- SAVE HEADER: visible across all settings subtabs -->
         <div class="settings-save-header" id="settings-save-header" role="region" aria-label="Settings save controls">
           <div class="settings-save-header-status">
-            <span><span class="settings-mini-label">Patch</span><strong id="settings-save-header-patch-status">No patch</strong></span>
+            <span><span class="settings-mini-label">Changes</span><strong id="settings-save-header-patch-status">No changes</strong></span>
             <span><span class="settings-mini-label">Reloaded</span><strong id="settings-save-header-reload-status">&#x2014;</strong></span>
           </div>
           <div class="settings-save-header-actions">
-            <button type="button" id="settings-save-header-preview-button" class="secondary-button">Preview Patch</button>
             <button type="button" id="settings-save-header-save-button" class="primary-button">Save Settings</button>
             <button type="button" id="settings-save-header-reload-button" class="secondary-button">Reload From Disk</button>
           </div>
         </div>
+        <dialog id="settings-save-review-dialog" class="settings-save-review-dialog" aria-labelledby="settings-save-review-title">
+          <form method="dialog" class="settings-save-review-form">
+            <div class="settings-save-review-header">
+              <div>
+                <h2 id="settings-save-review-title">Review Settings Changes</h2>
+                <p id="settings-save-review-summary" class="settings-save-review-summary">No settings changes are queued for save.</p>
+              </div>
+              <button type="submit" value="cancel" class="secondary-button">Close</button>
+            </div>
+            <ul class="settings-save-review-counts" aria-label="Settings save counts">
+              <li><span>Changed</span><strong id="settings-save-review-dialog-changed">0</strong></li>
+              <li><span>Submitted</span><strong id="settings-save-review-dialog-submitted">0</strong></li>
+              <li><span>Resets</span><strong id="settings-save-review-dialog-resets">0</strong></li>
+            </ul>
+            <div class="table-wrap settings-save-review-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Setting</th>
+                    <th scope="col">Current</th>
+                    <th scope="col">New</th>
+                    <th scope="col">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="settings-save-review-dialog-rows">
+                  <tr><td colspan="4">No settings changes to review.</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <pre id="settings-save-review-dialog-detail" class="prose-block compact-text-block">Backend save will validate, write a backup, persist the PSD1, and reload settings after confirmation.</pre>
+            <div class="action-row action-row-right wrap-actions">
+              <button type="submit" value="cancel" id="settings-save-review-cancel-button" class="secondary-button">Cancel</button>
+              <button type="submit" value="confirm" id="settings-save-review-confirm-button" class="primary-button">Save Settings</button>
+            </div>
+          </form>
+        </dialog>
 
         <!-- TAB: GUIDED SETUP -->
         <div class="settings-tab-pane" data-settings-tab="guided-setup">
@@ -32,7 +67,7 @@
             <h2>Guided Setup</h2>
             <strong id="settings-wizard-status">Not loaded</strong>
           </div>
-          <p class="note" id="settings-wizard-status-detail">Guided setup stages the same PSD1-backed settings used by the manual editor. Preview and save go through backend validation; this does not start media processing, drain pending publish, rename files, or touch source media.</p>
+          <p class="note" id="settings-wizard-status-detail">Guided setup prepares the same PSD1-backed settings used by the manual editor. Save goes through backend validation; this does not start media processing, drain pending publish, rename files, or touch source media.</p>
           <div class="settings-wizard-readiness-strip" id="settings-wizard-readiness-strip" aria-label="Guided Setup readiness">
             <span><span class="settings-mini-label">Blockers</span><strong id="settings-wizard-readiness-blockers">0</strong></span>
             <span><span class="settings-mini-label">Warnings</span><strong id="settings-wizard-readiness-warnings">0</strong></span>
@@ -244,7 +279,7 @@
                     <tbody id="settings-wizard-summary-rows"><tr><td colspan="3">No summary loaded.</td></tr></tbody>
                   </table>
                 </div>
-                <p class="note">Save validates the generated patch, backs up the existing PSD1 when a write is needed, writes atomically, and reloads settings through the backend.</p>
+                <p class="note">Save validates the generated settings changes, backs up the existing PSD1 when a write is needed, writes atomically, and reloads settings through the backend.</p>
                 <div class="settings-wizard-safety-grid" id="settings-wizard-acknowledgement-list">
                   <label data-risk-ack-row="AllowSystemTools" hidden><input id="wizard-ack-AllowSystemTools" type="checkbox"> I understand AllowSystemTools can run PATH tools outside the portable bundle.</label>
                   <label data-risk-ack-row="AllowNoAudio" hidden><input id="wizard-ack-AllowNoAudio" type="checkbox"> I understand no-audio outputs are unusual and should be deliberate.</label>
@@ -272,7 +307,7 @@
             <h2>Preset Orientation</h2>
             <strong>Display only</strong>
           </div>
-          <p class="note">Preset display adapters share the same backend Preview Patch and Save Settings path as the rest of Settings. Guided Setup now lives in its own tab.</p>
+          <p class="note">Preset display adapters share the same backend Save Settings path as the rest of Settings. Guided Setup now lives in its own tab.</p>
         </section>
         </div>
 
@@ -338,9 +373,9 @@
         <section class="panel settings-guided-setup-entry-panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Guided Setup</h2>
-            <strong>Backend preview/save</strong>
+            <strong>Backend save</strong>
           </div>
-          <p class="note">Use Guided Setup for a staged configuration pass. It writes only through backend Preview Config and Save &amp; Reload.</p>
+          <p class="note">Use Guided Setup for a guided configuration pass. It writes only through backend Preview Config and Save &amp; Reload.</p>
           <div class="action-row action-row-left">
             <button type="button" class="primary-button" id="settings-open-wizard-button">Open Guided Setup</button>
           </div>
@@ -399,7 +434,7 @@
           </div>
           </div>
           <p id="settings-backend-media-policy-legend" class="note table-legend">Backend media-policy readiness rows are read-only and have no selectable actions.</p>
-          <p class="note">This panel displays saved backend settings only. Builder edits and Changes JSON are not active until backend Preview/Save succeeds and settings reload completes.</p>
+          <p class="note">This panel displays saved backend settings only. Current edits are not active until backend Save succeeds and settings reload completes.</p>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -431,7 +466,7 @@
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Routing <span class="impact-chip" data-impact="medium" title="Routing / size policy — used before processing to decide copy/remux versus encode">Medium Impact</span></h2>
-            <strong id="settings-builder-status">No patch built</strong>
+            <strong id="settings-builder-status">No changes built</strong>
           </div>
           <div class="settings-routing-hierarchy">
             <section class="settings-builder-subsection">
@@ -649,11 +684,11 @@
             </section>
             <input id="settings-builder-routing-profile-key-readout" type="hidden" readonly>
             <div class="action-row action-row-left">
-              <button type="button" id="settings-builder-apply-button" class="secondary-button">Apply To Patch JSON</button>
+              <button type="button" id="settings-builder-apply-button" class="secondary-button">Update Save Changes</button>
               <button type="button" id="settings-builder-reset-button" class="secondary-button">Reset From Current</button>
             </div>
             <pre id="settings-builder-guidance" class="prose-block">No builder guidance loaded.</pre>
-            <p class="note">Builder controls only update the JSON below. Preview and save still go through backend validation.</p>
+            <p class="note">Builder controls update the save candidate below. Save still goes through backend validation.</p>
           </div>
         </section>
         <section class="panel" data-panel-type="evidence">
@@ -682,15 +717,15 @@
           </div>
           </div>
           <p id="settings-active-media-policy-legend" class="note table-legend">Active media-policy handoff rows are read-only and do not stage, save, launch, encode, remux, publish, or touch files.</p>
-          <p class="note">This summarizes visible builder state. Launch uses saved backend settings only after backend Preview/Save succeeds and settings reload/refresh completes.</p>
+          <p class="note">This summarizes visible builder state. Launch uses saved backend settings only after backend Save succeeds and settings reload/refresh completes.</p>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Change Preview</h2>
-            <strong id="settings-patch-status">No patch</strong>
+            <h2>Current Changes</h2>
+            <strong id="settings-patch-status">No changes</strong>
           </div>
           <label class="full-field">
-            Changes JSON
+            Save Changes JSON
             <textarea id="settings-patch-json" rows="6" spellcheck="false">{
   "RoutingProfile": "plex_direct_stream",
   "SizeGuardMode": "advisory"
@@ -699,12 +734,12 @@
           <label class="check-row">
             <input id="settings-patch-summary-changed-only" type="checkbox"> Show changed / unknown only
           </label>
-          <pre id="settings-patch-impact-summary" class="prose-block">No patch impact summary loaded.</pre>
+          <pre id="settings-patch-impact-summary" class="prose-block">No change summary loaded.</pre>
           <div class="panel-heading panel-subheading">
-            <h3>Staged Changes</h3>
+            <h3>Save Candidate</h3>
             <strong id="settings-policy-delta-status">Not evaluated</strong>
           </div>
-          <pre id="settings-policy-delta-summary" class="prose-block">No staged media-policy delta loaded.</pre>
+          <pre id="settings-policy-delta-summary" class="prose-block">No save-candidate media-policy delta loaded.</pre>
           <div class="table-wrap detail-table-wrap">
             <table>
               <thead>
@@ -712,20 +747,20 @@
                   <th scope="col">Area</th>
                   <th scope="col">Posture</th>
                   <th scope="col">Current Saved Posture</th>
-                  <th scope="col">Staged Candidate Posture</th>
+                  <th scope="col">New Candidate Posture</th>
                   <th scope="col">Operator Check</th>
                 </tr>
               </thead>
               <tbody id="settings-policy-delta-rows">
-                <tr><td colspan="5">No staged media-policy delta loaded.</td></tr>
+                <tr><td colspan="5">No save-candidate media-policy delta loaded.</td></tr>
               </tbody>
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No staged changes</span>
-            <span class="empty-state-hint">Edit a setting and save to see staged changes here.</span>
+            <span class="empty-state-label">No changes</span>
+            <span class="empty-state-hint">Edit a setting and save to see current changes here.</span>
           </div>
           </div>
-          <p id="settings-policy-delta-legend" class="note table-legend">Staged media-policy delta is read-only; backend preview/save remains authoritative.</p>
+          <p id="settings-policy-delta-legend" class="note table-legend">Save-candidate media-policy delta is read-only; backend Save remains authoritative.</p>
           <div class="panel-heading panel-subheading">
             <h3>Active Policy</h3>
             <strong id="settings-effective-policy-status">Not evaluated</strong>
@@ -738,7 +773,7 @@
                   <th scope="col">Checkpoint</th>
                   <th scope="col">Posture</th>
                   <th scope="col">Saved Backend State</th>
-                  <th scope="col">Staged WebView State</th>
+                  <th scope="col">Current WebView State</th>
                   <th scope="col">Operator Action</th>
                 </tr>
               </thead>
@@ -751,8 +786,8 @@
             <span class="empty-state-hint">Save settings or refresh to load the active policy.</span>
           </div>
           </div>
-          <p id="settings-effective-policy-legend" class="note table-legend">Effective policy trust rows are read-only; backend Preview/Save remains the only settings persistence boundary.</p>
-          <pre id="settings-effective-policy-detail" class="prose-block">Select an effective policy row to inspect launch-active state, staged-state limitations, and proof requirements.</pre>
+          <p id="settings-effective-policy-legend" class="note table-legend">Effective policy trust rows are read-only; backend Save remains the only settings persistence boundary.</p>
+          <pre id="settings-effective-policy-detail" class="prose-block">Select an effective policy row to inspect launch-active state, current-edit limitations, and proof requirements.</pre>
           <div class="panel-heading panel-subheading">
             <h3>Save Status</h3>
             <strong id="settings-save-readiness-status">Not evaluated</strong>
@@ -811,26 +846,25 @@
                   <th scope="col">Key</th>
                   <th scope="col">Setting</th>
                   <th scope="col">Current</th>
-                  <th scope="col">Staged</th>
+                  <th scope="col">New Value</th>
                   <th scope="col">Status</th>
                 </tr>
               </thead>
               <tbody id="settings-patch-summary-rows">
-                <tr><td colspan="5">No settings patch summary loaded.</td></tr>
+                <tr><td colspan="5">No settings change summary loaded.</td></tr>
               </tbody>
             </table>
           <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No staged changes</span>
-            <span class="empty-state-hint">Edit a setting and save to see staged changes here.</span>
+            <span class="empty-state-label">No changes</span>
+            <span class="empty-state-hint">Edit a setting and save to see current changes here.</span>
           </div>
           </div>
           <div class="action-row action-row-left">
-            <button type="button" id="settings-summarize-patch-button" class="secondary-button">Summarize Patch</button>
-            <button type="button" id="settings-preview-patch-button" class="secondary-button">Preview Patch</button>
+            <button type="button" id="settings-summarize-patch-button" class="secondary-button">Summarize Changes</button>
             <button type="button" id="settings-save-patch-button" class="primary-button">Save Settings</button>
           </div>
-          <p id="settings-patch-summary-status" class="note">Summary is local only. Backend preview remains the source of truth.</p>
-          <pre id="settings-patch-detail" class="prose-block">No settings patch preview loaded. This does not save the PSD1.</pre>
+          <p id="settings-patch-summary-status" class="note">Summary is local only. Backend save validates the current candidate before writing.</p>
+          <pre id="settings-patch-detail" class="prose-block">No settings change summary loaded. This does not save the PSD1.</pre>
           <div id="settings-save-progress-bars" class="progress-bar-list" aria-live="polite">
             <p class="note">No settings save/reload progress loaded.</p>
           </div>
@@ -838,7 +872,7 @@
             <h3>Save Result</h3>
             <strong id="settings-backend-result-status">No backend result</strong>
           </div>
-          <pre id="settings-backend-result-summary" class="prose-block">No backend settings preview/save result loaded.</pre>
+          <pre id="settings-backend-result-summary" class="prose-block">No backend settings save result loaded.</pre>
           <div class="table-wrap detail-table-wrap">
             <table>
               <thead>
@@ -858,8 +892,8 @@
             <span class="empty-state-hint">The result of the last settings save appears here.</span>
           </div>
           </div>
-          <p id="settings-backend-result-legend" class="note table-legend">Backend result rows are read-only; Preview Patch and Save Patch remain backend-owned commands.</p>
-          <pre id="settings-backend-result-detail" class="prose-block">Select a backend preview/save result row to inspect warnings, errors, redacted diff, risk summary, and reload evidence.</pre>
+          <p id="settings-backend-result-legend" class="note table-legend">Backend result rows are read-only; Save Settings remains the backend-owned persistence command.</p>
+          <pre id="settings-backend-result-detail" class="prose-block">Select a backend save result row to inspect review items, errors, redacted diff, risk summary, and reload evidence.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -893,7 +927,7 @@
             <h2>Filters</h2>
             <strong>Read-only pending backend exposure</strong>
           </div>
-          <p class="note">Filter controls are intentionally not staged from JavaScript in this phase. Future filter toggles must be backed by saved backend fields and must show when they require encode before entering Changes JSON.</p>
+          <p class="note">Filter controls are intentionally not written from JavaScript in this phase. Future filter toggles must be backed by saved backend fields and must show when they require encode before entering the save candidate.</p>
           <div class="settings-section-map">
             <div><strong>Deinterlace / detelecine</strong><span>No editable saved field exposed here.</span></div>
             <div><strong>Denoise / sharpen</strong><span>No editable saved field exposed here.</span></div>
@@ -913,7 +947,7 @@
           <div class="settings-section-map">
             <div><strong>Container</strong><span id="settings-container-size-container">Output container is loaded from saved settings.</span></div>
           </div>
-          <p class="note">Use the Video panel to change OutputContainer. Backend Preview Patch remains the source of truth before save.</p>
+          <p class="note">Use the Video panel to change OutputContainer. Backend Save remains the source of truth before writing settings.</p>
         </section>
         </div>
 
@@ -922,7 +956,7 @@
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Video <span class="impact-chip" data-impact="medium" title="Encoder / GPU — speed preset, quality, codec, and container selection">Medium Impact</span></h2>
-            <strong id="settings-video-builder-status">No video detail patch built</strong>
+            <strong id="settings-video-builder-status">No video detail changes built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label class="settings-slider-field">
@@ -1126,21 +1160,21 @@
           </details>
           <div class="action-row action-row-left">
             <span class="action-hint-wrapper">
-              <button type="button" id="settings-video-apply-button" class="secondary-button" aria-describedby="settings-video-apply-hint">Merge Video Detail Patch</button>
+              <button type="button" id="settings-video-apply-button" class="secondary-button" aria-describedby="settings-video-apply-hint">Update Video Changes</button>
               <span id="settings-video-apply-hint" class="action-hover-hint" role="tooltip">
                 <strong>What this does</strong>
-                <span>Stages the values in this Video builder into Changes JSON. It does not save settings or decide remux versus encode by itself; Preview/Save still run backend validation, and the backend owns routing, codec, container, and encoder policy.</span>
+                <span>Prepares the values in this Video builder for Save Settings. It does not save settings or decide remux versus encode by itself; Save Settings still runs backend validation, and the backend owns routing, codec, container, and encoder policy.</span>
               </span>
             </span>
             <button type="button" id="settings-video-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-video-guidance" class="prose-block">No video detail guidance loaded.</pre>
-          <p class="note">Use this for direct-copy allowlists and fallback encode controls. Backend preview/save remains authoritative before any future run uses these values.</p>
+          <p class="note">Use this for direct-copy allowlists and fallback encode controls. Backend Save remains authoritative before any future run uses these values.</p>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Quality Verification <span class="impact-chip" data-impact="medium" title="Quality verification — objective post-encode metric, sampling, thresholds, and review action">Medium Impact</span></h2>
-            <strong id="settings-quality-builder-status">No quality verification patch built</strong>
+            <strong id="settings-quality-builder-status">No quality verification changes built</strong>
           </div>
           <div class="option-grid option-grid-compact">
             <label class="check-row"><input id="settings-builder-quality-enable" type="checkbox"> Enable quality verification</label>
@@ -1190,11 +1224,11 @@
             </label>
           </div>
           <div class="action-row action-row-left">
-            <button type="button" id="settings-quality-apply-button" class="secondary-button">Merge Quality Verification Patch</button>
+            <button type="button" id="settings-quality-apply-button" class="secondary-button">Update Quality Changes</button>
             <button type="button" id="settings-quality-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-quality-guidance" class="prose-block">No quality verification guidance loaded.</pre>
-          <p class="note">This only stages objective quality verification keys into Changes JSON. Backend preview/save and post-encode validation remain authoritative.</p>
+          <p class="note">This only prepares objective quality verification keys for Save Settings. Backend Save and post-encode validation remain authoritative.</p>
         </section>
         </div>
 
@@ -1203,7 +1237,7 @@
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>File Safety Settings <span class="impact-chip" data-impact="high" title="Paths / file safety — verify source, output, and scratch roots before running unattended jobs">High Impact</span></h2>
-            <strong id="settings-file-safety-builder-status">No file-safety patch built</strong>
+            <strong id="settings-file-safety-builder-status">No file-safety changes built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label>
@@ -1287,11 +1321,11 @@
             <label class="check-row"><input id="settings-file-safety-cleanup-remote" type="checkbox"> Clean remote staging</label>
           </div>
           <div class="action-row action-row-left">
-            <button type="button" id="settings-file-safety-apply-button" class="secondary-button">Merge File Safety Patch</button>
+            <button type="button" id="settings-file-safety-apply-button" class="secondary-button">Update File Safety Changes</button>
             <button type="button" id="settings-file-safety-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-file-safety-guidance" class="prose-block">No file-safety guidance loaded.</pre>
-          <p class="note">This only stages path, scratch, publish, and safety keys into Changes JSON. Backend preview/save remains the source of truth.</p>
+          <p class="note">This only prepares path, scratch, publish, and safety keys for Save Settings. Backend Save remains the source of truth.</p>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
@@ -1305,14 +1339,14 @@
             </div>
             <pre id="settings-tv-library-folder-evidence" class="prose-block settings-tv-library-evidence">No TV library folder evidence loaded.</pre>
           </div>
-          <p class="note">This panel stages only the existing TV parsing and folder-layout keys. Backend preview/save remains authoritative before future TV outputs use them.</p>
+          <p class="note">This panel prepares only the existing TV parsing and folder-layout keys. Backend Save remains authoritative before future TV outputs use them.</p>
         </section>
         </div>
         <div class="settings-tab-pane" data-settings-tab="publish-recovery">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Recovery Settings <span class="impact-chip" data-impact="medium" title="Pending publish — deferred-publish, retry, cleanup, and copy safety keys">Medium Impact</span></h2>
-            <strong id="settings-pending-builder-status">No pending-publish patch built</strong>
+            <strong id="settings-pending-builder-status">No pending-publish changes built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label class="check-row launch-check-row">
@@ -1353,11 +1387,11 @@
             <input id="settings-pending-robocopy-flags" type="text" autocomplete="off" spellcheck="false" placeholder="/J, /R:3, /W:15, /MT:2, /NP, /NDL, /NFL">
           </label>
           <div class="action-row action-row-left">
-            <button type="button" id="settings-pending-apply-button" class="secondary-button">Merge Pending Publish Patch</button>
+            <button type="button" id="settings-pending-apply-button" class="secondary-button">Update Pending Publish Changes</button>
             <button type="button" id="settings-pending-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-pending-guidance" class="prose-block">No pending-publish guidance loaded.</pre>
-          <p class="note">This stages existing deferred-publish, copy, retry, cleanup, and safety keys only. Publishing and cleanup remain backend-owned workflows.</p>
+          <p class="note">This prepares existing deferred-publish, copy, retry, cleanup, and safety keys only. Publishing and cleanup remain backend-owned workflows.</p>
         </section>
         </div>
 
@@ -1366,7 +1400,7 @@
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Subtitles <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge windows, and extract timeouts">Medium Impact</span></h2>
-            <strong id="settings-subtitle-builder-status">No subtitle patch built</strong>
+            <strong id="settings-subtitle-builder-status">No subtitle changes built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label>
@@ -1493,11 +1527,11 @@
             </div>
           </section>
           <div class="action-row action-row-left">
-            <button type="button" id="settings-subtitle-apply-button" class="secondary-button">Merge Subtitle Patch</button>
+            <button type="button" id="settings-subtitle-apply-button" class="secondary-button">Update Subtitle Changes</button>
             <button type="button" id="settings-subtitle-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-subtitle-guidance" class="prose-block">No subtitle guidance loaded.</pre>
-          <p class="note">Subtitle patch keys are staged into the same Changes JSON field. Original subtitle tracks remain governed by the selected drop toggles.</p>
+          <p class="note">Subtitle keys are prepared for the same Save Settings flow. Original subtitle tracks remain governed by the selected drop toggles.</p>
         </section>
         </div>
 
@@ -1506,7 +1540,7 @@
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Audio <span class="impact-chip" data-impact="medium" title="Audio — channel layout, codec selection, normalization, and passthrough policy">Medium Impact</span></h2>
-            <strong id="settings-audio-builder-status">No audio patch built</strong>
+            <strong id="settings-audio-builder-status">No audio changes built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label>
@@ -1568,16 +1602,16 @@
           </div>
           <div class="action-row action-row-left">
             <span class="action-hint-wrapper">
-              <button type="button" id="settings-audio-apply-button" class="secondary-button" aria-label="Merge Audio Patch. Stages audio builder values into Changes JSON; backend validation still runs on Preview and Save.">Merge Audio Patch</button>
+              <button type="button" id="settings-audio-apply-button" class="secondary-button" aria-label="Update Audio Changes. Prepares audio builder values for Save Settings; backend validation still runs on Save.">Update Audio Changes</button>
               <span class="action-hover-hint" role="tooltip">
                 <strong>What this does</strong>
-                <span>Stages the values in this Audio builder into Changes JSON. It does not save settings or choose streams by itself; Preview/Save still run backend validation, and the backend owns passthrough, transcode, downmix, and default-track decisions.</span>
+                <span>Prepares the values in this Audio builder for Save Settings. It does not save settings or choose streams by itself; Save Settings still runs backend validation, and the backend owns passthrough, transcode, downmix, and default-track decisions.</span>
               </span>
             </span>
             <button type="button" id="settings-audio-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-audio-guidance" class="prose-block">No audio guidance loaded.</pre>
-          <p class="note">Audio patch keys are staged into Changes JSON. Leave no-audio output disabled for normal Plex libraries.</p>
+          <p class="note">Audio keys are prepared for Save Settings. Leave no-audio output disabled for normal Plex libraries.</p>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">
@@ -1605,7 +1639,7 @@
           </div>
           </div>
           <p id="settings-media-policy-legend" class="note table-legend">Audio/subtitle policy rows are read-only and have no selectable actions.</p>
-          <p class="note">This cross-check is read-only and does not change FFmpeg, subtitle, audio, remux, encode, or publish policy. Preview/Save remains backend-owned.</p>
+          <p class="note">This cross-check is read-only and does not change FFmpeg, subtitle, audio, remux, encode, or publish policy. Save Settings remains backend-owned.</p>
         </section>
         </div>
 
@@ -1613,12 +1647,13 @@
         <div class="settings-tab-pane" data-settings-tab="naming">
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Rename Movie Cleaning Filters</h2>
+            <h2>Rename Cleaning Filters</h2>
             <strong id="settings-rename-cleaning-filter-status">Backend terms active</strong>
           </div>
-          <p class="note">Stage filters into Settings Changes JSON, then use Preview Patch and Save Settings to persist PSD1 settings. Browser storage is local draft recovery only and does not persist PSD1 settings; filesystem changes still require backend rename apply confirmation.</p>
+          <p class="note">Edit filters here, then press Save Settings. Save gathers these rename-filter values, shows the change review dialog, and persists through the backend PSD1 save path. Browser storage is local draft recovery only; filesystem changes still require backend rename apply confirmation.</p>
+          <h3>Movie Filters</h3>
           <label class="full-field">
-            Custom negative terms
+            Movie custom negative terms
             <textarea id="settings-rename-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom negative terms are added to the backend rename planner. Built-in movie scrub filters below handle common ops/release/metadata/source/audio/edition tags; this field is for local terms you want removed from preview names.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
           </label>
           <div class="option-grid">
@@ -1660,7 +1695,59 @@
               <textarea id="settings-rename-filter-release-groups" data-rename-movie-filter-terms="release_groups" data-default-terms="rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg, neonoir" rows="3" spellcheck="false">rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg, neonoir</textarea>
             </label>
           </div>
+          <h3>TV Filters</h3>
+          <label class="full-field">
+            TV custom negative terms
+            <textarea id="settings-rename-tv-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom TV negative terms are added to the backend rename planner for show and episode-title cleanup.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
+          </label>
+          <div class="option-grid">
+            <label class="check-row"><input type="checkbox" data-rename-tv-filter="video_source" checked> Video / source tags</label>
+            <label class="check-row"><input type="checkbox" data-rename-tv-filter="audio_channels" checked> Audio / channels</label>
+            <label class="check-row"><input type="checkbox" data-rename-tv-filter="release_flags" checked> Release flags</label>
+            <label class="check-row"><input type="checkbox" data-rename-tv-filter="services_containers" checked> Services / containers</label>
+            <label class="check-row"><input type="checkbox" data-rename-tv-filter="languages_subs_dubs" checked> Languages / sub-dub tags</label>
+            <label class="check-row"><input type="checkbox" data-rename-tv-filter="release_groups" checked> Release groups</label>
+          </div>
+          <div class="form-grid">
+            <label>
+              Video / source
+              <textarea id="settings-rename-tv-filter-video-source" data-rename-tv-filter-terms="video_source" data-default-terms="2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, dv, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, bd, bdrip, blu ray, blu-ray, bluray, web dl, webdl, webrip, hdtv, dvd, dvdrip, remux, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, dv, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, bd, bdrip, blu ray, blu-ray, bluray, web dl, webdl, webrip, hdtv, dvd, dvdrip, remux, 10 bit, 8 bit</textarea>
+            </label>
+            <label>
+              Audio / channels
+              <textarea id="settings-rename-tv-filter-audio-channels" data-rename-tv-filter-terms="audio_channels" data-default-terms="flac, aac, opus, ac3, eac3, ddp, dts, truehd, atmos, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">flac, aac, opus, ac3, eac3, ddp, dts, truehd, atmos, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch</textarea>
+            </label>
+            <label>
+              Release flags
+              <textarea id="settings-rename-tv-filter-release-flags" data-rename-tv-filter-terms="release_flags" data-default-terms="proper, repack, rerip, uncensored, censored" rows="3" spellcheck="false">proper, repack, rerip, uncensored, censored</textarea>
+            </label>
+            <label>
+              Services / containers
+              <textarea id="settings-rename-tv-filter-services-containers" data-rename-tv-filter-terms="services_containers" data-default-terms="mkv, mp4" rows="3" spellcheck="false">mkv, mp4</textarea>
+            </label>
+            <label>
+              Languages / sub-dub tags
+              <textarea id="settings-rename-tv-filter-languages-subs-dubs" data-rename-tv-filter-terms="languages_subs_dubs" data-default-terms="dual audio, multi audio, eng sub, eng subs, multi sub, multi subs, subs, sub, subbed, dubbed" rows="3" spellcheck="false">dual audio, multi audio, eng sub, eng subs, multi sub, multi subs, subs, sub, subbed, dubbed</textarea>
+            </label>
+            <label>
+              Release groups
+              <textarea id="settings-rename-tv-filter-release-groups" data-rename-tv-filter-terms="release_groups" data-default-terms="chotab, subsplease, erai raws, erai-raws, judas, ember, bonkai, neohevc, animetime, lostyears, nai, asw, sam, tnp, dedsec, mtbb, smugcat, commie, horriblesubs, kametsu, db, kawaiika, tlacatlc6, ttga" rows="3" spellcheck="false">chotab, subsplease, erai raws, erai-raws, judas, ember, bonkai, neohevc, animetime, lostyears, nai, asw, sam, tnp, dedsec, mtbb, smugcat, commie, horriblesubs, kametsu, db, kawaiika, tlacatlc6, ttga</textarea>
+            </label>
+          </div>
           <div class="rename-filter-preview">
+            <div class="form-grid">
+              <label>
+                Test mode
+                <select id="settings-rename-preview-mode">
+                  <option value="movie" selected>Movie</option>
+                  <option value="tv">TV</option>
+                </select>
+              </label>
+              <label>
+                TV source folder
+                <input type="text" id="settings-rename-preview-source-folder" autocomplete="off" spellcheck="false" placeholder="Show Name S03 1080p Dual Audio BD Remux-GROUP">
+              </label>
+            </div>
             <label class="full-field">
               Test a filename
               <input type="text" id="settings-rename-preview-input" autocomplete="off" spellcheck="false" placeholder="Movie.Title.2001.1080p.BluRay.x265-GROUP.mkv">
@@ -1672,11 +1759,60 @@
             <div id="settings-rename-preview-output" class="rename-preview-output" aria-live="polite"></div>
           </div>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="settings-rename-cleaning-filters-save-button" class="secondary-button">Stage Rename Filter Patch</button>
             <button type="button" id="settings-rename-cleaning-filters-reset-button" class="secondary-button">Reset Rename Filters</button>
             <button type="button" class="secondary-button" data-cross-page-target="rename">Open Rename</button>
           </div>
           <pre id="settings-rename-cleaning-filter-summary" class="prose-block">Saved backend rename cleaning policy loads here.</pre>
+        </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Rename Filter Case Log</h2>
+            <strong id="settings-rename-log-case-status">Ready</strong>
+          </div>
+          <p class="note">Append a bad rename case to the regression corpus. This writes a test fixture only; it does not rename files, save settings, or touch media.</p>
+          <form id="settings-rename-log-case-form">
+            <div class="form-grid">
+              <label>
+                Source folder
+                <input id="settings-rename-log-case-source-folder" type="text" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA">
+              </label>
+              <label>
+                Source file
+                <input id="settings-rename-log-case-source-file" type="text" autocomplete="off" spellcheck="false" placeholder="S03E01-The Beginning of Winter.mkv">
+              </label>
+              <label>
+                Season number
+                <input id="settings-rename-log-case-season-number" type="number" min="1" step="1" value="1" inputmode="numeric">
+              </label>
+              <label>
+                Expected name
+                <input id="settings-rename-log-case-expected-name" type="text" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv">
+              </label>
+              <label>
+                Expected show
+                <input id="settings-rename-log-case-expected-show" type="text" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm">
+              </label>
+              <label>
+                Expected season
+                <input id="settings-rename-log-case-expected-season" type="number" min="0" step="1" inputmode="numeric" placeholder="3">
+              </label>
+              <label>
+                Status
+                <select id="settings-rename-log-case-status-select">
+                  <option value="pending" selected>Pending</option>
+                  <option value="active">Active</option>
+                </select>
+              </label>
+            </div>
+            <label class="full-field">
+              Notes
+              <textarea id="settings-rename-log-case-notes" rows="3" spellcheck="false" placeholder="Example: source folder suffix +SP TTGA should be removed from the show title."></textarea>
+            </label>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="submit" id="settings-rename-log-case-submit-button" class="secondary-button">Append Filter Case</button>
+              <span id="settings-rename-log-case-message" class="note" aria-live="polite">Waiting for case details.</span>
+            </div>
+          </form>
         </section>
         </div>
 
@@ -1690,12 +1826,12 @@
           <div class="action-row action-row-left">
             <button type="button" class="secondary-button" data-cross-page-target="network">Open Workers</button>
           </div>
-          <p class="note">Standalone, coordinator, worker URL, poll interval, path map, and worker override settings now live on the Workers tab next to runtime worker state. The same backend Preview/Save settings pipeline still owns validation and persistence.</p>
+          <p class="note">Standalone, coordinator, worker URL, poll interval, path map, and worker override settings now live on the Workers tab next to runtime worker state. The same backend Save Settings pipeline still owns validation and persistence.</p>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Queue Settings <span class="impact-chip" data-impact="medium" title="Queue — batch size, concurrency, priority ordering, and backoff limits">Medium Impact</span></h2>
-            <strong id="settings-queue-builder-status">No queue patch built</strong>
+            <strong id="settings-queue-builder-status">No queue changes built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label>
@@ -1715,16 +1851,16 @@
             </label>
           </div>
           <div class="action-row action-row-left">
-            <button type="button" id="settings-queue-apply-button" class="secondary-button">Merge Queue Patch</button>
+            <button type="button" id="settings-queue-apply-button" class="secondary-button">Update Queue Changes</button>
             <button type="button" id="settings-queue-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-queue-guidance" class="prose-block">No queue guidance loaded.</pre>
-          <p class="note">This stages queue priority and reprocess policy only. Backend preview/save remains the source of truth before any run considers completed outputs.</p>
+          <p class="note">This prepares queue priority and reprocess policy only. Backend Save remains the source of truth before any run considers completed outputs.</p>
         </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Runtime Settings <span class="impact-chip" data-impact="medium" title="Runtime / diagnostics — log level, snapshot interval, event retention, and health-check cadence">Medium Impact</span></h2>
-            <strong id="settings-runtime-builder-status">No runtime patch built</strong>
+            <strong id="settings-runtime-builder-status">No runtime changes built</strong>
           </div>
           <div class="form-grid launch-form-grid">
             <label class="check-row launch-check-row">
@@ -1799,11 +1935,11 @@
             </label>
           </div>
           <div class="action-row action-row-left">
-            <button type="button" id="settings-runtime-apply-button" class="secondary-button">Merge Runtime Patch</button>
+            <button type="button" id="settings-runtime-apply-button" class="secondary-button">Update Runtime Changes</button>
             <button type="button" id="settings-runtime-reset-button" class="secondary-button">Reset From Current</button>
           </div>
           <pre id="settings-runtime-guidance" class="prose-block">No runtime guidance loaded.</pre>
-          <p class="note">This stages timeout, scan, retry, logging, and tool-fallback settings only. Backend preview/save remains the source of truth.</p>
+          <p class="note">This prepares timeout, scan, retry, logging, and tool-fallback settings only. Backend Save remains the source of truth.</p>
         </section>
         </div>
 
@@ -1834,7 +1970,7 @@
             <span class="empty-state-hint">Refresh to load the saved high-risk settings review.</span>
           </div>
           </div>
-          <p class="note">Read-only view of saved high-risk settings. Changes still require Changes JSON plus backend Preview/Save.</p>
+          <p class="note">Read-only view of saved high-risk settings. Changes still require backend Save.</p>
         </section>
         <section class="panel" data-panel-type="evidence">
           <div class="panel-heading">

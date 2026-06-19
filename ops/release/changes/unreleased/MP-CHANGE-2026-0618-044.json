@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0618-044",
+  "title": "Add autonomy soak tick CLI",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a scheduler-friendly autonomy soak tick CLI for health polling and explicit snapshot recording.",
+  "reason": "The 7-day and 30-day autonomy plan needs a single low-risk command that scheduled tasks can run to poll health, optionally record trend snapshots, and return deterministic exit codes without changing launch, queue, publish, cleanup, or media behavior.",
+  "affected_areas": [
+    "diagnostics",
+    "safety",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Health gating and snapshot recording were separate tools; a soak scheduler had to compose them externally and could not get a single health/snapshot/exit-code payload.",
+  "behavior_after": "A bundled Python soak tick tool can evaluate autonomy health with history, optionally record a bounded diagnostics-state snapshot, and return scheduler-friendly exit codes.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-044.json.md",
+    "docs/generated/summaries/src/mediapipeline/tools/autonomy_soak_tick.py.md",
+    "docs/generated/summaries/tests/python/tooling/test_autonomy_soak_tick.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-044.json",
+    "src/mediapipeline/tools/autonomy_soak_tick.py",
+    "tests/python/tooling/test_autonomy_soak_tick.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_autonomy_soak_tick.py"
+  ],
+  "manual_validation": [
+    "git diff --check -- [autonomy soak tick files before summaries] - passed",
+    "git diff --check -- [autonomy soak tick files including summaries] - passed",
+    "pytest tests/python/tooling/test_autonomy_soak_tick.py -q - first implementation run failed on fixture issues (2 failed, 2 passed)",
+    "pytest tests/python/tooling/test_autonomy_soak_tick.py -q - initially failed before implementation (missing autonomy_soak_tick module)",
+    "pytest tests/python/tooling/test_autonomy_soak_tick.py -q - passed (4 passed)",
+    "pytest tests/python/tooling/test_autonomy_soak_tick.py tests/python/tooling/test_autonomy_growth_snapshot.py tests/python/desktop/test_autonomy_health.py tests/python/desktop/test_application_facade_diagnostics.py tests/python/desktop/test_application_facade_process_launch.py tests/python/desktop/test_application_facade_local_api.py::LocalApiServerTests::test_local_api_diagnostics_state_summary_reads_backend_allowlist tests/python/desktop/test_api_contract_payload.py -q - passed (81 passed, 181 subtests)",
+    "python -m py_compile src/mediapipeline/tools/autonomy_soak_tick.py - passed",
+    "refresh_summaries targeted autonomy soak tick files - passed (3 written)",
+    "validate_changes --require-worktree-coverage - failed due 4 unrelated uncovered schedule files outside this autonomy tooling slice"
+  ],
+  "rollback_plan": "Remove the autonomy soak tick CLI, focused tooling tests, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-036",
+    "MP-CHANGE-2026-0618-037"
+  ],
+  "notes": "The default tick must be read-only. Snapshot writes must require an explicit flag and remain confined to diagnostics state."
+}

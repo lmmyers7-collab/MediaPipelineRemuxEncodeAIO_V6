@@ -13,6 +13,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_CPU_ENCODE_PRESET,
     KEY_CPU_ENCODE_PROCESS_PRIORITY,
     KEY_DYNAMIC_HDR_POLICY,
+    KEY_ENCODE_WASTE_GUARD_MODE,
     KEY_ENCODE_LADDER,
     KEY_ENCODE_TUNING_PRESET,
     KEY_EXTRA_VIDEO_FLAGS,
@@ -34,6 +35,7 @@ from mediapipeline.core.config.constants import (
     AUDIO_PASSTHROUGH_PROFILE_CODECS,
     AUDIO_PASSTHROUGH_PROFILE_DEFAULT,
     AUDIO_PASSTHROUGH_PROFILE_NAMES,
+    ENCODE_WASTE_GUARD_MODE_NAMES,
     LOG_LEVEL_VALUES,
     ROUTE_THRESHOLD_MODE_NAMES,
     ROUTING_PROFILE_NAMES,
@@ -88,6 +90,10 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
         errors.append(f"SizeGuardMode must be one of: {', '.join(SIZE_GUARD_MODE_NAMES)}.")
     if size_guard_mode == "strict" and routing_profile == "archive_shrink":
         warnings.append("Archive Shrink with strict Output Size Check can reject outputs that do not shrink enough; use advisory while tuning.")
+
+    encode_waste_guard_mode = str(values.get(KEY_ENCODE_WASTE_GUARD_MODE, "off") or "off").strip().lower()
+    if encode_waste_guard_mode not in ENCODE_WASTE_GUARD_MODE_NAMES:
+        errors.append(f"EncodeWasteGuardMode must be one of: {', '.join(ENCODE_WASTE_GUARD_MODE_NAMES)}.")
 
     dynamic_hdr_policy = str(values.get(KEY_DYNAMIC_HDR_POLICY, "warn") or "warn").strip().lower()
     if dynamic_hdr_policy not in DYNAMIC_HDR_POLICY_NAMES:

@@ -92,10 +92,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Quality verification builder merged metric, sampling, threshold, action, and timeout keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Quality verification builder prepared metric, sampling, threshold, action, and timeout keys for Save Settings. Backend Save still validates before writing.");
       qualityDetailSettingsBuilderState.initialized = true;
       qualityDetailSettingsBuilderState.dirty = true;
-      setText("settings-quality-builder-status", `${Object.keys(patch).length} quality verification patch keys ready`);
+      setText("settings-quality-builder-status", `${Object.keys(patch).length} quality verification change keys ready`);
       renderQualityDetailSettingsBuilderGuidance();
       renderSettingsActiveMediaPolicyHandoff();
       return true;
@@ -146,7 +146,7 @@
       if (byId("settings-builder-quality-fail-action")?.value === "block_review") {
         lines.push("", "Warning: block_review rejects below-floor encodes before publish and routes the source for operator review.");
       }
-      lines.push("", "Operator action: merge, Preview Patch, review backend risk summary, then save only when the thresholds match the selected metric.");
+      lines.push("", "Operator action: merge, use Save Settings review, then save only when the thresholds match the selected metric.");
       setText("settings-quality-guidance", lines.join("\n") || "No quality verification guidance loaded.");
     }
 

@@ -206,6 +206,155 @@ function Resolve-MediaRouteResolutionSizeSelection {
     })
 }
 
+function Get-MediaEncodeForcedRouteOverrideReasonCodes {
+    return @(
+        'folder_policy_force_encode',
+        'forced_remux_rejected_unsafe_codec'
+    )
+}
+
+function Get-MediaEncodeFallbackRemuxReasonCodes {
+    return @(
+        'bitrate_over_threshold',
+        'size_over_threshold'
+    )
+}
+
+function Get-MediaEncodeCompatibilitySizeReasonCodes {
+    return @(
+        'plex_strict_score_below_threshold',
+        'codec_outside_policy',
+        'resolution_over_policy',
+        'bitrate_over_threshold',
+        'forced_remux_rejected_unsafe_codec',
+        'hardware_encoder_safe_retry_succeeded',
+        'hardware_encoder_cpu_fallback',
+        # Suggestion #2 — GPU skipped per cached probe; the libx265
+        # output is the same shape whether we tried NVENC first or not.
+        'gpu_unavailable_cpu_only'
+    )
+}
+
+function Resolve-MediaEncodeWasteGuardModeName {
+    param([string]$WasteGuardMode = '')
+
+    $mode = ([string]$WasteGuardMode).Trim().ToLowerInvariant()
+    if ($mode -in @('dry_run', 'enforce')) { return $mode }
+    return 'off'
+}
+
+function Test-MediaEncodeWasteGuardEligibility {
+    param(
+        [string] $WasteGuardMode = 'off',
+        [string] $SizeGuardMode = '',
+        [string] $RouteReasonCode = '',
+        [string] $RouteIntentReasonCode = '',
+        [bool] $UseCpuFallback = $false
+    )
+
+    $wasteMode = Resolve-MediaEncodeWasteGuardModeName -WasteGuardMode $WasteGuardMode
+    $sizeMode = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
+    $reasonCode = ([string]$RouteReasonCode).Trim().ToLowerInvariant()
+    $intentReasonCode = ([string]$RouteIntentReasonCode).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($intentReasonCode)) { $intentReasonCode = $reasonCode }
+
+    $forcedRouteOverride = ($intentReasonCode -in (Get-MediaEncodeForcedRouteOverrideReasonCodes))
+    $fallbackRemuxEligible = ($intentReasonCode -in (Get-MediaEncodeFallbackRemuxReasonCodes))
+    $reason = 'eligible'
+    $eligible = $true
+    if ($wasteMode -eq 'off') {
+        $eligible = $false
+        $reason = 'waste_guard_off'
+    } elseif ($sizeMode -ne 'fallback_remux') {
+        $eligible = $false
+        $reason = 'size_guard_mode_not_fallback_remux'
+    } elseif ($UseCpuFallback) {
+        $eligible = $false
+        $reason = 'cpu_encode_not_guarded'
+    } elseif ($forcedRouteOverride) {
+        $eligible = $false
+        $reason = 'forced_route_override'
+    } elseif (-not $fallbackRemuxEligible) {
+        $eligible = $false
+        $reason = 'route_reason_not_fallback_remux_eligible'
+    }
+
+    return [pscustomobject][ordered]@{
+        Eligible                = [bool]$eligible
+        Mode                    = $wasteMode
+        Enforce                 = ($wasteMode -eq 'enforce')
+        DryRun                  = ($wasteMode -eq 'dry_run')
+        Reason                  = $reason
+        SizeGuardMode           = $sizeMode
+        RouteReasonCode         = $reasonCode
+        RouteIntentReasonCode   = $intentReasonCode
+        ForcedRouteOverride     = [bool]$forcedRouteOverride
+        FallbackRemuxEligible   = [bool]$fallbackRemuxEligible
+        UseCpuFallback          = [bool]$UseCpuFallback
+    }
+}
+
+function Measure-MediaEncodeWasteGuardProjection {
+    param(
+        [long] $SourceSizeBytes = 0,
+        [long] $OutputSizeBytes = 0,
+        [double] $ProgressPercent = 0,
+        [double] $LimitRatio = 1.05,
+        [double] $OversizeMarginPercent = 20,
+        [double] $MinProgressPercent = 15,
+        [double] $ElapsedSeconds = 0,
+        [double] $MinElapsedSeconds = 120,
+        [int] $PreviousConsecutiveHits = 0,
+        [int] $ConsecutiveSamples = 2
+    )
+
+    if ($LimitRatio -le 0) { $LimitRatio = 1.0 }
+    if ($OversizeMarginPercent -lt 0) { $OversizeMarginPercent = 0 }
+    if ($MinProgressPercent -lt 0) { $MinProgressPercent = 0 }
+    if ($MinElapsedSeconds -lt 0) { $MinElapsedSeconds = 0 }
+    if ($ConsecutiveSamples -lt 1) { $ConsecutiveSamples = 1 }
+
+    $progress = [math]::Max(0.0, [math]::Min(100.0, [double]$ProgressPercent))
+    $allowedBytes = [math]::Max(0.0, [double]$SourceSizeBytes * [double]$LimitRatio)
+    $abortThresholdBytes = $allowedBytes * (1.0 + ([double]$OversizeMarginPercent / 100.0))
+    $projectedBytes = 0.0
+    $exceeded = $false
+    $reason = 'ok'
+    if ($SourceSizeBytes -le 0) {
+        $reason = 'missing_source_size'
+    } elseif ($OutputSizeBytes -le 0) {
+        $reason = 'missing_output_size'
+    } elseif ($progress -lt [double]$MinProgressPercent) {
+        $reason = 'below_min_progress'
+    } elseif ([double]$ElapsedSeconds -lt [double]$MinElapsedSeconds) {
+        $reason = 'below_min_elapsed'
+    } else {
+        $projectedBytes = [double]$OutputSizeBytes / ([double]$progress / 100.0)
+        $exceeded = ($projectedBytes -gt $abortThresholdBytes)
+        if ($exceeded) { $reason = 'projected_oversize' }
+    }
+
+    $hits = if ($exceeded) { [int]$PreviousConsecutiveHits + 1 } else { 0 }
+    $shouldAbort = ($exceeded -and $hits -ge [int]$ConsecutiveSamples)
+    return [pscustomobject][ordered]@{
+        ShouldAbort            = [bool]$shouldAbort
+        Exceeded               = [bool]$exceeded
+        Reason                 = $reason
+        SourceSizeBytes        = [long]$SourceSizeBytes
+        OutputSizeBytes        = [long]$OutputSizeBytes
+        ProgressPercent        = [double]$progress
+        ElapsedSeconds         = [double]$ElapsedSeconds
+        LimitRatio             = [double]$LimitRatio
+        OversizeMarginPercent  = [double]$OversizeMarginPercent
+        AllowedOutputBytes     = [double]$allowedBytes
+        AbortThresholdBytes    = [double]$abortThresholdBytes
+        ProjectedOutputBytes   = [double]$projectedBytes
+        ProjectedRatio         = if ($SourceSizeBytes -gt 0 -and $projectedBytes -gt 0) { [math]::Round($projectedBytes / [double]$SourceSizeBytes, 4) } else { 0.0 }
+        ConsecutiveHits        = [int]$hits
+        ConsecutiveSamples     = [int]$ConsecutiveSamples
+    }
+}
+
 function Test-MediaEncodeOutputSizePolicy {
     param(
         [Parameter(Mandatory)] [string] $SourcePath,
@@ -220,26 +369,9 @@ function Test-MediaEncodeOutputSizePolicy {
 
     $mode = Resolve-MediaRouteSizeGuardModeName -SizeGuardMode $SizeGuardMode
     $profile = Resolve-MediaRouteRoutingProfileName -RoutingProfile $RoutingProfile
-    $forcedRouteOverrideReasons = @(
-        'folder_policy_force_encode',
-        'forced_remux_rejected_unsafe_codec'
-    )
-    $fallbackRemuxReasons = @(
-        'bitrate_over_threshold',
-        'size_over_threshold'
-    )
-    $compatibilityReasons = @(
-        'plex_strict_score_below_threshold',
-        'codec_outside_policy',
-        'resolution_over_policy',
-        'bitrate_over_threshold',
-        'forced_remux_rejected_unsafe_codec',
-        'hardware_encoder_safe_retry_succeeded',
-        'hardware_encoder_cpu_fallback',
-        # Suggestion #2 — GPU skipped per cached probe; the libx265
-        # output is the same shape whether we tried NVENC first or not.
-        'gpu_unavailable_cpu_only'
-    )
+    $forcedRouteOverrideReasons = Get-MediaEncodeForcedRouteOverrideReasonCodes
+    $fallbackRemuxReasons = Get-MediaEncodeFallbackRemuxReasonCodes
+    $compatibilityReasons = Get-MediaEncodeCompatibilitySizeReasonCodes
     $reasonCode = ([string]$RouteReasonCode).Trim().ToLowerInvariant()
     $intentReasonCode = ([string]$RouteIntentReasonCode).Trim().ToLowerInvariant()
     if ([string]::IsNullOrWhiteSpace($intentReasonCode)) { $intentReasonCode = $reasonCode }

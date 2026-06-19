@@ -689,9 +689,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1241,
-            "end": 1828,
-            "line_count": 588
+            "start": 1244,
+            "end": 1940,
+            "line_count": 697
           },
           "functions_to_move": [
             "validateCurrentSettings",
@@ -701,6 +701,15 @@
             "flushDirtySettingsBuilders",
             "resetSettingsBuilderSyncState",
             "saveRenameCleaningFiltersFromSettingsSave",
+            "settingsRenameLogCaseInput",
+            "settingsRenameLogCaseValue",
+            "settingsRenameLogCaseInteger",
+            "settingsRenameLogCasePayload",
+            "settingsRenameLogCaseRequiredIssues",
+            "syncSettingsRenameLogCaseButton",
+            "setSettingsRenameLogCaseBusy",
+            "submitSettingsRenameLogCase",
+            "initSettingsRenameLogCaseEvents",
             "previewSettingsPatch",
             "saveSettingsPatch",
             "reloadSettingsFromDisk",
@@ -861,10 +870,14 @@
             "settings-handbrake-active-preset",
             "settings-patch-detail",
             "settings-patch-json",
-            "settings-rename-filter-release-groups"
+            "settings-rename-filter-release-groups",
+            "settings-rename-log-case-form",
+            "settings-rename-log-case-status-select",
+            "settings-rename-log-case-submit-button"
           ],
           "event_types": [
-            "click"
+            "click",
+            "submit"
           ],
           "dependency_classification": {
             "parent_state_reads": [
@@ -891,9 +904,11 @@
               "queueSettingsBuilderState",
               "runtimeSettingsBuilderState",
               "settingsBuilderDirty",
+              "settingsCommandInFlight",
               "settingsFieldDefinition",
               "settingsPatchPreviewRequestId",
               "settingsPersistedKeyDisplayList",
+              "settingsRenameLogCaseInFlight",
               "settingsValuesEqual",
               "subtitleSettingsBuilderState",
               "videoDetailSettingsBuilderState"
@@ -920,7 +935,10 @@
               "settings-handbrake-active-preset",
               "settings-patch-detail",
               "settings-patch-json",
-              "settings-rename-filter-release-groups"
+              "settings-rename-filter-release-groups",
+              "settings-rename-log-case-form",
+              "settings-rename-log-case-status-select",
+              "settings-rename-log-case-submit-button"
             ],
             "api_dependencies": [
               "/api/settings/browse-path",
@@ -939,6 +957,7 @@
               "Date",
               "Error",
               "JSON",
+              "Number",
               "Object",
               "String",
               "document",
@@ -986,8 +1005,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.policyImpact.js",
           "topic": "settings-final-library",
           "line_range": {
-            "start": 686,
-            "end": 852,
+            "start": 689,
+            "end": 855,
             "line_count": 167
           },
           "functions_to_move": [
@@ -1189,8 +1208,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 379,
-            "end": 530,
+            "start": 382,
+            "end": 533,
             "line_count": 152
           },
           "functions_to_move": [
@@ -1455,8 +1474,8 @@
           "topic": "settings-core",
           "line_range": {
             "start": 61,
-            "end": 177,
-            "line_count": 117
+            "end": 180,
+            "line_count": 120
           },
           "functions_to_move": [
             "lastSettingsPatchPreviewEvidence",
@@ -1464,6 +1483,8 @@
             "lastSettingsReloadEvidence",
             "settingsCommandButtonIds",
             "settingsCommandInFlight",
+            "settingsRenameLogCaseInFlight",
+            "settingsRenameLogCaseEventsBound",
             "settingsRuntimeActiveStates",
             "settingsRuntimeInactiveStages",
             "settingsRuntimeState",
@@ -1493,7 +1514,9 @@
             "settingsAdvancedFallbackKeys"
           ],
           "parent_wrappers_required": [],
-          "dependencies_to_resolve": [],
+          "dependencies_to_resolve": [
+            "syncSettingsRenameLogCaseButton"
+          ],
           "globals_to_preserve": [
             "applyAudioSettingsBuilderToPatch",
             "applyFileSafetySettingsBuilderToPatch",
@@ -1600,7 +1623,9 @@
           "dependency_classification": {
             "parent_state_reads": [],
             "parent_state_writes": [],
-            "outside_local_functions": [],
+            "outside_local_functions": [
+              "syncSettingsRenameLogCaseButton"
+            ],
             "dom_dependencies": [],
             "api_dependencies": [],
             "window_dependencies": [
@@ -1639,8 +1664,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 254,
-            "end": 370,
+            "start": 257,
+            "end": 373,
             "line_count": 117
           },
           "functions_to_move": [

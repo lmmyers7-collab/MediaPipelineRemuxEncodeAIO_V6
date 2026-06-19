@@ -89,10 +89,31 @@
     function completedRouteAgreementPostureStatus(posture) {
       const normalized = String(posture || "").toLowerCase();
       if (normalized.includes("blocked") || normalized.includes("mismatch")) return "blocked";
+      if (normalized.includes("stale")) return "warning";
       if (normalized.includes("review")) return "warning";
       if (normalized.includes("read-first")) return "changed";
       if (normalized.includes("unknown") || normalized.includes("no queue")) return "unknown";
       return "match";
+    }
+
+    function completedRouteAgreementQueueContext(queue, qRows) {
+      const payload = queue && typeof queue === "object" ? queue : {};
+      const rowList = Array.isArray(qRows) ? qRows : [];
+      const keys = Object.keys(payload);
+      const status = String(payload.status || payload.refresh_status || payload.freshness_status || "").toLowerCase();
+      const stale = Boolean(payload.stale || payload.payload_stale || status.includes("stale"));
+      const explicitCount = [payload.count, payload.total, payload.row_count, payload.filtered_count]
+        .map((value) => Number(value))
+        .find((value) => Number.isFinite(value));
+      const hasLoadedEvidence = Array.isArray(payload.rows)
+        || Number.isFinite(explicitCount)
+        || Boolean(payload.source || payload.generated_at || payload.loaded_at || payload.refreshed_at || payload.snapshot_id || payload.received_at);
+      if (stale) return { state: "stale", label: "Queue context stale" };
+      if (!rowList.length && !keys.length) return { state: "not_loaded", label: "Queue context not loaded" };
+      if (!rowList.length && hasLoadedEvidence && (!Number.isFinite(explicitCount) || explicitCount === 0)) {
+        return { state: "empty", label: "Queue explicitly empty" };
+      }
+      return { state: "loaded", label: "Queue loaded" };
     }
 
     function completedRouteAgreementRows(completed = state.lastCompletedPayload, completedRows = state.lastCompletedRows, queuePayload, queueRows) {
@@ -141,6 +162,20 @@
           "Open Queue Snapshot and Run Logs; completed rows cannot be compared against current queue state.",
         );
         return rowsOut;
+      }
+      const queueContext = completedRouteAgreementQueueContext(queue, qRows);
+      if (queueContext.state === "stale") {
+        add(
+          "queue-context-stale",
+          "Queue context stale",
+          "Stale queue context",
+          `completed rows=${rowList.length}; queue rows=${qRows.length}; queue status=${queue.status || queue.refresh_status || "stale"}`,
+          "Refresh Queue before trusting route agreement absence as proof.",
+          [
+            "Route agreement is comparing Completed rows against stale queue context.",
+            "This row is read-only and does not launch, rerun, repair, publish, drain, rewrite manifests, or touch media.",
+          ],
+        );
       }
 
       const indexes = completedRouteAgreementQueueIndexes(qRows);
@@ -209,13 +244,13 @@
 
       if (!qRows.length) {
         add(
-          "no-queue-context",
-          "No current queue rows",
-          rowList.length ? "Ready-looking" : "No queue context",
+          queueContext.state === "empty" ? "queue-explicitly-empty" : "no-queue-context",
+          queueContext.state === "empty" ? "Queue explicitly empty" : "Queue context not loaded",
+          queueContext.state === "empty" && rowList.length ? "Ready-looking" : "No queue context",
           `completed rows=${rowList.length}; queue rows=0`,
-          rowList.length
+          queueContext.state === "empty" && rowList.length
             ? "This is expected after a clean run, but empty Queue does not prove missing source discovery is correct. Use Diagnostics if sources are expected."
-            : "No completed or queued rows are loaded, so route agreement cannot prove anything yet.",
+            : "Refresh Queue or load Queue Snapshot before treating no overlap as route agreement proof.",
         );
       } else if (!exactMatches && !leafHints) {
         add(
@@ -252,6 +287,8 @@
     function completedRouteAgreementStatus(rows) {
       const list = Array.isArray(rows) ? rows : [];
       if (list.some((row) => completedRouteAgreementPostureStatus(row.posture) === "blocked")) return "Route mismatch";
+      if (list.some((row) => String(row.key || "") === "queue-context-stale")) return "Queue context stale";
+      if (list.some((row) => String(row.key || "") === "no-queue-context")) return "Queue not loaded";
       if (list.some((row) => completedRouteAgreementPostureStatus(row.posture) === "warning")) return "Review overlap";
       if (list.some((row) => completedRouteAgreementPostureStatus(row.posture) === "changed")) return "Read filename hints";
       if (list.some((row) => completedRouteAgreementPostureStatus(row.posture) === "unknown")) return "No queue context";

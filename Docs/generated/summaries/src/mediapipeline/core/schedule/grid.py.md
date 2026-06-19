@@ -3,9 +3,9 @@ file: src/mediapipeline/core/schedule/grid.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: schedule
-last_modified: 2026-06-04
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: e02eeb7cc7a5638cd8fe76a01c8172db14d8829271cb3b1110c93f8981681d79
+sha256: 13d952f9a3c16c085405b77da09ab25fcb1ba340a24822c466c97708bf6f3e7b
 ---
 # `src/mediapipeline/core/schedule/grid.py`
 

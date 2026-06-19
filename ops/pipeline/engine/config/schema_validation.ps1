@@ -346,7 +346,8 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Key = 'FinalLibraryPromotionVerificationMode'; Label = 'FinalLibraryPromotionVerificationMode'; Allowed = @(Get-MediaPipelineFinalLibraryPromotionVerificationModeNames); AllowBlank = $true },
         @{ Key = 'CpuEncodePreset'; Label = 'CpuEncodePreset'; Allowed = @(Get-MediaPipelineCpuEncodePresetNames); AllowBlank = $true },
         @{ Key = 'CpuEncodeProcessPriority'; Label = 'CpuEncodeProcessPriority'; Allowed = @(Get-MediaPipelineCpuEncodeProcessPriorityNames); AllowBlank = $true },
-        @{ Key = 'ParallelEncodeMode'; Label = 'ParallelEncodeMode'; Allowed = @(Get-MediaPipelineParallelEncodeModeNames); AllowBlank = $true }
+        @{ Key = 'ParallelEncodeMode'; Label = 'ParallelEncodeMode'; Allowed = @(Get-MediaPipelineParallelEncodeModeNames); AllowBlank = $true },
+        @{ Key = 'EncodeWasteGuardMode'; Label = 'EncodeWasteGuardMode'; Allowed = @(Get-MediaPipelineEncodeWasteGuardModeNames); AllowBlank = $true }
     )) {
         $allowBlank = $false
         if ($optionPolicy.ContainsKey('AllowBlank')) {
@@ -412,6 +413,14 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
         @{ Kind = 'int'; Key = 'H264RemuxMaxHeight'; Label = 'H264RemuxMaxHeight'; Min = 1; Max = 4320 },
         @{ Kind = 'int'; Key = 'MaxEncodeGrowthPercent'; Label = 'MaxEncodeGrowthPercent'; Min = 0; Max = 1000 },
         @{ Kind = 'int'; Key = 'CompatibilityEncodeGrowthPercent'; Label = 'CompatibilityEncodeGrowthPercent'; Min = 0; Max = 1000 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardMinProgressPercent'; Label = 'EncodeWasteGuardMinProgressPercent'; Min = 0; Max = 95 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardMinElapsedSeconds'; Label = 'EncodeWasteGuardMinElapsedSeconds'; Min = 0; Max = 86400 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardOversizeMarginPercent'; Label = 'EncodeWasteGuardOversizeMarginPercent'; Min = 0; Max = 1000 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardConsecutiveSamples'; Label = 'EncodeWasteGuardConsecutiveSamples'; Min = 1; Max = 10 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardPollSeconds'; Label = 'EncodeWasteGuardPollSeconds'; Min = 1; Max = 600 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardPreflightSampleSeconds'; Label = 'EncodeWasteGuardPreflightSampleSeconds'; Min = 5; Max = 600 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardPreflightSampleCount'; Label = 'EncodeWasteGuardPreflightSampleCount'; Min = 1; Max = 10 },
+        @{ Kind = 'int'; Key = 'EncodeWasteGuardPreflightTimeoutSeconds'; Label = 'EncodeWasteGuardPreflightTimeoutSeconds'; Min = 30; Max = 86400 },
         @{ Kind = 'int'; Key = 'MinFreeSpaceGB'; Label = 'MinFreeSpaceGB'; Min = 0 },
         @{ Kind = 'int'; Key = 'OutsourceMinFreeSpaceGB'; Label = 'OutsourceMinFreeSpaceGB'; Min = 0 },
         @{ Kind = 'int'; Key = 'VideoQuality'; Label = 'VideoQuality'; Min = 1; Max = 51 },

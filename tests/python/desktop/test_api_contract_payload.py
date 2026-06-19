@@ -40,8 +40,8 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(payload["auth"]["token_routes"], ["/api/pipeline/start"])
         self.assertEqual(payload["routes"], routes)
         self.assertEqual(payload["repair_reconcile_summary"]["schema_version"], "desktop_repair_reconcile_contracts.v1")
-        self.assertFalse(payload["repair_reconcile_summary"]["mutation_enabled"])
-        self.assertFalse(payload["repair_reconcile_summary"]["frontend_allowed"])
+        self.assertTrue(payload["repair_reconcile_summary"]["mutation_enabled"])
+        self.assertTrue(payload["repair_reconcile_summary"]["frontend_allowed"])
         self.assertEqual(payload["repair_reconcile_summary"]["contract_count"], len(REPAIR_RECONCILE_CONTRACTS))
         self.assertEqual(payload["network_lifecycle_summary"]["schema_version"], "desktop_network_lifecycle_contracts.v1")
         self.assertTrue(payload["network_lifecycle_summary"]["mutation_enabled"])
@@ -57,7 +57,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         payload["network_lifecycle_contracts"][0]["mutation_enabled"] = False
         payload["network_lifecycle_contracts"][0]["dry_run_contract"]["required_result_fields"].append("changed")
         payload["network_lifecycle_contracts"][0]["source_file_policy"]["source_delete"] = "changed"
-        payload["repair_reconcile_contracts"][0]["mutation_enabled"] = True
+        payload["repair_reconcile_contracts"][0]["mutation_enabled"] = False
         payload["repair_reconcile_contracts"][0]["dry_run_contract"]["required_result_fields"].append("changed")
         payload["repair_reconcile_contracts"][0]["source_file_policy"]["source_delete"] = "changed"
         payload["notes"].append("changed")
@@ -66,7 +66,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertTrue(NETWORK_LIFECYCLE_CONTRACTS[0]["mutation_enabled"])
         self.assertNotIn("changed", NETWORK_LIFECYCLE_CONTRACTS[0]["dry_run_contract"]["required_result_fields"])
         self.assertEqual(NETWORK_LIFECYCLE_CONTRACTS[0]["source_file_policy"]["source_delete"], "forbidden")
-        self.assertFalse(REPAIR_RECONCILE_CONTRACTS[0]["mutation_enabled"])
+        self.assertTrue(REPAIR_RECONCILE_CONTRACTS[0]["mutation_enabled"])
         self.assertNotIn("changed", REPAIR_RECONCILE_CONTRACTS[0]["dry_run_contract"]["required_result_fields"])
         self.assertEqual(REPAIR_RECONCILE_CONTRACTS[0]["source_file_policy"]["source_delete"], "forbidden")
         self.assertNotIn("changed", LOCAL_API_CONTRACT_NOTES)
@@ -112,6 +112,25 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("file_overrides.json", effective["purpose"])
         self.assertIn("without changing queue policy", effective["purpose"])
         self.assertIn("media files", effective["purpose"])
+
+    def test_remux_pilot_promotion_contract_is_confirmed_queue_state_only(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+
+        promote = routes["/api/queue/file-overrides/remux-pilot-promote"]
+
+        self.assertEqual(promote["method"], "POST")
+        self.assertTrue(promote["auth_required"])
+        self.assertEqual(promote["effect"], "queue-state-write")
+        self.assertEqual(promote["request_keys"], ["pilot_source_paths", "confirm_apply", "reason"])
+        self.assertEqual(promote["safe_defaults"], {"confirm_apply": False})
+        self.assertTrue(promote["requires_confirmation"])
+        self.assertEqual(promote["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(promote["data_schema"], "queue_remux_pilot_promotion.v1")
+        self.assertIn("exactly three distinct completed TV pilot source paths", promote["purpose"])
+        self.assertIn("routing.profile=remux", promote["purpose"])
+        self.assertIn("creates no future folder/show rule", promote["purpose"])
+        self.assertIn("does not process", promote["purpose"].casefold())
+        self.assertIn("mutate source media", promote["purpose"])
 
     def test_tdarr_matrix_console_contracts_are_backend_keyed(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
@@ -169,6 +188,23 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             ["action", "confirm_delete_full_matrix"],
         )
         self.assertEqual(routes["/api/maintenance/dependency-atlas/open-folder"]["allowed_targets"], ["dependency_atlas_folder"])
+
+    def test_state_journal_archive_contract_is_backend_confirmed_and_media_safe(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        archive = routes["/api/maintenance/archive-state-journals"]
+
+        self.assertEqual(archive["method"], "POST")
+        self.assertEqual(archive["effect"], "runtime-evidence-archive")
+        self.assertEqual(archive["request_keys"], ["confirm_archive", "reason"])
+        self.assertEqual(archive["safe_defaults"], {"confirm_archive": False})
+        self.assertEqual(archive["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(archive["data_schema"], "desktop_state_journal_archive.v1")
+        self.assertTrue(archive["frontend_exposed"])
+        self.assertTrue(archive["requires_confirmation"])
+        self.assertTrue(archive["journaled"])
+        self.assertIn("pipeline_events.jsonl", archive["purpose"])
+        self.assertIn("does not archive completed manifests", archive["purpose"])
+        self.assertIn("source media", archive["purpose"])
 
     def test_settings_patch_contract_advertises_library_profile_resets(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
@@ -365,23 +401,87 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 self.assertTrue(any("LOCAL_API_ROUTE_CONTRACT" in gate for gate in exposure_gates))
                 self.assertTrue(any("DOC_TOUCH_LOG" in gate for gate in exposure_gates))
 
-    def test_repair_reconcile_contracts_are_design_only_and_backend_owned(self) -> None:
+    def test_repair_reconcile_contracts_advertise_backend_dry_runs_and_confirmed_apply_routes(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
 
+        self.assertEqual(
+            payload["repair_reconcile_summary"]["status"],
+            "backend_dry_run_and_confirmed_apply_routes_available_startup_dry_run_only",
+        )
         candidate_commands = {contract["candidate_command"] for contract in payload["repair_reconcile_contracts"]}
         self.assertIn("completed.reconcile_manifest", candidate_commands)
         self.assertIn("completed.repair_sidecar_metadata", candidate_commands)
         self.assertIn("pending_publish.repair_manifest", candidate_commands)
         self.assertIn("pending_publish.reconcile_orphan_payloads", candidate_commands)
+        self.assertIn("startup.reconcile_state", candidate_commands)
+        expected_routes = {
+            "completed.reconcile_manifest": "/api/completed/reconcile-manifest-dry-run",
+            "completed.repair_sidecar_metadata": "/api/completed/repair-sidecar-metadata-dry-run",
+            "pending_publish.repair_manifest": "/api/pending-publish/repair-manifest-dry-run",
+            "pending_publish.reconcile_orphan_payloads": "/api/pending-publish/reconcile-orphan-payloads-dry-run",
+            "startup.reconcile_state": "/api/startup/reconcile-dry-run",
+        }
+        expected_apply_routes = {
+            "completed.reconcile_manifest": "/api/completed/reconcile-manifest",
+            "completed.repair_sidecar_metadata": "/api/completed/repair-sidecar-metadata",
+            "pending_publish.repair_manifest": "/api/pending-publish/repair-manifest",
+            "pending_publish.reconcile_orphan_payloads": "/api/pending-publish/reconcile-orphan-payloads",
+        }
         for contract in payload["repair_reconcile_contracts"]:
             with self.subTest(contract=contract["key"]):
-                self.assertEqual(contract["current_status"], "design_only_no_route")
-                self.assertFalse(contract["mutation_enabled"])
-                self.assertFalse(contract["frontend_allowed"])
+                self.assertEqual(contract["dry_run_route"], expected_routes[contract["candidate_command"]])
+                if contract["candidate_command"] == "startup.reconcile_state":
+                    self.assertEqual(contract["current_status"], "backend_dry_run_route_available")
+                    self.assertFalse(contract["mutation_enabled"])
+                    self.assertFalse(contract["frontend_allowed"])
+                    self.assertNotIn("apply_route", contract)
+                else:
+                    self.assertEqual(contract["current_status"], "backend_dry_run_and_confirmed_apply_routes_available")
+                    self.assertEqual(contract["apply_route"], expected_apply_routes[contract["candidate_command"]])
+                    self.assertTrue(contract["mutation_enabled"])
+                    self.assertTrue(contract["frontend_allowed"])
+                    self.assertEqual(contract["apply_contract"]["result_schema"], "desktop_repair_reconcile_apply.v1")
+                    self.assertIn("dry_run_fingerprint", contract["apply_contract"]["required_request_fields"])
                 self.assertTrue(contract["required_preconditions"])
                 self.assertTrue(contract["required_evidence"])
                 self.assertTrue(contract["rollback_requirements"])
                 self.assertTrue(contract["must_not"])
+
+    def test_repair_reconcile_dry_run_routes_are_backend_only_effect_none(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        dry_run_routes = [
+            "/api/completed/reconcile-manifest-dry-run",
+            "/api/completed/repair-sidecar-metadata-dry-run",
+            "/api/pending-publish/repair-manifest-dry-run",
+            "/api/pending-publish/reconcile-orphan-payloads-dry-run",
+        ]
+
+        for route_path in dry_run_routes:
+            with self.subTest(route=route_path):
+                route = routes[route_path]
+                self.assertEqual(route["method"], "POST")
+                self.assertTrue(route["auth_required"])
+                self.assertEqual(route["effect"], "none")
+                self.assertEqual(route["response_schema"], "desktop_command_result.v1")
+                self.assertEqual(route["data_schema"], "desktop_repair_reconcile_dry_run.v1")
+                self.assertEqual(route["request_keys"], ["scope", "row_key", "limit", "reason"])
+                self.assertEqual(route["allowed_scopes"], ["all", "selected"])
+                self.assertFalse(route["mutation_enabled"])
+                self.assertFalse(route["frontend_exposed"])
+                self.assertFalse(route["requires_confirmation"])
+                self.assertFalse(route["journaled"])
+        startup_route = routes["/api/startup/reconcile-dry-run"]
+        self.assertEqual(startup_route["method"], "POST")
+        self.assertTrue(startup_route["auth_required"])
+        self.assertEqual(startup_route["effect"], "none")
+        self.assertEqual(startup_route["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(startup_route["data_schema"], "desktop_startup_reconciliation_dry_run.v1")
+        self.assertEqual(startup_route["request_keys"], ["scope", "limit", "reason"])
+        self.assertEqual(startup_route["allowed_scopes"], ["all"])
+        self.assertFalse(startup_route["mutation_enabled"])
+        self.assertFalse(startup_route["frontend_exposed"])
+        self.assertFalse(startup_route["requires_confirmation"])
+        self.assertFalse(startup_route["journaled"])
 
     def test_repair_reconcile_contracts_define_dry_run_rollback_and_exposure_gates(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -394,10 +494,19 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 exposure_gates = contract["route_exposure_gates"]
 
                 self.assertEqual(dry_run["effect"], "none")
-                self.assertEqual(dry_run["result_schema"], "desktop_repair_reconcile_dry_run.v1")
+                self.assertIn(
+                    dry_run["result_schema"],
+                    {"desktop_repair_reconcile_dry_run.v1", "desktop_startup_reconciliation_dry_run.v1"},
+                )
                 self.assertIn("dry_run_only", dry_run["required_result_fields"])
+                self.assertIn("effect", dry_run["required_result_fields"])
                 self.assertIn("precondition_results", dry_run["required_result_fields"])
                 self.assertIn("would_not_touch", dry_run["required_result_fields"])
+                self.assertIn("mutation_route_available", dry_run["required_result_fields"])
+                self.assertIn("apply_route_available", dry_run["required_result_fields"])
+                if dry_run["result_schema"] == "desktop_repair_reconcile_dry_run.v1":
+                    self.assertIn("dry_run_fingerprint", dry_run["required_result_fields"])
+                self.assertIn("suppress_command_journal", dry_run["required_result_fields"])
                 self.assertTrue(any("source media" in line for line in dry_run["must_report"]))
 
                 self.assertTrue(rollback["required_for_mutation_route"])
@@ -459,6 +568,9 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         )
         self.assertIn("allow_outside_configured_roots", routes["/api/rename/apply"]["request_keys"])
         self.assertIn("outside-root confirmation", routes["/api/rename/apply"]["purpose"])
+        self.assertEqual(routes["/api/rename/filter-cases"]["effect"], "test-fixture-write")
+        self.assertEqual(routes["/api/rename/filter-cases"]["data_schema"], "rename_bad_case_corpus_append.v1")
+        self.assertIn("confirm_append", routes["/api/rename/filter-cases"]["request_keys"])
 
     def test_rename_browse_contract_includes_folder_files_mode(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -466,8 +578,13 @@ class LocalApiContractPayloadTests(unittest.TestCase):
 
         self.assertEqual(routes["/api/rename/clean-filename-preview"]["effect"], "none")
         self.assertEqual(routes["/api/rename/clean-filename-preview"]["response_schema"], "desktop_rename_clean_filename_preview.v1")
+        self.assertIn("mode", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertIn("source_folder", routes["/api/rename/clean-filename-preview"]["query_keys"])
         self.assertIn("movie_filter_terms", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertIn("tv_filter_terms", routes["/api/rename/clean-filename-preview"]["query_keys"])
         self.assertNotIn("movie_filter_terms_enabled", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertEqual(routes["/api/rename/cleaning-filters"]["effect"], "none")
+        self.assertEqual(routes["/api/rename/cleaning-filters"]["response_schema"], "desktop_rename_cleaning_filter_catalog.v1")
         self.assertEqual(routes["/api/rename/movie-cleaning-filters"]["effect"], "none")
         self.assertEqual(routes["/api/rename/movie-cleaning-filters"]["response_schema"], "desktop_rename_movie_filter_catalog.v1")
         self.assertEqual(
@@ -482,10 +599,13 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "audit-state-write",
             "backend-lifecycle",
             "bounded-health-check",
+            "completed-manifest-write",
+            "completed-sidecar-json-write",
             "config-write",
             "control-state-write",
             "control-flag-write",
             "diagnostic-process",
+            "diagnostics-artifact-write",
             "filesystem-mutation",
             "failure-marker-write",
             "metrics-backfill-state-write",
@@ -493,12 +613,17 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "process-dry-run",
             "deployment-write",
             "process-launch",
+            "pending-manifest-write",
+            "pending-orphan-manifest-write",
+            "preset-library-state-write",
             "queue-state-write",
             "read-only-preview",
             "report-file-write",
+            "runtime-evidence-archive",
             "secret-transfer",
             "shell-dialog",
             "shell-open",
+            "test-fixture-write",
             "tooling-artifact-write",
             "ui-state-write",
             "validation-log-write",

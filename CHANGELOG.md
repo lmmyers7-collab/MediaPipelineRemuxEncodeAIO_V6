@@ -13,6 +13,36 @@ intent is worth keeping, it goes here and/or in an ADR.
 
 ### Added
 
+- Private-beta productization foundation: Tauri is now NSIS-first with aligned
+  calendar-build package metadata, updater plugin scaffolding, CI scripts for
+  signed NSIS/updater artifacts and GitHub channel JSON, backend-owned
+  productization status/support-export routes, AppData runtime roots for
+  desktop logs/journal/update/diagnostics evidence, and beta install/update
+  runbooks plus a support issue template.
+- Repair/reconcile backend dry-run routes: added token-authenticated
+  `effect=none` Local API POST routes for Completed manifest reconciliation,
+  Completed sidecar metadata repair, Pending Publish manifest repair, and
+  orphan pending-payload reconciliation. The routes return
+  `desktop_repair_reconcile_dry_run.v1` evidence with strict request fields,
+  suppressed command journaling, no mutation route availability, no WebView
+  controls, and no manifest, sidecar, payload, source, scratch, or output file
+  writes/moves/deletes.
+- Test coverage rationalization audit:
+  `docs/ai-audits/2026-06-18-test-coverage-rationalization.md` classifies the
+  live-worktree test/check surface across Python, WebView, PowerShell, smoke
+  wrappers, and release gates, flags overlap candidates, records high-risk weak
+  coverage, and recommends safe consolidation sequencing without changing tests
+  or runtime behavior.
+- Smoke wrapper drift and duplicate test-name reports:
+  `docs/generated/SMOKE_WRAPPER_MAP.json` maps each `ops/scripts/smoke/Test-*.ps1`
+  wrapper to its module/test selector plus docs/release presence, and
+  `docs/generated/DUPLICATE_TEST_NAMES.md` reports exact duplicate Python test
+  names for future consolidation review without changing test behavior.
+- Documentation layout alignment: active onboarding, current-state, checklist,
+  desktop notes, queue-source-scan, and state-schema docs now point to the
+  promoted `src/mediapipeline`, `apps/desktop`, and `ops/scripts` layout,
+  remove missing old AI handoff redirect navigation, and keep package-mode
+  promotion closed by the 2026-05-30 operator confirmation.
 - Network worker capability handshake: workers now report reachable library
   IDs during claim and heartbeat, the coordinator skips library-tagged jobs
   outside a worker's reported capability set, and the Network WebView shows
@@ -91,21 +121,21 @@ intent is worth keeping, it goes here and/or in an ADR.
   current compatibility-advisory behavior, size-only, bitrate-only, or
   size-or-bitrate hard thresholds.
 - Phase 2 config cleanup foundation:
-  `app/contracts/config.py` is now the Pydantic v2 config contract,
-  `app/config/load.py` owns PSD1 import plus PSD1 serialization helpers,
+  `src/mediapipeline/contracts/config.py` is now the Pydantic v2 config contract,
+  `src/mediapipeline/core/config/load.py` owns PSD1 import plus PSD1 serialization helpers,
   `src/mediapipeline/contracts/schemas/config.v1.schema.json` is generated from the contract, and
   `ops/scripts/dev/generate_config_schema.py --check` enforces schema drift.
 - Phase 3 stage-boundary foundation:
-  `app/contracts/stages.py` is now the Pydantic v2 source for stage
-  request/result contracts, `app/orchestration/runner.py` is the single
+  `src/mediapipeline/contracts/stages.py` is now the Pydantic v2 source for stage
+  request/result contracts, `src/mediapipeline/core/orchestration/runner.py` is the single
   new Python subprocess boundary, `ops/pipeline/engine/entrypoint.ps1` accepts
   `-Stage` plus `-PayloadJson`, and `src/mediapipeline/contracts/schemas/stages.v1.schema.json` is
   generated from the contract. Only the read-only `decide` stage is
   enabled in the PowerShell dispatcher in this additive slice.
 - Phase 4 tooling/state foundation:
-  `app/storage/db.py` adds a WAL-mode SQLite mirror under the runtime
-  state root, `app/observability/logging.py` adds JSON-line logging
-  helpers, and `app/validation/boundary.py` validates API/stage boundary
+  `src/mediapipeline/core/storage/db.py` adds a WAL-mode SQLite mirror under the runtime
+  state root, `src/mediapipeline/core/observability/logging.py` adds JSON-line logging
+  helpers, and `src/mediapipeline/core/validation/boundary.py` validates API/stage boundary
   envelopes through the generated contracts. Existing JSON state files
   and route payloads remain authoritative.
 - Phase 4 check entrypoints:
@@ -156,7 +186,7 @@ intent is worth keeping, it goes here and/or in an ADR.
   architecture summary that cites the ADRs and current architecture docs.
 - `docs/generated/PIPELINE_MAP.md` — auto-generatable index of the
   nine canonical stages and their payload/result types from
-  `app/contracts/stages.py`.
+  `src/mediapipeline/contracts/stages.py`.
 - `docs/generated/FILE_SUMMARIES.md` — pointer to the `docs/generated/summaries/`
   directory, the per-source-file summary scheme, and the SHA-256 drift
   rule.
@@ -252,7 +282,7 @@ intent is worth keeping, it goes here and/or in an ADR.
   2026-05-30 operator confirmation, while future media-behavior changes still
   require revalidation.
 - `docs/generated/PIPELINE_MAP.md` is generated from
-  `app/contracts/stages.py` instead of hand-synced. The stale summary baseline
+  `src/mediapipeline/contracts/stages.py` instead of hand-synced. The stale summary baseline
   was refreshed from the current source tree; `docs/generated/PROJECT_INDEX.md`
   now indexes 604 source files.
 

@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0617-905",
+  "title": "Add FFmpeg media policy regression matrix fixture",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-06-17",
+  "date_completed": "2026-06-18",
+  "summary": "Add a machine-readable FFmpeg/media-policy regression matrix fixture, a unittest guard for row completeness and planner expectations, and documentation links for TESTGAP-006 validation gating.",
+  "reason": "Future FFmpeg/media-policy work needs an auditable matrix where every row names expected behavior, owner code paths, automated checks, and the validation rung before anyone treats TESTGAP-006 as closable.",
+  "affected_areas": [
+    "tests",
+    "media policy validation",
+    "docs",
+    "change control"
+  ],
+  "behavior_before": "Media-policy parity expectations were spread across existing planner tests, Tdarr tooling notes, real-media playbooks, and audit documents, with no single machine-readable row matrix enforcing expected outcome, owner path, automated check, and validation rung metadata.",
+  "behavior_after": "The new fixture records remux, encode, subtitle, audio, size, stream mapping, sidecar, pending-publish, and failure-mode rows; the new integration test validates matrix completeness, Python planner rows, size-policy rows, and TESTGAP-006 closure prerequisites without changing media behavior.",
+  "files_touched": [
+    "Docs/DOCS_INDEX.md",
+    "Docs/generated/summaries/Docs/DOCS_INDEX.md.md",
+    "Docs/generated/summaries/Docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "Docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0617-905.json.md",
+    "docs/generated/summaries/tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py.md",
+    "docs/testing/FFMPEG_MEDIA_POLICY_REGRESSION_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0617-905.json",
+    "tests/fixtures/media_policy/ffmpeg_media_policy_regression_matrix.json",
+    "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+  ],
+  "tests_added": [
+    "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+  ],
+  "manual_validation": [
+    "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q - red check failed before fixture existed, then passed after fixture addition",
+    "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix tests.python.integration.test_handbrake_remux_regression_matrix -q - passed 9 tests",
+    "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_active_doc_references -q - passed 9 tests",
+    "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_summary_integrity -q - passed 13 tests; reported existing orphan summary docs/generated/summaries/src/mediapipeline/core/deleted.py.md"
+  ],
+  "rollback_plan": "Remove the FFmpeg media-policy matrix fixture, its integration test, the testing doc, and the DOCS_INDEX/TEST_SUITE inventory links; then refresh summaries and rerun the integration matrix tests.",
+  "related_changes": [],
+  "notes": "Validation metadata and tests only. No FFmpeg command generation, subtitle conversion, audio routing, publish/drain, source/scratch/output movement, queue execution, or WebView mutation behavior changed. TESTGAP-006 remains open until Python/PowerShell parity coverage and required representative real-media evidence exist."
+}

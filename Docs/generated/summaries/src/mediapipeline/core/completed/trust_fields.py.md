@@ -3,9 +3,9 @@ file: src/mediapipeline/core/completed/trust_fields.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: completed
-last_modified: 2026-06-11
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: e3758ebdaa98e59c72c54cd5875091300ab513492f4f0463278c422ba81465b9
+sha256: 0b9e30b68d9172e6fb6427629f42db35935b2cf306f0d2d3b5c68c082a6bb523
 ---
 # `src/mediapipeline/core/completed/trust_fields.py`
 

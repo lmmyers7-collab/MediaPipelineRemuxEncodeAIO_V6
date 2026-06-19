@@ -118,6 +118,7 @@
             <div class="action-row action-row-left wrap-actions completed-promotion-action-row">
               <span class="status-chip" data-status="publishing">Promotion command</span>
               <button type="button" class="secondary-button" data-completed-promote-selected disabled>Promote Selected Reviewed Output</button>
+              <span id="completed-selected-promotion-status" class="inline-action-status" data-state="unknown" role="status" aria-live="polite">Select a completed row to see promotion readiness.</span>
             </div>
             <p id="completed-open-status" class="note completed-open-status-note">Select a completed row to open a backend-selected location.</p>
             <pre id="completed-open-history" class="prose-block completed-open-history-block">No completed open command history loaded.</pre>
@@ -147,6 +148,7 @@
             <button id="final-library-pause-button" class="secondary-button" type="button" disabled>Pause Promotion</button>
             <button id="final-library-resume-button" class="secondary-button" type="button" disabled>Resume Promotion</button>
           </div>
+          <p id="final-library-promotion-command-status" class="inline-action-status" data-state="unknown" role="status" aria-live="polite">Promotion controls are unavailable until backend promotion status loads.</p>
           <pre id="final-library-promotion-summary" class="prose-block">Final library promotion status has not been loaded.</pre>
           <div class="table-wrap detail-table-wrap">
             <table aria-label="Final library promotion rows">
@@ -246,6 +248,22 @@
             </div>
           </div>
           <p id="completed-history-table-legend" class="note table-legend">Completed history rows: no selectable rows.</p>
+
+          <section id="completed-active-output-context" class="completed-active-output-context" data-state="unknown" role="region" aria-live="polite" aria-label="Selected completed output context">
+            <div class="completed-active-output-main">
+              <span class="completed-selected-label">Selected output</span>
+              <strong id="completed-active-output-title">No completed row selected</strong>
+              <span id="completed-active-output-paths" class="completed-active-output-paths">Select a row to show its output context below the history table.</span>
+            </div>
+            <div class="completed-active-output-facts" aria-label="Selected output proof context">
+              <span class="completed-active-output-fact"><span>Trust</span><strong id="completed-active-output-trust">not selected</strong></span>
+              <span class="completed-active-output-fact"><span>Placement</span><strong id="completed-active-output-placement">not checked</strong></span>
+              <span class="completed-active-output-fact"><span>Visibility</span><strong id="completed-active-output-visibility">not evaluated</strong></span>
+            </div>
+            <div class="completed-active-output-actions">
+              <button type="button" id="completed-show-selected-button" class="secondary-button" disabled>Show Selected</button>
+            </div>
+          </section>
         </section>
 
         <section class="panel settings-tab-pane" data-completed-tab="history" data-panel-type="evidence">
@@ -261,6 +279,7 @@
             <h2>Integrity Check</h2>
             <strong id="completed-integrity-status">Not loaded</strong>
           </div>
+          <div id="completed-integrity-strip" class="completed-proof-strip" aria-live="polite"></div>
           <pre id="completed-integrity" class="prose-block">No completed output integrity summary loaded.</pre>
         </section>
 
@@ -269,6 +288,7 @@
             <h2>Route Summary</h2>
             <strong id="completed-breakdown-status">Not loaded</strong>
           </div>
+          <div id="completed-breakdown-strip" class="completed-proof-strip" aria-live="polite"></div>
           <pre id="completed-breakdown" class="prose-block">No completed route/publish breakdown loaded.</pre>
         </section>
 
@@ -277,6 +297,7 @@
             <h2>Run History</h2>
             <strong id="completed-runtime-status">Not loaded</strong>
           </div>
+          <div id="completed-runtime-strip" class="completed-proof-strip" aria-live="polite"></div>
           <pre id="completed-runtime" class="prose-block">No completed runtime outcome history loaded.</pre>
         </section>
 
@@ -285,6 +306,7 @@
             <h2>Manifest Check</h2>
             <strong id="completed-consistency-status">Not loaded</strong>
           </div>
+          <div id="completed-consistency-strip" class="completed-proof-strip" aria-live="polite"></div>
           <pre id="completed-consistency" class="prose-block">No completed manifest consistency summary loaded.</pre>
         </section>
 
@@ -293,6 +315,7 @@
             <h2>Output Checklist</h2>
             <strong id="completed-validation-status">Not loaded</strong>
           </div>
+          <div id="completed-validation-strip" class="completed-proof-strip" aria-live="polite"></div>
           <pre id="completed-validation" class="prose-block">No completed validation checklist loaded.</pre>
         </section>
 
@@ -301,6 +324,7 @@
             <h2>Next Step</h2>
             <strong id="completed-workflow-status">Not loaded</strong>
           </div>
+          <div id="completed-workflow-strip" class="completed-proof-strip" aria-live="polite"></div>
           <pre id="completed-workflow" class="prose-block">No completed workflow guidance loaded.</pre>
         </section>
 
@@ -465,9 +489,9 @@
           <p id="completed-pilot-evidence-legend" class="note table-legend">Selected pilot evidence packet rows are read-only and do not accept, repair, rerun, drain, publish, rewrite, delete, save settings, rename, or touch media.</p>
           <pre id="completed-pilot-evidence-detail" class="prose-block">Select a pilot evidence checkpoint to inspect the proof packet.</pre>
           <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="completed-copy-evidence-button" class="secondary-button">Copy Evidence Packet</button>
+            <button type="button" id="completed-copy-evidence-button" class="secondary-button" disabled>Copy Evidence Packet</button>
           </div>
-          <p id="completed-copy-evidence-status" class="note">Copy uses the rendered packet text only; it does not append evidence or mutate media.</p>
+          <p id="completed-copy-evidence-status" class="note" role="status" aria-live="polite" aria-atomic="true">Copy uses the rendered packet text only; it does not append evidence or mutate media.</p>
           <pre id="completed-pilot-evidence-markdown" class="prose-block">No copyable pilot evidence packet loaded.</pre>
         </section>
 

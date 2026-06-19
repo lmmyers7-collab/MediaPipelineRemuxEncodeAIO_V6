@@ -48,8 +48,12 @@ def _browser_maintenance_reports_runner_source() -> str:
             const posts = [];
             const originalApiPost = window.apiPost;
             window.apiPost = async (path, body, options) => {
-              posts.push({ path: String(path || ""), body: body || {}, options: options || {} });
-              if (String(path || "").includes("/api/failures/clear") && body?.dry_run === true) {
+              const normalizedPath = String(path || "");
+              if (normalizedPath.includes("/api/ui-preferences")) {
+                return { ok: true, message: "UI preference persistence ignored by smoke harness." };
+              }
+              posts.push({ path: normalizedPath, body: body || {}, options: options || {} });
+              if (normalizedPath.includes("/api/failures/clear") && body?.dry_run === true) {
                 return {
                   command: "failures.clear",
                   ok: true,
@@ -74,7 +78,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
-              if (String(path || "").includes("/api/failures/clear") && body?.confirm_clear === true) {
+              if (normalizedPath.includes("/api/failures/clear") && body?.confirm_clear === true) {
                 if (body?.scope === "all_markers") {
                   return {
                     command: "failures.clear",
@@ -121,7 +125,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
-              if (String(path || "").includes("/api/audit/score-policy")) {
+              if (normalizedPath.includes("/api/audit/score-policy")) {
                 return {
                   command: "audit.score_policy",
                   ok: true,
@@ -133,13 +137,12 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
-              if (String(path || "").includes("/api/audit/start")) {
+              if (normalizedPath.includes("/api/audit/start")) {
                 return {
                   command: "audit.start",
                   ok: true,
                   severity: "info",
                   message: "Started audit via PID 24681.",
-                  refresh_hint: "snapshot",
                   data: {
                     library_root: body?.library_root || "",
                     include_sidecars: Boolean(body?.include_sidecars),
@@ -147,6 +150,19 @@ def _browser_maintenance_reports_runner_source() -> str:
                     launch_prep: ["audit runtime ready"],
                     logs: "stdout: audit.stdout.log",
                   },
+                };
+              }
+              if (normalizedPath.includes("/api/diagnostics/open")) {
+                return {
+                  command: "diagnostics.open",
+                  ok: true,
+                  severity: "info",
+                  message: "Opened diagnostics target " + (body?.target || ""),
+                  data: {
+                    target: body?.target || "",
+                    opened_path: "C:/Reports/failures.txt",
+                  },
+                  request: body || {},
                 };
               }
               return { ok: false, message: "maintenance/reports smoke blocks mutation posts" };
@@ -216,6 +232,12 @@ def _browser_maintenance_reports_runner_source() -> str:
               "setReleasePackageStatus",
               "renderReleasePackageInFlightProgress",
               "releasePackageResultStatus",
+              "collectReleaseDryRunRequest",
+              "collectReleaseBuildRequest",
+              "releaseRequestSignature",
+              "releaseBuildConfirmMessage",
+              "releasePreviewMatchesCreate",
+              "recordReleasePreviewResult",
             ].forEach((name) => {
               if (typeof window.mediaPipelineMaintenanceView[name] !== "function") {
                 throw new Error("missing Maintenance namespace helper " + name);
@@ -236,6 +258,23 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Real-media validation boundary:",
               "Mutation guardrail:",
             ]);
+            byId("release-build-force").checked = true;
+            const previewRequest = window.mediaPipelineMaintenanceView.collectReleaseDryRunRequest();
+            const buildRequest = window.mediaPipelineMaintenanceView.collectReleaseBuildRequest();
+            if (previewRequest.force !== true || buildRequest.force !== true) {
+              throw new Error("Preview and Create deployment requests must both include force=true when Replace existing destination is checked.");
+            }
+            if (window.mediaPipelineMaintenanceView.releaseRequestSignature(previewRequest) !== window.mediaPipelineMaintenanceView.releaseRequestSignature(buildRequest)) {
+              throw new Error("Preview and Create deployment option signatures should match for visible operator options.");
+            }
+            const unmatchedConfirm = window.mediaPipelineMaintenanceView.releaseBuildConfirmMessage(buildRequest);
+            if (!unmatchedConfirm.includes("NO matching successful Preview Deployment") || !unmatchedConfirm.includes("Rollback/readiness implication")) {
+              throw new Error("Create confirmation did not surface missing preview/rollback context.\\n" + unmatchedConfirm);
+            }
+            window.mediaPipelineMaintenanceView.recordReleasePreviewResult(previewRequest, { ok: true, message: "Fixture preview matched Create options." });
+            if (!window.mediaPipelineMaintenanceView.releasePreviewMatchesCreate(buildRequest)) {
+              throw new Error("Create request should match the latest successful Preview Deployment options.");
+            }
             clickFirst('#maintenance-rows tr[data-selectable-row="true"]', "maintenance row");
             requireText("maintenance-detail", [
               "Check:",
@@ -255,6 +294,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                 returncode: 0,
                 elapsed_seconds: 1.25,
                 command: "pwsh -File ops\\\\scripts\\\\release\\\\build.ps1 -DryRun",
+                options: { force: true },
                 release_progress: {
                   schema_version: "desktop_release_package_progress.v1",
                   status: "complete",
@@ -299,6 +339,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Dry-run trust summary:",
               "Writes manifest: no",
               "Writes zip: no; preview is dry-run only",
+              "Replace existing destination option: yes",
               "Guardrail:",
               "Real-media boundary:",
             ]);
@@ -339,7 +380,7 @@ def _browser_maintenance_reports_runner_source() -> str:
                 returncode: 0,
                 elapsed_seconds: 5.5,
                 command: "pwsh -File ops\\\\scripts\\\\release\\\\build.ps1 -Verify",
-                options: { include_tauri_preview_binary: true },
+                options: { include_tauri_preview_binary: true, force: true },
                 release_progress: {
                   schema_version: "desktop_release_package_progress.v1",
                   status: "complete",
@@ -377,6 +418,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Writes release package: yes",
               "Manifest written: yes",
               "Zip written: yes",
+              "Replace existing destination: yes",
             ]);
             window.mediaPipelineMaintenanceView.renderBackfillDryRunResult({
               ok: true,
@@ -422,6 +464,9 @@ def _browser_maintenance_reports_runner_source() -> str:
             requireText("backfill-dry-run-detail", [
               "Dry-run trust summary:",
               "Writes completed manifest: no",
+              "Records scanned: 13",
+              "Records would write: 12",
+              "Records written: 0",
               "Sidecars ingested: 12",
               "Skipped bad JSON: 1",
               "Guardrail:",
@@ -476,9 +521,39 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Dependency atlas update summary:",
               "Writes dependency atlas artifacts: yes",
               "Writes media or pipeline state: no",
+              "Stale state: no",
+              "Open C:/Repo/docs/generated/dependency-atlas/dependency-atlas.html or C:/Repo/docs/generated/dependency-atlas/dependency-atlas.png",
               "Guardrail:",
               "Modules: 377",
             ]);
+            window.mediaPipelineMaintenanceView.renderDependencyAtlasResult({
+              ok: true,
+              command: "maintenance.dependency_atlas",
+              message: "Dependency atlas updated but stale.",
+              data: {
+                writes_dependency_atlas: true,
+                writes_media: false,
+                stale: true,
+                atlas_html: "docs/generated/dependency-atlas/dependency-atlas.html",
+                atlas_png: "docs/generated/dependency-atlas/dependency-atlas.png",
+                dependency_atlas_progress: {
+                  status: "stale",
+                  progress_bars: [{
+                    id: "dependency_atlas",
+                    label: "Dependency atlas",
+                    mode: "determinate",
+                    percent: 100,
+                    status: "stale",
+                    detail: "Atlas is stale.",
+                    stale: true,
+                  }],
+                },
+              },
+            });
+            requireText("dependency-atlas-detail", ["Stale state: yes", "rerun Update Atlas before relying on these files"]);
+            if (byId("dependency-atlas-status")?.dataset.state !== "stale") {
+              throw new Error("Dependency atlas stale state should set data-state=stale.");
+            }
             requireText("dependency-atlas-open-folder-button", ["Open Folder"]);
             window.appendCommandResult({
               command: "maintenance.release_dry_run",
@@ -764,8 +839,15 @@ def _browser_maintenance_reports_runner_source() -> str:
             };
             window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
             clickFirst('[data-reports-tab="files"]', "Reports Locations tab");
-            if (document.querySelector('[data-reports-tab="files"]')?.getAttribute("aria-selected") !== "true") {
-              throw new Error("Reports Locations tab did not become selected.");
+            await waitFor(() => document.querySelector('[data-reports-tab="files"]')?.getAttribute("aria-selected") === "true", "Reports Locations tab selected");
+            const reportPathOpenButton = document.querySelector('#report-path-rows button[data-open-diagnostics]');
+            if (!reportPathOpenButton) throw new Error("Reports Locations did not render an Open button.");
+            const beforeReportOpenPosts = posts.length;
+            reportPathOpenButton.click();
+            await waitFor(() => posts.length === beforeReportOpenPosts + 1, "Reports Locations diagnostics open post");
+            await waitFor(() => text("report-open-history").includes("diagnostics.open"), "Reports recently opened history updated");
+            if (!document.querySelector('#report-path-rows')?.textContent.includes("Opened diagnostics target")) {
+              throw new Error("Reports path Open button did not show inline open feedback.");
             }
             requireText("report-triage", [
               "Failure JSON: present",
@@ -832,6 +914,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Manual review",
               "Wait for the source to stabilize before rerun.",
               "Open details",
+              "Go to Diagnostics",
               "Clear error",
             ]);
             if (text("failure-rows").includes("2026-05-14T22:00:00-04:00")) {
@@ -990,6 +1073,29 @@ def _browser_maintenance_reports_runner_source() -> str:
             window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
             window.initReportsViewEvents();
             window.mediaPipelineReportsView.initReportsViewEvents();
+            const hiddenFailureCheckbox = document.querySelector('#failure-rows input[type="checkbox"]');
+            if (!hiddenFailureCheckbox) throw new Error("failure hidden-selection checkbox missing");
+            hiddenFailureCheckbox.click();
+            clickFirst('[data-failure-filter-chip="audio"]', "Failure Audio filter");
+            requireText("failure-status", ["1 selected hidden by filter"]);
+            const beforeHiddenFailurePosts = posts.length;
+            byId("failure-preview-selected-clear-button").click();
+            byId("failure-clear-selected-button").click();
+            if (posts.length !== beforeHiddenFailurePosts) {
+              throw new Error("hidden failure selected cleanup posted unexpectedly");
+            }
+            requireText("failure-clear-summary", ["selected failure row", "hidden by the active filter/search"]);
+            clickFirst('[data-failure-filter-chip="all"]', "Failure All filter");
+            const largeFailureRows = Array.from({ length: 260 }, (_, index) => ({
+              ...markerFailurePreview.rows[0],
+              source_json: "C:/State/Failures/Markers/marker-large-" + index + ".json",
+              source_path: "C:/Source/Large Failure " + index + ".mkv",
+              lookup_title: "Large Failure " + index,
+              clear_error: { available: true, marker_path: "C:/State/Failures/Markers/marker-large-" + index + ".json" },
+            }));
+            window.mediaPipelineReportsView.renderFailurePreview({ ...markerFailurePreview, count: 260, rows: largeFailureRows });
+            requireText("failure-status", ["showing first 250 of 260"]);
+            window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
             const firstClearErrorButton = Array.from(document.querySelectorAll('#failure-rows button'))
               .find((button) => button.textContent.includes("Clear error") && !button.disabled);
             if (!firstClearErrorButton) throw new Error("enabled row Clear error action missing");
@@ -1008,22 +1114,6 @@ def _browser_maintenance_reports_runner_source() -> str:
               throw new Error("row clear posted the wrong marker path");
             }
             window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
-            byId("failure-preview-all-clear-button").click();
-            await waitFor(() => text("failure-clear-status").includes("Preview ready"), "failure marker clear dry-run preview");
-            const markerDryRunPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true);
-            if (!markerDryRunPost) throw new Error("Failure marker clear dry-run post was not captured.");
-            if (markerDryRunPost.body.scope !== "all_markers") throw new Error("Failure marker clear dry-run did not use all_markers scope.");
-            if (markerDryRunPost.body.confirm_clear !== false) throw new Error("Failure marker clear dry-run must not confirm marker movement.");
-            if (Object.prototype.hasOwnProperty.call(markerDryRunPost.body, "marker_paths")) {
-              throw new Error("Failure marker clear all_markers dry-run must let the backend enumerate marker paths.");
-            }
-            requireText("failure-clear-summary", [
-              "Dry run: yes",
-              "Scope: all_markers",
-              "Planned marker clears: 2",
-              "Touches media: no",
-            ]);
-            window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
             const originalRefreshAllForClear = window.refreshAll;
             let bulkRefreshStarted = false;
             let releaseBulkRefresh = () => {};
@@ -1032,8 +1122,20 @@ def _browser_maintenance_reports_runner_source() -> str:
               releaseBulkRefresh = resolve;
             });
             try {
+              await waitFor(() => !byId("failure-clear-all-button").disabled, "failure clear all enabled");
+              const beforeBulkClearPosts = posts.length;
               byId("failure-clear-all-button").click();
               await waitFor(() => text("failure-clear-status").includes("Cleared"), "failure marker clear all success");
+              const bulkClearPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.scope === "all_markers" && entry.body?.dry_run === false);
+              if (!bulkClearPost) throw new Error("Clear All Backend Markers did not post directly.");
+              if (bulkClearPost.body.confirm_clear !== true) throw new Error("Clear All Backend Markers must send confirm_clear true.");
+              if (Object.prototype.hasOwnProperty.call(bulkClearPost.body, "marker_paths")) {
+                throw new Error("Clear All Backend Markers must let the backend enumerate marker paths.");
+              }
+              byId("failure-clear-all-button").click();
+              if (posts.length !== beforeBulkClearPosts + 1) {
+                throw new Error("Clear All Backend Markers duplicate click posted more than once.");
+              }
               if (!bulkRefreshStarted) throw new Error("clear-all did not request the authoritative refresh");
               requireText("failure-summary", [
                 "Source type: markers",
@@ -1055,9 +1157,17 @@ def _browser_maintenance_reports_runner_source() -> str:
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
             window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
             clickFirst('[data-reports-tab="audit"]', "Reports Audit tab");
-            if (document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") !== "true") {
-              throw new Error("Reports Audit tab did not become selected.");
-            }
+            await waitFor(() => document.querySelector('[data-reports-tab="audit"]')?.getAttribute("aria-selected") === "true", "Reports Audit tab selected");
+            const largeAuditRows = Array.from({ length: 260 }, (_, index) => ({
+              ...reportAuditPreview.rows[0],
+              path: "C:/Outsource/Large Audit " + index + ".mkv",
+              relative_path: "Large Audit " + index + ".mkv",
+              lookup_title: "Large Audit " + index,
+              priority_score: 95 - (index % 10),
+            }));
+            window.mediaPipelineReportsView.renderAuditPreview({ ...reportAuditPreview, count: 260, rows: largeAuditRows });
+            requireText("audit-preview-status", ["showing first 250 of 260"]);
+            window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
             requireText("report-audit-score-policy-summary", [
               "Score policy source: defaults",
               "Audit ignore entries: 0",
@@ -1134,8 +1244,13 @@ def _browser_maintenance_reports_runner_source() -> str:
             byId("report-audit-start-include-sidecars").checked = true;
             byId("report-audit-start-show-console").checked = false;
             window.confirm = () => true;
+            const beforeAuditStartPosts = posts.filter((entry) => entry.path.includes("/api/audit/start")).length;
+            byId("report-audit-start-button").click();
             byId("report-audit-start-button").click();
             await waitFor(() => posts.some((entry) => entry.path.includes("/api/audit/start")), "reports audit start");
+            if (posts.filter((entry) => entry.path.includes("/api/audit/start")).length !== beforeAuditStartPosts + 1) {
+              throw new Error("Reports audit start duplicate click posted more than once.");
+            }
             const auditStartPost = posts.find((entry) => entry.path.includes("/api/audit/start"));
             if (auditStartPost.body?.library_root !== "C:/Reports/Library") {
               throw new Error("Reports audit start did not submit the staged library root.");
@@ -1147,8 +1262,13 @@ def _browser_maintenance_reports_runner_source() -> str:
               throw new Error("Reports audit launch status did not show Started.");
             }
             window.confirm = () => true;
+            const beforeScorePolicyPosts = posts.filter((entry) => entry.path.includes("/api/audit/score-policy")).length;
+            byId("report-audit-score-policy-save-button").click();
             byId("report-audit-score-policy-save-button").click();
             await waitFor(() => posts.some((entry) => entry.path.includes("/api/audit/score-policy")), "audit score policy save");
+            if (posts.filter((entry) => entry.path.includes("/api/audit/score-policy")).length !== beforeScorePolicyPosts + 1) {
+              throw new Error("Reports audit score policy duplicate click posted more than once.");
+            }
             window.confirm = originalConfirm;
             const scorePolicyPost = posts.find((entry) => entry.path.includes("/api/audit/score-policy"));
             if (scorePolicyPost.body?.policy?.issue_code_weights?.["audio-default-policy-mismatch"] !== 222) {
@@ -1157,6 +1277,10 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (scorePolicyPost.body?.policy?.issue_code_weights?.["bdpgs-subtitles-ocr-candidate"] !== 40) {
               throw new Error("Reports audit score policy save did not include medium issue_code_weights.");
             }
+            await waitFor(() => !byId("report-audit-export-rerun-csv-button").disabled, "audit command buttons re-enabled after score policy save");
+            window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
+            window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
+            window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
             const auditCheckbox = document.querySelector('#audit-preview-rows input[type="checkbox"]');
             if (!auditCheckbox) throw new Error("Reports audit row multi-select checkbox missing");
             auditCheckbox.click();
@@ -1170,6 +1294,16 @@ def _browser_maintenance_reports_runner_source() -> str:
               "subtitle_missing_srt",
               "Launch CSV Rerun",
             ]);
+            clickFirst('[data-audit-filter-chip="redownload"]', "Audit Redownload filter");
+            requireText("audit-preview-status", ["1 selected hidden by filter"]);
+            const beforeHiddenAuditPosts = posts.length;
+            byId("report-audit-ignore-selected-button").click();
+            byId("report-audit-export-rerun-csv-button").click();
+            if (posts.length !== beforeHiddenAuditPosts) {
+              throw new Error("hidden audit selected action posted unexpectedly");
+            }
+            requireText("report-audit-export-detail", ["selected audit row", "hidden by the active filter/search"]);
+            clickFirst('[data-audit-filter-chip="all"]', "Audit All filter");
             clickFirst('#audit-preview-rows tr[data-row-key]', "audit row");
             requireText("audit-preview-detail", [
               "Reports audit selected row",
@@ -1180,6 +1314,7 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Evidence owner: Diagnostics",
               "Action owner: Launch CSV Rerun",
             ]);
+            requireText("audit-preview-diagnostics-actions", ["Go to Launch"]);
             clickFirst('[data-reports-tab="files"]', "Reports Locations tab");
             requireText("report-triage", [
               "Failure rows: 1",
@@ -1346,6 +1481,7 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertEqual(len(posts), 6)
         audit_start_post = next(post for post in posts if post["path"] == "/api/audit/start")
         score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
+        diagnostics_open_post = next(post for post in posts if post["path"] == "/api/diagnostics/open")
         latest_warning_clear = next(
             post
             for post in posts
@@ -1356,11 +1492,11 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
             for post in posts
             if post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
         )
-        bulk_preview = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is True)
         bulk_clear = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is False)
         self.assertEqual(audit_start_post["body"]["library_root"], "C:/Reports/Library")
         self.assertTrue(audit_start_post["body"]["include_sidecars"])
         self.assertFalse(audit_start_post["body"]["show_console"])
+        self.assertEqual(diagnostics_open_post["body"]["target"], "latest_failure_report")
         self.assertEqual(latest_warning_clear["path"], "/api/failures/clear")
         self.assertEqual(latest_warning_clear["body"]["scope"], "selected")
         self.assertFalse(latest_warning_clear["body"]["dry_run"])
@@ -1377,11 +1513,6 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         self.assertFalse(row_clear["body"]["dry_run"])
         self.assertTrue(row_clear["body"]["confirm_clear"])
         self.assertEqual(row_clear["body"]["marker_paths"], ["C:/State/Failures/Markers/marker-1.json"])
-        self.assertEqual(bulk_preview["path"], "/api/failures/clear")
-        self.assertEqual(bulk_preview["body"]["scope"], "all_markers")
-        self.assertTrue(bulk_preview["body"]["dry_run"])
-        self.assertFalse(bulk_preview["body"]["confirm_clear"])
-        self.assertNotIn("marker_paths", bulk_preview["body"])
         self.assertEqual(bulk_clear["path"], "/api/failures/clear")
         self.assertEqual(bulk_clear["body"]["scope"], "all_markers")
         self.assertFalse(bulk_clear["body"]["dry_run"])

@@ -28,6 +28,11 @@ from mediapipeline.core.files.opening import FileOpenServiceMixin
 from mediapipeline.core.failures.cleanup_service import FailureCleanupServiceMixin
 from mediapipeline.core.final_library.service import FinalLibraryPromotionServiceMixin
 from mediapipeline.core.folder_policy.service import FolderPolicyServiceMixin
+from mediapipeline.core.maintenance.productization import (
+    prepare_product_runtime,
+    product_runtime_roots,
+    productized_app_enabled,
+)
 from mediapipeline.core.publish.pending_service import PendingPublishServiceMixin
 from mediapipeline.core.paths.service import PathResolutionServiceMixin
 from mediapipeline.core.processes.lifecycle import ProcessLifecycleServiceMixin
@@ -72,6 +77,19 @@ class DesktopAppService(
                 self.workspace_root = app_root.parent.parent
             else:
                 self.workspace_root = app_root.parent
+        self.product_runtime_roots = product_runtime_roots(create=productized_app_enabled())
+        if productized_app_enabled() and self.product_runtime_roots is not None:
+            prepare_product_runtime(app_root, self.workspace_root)
+        self.desktop_log_path = (
+            self.product_runtime_roots["logs_root"] / LOG_NAME
+            if productized_app_enabled() and self.product_runtime_roots is not None
+            else app_root / LOG_NAME
+        )
+        self.command_journal_path = (
+            self.product_runtime_roots["run_logs_root"] / "local_api_command_history.json"
+            if productized_app_enabled() and self.product_runtime_roots is not None
+            else app_root / "RunLogs" / "local_api_command_history.json"
+        )
         self.app_state_path = app_root / APP_STATE_NAME
         self._nvidia_smi_path: str | None = None
         self._nvidia_smi_checked = False
@@ -114,7 +132,8 @@ class DesktopAppService(
             return logger
 
         logger.setLevel(logging.INFO)
-        log_path = self.app_root / LOG_NAME
+        log_path = Path(getattr(self, "desktop_log_path", self.app_root / LOG_NAME))
+        log_path.parent.mkdir(parents=True, exist_ok=True)
         handler = logging.FileHandler(log_path, encoding="utf-8")
         handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         logger.addHandler(handler)

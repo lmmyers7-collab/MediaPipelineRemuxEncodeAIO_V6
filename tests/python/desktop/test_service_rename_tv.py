@@ -34,6 +34,21 @@ class RenameTvHelperTests(unittest.TestCase):
                 "Serial Experiments Lain - S02E01 - Weird.mkv",
             )
 
+    def test_auto_tv_name_blocks_plus_special_and_ttga_folder_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            folder = Path(td) / "Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA"
+            folder.mkdir()
+            source = folder / "S03E01-The Beginning of Winter.mkv"
+
+            self.assertEqual(
+                clean_pipeline_tv_name_part(folder.name),
+                "Ascendance of a Bookworm",
+            )
+            self.assertEqual(
+                build_auto_tv_rename_name(source, season_number=1, remove_terms=None),
+                "Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv",
+            )
+
     def test_auto_tv_name_prefers_source_embedded_season_over_parent_folder(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             folder = Path(td) / "Show Name Season 02"

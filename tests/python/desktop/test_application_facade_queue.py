@@ -528,6 +528,54 @@ class ApplicationFacadeQueueTests(unittest.TestCase):
         self.assertEqual(preview["rows"][0]["phase"], "PRIORITY")
         self.assertTrue(preview["rows"][0]["is_priority"])
 
+    def test_queue_preview_blocks_when_priority_manifest_is_corrupt(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            state_root = root / "State"
+            snapshot_path = state_root / "Progress" / "queue_snapshot.json"
+            snapshot_path.parent.mkdir(parents=True, exist_ok=True)
+            source = root / "Movies" / "Movie.mkv"
+            source.parent.mkdir(parents=True, exist_ok=True)
+            source.write_bytes(b"media")
+            snapshot_path.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "queue_plan_snapshot.v1",
+                        "produced_at": "2026-06-18T00:00:00+00:00",
+                        "source_movies": str(root / "Movies"),
+                        "source_tv": str(root / "TV"),
+                        "movie_count_total": 1,
+                        "tv_count_total": 0,
+                        "priority_count": 0,
+                        "runnable_count": 1,
+                        "rows": [
+                            {
+                                "global_order": 1,
+                                "phase": "movie",
+                                "media_kind": "movie",
+                                "source_path": str(source),
+                                "root_path": str(root / "Movies"),
+                                "relative_path": "Movie.mkv",
+                                "display_name": "Movie",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            resolved = _resolved(root)
+            resolved.state_root = state_root
+            resolved.queue_snapshot_path = snapshot_path
+            resolved.priority_manifest_path = state_root / "priority_manifest.json"
+            resolved.priority_manifest_path.write_text("{not-json", encoding="utf-8")
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_queue_preview(resolved).to_mapping()
+
+        self.assertEqual(preview["queue_progress"]["status"], "blocked")
+        self.assertEqual(preview["rows"], [])
+        self.assertIn("priority manifest could not be read", "\n".join(preview["warnings"]).lower())
+
     def test_queue_preview_loads_file_override_manifest_once_for_row_annotations(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

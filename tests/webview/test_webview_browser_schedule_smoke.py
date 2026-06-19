@@ -123,6 +123,8 @@ def _browser_schedule_runner_source() -> str:
             requireText("schedule-coverage-detail", ["Use Schedule Editor for backend-owned preview/save"]);
             requireText("schedule-editor-result", ["No schedule preview or save result loaded", "Backend validation owns time parsing"]);
             requireText("schedule-editor-impact", ["Launch impact:", "Preview the draft before saving schedule changes"]);
+            requireText("schedule-editor-draft-summary", ["Editor draft:", "matches saved/current payload"]);
+            requireText("schedule-day-scope", ["Weekly View: saved/current payload"]);
             requireText("schedule-editor-save-state", ["Preview required before save"]);
             if (!byId("schedule-editor-save-button").disabled) {
               throw new Error("Save Schedule should be disabled before backend preview.");
@@ -142,6 +144,8 @@ def _browser_schedule_runner_source() -> str:
               window.confirm = originalConfirm;
             }
             if (bulkConfirmCount !== 1) throw new Error("expected one bulk Schedule confirmation; got " + bulkConfirmCount);
+            requireText("schedule-editor-result", ["Week cleared:", "0/336 blocks staged"]);
+            requireText("schedule-day-scope", ["unsaved draft is staged"]);
             setCheckbox("schedule-editor-enabled", true);
             click("schedule-editor-" + today.toLowerCase() + "-block-18");
             click("schedule-editor-" + today.toLowerCase() + "-block-19");
@@ -165,12 +169,24 @@ def _browser_schedule_runner_source() -> str:
               throw new Error("Paste Day changed the copied day unexpectedly: " + JSON.stringify(draft.day_windows));
             }
             requireText("schedule-editor-status", ["Pasted " + today + " into " + today]);
+            click("schedule-editor-load-current-button");
+            if (!byId("schedule-editor-" + today.toLowerCase() + "-paste-day").disabled) {
+              throw new Error("Load Current should clear copied day clipboard and disable Paste Day.");
+            }
+            requireText("schedule-editor-result", ["Loaded current backend schedule payload", "nothing was saved"]);
+            setCheckbox("schedule-editor-enabled", true);
+            click("schedule-editor-" + today.toLowerCase() + "-block-18");
+            click("schedule-editor-" + today.toLowerCase() + "-block-19");
             click("schedule-editor-" + today.toLowerCase() + "-allow-day");
             draft = window.mediaPipelineScheduleView.scheduleEditorRequest();
             if (!draft.enabled) throw new Error("schedule editor did not stage enabled=true");
             if (draft.day_windows[today] !== "all day") {
               throw new Error("schedule editor did not stage today as all day: " + JSON.stringify(draft.day_windows));
             }
+            const draftCoverageRow = Array.from(byId("schedule-coverage-rows").children).find((row) => (row.textContent || "").includes("Draft coverage"));
+            if (!draftCoverageRow) throw new Error("staged draft did not render a Draft coverage row");
+            draftCoverageRow.click();
+            requireText("schedule-coverage-detail", ["Coverage check: Draft coverage", "local staging evidence only", "Saved/current Schedule Trust"]);
 
             click("schedule-editor-preview-button");
             await waitFor(
@@ -185,6 +201,13 @@ def _browser_schedule_runner_source() -> str:
               "Command: schedule.preview",
               "Writes app state: no",
               "Changed day(s): " + today,
+              "Schedule diff:",
+              "Current enforcement: off",
+              "Proposed enforcement: on",
+              today + ":",
+              "Current: none",
+              "Proposed: all day",
+              "Added: all day",
               today + " is allowed all day.",
               "Mutation guardrail",
             ]);
@@ -225,7 +248,18 @@ def _browser_schedule_runner_source() -> str:
               "Writes app state: yes",
               "Enabled candidate: yes",
               "Changed day(s): " + today,
+              "Schedule diff:",
+              "Current enforcement: off",
+              "Proposed enforcement: on",
+              "Proposed: all day",
             ]);
+            await waitFor(
+              () => text("schedule-editor-draft-summary").includes("saved result shown"),
+              "schedule save refresh completion",
+            );
+            requireText("schedule-editor-draft-summary", ["saved result shown"]);
+            requireText("schedule-day-rows", [today + " (current)", "All day"]);
+            requireText("schedule-current-scope", ["Current Schedule: refreshed from saved/current payload after save"]);
 
             window.showPage("launch");
             setInput("pipeline-start-mode", "once");
@@ -311,12 +345,63 @@ def _browser_schedule_runner_source() -> str:
               const details = result.exceptionDetails;
               throw new Error(details.exception?.description || details.exception?.value || details.text || "browser evaluation failed");
             }
+            async function assertScheduleViewport(width, height) {
+              await client.send("Emulation.setDeviceMetricsOverride", {
+                width,
+                height,
+                deviceScaleFactor: 1,
+                mobile: width <= 520,
+              });
+              const layout = await client.send("Runtime.evaluate", {
+                expression: `(async () => {
+                  window.showPage("schedule");
+                  await new Promise((resolve) => requestAnimationFrame(() => resolve()));
+                  const root = document.documentElement;
+                  const body = document.body;
+                  const pageWidth = Math.max(root.scrollWidth || 0, body.scrollWidth || 0);
+                  const editor = document.getElementById("schedule-editor-panel");
+                  const editorWidth = editor ? Math.ceil(editor.getBoundingClientRect().width) : 0;
+                  const overflowingGrids = Array.from(document.querySelectorAll(".schedule-block-grid, .schedule-block-toolbar, .schedule-editor-actions"))
+                    .filter((node) => Math.ceil(node.scrollWidth) > Math.ceil(node.getBoundingClientRect().width) + 2)
+                    .map((node) => node.className || node.id || node.tagName);
+                  return {
+                    width: window.innerWidth,
+                    pageWidth,
+                    editorWidth,
+                    overflowingGrids,
+                    saveState: document.getElementById("schedule-editor-save-state")?.textContent || "",
+                  };
+                })()`,
+                awaitPromise: true,
+                returnByValue: true,
+              });
+              if (layout.exceptionDetails) {
+                const details = layout.exceptionDetails;
+                throw new Error(details.exception?.description || details.exception?.value || details.text || "responsive layout probe failed");
+              }
+              const value = layout.result?.value || {};
+              if (value.pageWidth > value.width + 4) {
+                throw new Error(`Schedule viewport ${width} has horizontal page overflow: ${JSON.stringify(value)}`);
+              }
+              if (value.overflowingGrids && value.overflowingGrids.length) {
+                throw new Error(`Schedule viewport ${width} has overflowing editor controls: ${JSON.stringify(value)}`);
+              }
+              const screenshot = await client.send("Page.captureScreenshot", { format: "jpeg", quality: 60 });
+              if (!screenshot.data || screenshot.data.length < 1000) {
+                throw new Error(`Schedule viewport ${width} screenshot capture was empty`);
+              }
+              return { width, height, screenshotBytes: Math.floor(screenshot.data.length * 0.75) };
+            }
+            const responsive = [];
+            responsive.push(await assertScheduleViewport(375, 900));
+            responsive.push(await assertScheduleViewport(768, 900));
+            responsive.push(await assertScheduleViewport(1440, 1000));
             await sleep(750);
             const errorEvents = client.consoleEvents.filter((entry) => entry.startsWith("error:") || entry.startsWith("warning:"));
             if (client.exceptions.length || errorEvents.length) {
               throw new Error(`Browser console/exception noise: ${client.exceptions.concat(errorEvents).join("; ")}`);
             }
-            console.log(JSON.stringify({ ok: true, result: result.result?.value || {} }));
+            console.log(JSON.stringify({ ok: true, result: result.result?.value || {}, responsive }));
           } finally {
             if (client) client.close();
             await terminateBrowser(browser);
@@ -358,7 +443,7 @@ def _run_browser_schedule_smoke(*, browser_path: str, url: str) -> dict[str, obj
             node=node,
             runner_path=runner_path,
             payload_path=payload_path,
-            timeout_seconds=60,
+            timeout_seconds=90,
         )
 
 
@@ -394,6 +479,7 @@ class WebViewBrowserScheduleSmoke(unittest.TestCase):
             state = service.load_app_state()
 
         browser_result = result["result"]
+        responsive = result["responsive"]
         today = str(browser_result["today"])
         self.assertEqual(browser_result["confirmCount"], 1)
         self.assertIn("schedule_enabled and schedule_grid", browser_result["confirmMessage"])
@@ -401,6 +487,8 @@ class WebViewBrowserScheduleSmoke(unittest.TestCase):
         self.assertIn("schedule.save", browser_result["commandHistory"])
         self.assertEqual(browser_result["schedulePreviewOwner"], "Schedule")
         self.assertEqual(browser_result["scheduleSaveOwner"], "Schedule")
+        self.assertEqual([item["width"] for item in responsive], [375, 768, 1440])
+        self.assertTrue(all(int(item["screenshotBytes"]) > 1000 for item in responsive))
         self.assertIn(browser_result["launchTimingStatus"], {"Ready", "Active work"})
         self.assertIn("Allowed now: yes", browser_result["launchTiming"])
         self.assertTrue(state["schedule_enabled"])
@@ -413,7 +501,3 @@ class WebViewBrowserScheduleSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

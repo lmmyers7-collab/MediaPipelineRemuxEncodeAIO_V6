@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0618-043",
+  "title": "Close Schedule WebView residual trust gaps",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Implement the residual Schedule WebView fixes from the follow-up scan, including true preview diff feedback, backend-authoritative current-window identity, watch-folder status hardening, responsive/browser validation, and accessible preview/save busy feedback.",
+  "reason": "The second Schedule scan found remaining operator-trust gaps after the staged-draft clarity pass: preview did not show exact before/after changes, current-window marking depended on browser-local time, watch-folder status mapping was too loose, and browser validation did not cover responsive overflow, draft coverage selection, or semantic status colors.",
+  "affected_areas": [
+    "generated-summaries",
+    "local-api",
+    "schedule",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Preview Schedule reported changed days and candidate state without exact current-vs-proposed windows, Weekly View could infer the current day from browser-local time, watch-folder launch/root evidence had limited unknown/refusal mapping, and Schedule browser coverage did not exercise responsive overflow or draft coverage selection.",
+  "behavior_after": "Preview Schedule shows exact current/proposed/added/removed schedule evidence before Save, current-window markers use backend-authored schedule timing identity or render unknown as review, watch-folder status distinguishes unknown/refused/blocked/error states, and Schedule smokes cover responsive overflow, draft coverage detail, accessible busy state, and semantic row states.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/scheduleView.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/assets/styles.controls.css",
+    "apps/desktop/webview/static/partials/page-schedule.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/scheduleView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.controls.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-schedule.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-043.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/schedule/grid.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/schedule/policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_schedule.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_app_schedule.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_schedule_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_schedule_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-043.json",
+    "src/mediapipeline/core/schedule/grid.py",
+    "src/mediapipeline/core/schedule/policy.py",
+    "tests/python/desktop/test_application_facade_schedule.py",
+    "tests/python/desktop/test_service_app_schedule.py",
+    "tests/webview/test_webview_browser_schedule_smoke.py",
+    "tests/webview/test_webview_schedule_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_app_schedule tests.python.desktop.test_application_facade_schedule - passed (9 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (414 packet(s) valid)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [Schedule source/UI/tests/change packet] - passed (11 summaries written)",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserScheduleSmoke.ps1 - passed (1 test, includes 375/768/1440 breakpoint screenshot/overflow checks)",
+    ".\\ops\\scripts\\smoke\\Test-WebViewScheduleSmoke.ps1 - passed (2 tests)",
+    "git diff --check -- [Schedule source/UI/tests/change packet/summaries] - passed with line-ending normalization warnings only",
+    "node --check apps/desktop/webview/static/assets/scheduleView.js - passed"
+  ],
+  "rollback_plan": "Revert the Schedule backend timing payload, WebView Schedule UI/CSS, focused Schedule tests, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-032"
+  ],
+  "notes": "Schedule/UI trust refinement only. Do not launch processing, mutate queue state, publish, rename, touch media, or bypass backend schedule/app-state authority.\nImplemented backend-authored schedule timing identity, exact preview/save diffs, watch-folder status hardening, responsive/browser assertions, and Schedule editor busy accessibility feedback."
+}

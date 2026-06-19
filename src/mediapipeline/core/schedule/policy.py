@@ -371,6 +371,7 @@ def schedule_save_success_result(
             "changed_days": changed_days,
             "day_summaries": schedule_day_summaries(grid, formatter=formatter),
             "grid": schedule_grid_rows(grid),
+            "current_grid": schedule_grid_rows(current_grid),
             "app_state_path": app_state_path,
             "writes_app_state": True,
         },

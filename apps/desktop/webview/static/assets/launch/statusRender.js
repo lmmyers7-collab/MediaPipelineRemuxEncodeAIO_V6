@@ -15,6 +15,7 @@
       pipelineControllerStageSummary = function () { return "No active backend work."; },
       pipelineControllerState = function () { return "idle"; },
       pipelineProgressIsStuck = function () { return false; },
+      pipelineProgressIsStale = function () { return false; },
       setText = function () {},
       state = { lastLaunchCommandState: { snapshot: null, closeReadiness: null } },
     } = deps;
@@ -40,25 +41,26 @@
     snapshot = state.lastLaunchCommandState.snapshot,
     closeReadiness = state.lastLaunchCommandState.closeReadiness,
     active = launchPipelineIsActive(snapshot, closeReadiness),
-    stuck = pipelineProgressIsStuck(snapshot)
+    stuck = pipelineProgressIsStuck(snapshot),
+    stale = pipelineProgressIsStale(snapshot)
   ) {
     const state = pipelineControllerState(snapshot, closeReadiness, active, stuck);
     const panel = document.querySelector(".pipeline-controller-panel");
     if (panel) panel.dataset.pipelineControllerState = state;
     const controls = document.querySelector(".pipeline-controller-controls");
-    if (controls) controls.dataset.liveState = stuck ? "stuck" : active ? "active" : "idle";
+    if (controls) controls.dataset.liveState = stuck ? "stuck" : active ? "active" : stale ? "stale" : "idle";
 
     setControllerStatusText("pipeline-controller-backend-status", snapshot ? "Started" : "Snapshot pending", snapshot ? "ok" : "warning");
     setText("pipeline-controller-backend-detail", snapshot ? "Backend snapshot loaded." : "Waiting for backend snapshot refresh.");
 
-    const pipelineLabel = stuck ? "Review" : active ? "Active" : String(snapshot?.pipeline_state || closeReadiness?.state || "idle");
+    const pipelineLabel = stuck ? "Review" : active ? "Active" : stale ? "Stale progress" : String(snapshot?.pipeline_state || closeReadiness?.state || "idle");
     setControllerStatusText("pipeline-controller-pipeline-state", pipelineLabel, state);
     setText("pipeline-controller-stage-summary", pipelineControllerStageSummary(snapshot, closeReadiness, active, stuck));
 
-    const controlLabel = stuck ? "Emergency available" : active ? "Controls active" : "Idle";
-    setControllerStatusText("pipeline-live-control-state", stuck ? "Stuck" : active ? "Active" : "Idle", state);
-    setText("pipeline-controller-control-summary", stuck ? "Stuck progress can be force-stopped after review." : active ? "Pause, rescan, or graceful stop can be submitted." : "No active backend work; controls are disabled.");
-    setText("pipeline-live-control-summary", stuck ? "Progress is non-idle without confirmed active work. Use Force Stop only after checking Diagnostics." : active ? "Backend work is active. Prefer Stop After Current before emergency control." : "No active backend work.");
+    const controlLabel = stuck ? "Emergency available" : active ? "Controls active" : stale ? "Stale progress" : "Idle";
+    setControllerStatusText("pipeline-live-control-state", stuck ? "Stuck" : active ? "Active" : stale ? "Stale" : "Idle", state);
+    setText("pipeline-controller-control-summary", stuck ? "Backend-stuck progress can be force-stopped after review." : active ? "Pause, rescan, or graceful stop can be submitted." : stale ? "Stale progress evidence is visible; emergency controls stay disabled until active/stuck work is confirmed." : "No active backend work; controls are disabled.");
+    setText("pipeline-live-control-summary", stuck ? "Progress is explicitly stuck without confirmed active work. Use Force Stop only after checking Diagnostics." : active ? "Backend work is active. Prefer Stop After Current before emergency control." : stale ? "Progress evidence is stale. Refresh status and inspect Diagnostics before deciding next action." : "No active backend work.");
     const controlSummary = byId("control-readiness-status");
     if (controlSummary && !controlSummary.textContent.trim()) controlSummary.textContent = controlLabel;
 

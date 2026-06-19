@@ -139,8 +139,8 @@ def _browser_network_runner_source() -> str:
             if (typeof window.mediaPipelineSettingsView?.syncNetworkSettingsBuilderFromConfig !== "function") {
               throw new Error("missing network settings builder sync function");
             }
-            if (typeof window.mediaPipelineNetworkView?.activateNetworkTab !== "function") {
-              throw new Error("missing network tab activation function");
+            if (typeof window.mediaPipelineNetworkView?.syncNetworkRoleDashboards !== "function") {
+              throw new Error("missing network role dashboard sync function");
             }
             if (typeof window.mediaPipelineNetworkView?.networkCoordinatorOverviewModel !== "function") {
               throw new Error("missing coordinator overview model function");
@@ -159,6 +159,12 @@ def _browser_network_runner_source() -> str:
             }
             if (typeof window.mediaPipelineNetworkView?.networkWorkerDiscoverCoordinatorsRoute !== "function") {
               throw new Error("missing worker coordinator discovery route function");
+            }
+            if (typeof window.mediaPipelineNetworkView?.networkLifecycleDryRunAllowsConfirmed !== "function") {
+              throw new Error("missing lifecycle dry-run freshness helper");
+            }
+            if (typeof window.mediaPipelineNetworkView?.networkWorkerStatusState !== "function") {
+              throw new Error("missing worker status taxonomy helper");
             }
             const preservedStopLines = window.mediaPipelineNetworkView.networkLifecycleCommandResultLines({
               ok: true,
@@ -192,6 +198,50 @@ def _browser_network_runner_source() -> str:
 
             window.apiPost = async (url, body) => {
               posted.push({ url: String(url || ""), body });
+              if (String(url || "").includes("/api/network/coordinator/start-dry-run") || String(url || "").includes("/api/network/coordinator/stop-dry-run")) {
+                const dryRunAction = String(url || "").includes("/stop-dry-run") ? "stop" : "start";
+                return {
+                  ok: true,
+                  command: "network.coordinator." + dryRunAction + ".dry_run",
+                  severity: "info",
+                  message: "mocked coordinator " + dryRunAction + " dry-run",
+                  data: {
+                    schema_version: "desktop_network_lifecycle_command_result.v1",
+                    dry_run_only: true,
+                    effect: "none",
+                    safe_to_apply: true,
+                    state_before: { status: dryRunAction === "stop" ? "running" : "stopped" },
+                    state_after: { status: dryRunAction === "stop" ? "would_stop" : "would_start" },
+                    precondition_results: [{ key: "provider_ready", status: "pass", evidence: "mock provider ready" }],
+                    would_not_touch: {
+                      media_sources: "no write/delete/rename/move",
+                      queue_state: "no claim, enqueue, dequeue, reorder, or launch",
+                    },
+                  },
+                };
+              }
+              if (String(url || "").includes("/api/network/worker/test-connection")) {
+                return {
+                  ok: true,
+                  command: "network.worker.test_connection",
+                  severity: "info",
+                  message: "mocked worker test connection",
+                  data: {
+                    schema_version: "desktop_network_worker_test_connection.v1",
+                    effect: "none",
+                    layers: {
+                      l1_url: { ok: true, status: "pass", detail: "mocked url layer" },
+                      l2_auth: { ok: true, status: "pass", detail: "mocked auth layer" },
+                      l3_paths: { ok: true, status: "pass", detail: "mocked path layer", paths: [] },
+                    },
+                    would_not_touch: {
+                      media_sources: true,
+                      queue: true,
+                      output: true,
+                    },
+                  },
+                };
+              }
               if (String(url || "").includes("/api/network/worker/discover-coordinators")) {
                 return {
                   ok: true,
@@ -272,6 +322,7 @@ def _browser_network_runner_source() -> str:
               }
               return { ok: true, command: "diagnostics.open", message: "browser smoke mocked diagnostics open", data: { target: body?.target || "" } };
             };
+            try { refreshAll = () => {}; } catch (_error) {}
             window.refreshAll = () => {};
             window.open = (url) => {
               opened.push(String(url || ""));
@@ -281,9 +332,16 @@ def _browser_network_runner_source() -> str:
             window.showPage("network");
             window.mediaPipelineNetworkView.renderNetworkView(payload);
             window.mediaPipelineSettingsView.syncNetworkSettingsBuilderFromConfig();
-            const coordinatorButton = document.querySelector('[data-network-tab="coordinator"]');
-            if (!coordinatorButton || coordinatorButton.getAttribute("aria-selected") !== "true") {
-              throw new Error("Coordinator tab should be selected by default for coordinator mode.");
+            if (document.querySelector("[data-network-tab]")) {
+              throw new Error("Network role tabs should not render.");
+            }
+            const coordinatorPanel = document.querySelector('[data-network-role-panel="coordinator"]');
+            const workerPanel = document.querySelector('[data-network-role-panel="worker"]');
+            if (!coordinatorPanel || !coordinatorPanel.classList.contains("is-active") || coordinatorPanel.hidden) {
+              throw new Error("Coordinator dashboard should be visible for coordinator mode.");
+            }
+            if (!workerPanel || workerPanel.classList.contains("is-active") || !workerPanel.hidden) {
+              throw new Error("Worker dashboard should be hidden for coordinator mode.");
             }
             requireTitle("settings-network-role", ["Standalone", "Coordinator", "Worker", "Coordinator + local worker"]);
             requireText("network-status", ["Backend lifecycle controls"]);
@@ -292,19 +350,11 @@ def _browser_network_runner_source() -> str:
             requireText("network-status-banner-lines", ["Mode: Coordinator only.", "Runtime: Blocked", "Worker-facing coordinator URL", "Restart note"]);
             requireText("network-coordinator-overview-status", ["Blocked review"]);
             requireText("network-coordinator-overview-summary", ["Coordinator overview:", "Queue on deck:", "Mutation guardrail"]);
-            requireText("network-coordinator-active-rows", ["worker-active", "Episode 01.mkv", "Encode", "encoding", "42%", "worker-failed", "Episode 02.mkv", "unknown/backend evidence missing"]);
+            requireText("network-coordinator-active-rows", ["worker-active", "Episode 01.mkv", "Encode", "encoding", "42%"]);
+            if (text("network-coordinator-active-rows").includes("worker-failed")) {
+              throw new Error("historical failure row should not render as active claimed work");
+            }
             requireText("network-coordinator-queue-rows", ["Episode 03.mkv", "Remux", "normal", "copy_compatible"]);
-            window.mediaPipelineNetworkView.activateNetworkTab("worker");
-            const workerButton = document.querySelector('[data-network-tab="worker"]');
-            const workerPane = document.querySelector('[data-network-tab-panel="worker"]');
-            if (!workerButton || workerButton.getAttribute("aria-selected") !== "true") throw new Error("Worker tab did not activate");
-            if (!workerPane || !workerPane.classList.contains("is-active") || workerPane.hidden) throw new Error("Worker tab pane did not become active");
-            if (window.localStorage.getItem("mediapipeline-network-tab") !== "worker") throw new Error("Worker tab selection did not persist");
-            requireText("network-worker-overview-status", ["Pending done report"]);
-            requireText("network-worker-overview-summary", ["Worker overview:", "Remote coordinator queue: Phase 2", "Mutation guardrail"]);
-            requireText("network-worker-claim-rows", ["local-job", "Episode 04.mkv", "Encode", "worker current local claim", "Pending done report", "yes"]);
-            requireText("network-worker-remote-queue-summary", ["Phase 2 placeholder:", "read-only coordinator queue reporting contract"]);
-            window.mediaPipelineNetworkView.activateNetworkTab("coordinator");
             requireText("network-mode-model", ["Standalone:", "Coordinator only:", "Worker only:", "Coordinator + local worker:", "Runtime authority:"]);
             const summaryRows = Array.from(document.querySelectorAll("#network-summary .network-summary-row"));
             if (summaryRows.length < 3) throw new Error("expected readable network summary rows, saw " + summaryRows.length);
@@ -323,15 +373,18 @@ def _browser_network_runner_source() -> str:
             requireVisible("network-lifecycle-boundary-summary");
             requireText("network-lifecycle-boundary-summary", [
               "Lifecycle owner: backend Network diagnostics / Python dispatcher.",
-              "Lifecycle mutation routes: present (6)",
+              "Lifecycle dry-run routes: present (4); confirmed lifecycle routes: present (4).",
+              "Setup write/secret routes:",
               "run the backend dry-run route before any confirmed network lifecycle command",
             ]);
             requireText("network-route-summary", [
               "GET /api/network/workers available with effect=none",
               "Worker test-connection route: available with effect=none",
               "Worker mDNS discovery route: available with effect=none",
-              "Coordinator join blob route: available and unjournaled",
-              "Worker join cluster route: available and unjournaled",
+              "Coordinator join blob route: available; setup secret-transfer",
+              "Worker join cluster route: available; setup config-write",
+              "Lifecycle dry-run routes: 4; confirmed lifecycle start/stop routes: 4.",
+              "Setup write/secret routes:",
               "published lifecycle contracts",
               "mutation enabled=yes",
               "Deep API contract detail remains in Advanced",
@@ -351,7 +404,7 @@ def _browser_network_runner_source() -> str:
             }
             requireText("network-worker-progress-summary", ["Last reported worker progress:", "Active worker bars:", "Mutation guardrail: this panel uses backend-owned Network lifecycle routes only"]);
             requireText("network-worker-progress-bars", ["worker-active", "42%", "worker-failed"]);
-            requireText("network-worker-filter-summary", ["Showing 3/3 persisted worker rows", "No active/problem worker rows are hidden", "Mutation guardrail"]);
+            requireText("network-worker-filter-summary", ["Showing 3/3 persisted worker rows", "No active/problem/review worker rows are hidden", "Mutation guardrail"]);
 
             const lifecycleRows = Array.from(document.querySelectorAll('#network-lifecycle-rows tr[data-selectable-row="true"]'));
             if (lifecycleRows.length < 6) throw new Error("expected network lifecycle handoff rows, saw " + lifecycleRows.length);
@@ -372,15 +425,15 @@ def _browser_network_runner_source() -> str:
             requireText("network-worker-detail", ["Worker:", "Accessible libraries: movies, tv", "Lifecycle controls remain backend-owned"]);
 
             setSelect("network-worker-status-filter", "idle");
-            requireText("network-worker-filter-summary", ["Showing 1/3 persisted worker rows", "2 active/problem worker rows are hidden", "Clear or change filters before lifecycle decisions"]);
+            requireText("network-worker-filter-summary", ["Showing 1/3 persisted worker rows", "2 active/problem/review worker rows are hidden", "Clear or change filters before lifecycle decisions"]);
 
             setSelect("network-worker-status-filter", "");
             setInput("network-worker-filter", "failed-job");
-            requireText("network-worker-filter-summary", ["Showing 1/3 persisted worker rows", "1 active/problem worker row is hidden", "Mutation guardrail"]);
+            requireText("network-worker-filter-summary", ["Showing 1/3 persisted worker rows", "1 active/problem/review worker row is hidden", "Mutation guardrail"]);
             requireText("network-worker-detail", ["failed-job", "Accessible libraries: movies", "Error: ffmpeg exited 1", "Last failure code: SOURCE_NOT_FOUND", "Worker misconfigured code: SOURCE_NOT_FOUND"]);
 
             setInput("network-worker-filter", "no-match-filter");
-            requireText("network-worker-filter-summary", ["Showing 0/3 persisted worker rows", "2 active/problem worker rows are hidden"]);
+            requireText("network-worker-filter-summary", ["Showing 0/3 persisted worker rows", "2 active/problem/review worker rows are hidden"]);
             requireText("network-worker-detail", ["No network worker row selected."]);
             const preJoinSmokeResult = {
               filterSummary: text("network-worker-filter-summary"),
@@ -391,6 +444,100 @@ def _browser_network_runner_source() -> str:
               stateFilesSummary: text("network-state-files-summary"),
               workerStatus: text("network-worker-status"),
             };
+
+            const safeLifecyclePayload = JSON.parse(JSON.stringify(payload));
+            safeLifecyclePayload.settings.config.NetworkRole = "coordinator";
+            safeLifecyclePayload.settings.config.CoordinatorAlsoEncodeLocally = false;
+            safeLifecyclePayload.networkWorkers.runtime_status_label = "Running";
+            safeLifecyclePayload.networkWorkers.runtime_status_severity = "match";
+            safeLifecyclePayload.networkWorkers.lifecycle_state.coordinator.status = "running";
+            safeLifecyclePayload.networkWorkers.operator_summary_lines = [
+              "Mode: Coordinator only.",
+              "Runtime: Running (match).",
+              "Normal Launch: blocked in this network mode; use Network Lifecycle controls.",
+              "Lifecycle state: coordinator running.",
+              "Worker-facing coordinator URL: http://coordinator.test:7830.",
+            ];
+            await new Promise((resolve) => setTimeout(resolve, 500));
+            window.mediaPipelineNetworkView.renderNetworkView(safeLifecyclePayload);
+            const coordinatorStopButton = document.querySelector('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"]:not([data-network-lifecycle-dry-run])');
+            if (!coordinatorStopButton || !coordinatorStopButton.disabled) {
+              throw new Error("confirmed coordinator stop should be disabled before matching safe dry-run");
+            }
+            const coordinatorStopDryRunButton = document.querySelector('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"][data-network-lifecycle-dry-run="true"]');
+            if (!coordinatorStopDryRunButton || coordinatorStopDryRunButton.disabled) {
+              throw new Error("coordinator stop dry-run should be enabled in safe running state");
+            }
+            click('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"][data-network-lifecycle-dry-run="true"]', "coordinator stop dry-run");
+            await waitForText("network-lifecycle-command-result", ["Check complete. This was a dry-run only.", "Effect: none.", "Safe to apply: yes"]);
+            if (coordinatorStopButton.disabled) {
+              throw new Error("confirmed coordinator stop did not enable after matching safe dry-run: " + coordinatorStopButton.title + "\\nDry-run allowed helper: " + window.mediaPipelineNetworkView.networkLifecycleDryRunAllowsConfirmed(safeLifecyclePayload, safeLifecyclePayload.settings.config, "coordinator", "stop") + "\\nPosted: " + JSON.stringify(posted) + "\\nResult:\\n" + text("network-lifecycle-command-result"));
+            }
+            click('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"]:not([data-network-lifecycle-dry-run])', "coordinator confirmed stop after dry-run");
+            requireDialogOpen("network-lifecycle-confirm-dialog", ["coordinator stop", "Matching dry-run accepted", "backend confirmation field"]);
+            click("#network-lifecycle-confirm-cancel", "cancel lifecycle confirmation");
+            await waitForText("network-lifecycle-command-result", ["Confirmed lifecycle command was cancelled before the backend confirmation field was sent."]);
+            if (posted.some((entry) => String(entry.url).endsWith("/api/network/coordinator/stop"))) {
+              throw new Error("cancelled confirmed lifecycle command still posted: " + JSON.stringify(posted));
+            }
+            const staleLifecyclePayload = JSON.parse(JSON.stringify(safeLifecyclePayload));
+            staleLifecyclePayload.networkWorkers.lifecycle_state.coordinator.status = "stopped";
+            window.mediaPipelineNetworkView.renderNetworkView(staleLifecyclePayload);
+            if (!coordinatorStopButton.disabled) {
+              throw new Error("confirmed coordinator stop should be disabled after lifecycle-state mismatch");
+            }
+
+            const coordinatorLocalPayload = JSON.parse(JSON.stringify(payload));
+            coordinatorLocalPayload.settings.config.NetworkRole = "coordinator";
+            coordinatorLocalPayload.settings.config.CoordinatorAlsoEncodeLocally = true;
+            window.mediaPipelineNetworkView.renderNetworkView(coordinatorLocalPayload);
+            if (coordinatorPanel.hidden || workerPanel.hidden) {
+              throw new Error("Coordinator + local worker mode should show both role dashboards.");
+            }
+
+            const workerModePayload = JSON.parse(JSON.stringify(payload));
+            workerModePayload.settings.config.NetworkRole = "worker";
+            workerModePayload.settings.config.WorkerCoordinatorUrl = "http://coordinator.test:7830";
+            workerModePayload.networkWorkers.role = "worker";
+            workerModePayload.networkWorkers.runtime_status_label = "Worker ready";
+            workerModePayload.networkWorkers.runtime_status_severity = "match";
+            workerModePayload.networkWorkers.lifecycle_state.worker.status = "stopped";
+            workerModePayload.networkWorkers.operator_summary_lines = [
+              "Mode: Worker only.",
+              "Runtime: Worker ready (match).",
+              "Lifecycle state: worker stopped.",
+              "Worker-facing coordinator URL: http://coordinator.test:7830.",
+            ];
+            window.mediaPipelineNetworkView.renderNetworkView(workerModePayload);
+            if (coordinatorPanel.classList.contains("is-active") || !coordinatorPanel.hidden) {
+              throw new Error("Coordinator dashboard should be hidden for worker mode.");
+            }
+            if (!workerPanel.classList.contains("is-active") || workerPanel.hidden) {
+              throw new Error("Worker dashboard should be visible for worker mode.");
+            }
+            requireText("network-worker-overview-status", ["Pending done report"]);
+            requireText("network-worker-overview-summary", ["Worker overview:", "Remote coordinator queue: Phase 2", "Mutation guardrail"]);
+            requireText("network-worker-claim-rows", ["local-job", "Episode 04.mkv", "Encode", "worker current local claim", "Pending done report", "yes"]);
+            requireText("network-worker-remote-queue-summary", ["Phase 2 placeholder:", "read-only coordinator queue reporting contract"]);
+            click("[data-network-test-connection]", "worker test connection button");
+            await waitForText("network-lifecycle-command-result", [
+              "Worker test-connection complete.",
+              "Effect: none.",
+              "No files, queue, scratch, output, pending publish, lifecycle state, or media policy changed.",
+            ]);
+            const standalonePayload = JSON.parse(JSON.stringify(payload));
+            standalonePayload.settings.config.NetworkRole = "standalone";
+            standalonePayload.settings.config.CoordinatorAlsoEncodeLocally = false;
+            window.mediaPipelineNetworkView.renderNetworkView(standalonePayload);
+            if (!coordinatorPanel.hidden || !workerPanel.hidden) {
+              throw new Error("Standalone mode should not show coordinator or worker role dashboards.");
+            }
+            requireText("network-summary", ["Standalone mode keeps all processing local to this workstation."]);
+            const missingJoinRoutePayload = JSON.parse(JSON.stringify(payload));
+            missingJoinRoutePayload.contract.routes = missingJoinRoutePayload.contract.routes.filter((route) => route.path !== "/api/network/coordinator/join-blob");
+            window.mediaPipelineNetworkView.renderNetworkView(missingJoinRoutePayload);
+            requireText("network-coordinator-join-status", ["Route missing"]);
+            window.mediaPipelineNetworkView.renderNetworkView(payload);
 
             setSelect("settings-network-role", "worker");
             requireDialogOpen("network-role-setup-dialog", ["Worker Setup", "Designation", "Worker", "Distributed setup stages saved config only"]);
@@ -429,8 +576,8 @@ def _browser_network_runner_source() -> str:
             });
             click(pathMapRow + ' [data-path-map-action="test"]', "path map row test button");
             await waitForText("network-role-setup-path-map-test-result", [
-              "Local rewrite result: //SERVER/Source/Episode 01.mkv",
-              "Generic saved-config backend preflight: path layer reported pass",
+              "Local staged rewrite result: //SERVER/Source/Episode 01.mkv",
+              "Backend saved-config preflight: path layer reported pass",
             ]);
             window.mediaPipelineNetworkView.runNetworkWorkerTestConnection = originalWorkerTestConnection;
             setInput("network-role-setup-worker-overrides", '{"browser-worker":{"VideoPreset":"p4"}}');
@@ -493,7 +640,21 @@ def _browser_network_runner_source() -> str:
               throw new Error("discovery did not stage WorkerCoordinatorUrl: " + JSON.stringify(discoveryPatch));
             }
             setInput("network-coordinator-join-url", "http://coordinator.test:7830");
+            const joinBlobPostsBeforeCancel = posted.filter((entry) => String(entry.url).includes("/api/network/coordinator/join-blob")).length;
+            const rotateCheckbox = byId("network-coordinator-join-rotate");
+            rotateCheckbox.checked = true;
+            rotateCheckbox.dispatchEvent(new Event("change", { bubbles: true }));
             click("#network-coordinator-join-create", "coordinator join blob button");
+            requireDialogOpen("network-lifecycle-confirm-dialog", ["Rotate token + create blob", "secret-transfer", "Token rotation: yes"]);
+            click("#network-lifecycle-confirm-cancel", "cancel join blob confirmation");
+            await waitForText("network-coordinator-join-status", ["Cancelled"]);
+            const joinBlobPostsAfterCancel = posted.filter((entry) => String(entry.url).includes("/api/network/coordinator/join-blob")).length;
+            if (joinBlobPostsAfterCancel !== joinBlobPostsBeforeCancel) {
+              throw new Error("cancelled join blob confirmation still posted: " + JSON.stringify(posted));
+            }
+            click("#network-coordinator-join-create", "coordinator join blob button after cancel");
+            requireDialogOpen("network-lifecycle-confirm-dialog", ["Rotate token + create blob", "secret-transfer", "Token rotation: yes"]);
+            click("#network-lifecycle-confirm-submit", "confirm join blob command");
             await waitForText("network-coordinator-join-status", ["Blob ready"]);
             requireText("network-coordinator-join-result", [
               "Coordinator join blob created.",
@@ -508,9 +669,21 @@ def _browser_network_runner_source() -> str:
             setInput("network-worker-join-blob", byId("network-coordinator-join-output").value);
             if (importJoinButton.disabled) throw new Error("worker import button should enable after blob paste");
             click("#network-worker-join-import", "worker join cluster button");
+            requireDialogOpen("network-lifecycle-confirm-dialog", ["Join Cluster", "config-write", "does not start worker polling"]);
+            click("#network-lifecycle-confirm-cancel", "cancel join cluster confirmation");
+            await waitForText("network-worker-join-status", ["Cancelled"]);
+            const joinClusterPostsAfterCancel = posted.filter((entry) => String(entry.url).includes("/api/network/worker/join-cluster")).length;
+            if (joinClusterPostsAfterCancel !== 0) {
+              throw new Error("cancelled join cluster confirmation still posted: " + JSON.stringify(posted));
+            }
+            click("#network-worker-join-import", "worker join cluster button after cancel");
+            requireDialogOpen("network-lifecycle-confirm-dialog", ["Join Cluster", "config-write", "does not start worker polling"]);
+            click("#network-lifecycle-confirm-submit", "confirm join cluster command");
             await waitForText("network-worker-join-status", ["Joined"]);
             requireText("network-worker-join-result", [
               "Worker join import complete.",
+              "Effect: backend config-write",
+              "Lifecycle: worker polling was not started.",
               "Settings save: saved",
               "Auto path-map entries: 1",
               "Test connection: passed",
@@ -518,20 +691,29 @@ def _browser_network_runner_source() -> str:
 
             const allowedPostTargets = [
               "/api/diagnostics/open",
+              "/api/network/coordinator/start-dry-run",
+              "/api/network/coordinator/stop-dry-run",
+              "/api/network/worker/test-connection",
               "/api/network/worker/discover-coordinators",
               "/api/network/coordinator/join-blob",
               "/api/network/worker/join-cluster",
             ];
             const isAllowedUiPreferencePost = (entry) => {
               if (!String(entry.url || "").includes("/api/ui-preferences")) return false;
-              const storage = entry.body && typeof entry.body === "object" ? entry.body.storage : null;
+              const storage = entry.body && typeof entry.body === "object" ? entry.body.storage || {} : {};
               return entry.body?.source_surface === "webview"
-                && storage
-                && Object.keys(storage).length === 1
-                && storage["mediapipeline-network-tab"] === "worker";
+                && !Object.keys(storage).some((key) => key.startsWith("mediapipeline-network-tab"));
             };
             if (posted.some((entry) => !allowedPostTargets.some((target) => String(entry.url).includes(target)) && !isAllowedUiPreferencePost(entry))) {
               throw new Error("Network smoke observed unexpected POST target: " + JSON.stringify(posted));
+            }
+            const joinBlobPost = posted.find((entry) => String(entry.url).includes("/api/network/coordinator/join-blob"));
+            if (!joinBlobPost?.body?.confirm_create || !joinBlobPost?.body?.rotate_token || !joinBlobPost?.body?.confirm_rotate) {
+              throw new Error("join blob request did not carry explicit confirmation fields: " + JSON.stringify(joinBlobPost));
+            }
+            const joinClusterPost = posted.find((entry) => String(entry.url).includes("/api/network/worker/join-cluster"));
+            if (!joinClusterPost?.body?.confirm_import) {
+              throw new Error("join cluster request did not carry explicit confirmation field: " + JSON.stringify(joinClusterPost));
             }
             return {
               ok: true,
@@ -575,14 +757,14 @@ def _browser_network_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("network-worker-filter-summary") && document.getElementById("network-state-files-summary") && document.getElementById("network-lifecycle-summary") && document.getElementById("network-coordinator-overview-summary") && document.getElementById("network-worker-overview-summary") && document.getElementById("settings-patch-json") && typeof window.mediaPipelineNetworkView.renderNetworkView === "function" && typeof window.mediaPipelineNetworkView.renderNetworkLifecycleHandoff === "function" && typeof window.mediaPipelineNetworkView.networkLifecycleRows === "function" && typeof window.mediaPipelineNetworkView.renderNetworkStateFiles === "function" && typeof window.mediaPipelineNetworkView.activateNetworkTab === "function" && typeof window.mediaPipelineNetworkView.networkCoordinatorOverviewModel === "function" && typeof window.mediaPipelineNetworkView.networkWorkerOverviewModel === "function" && typeof window.mediaPipelineSettingsView?.syncNetworkSettingsBuilderFromConfig === "function" && typeof window.showPage === "function")`,
+                expression: `Boolean(document.getElementById("network-worker-filter-summary") && document.getElementById("network-state-files-summary") && document.getElementById("network-lifecycle-summary") && document.getElementById("network-coordinator-overview-summary") && document.getElementById("network-worker-overview-summary") && document.getElementById("settings-patch-json") && typeof window.mediaPipelineNetworkView.renderNetworkView === "function" && typeof window.mediaPipelineNetworkView.renderNetworkLifecycleHandoff === "function" && typeof window.mediaPipelineNetworkView.networkLifecycleRows === "function" && typeof window.mediaPipelineNetworkView.renderNetworkStateFiles === "function" && typeof window.mediaPipelineNetworkView.syncNetworkRoleDashboards === "function" && typeof window.mediaPipelineNetworkView.networkCoordinatorOverviewModel === "function" && typeof window.mediaPipelineNetworkView.networkWorkerOverviewModel === "function" && typeof window.mediaPipelineSettingsView?.syncNetworkSettingsBuilderFromConfig === "function" && typeof window.showPage === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("network-worker-filter-summary") && document.getElementById("network-state-files-summary") && document.getElementById("network-lifecycle-summary") && document.getElementById("network-coordinator-overview-summary") && document.getElementById("network-worker-overview-summary") && document.getElementById("settings-patch-json") && typeof window.mediaPipelineNetworkView.renderNetworkView === "function" && typeof window.mediaPipelineNetworkView.renderNetworkLifecycleHandoff === "function" && typeof window.mediaPipelineNetworkView.networkLifecycleRows === "function" && typeof window.mediaPipelineNetworkView.renderNetworkStateFiles === "function" && typeof window.mediaPipelineNetworkView.activateNetworkTab === "function" && typeof window.mediaPipelineNetworkView.networkCoordinatorOverviewModel === "function" && typeof window.mediaPipelineNetworkView.networkWorkerOverviewModel === "function" && typeof window.mediaPipelineSettingsView?.syncNetworkSettingsBuilderFromConfig === "function" && typeof window.showPage === "function")`,
+              expression: `Boolean(document.getElementById("network-worker-filter-summary") && document.getElementById("network-state-files-summary") && document.getElementById("network-lifecycle-summary") && document.getElementById("network-coordinator-overview-summary") && document.getElementById("network-worker-overview-summary") && document.getElementById("settings-patch-json") && typeof window.mediaPipelineNetworkView.renderNetworkView === "function" && typeof window.mediaPipelineNetworkView.renderNetworkLifecycleHandoff === "function" && typeof window.mediaPipelineNetworkView.networkLifecycleRows === "function" && typeof window.mediaPipelineNetworkView.renderNetworkStateFiles === "function" && typeof window.mediaPipelineNetworkView.syncNetworkRoleDashboards === "function" && typeof window.mediaPipelineNetworkView.networkCoordinatorOverviewModel === "function" && typeof window.mediaPipelineNetworkView.networkWorkerOverviewModel === "function" && typeof window.mediaPipelineSettingsView?.syncNetworkSettingsBuilderFromConfig === "function" && typeof window.showPage === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) throw new Error("Network WebView globals or DOM nodes did not become ready.");
@@ -1074,17 +1256,15 @@ class WebViewBrowserNetworkSmoke(unittest.TestCase):
         posted = browser_result["posted"]
         ui_preference_posts = [entry for entry in posted if entry["url"] == "/api/ui-preferences"]
         for entry in ui_preference_posts:
-            self.assertEqual(
-                entry["body"],
-                {
-                    "storage": {"mediapipeline-network-tab": "worker"},
-                    "source_surface": "webview",
-                },
-            )
+            self.assertEqual(entry["body"]["source_surface"], "webview")
+            storage = entry["body"].get("storage") or {}
+            self.assertFalse([key for key in storage if key.startswith("mediapipeline-network-tab")])
         command_posts = [entry for entry in posted if entry["url"] != "/api/ui-preferences"]
         self.assertEqual(
             [entry["url"] for entry in command_posts],
             [
+                "/api/network/coordinator/stop-dry-run",
+                "/api/network/worker/test-connection",
                 "/api/network/worker/discover-coordinators",
                 "/api/network/coordinator/join-blob",
                 "/api/network/worker/join-cluster",
@@ -1092,18 +1272,27 @@ class WebViewBrowserNetworkSmoke(unittest.TestCase):
         )
         self.assertEqual(
             command_posts[0]["body"],
-            {"timeout_seconds": 2},
+            {"reason": "webview_network_lifecycle_dry_run"},
         )
         self.assertEqual(
             command_posts[1]["body"],
-            {
-                "confirm_create": True,
-                "rotate_token": False,
-                "coordinator_url": "http://coordinator.test:7830",
-            },
+            {},
         )
         self.assertEqual(
             command_posts[2]["body"],
+            {"timeout_seconds": 2},
+        )
+        self.assertEqual(
+            command_posts[3]["body"],
+            {
+                "confirm_create": True,
+                "rotate_token": True,
+                "coordinator_url": "http://coordinator.test:7830",
+                "confirm_rotate": True,
+            },
+        )
+        self.assertEqual(
+            command_posts[4]["body"],
             {
                 "join_blob": "mediapipeline-join:browser-smoke",
                 "confirm_import": True,

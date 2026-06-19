@@ -7,9 +7,9 @@ the command-handler migration can proceed without breaking WebView callers.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError
+from pydantic import BaseModel, ConfigDict, Field, StrictBool, ValidationError, model_validator
 
 from mediapipeline.contracts.source_media import SourceMediaInfo
 
@@ -52,13 +52,6 @@ class DiagnosticsTdarrMatrixRerunCommandPayload(StrictApiCommandPayload):
     source_run_id: Any = None
     selection: Any = None
     finding_keys: Any = None
-
-
-class QueuePriorityItemPayload(ApiCommandPayload):
-    path: Any = None
-    level: Any = None
-    reason: Any = None
-    position: Any = None
 
 
 class QueuePriorityCommandPayload(ApiCommandPayload):
@@ -109,6 +102,12 @@ class QueueFileOverridesSeriesApplyCommandPayload(StrictApiCommandPayload):
     preview_fingerprint: Any = None
 
 
+class QueueFileOverridesRemuxPilotPromoteCommandPayload(StrictApiCommandPayload):
+    pilot_source_paths: Any = None
+    confirm_apply: StrictBool | None = None
+    reason: Any = None
+
+
 class QueueFileOverridesFolderPreviewCommandPayload(StrictApiCommandPayload):
     folder_path: Any = None
     proposed_override: Any = None
@@ -151,6 +150,54 @@ class SettingsPipelinePlanPreviewCommandPayload(StrictApiCommandPayload):
 
     def to_wire_payload(self) -> dict[str, Any]:
         return dict(self.model_dump(mode="json"))
+
+
+class PresetLibraryValidateCommandPayload(StrictApiCommandPayload):
+    preset_v2: Any = None
+
+
+class PresetLibraryCompareCommandPayload(StrictApiCommandPayload):
+    left_id: Any = None
+    right_id: Any = None
+    left_preset_v2: Any = None
+    right_preset_v2: Any = None
+
+
+class PresetLibraryImportPreviewCommandPayload(StrictApiCommandPayload):
+    records: Any = None
+
+
+class PresetLibrarySaveCommandPayload(StrictApiCommandPayload):
+    id: Any = None
+    name: Any = None
+    description: Any = None
+    tags: Any = None
+    source: Any = None
+    imported_from: Any = None
+    preset_v2: Any = None
+    confirm_save: StrictBool | None = None
+
+
+class PresetLibraryExportCommandPayload(StrictApiCommandPayload):
+    id: Any = None
+    preset_v2: Any = None
+
+
+class PresetLibraryApplyPreviewCommandPayload(StrictApiCommandPayload):
+    id: Any = None
+    preset_v2: Any = None
+
+
+class PresetLibraryApplyCommandPayload(StrictApiCommandPayload):
+    id: Any = None
+    preset_v2: Any = None
+    confirm_apply: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def require_confirm_apply(self) -> PresetLibraryApplyCommandPayload:
+        if self.confirm_apply is not True:
+            raise ValueError("confirm_apply must be true")
+        return self
 
 
 class SettingsWizardCommandPayload(StrictApiCommandPayload):
@@ -212,6 +259,20 @@ class RenameApplyCommandPayload(StrictApiCommandPayload):
     allow_outside_configured_roots: StrictBool | None = None
 
 
+class RenameFilterCaseCommandPayload(StrictApiCommandPayload):
+    case_id: Any = None
+    source_folder: Any = None
+    source_file: Any = None
+    expected_name: Any = None
+    expected_show: Any = None
+    expected_clean_folder: Any = None
+    expected_season: Any = None
+    season_number: Any = None
+    status: Any = None
+    notes: Any = None
+    confirm_append: StrictBool | None = None
+
+
 class ProcessControlCommandPayload(ApiCommandPayload):
     action: Any = None
     mode: Any = None
@@ -219,13 +280,49 @@ class ProcessControlCommandPayload(ApiCommandPayload):
     force_active_work_shutdown: Any = None
 
 
-class NetworkLifecycleCommandPayload(StrictApiCommandPayload):
-    confirm_start: StrictBool | None = None
-    confirm_stop: StrictBool | None = None
+class NetworkLifecycleDryRunCommandPayload(StrictApiCommandPayload):
     reason: Any = None
 
 
-class NetworkLifecycleDryRunCommandPayload(StrictApiCommandPayload):
+class RepairReconcileDryRunCommandPayload(StrictApiCommandPayload):
+    scope: Literal["all", "selected"] | None = None
+    row_key: Any = None
+    limit: Any = None
+    reason: Any = None
+
+    @model_validator(mode="after")
+    def require_row_key_for_selected_scope(self) -> RepairReconcileDryRunCommandPayload:
+        if self.scope == "selected" and (
+            self.row_key is None or (isinstance(self.row_key, str) and not self.row_key.strip())
+        ):
+            raise ValueError("row_key is required when scope is selected")
+        return self
+
+
+class RepairReconcileApplyCommandPayload(StrictApiCommandPayload):
+    scope: Literal["all", "selected"] | None = None
+    row_key: Any = None
+    limit: Any = None
+    reason: Any = None
+    dry_run_fingerprint: Any = None
+    confirm_apply: StrictBool | None = None
+
+    @model_validator(mode="after")
+    def require_confirmation_fields(self) -> RepairReconcileApplyCommandPayload:
+        if self.scope == "selected" and (
+            self.row_key is None or (isinstance(self.row_key, str) and not self.row_key.strip())
+        ):
+            raise ValueError("row_key is required when scope is selected")
+        if self.confirm_apply is not True:
+            raise ValueError("confirm_apply must be true")
+        if self.dry_run_fingerprint is None or (isinstance(self.dry_run_fingerprint, str) and not self.dry_run_fingerprint.strip()):
+            raise ValueError("dry_run_fingerprint is required")
+        return self
+
+
+class StartupReconciliationDryRunCommandPayload(StrictApiCommandPayload):
+    scope: Literal["all"] | None = None
+    limit: Any = None
     reason: Any = None
 
 
@@ -318,6 +415,7 @@ class MaintenanceReleaseDryRunCommandPayload(StrictApiCommandPayload):
     include_tool_docs: StrictBool | None = None
     include_tauri_preview_binary: StrictBool | None = None
     keep_personal_config: StrictBool | None = None
+    force: StrictBool | None = None
     timeout_seconds: Any = None
 
 
@@ -348,6 +446,22 @@ class MaintenanceDependencyAtlasOpenFolderCommandPayload(StrictApiCommandPayload
 
 class MaintenanceCompletedBackfillDryRunCommandPayload(StrictApiCommandPayload):
     timeout_seconds: Any = None
+
+
+class MaintenanceRetentionDryRunCommandPayload(StrictApiCommandPayload):
+    limit: Any = None
+    reason: Any = None
+
+
+class MaintenanceStateJournalArchiveCommandPayload(StrictApiCommandPayload):
+    confirm_archive: StrictBool | None = None
+    reason: Any = None
+
+
+class MaintenanceSupportExportCommandPayload(StrictApiCommandPayload):
+    reason: Any = None
+    include_recent_logs: StrictBool | None = None
+    max_log_bytes: Any = None
 
 
 class MetricsSourcesCommandPayload(StrictApiCommandPayload):
@@ -414,6 +528,7 @@ class FinalLibraryPromotionRunCommandPayload(StrictApiCommandPayload):
 COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rename/preview": RenameCommandPayload,
     "/api/rename/browse": RenameCommandPayload,
+    "/api/rename/filter-cases": RenameFilterCaseCommandPayload,
     "/api/rename/apply": RenameApplyCommandPayload,
     "/api/diagnostics/open": OpenLocationCommandPayload,
     "/api/diagnostics/tdarr-matrix-audit": DiagnosticsTdarrMatrixAuditCommandPayload,
@@ -427,14 +542,31 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/queue/file-overrides/route-preview": QueueFileOverridesRoutePreviewCommandPayload,
     "/api/queue/file-overrides/series-preview": QueueFileOverridesSeriesPreviewCommandPayload,
     "/api/queue/file-overrides/series-apply": QueueFileOverridesSeriesApplyCommandPayload,
+    "/api/queue/file-overrides/remux-pilot-promote": QueueFileOverridesRemuxPilotPromoteCommandPayload,
     "/api/queue/file-overrides/folder-preview": QueueFileOverridesFolderPreviewCommandPayload,
     "/api/queue/file-overrides/folder-rule": QueueFileOverridesFolderRuleCommandPayload,
     "/api/failures/clear": FailureCommandPayload,
     "/api/pending-publish/open": OpenLocationCommandPayload,
     "/api/pending-publish/recovery-plan": OpenLocationCommandPayload,
+    "/api/pending-publish/repair-manifest-dry-run": RepairReconcileDryRunCommandPayload,
+    "/api/pending-publish/repair-manifest": RepairReconcileApplyCommandPayload,
+    "/api/pending-publish/reconcile-orphan-payloads-dry-run": RepairReconcileDryRunCommandPayload,
+    "/api/pending-publish/reconcile-orphan-payloads": RepairReconcileApplyCommandPayload,
+    "/api/startup/reconcile-dry-run": StartupReconciliationDryRunCommandPayload,
     "/api/completed/open": OpenLocationCommandPayload,
+    "/api/completed/reconcile-manifest-dry-run": RepairReconcileDryRunCommandPayload,
+    "/api/completed/reconcile-manifest": RepairReconcileApplyCommandPayload,
+    "/api/completed/repair-sidecar-metadata-dry-run": RepairReconcileDryRunCommandPayload,
+    "/api/completed/repair-sidecar-metadata": RepairReconcileApplyCommandPayload,
     "/api/subtitle-qa/preview": SubtitleQaPreviewCommandPayload,
     "/api/settings/validate": SettingsCommandPayload,
+    "/api/settings/preset-library/validate": PresetLibraryValidateCommandPayload,
+    "/api/settings/preset-library/compare": PresetLibraryCompareCommandPayload,
+    "/api/settings/preset-library/import-preview": PresetLibraryImportPreviewCommandPayload,
+    "/api/settings/preset-library/save": PresetLibrarySaveCommandPayload,
+    "/api/settings/preset-library/export": PresetLibraryExportCommandPayload,
+    "/api/settings/preset-library/apply-preview": PresetLibraryApplyPreviewCommandPayload,
+    "/api/settings/preset-library/apply": PresetLibraryApplyCommandPayload,
     "/api/settings/browse-path": SettingsBrowsePathCommandPayload,
     "/api/settings/preview-patch": SettingsPreviewPatchCommandPayload,
     "/api/settings/pipeline-plan-preview": SettingsPipelinePlanPreviewCommandPayload,
@@ -450,8 +582,11 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/maintenance/release-dry-run": MaintenanceReleaseDryRunCommandPayload,
     "/api/maintenance/release-build": MaintenanceReleaseBuildCommandPayload,
     "/api/maintenance/completed-backfill-dry-run": MaintenanceCompletedBackfillDryRunCommandPayload,
+    "/api/maintenance/retention-dry-run": MaintenanceRetentionDryRunCommandPayload,
+    "/api/maintenance/archive-state-journals": MaintenanceStateJournalArchiveCommandPayload,
     "/api/maintenance/dependency-atlas": MaintenanceDependencyAtlasCommandPayload,
     "/api/maintenance/dependency-atlas/open-folder": MaintenanceDependencyAtlasOpenFolderCommandPayload,
+    "/api/maintenance/support-export": MaintenanceSupportExportCommandPayload,
     "/api/metrics/sources": MetricsSourcesCommandPayload,
     "/api/metrics/backfill": MetricsBackfillCommandPayload,
     "/api/settings/reload": EmptyCommandPayload,

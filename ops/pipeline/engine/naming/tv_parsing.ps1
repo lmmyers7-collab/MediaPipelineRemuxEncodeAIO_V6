@@ -12,8 +12,8 @@ function Normalize-TVShowFolderName {
 
     $show = Remove-PriorityMarkersFromName $Name
     $show = $show -replace '\s*\((?:Season\s*)?S?\d{1,2}\)\s*$', ''   # trailing (Season 2) / (S02)
-    $show = $show -replace '(?i)\s+Season\s*\d{1,2}\s*$', ''           # trailing "Season 2"
-    $show = $show -replace '\s+S\d{1,2}\s*$', ''                       # trailing bare "S02"
+    $show = $show -replace '(?i)\s+Season\s*\d{1,2}\s*(?:\+\s*(?:sp|specials?))?(?:\s+.*)?$', ''
+    $show = $show -replace '(?i)\s+S\d{1,2}\s*(?:\+\s*(?:sp|specials?))?(?:\s+.*)?$', ''
     $show = $show -replace '_TV_| TV', ''
     $show = $show -replace '[\._]', ' '
     $show = $show -replace '\s+', ' '
@@ -84,6 +84,8 @@ function Get-TVFolderSeasonInfo {
             if ($flexibleLeaf -eq $beforeFlexible) { break }
         }
         $flexibleLeaf = $flexibleLeaf -replace '[._]+', ' '
+        $flexibleLeaf = $flexibleLeaf -replace '(?i)\b(S\d{1,2})\s*\+\s*(?:sp|specials?)\b', '$1 '
+        $flexibleLeaf = $flexibleLeaf -replace '(?i)\b(Season\s*\d{1,2})\s*\+\s*(?:sp|specials?)\b', '$1 '
         $flexibleLeaf = (($flexibleLeaf -replace '\s+', ' ').Trim(' .-_'))
 
         if (Test-TVSpecialSeasonFolderName $leaf) {
@@ -117,14 +119,14 @@ function Get-TVFolderSeasonInfo {
                 Source   = 'show-folder-suffix'
             }
         }
-        if ($flexibleLeaf -match '^(?i)(?<show>.+?)\s+S(?<season>\d{1,2})\s*$') {
+        if ($flexibleLeaf -match '^(?i)(?<show>.+?)\s+S(?<season>\d{1,2})(?!\d)(?:\s*\+\s*(?:sp|specials?)\b)?\s*$') {
             return @{
                 Season   = [int]$Matches['season']
                 ShowName = (Normalize-TVShowFolderName $Matches['show'])
                 Source   = 'show-s-folder'
             }
         }
-        if ($flexibleLeaf -match '^(?i)(?<show>.+?)\s*(?:[-–]\s*)?(?:Season|S)[\s._-]*(?<season>\d{1,2})(?!\d)(?:\s+.*)?$') {
+        if ($flexibleLeaf -match '^(?i)(?<show>.+?)\s*(?:[-–]\s*)?(?:Season|S)[\s._-]*(?<season>\d{1,2})(?!\d)(?:\s*\+\s*(?:sp|specials?)\b)?(?:\s+.*)?$') {
             return @{
                 Season   = [int]$Matches['season']
                 ShowName = (Normalize-TVShowFolderName $Matches['show'])
@@ -201,7 +203,7 @@ function Get-TVLooseParseText {
         if ($s -eq $before) { break }
     }
     $s = $s -replace '[{}\[\]()]', ' '
-    $s = $s -replace '(?i)\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10|hevc|h264|h265|x264|x265|av1|bluray|blu-ray|webrip|web-dl|webdl|remux|bd|bdrip|dvd|proper|repack|flac|aac|opus|ac3|dts|truehd|eac3|ddp|10bit|8bit)\b', ' '
+    $s = $s -replace '(?i)\b(?:2160p|1080p|720p|480p|uhd|hdr|hdr10|hevc|h264|h265|x264|x265|av1|bluray|blu-ray|webrip|web-dl|webdl|remux|bd|bdrip|dvd|proper|repack|flac|aac|opus|ac3|dts|truehd|eac3|ddp|10[\s._-]*bits?|8[\s._-]*bits?|upscale(?:d)?)\b', ' '
     $s = $s -replace '[._]+', ' '
     $s = $s -replace '\s*[-]+\s*', ' '
     return (($s -replace '\s+', ' ').Trim())
@@ -600,7 +602,7 @@ function Get-EpisodeTitle {
     $explicitTitle = [regex]::Match($name, '(?i)(?<![A-Za-z0-9])(?:Episode|Ep|E)[\s._-]*\d{1,3}(?![A-Za-z0-9])[\s._-]+(?<title>.+)$')
     if ($explicitTitle.Success) {
         $candidate = $explicitTitle.Groups['title'].Value
-        $sourceTag = [regex]::Match($candidate, '(?i)\b(?:2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby[\s._-]*vision|hevc|h\.?264|h\.?265|x264|x265|av1|10\s*bit|8\s*bit|bd|bdrip|blu[\s._-]*ray|bluray|web[\s._-]*dl|webdl|webrip|web|hdtv|dvd|dvdrip|remux|proper|repack|rerip|dual[\s._-]*audio|multi[\s._-]*audio|eng[\s._-]*subs?|multi[\s._-]*subs?|subs?|subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b')
+        $sourceTag = [regex]::Match($candidate, '(?i)\b(?:2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby[\s._-]*vision|hevc|h\.?264|h\.?265|x264|x265|av1|10[\s._-]*bits?|8[\s._-]*bits?|upscale(?:d)?|bd|bdrip|blu[\s._-]*ray|bluray|web[\s._-]*dl|webdl|webrip|web|hdtv|dvd|dvdrip|remux|proper|repack|rerip|dual[\s._-]*audio|multi[\s._-]*audio|eng[\s._-]*subs?|multi[\s._-]*subs?|subs?|subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b')
         if ($sourceTag.Success) {
             $candidate = $candidate.Substring(0, $sourceTag.Index)
         }
@@ -635,11 +637,11 @@ function Get-CleanTVOutputNamePart {
 
     $clean = $clean -replace '(?i)\bS\d{1,2}E\d{1,3}(?:[-_]?E\d{1,3})?\b', ' '
     $clean = $clean -replace '(?i)\b\d{1,2}x\d{1,3}\b', ' '
-    $clean = $clean -replace '(?i)\b(?:season|s)\s*\d{1,2}\s*(?:\+\s*specials?)?\b', ' '
+    $clean = $clean -replace '(?i)\b(?:season|s)\s*\d{1,2}\s*(?:\+\s*(?:sp|specials?))?\b', ' '
     $clean = $clean -replace '(?i)\b(?:specials?|ova|oav|ona|cour)\b', ' '
-    $clean = $clean -replace '(?i)\b(?:uncensored|censored|2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby\s*vision|hevc|h264|h265|x264|x265|av1|10bit|8bit|bd|bdrip|blu-ray|bluray|web-dl|webdl|webrip|web|remux|dvd|proper|repack|dual[-\s]*audio|multi[-\s]*audio|eng[-\s]*subs?|multi[-\s]*subs?|subs?|subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b', ' '
+    $clean = $clean -replace '(?i)\b(?:uncensored|censored|2160p|1080p|720p|480p|uhd|hdr10\+?|hdr|dv|dolby\s*vision|hevc|h264|h265|x264|x265|av1|10[\s._-]*bits?|8[\s._-]*bits?|upscale(?:d)?|bd|bdrip|blu-ray|bluray|web-dl|webdl|webrip|web|remux|dvd|proper|repack|dual[-\s]*audio|multi[-\s]*audio|eng[-\s]*subs?|multi[-\s]*subs?|subs?|subbed|dubbed|flac|aac|opus|ac3|eac3|ddp\d*|ddp|dts|truehd|atmos|mkv|mp4)\b', ' '
     $clean = $clean -replace '(?i)\b(?:1\.0|2\.0|5\.1|7\.1|6\s*ch|8\s*ch|6ch|8ch)\b', ' '
-    $clean = $clean -replace '(?i)(?:[\s._-]+(?:chotab|subsplease|erai[\s._-]*raws?|judas|ember|bonkai|neohevc|animetime|lostyears|nai|asw|sam|tnp|dedsec|mtbb|smugcat|commie|horriblesubs|kametsu|db|kawaiika|tlacatlc6))+$', ' '
+    $clean = $clean -replace '(?i)(?:[\s._-]+(?:chotab|subsplease|erai[\s._-]*raws?|judas|ember|bonkai|neohevc|animetime|lostyears|nai|asw|sam|tnp|dedsec|mtbb|smugcat|commie|horriblesubs|kametsu|db|kawaiika|tlacatlc6|ttga))+$', ' '
     $clean = $clean -replace '[\[\]{}()]', ' '
     $clean = $clean -replace '[<>:"/\\|?*]', ''
     $clean = $clean -replace '[._]+', ' '

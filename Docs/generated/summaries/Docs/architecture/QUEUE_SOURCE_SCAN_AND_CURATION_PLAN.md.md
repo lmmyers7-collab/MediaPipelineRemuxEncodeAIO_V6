@@ -3,9 +3,9 @@ file: docs/architecture/QUEUE_SOURCE_SCAN_AND_CURATION_PLAN.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-02
-sha256: 2dfb3df1082c4a80c697508a49763825e4ffbbfc7d612f0ed44d6bb19e761277
+sha256: 292d447f84c4a4fdcc9c1b4d3c7a12718ee9c9c797330122709b2c002542ffff
 ---
 # `docs/architecture/QUEUE_SOURCE_SCAN_AND_CURATION_PLAN.md`
 

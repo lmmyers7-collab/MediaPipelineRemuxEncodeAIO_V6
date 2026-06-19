@@ -96,10 +96,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Audio builder merged audio policy keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Audio builder prepared audio policy keys for Save Settings. Backend Save still validates before writing.");
       audioSettingsBuilderState.initialized = true;
       audioSettingsBuilderState.dirty = true;
-      setText("settings-audio-builder-status", `${Object.keys(patch).length} audio patch keys ready`);
+      setText("settings-audio-builder-status", `${Object.keys(patch).length} audio change keys ready`);
       renderAudioSettingsBuilderGuidance();
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();

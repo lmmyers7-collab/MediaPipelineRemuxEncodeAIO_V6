@@ -455,6 +455,14 @@
     return "Context loaded";
   }
 
+  function crossPageStatusTone(status) {
+    const text = String(status || "").trim().toLowerCase();
+    if (/backend|payload|blocker|blocked/.test(text)) return "danger";
+    if (/review|stale|runtime|pending|completed/.test(text)) return "warning";
+    if (/ready|loaded/.test(text)) return "success";
+    return "info";
+  }
+
   function crossPageNextStep(context) {
     const queue = context.queue || {};
     const completed = context.completed || {};
@@ -574,6 +582,64 @@
     return lines;
   }
 
+  function crossPageContextTiles(context = {}) {
+    const queue = context.queue || {};
+    const completed = context.completed || {};
+    const pending = context.pending || {};
+    const diagnosticsCounts = crossPageDiagnosticsCounts(context.diagnostics || {});
+    const queueRows = crossPageRows(queue);
+    const completedRows = crossPageRows(completed);
+    const pendingRows = crossPageRows(pending);
+    const conflictRows = crossPageConflictRows(context || {});
+    const status = crossPageStatus(context);
+    const queueRunnable = crossPageRunnableCount(queue);
+    const queueStale = String(queue.snapshot_file_freshness_status || "").toLowerCase() === "stale";
+    const queueIssues = crossPageCount(queue.invalid_row_count) + crossPageCount(queue.blocked_row_count);
+    const completedMissing = crossPageCount(completed.missing_output_count);
+    const completedSizeGrowth = crossPageCount(completed.size_growth_over_5_count);
+    const pendingReady = crossPageCount(pending.ready_count);
+    const pendingIssues = crossPageCount(pending.issue_count);
+    const pendingHealth = crossPageCount(pending.health_count);
+    const diagnosticErrors = diagnosticsCounts.error || 0;
+    const diagnosticWarnings = diagnosticsCounts.warning || 0;
+    const diagnosticActive = diagnosticsCounts.active || 0;
+    const conflictBlocked = conflictRows.filter((row) => row.severity === "blocked").length;
+    const conflictWarnings = conflictRows.filter((row) => row.severity === "warning").length;
+    return [
+      {
+        label: "Queue",
+        value: `${queueRunnable} runnable`,
+        detail: `rows=${queueRows.length}, stale=${String(queue.snapshot_file_freshness_status || "unknown")}, excluded=${crossPageCount(queue.completed_excluded_count)}`,
+        tone: queueStale || queueIssues ? "warning" : (queueRunnable ? "info" : "muted"),
+      },
+      {
+        label: "Completed",
+        value: `${completedMissing} missing`,
+        detail: `rows=${completed.count || completedRows.length || 0}, size >5%=${completedSizeGrowth}, freshness=${completed.manifest_freshness_status || "unknown"}`,
+        tone: completedMissing ? "danger" : (completedSizeGrowth ? "warning" : "success"),
+      },
+      {
+        label: "Pending Publish",
+        value: `${pendingReady} ready`,
+        detail: `rows=${pending.count || pendingRows.length || 0}, issue=${pendingIssues}, health=${pendingHealth}`,
+        tone: pendingIssues ? "danger" : (pendingHealth ? "warning" : (pendingReady ? "success" : "muted")),
+      },
+      {
+        label: "Diagnostics",
+        value: `${diagnosticErrors} error / ${diagnosticWarnings} warning`,
+        detail: `active=${diagnosticActive}, statuses=${crossPageFormatCounts(pending.diagnostic_status_counts)}`,
+        tone: diagnosticErrors ? "danger" : (diagnosticWarnings ? "warning" : (diagnosticActive ? "info" : "success")),
+      },
+      {
+        label: "Next Step",
+        value: status,
+        detail: `conflicts=${conflictBlocked} blocked, ${conflictWarnings} warning. ${crossPageNextStep(context)}`,
+        tone: crossPageStatusTone(status),
+        wide: true,
+      },
+    ];
+  }
+
   // ---------------------------------------------------------------------------
   // Top-level render orchestrator
   // ---------------------------------------------------------------------------
@@ -581,7 +647,20 @@
   function renderCrossPageContext(context = {}) {
     lastCrossPageContext = context || {};
     window.mediaPipelineLastCrossPageContext = lastCrossPageContext;
-    setText("cross-page-context-status", crossPageStatus(context));
+    if (typeof setPanelStatus === "function") setPanelStatus("cross-page-context-status", crossPageStatus(context));
+    else setText("cross-page-context-status", crossPageStatus(context));
+    const renderReviewTileBoard = window.mediaPipelineDom?.renderReviewTileBoard || window.renderReviewTileBoard;
+    if (typeof renderReviewTileBoard === "function") {
+      renderReviewTileBoard("cross-page-context-board", crossPageContextTiles(context), {
+        emptyTile: {
+          label: "Context",
+          value: "Not loaded",
+          detail: "Queue, Completed, Pending Publish, and Diagnostics context has not loaded yet.",
+          tone: "muted",
+          wide: true,
+        },
+      });
+    }
     setText("cross-page-context-summary", crossPageContextLines(context).join("\n"));
     renderCrossPageConflictBoard(context);
     renderCrossPageSampleCorrelation(context);
@@ -601,6 +680,7 @@
   window.mediaPipelineCrossPageContextView = {
     renderCrossPageContext,
     crossPageContextLines,
+    crossPageContextTiles,
     crossPageStatus,
     crossPageNextStep,
     crossPageInvestigationOrder,

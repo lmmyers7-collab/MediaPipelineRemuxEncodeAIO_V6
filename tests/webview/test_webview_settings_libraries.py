@@ -406,6 +406,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("settings-library-command-box", libraries_html)
         self.assertIn("settings-library-active-title", libraries_html)
         self.assertIn("settings-library-active-detail", libraries_html)
+        self.assertIn("settings-library-state-strip", libraries_html)
+        self.assertIn("settings-library-editor-state", libraries_html)
+        self.assertIn("settings-library-patch-state", libraries_html)
+        self.assertIn("settings-library-route-map-scope", libraries_html)
         self.assertNotIn("Movie and TV are always present.", libraries_html)
         self.assertNotIn("Movie and TV cannot be deleted.", libraries_html)
         self.assertIn("settings-library-editor-status", libraries_html)
@@ -425,10 +429,29 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("settings-library-add-button", libraries_html)
         self.assertIn("settings-library-delete-button", libraries_html)
         self.assertIn("settings-library-defaults-button", libraries_html)
+        self.assertIn("Reset Overrides To Defaults", libraries_html)
+        self.assertNotIn("Replace Values With Default", libraries_html)
         self.assertIn("settings-library-reset-button", libraries_html)
         self.assertIn("settings-library-build-patch-button", libraries_html)
         self.assertIn("settings-library-preview-button", libraries_html)
         self.assertIn("settings-library-save-button", libraries_html)
+        self.assertIn("settings-library-watch-panel", libraries_html)
+        self.assertIn("settings-library-watch-auto-run", libraries_html)
+        self.assertIn("settings-library-watch-respect-schedule", libraries_html)
+        self.assertIn("settings-library-watch-stage-button", libraries_html)
+        self.assertIn("settings-library-watch-preview-button", libraries_html)
+        self.assertIn("settings-library-watch-save-button", libraries_html)
+        self.assertIn("settings-library-watch-summary", libraries_html)
+        self.assertIn("library-route-map-context", libraries_html)
+        self.assertIn("library-route-map-warning-summary", libraries_html)
+        self.assertLess(
+            libraries_html.index("settings-library-actions-panel"),
+            libraries_html.index("settings-library-watch-panel"),
+        )
+        self.assertLess(
+            libraries_html.index("settings-library-watch-panel"),
+            libraries_html.index("settings-libraries-panel"),
+        )
         self.assertLess(
             libraries_html.index("settings-library-build-patch-button"),
             libraries_html.index("settings-library-preview-button"),
@@ -437,6 +460,48 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             libraries_html.index("settings-library-preview-button"),
             libraries_html.index("settings-library-save-button"),
         )
+
+    def test_libraries_page_stages_existing_watch_folder_settings(self) -> None:
+        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+
+        for token in (
+            "function libraryWatchConfig()",
+            "function syncLibraryWatchControlsFromConfig(settings = lastSettings, options = {})",
+            "function collectLibraryWatchAutoRunPatch()",
+            "function stageLibraryWatchAutoRunPatch()",
+            "function previewLibraryWatchAutoRunPatch()",
+            "function saveLibraryWatchAutoRunPatch()",
+            'byId("settings-library-watch-auto-run")',
+            'byId("settings-library-watch-respect-schedule")',
+            'byId("settings-library-watch-stage-button")',
+            'byId("settings-library-watch-preview-button")',
+            'byId("settings-library-watch-save-button")',
+            "EnableWatchFolders: autoRun",
+            'WatchAction: autoRun ? "enqueue_and_launch" : "enqueue_only"',
+            "WatchRespectScheduleWindow: respectSchedule",
+            "patch.WatchFolderRoots = [];",
+            "patch.WatchDebounceSeconds = watch.debounce;",
+            "window.writeSettingsPatchJson",
+            "window.mediaPipelineSettingsView?.previewSettingsPatch",
+            "window.mediaPipelineSettingsView?.saveSettingsPatch",
+            "Library Profile source roots",
+            "existing gated Run Once path",
+            "Runtime boundary: this control only stages settings;",
+            "syncLibraryWatchControlsFromConfig(settings, options);",
+            "stageLibraryWatchAutoRunPatch,",
+            "previewLibraryWatchAutoRunPatch,",
+            "saveLibraryWatchAutoRunPatch,",
+        ):
+            self.assertIn(token, js)
+
+        for token in (
+            "apiPost(",
+            "scan_root",
+            "WatchFolderManager",
+            "/api/pipeline/start",
+            "/api/watch-folders/status",
+        ):
+            self.assertNotIn(token, js)
 
     def test_settings_libraries_asset_stages_profile_patch(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
@@ -503,7 +568,27 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "previewLibraryProfiles",
             "saveLibraryProfiles",
             "libraryEditorDirty",
+            "libraryProfilePatchCurrent",
+            "libraryProfilePatchSaved",
+            "libraryProfileCommandInFlight",
             "markLibraryEditorDirty",
+            "function renderProfileCards(options = {})",
+            "function renderLibraryStateStrip",
+            "function clearLibraryProfilesPatchJson",
+            "function sharedPatchStatus",
+            "function setLibraryProfileCommandBusy",
+            "function rejectLibraryProfileCommandWhileBusy",
+            'rejectLibraryProfileCommandWhileBusy("settings.preview_patch")',
+            'rejectLibraryProfileCommandWhileBusy("settings.save_patch")',
+            "Another settings command is already in progress; LibraryProfiles were not rebuilt.",
+            "Library profile preview failed before backend success was reported",
+            "Library profile save failed before backend success was reported",
+            "renderProfileCards({ activeProfileId: profile.id });",
+            "window.mediaPipelineLibraryRouteMap?.setEditorState",
+            "activateLibraryProfile",
+            "Reset all explicit library overrides to inherited/default values in the editor. Stage Patch, Preview, and Save are still required.",
+            "overrides reset to inherited defaults",
+            "Stage Patch writes the edited LibraryProfiles into Changes JSON; Preview and Save remain backend-owned.",
             "profilesEquivalent",
             "comparableTracking",
             'const designationValues = ["movie", "tv", "auto"]',
@@ -561,6 +646,19 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertRegex(css, r"\.settings-library-state\.is-inherited\s*\{[^}]*color: var\(--grey-400\);")
         self.assertRegex(css, r"\.settings-library-state\.is-custom\s*\{[^}]*color: var\(--semantic-info-muted-text\);")
         self.assertRegex(css, r"\.settings-library-state\.is-readonly\s*\{[^}]*color: var\(--semantic-warning-text\);")
+        self.assertRegex(css, r"\.settings-library-state\.is-invalid\s*\{[^}]*color: var\(--semantic-danger-text\);")
+        self.assertRegex(css, r"\.settings-library-state-strip\s*\{[^}]*display: flex;")
+        self.assertRegex(css, r"\.settings-library-state-strip span\[data-state=\"saved\"\][^{]*\{[^}]*color: var\(--semantic-success-text\);")
+        self.assertRegex(css, r"\.settings-library-state-strip span\[data-state=\"warning\"\][^{]*\{[^}]*color: var\(--semantic-warning-text\);")
+        self.assertRegex(css, r"\.settings-library-state-strip span\[data-state=\"changed\"\][^{]*\{[^}]*color: var\(--semantic-info-text\);")
+        self.assertRegex(css, r"\.settings-library-route-map-node\[data-state=\"blocked\"\][^{]*\{[^}]*border-color: var\(--semantic-danger-border\);")
+        self.assertRegex(css, r"\.settings-library-route-map-panel td\[data-state=\"current\"\][^{]*\{[^}]*color: var\(--semantic-success-text\);")
+        self.assertRegex(css, r"\.settings-library-route-map-panel td\[data-state=\"explicit\"\][^{]*\{[^}]*color: var\(--semantic-info-text\);")
+        self.assertRegex(css, r"\.settings-library-route-map-panel td\[data-state=\"inherited\"\][^{]*\{[^}]*color: var\(--semantic-disabled-text\);")
+        self.assertRegex(css, r"\.settings-library-route-map-panel td\[data-state=\"conflict\"\][^{]*\{[^}]*color: var\(--semantic-warning-text\);")
+        self.assertRegex(css, r"\.settings-library-route-map-panel td\[data-state=\"invalid\"\][^{]*\{[^}]*color: var\(--semantic-danger-text\);")
+        self.assertRegex(css, r"\.settings-library-route-map-panel td\[data-state=\"invalid_unresolved\"\][^{]*\{[^}]*color: var\(--semantic-danger-text\);")
+        self.assertRegex(css, r"\.settings-library-route-map-panel td\[data-state\] \.muted\s*\{[^}]*color: currentColor;")
         self.assertNotIn(".settings-library-metadata-badges", css)
         self.assertNotIn(".settings-library-metadata-badge", css)
         self.assertRegex(css, r"\.settings-library-override-unavailable\s*\{[^}]*color: var\(--semantic-disabled-text\);")
@@ -603,6 +701,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "function setLocalInheritedFields(card, inherited)",
             'return Boolean(parsed && typeof parsed === "object" && !Array.isArray(parsed) && Object.prototype.hasOwnProperty.call(parsed, "LibraryProfiles"));',
             "if (!currentPatchIncludesLibraryProfiles()) return [];",
+            "clearLibraryProfilesPatchJson",
+            "Reset From Current removed LibraryProfiles from Changes JSON. Saved backend settings were not changed.",
+            "libraryPatchStateKind",
+            "Patch: stale LibraryProfiles",
         ):
             self.assertIn(token, libraries_js)
 
@@ -677,6 +779,8 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "library-route-compare-rows",
             "library-route-navigation-rows",
             "library-route-validation-rows",
+            "library-route-map-context",
+            "library-route-map-warning-summary",
         ):
             self.assertIn(token, route_panel)
         self.assertNotIn("<button", route_panel)
@@ -692,6 +796,27 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "context.completed?.rows",
             "context.sampleValidation?.records",
             "data-library-route-navigate",
+            "function renderRouteContext",
+            "Evidence authority:",
+            "Editor: staged or dirty profile edits are not reflected in saved backend route-map evidence yet.",
+            "traceRequestId",
+            "compareRequestId",
+            "validationRequestId",
+            "const requestId = ++state.traceRequestId;",
+            "if (requestId !== state.traceRequestId) return;",
+            "const proofRows = (Array.isArray(validation?.proof_rows) ? validation.proof_rows : []).slice(0, 8).map((row) => {",
+            "settings-library-route-proof-row",
+            "function selectProfile(libraryId, options = {})",
+            "function setEditorState(editorState = {})",
+            "activateLibraryProfile?.(nextId, { source: \"route-map\" })",
+            "function errorMessage(error)",
+            "function compareValueStateTone(value)",
+            'data-state="${escapeHtml(compareValueStateTone(leftState))}"',
+            'data-state="${escapeHtml(compareValueStateTone(rightState))}"',
+            'data-state="${escapeHtml(compareValueStateTone(rowState))}"',
+            "Trace request failed:",
+            "Compare request failed:",
+            "Validation request failed:",
             "row.handoff ||",
             "rows.slice(0, 120)",
             "rows.slice(0, 80)",

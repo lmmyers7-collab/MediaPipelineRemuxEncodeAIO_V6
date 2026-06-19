@@ -13,6 +13,10 @@ from mediapipeline.core.maintenance.policy import (
     maintenance_workspace_counts,
 )
 from mediapipeline.core.maintenance.change_ledger import change_ledger_payload
+from mediapipeline.core.maintenance.productization import (
+    productization_status_payload,
+    write_support_export,
+)
 from mediapipeline.desktop.models import ResolvedPaths
 
 if TYPE_CHECKING:
@@ -117,8 +121,35 @@ class MaintenanceFacadeMixin:
             warning_count=counts["warning_count"],
         )
 
-    def get_maintenance_change_ledger(self, resolved: ResolvedPaths) -> dict[str, Any]:
-        return change_ledger_payload(resolved.workspace_root)
+    def get_maintenance_change_ledger(self, resolved: ResolvedPaths, *, row_limit: int | str | None = None) -> dict[str, Any]:
+        return change_ledger_payload(resolved.workspace_root, row_limit=row_limit)
+
+    def get_productization_status(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        close_readiness = self.get_close_readiness(resolved).to_mapping()
+        return productization_status_payload(
+            service=self.service,
+            resolved=resolved,
+            app_version=self.app_version,
+            close_readiness=close_readiness,
+        )
+
+    def write_support_export(self, resolved: ResolvedPaths, request: dict[str, Any]) -> Any:
+        lock, blocked = self._acquire_maintenance_command_lock("Support export")
+        if blocked:
+            from mediapipeline.core.maintenance.command_policy import maintenance_command_blocked_result
+
+            return maintenance_command_blocked_result("maintenance.support_export", blocked)
+        try:
+            close_readiness = self.get_close_readiness(resolved).to_mapping()
+            return write_support_export(
+                service=self.service,
+                resolved=resolved,
+                app_version=self.app_version,
+                request=request,
+                close_readiness=close_readiness,
+            )
+        finally:
+            self._release_maintenance_command_lock(lock)
 
 __all__ = [
     "MaintenanceFacadeMixin",

@@ -12,6 +12,7 @@ from .commands_process import LocalApiProcessCommandPayloadMixin
 from .commands_queue_priority import LocalApiQueuePriorityCommandPayloadMixin
 from .commands_queue_scan import LocalApiQueueScanCommandPayloadMixin
 from .commands_queue_strategy import LocalApiQueueStrategyCommandPayloadMixin
+from .commands_repair_reconcile import LocalApiRepairReconcileCommandPayloadMixin
 from .commands_rename import LocalApiRenameCommandPayloadMixin
 from .commands_schedule import LocalApiScheduleCommandPayloadMixin
 from .commands_sample_validation import LocalApiSampleValidationCommandPayloadMixin
@@ -32,6 +33,7 @@ class LocalApiCommandHandlerMixin(
     LocalApiQueueScanCommandPayloadMixin,
     LocalApiQueuePriorityCommandPayloadMixin,
     LocalApiQueueStrategyCommandPayloadMixin,
+    LocalApiRepairReconcileCommandPayloadMixin,
     LocalApiRenameCommandPayloadMixin,
     LocalApiScheduleCommandPayloadMixin,
     LocalApiSampleValidationCommandPayloadMixin,

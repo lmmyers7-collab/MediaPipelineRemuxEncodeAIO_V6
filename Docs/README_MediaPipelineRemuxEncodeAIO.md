@@ -79,7 +79,7 @@ The current folder is WebView-first. The WebView/Tauri path starts the local Pyt
 
 The external rollback workspace remains the external fallback for operator flows that have not yet been validated in this workspace. Do not reintroduce the removed legacy desktop shell or its launcher docs into this folder.
 
-As of 2026-05-18, the source/dev bundle validation gate is green for the release self-test, bundled Python `unittest`/`pytest`, browser no-mutation smokes, and Tauri prereq/build checks. That does not replace the remaining PG-3 clean-machine package-mode launch validation. Representative real-media validation is complete by operator attestation as of 2026-05-28.
+As of 2026-05-18, the source/dev bundle validation gate is green for the release self-test, bundled Python `unittest`/`pytest`, browser no-mutation smokes, and Tauri prereq/build checks. Representative real-media validation is complete by operator attestation as of 2026-05-28, and default-launcher/package-mode promotion is complete by operator confirmation on 2026-05-30.
 
 For future real-media validation or revalidation, use `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md` with `sample-validation/REAL_MEDIA_VALIDATION_EVIDENCE_TEMPLATE.md`. The Tauri/WebView2 prerequisite, build, launch-smoke, and release self-test gates do not prove FFmpeg routing, subtitle OCR/SRT output, audio selection, size policy, Completed sidecars, or pending-publish behavior on a specific file. The WebView can append backend-owned sample-validation evidence records under `State\Validation`, but those records are notes only and do not create an acceptance path. `RealMediaValidationRuns/README.md` records the current non-sensitive operator-attested status anchor.
 
@@ -184,5 +184,3 @@ Clean releases omit optional tool bulk such as `ffplay.exe`, MKVToolNix GUI/diag
 - `ops\scripts\dev\verify-env.ps1` reports OCR readiness and optional network dependency status separately from standalone readiness.
 - The verifier intentionally ignores Windows Store Python aliases under `WindowsApps`.
 - This folder is now the active working deployment bundle, not a throwaway packaged release.
-
-

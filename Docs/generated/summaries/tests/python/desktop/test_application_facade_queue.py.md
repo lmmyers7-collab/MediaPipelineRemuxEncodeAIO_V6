@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_queue.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-05
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: ab3705ca47176a40b460603cc1d92d02ecbfe3c0328d7edcaf85bbda48cda341
+sha256: 1006566232679658165edf719053a563ab497193096b3ddd8761db3c77e7a053
 ---
 # `tests/python/desktop/test_application_facade_queue.py`
 

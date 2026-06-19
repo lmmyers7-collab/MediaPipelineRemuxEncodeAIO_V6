@@ -9,6 +9,13 @@
   let queueScanPollTimer = null;
   let queueActiveStrategy = "Standard";
   let queueManualDragKey = "";
+  let queuePriorityCommandInFlight = false;
+  let queuePriorityCommandSeq = 0;
+  let queueManualOrderLoadedKeys = [];
+  let queueManualOrderDraftDirty = false;
+  let queueTablePageStart = 0;
+  let queueTableFilterSignature = "";
+  const QUEUE_RENDER_LIMIT = 250;
   const displayedQueueFileOverrideMarkers = new Map();
   const QUEUE_HIDDEN_SIDECAR_EXTENSIONS = new Set([".srt", ".ass", ".ssa", ".vtt", ".sub", ".idx", ".sup"]);
   const QUEUE_FILTER_FIELDS = ["media_type", "display_name", "relative_path", "source_path", "route_name", "route_reason", "route_reason_code", "route_decision_summary", "route_evidence_lines", "phase", "priority_reasons", "blocked_reason", "error", "operator_status", "operator_guidance", "review_flags", "runtime_outcome_status", "runtime_outcome_error_code", "runtime_outcome_reason", "runtime_outcome_event_type"];
@@ -53,6 +60,7 @@
       renderQueueLaunchDecisionChecklist: (payload, rows, history) => renderQueueLaunchDecisionChecklist(payload, rows, history),
       renderQueueReviewDigest: (payload, rows) => renderQueueReviewDigest(payload, rows),
       renderQueueRows: () => renderQueueRows(),
+      updateQueueSelectionVisuals: () => updateQueueSelectionVisuals(),
       setText: typeof setText === "function" ? setText : window.setText,
     })
     : {};
@@ -845,8 +853,11 @@
       .map(queueRowWithDisplayedFileOverrideMarker);
     const displayQueue = queueDisplayPayloadForVisibleRows(queue, rows, hiddenSidecars, rawRows);
     const excludedRows = Array.isArray(queue.excluded_rows) ? queue.excluded_rows : [];
+    queueTablePageStart = 0;
+    queueTableFilterSignature = "";
     lastQueuePayload = displayQueue;
     lastQueueRows = rows;
+    resetQueueManualOrderLoadedKeys(rows);
     lastQueueHiddenSidecarRows = hiddenSidecars;
     lastQueueExcludedRows = excludedRows;
     syncSelectedQueueRows(rows, excludedRows);
@@ -1236,6 +1247,23 @@
     target.scrollLeft = queueClampScrollOffset(snapshot.left, target.scrollWidth - target.clientWidth);
   }
 
+  function updateQueueSelectionVisuals() {
+    const tbody = byId("queue-rows");
+    const selectedKeys = new Set(getSelectedQueuePriorityRowKeys());
+    if (tbody && typeof tbody.querySelectorAll === "function") {
+      tbody.querySelectorAll('tr[data-selectable-row="true"]').forEach((row) => {
+        const key = String(row.dataset.rowKey || "");
+        const selected = Boolean(key && selectedKeys.has(key));
+        row.classList.toggle("is-selected", selected);
+        row.setAttribute("aria-selected", selected ? "true" : "false");
+        if (selected) row.dataset.prioritySelected = "true";
+        else delete row.dataset.prioritySelected;
+      });
+    }
+    updateQueueTableLegend(tbody);
+    updateQueueManualOrderControls();
+  }
+
   function updateQueueTableLegend(tbody) {
     updateTableStatusLegend("queue-table-legend", tbody, "Queue rows");
     const legend = byId("queue-table-legend");
@@ -1247,6 +1275,56 @@
     legend.textContent = `${legend.textContent} Selected for Queue actions: ${selectedKeys.length} total, ${visibleSelectedCount} visible. Backend Launch scope is unchanged. Ctrl/Cmd-click or Space toggles rows; Shift-click selects a visible range.`;
   }
 
+  function queueDisplayFilterSignature(filterText, statusFilter, investigationFilter) {
+    return [
+      String(filterText || ""),
+      String(statusFilter || "all"),
+      String(investigationFilter || "all"),
+      String(lastQueueRows.length),
+    ].join("\u001f");
+  }
+
+  function queueClampPageStart(rowCount) {
+    const count = Math.max(0, Number(rowCount) || 0);
+    if (count <= QUEUE_RENDER_LIMIT) return 0;
+    const maxStart = Math.floor((count - 1) / QUEUE_RENDER_LIMIT) * QUEUE_RENDER_LIMIT;
+    return Math.min(Math.max(0, queueTablePageStart), maxStart);
+  }
+
+  function updateQueuePaginationControls(rowCount, pageStart, renderedCount) {
+    const container = byId("queue-table-pagination");
+    const status = byId("queue-table-page-status");
+    const previous = byId("queue-page-prev-btn");
+    const next = byId("queue-page-next-btn");
+    const total = Math.max(0, Number(rowCount) || 0);
+    const hasPages = total > QUEUE_RENDER_LIMIT;
+    if (container) {
+      container.hidden = !hasPages;
+      container.setAttribute("aria-hidden", hasPages ? "false" : "true");
+    }
+    if (status) {
+      if (hasPages) {
+        const first = pageStart + 1;
+        const last = pageStart + renderedCount;
+        const page = Math.floor(pageStart / QUEUE_RENDER_LIMIT) + 1;
+        const pages = Math.ceil(total / QUEUE_RENDER_LIMIT);
+        status.textContent = `Rows ${first}-${last} of ${total}. Page ${page} of ${pages}. Display paging does not change backend Launch scope.`;
+      } else {
+        status.textContent = `Rows ${total ? `1-${total}` : "0"} of ${total}.`;
+      }
+    }
+    if (previous) previous.disabled = !hasPages || pageStart <= 0;
+    if (next) next.disabled = !hasPages || pageStart + QUEUE_RENDER_LIMIT >= total;
+  }
+
+  function moveQueueTablePage(delta) {
+    const rows = queueFilteredRowsForCurrentDisplay();
+    const nextStart = queueClampScrollOffset(queueTablePageStart + (delta * QUEUE_RENDER_LIMIT), Math.max(0, rows.length - 1));
+    const normalized = Math.floor(nextStart / QUEUE_RENDER_LIMIT) * QUEUE_RENDER_LIMIT;
+    queueTablePageStart = normalized;
+    renderQueueRows({ preservePage: true });
+  }
+
   function queueFilteredRowsForCurrentDisplay() {
     const filterText = byId("queue-filter")?.value || "";
     const statusFilter = byId("queue-status-filter")?.value || "all";
@@ -1256,24 +1334,50 @@
     return typeof filterRowsByInvestigation === "function" ? filterRowsByInvestigation(statusRows, investigationFilter, queueMatchesInvestigationFilter) : statusRows;
   }
 
-  function renderQueueRows() {
+  function setQueueFilterSummary(lines) {
+    const summary = byId("queue-filter-summary");
+    const text = Array.isArray(lines) ? lines.join("\n") : String(lines || "");
+    setText("queue-filter-summary", text || "Queue filter inactive. No rows loaded.");
+    if (!summary) return;
+    summary.hidden = true;
+    summary.setAttribute("aria-hidden", "true");
+    const normalized = text.toLowerCase();
+    summary.dataset.tone = normalized.includes("hidden review rows")
+      || normalized.includes("display cap")
+      || normalized.includes("blocked/warning")
+      ? "warning"
+      : "info";
+  }
+
+  function renderQueueRows(options = {}) {
     const filterText = byId("queue-filter")?.value || "";
     const statusFilter = byId("queue-status-filter")?.value || "all";
     const investigationFilter = byId("queue-investigation-filter")?.value || "all";
     const rows = queueFilteredRowsForCurrentDisplay();
-    const renderLimit = 250;
-    const renderedCount = Math.min(rows.length, renderLimit);
+    const filterSignature = queueDisplayFilterSignature(filterText, statusFilter, investigationFilter);
+    if (!options.preservePage && filterSignature !== queueTableFilterSignature) {
+      queueTablePageStart = 0;
+    }
+    queueTableFilterSignature = filterSignature;
+    queueTablePageStart = queueClampPageStart(rows.length);
+    const renderLimit = QUEUE_RENDER_LIMIT;
+    const visibleRows = rows.slice(queueTablePageStart, queueTablePageStart + renderLimit);
+    const renderedCount = visibleRows.length;
     setText(
       "queue-status",
       rows.length > renderLimit
-        ? `${renderedCount} shown / ${rows.length} filtered / ${lastQueueRows.length} rows`
+        ? (
+          queueTablePageStart > 0
+            ? `${queueTablePageStart + 1}-${queueTablePageStart + renderedCount} shown / ${rows.length} filtered / ${lastQueueRows.length} rows`
+            : `${renderedCount} shown / ${rows.length} filtered / ${lastQueueRows.length} rows`
+        )
         : `${rows.length} / ${lastQueueRows.length} row${lastQueueRows.length === 1 ? "" : "s"}`
     );
     const buildFilterSummary = typeof filterResultSummaryLines === "function"
       ? filterResultSummaryLines
       : window.mediaPipelineDom?.filterResultSummaryLines;
     if (typeof buildFilterSummary === "function") {
-      setText("queue-filter-summary", buildFilterSummary({
+      const summaryLines = buildFilterSummary({
         label: "Queue display filter",
         allRows: lastQueueRows,
         visibleRows: rows,
@@ -1282,16 +1386,23 @@
         investigationFilter,
         investigationLabel: queueInvestigationFilterLabel(investigationFilter),
         statusOf: queueDisplayRowStatus,
-        limit: 250,
+        limit: renderLimit,
         decisionName: "launch",
         guardrail: "Mutation guardrail: display filtering the Queue table does not change backend launch scope, queue state, source files, or processing commands.",
-      }).join("\n"));
+      });
+      if (rows.length > renderLimit) {
+        const first = queueTablePageStart + 1;
+        const last = queueTablePageStart + renderedCount;
+        summaryLines.push(`Display page: showing filtered rows ${first}-${last} of ${rows.length}. Use Previous/Next to inspect more rows; display pages are not backend Launch scope.`);
+      }
+      setQueueFilterSummary(summaryLines);
     }
     const tbody = byId("queue-rows");
     const scrollSnapshot = queueTableScrollSnapshot(tbody);
     if (!rows.length) {
       setRenderedQueueRows([]);
       clearRows(tbody, 9, lastQueueRows.length ? "No queue rows match the filter." : lastQueueEmptyMessage);
+      updateQueuePaginationControls(rows.length, 0, 0);
       updateQueueTableLegend(tbody);
       updateQueueManualOrderControls();
       if (queueScanLoading) renderQueueLoadingTable();
@@ -1305,7 +1416,6 @@
       return;
     }
     tbody.replaceChildren();
-    const visibleRows = rows.slice(0, renderLimit);
     setRenderedQueueRows(visibleRows);
     renderQueueTableRows({
       rows: visibleRows,
@@ -1315,6 +1425,7 @@
       selectedQueueRowKey: getSelectedQueueRowKey(),
       wireManualOrderRow: wireQueueManualOrderRow,
     });
+    updateQueuePaginationControls(rows.length, queueTablePageStart, renderedCount);
     updateQueueTableLegend(tbody);
     updateQueueManualOrderControls();
     if (getSelectedQueueRowKey()) renderQueueDetail(getSelectedQueueRow());
@@ -1334,6 +1445,8 @@
     if (filter) filter.value = "";
     if (status) status.value = "all";
     if (investigation) investigation.value = "all";
+    queueTablePageStart = 0;
+    queueTableFilterSignature = "";
     renderQueueRows();
     setText("queue-open-status", "Queue display filters cleared. Backend launch scope is unchanged.");
   }
@@ -1369,7 +1482,7 @@
       if (typeof refreshAll === "function") {
         await refreshAll({ queueRefresh: true });
       } else {
-        setText("queue-filter-summary", "Queue source scan started, but refresh wiring is not loaded.");
+        setQueueFilterSummary("Queue source scan started, but refresh wiring is not loaded.");
       }
       scheduleQueueScanPoll();
     } catch (error) {
@@ -1402,6 +1515,7 @@
   window.mediaPipelineQueueView = {
     renderQueue,
     renderQueueRows,
+    setQueueFilterSummary,
     renderQueueScanLoadingState,
     resetQueueFilters,
     renderQueueDetail,
@@ -1576,6 +1690,8 @@
   window.queueSnapshotIsStale = queueSnapshotIsStale;
   window.selectQueueRow = selectQueueRow;
   window.getSelectedQueueRow = getSelectedQueueRow;
+  window.getSelectedQueuePriorityRows = getSelectedQueuePriorityRows;
+  window.getSelectedQueuePriorityRowKeys = getSelectedQueuePriorityRowKeys;
   window.getLastQueuePayload = getLastQueuePayload;
   window.getLastQueueRows = getLastQueueRows;
   window.queueRowKey = queueRowKey;
@@ -1755,6 +1871,45 @@
     return true;
   }
 
+  function queuePriorityControlIds() {
+    return [
+      "queue-priority-promote-btn",
+      "queue-priority-normal-btn",
+      "queue-priority-low-btn",
+      "queue-priority-hold-btn",
+      "queue-priority-promote-movies-btn",
+      "queue-priority-promote-tv-btn",
+      "queue-priority-clear-all-btn",
+    ];
+  }
+
+  function updateQueuePriorityControls() {
+    const disabled = Boolean(queuePriorityCommandInFlight || queueScanLoading);
+    queuePriorityControlIds().forEach((id) => {
+      const button = byId(id);
+      if (button) button.disabled = disabled;
+    });
+    updateQueueManualOrderControls();
+  }
+
+  function beginQueuePriorityCommand(message = "") {
+    queuePriorityCommandInFlight = true;
+    const seq = queuePriorityCommandSeq + 1;
+    queuePriorityCommandSeq = seq;
+    if (message) setText("queue-priority-status", message);
+    updateQueuePriorityControls();
+    return seq;
+  }
+
+  function isCurrentQueuePriorityCommand(seq) {
+    return seq === queuePriorityCommandSeq;
+  }
+
+  function endQueuePriorityCommand(seq) {
+    if (isCurrentQueuePriorityCommand(seq)) queuePriorityCommandInFlight = false;
+    updateQueuePriorityControls();
+  }
+
   // Rows shown during a dry-run scan come from the previous snapshot; block
   // queue-state requests until the refreshed snapshot arrives so stale row
   // identities are never submitted to the backend.
@@ -1766,39 +1921,51 @@
 
   async function sendQueuePriority(path, level, reason) {
     if (queuePriorityActionsPausedForScan()) return;
+    if (queuePriorityCommandInFlight) {
+      setText("queue-priority-status", "Queue priority command already in progress.");
+      return;
+    }
     if (!path) {
       setText("queue-priority-status", "No row selected — select a queue row first.");
       return;
     }
-    setText("queue-priority-status", "Sending…");
+    const seq = beginQueuePriorityCommand("Sending...");
     try {
       const result = await apiPost("/api/queue/priority", { path, level, reason });
       const msg = result && result.message ? result.message : `Priority set to '${level}'.`;
-      setText("queue-priority-status", msg);
+      if (isCurrentQueuePriorityCommand(seq)) setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
       if (result && result.ok) applyDisplayedQueuePriorityUpdates([{ path, level }]);
       if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
-      setText("queue-priority-status", `Priority request failed: ${err}`);
+      if (isCurrentQueuePriorityCommand(seq)) setText("queue-priority-status", `Priority request failed: ${err}`);
+    } finally {
+      endQueuePriorityCommand(seq);
     }
   }
 
   async function sendQueuePriorityBulk(items, description) {
     if (queuePriorityActionsPausedForScan()) return;
+    if (queuePriorityCommandInFlight) {
+      setText("queue-priority-status", "Queue priority command already in progress.");
+      return;
+    }
     if (!items || !items.length) {
       setText("queue-priority-status", "No rows to update.");
       return;
     }
-    setText("queue-priority-status", `Updating ${items.length} row(s)…`);
+    const seq = beginQueuePriorityCommand(`Updating ${items.length} row(s)...`);
     try {
       const result = await apiPost("/api/queue/priority", { items });
       const msg = result && result.message ? result.message : description || "Bulk priority updated.";
-      setText("queue-priority-status", msg);
+      if (isCurrentQueuePriorityCommand(seq)) setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
       if (result && result.ok) applyDisplayedQueuePriorityUpdates(items);
       if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
-      setText("queue-priority-status", `Bulk priority request failed: ${err}`);
+      if (isCurrentQueuePriorityCommand(seq)) setText("queue-priority-status", `Bulk priority request failed: ${err}`);
+    } finally {
+      endQueuePriorityCommand(seq);
     }
   }
 
@@ -1844,25 +2011,58 @@
   }
 
   async function clearQueuePriorityManifest() {
+    if (queuePriorityCommandInFlight) {
+      setText("queue-priority-status", "Queue priority command already in progress.");
+      return;
+    }
     if (!confirmClearQueuePriorityManifest()) {
       setText("queue-priority-status", "Priority manifest clear cancelled before any backend request.");
       return;
     }
-    setText("queue-priority-status", "Clearing entire priority manifest...");
+    const seq = beginQueuePriorityCommand("Clearing entire priority manifest...");
     try {
       const result = await apiPost("/api/queue/priority", { clear_all: true });
       const msg = result && result.message ? result.message : "All priority manifest entries cleared.";
-      setText("queue-priority-status", msg);
+      if (isCurrentQueuePriorityCommand(seq)) setText("queue-priority-status", msg);
       if (typeof appendCommandResult === "function") appendCommandResult({ command: "queue.priority", ok: Boolean(result && result.ok), severity: result && result.ok ? "ok" : "error", message: msg });
       if (result && result.ok) clearDisplayedQueuePriorityManifest();
       if (result && result.ok && typeof refreshAll === "function") await refreshAll();
     } catch (err) {
-      setText("queue-priority-status", `Priority manifest clear failed: ${err}`);
+      if (isCurrentQueuePriorityCommand(seq)) setText("queue-priority-status", `Priority manifest clear failed: ${err}`);
+    } finally {
+      endQueuePriorityCommand(seq);
     }
   }
 
   function queueManualOrderStatus(message) {
     setText("queue-manual-order-status", message);
+  }
+
+  function queueManualOrderKeyOrder(rows) {
+    return (Array.isArray(rows) ? rows : [])
+      .map(queueRowKey)
+      .filter(Boolean);
+  }
+
+  function resetQueueManualOrderLoadedKeys(rows = lastQueueRows) {
+    queueManualOrderLoadedKeys = queueManualOrderKeyOrder(rows);
+    queueManualOrderDraftDirty = false;
+  }
+
+  function queueManualOrderCurrentKeySignature() {
+    return queueManualOrderKeyOrder(lastQueueRows).join("\u001f");
+  }
+
+  function queueManualOrderLoadedKeySignature() {
+    return queueManualOrderLoadedKeys.join("\u001f");
+  }
+
+  function syncQueueManualOrderDraftDirty() {
+    queueManualOrderDraftDirty = Boolean(
+      queueManualOrderLoadedKeys.length
+      && queueManualOrderCurrentKeySignature() !== queueManualOrderLoadedKeySignature()
+    );
+    return queueManualOrderDraftDirty;
   }
 
   function queueManualOrderSelectValue() {
@@ -1992,6 +2192,7 @@
       return replacement || row;
     });
     refreshDisplayedQueuePriorityRows();
+    syncQueueManualOrderDraftDirty();
   }
 
   async function saveQueueManualOrderPositions(message) {
@@ -1999,17 +2200,33 @@
       queueManualOrderStatus("Manual order is paused while the backend builds a fresh queue preview. Retry after the refreshed snapshot arrives.");
       return false;
     }
+    if (queuePriorityCommandInFlight) {
+      queueManualOrderStatus("A queue priority/order command is already in progress.");
+      return false;
+    }
     const items = queueManualOrderPositionItems();
     if (!items.length) {
       queueManualOrderStatus("No queue rows are available to save manual order positions.");
       return false;
     }
+    if (!syncQueueManualOrderDraftDirty()) {
+      queueManualOrderStatus("No staged manual-order changes to save.");
+      updateQueueManualOrderControls();
+      return false;
+    }
+    const seq = beginQueuePriorityCommand();
     queueManualOrderStatus(`Saving loaded backend manual positions for ${items.length} row(s)...`);
+    let finalStatusMessage = "";
     try {
       const result = await apiPost("/api/queue/priority", { items });
       const ok = Boolean(result && result.ok);
       const resultMessage = result && result.message ? result.message : message || "Manual order positions saved.";
-      queueManualOrderStatus(ok ? `${message || resultMessage} ManualOrder takes effect on the next backend queue build.` : `Manual order save failed: ${resultMessage}`);
+      finalStatusMessage = ok
+        ? `${message || resultMessage} ManualOrder takes effect on the next backend queue build.`
+        : `Manual order save failed: ${resultMessage}`;
+      if (isCurrentQueuePriorityCommand(seq)) {
+        queueManualOrderStatus(finalStatusMessage);
+      }
       if (typeof appendCommandResult === "function") {
         appendCommandResult({
           command: "queue.priority",
@@ -2018,10 +2235,16 @@
           message: ok ? (message || resultMessage) : resultMessage,
         });
       }
+      if (ok) resetQueueManualOrderLoadedKeys(lastQueueRows);
       return ok;
     } catch (err) {
-      queueManualOrderStatus(`Manual order save failed: ${err}`);
+      finalStatusMessage = `Manual order save failed: ${err}`;
+      if (isCurrentQueuePriorityCommand(seq)) queueManualOrderStatus(finalStatusMessage);
       return false;
+    } finally {
+      endQueuePriorityCommand(seq);
+      updateQueueManualOrderControls();
+      if (finalStatusMessage) queueManualOrderStatus(finalStatusMessage);
     }
   }
 
@@ -2050,7 +2273,8 @@
     }
     queueManualOrderApplyPhaseRows(context.phase, nextPhaseRows);
     const ignored = context.ignoredCount > 0 ? ` ${context.ignoredCount} selected row(s) in other backend phases stayed put.` : "";
-    await saveQueueManualOrderPositions(`Saved manual order for ${queueManualOrderPhaseLabel(context.phase)}.${ignored}`);
+    queueManualOrderStatus(`Staged manual order for ${queueManualOrderPhaseLabel(context.phase)}.${ignored} Use Save Loaded Backend Order to write backend positions, or Discard Loaded Order Changes to restore the loaded order.`);
+    renderQueueRows({ preservePage: true });
     updateQueueManualOrderControls();
   }
 
@@ -2062,6 +2286,37 @@
     }
     await saveQueueManualOrderPositions("Saved loaded backend queue order to the backend manifest. Display filters and render caps did not define the saved scope.");
     updateQueueManualOrderControls();
+  }
+
+  function discardQueueManualOrderDraft() {
+    if (!queueManualOrderIsEnabled()) {
+      queueManualOrderStatus("Choose Manual Order in the strategy selector before discarding staged positions.");
+      updateQueueManualOrderControls();
+      return;
+    }
+    if (!syncQueueManualOrderDraftDirty()) {
+      queueManualOrderStatus("No staged manual-order changes to discard.");
+      updateQueueManualOrderControls();
+      return;
+    }
+    restoreQueueManualOrderLoadedOrder();
+    queueManualOrderStatus("Discarded staged manual-order changes. Loaded backend order restored locally; no backend request was sent.");
+    renderQueueRows({ preservePage: true });
+    updateQueueManualOrderControls();
+  }
+
+  function restoreQueueManualOrderLoadedOrder() {
+    const currentRowsByKey = new Map(lastQueueRows.map((row) => [queueRowKey(row), row]));
+    const restored = [];
+    queueManualOrderLoadedKeys.forEach((key) => {
+      const row = currentRowsByKey.get(key);
+      if (!row) return;
+      restored.push(row);
+      currentRowsByKey.delete(key);
+    });
+    lastQueueRows = restored.concat(Array.from(currentRowsByKey.values()));
+    queueManualOrderDraftDirty = false;
+    refreshDisplayedQueuePriorityRows();
   }
 
   function wireQueueManualOrderRow(row, item) {
@@ -2118,11 +2373,13 @@
   }
 
   function updateQueueManualOrderControls() {
+    syncQueueManualOrderDraftDirty();
     const enabled = queueManualOrderIsEnabled();
     const hasRows = lastQueueRows.length > 0 && !queueScanLoading;
     const hasSelection = getSelectedQueuePriorityRows().length > 0;
     [
       "queue-manual-save-order-btn",
+      "queue-manual-discard-order-btn",
       "queue-manual-move-top-btn",
       "queue-manual-move-up-btn",
       "queue-manual-move-down-btn",
@@ -2130,19 +2387,27 @@
     ].forEach((id) => {
       const button = byId(id);
       if (!button) return;
-      const needsSelection = id !== "queue-manual-save-order-btn";
-      button.disabled = !enabled || !hasRows || (needsSelection && !hasSelection);
+      const needsSelection = !["queue-manual-save-order-btn", "queue-manual-discard-order-btn"].includes(id);
+      const needsDraft = id === "queue-manual-save-order-btn" || id === "queue-manual-discard-order-btn";
+      button.disabled = queuePriorityCommandInFlight || !enabled || !hasRows || (needsSelection && !hasSelection) || (needsDraft && !queueManualOrderDraftDirty);
     });
     const status = byId("queue-manual-order-status");
     if (!status) return;
+    const currentStatus = String(status.textContent || "");
+    const preserveResultStatus = /^(Saved loaded backend queue order|Manual order save failed|Discarded staged manual-order changes)/.test(currentStatus);
     if (!enabled) {
-      status.textContent = "Manual order controls are available when the strategy selector is Manual Order. They save loaded backend rows within their backend phase; display filters and render caps do not define Launch scope.";
+      status.textContent = "Manual order controls are available when the strategy selector is Manual Order. Move controls stage loaded backend rows locally; Save Loaded Backend Order writes the staged positions. Display filters and render caps do not define Launch scope.";
     } else if (queueScanLoading) {
       status.textContent = "Manual order is paused while the backend builds a fresh queue preview.";
     } else if (!hasRows) {
       status.textContent = "Manual order is active, but no queue rows are loaded.";
+    } else if (queuePriorityCommandInFlight) {
+      status.textContent = "Manual order is paused while a backend queue priority/order request is in progress.";
+    } else if (queueManualOrderDraftDirty) {
+      status.textContent = "Manual order has staged local changes. Save Loaded Backend Order writes backend positions; Discard restores the loaded order. Launch scope is unchanged.";
     } else if (!hasSelection) {
-      status.textContent = "Manual order is active. Select a row, use arrow buttons or Alt+Up/Alt+Down, or drag within its backend phase.";
+      if (preserveResultStatus) return;
+      status.textContent = "Manual order is active. Select a row, use arrow buttons or Alt+Up/Alt+Down, or drag within its backend phase to stage local order changes.";
     }
   }
 
@@ -2152,13 +2417,20 @@
       if (btn) btn.addEventListener("click", handler);
     };
     wire("queue-manual-save-order-btn", () => saveCurrentQueueManualOrder());
+    wire("queue-manual-discard-order-btn", () => discardQueueManualOrderDraft());
     wire("queue-manual-move-top-btn", () => moveQueueManualOrder("top"));
     wire("queue-manual-move-up-btn", () => moveQueueManualOrder("up"));
     wire("queue-manual-move-down-btn", () => moveQueueManualOrder("down"));
     wire("queue-manual-move-bottom-btn", () => moveQueueManualOrder("bottom"));
+    wire("queue-page-prev-btn", () => moveQueueTablePage(-1));
+    wire("queue-page-next-btn", () => moveQueueTablePage(1));
     const select = byId("queue-strategy-select");
     if (select) {
       select.addEventListener("change", () => {
+        if (!queueManualOrderIsEnabled() && queueManualOrderDraftDirty) {
+          restoreQueueManualOrderLoadedOrder();
+          queueManualOrderStatus("Discarded staged manual-order changes because Manual Order is no longer selected. No backend request was sent.");
+        }
         updateQueueManualOrderControls();
         renderQueueRows();
       });
@@ -2204,6 +2476,7 @@
     });
 
     wire("queue-priority-clear-all-btn", clearQueuePriorityManifest);
+    updateQueuePriorityControls();
   }
 
   // Wire toolbar on DOMContentLoaded (or immediately if already loaded)

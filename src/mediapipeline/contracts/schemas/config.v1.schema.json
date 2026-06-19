@@ -585,6 +585,77 @@
       "title": "Compatibilityencodegrowthpercent",
       "type": "integer"
     },
+    "EncodeWasteGuardMode": {
+      "default": "off",
+      "enum": [
+        "off",
+        "dry_run",
+        "enforce"
+      ],
+      "title": "Encodewasteguardmode",
+      "type": "string"
+    },
+    "EncodeWasteGuardPreflightEnabled": {
+      "default": false,
+      "title": "Encodewasteguardpreflightenabled",
+      "type": "boolean"
+    },
+    "EncodeWasteGuardMinProgressPercent": {
+      "default": 15,
+      "maximum": 95,
+      "minimum": 0,
+      "title": "Encodewasteguardminprogresspercent",
+      "type": "integer"
+    },
+    "EncodeWasteGuardMinElapsedSeconds": {
+      "default": 120,
+      "maximum": 86400,
+      "minimum": 0,
+      "title": "Encodewasteguardminelapsedseconds",
+      "type": "integer"
+    },
+    "EncodeWasteGuardOversizeMarginPercent": {
+      "default": 20,
+      "maximum": 1000,
+      "minimum": 0,
+      "title": "Encodewasteguardoversizemarginpercent",
+      "type": "integer"
+    },
+    "EncodeWasteGuardConsecutiveSamples": {
+      "default": 2,
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Encodewasteguardconsecutivesamples",
+      "type": "integer"
+    },
+    "EncodeWasteGuardPollSeconds": {
+      "default": 10,
+      "maximum": 600,
+      "minimum": 1,
+      "title": "Encodewasteguardpollseconds",
+      "type": "integer"
+    },
+    "EncodeWasteGuardPreflightSampleSeconds": {
+      "default": 30,
+      "maximum": 600,
+      "minimum": 5,
+      "title": "Encodewasteguardpreflightsampleseconds",
+      "type": "integer"
+    },
+    "EncodeWasteGuardPreflightSampleCount": {
+      "default": 3,
+      "maximum": 10,
+      "minimum": 1,
+      "title": "Encodewasteguardpreflightsamplecount",
+      "type": "integer"
+    },
+    "EncodeWasteGuardPreflightTimeoutSeconds": {
+      "default": 900,
+      "maximum": 86400,
+      "minimum": 30,
+      "title": "Encodewasteguardpreflighttimeoutseconds",
+      "type": "integer"
+    },
     "MinFreeSpaceGB": {
       "default": 50,
       "minimum": 0,
@@ -1027,6 +1098,30 @@
         "type": "string"
       },
       "title": "Renamemovieremoveterms",
+      "type": "array"
+    },
+    "RenameTVFilterOptions": {
+      "additionalProperties": {
+        "type": "boolean"
+      },
+      "title": "Renametvfilteroptions",
+      "type": "object"
+    },
+    "RenameTVFilterTerms": {
+      "additionalProperties": {
+        "items": {
+          "type": "string"
+        },
+        "type": "array"
+      },
+      "title": "Renametvfilterterms",
+      "type": "object"
+    },
+    "RenameTVRemoveTerms": {
+      "items": {
+        "type": "string"
+      },
+      "title": "Renametvremoveterms",
       "type": "array"
     },
     "ValidExtensions": {

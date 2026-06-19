@@ -1,6 +1,6 @@
       <section class="page" data-page-panel="schedule">
         <h1 class="visually-hidden">Schedule</h1>
-        <section class="panel schedule-editor-panel" data-panel-type="interactive">
+        <section id="schedule-editor-panel" class="panel schedule-editor-panel" data-panel-type="interactive" aria-busy="false">
           <div class="panel-heading">
             <h2>Edit Schedule</h2>
             <strong id="schedule-editor-status" aria-live="polite">Not loaded</strong>
@@ -24,6 +24,7 @@
             </div>
           </div>
           <p id="schedule-editor-impact" class="schedule-editor-impact" aria-live="polite">Launch impact not loaded.</p>
+          <p id="schedule-editor-draft-summary" class="schedule-editor-draft-summary" aria-live="polite">Editor draft not loaded.</p>
           <div class="schedule-editor-control-row">
             <label class="check-row launch-check-row"><input id="schedule-editor-enabled" type="checkbox"> Enable schedule enforcement</label>
           </div>
@@ -32,7 +33,7 @@
               <button type="button" id="schedule-editor-load-current-button" class="secondary-button">Load Current</button>
               <button type="button" id="schedule-editor-preview-button" class="secondary-button">Preview Schedule</button>
               <button type="button" id="schedule-editor-save-button" class="primary-button" aria-describedby="schedule-editor-save-state">Save Schedule</button>
-              <span id="schedule-editor-save-state" class="schedule-editor-save-state">Preview required before save.</span>
+              <span id="schedule-editor-save-state" class="schedule-editor-save-state" aria-live="polite">Preview required before save.</span>
             </div>
             <div class="schedule-editor-action-group schedule-editor-bulk-actions" role="group" aria-label="Bulk schedule changes">
               <button type="button" id="schedule-editor-clear-button" class="secondary-button">Clear Week</button>
@@ -65,6 +66,7 @@
             <h2>Current Schedule</h2>
             <strong id="schedule-status">Read-only</strong>
           </div>
+          <p id="schedule-current-scope" class="schedule-scope-note" data-state="saved">Saved/current payload.</p>
           <pre id="schedule-summary" class="prose-block">No schedule state loaded.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
@@ -72,7 +74,36 @@
             <h2>Watch Folders</h2>
             <strong id="schedule-watch-folder-status">Not loaded</strong>
           </div>
+          <p id="schedule-watch-folder-scope" class="schedule-scope-note" data-state="saved">Backend-owned scanner state.</p>
           <pre id="schedule-watch-folder-summary" class="prose-block">No watch-folder state loaded.</pre>
+          <div class="table-wrap schedule-watch-folder-root-table">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Root</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="schedule-watch-folder-root-rows">
+                <tr><td colspan="3">No watch-folder roots loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="table-wrap schedule-watch-folder-event-table">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Event</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="schedule-watch-folder-event-rows">
+                <tr><td colspan="3">No watch-folder events loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
           <pre id="schedule-watch-folder-recent" class="prose-block">No watch-folder detections loaded.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
@@ -80,6 +111,7 @@
             <h2>Weekly View</h2>
             <strong id="schedule-day-status">No rows</strong>
           </div>
+          <p id="schedule-day-scope" class="schedule-scope-note" data-state="saved">Saved/current weekly windows.</p>
           <div class="table-wrap">
             <table>
               <thead>
@@ -106,6 +138,7 @@
             <h2>Schedule Trust</h2>
             <strong id="schedule-timing-status">Not loaded</strong>
           </div>
+          <p id="schedule-timing-scope" class="schedule-scope-note" data-state="saved">Saved/current launch timing evidence.</p>
           <pre id="schedule-timing" class="prose-block">No schedule timing trust loaded.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
@@ -113,6 +146,7 @@
             <h2>Launch Windows</h2>
             <strong id="schedule-guidance-status">No guidance</strong>
           </div>
+          <p id="schedule-guidance-scope" class="schedule-scope-note" data-state="saved">Saved/current launch-window guidance.</p>
           <pre id="schedule-guidance" class="prose-block">No schedule launch guidance loaded.</pre>
         </section>
         <section class="panel" data-panel-type="evidence">
@@ -120,6 +154,7 @@
             <h2>Coverage Review</h2>
             <strong id="schedule-coverage-status">Not loaded</strong>
           </div>
+          <p id="schedule-coverage-scope" class="schedule-scope-note" data-state="saved">Saved/current coverage checks.</p>
           <div class="table-wrap">
             <table>
               <thead>

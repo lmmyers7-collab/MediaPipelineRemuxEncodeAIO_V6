@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-libraries.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-13
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: b5ed6d0b994e55435c0c841c2e643a7c00931bcf8469c3968462dcd155a2b203
+sha256: 6f35b049f2a608757e6a7570071625707c0b93f0b094dd2db3a19f2098cfd30f
 ---
 # `apps/desktop/webview/static/partials/page-libraries.html`
 

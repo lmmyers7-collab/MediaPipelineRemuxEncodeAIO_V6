@@ -3,9 +3,9 @@ file: ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: scripts
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 9bfc577b1ccb5e2ec6f7026041c92d454931d1afda39a8d7ea27f04b3c7e3cda
+sha256: 081f422bf2791ea31a0cf52e581f69204efae62ca2d01a524b32f66f85ac76a6
 ---
 # `ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1`
 

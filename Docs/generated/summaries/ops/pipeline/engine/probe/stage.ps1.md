@@ -3,9 +3,9 @@ file: ops/pipeline/engine/probe/stage.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: probe
-last_modified: 2026-06-04
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: a290706fd80c6631274f47d53306645509ecaa53ef954e5f327dd71599c2551e
+sha256: 4249413d0331c7a533e60f177afd9e7caf636a1081d9f1ce88b978a486b1518e
 ---
 # `ops/pipeline/engine/probe/stage.ps1`
 

@@ -655,12 +655,12 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             "function renderSettingsBackendResultFromEntries",
         ),
         (
-            "settings preview/save stale guard",
-            "Patch JSON changed after the last preview. Preview again before saving.",
+            "settings save review current-values guard",
+            "Save Settings will review the current values before writing.",
         ),
         (
-            "settings preview/save persistence boundary",
-            "Save Patch is the only persistence command",
+            "settings save persistence boundary",
+            "Save Settings is the persistence command",
         ),
         (
             "settings backend result split stash",
@@ -803,7 +803,7 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
         ),
         ("settings backend readiness guardrail", "this table cannot stage settings, save config, launch work, run FFmpeg, publish files, or touch source media"),
         ("settings staged policy delta rows", "function settingsPolicyDeltaRows"),
-        ("settings staged policy delta summary", "Staged media-policy delta:"),
+        ("settings save-candidate policy delta summary", "Save-candidate media-policy delta:"),
         (
             "settings effective policy trust rows",
             "function settingsEffectivePolicyRows",

@@ -84,13 +84,13 @@
       { type: "routeSize", fields: ["RoutingProfile", "SizeGuardMode", "RouteThresholdMode", "MaxEncodeGrowthPercent", "CompatibilityEncodeGrowthPercent", "MovieRoute1080pTargetSizeGB", "MovieRoute1440pTargetSizeGB", "MovieRoute4KTargetSizeGB", "TVRoute1080pTargetSizeGB", "TVRoute1440pTargetSizeGB", "TVRoute4KTargetSizeGB", "Route1080pUpperHeightTolerancePercent", "Route1440pLowerHeightTolerancePercent", "Route1440pUpperHeightTolerancePercent", "Route4KLowerHeightTolerancePercent", "Route1080pMaxVideoBitrateMbps", "Route1440pMaxVideoBitrateMbps", "Route4KMaxVideoBitrateMbps"] },
       { type: "grid", fields: ["EncodeTuningPreset", "EncodeLadder", "VideoCodec", "OutputContainer"] },
       { type: "compatibility" },
-      { type: "note", text: "Library editor overrides affect only content routed through this library. Backend preview/save remains authoritative before future runs use these values." },
+      { type: "note", text: "Library editor overrides affect only content routed through this library. Backend Save remains authoritative before future runs use these values." },
     ],
     video: [
       { type: "grid", fields: ["VideoPreset", "VideoQuality", "H264RemuxMaxBitrateMbps", "H264RemuxMaxHeight", "FallbackCpuQuality", "CpuEncodePreset", "CpuEncodeProcessPriority", "CpuEncodeMaxThreads"] },
       { type: "options", fields: ["AllowH264RemuxIfPlexCompatible"] },
       { type: "full", fields: ["RemuxSafeVideoCodecs", "ExtraVideoFlags"] },
-      { type: "note", text: "Use this for direct-copy allowlists and fallback encode controls. Backend preview/save remains authoritative before any future run uses these values." },
+      { type: "note", text: "Use this for direct-copy allowlists and fallback encode controls. Backend Save remains authoritative before any future run uses these values." },
     ],
     subtitles: [
       { type: "grid", fields: ["SubKeepLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages", "VobSubExtractLanguages", "SubSDHTitleKeywords", "SubSupplementalKeywords", "MergeThresholdMs", "SubtitleExtractTimeoutSeconds", "SubtitleProbeTimeoutSeconds", "BdpgsOcrTimeoutSeconds", "VobSubOcrTimeoutSeconds", "ExcludeSubtitleStyles", "IncludeSubtitleStyles"] },
@@ -117,6 +117,9 @@
   let profiles = [];
   let activeLibraryTabId = "movies";
   let libraryEditorDirty = false;
+  let libraryProfilePatchCurrent = false;
+  let libraryProfilePatchSaved = false;
+  let libraryProfileCommandInFlight = false;
   let lastLibraryProfileResetRequest = [];
   const openOverrideSectionsByLibrary = new Map();
 
@@ -135,6 +138,41 @@
     const value = String(message || "").trim();
     element.textContent = value;
     element.hidden = !value;
+  }
+
+  function setStateBadge(id, label, stateValue) {
+    const element = byId(id);
+    if (!element) return;
+    element.textContent = label;
+    element.dataset.state = stateValue;
+  }
+
+  function setLibraryProfileCommandBusy(isBusy) {
+    libraryProfileCommandInFlight = Boolean(isBusy);
+    [
+      "settings-library-build-patch-button",
+      "settings-library-preview-button",
+      "settings-library-save-button",
+    ].forEach((id) => {
+      const button = byId(id);
+      if (button) button.disabled = libraryProfileCommandInFlight;
+    });
+  }
+
+  function rejectLibraryProfileCommandWhileBusy(command) {
+    if (libraryProfileCommandInFlight) {
+      setText("settings-libraries-status", "Busy");
+      renderLibraryPatchHandoff("Another Library Profile backend Save command is already in progress.");
+      renderLibraryStateStrip();
+      return true;
+    }
+    const reject = window.mediaPipelineSettingsView?.rejectSettingsCommandWhileBusy;
+    if (typeof reject === "function" && reject(command, "settings-libraries-status", "")) {
+      renderLibraryPatchHandoff("Another settings command is already in progress; LibraryProfiles were not rebuilt.");
+      renderLibraryStateStrip();
+      return true;
+    }
+    return false;
   }
 
   function config() {
@@ -528,6 +566,9 @@
 
   function markLibraryEditorDirty() {
     libraryEditorDirty = true;
+    libraryProfilePatchCurrent = false;
+    libraryProfilePatchSaved = false;
+    renderLibraryStateStrip();
   }
 
   function stableComparable(value) {
@@ -606,6 +647,135 @@
       .split(/[\n,]/)
       .map((item) => item.trim())
       .filter(Boolean);
+  }
+
+  function libraryWatchConfig() {
+    const cfg = config();
+    const action = String(cfg.WatchAction || "enqueue_only").trim().toLowerCase();
+    const roots = parseListText(cfg.WatchFolderRoots);
+    const debounce = Number(cfg.WatchDebounceSeconds || cfg.FileStabilityWait || 30);
+    return {
+      enabled: boolValue(cfg.EnableWatchFolders, false),
+      autoRun: boolValue(cfg.EnableWatchFolders, false) && action === "enqueue_and_launch",
+      action: action === "enqueue_and_launch" ? "enqueue_and_launch" : "enqueue_only",
+      roots,
+      debounce: Number.isFinite(debounce) ? Math.max(5, Math.floor(debounce)) : 30,
+      respectSchedule: boolValue(cfg.WatchRespectScheduleWindow, true),
+    };
+  }
+
+  function libraryWatchStatusLabel(watch = libraryWatchConfig()) {
+    if (watch.autoRun) return "Auto-run enabled";
+    if (watch.enabled) return "Watch only";
+    return "Off";
+  }
+
+  function libraryWatchSummaryLines(watch = libraryWatchConfig()) {
+    const rootsLabel = watch.roots.length
+      ? `${watch.roots.length} explicit root${watch.roots.length === 1 ? "" : "s"}`
+      : "Library Profile source roots";
+    return [
+      `Auto-run: ${watch.autoRun ? "enabled" : "off"}`,
+      `Watch folders: ${watch.enabled ? "enabled" : "off"}`,
+      `Roots: ${rootsLabel}`,
+      `Debounce: ${watch.debounce}s`,
+      `Schedule gate: ${watch.respectSchedule ? "respected" : "ignored"}`,
+      "Backend authority: detection stays in the local API watch-folder manager and launches use the existing gated Run Once path.",
+    ];
+  }
+
+  function libraryWatchHasActiveControl() {
+    const active = document.activeElement;
+    const panel = byId("settings-library-watch-panel");
+    return Boolean(active instanceof Element && panel?.contains(active));
+  }
+
+  function syncLibraryWatchControlsFromConfig(settings = lastSettings, options = {}) {
+    if (settings) lastSettings = settings;
+    if (options?.automatic === true && libraryWatchHasActiveControl()) return;
+    const watch = libraryWatchConfig();
+    const autoRun = byId("settings-library-watch-auto-run");
+    const respectSchedule = byId("settings-library-watch-respect-schedule");
+    if (autoRun) autoRun.checked = watch.autoRun;
+    if (respectSchedule) respectSchedule.checked = watch.respectSchedule;
+    setText("settings-library-watch-status", libraryWatchStatusLabel(watch));
+    setText("settings-library-watch-summary", libraryWatchSummaryLines(watch).join("\n"));
+  }
+
+  function collectLibraryWatchAutoRunPatch() {
+    const autoRun = Boolean(byId("settings-library-watch-auto-run")?.checked);
+    const respectSchedule = Boolean(byId("settings-library-watch-respect-schedule")?.checked);
+    const watch = libraryWatchConfig();
+    const patch = {
+      EnableWatchFolders: autoRun,
+      WatchAction: autoRun ? "enqueue_and_launch" : "enqueue_only",
+      WatchRespectScheduleWindow: respectSchedule,
+    };
+    if (autoRun) {
+      patch.WatchFolderRoots = [];
+      patch.WatchDebounceSeconds = watch.debounce;
+    }
+    return patch;
+  }
+
+  function renderLibraryWatchPatchHandoff(message, patch = null) {
+    const pending = patch || collectLibraryWatchAutoRunPatch();
+    const staged = Object.keys(pending);
+    const lines = [
+      message,
+      `Staged keys: ${staged.join(", ")}`,
+      pending.EnableWatchFolders
+        ? "Roots: Library Profile source roots"
+        : "Roots: existing saved roots are preserved while watch folders are disabled.",
+      `Action: ${pending.WatchAction === "enqueue_and_launch" ? "gated Run Once" : "enqueue only"}`,
+      `Schedule gate: ${pending.WatchRespectScheduleWindow ? "respected" : "ignored"}`,
+      "Runtime boundary: this control only stages settings; it does not scan, launch, queue, publish, rename, move, or delete media files.",
+    ];
+    setText("settings-library-watch-summary", lines.join("\n"));
+  }
+
+  function stageLibraryWatchAutoRunPatch() {
+    const patch = collectLibraryWatchAutoRunPatch();
+    if (typeof window.writeSettingsPatchJson !== "function") {
+      setText("settings-library-watch-status", "Settings unavailable");
+      renderLibraryWatchPatchHandoff("Settings patch controls are not loaded.", patch);
+      return null;
+    }
+    window.writeSettingsPatchJson(
+      patch,
+      "Library auto-run toggle merged watch-folder keys into Changes JSON. Preview or Save still uses backend validation."
+    );
+    setText("settings-library-watch-status", patch.EnableWatchFolders ? "Auto-run staged" : "Auto-run off staged");
+    renderLibraryWatchPatchHandoff("Library auto-run toggle staged through the shared settings patch.", patch);
+    return patch;
+  }
+
+  async function previewLibraryWatchAutoRunPatch() {
+    const patch = stageLibraryWatchAutoRunPatch();
+    if (!patch) return;
+    const preview = window.mediaPipelineSettingsView?.previewSettingsPatch;
+    if (typeof preview !== "function") {
+      setText("settings-library-watch-status", "Settings unavailable");
+      renderLibraryWatchPatchHandoff("Settings preview controls are not loaded.", patch);
+      return;
+    }
+    setText("settings-library-watch-status", "Previewing...");
+    await preview();
+    setText("settings-library-watch-status", "Auto-run preview finished");
+  }
+
+  async function saveLibraryWatchAutoRunPatch() {
+    const patch = stageLibraryWatchAutoRunPatch();
+    if (!patch) return;
+    const save = window.mediaPipelineSettingsView?.saveSettingsPatch;
+    if (typeof save !== "function") {
+      setText("settings-library-watch-status", "Settings unavailable");
+      renderLibraryWatchPatchHandoff("Settings save controls are not loaded.", patch);
+      return;
+    }
+    setText("settings-library-watch-status", "Saving...");
+    await save();
+    setText("settings-library-watch-status", "Auto-run save command finished");
   }
 
   function choiceLabel(key) {
@@ -770,7 +940,7 @@
       const suffix = missing.length > 5 ? `, and ${missing.length - 5} more` : "";
       return `Advisory only: backend route metadata/current values are missing for ${visibleKeys}${suffix}. Preview or save with the backend before treating these readouts as evidence.`;
     }
-    return "Readouts use backend field metadata and current config values. Library controls stage overrides only; backend preview/save remains authoritative.";
+    return "Readouts use backend field metadata and current config values. Library controls stage overrides only; backend Save remains authoritative.";
   }
 
   function routeValuesFromObject(values) {
@@ -1321,6 +1491,7 @@
 
   function renderSettingsLibraries(settings, options = {}) {
     const incomingProfiles = currentProfilesFromSettings(settings);
+    syncLibraryWatchControlsFromConfig(settings, options);
     if (shouldDeferAutomaticLibraryRender(options)) return;
     if (libraryEditorDirty && profileCardsFromDom().length) {
       try {
@@ -1357,7 +1528,7 @@
     return validIds[0] || "";
   }
 
-  function activateLibraryTab(libraryId) {
+  function activateLibraryTab(libraryId, options = {}) {
     const tabBar = byId("settings-library-profile-nav");
     const list = byId("settings-library-profile-list");
     if (!tabBar || !list) return;
@@ -1378,7 +1549,14 @@
     if (activeId !== previousActiveId) closeOverrideSections(activeId);
     try { localStorage.setItem("mediapipeline-library-profile", activeId); } catch (_error) {}
     renderActiveLibraryCommandState();
+    if (options.source !== "route-map") {
+      window.mediaPipelineLibraryRouteMap?.selectProfile?.(activeId, { source: "library-editor" });
+    }
     if (typeof window.updatePagePanelEmptyStates === "function") window.updatePagePanelEmptyStates();
+  }
+
+  function activateLibraryProfile(libraryId, options = {}) {
+    activateLibraryTab(libraryId, options);
   }
 
   function closeOverrideSections(profileId) {
@@ -1432,11 +1610,12 @@
     const defaultsButton = byId("settings-library-defaults-button");
     if (defaultsButton) {
       defaultsButton.disabled = !activeLibraryProfileId(card);
-      defaultsButton.title = "Clear all Editor, Video/Media, Subtitle, and Audio overrides for the selected library.";
+      defaultsButton.title = "Reset all explicit library overrides to inherited/default values in the editor. Stage Patch, Preview, and Save are still required.";
     }
+    renderLibraryStateStrip();
   }
 
-  function renderProfileCards() {
+  function renderProfileCards(options = {}) {
     const list = byId("settings-library-profile-list");
     const tabBar = byId("settings-library-profile-nav");
     if (!list) return;
@@ -1464,7 +1643,9 @@
       list.appendChild(pane);
     });
     setText("settings-libraries-status", `${profiles.length} library profile(s) loaded`);
-    activateLibraryTab(storedLibraryTabId(profiles.map((profile) => profile.id)));
+    const profileIds = profiles.map((profile) => profile.id);
+    const preferredActiveId = text(options.activeProfileId);
+    activateLibraryTab(profileIds.includes(preferredActiveId) ? preferredActiveId : storedLibraryTabId(profileIds));
     renderLibraryWarningSummary();
   }
 
@@ -1824,6 +2005,67 @@
     }
   }
 
+  function libraryPatchStateKind() {
+    const hasLibraryProfiles = currentPatchIncludesLibraryProfiles();
+    if (libraryProfilePatchSaved && !libraryEditorDirty) return "saved";
+    if (!hasLibraryProfiles) return "none";
+    if (libraryProfilePatchCurrent) return "staged";
+    return "stale";
+  }
+
+  function renderLibraryStateStrip() {
+    const patchState = libraryPatchStateKind();
+    const activeId = activeLibraryProfileId();
+    const editorState = libraryEditorDirty
+      ? patchState === "staged"
+        ? ["Editor: staged, unsaved", "changed"]
+        : ["Editor: unstaged edits", "warning"]
+      : ["Editor: saved settings", "saved"];
+    const patchTextByState = {
+      none: ["Patch: none staged", "empty"],
+      staged: ["Patch: LibraryProfiles staged", "changed"],
+      stale: ["Patch: stale LibraryProfiles", "warning"],
+      saved: ["Patch: backend save returned", "saved"],
+    };
+    const routeState = libraryEditorDirty || patchState === "staged" || patchState === "stale"
+      ? ["Route map: saved evidence, edits pending", "warning"]
+      : ["Route map: saved backend evidence", "saved"];
+    const patchStateText = patchTextByState[patchState] || patchTextByState.none;
+    setStateBadge("settings-library-editor-state", editorState[0], editorState[1]);
+    setStateBadge("settings-library-patch-state", patchStateText[0], patchStateText[1]);
+    setStateBadge("settings-library-route-map-scope", routeState[0], routeState[1]);
+    window.mediaPipelineLibraryRouteMap?.setEditorState?.({
+      activeProfileId: activeId,
+      dirty: libraryEditorDirty,
+      patchState,
+      patchCurrent: patchState === "staged",
+    });
+  }
+
+  function clearLibraryProfilesPatchJson(reason) {
+    const textarea = byId("settings-patch-json");
+    if (!textarea) return false;
+    let parsed;
+    try {
+      parsed = JSON.parse(textarea.value || "{}");
+    } catch (_error) {
+      return false;
+    }
+    if (!parsed || Array.isArray(parsed) || typeof parsed !== "object" || !Object.prototype.hasOwnProperty.call(parsed, "LibraryProfiles")) {
+      return false;
+    }
+    delete parsed.LibraryProfiles;
+    textarea.value = JSON.stringify(parsed, null, 2);
+    window.mediaPipelineSettingsView?.markSettingsPatchTouched?.();
+    window.mediaPipelineSettingsView?.renderSettingsPatchSummary?.();
+    setText("settings-patch-status", "Library reset from current");
+    setText(
+      "settings-patch-detail",
+      reason || "Removed LibraryProfiles from Changes JSON. Saved backend settings were not changed."
+    );
+    return true;
+  }
+
   function libraryProfileResetRequest() {
     if (!currentPatchIncludesLibraryProfiles()) return [];
     lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
@@ -1837,12 +2079,17 @@
         LibraryProfiles: libraryProfiles,
       };
       lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
+      libraryProfilePatchSaved = false;
       if (typeof window.writeSettingsPatchJson === "function") {
-        window.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Backend Preview/Save will validate paths, overrides, and mirrored compatibility keys.");
+        window.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Save Settings will validate paths, overrides, and mirrored compatibility keys.");
+        libraryProfilePatchCurrent = true;
+      } else {
+        libraryProfilePatchCurrent = false;
       }
       profiles = libraryProfiles;
       renderLibraryWarningSummary();
       setText("settings-libraries-status", `${libraryProfiles.length} library profile(s) staged`);
+      renderLibraryStateStrip();
       return patch;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1863,7 +2110,7 @@
   }
 
   function renderLibraryPatchHandoff(message) {
-    const patchStatus = byId("settings-patch-status")?.textContent || "No patch";
+    const patchStatus = byId("settings-patch-status")?.textContent || "No changes";
     const keys = currentSettingsPatchKeys();
     const prunedWarnings = prunedOverrideWarningLines();
     const mp4Warnings = mp4CompatibilityWarningLines();
@@ -1879,7 +2126,12 @@
     setLibraryFeedback(lines.join("\n"));
   }
 
+  function sharedPatchStatus() {
+    return text(byId("settings-patch-status")?.textContent || "");
+  }
+
   async function previewLibraryProfiles() {
+    if (rejectLibraryProfileCommandWhileBusy("settings.preview_patch")) return;
     const patch = buildPatchFromLibraries();
     if (!patch) return;
     const preview = window.mediaPipelineSettingsView?.previewSettingsPatch;
@@ -1890,12 +2142,29 @@
     }
     setText("settings-libraries-status", "Previewing...");
     renderLibraryPatchHandoff("Previewing staged LibraryProfiles through backend validation.");
-    await preview();
-    setText("settings-libraries-status", "Library preview finished");
-    renderLibraryPatchHandoff("Library profile preview command finished.");
+    setLibraryProfileCommandBusy(true);
+    try {
+      await preview();
+      const status = sharedPatchStatus();
+      if (status === "Preview ready") {
+        setText("settings-libraries-status", "Library preview ready");
+        renderLibraryPatchHandoff("Library profile preview is ready.");
+      } else {
+        setText("settings-libraries-status", status ? `Library preview: ${status}` : "Library preview returned no status");
+        renderLibraryPatchHandoff(`Library profile preview returned shared patch status: ${status || "not reported"}.`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setText("settings-libraries-status", "Library preview failed");
+      renderLibraryPatchHandoff(`Library profile preview failed before backend success was reported: ${message}`);
+    } finally {
+      setLibraryProfileCommandBusy(false);
+      renderLibraryStateStrip();
+    }
   }
 
   async function saveLibraryProfiles() {
+    if (rejectLibraryProfileCommandWhileBusy("settings.save_patch")) return;
     const patch = buildPatchFromLibraries();
     if (!patch) return;
     const save = window.mediaPipelineSettingsView?.saveSettingsPatch;
@@ -1906,9 +2175,28 @@
     }
     setText("settings-libraries-status", "Saving...");
     renderLibraryPatchHandoff("Saving staged LibraryProfiles through the backend settings route.");
-    await save();
-    setText("settings-libraries-status", "Library save command finished");
-    renderLibraryPatchHandoff("Library profile save command finished.");
+    setLibraryProfileCommandBusy(true);
+    try {
+      await save();
+      const status = sharedPatchStatus();
+      if (status === "Saved") {
+        libraryEditorDirty = false;
+        libraryProfilePatchCurrent = false;
+        libraryProfilePatchSaved = true;
+        setText("settings-libraries-status", "Library profile saved");
+        renderLibraryPatchHandoff("Library profile save succeeded through the backend settings route.");
+      } else {
+        setText("settings-libraries-status", status ? `Library save: ${status}` : "Library save returned no status");
+        renderLibraryPatchHandoff(`Library profile save returned shared patch status: ${status || "not reported"}.`);
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setText("settings-libraries-status", "Library save failed");
+      renderLibraryPatchHandoff(`Library profile save failed before backend success was reported: ${message}`);
+    } finally {
+      setLibraryProfileCommandBusy(false);
+      renderLibraryStateStrip();
+    }
   }
 
   function renderLibraryWarningSummary() {
@@ -1935,7 +2223,7 @@
     profiles.push(profile);
     activeLibraryTabId = profile.id;
     markLibraryEditorDirty();
-    renderProfileCards();
+    renderProfileCards({ activeProfileId: profile.id });
     setText("settings-libraries-status", `${profiles.length} library profile(s) staged`);
   }
 
@@ -1949,7 +2237,7 @@
       return;
     }
     const confirmed = typeof window.confirm === "function"
-      ? window.confirm(`Delete the ${name} library profile from the staged settings patch? Saved settings do not change until Save Library Profile succeeds.`)
+      ? window.confirm(`Delete the ${name} library profile from the unsaved Settings changes? Saved settings do not change until Save Library Profile succeeds.`)
       : true;
     if (!confirmed) {
       setText("settings-libraries-status", "Delete cancelled");
@@ -1967,7 +2255,7 @@
     }
     activeLibraryTabId = profiles[0]?.id || "movies";
     markLibraryEditorDirty();
-    renderProfileCards();
+    renderProfileCards({ activeProfileId: activeLibraryTabId });
     setText("settings-libraries-status", `${name} library profile removed from staged editor`);
     renderLibraryWarningSummary();
   }
@@ -1976,13 +2264,17 @@
     const card = activeLibraryCard();
     if (!card) return;
     const name = activeLibraryName(card);
+    let resetCount = 0;
     card.querySelectorAll("[data-library-override-row]").forEach((row) => {
       const wasOverride = row.dataset.libraryOverride === "true";
       const key = row.getAttribute("data-library-override-key") || "";
       const control = row.querySelector("[data-library-override-control]");
       if (control) setOverrideControlValue(control, key, defaultSettingValue(key));
       updateOverrideRowState(row, false);
-      if (wasOverride) row.dataset.libraryResetPending = "true";
+      if (wasOverride) {
+        row.dataset.libraryResetPending = "true";
+        resetCount += 1;
+      }
     });
     syncLibraryRouteReadouts(card);
     try {
@@ -1994,14 +2286,29 @@
       return;
     }
     markLibraryEditorDirty();
-    setText("settings-libraries-status", `${name} settings overrides cleared`);
-    renderLibraryWarningSummary();
+    setText("settings-libraries-status", `${name} overrides reset to inherited defaults`);
+    setLibraryFeedback([
+      `${name}: ${resetCount} explicit override(s) marked to reset to inherited/default values in the staged editor.`,
+      "Stage Patch writes the edited LibraryProfiles into Changes JSON; Preview and Save remain backend-owned.",
+      ...mp4CompatibilityWarningLines(),
+      ...prunedOverrideWarningLines(),
+    ].filter(Boolean).join("\n"));
+    renderLibraryStateStrip();
   }
 
   function resetFromSaved() {
     closeOverrideSections(activeLibraryTabId);
     libraryEditorDirty = false;
+    libraryProfilePatchCurrent = false;
+    libraryProfilePatchSaved = false;
+    const cleared = clearLibraryProfilesPatchJson("Reset From Current removed LibraryProfiles from Changes JSON. Saved backend settings were not changed.");
+    syncLibraryWatchControlsFromConfig(lastSettings);
     renderSettingsLibraries(lastSettings);
+    setText("settings-libraries-status", cleared ? "Reset from current; staged LibraryProfiles cleared" : "Reset from current");
+    renderLibraryPatchHandoff(cleared
+      ? "Reset From Current restored the editor from loaded settings and cleared the staged LibraryProfiles patch."
+      : "Reset From Current restored the editor from loaded settings. No LibraryProfiles patch was staged.");
+    renderLibraryStateStrip();
   }
 
   function initSettingsLibrariesEvents() {
@@ -2167,6 +2474,17 @@
     byId("settings-library-reset-button")?.addEventListener("click", resetFromSaved);
     byId("settings-library-preview-button")?.addEventListener("click", previewLibraryProfiles);
     byId("settings-library-save-button")?.addEventListener("click", saveLibraryProfiles);
+    byId("settings-library-watch-auto-run")?.addEventListener("change", () => {
+      setText("settings-library-watch-status", "Auto-run toggle changed");
+      renderLibraryWatchPatchHandoff("Stage the auto-run toggle to merge it into Changes JSON.");
+    });
+    byId("settings-library-watch-respect-schedule")?.addEventListener("change", () => {
+      setText("settings-library-watch-status", "Schedule gate changed");
+      renderLibraryWatchPatchHandoff("Stage the auto-run toggle to merge it into Changes JSON.");
+    });
+    byId("settings-library-watch-stage-button")?.addEventListener("click", stageLibraryWatchAutoRunPatch);
+    byId("settings-library-watch-preview-button")?.addEventListener("click", previewLibraryWatchAutoRunPatch);
+    byId("settings-library-watch-save-button")?.addEventListener("click", saveLibraryWatchAutoRunPatch);
   }
 
   /**
@@ -2176,7 +2494,11 @@
   window.mediaPipelineSettingsLibraries = {
     renderSettingsLibraries,
     initSettingsLibrariesEvents,
+    activateLibraryProfile,
     buildPatchFromLibraries,
+    stageLibraryWatchAutoRunPatch,
+    previewLibraryWatchAutoRunPatch,
+    saveLibraryWatchAutoRunPatch,
     deleteActiveLibrary,
     replaceActiveLibraryValuesWithDefaults,
     libraryProfileResetRequest,

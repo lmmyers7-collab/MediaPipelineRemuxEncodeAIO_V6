@@ -43,13 +43,17 @@ function Get-PriorityManifest {
     <#
     .SYNOPSIS
         Load priority_manifest.json from the state root.
-        Returns an empty manifest hashtable on any error.
+        Returns an empty manifest hashtable when the manifest is absent.
+        With -FailClosed, throws when an existing manifest is unreadable or
+        invalid so queue planning cannot silently drop operator holds.
     .DESCRIPTION
         The manifest is a JSON file written by the DesktopApp API at:
           state_root / priority_manifest.json
         Format:
           { "version": 1, "entries": { "<norm-path>": { "level": "high"|"normal"|"low"|"hold", ... } } }
     #>
+    param([switch]$FailClosed)
+
     $manifestPath = $null
     try {
         if ($script:LocalStateLayout -and $script:LocalStateLayout.Paths -and $script:LocalStateLayout.Paths.PriorityManifest) {
@@ -66,7 +70,11 @@ function Get-PriorityManifest {
     try {
         $text = [System.IO.File]::ReadAllText($manifestPath, [System.Text.Encoding]::UTF8)
         $obj  = $text | ConvertFrom-Json
-        if (-not $obj -or $obj.version -ne 1 -or -not $obj.entries) { return $empty }
+        if (-not $obj -or $obj.version -ne 1 -or -not $obj.entries) {
+            $reason = "priority manifest is invalid or has an unsupported schema"
+            if ($FailClosed) { throw $reason }
+            return $empty
+        }
         # Convert PSObject entries to a plain hashtable for fast lookup
         $ht = @{}
         foreach ($prop in $obj.entries.PSObject.Properties) {
@@ -75,6 +83,9 @@ function Get-PriorityManifest {
         return @{ version = 1; entries = $ht }
     } catch {
         Write-Log "Get-PriorityManifest: failed to read manifest at '$manifestPath': $_" "WARN"
+        if ($FailClosed) {
+            throw "Priority manifest is unreadable at '$manifestPath'; refusing to build runnable queue until it is repaired or explicitly cleared: $_"
+        }
         return $empty
     }
 }

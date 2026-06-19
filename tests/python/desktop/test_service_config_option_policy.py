@@ -13,6 +13,7 @@ from mediapipeline.core.config.metadata_parts.field_definitions import CONFIG_FI
 from mediapipeline.core.config.option_policy import validate_option_config
 from mediapipeline.core.config.constants import (
     AUDIO_PASSTHROUGH_PROFILE_NAMES,
+    ENCODE_WASTE_GUARD_MODE_NAMES,
     LOG_LEVEL_VALUES,
     ROUTE_THRESHOLD_MODE_NAMES,
     ROUTING_PROFILE_NAMES,
@@ -47,6 +48,7 @@ def _option_baseline() -> dict:
         "RoutingProfile": "plex_direct_stream",
         "RouteThresholdMode": "compatibility_advisory",
         "SizeGuardMode": "advisory",
+        "EncodeWasteGuardMode": "off",
         "AudioPassthroughProfile": "custom_codec_list",
         "AudioTranscodeCodec": "eac3",
         "AudioTranscodeBitrate": "640k",
@@ -94,6 +96,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
             "RoutingProfile": ROUTING_PROFILE_NAMES,
             "RouteThresholdMode": ROUTE_THRESHOLD_MODE_NAMES,
             "SizeGuardMode": SIZE_GUARD_MODE_NAMES,
+            "EncodeWasteGuardMode": ENCODE_WASTE_GUARD_MODE_NAMES,
             "VideoCodec": VIDEO_CODEC_VALUES,
             "VideoPreset": ("p1", "p2", "p3", "p4", "p5", "p6", "p7"),
             "FinalLibraryPromotionVerificationMode": ("cautious", "fast"),
@@ -116,6 +119,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
                 "OutputContainer": "avi",
                 "EncodeLadder": "bad",
                 "RouteThresholdMode": "all",
+                "EncodeWasteGuardMode": "maybe",
                 "AudioTranscodeBitrate": "640",
                 "ConsoleLogLevel": "TRACE",
                 "CompatibleAudioCodecs": [],
@@ -133,6 +137,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
         self.assertIn("OutputContainer must be 'mkv' or 'mp4'.", errors)
         self.assertIn("EncodeLadder must be one of: auto, tv_balanced, tv_space_saver, movie_balanced, movie_archive, plex_compat.", errors)
         self.assertIn("RouteThresholdMode must be one of: compatibility_advisory, size, bitrate, size_or_bitrate.", errors)
+        self.assertIn("EncodeWasteGuardMode must be one of: off, dry_run, enforce.", errors)
         self.assertIn("AudioTranscodeBitrate must be a positive ffmpeg bitrate like 640k.", errors)
         self.assertIn("ConsoleLogLevel must be one of: ERROR, WARN, INFO, DEBUG, or blank.", errors)
         self.assertIn("CompatibleAudioCodecs must contain at least one value.", errors)

@@ -77,8 +77,6 @@ def build_completed_row_trust_fields(row: dict[str, Any]) -> dict[str, Any]:
     runtime_status = str(row.get("runtime_outcome_status") or "").strip()
     runtime_freshness = str(row.get("runtime_outcome_freshness_status") or "").strip().casefold()
     runtime_error = str(row.get("runtime_outcome_error_code") or "").strip()
-    runtime_success = row.get("runtime_outcome_success")
-    runtime_success_text = str(runtime_success).casefold() if runtime_success is not None else ""
     runtime_recent = bool(runtime_status) and runtime_freshness != "stale"
     runtime_failed = _runtime_is_failed(row)
     missing_output = row.get("output_exists") is False or str(row.get("output_health") or "").strip().casefold() in {

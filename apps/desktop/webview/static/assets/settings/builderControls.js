@@ -125,7 +125,7 @@
 
       const note = document.createElement("span");
       note.className = "settings-advanced-toggle-note";
-      note.textContent = "Advanced controls are hidden by default. Revealing them does not change saved keys, defaults, or backend preview/save authority.";
+      note.textContent = "Advanced controls are hidden by default. Revealing them does not change saved keys, defaults, or backend Save authority.";
 
       row.append(button, note);
       pane.insertBefore(row, pane.firstElementChild || null);

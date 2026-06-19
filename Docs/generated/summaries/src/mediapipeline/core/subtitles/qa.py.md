@@ -3,9 +3,9 @@ file: src/mediapipeline/core/subtitles/qa.py
 pipeline_stage: subtitles
 token_priority: high
 owner_domain: subtitles
-last_modified: 2026-06-05
+last_modified: 2026-06-19
 last_reviewed: 2026-06-05
-sha256: c714d5ed06befdecdd2932b192fcafc507629a40e09b938aa7ebe0b15871a530
+sha256: 9d704ee96386b25e42e60e6bea62277cbe9bc0afb8ab4267e14fbd34694a94dc
 ---
 # `src/mediapipeline/core/subtitles/qa.py`
 

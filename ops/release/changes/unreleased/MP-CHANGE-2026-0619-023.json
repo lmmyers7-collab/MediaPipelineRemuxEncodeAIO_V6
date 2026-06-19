@@ -1,0 +1,74 @@
+{
+  "id": "MP-CHANGE-2026-0619-023",
+  "title": "Add confirmed repair reconcile and preset library APIs",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Implement backend-owned confirmed repair/reconcile mutation routes and a State JSON-backed PresetV2 library for settings workflows.",
+  "reason": "Dry-run repair/reconcile diagnostics and PresetV2 adapters need safe operator-owned apply/save workflows without moving media policy into WebView code.",
+  "affected_areas": [
+    "api_contracts",
+    "desktop_api",
+    "docs",
+    "repair_reconcile",
+    "settings",
+    "state_json"
+  ],
+  "behavior_before": "Repair/reconcile diagnostics were dry-run only, and PresetV2 handling did not provide a durable preset library with compare/import/export/apply routes.",
+  "behavior_after": "Confirmed repair/reconcile routes apply only fingerprint-matched safe dry runs with backups and journal evidence, and settings exposes PresetV2 library management plus legacy patch apply preview/apply routes.",
+  "files_touched": [
+    "docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md",
+    "docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/commands_settings.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-023.json",
+    "src/mediapipeline/contracts/api_commands.py",
+    "src/mediapipeline/core/api/commands.py",
+    "src/mediapipeline/core/api/commands_repair_reconcile.py",
+    "src/mediapipeline/core/api/commands_settings.py",
+    "src/mediapipeline/core/config/preset_library.py",
+    "src/mediapipeline/core/repair_reconcile/__init__.py",
+    "src/mediapipeline/core/repair_reconcile/apply.py",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "src/mediapipeline/core/repair_reconcile/facade.py",
+    "src/mediapipeline/desktop/api/contract_command.py",
+    "src/mediapipeline/desktop/api/contract_payload.py",
+    "src/mediapipeline/desktop/api/contract_read.py",
+    "src/mediapipeline/desktop/api/routes_read.py",
+    "src/mediapipeline/desktop/application/facade.py",
+    "tests/python/desktop/test_api_contract_payload.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_preset_library.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_repair_reconcile_apply.py",
+    "tests/python/desktop/test_preset_library.py"
+  ],
+  "manual_validation": [
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_apply tests.python.desktop.test_preset_library tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_api_command_contracts tests.python.desktop.test_api_contract_payload tests.python.desktop.test_api_route_inventory tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token -q",
+      "result": "passed",
+      "evidence": "Ran 67 tests in 3.830s, OK."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries",
+      "result": "passed",
+      "evidence": "Summaries: 1 written, 303 unchanged. Source files: 304."
+    },
+    {
+      "command": ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_local_api tests.python.desktop.test_application_facade_core_contracts -q",
+      "result": "failed_unrelated_existing_static_marker",
+      "evidence": "The repair/reconcile contract assertion was updated separately and passes. The broader file still fails test_local_api_serves_read_only_web_prototype because served HTML lacks data-network-tab=\"coordinator\"; current partials use data-network-role-panel markers. This is outside this backend/API change."
+    }
+  ],
+  "rollback_plan": "Revert the added API contracts, route handlers, core services, tests, documentation updates, summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Implemented backend API and contract surfaces only; no WebView controls were added in this packet."
+}

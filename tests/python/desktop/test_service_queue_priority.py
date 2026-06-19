@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 import sys
 import tempfile
 import time
@@ -21,6 +20,7 @@ from mediapipeline.core.queue.priority_markers import (
     safe_mtime,
 )
 from mediapipeline.core.queue.priority_manifest import (
+    PriorityManifestReadError,
     get_manifest_level,
     has_manifest_priority_entry,
     read_priority_manifest,
@@ -159,21 +159,27 @@ class QueuePriorityHelperTests(unittest.TestCase):
             self.assertEqual(entry["reason"], "keep reason")
             self.assertEqual(entry["position"], 7.0)
 
-    def test_malformed_manifest_falls_back_and_next_write_recreates_valid_manifest(self) -> None:
+    def test_malformed_manifest_legacy_read_falls_back_but_fail_closed_raises(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            manifest_path = root / "priority_manifest.json"
+            manifest_path.write_text("{not-json", encoding="utf-8")
+
+            self.assertEqual(read_priority_manifest(manifest_path)["entries"], {})
+            with self.assertRaises(PriorityManifestReadError):
+                read_priority_manifest(manifest_path, fail_closed=True)
+
+    def test_malformed_manifest_blocks_normal_update_until_explicit_clear(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             manifest_path = root / "priority_manifest.json"
             media = root / "Movies" / "Movie.mkv"
             manifest_path.write_text("{not-json", encoding="utf-8")
 
-            self.assertEqual(read_priority_manifest(manifest_path)["entries"], {})
-            manifest = set_manifest_entry(manifest_path, media, "hold", "operator hold")
-            written = json.loads(manifest_path.read_text(encoding="utf-8"))
+            with self.assertRaises(PriorityManifestReadError):
+                set_manifest_entry(manifest_path, media, "hold", "operator hold")
 
-        key = str(media).replace("\\", "/").lower()
-        self.assertEqual(manifest["entries"][key]["level"], "hold")
-        self.assertEqual(written["version"], 1)
-        self.assertEqual(written["entries"][key]["reason"], "operator hold")
+            self.assertEqual(manifest_path.read_text(encoding="utf-8"), "{not-json")
 
     def test_path_and_mtime_wrappers_remain_available_on_queue_service(self) -> None:
         with tempfile.TemporaryDirectory() as td:

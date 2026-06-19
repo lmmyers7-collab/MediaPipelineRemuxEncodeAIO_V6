@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.rawTriage.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-13
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 23164f40809284afbaaf8e5206f1dfe91b9350323c9f4f4b9f1b49dc50c1ea8c
+sha256: 26e80997a4901722445bf618d309aafb80aa59b56be97340e326441945feab6a
 ---
 # `apps/desktop/webview/static/assets/settingsView.rawTriage.js`
 

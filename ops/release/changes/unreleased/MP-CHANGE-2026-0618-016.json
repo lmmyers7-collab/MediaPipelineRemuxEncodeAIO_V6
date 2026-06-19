@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0618-016",
+  "title": "Add private beta release preflight check",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a repeatable release preflight for the signed NSIS private-beta lane so missing updater/signing inputs are caught before running the CI publish workflow.",
+  "reason": "The next productization step is producing a signed beta artifact, and that should fail early when required secrets, updater keys, workflow inputs, or generated Tauri updater configuration are missing or malformed.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests",
+    "updater"
+  ],
+  "behavior_before": "Operators had CI and updater scripts, but no single preflight command to validate the required release secrets, workflow dispatch values, and generated updater-enabled Tauri configuration before attempting a private beta release.",
+  "behavior_after": "Operators have a release preflight script and tests that validate beta/stable inputs, required secret presence, productization config generation, updater endpoint/channel shape, and signing metadata readiness without exposing secret values.",
+  "files_touched": [
+    ".github/workflows/private-beta-windows.yml",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-016.json.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_release_preflight.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-016.json",
+    "ops/scripts/release/Test-PrivateBetaReleasePreflight.ps1",
+    "tests/python/tooling/test_private_beta_release_preflight.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_private_beta_release_preflight.py"
+  ],
+  "manual_validation": [
+    "git diff --check targeted private beta preflight files - passed",
+    "pytest tests/python/tooling/test_private_beta_release_preflight.py tests/python/desktop/test_productization_support.py tests/python/desktop/test_tauri_shell_scaffold.py -q - passed (97 passed)",
+    "refresh_summaries targeted private beta preflight paths - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Remove the preflight script, tests, docs references, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-013"
+  ],
+  "notes": "This is release tooling only. It must not change media policy, source/scratch/output movement, pending-publish drain, rename apply, or WebView mutation authority."
+}

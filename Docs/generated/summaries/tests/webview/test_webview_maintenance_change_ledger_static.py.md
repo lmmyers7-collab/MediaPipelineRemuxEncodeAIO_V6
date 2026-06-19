@@ -3,9 +3,9 @@ file: tests/webview/test_webview_maintenance_change_ledger_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 78423b65967f92dc819b283ef2912dedbd983eb70cdebb02589805184ec642a0
+sha256: 201bfcecec8a749f827f79680ee1f38cdca0bb2463203db5b14c440b5e627898
 ---
 # `tests/webview/test_webview_maintenance_change_ledger_static.py`
 

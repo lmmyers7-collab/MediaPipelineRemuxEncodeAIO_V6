@@ -25,24 +25,20 @@
         </div>
 
         <!-- ═══ DAILY DRIVER: QUICK CONTROLS ═══ -->
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel home-quick-controls-panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Quick Controls</h2>
-            <strong id="home-control-readiness-status">Not loaded</strong>
+            <strong id="home-control-readiness-status" class="visually-hidden" aria-live="polite">Not loaded</strong>
           </div>
-          <div class="action-row action-row-left wrap-actions">
+          <div class="action-row action-row-left wrap-actions home-quick-control-row">
             <button type="button" id="home-refresh-button" class="secondary-button">Refresh Home</button>
             <button type="button" class="primary-button" data-cross-page-target="launch">Start / Launch</button>
             <button type="button" class="secondary-button" data-cross-page-target="completed" data-home-promotion-entry disabled>Open Completed Output</button>
             <button type="button" class="secondary-button" data-cross-page-target="queue">Queue</button>
             <button type="button" class="secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
-            <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Diagnostics</button>
           </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Run Logs</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Active Jobs</button>
-          </div>
-          <p id="home-control-message" class="note">Home controls navigate or open backend-allowlisted evidence. Use Launch for starts, stops, and full readiness detail.</p>
+          <p id="home-control-message" class="note visually-hidden" aria-live="polite">Home controls navigate or open backend-allowlisted evidence. Use Launch for starts, stops, and full readiness detail.</p>
+          <p id="home-promotion-entry-message" class="note visually-hidden" aria-live="polite">Completed Output opens when reviewed files are eligible for final-library promotion.</p>
         </section>
 
         <section class="panel live-run-strip-panel" data-panel-type="evidence">
@@ -56,6 +52,7 @@
               <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
             </span>
           </div>
+          <pre id="home-run-state-handoff" class="prose-block">Run-state handoff will appear after the next backend refresh.</pre>
         </section>
 
         <!-- ═══ DAILY DRIVER: NEXT QUEUE ═══ -->
@@ -67,6 +64,7 @@
           <ol id="home-next-queue-list" class="home-next-queue-list" aria-live="polite">
             <li>No runnable queue items loaded.</li>
           </ol>
+          <p id="home-next-queue-detail" class="note" role="status" aria-live="polite">Select a queue item to see the route handoff.</p>
         </section>
 
         <!-- ═══ DAILY DRIVER: RUN PROGRESS ═══ -->
@@ -109,7 +107,11 @@
           <div class="empty-state" data-empty-state="hidden" style="display:none">
             <span class="empty-state-label">No recent output</span>
             <span class="empty-state-hint">Run the pipeline to see recently completed files here.</span>
+            </div>
           </div>
+          <p id="home-recent-completed-detail" class="note" role="status" aria-live="polite">Select a completed row to see output evidence handoff.</p>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" data-cross-page-target="completed">Review Completed</button>
           </div>
         </section>
 
@@ -146,7 +148,7 @@
             <pre id="home-readiness-summary" class="prose-block">No backend readiness data loaded yet.</pre>
           </section>
 
-          <section class="panel" data-panel-type="interactive" data-advanced>
+          <section class="panel" data-panel-type="interactive">
             <div class="panel-heading">
               <h2>Readiness Checklist</h2>
               <strong id="daily-driver-status">Not evaluated</strong>
@@ -235,7 +237,7 @@
             <pre id="home-external-dependencies-summary" class="prose-block">No external dependency evidence loaded.</pre>
           </section>
 
-          <section class="panel" data-panel-type="interactive" data-advanced>
+          <section class="panel" data-panel-type="interactive">
             <div class="panel-heading">
               <h2>Runtime Files</h2>
               <strong id="home-runtime-open-status">Idle</strong>
@@ -308,12 +310,24 @@
             <div id="command-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
           </section>
 
-          <section class="panel" data-panel-type="interactive" data-advanced>
+        </div><!-- end outer data-advanced (9 panels) -->
+
+          <section class="panel" data-panel-type="interactive">
             <div class="panel-heading">
               <h2>Pipeline Overview</h2>
               <strong id="cross-page-context-status">Not loaded</strong>
             </div>
-            <pre id="cross-page-context-summary" class="prose-block">No queue/completed/pending context loaded yet.</pre>
+            <div id="cross-page-context-board" class="review-tile-board" aria-label="Pipeline overview highlights" aria-live="polite">
+              <section class="review-tile review-tile-wide" data-tone="muted">
+                <span class="review-tile-label">Context</span>
+                <strong class="review-tile-value">Not loaded</strong>
+                <span class="review-tile-detail">Queue, Completed, Pending Publish, and Diagnostics context has not loaded yet.</span>
+              </section>
+            </div>
+            <details class="review-board-detail-disclosure" data-visual-keep="advanced-detail">
+              <summary>Detailed context</summary>
+              <pre id="cross-page-context-summary" class="prose-block" data-visual-keep="advanced-detail">No queue/completed/pending context loaded yet.</pre>
+            </details>
             <div data-advanced>
               <div class="panel-heading panel-subheading">
                 <h3>Conflict Summary</h3>
@@ -399,6 +413,16 @@
                 <strong id="sample-validation-status">Not loaded</strong>
               </div>
               <pre id="sample-validation-summary" class="prose-block">No backend-owned sample validation record is loaded.</pre>
+              <div id="sample-validation-decision-strip" class="decision-strip" role="status" aria-live="polite" data-state="unknown">
+                <span id="sample-validation-decision-strip-summary">Decision: no sample selected.</span>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="sample-validation-strip-preview-button" class="secondary-button">Preview Record</button>
+                  <button type="button" id="sample-validation-strip-clear-checks-button" class="secondary-button">Clear Manual Checks</button>
+                  <button type="button" class="secondary-button" data-cross-page-target="completed">Review Completed</button>
+                  <button type="button" class="secondary-button" data-cross-page-target="pending">Review Pending Publish</button>
+                  <button type="button" class="secondary-button" data-cross-page-target="diagnostics">Review Diagnostics</button>
+                </div>
+              </div>
               <div class="panel-heading panel-subheading">
                 <h3>Evidence Handoff</h3>
                 <strong id="sample-validation-completed-packet-status">Not loaded</strong>
@@ -754,7 +778,5 @@
               <p class="note">This panel correlates already-loaded backend payloads only. It does not start, repair, rerun, drain, delete, or rewrite files.</p>
             </div><!-- end inner data-advanced (SV sub-panels) -->
           </section>
-
-        </div><!-- end outer data-advanced (9 panels) -->
 
       </section>

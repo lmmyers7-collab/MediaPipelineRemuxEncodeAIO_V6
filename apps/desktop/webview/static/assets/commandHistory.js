@@ -184,7 +184,12 @@
   function renderDiagnosticsCommandOwnerImpact(entries = commandHistory) {
     const items = Array.isArray(entries) ? entries : [];
     const rows = commandHistoryOwnerImpactRows(items);
-    setText("diagnostics-command-owner-status", commandHistoryOwnerImpactStatus(items));
+    const ownerStatus = commandHistoryOwnerImpactStatus(items);
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-command-owner-status", ownerStatus);
+    } else {
+      setText("diagnostics-command-owner-status", ownerStatus);
+    }
     setText("diagnostics-command-owner-summary", commandHistoryOwnerImpactSummaryLines(items).join("\n"));
     const tbody = byId("diagnostics-command-owner-rows");
     if (!tbody) return;
@@ -479,9 +484,13 @@
     }
     const selected = selectedCommandResolutionRow(rows);
     const status = commandHistoryResolutionStatus(items);
-    setText("diagnostics-command-resolution-status", status);
-    const statusNode = byId("diagnostics-command-resolution-status");
-    if (statusNode) statusNode.dataset.state = commandHistoryResolutionStatusState(status);
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-command-resolution-status", status, commandHistoryResolutionStatusState(status));
+    } else {
+      setText("diagnostics-command-resolution-status", status);
+      const statusNode = byId("diagnostics-command-resolution-status");
+      if (statusNode) statusNode.dataset.state = commandHistoryResolutionStatusState(status);
+    }
     setText("diagnostics-command-resolution-summary", commandHistoryResolutionSummaryLines(items).join("\n"));
     setText("diagnostics-command-resolution-detail", commandHistoryResolutionDetailLines(selected).join("\n"));
     const tbody = byId("diagnostics-command-resolution-rows");
@@ -862,7 +871,7 @@
       const unsaved = typeof settingsPatchHasUnsavedChanges === "function" ? settingsPatchHasUnsavedChanges() : null;
       const workspace = typeof getLastSettings === "function" ? getLastSettings() : null;
       return finish(Boolean(workspace || unsaved !== null), `Settings cached evidence: workspace=${workspace ? "loaded" : "unavailable"}; unsaved staged patch=${unsaved === null ? "unknown" : unsaved ? "yes" : "no"}.`, [], [
-        "Owner action: use Preview Patch / Save Patch result panels before trusting settings persistence.",
+        "Owner action: use Save Settings result panels before trusting settings persistence.",
       ]);
     }
 
@@ -1103,14 +1112,14 @@
     return lines;
   }
 
-  function requestCommandDiagnosticsAction(action) {
+  function requestCommandDiagnosticsAction(action, sourceButton = null) {
     const target = String(action?.target || "").trim();
     if (!target) return;
     if (action.kind === "tail") {
-      if (typeof requestDiagnosticsTail === "function") requestDiagnosticsTail(target);
+      if (typeof requestDiagnosticsTail === "function") requestDiagnosticsTail(target, sourceButton);
       return;
     }
-    if (typeof requestDiagnosticsOpen === "function") requestDiagnosticsOpen(target);
+    if (typeof requestDiagnosticsOpen === "function") requestDiagnosticsOpen(target, sourceButton);
   }
 
   function renderCommandDiagnosticsActions(item) {
@@ -1137,7 +1146,7 @@
         button.title = action.reason || "";
         button.dataset.commandDiagnosticsAction = action.kind;
         button.dataset.commandDiagnosticsTarget = action.target;
-        button.addEventListener("click", () => requestCommandDiagnosticsAction(action));
+        button.addEventListener("click", () => requestCommandDiagnosticsAction(action, button));
         container.appendChild(button);
       });
     }
@@ -1171,7 +1180,7 @@
       button.title = action.reason || "";
       button.dataset.diagnosticsCommandDrilldownAction = action.kind;
       button.dataset.diagnosticsCommandDrilldownTarget = action.target;
-      button.addEventListener("click", () => requestCommandDiagnosticsAction(action));
+      button.addEventListener("click", () => requestCommandDiagnosticsAction(action, button));
       container.appendChild(button);
     });
   }
@@ -1179,7 +1188,12 @@
   function renderCommandDiagnosticsEvidence(item) {
     const payload = item || null;
     const rows = commandHistoryDiagnosticsEvidenceRows(payload);
-    setText("diagnostics-command-evidence-status", commandHistoryDiagnosticsEvidenceStatus(payload));
+    const evidenceStatus = commandHistoryDiagnosticsEvidenceStatus(payload);
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-command-evidence-status", evidenceStatus);
+    } else {
+      setText("diagnostics-command-evidence-status", evidenceStatus);
+    }
     setText("diagnostics-command-evidence-summary", commandHistoryDiagnosticsEvidenceSummaryLines(payload).join("\n"));
     const tbody = byId("diagnostics-command-evidence-rows");
     if (!tbody) return;
@@ -1210,7 +1224,12 @@
       selectedCommandKey = "";
     }
     const selected = getSelectedCommandEntry();
-    setText("diagnostics-command-drilldown-status", commandHistoryDiagnosticsDrilldownStatus(items));
+    const drilldownStatus = commandHistoryDiagnosticsDrilldownStatus(items);
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-command-drilldown-status", drilldownStatus);
+    } else {
+      setText("diagnostics-command-drilldown-status", drilldownStatus);
+    }
     setText("diagnostics-command-drilldown-summary", commandHistoryDiagnosticsDrilldownSummaryLines(items).join("\n"));
     setText("diagnostics-command-drilldown-detail", commandHistoryDiagnosticsDrilldownDetailLines(selected).join("\n"));
     renderDiagnosticsCommandDrilldownActions(selected);
@@ -1259,8 +1278,18 @@
       selectedCommandKey = "";
     }
     setText("command-status", `${commandHistory.length} result${commandHistory.length === 1 ? "" : "s"}`);
-    setText("diagnostics-command-status", `${commandHistory.length} result${commandHistory.length === 1 ? "" : "s"}`);
-    setText("diagnostics-command-history", formatCommandHistoryLines());
+    const rawStatus = `${commandHistory.length} result${commandHistory.length === 1 ? "" : "s"}`;
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-command-status", rawStatus, commandHistory.length ? "changed" : "empty");
+    } else {
+      setText("diagnostics-command-status", rawStatus);
+    }
+    setText("diagnostics-command-history", [
+      "Structured command drilldown above is the primary operator scan path.",
+      "Raw command log follows for copy/paste evidence only.",
+      "",
+      formatCommandHistoryLines(),
+    ].join("\n"));
     renderCommandSummary();
     renderCommandDetail(getSelectedCommandEntry());
     renderDiagnosticsCommandDrilldown(commandHistory);

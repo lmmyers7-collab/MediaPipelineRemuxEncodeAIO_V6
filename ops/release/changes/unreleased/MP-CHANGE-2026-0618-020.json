@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0618-020",
+  "title": "Add private beta workflow dry-run gate",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a local dry-run wrapper for the private beta workflow that runs preflight and scoped release/productization validation without publishing artifacts.",
+  "reason": "Before dispatching the GitHub Actions beta workflow, operators need one repeatable command that proves the checked-in workflow, updater config generation, release tests, and Tauri scaffold checks still agree locally.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests",
+    "updater"
+  ],
+  "behavior_before": "Operators could run individual preflight, artifact verifier, productization tests, and Tauri checks, but there was no single local dry-run gate for the beta workflow path.",
+  "behavior_after": "Operators can run one local workflow dry-run command that uses placeholder release secrets only for local preflight, runs scoped Python release/productization tests, optionally runs Tauri cargo check, and reports structured JSON evidence.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-020.json.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaWorkflowDryRun.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_workflow_dry_run.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-020.json",
+    "ops/scripts/release/Test-PrivateBetaWorkflowDryRun.ps1",
+    "tests/python/tooling/test_private_beta_workflow_dry_run.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_private_beta_workflow_dry_run.py"
+  ],
+  "manual_validation": [
+    "Test-PrivateBetaWorkflowDryRun.ps1 full local dry-run - passed (preflight, 99 scoped tests, npm run check)",
+    "git diff --check targeted workflow dry-run files - passed",
+    "pytest tests/python/tooling/test_private_beta_workflow_dry_run.py -q - passed (2 passed)",
+    "refresh_summaries targeted workflow dry-run paths - passed",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0618-021 invalid type safety"
+  ],
+  "rollback_plan": "Remove the workflow dry-run script, tests, docs references, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-016",
+    "MP-CHANGE-2026-0618-017",
+    "MP-CHANGE-2026-0618-018"
+  ],
+  "notes": "This is local release verification tooling only. Placeholder secrets used by the dry-run do not prove protected GitHub secrets exist and must not be used for publishing."
+}

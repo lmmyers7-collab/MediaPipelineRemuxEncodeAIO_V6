@@ -328,7 +328,8 @@
 
     function renderCrossPageSampleCorrelation(context = {}) {
       const rows = crossPageSampleRows(context || {});
-      setText("cross-page-sample-status", crossPageSampleStatus(context || {}));
+      if (typeof setPanelStatus === "function") setPanelStatus("cross-page-sample-status", crossPageSampleStatus(context || {}));
+      else setText("cross-page-sample-status", crossPageSampleStatus(context || {}));
       const tbody = byId("cross-page-sample-rows");
       if (!tbody) return;
       if (!rows.length) {
@@ -356,7 +357,8 @@
     }
 
     function renderCrossPageValidationTemplate(context = {}) {
-      setText("cross-page-validation-template-status", crossPageValidationTemplateStatus(context || {}));
+      if (typeof setPanelStatus === "function") setPanelStatus("cross-page-validation-template-status", crossPageValidationTemplateStatus(context || {}));
+      else setText("cross-page-validation-template-status", crossPageValidationTemplateStatus(context || {}));
       setText("cross-page-validation-template", crossPageValidationTemplateLines(context || {}).join("\n"));
     }
 

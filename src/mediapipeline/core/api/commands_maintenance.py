@@ -21,9 +21,41 @@ class LocalApiMaintenanceCommandPayloadMixin:
             return resolved_paths_unavailable_payload("maintenance.completed_backfill_dry_run", "maintenance")
         return self.facade.run_completed_backfill_dry_run(resolved, request).to_mapping()
 
+    def _maintenance_retention_dry_run_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("maintenance.retention_dry_run", "maintenance")
+        return self.facade.run_retention_dry_run(resolved, request).to_mapping()
+
+    def _maintenance_archive_state_journals_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("maintenance.archive_state_journals", "diagnostics")
+        try:
+            close_readiness = self.facade.get_close_readiness(resolved, self._snapshot()).to_mapping()
+        except Exception as exc:
+            close_readiness = {
+                "safe_to_close": False,
+                "state": "unknown",
+                "active_work": True,
+                "reason": f"Close readiness could not be verified before state journal archive: {exc}",
+                "warnings": [str(exc)],
+            }
+        return self.facade.archive_state_journals(
+            resolved,
+            request,
+            close_readiness=close_readiness,
+        ).to_mapping()
+
     def _maintenance_dependency_atlas_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         return self.facade.run_dependency_atlas(request).to_mapping()
 
     def _maintenance_dependency_atlas_open_folder_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         _ = request
         return self.facade.open_dependency_atlas_folder().to_mapping()
+
+    def _maintenance_support_export_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("maintenance.support_export", "maintenance")
+        return self.facade.write_support_export(resolved, request).to_mapping()

@@ -1,0 +1,708 @@
+{
+  "schema_version": "ffmpeg_media_policy_regression_matrix.v1",
+  "last_reviewed": "2026-06-18",
+  "purpose": "Regression matrix for FFmpeg/media-policy validation across remux, encode, subtitles, audio, size policy, stream mapping, sidecars, pending publish, and failure modes. This fixture is validation metadata only; it is not a media-policy source of truth.",
+  "testgap_006": {
+    "status": "open",
+    "open_blockers": [
+      "python-powershell-parity",
+      "representative-real-media-evidence"
+    ],
+    "closure_requirements": {
+      "python_powershell_parity_coverage": "missing",
+      "real_media_evidence": "required-after-behavior-change",
+      "behavior_change_evidence_gate": true,
+      "required_note": "TESTGAP-006 can close only after Python planner preview and PowerShell runtime parity coverage exists and behavior-changing FFmpeg, subtitle, audio, publish, or source/scratch/output work has representative real-media evidence."
+    }
+  },
+  "rows": [
+    {
+      "id": "FFMPOL-001",
+      "title": "H.264 TV file under direct-copy bitrate cap stays copy/remux safe",
+      "axes": [
+        "remux",
+        "stream_mapping"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0249:movies",
+        "tdarr-0249:tv"
+      ],
+      "real_media_category": "h264-remux-safe",
+      "expected_outcome": {
+        "route_summaries": [
+          "COPY",
+          "REMUX"
+        ],
+        "video_action": "copy",
+        "reason_codes": [
+          "VIDEO_BITRATE_UNDER_DIRECT_COPY_CAP",
+          "SOURCE_CODEC_COMPATIBLE"
+        ],
+        "forbidden_plan_operations": [
+          "encode_video"
+        ]
+      },
+      "python_decision_check": {
+        "source_fixture": "tv_h264_1080p_12mbps_mkv.json",
+        "policy": {}
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "src/mediapipeline/core/orchestration/planner.py",
+        "ops/pipeline/engine/decide/routing.ps1",
+        "ops/pipeline/engine/queue/pipeline_engine.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python planner route, stream action, reason, and no-encode plan invariants for this matrix row."
+        },
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-MediaRouteSelectionChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1"
+          ],
+          "proves": "PowerShell route-selection coverage remains available for runtime parity validation."
+        }
+      ],
+      "validation_rung": "python-planner-unit",
+      "risk_boundary": "No FFmpeg command generation or source/scratch/output mutation is changed by this row."
+    },
+    {
+      "id": "FFMPOL-002",
+      "title": "H.264 TV file over bitrate cap plans encode",
+      "axes": [
+        "encode",
+        "size_policy",
+        "stream_mapping"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0258:movies",
+        "tdarr-0258:tv"
+      ],
+      "real_media_category": "encode-size-policy",
+      "expected_outcome": {
+        "route_summaries": [
+          "ENCODE"
+        ],
+        "video_action": "encode",
+        "reason_codes": [
+          "VIDEO_BITRATE_EXCEEDS_DIRECT_COPY_CAP"
+        ],
+        "required_plan_operations": [
+          "encode_video"
+        ]
+      },
+      "python_decision_check": {
+        "source_fixture": "tv_h264_1080p_24mbps_mkv.json",
+        "policy": {}
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "ops/pipeline/engine/decide/routing.ps1",
+        "ops/pipeline/engine/decide/encode_policy.ps1",
+        "ops/pipeline/engine/decide/size_policy.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python planner encode route and encode-video step invariant for this matrix row."
+        },
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-MediaRouteSelectionChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1"
+          ],
+          "proves": "PowerShell route-selection coverage remains available for runtime parity validation."
+        }
+      ],
+      "validation_rung": "python-planner-unit",
+      "risk_boundary": "Encoding policy is asserted only through dry-run planner metadata in this row."
+    },
+    {
+      "id": "FFMPOL-003",
+      "title": "Container-only MP4 to MKV change remuxes without video encode",
+      "axes": [
+        "remux",
+        "stream_mapping"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0063:movies",
+        "tdarr-0063:tv"
+      ],
+      "real_media_category": "h264-remux-safe",
+      "expected_outcome": {
+        "route_summaries": [
+          "REMUX"
+        ],
+        "video_action": "copy",
+        "container_action": "remux",
+        "reason_codes": [
+          "CONTAINER_REMUX_ONLY"
+        ],
+        "forbidden_plan_operations": [
+          "encode_video"
+        ]
+      },
+      "python_decision_check": {
+        "source_fixture": "tv_h264_1080p_12mbps_mkv.json",
+        "source_overrides": {
+          "source": {
+            "path": "fixtures/container_only_h264_1080p.mp4"
+          },
+          "format": {
+            "format_name": "mov,mp4,m4a,3gp,3g2,mj2"
+          },
+          "remove_subtitles": true
+        },
+        "policy": {
+          "output_container": "mkv"
+        }
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "ops/pipeline/engine/decide/routing.ps1",
+        "ops/pipeline/engine/process/ffmpeg_progress.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python planner container-remux outcome and no-encode invariant for this row."
+        }
+      ],
+      "validation_rung": "python-planner-unit",
+      "risk_boundary": "Runtime remux command behavior still requires PowerShell and real-media gates before behavior changes."
+    },
+    {
+      "id": "FFMPOL-004",
+      "title": "Incompatible MPEG-2 AVI source routes to encode",
+      "axes": [
+        "encode",
+        "stream_mapping"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0403:movies",
+        "tdarr-0403:tv"
+      ],
+      "real_media_category": "encode-size-policy",
+      "expected_outcome": {
+        "route_summaries": [
+          "ENCODE"
+        ],
+        "video_action": "encode",
+        "reason_codes": [
+          "SOURCE_CODEC_INCOMPATIBLE"
+        ],
+        "required_plan_operations": [
+          "encode_video"
+        ]
+      },
+      "python_decision_check": {
+        "source_fixture": "avi_mpeg2_480p.json",
+        "policy": {}
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "ops/pipeline/engine/decide/codec_policy.ps1",
+        "ops/pipeline/engine/decide/encode_policy.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python planner incompatible-codec encode route and encode step invariant."
+        }
+      ],
+      "validation_rung": "python-planner-unit",
+      "risk_boundary": "This is dry-run route evidence; FFmpeg encode command changes remain high-validation."
+    },
+    {
+      "id": "FFMPOL-005",
+      "title": "MP4 output reduces multi-audio source to one compatible track",
+      "axes": [
+        "audio",
+        "stream_mapping"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0002:movies",
+        "tdarr-0002:tv"
+      ],
+      "real_media_category": "audio-routing",
+      "expected_outcome": {
+        "route_summaries": [
+          "REMUX"
+        ],
+        "video_action": "copy",
+        "audio_actions": [
+          "drop",
+          "copy",
+          "drop"
+        ],
+        "reason_codes": [
+          "AUDIO_CODEC_INCOMPATIBLE_WITH_CONTAINER",
+          "AUDIO_TRANSCODE_REQUIRED",
+          "MP4_COMPATIBILITY_SINGLE_AUDIO_TRACK"
+        ],
+        "forbidden_plan_operations": [
+          "encode_video"
+        ]
+      },
+      "python_decision_check": {
+        "source_fixture": "multi_audio_tracks.json",
+        "policy": {
+          "output_container": "mp4"
+        }
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "src/mediapipeline/core/decide/stream_actions.py",
+        "ops/pipeline/engine/audio/audio.ps1",
+        "ops/pipeline/engine/audio/audio/stream_decisions.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python planner audio stream-action invariant for MP4 output."
+        },
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-AudioPolicyChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-AudioPolicyChecks.ps1"
+          ],
+          "proves": "PowerShell audio-policy coverage remains available for runtime parity validation."
+        }
+      ],
+      "validation_rung": "python-powershell-parity",
+      "risk_boundary": "Audio routing is high-risk; closing this row for behavior changes requires PowerShell parity and real-media multi-audio evidence."
+    },
+    {
+      "id": "FFMPOL-006",
+      "title": "MP4 output rejects unsupported image subtitle mapping for review",
+      "axes": [
+        "subtitles",
+        "stream_mapping",
+        "failure_modes"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-1222:movies",
+        "tdarr-1222:tv"
+      ],
+      "real_media_category": "subtitle-srt-generation",
+      "expected_outcome": {
+        "route_summaries": [
+          "REJECT"
+        ],
+        "video_action": "reject",
+        "subtitle_actions": [
+          "unknown",
+          "unknown"
+        ],
+        "reason_codes": [
+          "SUBTITLE_FORMAT_INCOMPATIBLE_WITH_CONTAINER",
+          "SUBTITLE_IMAGE_REQUIRES_EXPLICIT_REVIEW"
+        ]
+      },
+      "python_decision_check": {
+        "source_fixture": "source_with_image_subtitles.json",
+        "policy": {
+          "output_container": "mp4"
+        }
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "ops/pipeline/engine/subtitles/subtitles.ps1",
+        "ops/pipeline/engine/subtitles/routing_decisions.ps1",
+        "ops/pipeline/engine/subtitles/failure_records.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python planner rejects unsafe image subtitle/container mapping instead of silently publishing."
+        },
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-SubtitleBuilderDecisionChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1"
+          ],
+          "proves": "PowerShell subtitle decision coverage remains available for runtime parity validation."
+        }
+      ],
+      "validation_rung": "python-powershell-parity",
+      "risk_boundary": "Subtitle conversion/OCR behavior changes require unit plus representative subtitle-bearing real-media evidence."
+    },
+    {
+      "id": "FFMPOL-007",
+      "title": "Forced subtitle burn-in requires encode plan",
+      "axes": [
+        "encode",
+        "subtitles",
+        "stream_mapping"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-1223:movies",
+        "tdarr-1223:tv"
+      ],
+      "real_media_category": "subtitle-srt-generation",
+      "expected_outcome": {
+        "route_summaries": [
+          "ENCODE"
+        ],
+        "video_action": "encode",
+        "subtitle_actions": [
+          "burn",
+          "copy"
+        ],
+        "reason_codes": [
+          "SUBTITLE_BURN_IN_REQUIRES_ENCODE"
+        ],
+        "required_plan_operations": [
+          "burn_subtitle",
+          "encode_video"
+        ]
+      },
+      "python_decision_check": {
+        "source_fixture": "source_with_image_subtitles.json",
+        "policy": {
+          "subtitle_burn_in_forced": true
+        }
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "src/mediapipeline/core/orchestration/planner.py",
+        "ops/pipeline/engine/subtitles/builders.ps1",
+        "ops/pipeline/engine/decide/encode_policy.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python planner burn-subtitle and encode-video plan operations for forced subtitle burn-in."
+        }
+      ],
+      "validation_rung": "python-planner-unit",
+      "risk_boundary": "Actual burn-in rendering is FFmpeg/subtitle behavior and remains high-validation before release."
+    },
+    {
+      "id": "FFMPOL-008",
+      "title": "Output size growth block parks publish instead of treating output as accepted",
+      "axes": [
+        "size_policy",
+        "pending_publish"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0286:movies",
+        "tdarr-0286:tv"
+      ],
+      "real_media_category": "deferred-publish",
+      "expected_outcome": {
+        "size_status": "blocked",
+        "on_fail": "park_pending_publish",
+        "advisory_warning_count": 0,
+        "failure_count": 0,
+        "publish_blocker_count": 1
+      },
+      "size_policy_check": {
+        "action": "block_publish",
+        "source_size_bytes": 100,
+        "actual_output_size_bytes": 130,
+        "growth_tolerance_percent": 10
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/contracts/verification.py",
+        "ops/pipeline/engine/decide/size_policy.ps1",
+        "ops/pipeline/engine/publish/publish_completion.ps1",
+        "ops/pipeline/engine/publish/pending_park_transaction.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "Python verification contract maps block_publish size growth to a publish blocker."
+        },
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-MediaVerificationSafetyChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1"
+          ],
+          "proves": "PowerShell media verification safety coverage remains available for runtime parity validation."
+        }
+      ],
+      "validation_rung": "python-powershell-parity",
+      "risk_boundary": "Changing size policy or parking behavior requires pending-publish fixture and real-media deferred-publish validation."
+    },
+    {
+      "id": "FFMPOL-009",
+      "title": "Completed sidecars and SRT artifacts travel with pending publish manifests",
+      "axes": [
+        "sidecars",
+        "pending_publish",
+        "subtitles"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0300:movies",
+        "tdarr-0300:tv"
+      ],
+      "real_media_category": "deferred-publish",
+      "expected_outcome": {
+        "media_file_manifest_required": true,
+        "sidecar_manifest_required": true,
+        "pending_publish_payload_required": true,
+        "drain_must_use_manifest_evidence": true
+      },
+      "owner_code_paths": [
+        "ops/pipeline/engine/publish/sidecar.ps1",
+        "ops/pipeline/engine/publish/publish_sidecars.ps1",
+        "ops/pipeline/engine/publish/pending_manifest_store.ps1",
+        "ops/pipeline/engine/publish/pending_sidecar_transactions.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-PendingPublishSafetyChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1"
+          ],
+          "proves": "PowerShell pending-publish fixture coverage for parked media and sidecars."
+        },
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "This matrix row remains linked to owning sidecar/pending-publish code paths and validation rung."
+        }
+      ],
+      "validation_rung": "powershell-unit",
+      "risk_boundary": "Sidecar carry-forward and drain behavior changes require deferred-publish plus drain real-media validation."
+    },
+    {
+      "id": "FFMPOL-010",
+      "title": "Audio-only samples stay advisory until policy explicitly changes",
+      "axes": [
+        "audio",
+        "failure_modes"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0002:movies",
+        "tdarr-0002:tv"
+      ],
+      "real_media_category": "audio-routing",
+      "expected_outcome": {
+        "strict_gate_behavior": "warning-only",
+        "policy_change_required_for_hard_failure": true,
+        "current_testgap_status": "open"
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/tools/dev/tdarr_matrix_audit.py",
+        "src/mediapipeline/core/diagnostics/tdarr_matrix_audit.py",
+        "ops/pipeline/engine/audio/audio.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_tdarr_matrix_audit -q",
+          "paths": [
+            "tests/python/tooling/test_tdarr_matrix_audit.py"
+          ],
+          "proves": "Tdarr matrix audit keeps audio-only success surfaced as a warning under the current documented policy."
+        },
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q",
+          "paths": [
+            "tests/python/integration/test_ffmpeg_media_policy_regression_matrix.py"
+          ],
+          "proves": "TESTGAP-006 cannot close while this row remains advisory-only without parity and real-media evidence."
+        }
+      ],
+      "validation_rung": "tdarr-smoke",
+      "risk_boundary": "Promoting audio-only success from warning to error is a media-policy behavior change requiring operator validation."
+    },
+    {
+      "id": "FFMPOL-011",
+      "title": "Unprobeable or failed probe source rejects without publish plan",
+      "axes": [
+        "failure_modes",
+        "stream_mapping"
+      ],
+      "tdarr_case_keys": [],
+      "real_media_category": "encode-size-policy",
+      "expected_outcome": {
+        "route_summaries": [
+          "REJECT"
+        ],
+        "video_action": "reject",
+        "reason_codes": [
+          "SOURCE_UNPROBEABLE_REJECT"
+        ],
+        "publish_requirement": "NO_PUBLISH_FOR_REJECTED_SOURCE"
+      },
+      "owner_code_paths": [
+        "src/mediapipeline/core/decide/routing.py",
+        "ops/pipeline/engine/probe/media_probe.ps1",
+        "ops/pipeline/engine/failures/failure_state.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_handbrake_remux_regression_matrix.HandBrakeRemuxRegressionMatrixTests.test_unprobeable_source_rejects_without_publish_plan -q",
+          "paths": [
+            "tests/python/integration/test_handbrake_remux_regression_matrix.py"
+          ],
+          "proves": "Python planner rejects unprobeable source without a publish plan."
+        }
+      ],
+      "validation_rung": "python-planner-unit",
+      "risk_boundary": "Probe and failure-classification behavior changes require PowerShell failure tests and real media/tool integration where practical."
+    },
+    {
+      "id": "FFMPOL-012",
+      "title": "FFmpeg failure records stderr and does not silently accept output",
+      "axes": [
+        "failure_modes",
+        "encode"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0404:movies",
+        "tdarr-0404:tv"
+      ],
+      "real_media_category": "encode-size-policy",
+      "expected_outcome": {
+        "ffmpeg_nonzero_exit_records_failure": true,
+        "stderr_log_required": true,
+        "completed_manifest_acceptance_forbidden": true,
+        "source_hash_must_remain_unchanged": true
+      },
+      "owner_code_paths": [
+        "ops/pipeline/engine/process/ffmpeg_progress.ps1",
+        "ops/pipeline/engine/process/ffmpeg_progress/events.ps1",
+        "ops/pipeline/engine/failures/failure_state.ps1",
+        "ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1"
+      ],
+      "automated_checks": [
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-FFmpegProgressChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1"
+          ],
+          "proves": "PowerShell FFmpeg progress/failure event coverage remains available."
+        },
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Invoke-AdversarialForceKillEncodeChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1"
+          ],
+          "proves": "Adversarial encode interruption coverage protects source immutability and output non-acceptance."
+        }
+      ],
+      "validation_rung": "powershell-unit",
+      "risk_boundary": "FFmpeg runner changes require reliability regression, tool integration, and representative encode/remux samples."
+    },
+    {
+      "id": "FFMPOL-013",
+      "title": "Subtitle OCR/conversion failures route to review, not silent publish",
+      "axes": [
+        "subtitles",
+        "sidecars",
+        "failure_modes"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-1222:movies",
+        "tdarr-1223:tv"
+      ],
+      "real_media_category": "subtitle-srt-generation",
+      "expected_outcome": {
+        "ocr_failure_requires_review": true,
+        "silent_bad_publish_forbidden": true,
+        "srt_sidecar_required_when_conversion_succeeds": true,
+        "original_subtitle_preservation_default": true
+      },
+      "owner_code_paths": [
+        "ops/pipeline/engine/subtitles/bdpgs.ps1",
+        "ops/pipeline/engine/subtitles/tx3g.ps1",
+        "ops/pipeline/engine/subtitles/ass.ps1",
+        "ops/pipeline/engine/subtitles/failure_records.ps1",
+        "src/mediapipeline/pipeline/ass_to_srt_cli.py"
+      ],
+      "automated_checks": [
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-SubtitleBuilderDecisionChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1"
+          ],
+          "proves": "PowerShell subtitle builder decision coverage remains available."
+        },
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.core.subtitles.test_ass_to_srt_helpers -q",
+          "paths": [
+            "tests/python/core/subtitles/test_ass_to_srt_helpers.py"
+          ],
+          "proves": "Python ASS-to-SRT helper behavior remains covered."
+        }
+      ],
+      "validation_rung": "real-media-gate",
+      "risk_boundary": "Subtitle OCR/conversion behavior requires representative TX3G, ASS/SSA, BDPGS, and VobSub validation when changed."
+    },
+    {
+      "id": "FFMPOL-014",
+      "title": "Pending-publish drain moves only manifest-backed parked outputs",
+      "axes": [
+        "pending_publish",
+        "sidecars",
+        "failure_modes"
+      ],
+      "tdarr_case_keys": [
+        "tdarr-0716:movies",
+        "tdarr-0716:tv"
+      ],
+      "real_media_category": "deferred-publish",
+      "expected_outcome": {
+        "drain_requires_manifest": true,
+        "orphan_payload_must_block": true,
+        "sidecar_and_media_must_drain_together": true,
+        "final_output_without_proof_is_review_conflict": true
+      },
+      "owner_code_paths": [
+        "ops/pipeline/engine/publish/pending_drain_transaction.ps1",
+        "ops/pipeline/engine/publish/pending_transactions.ps1",
+        "ops/pipeline/engine/publish/pending_repair.ps1",
+        "src/mediapipeline/core/publish/pending_recovery.py"
+      ],
+      "automated_checks": [
+        {
+          "command": "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-PendingPublishSafetyChecks.ps1",
+          "paths": [
+            "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1"
+          ],
+          "proves": "Pending-publish fixture coverage for drain safety and blockers remains available."
+        },
+        {
+          "command": "apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_pending_publish_service -q",
+          "paths": [
+            "tests/python/desktop/test_pending_publish_service.py"
+          ],
+          "proves": "Python pending-publish read/recovery service coverage remains available."
+        }
+      ],
+      "validation_rung": "real-media-gate",
+      "risk_boundary": "Drain behavior moves files; behavior changes require pending-publish fixtures plus deferred publish and drain real-media evidence."
+    }
+  ]
+}

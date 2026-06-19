@@ -338,6 +338,32 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         self.assertIn("Commands Evidence", html)
         self.assertIn("API Contract Evidence", html)
 
+    def test_completed_selected_output_context_follows_history_table(self) -> None:
+        response = render_index(
+            _STATIC_ROOT,
+            {"token": "completed-selected-output-order-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
+        )
+        self.assertEqual(response.status, 200)
+        html = response.body.decode("utf-8")
+        history_legend_index = html.index('id="completed-history-table-legend"')
+        selected_context_index = html.index('id="completed-active-output-context"')
+        self.assertGreater(selected_context_index, history_legend_index)
+
+    def test_completed_selected_output_context_is_inside_history_panel(self) -> None:
+        response = render_index(
+            _STATIC_ROOT,
+            {"token": "completed-selected-output-tab-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
+        )
+        self.assertEqual(response.status, 200)
+        html = response.body.decode("utf-8")
+        history_heading_index = html.index('id="completed-history-summary-heading"')
+        history_legend_index = html.index('id="completed-history-table-legend"')
+        selected_context_index = html.index('id="completed-active-output-context"')
+        next_history_panel_index = html.index("<h2>Output History</h2>")
+        self.assertLess(history_heading_index, history_legend_index)
+        self.assertLess(history_legend_index, selected_context_index)
+        self.assertLess(selected_context_index, next_history_panel_index)
+
     def test_operational_summary_blocks_are_movable_page_panels(self) -> None:
         layout = _parse_panel_layout().panel_headings_by_page
         expected_by_page = {
@@ -419,6 +445,8 @@ class WebViewNavigationStaticTests(unittest.TestCase):
         html = response.body.decode("utf-8")
         for fragment in [
             "Quick Controls",
+            "home-quick-controls-panel",
+            "home-quick-control-row",
             "home-control-readiness-status",
             "home-refresh-button",
             "home-control-message",
@@ -428,10 +456,27 @@ class WebViewNavigationStaticTests(unittest.TestCase):
             'data-cross-page-target="completed" data-home-promotion-entry',
             'data-cross-page-target="queue"',
             'data-cross-page-target="pending"',
-            'data-open-diagnostics="run_logs"',
-            'data-open-diagnostics="active_jobs"',
         ]:
             self.assertIn(fragment, html)
+        quick_match = re.search(
+            r'<section class="panel home-quick-controls-panel"[^>]*>(.*?)</section>',
+            html,
+            re.S,
+        )
+        self.assertIsNotNone(quick_match)
+        quick_html = quick_match.group(1)
+        self.assertIn('id="home-control-readiness-status" class="visually-hidden"', quick_html)
+        self.assertIn('id="home-control-message" class="note visually-hidden"', quick_html)
+        self.assertIn('id="home-promotion-entry-message" class="note visually-hidden"', quick_html)
+        for removed_fragment in [
+            'data-cross-page-target="diagnostics"',
+            'data-open-diagnostics="run_logs"',
+            'data-open-diagnostics="active_jobs"',
+            ">Diagnostics<",
+            ">Run Logs<",
+            ">Active Jobs<",
+        ]:
+            self.assertNotIn(removed_fragment, quick_html)
         home_match = re.search(
             r'<section class="page is-visible" data-page-panel="home">(.*?)<section class="page" data-page-panel="live">',
             html,

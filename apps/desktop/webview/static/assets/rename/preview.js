@@ -64,6 +64,20 @@
       return "Ready";
     }
 
+    function renameStatusState(status) {
+      const normalized = String(status || "").toLowerCase();
+      if (normalized.includes("block") || normalized.includes("fail") || normalized.includes("duplicate")) return "blocked";
+      if (normalized.includes("review") || normalized.includes("warning") || normalized.includes("verify") || normalized.includes("mixed")) return "warning";
+      if (normalized.includes("ready")) return "ready";
+      if (normalized.includes("no preview") || normalized.includes("not loaded")) return "empty";
+      return "unknown";
+    }
+
+    function setRenameStatusState(id, status) {
+      const node = document.getElementById(id);
+      if (node) node.dataset.state = renameStatusState(status);
+    }
+
     function renameReviewBoardLines(preview) {
       const request = collectRenameRequest();
       const rows = Array.isArray(preview?.rows) ? preview.rows : [];
@@ -72,7 +86,7 @@
         return [
           "No rename preview rows loaded.",
           "Next step: add one file path per line and run Preview.",
-          "Mutation guardrail: this board is read-only; Apply uses checked rows, or all applicable safe preview rows when none are checked, through the backend selected_sources command.",
+          "Mutation guardrail: this board is read-only; Apply requires checked rows and posts only those rows through the backend selected_sources command.",
         ];
       }
       const confidenceCounts = renamePreviewAggregateObject(preview, "confidence_counts", "confidence");
@@ -88,7 +102,7 @@
       const firstTarget = rows[0]?.target_name || rows[0]?.destination || "";
       const lastTarget = rows[rows.length - 1]?.target_name || rows[rows.length - 1]?.destination || "";
       const lines = [
-        "Preview-wide review board. This is read-only; Apply uses checked rows, or all applicable safe preview rows when none are checked, through the backend rename.apply command.",
+        "Preview-wide review board. This is read-only; Apply requires checked rows and posts only checked selected_sources through the backend rename.apply command.",
         `Template: ${renameTemplateLabel(preview, preview?.active_template || request.template_preset || "")}`,
         `Rows/status: ${counts.total || rows.length} total; ready ${counts.ready || 0}, match ${counts.match || 0}, warning ${counts.warning || 0}, blocked ${counts.blocked || 0}`,
         `Confidence mix: ${renameFormatCounts(confidenceCounts)}`,
@@ -120,7 +134,9 @@
     }
 
     function renderRenameReviewBoard(preview) {
-      setText("rename-review-board-status", renameReviewBoardStatus(preview || {}));
+      const status = renameReviewBoardStatus(preview || {});
+      setText("rename-review-board-status", status);
+      setRenameStatusState("rename-review-board-status", status);
       setText("rename-review-board", renameReviewBoardLines(preview || {}).join("\n"));
     }
 
@@ -163,7 +179,7 @@
         `Mode: ${request.mode === "movie" ? "Movie" : "TV"}`,
         `Input paths: ${request.paths.length}; preview rows: ${rows.length}`,
         `Rendered preview rows: ${renameRenderedRowsCount(rows)} of ${rows.length}`,
-        `Apply scope: checked rows are sent as selected_sources; if none are checked, Apply sends all applicable safe preview rows.`,
+        `Apply scope: checked rows are required and are sent as selected_sources; Check Applicable checks ready/match rows and leaves warnings, blockers, duplicates, and destination collisions out.`,
         `Sidecars: ${request.rename_sidecars ? "rename sidecar preview enabled" : "sidecar rename preview disabled"}`,
         `Pipeline naming preview: ${request.use_pipeline_naming_preview ? "preferred when backend can provide it" : "disabled"}`,
         `Global force pipeline name: ${request.force_pipeline_name ? "enabled" : "disabled"}`,
@@ -191,7 +207,7 @@
       if (!rows.length) {
         lines.push("No preview rows are available yet. Add paths and run Preview.");
       } else if (rows.length > RENAME_PREVIEW_RENDER_LIMIT) {
-        lines.push(`Display cap: only ${RENAME_PREVIEW_RENDER_LIMIT} rows are rendered, but Check Applicable Rows and Apply scope use the full backend preview row set.`);
+        lines.push(`Display cap: only ${RENAME_PREVIEW_RENDER_LIMIT} rows are rendered, but Check Applicable and checked apply scope use the full backend preview row set. Review confirmation for checked rows outside the visible table.`);
       }
       lines.push("Backend rename preview/apply remains the source of truth for filesystem changes.");
       return lines;
@@ -275,7 +291,7 @@
       if (!Object.keys(config).length) {
         lines.push("Operator check: saved settings are not loaded in this WebView session. Refresh before trusting routing/container/subtitle handoff text.");
       } else {
-        lines.push("Operator check: renaming changes filenames only. It does not convert containers, change codecs, remux, encode, OCR subtitles, publish, or make staged Settings JSON active.");
+        lines.push("Operator check: renaming changes filenames only. It does not convert containers, change codecs, remux, encode, OCR subtitles, publish, or make unsaved Settings changes active.");
       }
       if (String(config.OutputContainer || "").toLowerCase() === "mp4") {
         lines.push("Container note: saved OutputContainer is MP4. MP4 cannot preserve every subtitle format, so subtitle drop/convert settings matter during pipeline processing even if rename preview looks clean.");
@@ -294,12 +310,14 @@
       if ((confidenceCounts.low || 0) || (confidenceCounts.unknown || 0) || (confidenceCounts.medium || 0)) {
         lines.push("Confidence note: one or more rows are below high confidence. Inspect row detail before applying to avoid bad Plex naming or wrong TV numbering.");
       }
-      lines.push("Mutation guardrail: this handoff is read-only. Apply uses checked rows, or all applicable safe preview rows when none are checked, and mutates files only through backend rename.apply selected_sources.");
+      lines.push("Mutation guardrail: this handoff is read-only. Apply requires checked rows and mutates files only through backend rename.apply selected_sources.");
       return lines;
     }
 
     function renderRenamePipelineHandoff(preview) {
-      setText("rename-pipeline-handoff-status", renamePipelineHandoffStatus(preview || {}));
+      const status = renamePipelineHandoffStatus(preview || {});
+      setText("rename-pipeline-handoff-status", status);
+      setRenameStatusState("rename-pipeline-handoff-status", status);
       setText("rename-pipeline-handoff", renamePipelineHandoffLines(preview || {}).join("\n"));
     }
 

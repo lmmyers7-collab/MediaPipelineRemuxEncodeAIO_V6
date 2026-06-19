@@ -336,6 +336,13 @@ def _node_runner_source() -> str:
           }
         }
 
+        function requireHidden(id) {
+          const element = context.document.getElementById(id);
+          if (!element.hidden || element.getAttribute("aria-hidden") !== "true") {
+            throw new Error(`${id} should remain hidden from the Queue page`);
+          }
+        }
+
         requireText("queue-detail", [
           "Selected row quick signal:",
           "Current filter visibility:",
@@ -376,7 +383,14 @@ def _node_runner_source() -> str:
         if (renderedPriorityRows.length !== 3) {
           throw new Error(`expected three rendered priority rows, got ${renderedPriorityRows.length}`);
         }
+        const firstPriorityRowNode = renderedPriorityRows[0];
         renderedPriorityRows[0].click();
+        if (queueRenderedRows()[0] !== firstPriorityRowNode) {
+          throw new Error("queue row selection should update visible selection state without rebuilding rendered rows");
+        }
+        if (!firstPriorityRowNode.classList.contains("is-selected") || firstPriorityRowNode.getAttribute("aria-selected") !== "true") {
+          throw new Error("queue row selection did not leave a clear selected row state");
+        }
         renderedPriorityRows = queueRenderedRows();
         renderedPriorityRows[1].click({ ctrlKey: true });
         const selectedPriorityRows = context.mediaPipelineQueueView.getSelectedQueuePriorityRows();
@@ -922,12 +936,7 @@ def _node_runner_source() -> str:
           ]);
           context.document.getElementById("queue-filter").value = "definitely-no-queue-match";
           context.renderQueueRows();
-          requireText("queue-filter-summary", [
-            "Queue display filter: text=\"definitely-no-queue-match\"; status=all; view=all signals; showing 0 of 1 row.",
-            "Hidden review rows: 1.",
-            "clear or change this filter before launch decisions",
-            "Mutation guardrail: display filtering the Queue table does not change backend launch scope",
-          ]);
+          requireHidden("queue-filter-summary");
           requireText("queue-detail", [
             "Selected row visible in table: no",
             "Hidden by current filters: text filter=\"definitely-no-queue-match\".",
@@ -936,29 +945,19 @@ def _node_runner_source() -> str:
           context.document.getElementById("queue-filter").value = "";
           context.document.getElementById("queue-status-filter").value = "ready";
           context.renderQueueRows();
-          requireText("queue-filter-summary", [
-            "Queue display filter: text=none; status=ready/healthy; view=all signals; showing 0 of 1 row.",
-            "Hidden review rows: 1.",
-            "clear or change this filter before launch decisions",
-          ]);
+          requireHidden("queue-filter-summary");
           requireText("queue-detail", [
             "Hidden by current filters: status filter=ready/healthy.",
           ]);
           context.document.getElementById("queue-status-filter").value = "all";
           context.document.getElementById("queue-investigation-filter").value = "priority";
           context.renderQueueRows();
-          requireText("queue-filter-summary", [
-            "Queue display filter: text=none; status=all; view=priority rows; showing 0 of 1 row.",
-            "Hidden review rows: 1.",
-            "clear or change this filter before launch decisions",
-          ]);
+          requireHidden("queue-filter-summary");
           requireText("queue-detail", [
             "Hidden by current filters: investigation view=priority rows.",
           ]);
           context.resetQueueFilters();
-          requireText("queue-filter-summary", [
-            "Queue display filter: text=none; status=all; view=all signals; showing 1 of 1 row.",
-          ]);
+          requireHidden("queue-filter-summary");
           requireText("queue-detail", [
             "Selected row visible in table: yes",
             "no Queue display filter is hiding this selected row",
@@ -1002,7 +1001,15 @@ def _node_runner_source() -> str:
             proof_summary: ["completed manifest row exists", "output file is missing", "sidecar proof is missing"],
           })];
           context.renderCompleted(riskCompleted);
+          context.mediaPipelineCompletedView.renderFinalLibraryPromotion({ enabled: false, counts: { total: 1, eligible: 0 }, items: [] });
           context.selectCompletedRow(riskCompleted.rows[0]);
+          requireText("completed-active-output-title", [String(riskCompleted.rows[0].output_file || riskCompleted.rows[0].lookup_title || "")]);
+          requireText("completed-active-output-trust", ["Output unavailable"]);
+          requireText("completed-active-output-placement", ["Missing:"]);
+          requireText("completed-selected-promotion-status", [
+            "Blocked:",
+            "Final Library Promotion is disabled in Settings.",
+          ]);
           requireText("completed-selected-summary", [
             "Output unavailable",
             "Why this output looks different",
@@ -1075,6 +1082,18 @@ def _node_runner_source() -> str:
           requireText("completed-selected-summary", [
             "+110%",
           ]);
+          const routeAgreementNotLoaded = context.mediaPipelineCompletedView.completedRouteAgreementRows(riskCompleted, riskCompleted.rows, {}, []);
+          if (!routeAgreementNotLoaded.some((row) => row.key === "no-queue-context")) {
+            throw new Error("Route Agreement should distinguish queue context not loaded");
+          }
+          const routeAgreementEmpty = context.mediaPipelineCompletedView.completedRouteAgreementRows(riskCompleted, riskCompleted.rows, { rows: [], count: 0 }, []);
+          if (!routeAgreementEmpty.some((row) => row.key === "queue-explicitly-empty")) {
+            throw new Error("Route Agreement should distinguish an explicitly empty queue");
+          }
+          const routeAgreementStale = context.mediaPipelineCompletedView.completedRouteAgreementRows(riskCompleted, riskCompleted.rows, { rows: [], count: 0, status: "stale" }, []);
+          if (!routeAgreementStale.some((row) => row.key === "queue-context-stale")) {
+            throw new Error("Route Agreement should distinguish stale queue context");
+          }
           ["+0.8%", "-0.9%"].forEach((deltaLabel) => {
             const healthySmallDeltaRow = Object.assign({}, riskCompleted.rows[0], {
               output_exists: true,

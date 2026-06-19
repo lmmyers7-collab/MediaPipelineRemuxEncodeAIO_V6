@@ -238,7 +238,7 @@ def _browser_change_ledger_runner_source() -> str:
             }
             window.apiGet = async (url) => {
               gets.push(String(url || ""));
-              if (String(url || "") === "/api/maintenance/change-ledger") return payload;
+              if (String(url || "").startsWith("/api/maintenance/change-ledger")) return payload;
               return {};
             };
             window.apiPost = async (url, body) => {
@@ -256,7 +256,7 @@ def _browser_change_ledger_runner_source() -> str:
             await window.mediaPipelineMaintenanceView.refreshChangeLedger();
             await waitFor(() => text("maintenance-change-ledger-status").includes("ready (2)"), "fixture ledger refresh");
             requireText("maintenance-change-ledger-status", ["ready (2)"]);
-            requireText("maintenance-change-ledger-summary", ["Change ledger: 2 packet(s)", "Affected Python scripts:", "read-only"]);
+            requireText("maintenance-change-ledger-summary", ["Change ledger: 2 packet(s)", "Affected Python scripts:", "ops/release/changes/", "read-only"]);
             requireText("maintenance-change-ledger-hygiene", ["Unrecorded changed files: 0", "Change ledger hygiene: ready", "No changelog hygiene issues reported.", "never writes packets"]);
             requireText("maintenance-change-ledger-detail", ["Add Maintenance Change Ledger", "Affected Python scripts:", "src/mediapipeline/core/maintenance/change_ledger.py"]);
             if (rowCount() !== 2) throw new Error("expected 2 ledger rows, saw " + rowCount());
@@ -268,6 +268,7 @@ def _browser_change_ledger_runner_source() -> str:
             window.mediaPipelineMaintenanceView.renderChangeLedgerRows();
             requireText("maintenance-change-ledger-table-status", ["1/2 shown"]);
             if (rowCount() !== 1) throw new Error("status filter expected 1 row, saw " + rowCount());
+            requireText("maintenance-change-ledger-detail", ["Add Maintenance Change Ledger", "Validation status: complete"]);
 
             setValue("maintenance-change-ledger-status-filter", "");
             setValue("maintenance-change-ledger-search", "src/mediapipeline/core/maintenance/change_ledger.py");
@@ -279,10 +280,12 @@ def _browser_change_ledger_runner_source() -> str:
             window.mediaPipelineMaintenanceView.renderChangeLedgerRows();
             requireText("maintenance-change-ledger-table-status", ["0/2 shown"]);
             requireText("maintenance-change-ledger-rows", ["No change packets match"]);
+            requireText("maintenance-change-ledger-detail", ["No change selected."]);
 
             setValue("maintenance-change-ledger-search", "");
             window.mediaPipelineMaintenanceView.renderChangeLedgerRows();
             if (rowCount() !== 2) throw new Error("cleared filters expected 2 rows, saw " + rowCount());
+            requireText("maintenance-change-ledger-detail", ["Add Maintenance Change Ledger"]);
 
             const forbiddenPosts = posts.filter((entry) =>
               ["/api/media", "/api/queue", "/api/settings", "/api/pending-publish", "/api/rename"].some((prefix) => entry.url.startsWith(prefix))
@@ -427,6 +430,7 @@ class WebViewBrowserMaintenanceChangeLedgerSmoke(unittest.TestCase):
         browser_result = result["result"]
         self.assertEqual(browser_result["status"], "ready (2)")
         self.assertEqual(browser_result["posts"], [])
-        self.assertIn("/api/maintenance/change-ledger", browser_result["gets"])
-        self.assertIn("Plan Queue Strategy Audit", browser_result["detail"])
+        self.assertIn("/api/maintenance/change-ledger?limit=200", browser_result["gets"])
+        self.assertIn("Add Maintenance Change Ledger", browser_result["detail"])
+        self.assertNotIn("Plan Queue Strategy Audit", browser_result["detail"])
         self.assertIn("Change ledger hygiene: ready", browser_result["hygiene"])

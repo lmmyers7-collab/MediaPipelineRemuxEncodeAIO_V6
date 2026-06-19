@@ -61,7 +61,7 @@
       patch.error ? "review" : launchPolicyCandidatePosture("subtitle", stagedSubtitle, subtitleChanged.length),
       patch.error ? `Staged Changes JSON cannot be parsed: ${patch.error}` : stagedSubtitle.evidence,
       subtitleChanged.length
-        ? "Not launch-active until backend Preview Patch, Save Patch, and settings reload/refresh succeed."
+        ? "Not launch-active until Save Settings and settings reload/refresh succeed."
         : "No effective staged subtitle/container change is currently pending.",
       [
         `Changed staged subtitle keys: ${subtitleChanged.join(", ") || "none"}`,
@@ -84,7 +84,7 @@
       patch.error ? "review" : launchPolicyCandidatePosture("audio", stagedAudio, audioChanged.length),
       patch.error ? `Staged Changes JSON cannot be parsed: ${patch.error}` : stagedAudio.evidence,
       audioChanged.length
-        ? "Not launch-active until backend Preview Patch, Save Patch, and settings reload/refresh succeed."
+        ? "Not launch-active until Save Settings and settings reload/refresh succeed."
         : "No effective staged audio change is currently pending.",
       [
         `Changed staged audio keys: ${audioChanged.join(", ") || "none"}`,
@@ -107,7 +107,7 @@
       patch.error ? "review" : launchPolicyCandidatePosture("publish", stagedPublish, publishChanged.length),
       patch.error ? `Staged Changes JSON cannot be parsed: ${patch.error}` : stagedPublish.evidence,
       publishChanged.length
-        ? "Not launch-active until backend Preview Patch, Save Patch, and settings reload/refresh succeed."
+        ? "Not launch-active until Save Settings and settings reload/refresh succeed."
         : "No effective staged pending-publish/source-safety change is currently pending.",
       [
         `Changed staged publish/source keys: ${publishChanged.join(", ") || "none"}`,
@@ -121,7 +121,7 @@
       patch.touched
         ? `${entries.length} effective staged setting change(s) exist, but none are launch-active yet.`
         : "No touched Changes JSON is visible in this WebView session.",
-      "Backend Save Patch is the only path that can make staged settings active for Launch.",
+      "Save Settings is the only path that can make staged settings active for Launch.",
       [
         "This panel is read-only. It cannot save settings, launch work, run FFmpeg, publish, drain, rename, or touch media.",
         "After saving, refresh/reload Settings before relying on the saved active policy.",
@@ -158,7 +158,7 @@
     const lines = [
       "Launch active media-policy boundary:",
       `Rows: ${rows.length}; launch-active=${counts["launch-active"] || 0}; same-as-saved=${counts["same as saved"] || 0}; preview-required=${counts["preview required"] || 0}; review=${counts.review || 0}; blocked=${counts.blocked || 0}.`,
-      "Decision rule: Launch uses the active saved subtitle, audio, and pending-publish/source-safety policy. Staged candidates are not launch-active until backend Save Patch succeeds and Settings reload/refresh completes.",
+      "Decision rule: Launch uses the active saved subtitle, audio, and pending-publish/source-safety policy. Staged candidates are not launch-active until Save Settings succeeds and Settings reload/refresh completes.",
       "High-impact areas: SRT creation/original subtitle preservation, audio default/passthrough/downmix/no-audio behavior, pending publish, stability/integrity checks, and source deletion.",
     ];
     if (reviewRows.length) {
@@ -191,7 +191,7 @@
       lines.push("", "Detail:");
       detail.forEach((line) => lines.push(`- ${line}`));
     }
-    lines.push("", "Guardrail: backend Preview/Save and backend Launch remain authoritative; this panel only compares visible saved/staged policy.");
+    lines.push("", "Guardrail: backend Save Settings and backend Launch remain authoritative; this panel only compares visible saved/staged policy.");
     return lines;
   }
 

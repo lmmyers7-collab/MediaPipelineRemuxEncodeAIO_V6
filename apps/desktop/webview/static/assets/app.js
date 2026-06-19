@@ -127,7 +127,6 @@ function renderSnapshot(snapshot) {
   renderPipelineEvents(recentEvents);
   renderSparkline(recentEvents);
   window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
-  if (typeof renderLaunchAuditProgress === "function") renderLaunchAuditProgress(lastSnapshot);
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
   if (typeof renderLaunchReadiness === "function") {
     renderLaunchReadiness({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
@@ -751,6 +750,23 @@ async function refreshAllNow(options = {}) {
     }
     values[name] = attachRefreshMetadata(name, result.value);
   });
+  const pendingPublishFailure = failures.find((item) => item.name === "pending publish");
+  const pendingPublishPayload = values["pending publish"] || (pendingPublishFailure ? {
+    schema_version: "desktop_pending_publish_preview.v1",
+    count: 0,
+    rows: [],
+    error: pendingPublishFailure.message || "Pending Publish proof read failed.",
+    warnings: [pendingPublishFailure.message || "Pending Publish proof read failed."],
+    operator_status: "blocked",
+    file_inventory: {
+      status: "blocked",
+      error: pendingPublishFailure.message || "Pending Publish proof read failed.",
+    },
+    recovery_summary: {
+      status: "blocked",
+      safe_next_action: "Open Diagnostics and Pending Publish after refresh succeeds before trusting final-placement evidence.",
+    },
+  } : {});
   const scrollSnapshot = window.mediaPipelineDom?.captureScrollablePositions?.();
   try {
   if (values.snapshot) {
@@ -769,7 +785,17 @@ async function refreshAllNow(options = {}) {
     lastStartupProgress = values.health.startup_progress;
   }
   if (values["close readiness"]) renderCloseReadiness(values["close readiness"]);
-  const telemetryRenderFailure = values.telemetry ? renderTelemetrySafely(values.telemetry, { snapshot: values.snapshot || lastSnapshot }) : null;
+  const telemetryOptions = {
+    snapshot: values.snapshot || lastSnapshot,
+    refreshIntervalMs: AUTOMATIC_REFRESH_INTERVAL_MS,
+  };
+  const telemetryFailure = failures.find((item) => item.name === "telemetry");
+  const telemetryRenderFailure = values.telemetry
+    ? renderTelemetrySafely(values.telemetry, telemetryOptions)
+    : renderTelemetrySafely(null, {
+      ...telemetryOptions,
+      unavailableReason: telemetryFailure?.message || "telemetry route returned no payload",
+    });
   if (telemetryRenderFailure) failures.push(telemetryRenderFailure);
   if (values.diagnostics) renderDiagnostics(values.diagnostics);
   const renderDiagnosticsStateSummaryFn = window.mediaPipelineDiagnosticsStateSummaryView?.renderDiagnosticsStateSummary;
@@ -795,14 +821,12 @@ async function refreshAllNow(options = {}) {
   if (values.failures) window.mediaPipelineReportsView?.renderFailurePreview?.(values.failures);
   if (values["audit results"]) {
     window.mediaPipelineReportsView?.renderAuditPreview?.(values["audit results"]);
-    window.mediaPipelineLaunchView?.renderLaunchAuditLog?.(values["audit results"]);
   }
   if (values["audit controls"]) {
     window.mediaPipelineReportsView?.renderAuditControls?.(values["audit controls"]);
-    window.mediaPipelineLaunchView?.renderLaunchAuditControls?.(values["audit controls"]);
   }
-  if (values["pending publish"]) renderPendingPublish(values["pending publish"], values.snapshot || lastSnapshot);
-  renderHomePendingCount(values["pending publish"] || {});
+  if (values["pending publish"] || pendingPublishFailure) renderPendingPublish(pendingPublishPayload, values.snapshot || lastSnapshot);
+  renderHomePendingCount(pendingPublishPayload);
   if (values.schedule) {
     lastSchedule = values.schedule;
     renderSchedule(values.schedule);
@@ -889,7 +913,7 @@ async function refreshAllNow(options = {}) {
       closeReadiness: values["close readiness"] || lastCloseReadiness,
       queue: values.queue || {},
       completed: values.completed || {},
-      pending: values["pending publish"] || {},
+      pending: pendingPublishPayload,
       diagnostics: values.diagnostics || {},
       settings: values.settings || getLastSettings(),
       sampleValidation: values["sample validation"] || {},
@@ -907,7 +931,7 @@ async function refreshAllNow(options = {}) {
       commands: values.commands || {},
       queue: values.queue || {},
       completed: values.completed || {},
-      pending: values["pending publish"] || {},
+      pending: pendingPublishPayload,
       settings: values.settings || getLastSettings(),
       sampleValidation: values["sample validation"] || {},
       maintenance: typeof getLastMaintenance === "function" ? getLastMaintenance() : {},
@@ -924,10 +948,14 @@ async function refreshAllNow(options = {}) {
     renderDiagnosticsOwnerHandoffFn({
       queue: values.queue || {},
       completed: values.completed || {},
-      pending: values["pending publish"] || {},
+      pending: pendingPublishPayload,
       sampleValidation: values["sample validation"] || {},
       settings: values.settings || getLastSettings(),
     });
+  }
+  const renderDiagnosticsRefreshFailuresFn = window.mediaPipelineDiagnosticsView?.renderDiagnosticsRefreshFailures;
+  if (typeof renderDiagnosticsRefreshFailuresFn === "function") {
+    renderDiagnosticsRefreshFailuresFn(failures);
   }
   lastRefreshCompletedAt = new Date();
   lastRefreshDurationMs = Date.now() - refreshStartedMs;
@@ -941,7 +969,7 @@ async function refreshAllNow(options = {}) {
     maintenance: typeof getLastMaintenance === "function" ? getLastMaintenance() : {},
     queue: values.queue || {},
     completed: values.completed || {},
-    pending: values["pending publish"] || {},
+    pending: pendingPublishPayload,
     diagnostics: values.diagnostics || {},
     networkWorkers: values["network workers"] || {},
     failuresPayload: values.failures || {},
@@ -951,6 +979,7 @@ async function refreshAllNow(options = {}) {
   renderHomeNextQueue(dashboardContext);
   renderHomeStorageHealth(dashboardContext);
   renderDailyDriverReadiness(dashboardContext);
+  window.mediaPipelineDom?.applyProseBoxDispositions?.(document);
   } finally {
     window.mediaPipelineDom?.restoreScrollablePositions?.(scrollSnapshot);
   }
@@ -1526,6 +1555,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   initCompletedTabNav();
   startSharedUiPreferenceRemoteRefresh();
   if (typeof applyDiagnosticCallouts === "function") applyDiagnosticCallouts(document);
+  window.mediaPipelineDom?.applyProseBoxDispositions?.(document);
   applyDefaultActionTooltips();
   window.addEventListener("mediapipeline:backend-lifecycle", handleTauriBackendLifecycleEvent);
   window.mediaPipelineTauriLifecycleBridge?.replayLatestBackendLifecycleEvent?.();
@@ -1628,8 +1658,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");
   if (pipelineStartButton) pipelineStartButton.addEventListener("click", startPipelineFromForm);
-  const auditStartButton = byId("audit-start-button");
-  if (auditStartButton) auditStartButton.addEventListener("click", startAuditFromForm);
   const rerunDryRunButton = byId("rerun-dry-run-button");
   if (rerunDryRunButton) rerunDryRunButton.addEventListener("click", () => startRerunFromForm({ dry_run: true }));
   const rerunStartButton = byId("rerun-start-button");
@@ -1670,6 +1698,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (completedInvestigationFilter) completedInvestigationFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.());
   const completedClearFiltersButton = byId("completed-clear-filters-button");
   if (completedClearFiltersButton) completedClearFiltersButton.addEventListener("click", resetCompletedFilters);
+  const completedShowSelectedButton = byId("completed-show-selected-button");
+  if (completedShowSelectedButton) completedShowSelectedButton.addEventListener("click", () => window.mediaPipelineCompletedView?.showSelectedCompletedRow?.());
   const completedRefreshCurrentOutputButton = byId("completed-refresh-current-output-button");
   if (completedRefreshCurrentOutputButton) completedRefreshCurrentOutputButton.addEventListener("click", refreshCurrentOutputStatus);
   const completedHistoryFilter = byId("completed-history-filter");
@@ -1718,7 +1748,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     button.addEventListener("click", () => requestPipelineControl(button.dataset.controlAction || ""));
   });
   document.querySelectorAll("[data-open-diagnostics]").forEach((button) => {
-    button.addEventListener("click", () => requestDiagnosticsOpen(button.dataset.openDiagnostics || ""));
+    button.addEventListener("click", () => requestDiagnosticsOpen(button.dataset.openDiagnostics || "", button));
   });
   initBackendRowOpenActions();
   updatePagePanelEmptyStates();

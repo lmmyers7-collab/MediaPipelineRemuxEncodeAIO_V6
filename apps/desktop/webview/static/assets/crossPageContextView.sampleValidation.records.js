@@ -21,6 +21,23 @@
     state,
     updateTableStatusLegend,
   } = {}) {
+    function sampleValidationPanelState(message) {
+      const text = String(message || "").toLowerCase();
+      if (!text || text.includes("not loaded") || text.startsWith("no ")) return "empty";
+      if (text.includes("blocked") || text.includes("error")) return "blocked";
+      if (text.includes("needed") || text.includes("review") || text.includes("manual") || text.includes("hold") || text.includes("partial")) return "warning";
+      if (text.includes("ready") || text.includes("current") || text.includes("coherent") || text.includes("loaded")) return "ready";
+      return "unknown";
+    }
+
+    function setRecordsPanelStatus(id, message, state) {
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus(id, message, state || sampleValidationPanelState(message));
+      } else {
+        setText(id, message);
+      }
+    }
+
     const SAMPLE_VALIDATION_CHECK_FIELDS = Array.isArray(sampleValidationCheckFields)
       ? sampleValidationCheckFields
       : [];
@@ -343,7 +360,7 @@
         state.selectedSampleValidationRecordReviewKey = "";
       }
       const selected = selectedSampleValidationRecordReviewRow(rows);
-      setText("sample-validation-record-review-status", sampleValidationRecordReviewStatus(context || {}));
+      setRecordsPanelStatus("sample-validation-record-review-status", sampleValidationRecordReviewStatus(context || {}));
       setText("sample-validation-record-review-summary", sampleValidationRecordReviewSummaryLines(context || {}).join("\n"));
       setText("sample-validation-record-review-detail", sampleValidationRecordReviewDetailLines(selected).join("\n"));
       setText("sample-validation-record-review-legend", "Accepted record proof rows are read-only and cannot append records, accept output, rerun, drain, publish, repair, save settings, rename, rewrite manifests/sidecars, change media policy, or touch media.");
@@ -452,7 +469,9 @@
       records.forEach((record, index) => {
         const reconciliation = reconciliationById.get(String(record.record_id || "")) || null;
         const row = document.createElement("tr");
-        row.dataset.state = sampleValidationRecordRowState(record, reconciliation);
+        const rowState = sampleValidationRecordRowState(record, reconciliation);
+        row.dataset.status = rowState;
+        row.dataset.state = rowState;
         appendCells(row, [
           record.created_at || "",
           record.operator_decision || "",
@@ -601,7 +620,7 @@
         state.selectedSampleValidationCompletedPacketKey = "";
       }
       const selected = selectedSampleValidationCompletedPacketRow(rows);
-      setText("sample-validation-completed-packet-status", sampleValidationCompletedPacketStatus(context));
+      setRecordsPanelStatus("sample-validation-completed-packet-status", sampleValidationCompletedPacketStatus(context));
       setText("sample-validation-completed-packet-summary", sampleValidationCompletedPacketSummaryLines(context).join("\n"));
       setText("sample-validation-completed-packet-detail", sampleValidationCompletedPacketDetailLines(selected).join("\n"));
       setText("sample-validation-completed-packet-markdown", sampleValidationCompletedPacketMarkdownLines(context).join("\n"));
@@ -872,7 +891,7 @@
         state.selectedSampleValidationAcceptanceGateKey = "";
       }
       const selected = selectedSampleValidationAcceptanceGateRow(rows);
-      setText("sample-validation-acceptance-gate-status", sampleValidationAcceptanceGateStatus(context || {}));
+      setRecordsPanelStatus("sample-validation-acceptance-gate-status", sampleValidationAcceptanceGateStatus(context || {}));
       setText("sample-validation-acceptance-gate-summary", sampleValidationAcceptanceGateSummaryLines(context || {}).join("\n"));
       setText("sample-validation-acceptance-gate-detail", sampleValidationAcceptanceGateDetailLines(selected).join("\n"));
       setText("sample-validation-acceptance-gate-legend", "Acceptance gate rows are read-only guidance and do not append validation records, accept output, rerun, drain, publish, repair, save settings, rename, rewrite manifests/sidecars, change media policy, or touch media.");

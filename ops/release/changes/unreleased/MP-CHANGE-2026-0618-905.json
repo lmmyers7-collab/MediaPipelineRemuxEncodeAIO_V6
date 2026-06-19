@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0618-905",
+  "title": "Harden Reports WebView triage and cleanup controls",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Harden Reports UI selection scope, marker cleanup preview feedback, audit command busy states, severity display, owner navigation, and report-location open feedback without changing backend routes or media policy.",
+  "reason": "The Reports audit found ambiguous hidden selections, all-marker cleanup scope, duplicate command risk, weak severity coloring, weak owner handoff, and flaky browser-smoke tab assertions.",
+  "affected_areas": [
+    "OperatorTrust",
+    "Reports",
+    "WebView"
+  ],
+  "behavior_before": "Reports preserved hidden selections without visible blocking, all-marker cleanup labels were ambiguous, audit command buttons could be double-clicked, failure severity could render as unmapped raw status text, owner handoff was mostly text, and report path opens had weak inline feedback.",
+  "behavior_after": "Reports blocks selected actions with hidden selections, requires all-marker preview before all-marker clear, guards audit and cleanup command submissions, normalizes failure severity chips, provides local owner navigation, and shows inline report open feedback.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reportsView.js",
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reportsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-reports.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-905.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-905.json",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "manual_validation": [
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserMaintenanceReportsSmoke.ps1 - passed",
+    "change_control.validate_changes --require-worktree-coverage - passed",
+    "node --check apps/desktop/webview/static/assets/reportsView.js - passed",
+    "npm run webview:check - passed",
+    "python -m py_compile focused Reports tests - passed",
+    "python -m unittest tests.python.desktop.test_reports_view_static - passed",
+    "python -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q - passed"
+  ],
+  "rollback_plan": "Revert the Reports WebView asset, Reports partial, focused Reports tests, generated summaries, and this change packet, then rerun the Reports static test and browser smoke.",
+  "related_changes": [],
+  "notes": "Implements the Reports UI remediation plan requested on 2026-06-18. This is WebView-only and must not add backend routes or media/filesystem mutation behavior.\nFocused Reports UI remediation implemented with browser smoke coverage for hidden selection blocking, preview-gated all-marker cleanup, audit busy guards, owner navigation, inline location open feedback, tab waits, and 250-row cap messaging."
+}

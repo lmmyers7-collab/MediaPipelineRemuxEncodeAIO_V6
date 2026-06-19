@@ -65,6 +65,34 @@ def _browser_sample_validation_runner_source() -> str:
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
+            function requireSingleSelectedRows(tbodyId, label) {
+              const tbody = byId(tbodyId);
+              if (!tbody) throw new Error("missing tbody " + tbodyId);
+              const selected = Array.from(tbody.querySelectorAll("tr.is-selected, tr[aria-selected='true']"));
+              const unique = Array.from(new Set(selected));
+              if (unique.length !== 1) {
+                throw new Error(label + " expected exactly one selected row, saw " + unique.length + "\\nActual:\\n" + text(tbodyId));
+              }
+              const row = unique[0];
+              if (!row.classList.contains("is-selected") || row.getAttribute("aria-selected") !== "true") {
+                throw new Error(label + " selected row did not expose both class and aria-selected.");
+              }
+              return row;
+            }
+            function requireDecisionStrip() {
+              const strip = byId("sample-validation-decision-strip");
+              if (!strip) throw new Error("missing sample-validation-decision-strip");
+              requireText("sample-validation-decision-strip-summary", ["Decision:", "Category:", "Checks:", "Gate:"]);
+              if (!strip.dataset.state) throw new Error("sample validation decision strip missing data-state");
+            }
+            function requireButtonBusy(id, label) {
+              const button = byId(id);
+              if (!button) throw new Error("missing " + id);
+              if (button.getAttribute("aria-busy") !== "true" || !button.disabled) {
+                throw new Error(label + " did not expose immediate busy/disabled feedback.");
+              }
+              return button;
+            }
             async function waitFor(predicate, label) {
               const deadline = Date.now() + 15000;
               let lastError = null;
@@ -85,6 +113,7 @@ def _browser_sample_validation_runner_source() -> str:
                 "posts=" + JSON.stringify(posts),
               ].join("\\n"));
             }
+            await waitFor(() => typeof window.showPage === "function", "showPage global");
             [
               "showPage",
               "renderCrossPageContext",
@@ -123,6 +152,7 @@ def _browser_sample_validation_runner_source() -> str:
                 && text("sample-validation-record-review-summary").includes("Accepted sample-validation record proof review:"),
               "sample validation pilot plan rendering",
             );
+            requireDecisionStrip();
             requireText("sample-validation-summary", [
               "Backend-owned sample validation records:",
               "WebView cutover gate:",
@@ -178,6 +208,7 @@ def _browser_sample_validation_runner_source() -> str:
               if (!runbookText.includes(fragment)) throw new Error("pilot runbook table missing " + fragment + "\\n" + runbookText);
             });
             runbookRows.find((row) => (row.textContent || "").includes("Verify Completed output")).click();
+            requireSingleSelectedRows("sample-validation-runbook-rows", "Sample Validation runbook");
             requireText("sample-validation-runbook-detail", [
               "Step:",
               "Verify Completed output, route, sidecar, and size",
@@ -205,6 +236,7 @@ def _browser_sample_validation_runner_source() -> str:
               if (!gapText.includes(fragment)) throw new Error("evidence-gap table missing " + fragment + "\\n" + gapText);
             });
             gapRows.find((row) => (row.textContent || "").includes("Representative category coverage")).click();
+            requireSingleSelectedRows("sample-validation-gap-rows", "Sample Validation evidence gaps");
             requireText("sample-validation-gap-detail", [
               "Checkpoint: Representative category coverage",
               "Owner page: Home / Sample Validation",
@@ -249,6 +281,7 @@ def _browser_sample_validation_runner_source() -> str:
             const h264CategoryRow = categorySummaryRows.find((row) => (row.textContent || "").includes("H.264 remux/direct-play copy"));
             if (!h264CategoryRow) throw new Error("missing H.264 category summary row");
             h264CategoryRow.click();
+            requireSingleSelectedRows("sample-validation-category-summary-rows", "Sample Validation category summary");
             requireText("sample-validation-category-summary-detail", [
               "Pilot category validation summary:",
               "Category: H.264 remux/direct-play copy",
@@ -271,6 +304,7 @@ def _browser_sample_validation_runner_source() -> str:
             if (!category) throw new Error("missing sample-validation-category");
             if (category.value !== "") throw new Error("pilot category should start blank, saw " + category.value);
             sampleSetRows.find((row) => (row.textContent || "").includes("H.264 remux/direct-play copy")).click();
+            requireSingleSelectedRows("sample-validation-sample-set-rows", "Sample Validation sample-set guide");
             if (category.value !== "") throw new Error("sample-set row click auto-applied category: " + category.value);
             requireText("sample-validation-sample-set-detail", [
               "Category: H.264 remux/direct-play copy",
@@ -317,6 +351,7 @@ def _browser_sample_validation_runner_source() -> str:
               if (!cutoverText.includes(fragment)) throw new Error("cutover gate missing " + fragment + "\\n" + cutoverText);
             });
             cutoverRows.find((row) => (row.textContent || "").includes("Current accepted sample record")).click();
+            requireSingleSelectedRows("sample-validation-cutover-rows", "Sample Validation cutover gate");
             requireText("sample-validation-cutover-detail", [
               "Checkpoint: Current accepted sample record",
               "Safe next action:",
@@ -356,6 +391,7 @@ def _browser_sample_validation_runner_source() -> str:
               if (!executionText.includes(fragment)) throw new Error("execution checklist missing " + fragment + "\\n" + executionText);
             });
             executionRows.find((row) => (row.textContent || "").includes("Post-run Completed Proof")).click();
+            requireSingleSelectedRows("sample-validation-execution-rows", "Sample Validation execution checklist");
             requireText("sample-validation-execution-detail", [
               "Phase: Post-run Completed Proof",
               "Owner page: Completed",
@@ -391,6 +427,7 @@ def _browser_sample_validation_runner_source() -> str:
             const policyGateRow = acceptanceGateRows.find((row) => (row.textContent || "").includes("Saved policy reconciliation"));
             if (!policyGateRow) throw new Error("acceptance gate missing saved policy reconciliation row");
             policyGateRow.click();
+            requireSingleSelectedRows("sample-validation-acceptance-gate-rows", "Sample Validation acceptance gate");
             requireText("sample-validation-acceptance-gate-detail", [
               "Saved policy reconciliation",
               "mirrors Completed > Selected Pilot Evidence Packet",
@@ -422,6 +459,7 @@ def _browser_sample_validation_runner_source() -> str:
             const policyPacketRow = completedPacketRows.find((row) => (row.textContent || "").includes("Saved policy reconciliation"));
             if (!policyPacketRow) throw new Error("Completed evidence handoff missing Saved policy reconciliation row");
             policyPacketRow.click();
+            requireSingleSelectedRows("sample-validation-completed-packet-rows", "Sample Validation completed-packet handoff");
             requireText("sample-validation-completed-packet-detail", [
               "Saved policy reconciliation",
               "Completed policy reconciliation:",
@@ -466,13 +504,22 @@ def _browser_sample_validation_runner_source() -> str:
               "Decision rule: treat accepted records as current proof only",
               "Mutation guardrail",
             ]);
+            requireDecisionStrip();
             const preview = byId("sample-validation-preview-button");
-            if (!preview) throw new Error("missing sample-validation-preview-button");
+            if (!preview) throw new Error("missing sample validation preview button");
             preview.click();
+            requireButtonBusy("sample-validation-preview-button", "Preview Record");
+            requireButtonBusy("sample-validation-strip-preview-button", "Decision-strip Preview Record");
             await waitFor(
               () => text("sample-validation-result").includes("Current backend evidence:") && text("sample-validation-result").includes("Read-only current-evidence preview"),
               "sample validation preview result",
             );
+            if (byId("sample-validation-preview-button").getAttribute("aria-busy") === "true" || byId("sample-validation-preview-button").disabled) {
+              throw new Error("Preview Record button did not restore after preview.");
+            }
+            if (byId("sample-validation-strip-preview-button").getAttribute("aria-busy") === "true" || byId("sample-validation-strip-preview-button").disabled) {
+              throw new Error("Decision-strip Preview Record button did not restore after preview.");
+            }
             requireText("sample-validation-result", [
               "OK: true",
               "Decision: accepted",
@@ -557,6 +604,23 @@ def _browser_sample_validation_runner_source() -> str:
             const originalExecutionSummary = text("sample-validation-execution-summary");
             const originalExecutionDetail = text("sample-validation-execution-detail");
             const originalSampleResult = text("sample-validation-result");
+            const clearChecks = byId("sample-validation-strip-clear-checks-button") || byId("sample-validation-clear-checks-button");
+            if (!clearChecks) throw new Error("missing sample validation clear manual checks button");
+            clearChecks.click();
+            requireButtonBusy("sample-validation-clear-checks-button", "Clear Manual Checks");
+            requireButtonBusy("sample-validation-strip-clear-checks-button", "Decision-strip Clear Manual Checks");
+            await waitFor(
+              () => text("sample-validation-result").includes("Manual sample-validation checks cleared."),
+              "sample validation clear manual checks feedback",
+            );
+            requireDecisionStrip();
+            await waitFor(
+              () => byId("sample-validation-clear-checks-button").getAttribute("aria-busy") !== "true"
+                && byId("sample-validation-strip-clear-checks-button").getAttribute("aria-busy") !== "true"
+                && !byId("sample-validation-clear-checks-button").disabled
+                && !byId("sample-validation-strip-clear-checks-button").disabled,
+              "sample validation clear manual checks restore",
+            );
             const recordsFixture = {
               exists: true,
               records: [
@@ -644,10 +708,11 @@ def _browser_sample_validation_runner_source() -> str:
             const currentRow = recordRows.find((row) => (row.textContent || "").includes("Current sample"));
             const staleRow = recordRows.find((row) => (row.textContent || "").includes("Stale sample"));
             const noReconciliationRow = recordRows.find((row) => (row.textContent || "").includes("No reconciliation sample"));
-            if (!currentRow || currentRow.dataset.state !== "match") throw new Error("current record row should be match, saw " + (currentRow && currentRow.dataset.state));
-            if (!staleRow || staleRow.dataset.state !== "warning") throw new Error("stale record row should be warning, saw " + (staleRow && staleRow.dataset.state));
-            if (!noReconciliationRow || noReconciliationRow.dataset.state !== "warning") throw new Error("accepted no-reconciliation record row should be warning, saw " + (noReconciliationRow && noReconciliationRow.dataset.state));
+            if (!currentRow || currentRow.dataset.status !== "match") throw new Error("current record row should be match, saw " + (currentRow && currentRow.dataset.status));
+            if (!staleRow || staleRow.dataset.status !== "warning") throw new Error("stale record row should be warning, saw " + (staleRow && staleRow.dataset.status));
+            if (!noReconciliationRow || noReconciliationRow.dataset.status !== "warning") throw new Error("accepted no-reconciliation record row should be warning, saw " + (noReconciliationRow && noReconciliationRow.dataset.status));
             staleRow.click();
+            requireSingleSelectedRows("sample-validation-records", "Sample Validation records");
             requireText("sample-validation-detail", [
               "Record: stale-record",
               "Current evidence status: stale (warning)",
@@ -673,6 +738,7 @@ def _browser_sample_validation_runner_source() -> str:
             const diagnosticsProofRow = fixtureRecordReviewRows.find((row) => (row.textContent || "").includes("Diagnostics/run-log proof"));
             if (!diagnosticsProofRow) throw new Error("fixture record proof review missing Diagnostics/run-log proof row");
             diagnosticsProofRow.click();
+            requireSingleSelectedRows("sample-validation-record-review-rows", "Sample Validation record proof review");
             requireText("sample-validation-record-review-detail", [
               "Diagnostics/run-log proof",
               "Diagnostics evidence is supporting proof only",
@@ -845,9 +911,27 @@ class WebViewBrowserSampleValidationSmoke(unittest.TestCase):
 
             self.assertTrue(result["ok"])
             browser_result = result["result"]
-            self.assertEqual(len(browser_result["posts"]), 1)
-            self.assertEqual(browser_result["posts"][0]["path"], "/api/sample-validation/preview")
-            self.assertEqual(browser_result["posts"][0]["body"]["shell"], "webview")
+            posts = browser_result["posts"]
+            preview_posts = [entry for entry in posts if entry["path"] == "/api/sample-validation/preview"]
+            forbidden_posts = [
+                entry
+                for entry in posts
+                if any(
+                    path in entry["path"]
+                    for path in (
+                        "/api/sample-validation/append",
+                        "/api/pipeline/start",
+                        "/api/audit/start",
+                        "/api/rerun/start",
+                        "/api/settings/save-patch",
+                        "/api/rename/apply",
+                        "/api/pending-publish/drain",
+                    )
+                )
+            ]
+            self.assertEqual(len(preview_posts), 1, posts)
+            self.assertEqual(forbidden_posts, [], posts)
+            self.assertEqual(preview_posts[0]["body"]["shell"], "webview")
             self.assertEqual(browser_result["tauriShellRequest"]["shell"], "tauri")
             self.assertIn("WebView cutover gate:", browser_result["cutoverSummary"])
             self.assertIn("generated worksheets are context only", browser_result["cutoverSummary"])

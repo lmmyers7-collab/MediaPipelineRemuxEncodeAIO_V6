@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0619-001",
+  "title": "Fix stage probe stream metadata when tags are absent",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Make the probe stage tolerate ffprobe stream objects that omit optional tags or disposition data so audio and subtitle tracks still reach queue file override metadata.",
+  "reason": "Some valid Matroska files report video streams without a tags object. The probe stage treated that optional missing object as a stream JSON failure and returned an empty streams array, so the WebView showed zero detected audio/subtitle tracks.",
+  "affected_areas": [
+    "audio",
+    "file-overrides",
+    "probe",
+    "subtitles"
+  ],
+  "behavior_before": "A stream with no tags object could abort ConvertTo-StreamSummary, leaving ProbeResult.streams empty even when ffprobe reported audio and subtitle streams.",
+  "behavior_after": "Missing stream tags or disposition values default to blank/false values, and the rest of the stream list is preserved for downstream track metadata.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/probe/stage.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-001.json.md",
+    "ops/pipeline/engine/probe/stage.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-001.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Direct ffprobe on Ranma UNC sample with bundled ffprobe - passed; reported 2 audio streams and 1 subtitle stream.",
+    "_probe_tracks_for_source_path on Ranma UNC sample - passed; payload has 2 audio_tracks and 1 subtitle_track.",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_file_override_tracks.py::FileOverrideTrackMetadataTests::test_probe_result_normalizes_audio_and_subtitle_tracks tests/python/desktop/test_file_override_tracks.py::FileOverrideTrackMetadataTests::test_tracks_endpoint_validates_path_and_does_not_write_manifest -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_stage_entrypoint.py::StageEntrypointTests::test_probe_stage_reports_generated_media_streams -q - passed",
+    "run_probe_stage on Ranma UNC sample - passed; ProbeResult.streams contains video, 2 audio, 1 subtitle and probe_error is blank."
+  ],
+  "rollback_plan": "Revert ops/pipeline/engine/probe/stage.ps1 and regenerate its summary. The queue file override drawer would again rely on the previous stream-summary behavior.",
+  "related_changes": [],
+  "notes": "Fix stage probe stream-summary parsing when ffprobe stream objects omit tags/disposition, which caused audio/subtitle tracks to disappear from queue file overrides.\nCompleted after direct Ranma UNC probe verification plus focused stage and file-override tests.\nStrict change coverage attempted with --require-worktree-coverage; global validation is blocked by unrelated MP-CHANGE-2026-0619-002 type 'ux' and uncovered rename files src/mediapipeline/core/rename/contracts.py, planner.py, service.py."
+}

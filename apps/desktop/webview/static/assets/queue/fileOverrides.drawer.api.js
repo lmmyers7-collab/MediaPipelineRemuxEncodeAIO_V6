@@ -64,11 +64,16 @@
     function resetExactTrackActionsForField(fieldKey) { return ctx.tracks.resetExactTrackActionsForField(fieldKey); }
     function confirmDiscardDrawerChanges(actionLabel) { return ctx.form.confirmDiscardDrawerChanges(actionLabel); }
 
-  async function loadFileOverrideForPath(path) {
-    if (!path) { setStatus("No source path — cannot load override."); return; }
+  function drawerRequestIsCurrent(path, token = state.foDrawerLoadToken) {
+    return Boolean(path && path === state.foCurrentPath && token === state.foDrawerLoadToken);
+  }
+
+  async function loadFileOverrideForPath(path, token = state.foDrawerLoadToken) {
+    if (!path) { if (drawerRequestIsCurrent(path, token)) setStatus("No source path - cannot load override."); return; }
     try {
       const url  = FILE_OVERRIDES_ROUTE + "?path=" + encodeURIComponent(path);
       const data = await apiGet(url);
+      if (!drawerRequestIsCurrent(path, token)) return false;
       if (data && data.entry) {
         populateDrawerForm(data.entry);
         setStatus("Override loaded.");
@@ -82,38 +87,39 @@
         markDrawerClean();
       }
     } catch (err) {
-      setStatus("Error loading override: " + (err.message || err));
+      if (drawerRequestIsCurrent(path, token)) setStatus("Error loading override: " + (err.message || err));
     }
   }
 
-  async function loadFileOverrideEffectiveForPath(path, item) {
+  async function loadFileOverrideEffectiveForPath(path, item, token = state.foDrawerLoadToken) {
     if (!path) return false;
     try {
       const url = FILE_OVERRIDES_EFFECTIVE_ROUTE + "?path=" + encodeURIComponent(path);
       const data = await apiGet(url);
+      if (!drawerRequestIsCurrent(path, token)) return false;
       const applied = applyFileOverrideEffectivePayload(data, item);
-      if (applied && !isPlainObject(data?.track_metadata)) await loadFileOverrideTracksForPath(path);
+      if (applied && !isPlainObject(data?.track_metadata)) await loadFileOverrideTracksForPath(path, token);
       return applied;
     } catch (_err) {
-      await loadFileOverrideTracksForPath(path);
+      if (drawerRequestIsCurrent(path, token)) await loadFileOverrideTracksForPath(path, token);
       return false;
     }
   }
 
-  async function loadFileOverrideTracksForPath(path) {
+  async function loadFileOverrideTracksForPath(path, token = state.foDrawerLoadToken) {
     if (!path) return false;
-    showDrawerTrackMetadataLoadingState();
+    if (drawerRequestIsCurrent(path, token)) showDrawerTrackMetadataLoadingState();
     try {
       const url = FILE_OVERRIDES_TRACKS_ROUTE + "?path=" + encodeURIComponent(path);
       const data = await apiGet(url);
-      if (path !== state.foCurrentPath) return false;
+      if (!drawerRequestIsCurrent(path, token)) return false;
       renderDrawerTrackMetadata({
         track_metadata: trackMetadataFromTracksPayload(data),
         track_selection_preview: {},
       });
       return true;
     } catch (_err) {
-      if (path === state.foCurrentPath) clearDrawerTrackMetadata("Track metadata could not be loaded.");
+      if (drawerRequestIsCurrent(path, token)) clearDrawerTrackMetadata("Track metadata could not be loaded.");
       return false;
     }
   }
@@ -166,6 +172,7 @@
         });
       }
 
+      if (clearFields.length) state.foPendingClearFieldPaths = new Set();
       const reloaded = await loadFileOverrideEffectiveForPath(state.foCurrentPath, state.foCurrentItem);
       if (payload && hasRouteVideoOverride) await loadRoutePreviewForPayload(payload);
       else if (clearsRouteVideoOverride) await refreshRoutePreviewFromCurrentForm();
@@ -174,11 +181,13 @@
           ? "Override saved. Takes effect on next pipeline round."
           : "Override field cleared. Saved policy value will be used.";
         applyDisplayedQueueFileOverrideMarker(payload ? true : effectivePayloadHasFileOverride());
-        setStatus(reloaded ? savedMessage : `${savedMessage} Effective settings could not be reloaded.`);
         markDrawerClean();
         if (clearResult && clearResult !== result) appendCommandResultFn(clearResult);
         appendCommandResultFn(result);
         await refreshAllFn();
+        state.foCommandInFlight = false;
+        setDrawerCommandButtonsDisabled(false);
+        setStatus(reloaded ? savedMessage : `${savedMessage} Effective settings could not be reloaded.`);
       }
     } catch (err) {
       setStatus("Error saving override: " + (err.message || err));
@@ -265,6 +274,7 @@
       saveFileOverrideForPath,
       clearFileOverrideField,
       clearFileOverrideForPath,
+      drawerRequestIsCurrent,
     };
   }
 

@@ -106,7 +106,9 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("frame-ancestors 'none'", csp)
         self.assertIn("form-action 'none'", csp)
         self.assertNotIn("'unsafe-eval'", csp)
-        self.assertEqual(config["bundle"]["targets"], ["msi", "nsis"])
+        self.assertEqual(config["bundle"]["targets"], ["nsis"])
+        self.assertEqual(config["bundle"]["windows"]["nsis"]["installMode"], "currentUser")
+        self.assertEqual(config["bundle"]["windows"]["digestAlgorithm"], "sha256")
 
     def test_tauri_package_lock_matches_package_identity(self) -> None:
         package = json.loads((TAURI_ROOT / "package.json").read_text(encoding="utf-8"))
@@ -125,12 +127,12 @@ class TauriShellScaffoldTests(unittest.TestCase):
         lock_text = (TAURI_ROOT / "src-tauri" / "Cargo.lock").read_text(encoding="utf-8")
 
         for version in (package["version"], config["version"], cargo["package"]["version"]):
-            self.assertRegex(version, r"^\d+\.\d+\.\d+$")
+            self.assertRegex(version, r"^\d+\.\d+\.\d+(\+[A-Za-z0-9.-]+)?$")
             self.assertNotIn("dirty", version)
-        self.assertEqual(package["version"], "6.0.0")
+        self.assertEqual(package["version"], "2026.6.4+001")
         self.assertEqual(config["version"], package["version"])
         self.assertEqual(cargo["package"]["version"], package["version"])
-        self.assertIn('name = "mediapipeline-tauri-shell"\nversion = "6.0.0"', lock_text)
+        self.assertIn('name = "mediapipeline-tauri-shell"\nversion = "2026.6.4+001"', lock_text)
 
     def test_tauri_rust_manifest_declares_backend_launcher_dependencies(self) -> None:
         cargo = tomllib.loads((TAURI_ROOT / "src-tauri" / "Cargo.toml").read_text(encoding="utf-8"))
@@ -139,9 +141,11 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertEqual(cargo["package"]["name"], "mediapipeline-tauri-shell")
         self.assertIn("tauri", cargo["dependencies"])
         self.assertIn("serde_json", cargo["dependencies"])
+        self.assertIn("tauri-plugin-updater", cargo["dependencies"])
         self.assertIn("url", cargo["dependencies"])
         self.assertIn("windows-sys", cargo["dependencies"])
         self.assertIn('name = "tauri"', lock_text)
+        self.assertIn('name = "tauri-plugin-updater"', lock_text)
 
     def test_tauri_shell_rust_launches_python_local_api_not_pipeline_directly(self) -> None:
         source = _tauri_rust_source()
@@ -149,6 +153,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("mediapipeline.desktop.local_api_main", source)
         self.assertIn('.arg("--shell-surface")', source)
         self.assertIn('.arg("tauri")', source)
+        self.assertIn("tauri_plugin_updater::Builder::new().build()", source)
+        self.assertIn("MEDIAPIPELINE_PRODUCTIZED_APP", source)
         self.assertIn('.arg("--emit-startup-progress")', source)
         self.assertIn("desktop_local_api_bootstrap.v1", source)
         self.assertIn("MEDIA_PIPELINE_TAURI_TEST_AUTOMATION", source)
@@ -425,7 +431,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertNotIn("async function previewSettingsPipelinePlan", source)
         self.assertNotIn("source_media: sourceMedia", source)
         self.assertIn("function settingsPolicyDeltaRows", source)
-        self.assertIn("Staged media-policy delta:", source)
+        self.assertIn("Save-candidate media-policy delta:", source)
         self.assertIn("function settingsEffectivePolicyRows", source)
         self.assertIn("Effective policy trust summary:", source)
         self.assertIn("Launch-active policy is the saved backend config", source)
@@ -433,8 +439,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("function settingsBackendResultDetailLines", source)
         self.assertIn("id=\\\"settings-backend-result-detail\\\"", source)
         self.assertIn("function renderSettingsBackendResultFromEntries", source)
-        self.assertIn("Patch JSON changed after the last preview. Preview again before saving.", source)
-        self.assertIn("Save Patch is the only persistence command", source)
+        self.assertIn("Save Settings will review the current values before writing.", source)
+        self.assertIn("Save Settings is the persistence command", source)
         self.assertIn("function settingsMediaPolicyReadinessLine", source)
         self.assertIn("Resolve blocked saved media-policy rows before launching unattended work.", source)
         self.assertIn("Backend WebView asset validation failed", source)
@@ -1813,9 +1819,9 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("tests.webview.test_webview_browser_settings_launch_smoke", source)
         self.assertIn("temporary local API against generated temporary state", source)
         self.assertIn("Chrome/Edge headless", source)
-        self.assertIn("staged settings patch", source)
+        self.assertIn("unsaved Settings changes", source)
         self.assertIn("Settings-to-Launch", source)
-        self.assertIn("cancelled Save Patch remains visible", source)
+        self.assertIn("cancelled Save Settings remains visible", source)
         self.assertIn("does not save settings", source)
         self.assertIn("process media", source)
         self.assertIn("launch pipeline commands", source)
@@ -2131,7 +2137,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
         self.assertIn("mediapipeline.desktop.webview_settings_patch_smoke", source)
         self.assertIn("generated temporary config", source)
-        self.assertIn("Preview Patch, denied Save Patch, confirmed Save Patch", source)
+        self.assertIn("Save review dialog, denied Save Settings, confirmed Save Settings", source)
         self.assertIn("does not use the current saved config", source)
         self.assertIn("does not process media", source)
         self.assertIn("launch pipeline commands", source)

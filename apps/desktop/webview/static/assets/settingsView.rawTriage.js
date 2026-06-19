@@ -72,13 +72,13 @@
     if (settingsSpecificImpactHints[key]) return settingsSpecificImpactHints[key];
     const group = settingsImpactGroupForKey(key);
     if (coverage === "unknown raw key") {
-      return "Not present in the backend field definitions. Use Preview Patch before saving any edits involving this key.";
+      return "Not present in the backend field definitions. Save Settings must validate any edit involving this key before writing.";
     }
     if (coverage === "structured builder") {
       return `Covered by structured settings UI. ${group?.note || "Prefer builder controls over raw JSON edits."}`;
     }
     if (group?.note) return group.note;
-    return "Known config key without a dedicated builder; treat raw edits as advanced and verify with backend preview.";
+    return "Known config key without a dedicated builder; treat raw edits as advanced and verify with backend Save.";
   }
 
   function settingsRawTriageRows() {
@@ -128,15 +128,15 @@
     }
     lines.push("");
     if (unknown.length) {
-      lines.push("Next step: unknown raw keys should be treated as schema drift. Run Settings > Preview Patch before any save touching them.");
+      lines.push("Next step: unknown raw keys should be treated as schema drift. Use Save Settings review before any save touching them.");
     } else if (highAdvanced.length) {
       lines.push("Next step: high-impact raw keys are valid but not covered by a dedicated builder; review their notes before unattended processing.");
     } else if (advanced.length || knownRaw.length) {
-      lines.push("Next step: advanced raw keys are visible below; prefer structured builders for routine changes and backend preview for raw edits.");
+      lines.push("Next step: advanced raw keys are visible below; prefer structured builders for routine changes and backend Save for raw edits.");
     } else {
       lines.push("Next step: all loaded keys are covered by structured settings builders.");
     }
-    lines.push("Mutation guardrail: this triage is read-only. Settings Preview/Save remains backend-owned and PSD1 serialization is unchanged.");
+    lines.push("Mutation guardrail: this triage is read-only. Save Settings remains backend-owned and PSD1 serialization is unchanged.");
     return lines;
   }
 
@@ -156,7 +156,7 @@
       return [
         "No raw-key row selected.",
         "Select a row to inspect current value, schema section, backend field help, and recommended next step.",
-        "Mutation guardrail: this detail view is read-only. Use Settings Preview/Save for backend-owned validation and persistence.",
+        "Mutation guardrail: this detail view is read-only. Use Save Settings for backend-owned validation and persistence.",
       ];
     }
     const field = settingsFieldDefinition(row.key);
@@ -176,11 +176,11 @@
     }
     if (row.note) lines.push(`Review note: ${row.note}`);
     if (row.coverage === "unknown raw key") {
-      lines.push("Recommended next step: treat this as schema drift. Do not save a patch touching this key until backend Preview Patch explains it.");
+      lines.push("Recommended next step: treat this as schema drift. Do not save a patch touching this key until backend validation accepts it.");
     } else if (row.coverage === "advanced raw") {
-      lines.push("Recommended next step: valid key, but advanced. Prefer an existing builder when possible and run backend Preview Patch before Save.");
+      lines.push("Recommended next step: valid key, but advanced. Prefer an existing builder when possible and review it in Save Settings.");
     } else if (row.coverage === "known raw") {
-      lines.push("Recommended next step: known backend field without impact grouping. Raw edits are possible, but Preview Patch remains authoritative.");
+      lines.push("Recommended next step: known backend field without impact grouping. Raw edits are possible, but backend Save remains authoritative.");
     } else {
       lines.push("Recommended next step: use the structured builder for routine edits instead of raw JSON.");
     }
@@ -249,7 +249,7 @@
         ? `${unknownRows.length} unknown key(s): ${unknownRows.slice(0, 6).map((row) => row.key).join(", ")}${unknownRows.length > 6 ? `, +${unknownRows.length - 6} more` : ""}`
         : "No unknown keys were present in the redacted backend settings workspace.",
       action: unknownRows.length
-        ? "Do not save patches touching unknown keys until backend Preview Patch explains them."
+        ? "Do not save patches touching unknown keys until backend validation accepts them."
         : "No schema-drift action needed.",
       detail: unknownRows.length
         ? unknownRows.map((row) => `${row.key}: ${row.note}`)
@@ -271,11 +271,11 @@
           : `${bdpgsStructuredKeys.join(", ")} are covered by the Subtitle builder; saved backend evidence reports ${bdpgsStatus}.`
         : "No BDPGS OCR path keys were present in the loaded config.",
       action: bdpgsKeys.length
-        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then backend Preview/Save and re-check saved path evidence; do not add a frontend-owned path picker."
+        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then Save Settings and re-check saved path evidence; do not add a frontend-owned path picker."
         : "If BDPGS OCR is enabled later, require backend path evidence before real-media validation.",
       detail: [
         ...settingsBdpgsOcrPathEvidenceLines().slice(0, 12),
-        "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative; WebView does not browse arbitrary paths or resolve paths. Any folder picker must be backend-owned and allowlisted.",
+        "Path policy: WebView can stage configured path text, but backend Save and saved path evidence remain authoritative; WebView does not browse arbitrary paths or resolve paths. Any folder picker must be backend-owned and allowlisted.",
       ],
     });
 
@@ -294,11 +294,11 @@
           : `${vobSubStructuredKeys.join(", ")} are covered by the Subtitle builder; saved backend evidence reports ${vobSubStatus}.`
         : "No VobSub OCR path keys were present in the loaded config.",
       action: vobSubKeys.length
-        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then backend Preview/Save and re-check saved path evidence; do not add a frontend-owned path picker."
+        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then Save Settings and re-check saved path evidence; do not add a frontend-owned path picker."
         : "If VobSub OCR is enabled later, require backend path evidence before real-media validation.",
       detail: [
         ...settingsVobSubOcrPathEvidenceLines().slice(0, 12),
-        "Path policy: WebView can stage configured path text, but backend Preview/Save and saved path evidence remain authoritative; WebView does not browse arbitrary paths or resolve paths.",
+        "Path policy: WebView can stage configured path text, but backend Save and saved path evidence remain authoritative; WebView does not browse arbitrary paths or resolve paths.",
       ],
     });
 
@@ -317,13 +317,13 @@
         : "No SDH/supplemental subtitle keyword keys were present in the loaded config.",
       action: keywordKeys.length
         ? keywordRawKeys.length
-          ? "Keep remaining raw keyword keys advanced unless operator demand justifies a dedicated list editor; backend preview must validate array/list shape."
-          : "Use the Subtitle builder to stage keyword list changes, then backend Preview/Save; backend subtitle classification remains authoritative."
+          ? "Keep remaining raw keyword keys advanced unless operator demand justifies a dedicated list editor; backend save validation must validate array/list shape."
+          : "Use the Subtitle builder to stage keyword list changes, then Save Settings; backend subtitle classification remains authoritative."
         : "No keyword-list action needed.",
       detail: keywordKeys.length
         ? [
           ...keywordRows.map((row) => `${row.key}: ${row.coverage}; ${row.note || "Subtitle keyword list."}`),
-          "Mutation boundary: WebView only stages list text for backend Preview/Save; SDH and supplemental classification remain backend-authored.",
+          "Mutation boundary: WebView only stages list text for backend Save; SDH and supplemental classification remain backend-authored.",
         ]
         : ["Subtitle keyword keys are absent from this redacted config snapshot."],
     });
@@ -337,11 +337,11 @@
         ? `${secretKeys.join(", ")} are intentionally not builder-owned; backend redaction must prevent secret display.`
         : "No network auth secret field was present in this workspace payload.",
       action: secretKeys.length
-        ? "Do not add WebView token editors without a separate secret-handling design. Raw preview/save must keep redacted placeholders rejected."
+        ? "Do not add WebView token editors without a separate secret-handling design. Raw save must keep redacted placeholders rejected."
         : "No token action needed.",
       detail: [
         "Secrets can leak through browser memory, dev tools, logs, screenshots, and command history if exposed casually.",
-        "Backend settings workspace redacts token values; Save Patch rejects '<redacted>' placeholders for sensitive keys.",
+        "Backend settings workspace redacts token values; Save Settings rejects '<redacted>' placeholders for sensitive keys.",
         "Network lifecycle controls use backend-owned dry-run and confirmed command routes; auth token values remain hidden.",
       ],
     });
@@ -353,7 +353,7 @@
       posture: remainingAdvanced.length || knownRawRows.length ? "review" : "none",
       evidence: `${remainingAdvanced.length} advanced raw key(s), ${knownRawRows.length} known ungrouped raw key(s), ${structuredRows.length} structured key(s).`,
       action: remainingAdvanced.length || knownRawRows.length
-        ? "Treat these as advanced edits; prefer existing builders and backend Preview Patch before Save."
+        ? "Treat these as advanced edits; prefer existing builders and Save Settings review."
         : "All non-secret/non-path keys are structured or intentionally absent.",
       detail: remainingAdvanced.concat(knownRawRows).length
         ? remainingAdvanced.concat(knownRawRows).slice(0, 12).map((row) => `${row.key}: ${row.coverage}; ${row.impact}; ${row.note}`)
@@ -368,8 +368,7 @@
       action: "This panel cannot stage JSON, save config, launch work, run FFmpeg/OCR, edit PATH, drain publish, rename, or touch media.",
       detail: [
         "Use structured builders for routine changes.",
-        "Use Preview Patch for backend validation, redacted diff, risk summary, and PSD1 serialization proof.",
-        "Use Save Patch only after preview evidence and explicit browser confirmation.",
+        "Use Save Settings for backend validation, redacted diff, risk summary, PSD1 serialization proof, and explicit dialog confirmation.",
       ],
     });
 
@@ -414,7 +413,7 @@
       `Area: ${row.area || "Raw-key action"}`,
       `Posture: ${row.posture || "unknown"}`,
       `Evidence: ${row.evidence || "No evidence text available."}`,
-      `Recommended action: ${row.action || "Review with backend Preview Patch before save."}`,
+      `Recommended action: ${row.action || "Review with Save Settings before save."}`,
       "",
       "Detail:",
       ...(Array.isArray(row.detail) && row.detail.length ? row.detail : ["No additional detail available."]),

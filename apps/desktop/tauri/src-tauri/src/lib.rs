@@ -58,6 +58,7 @@ const MAX_OPERATOR_PATH_CHARS: usize = 320;
 
 pub fn run() {
     let app = tauri::Builder::default()
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             eprintln!("[mediapipeline-shell] setup: acquiring single-instance guard");
             let single_instance_guard = acquire_single_instance_guard()?;
@@ -806,15 +807,15 @@ window.__settingsRawTriageModule = { createSettingsRawTriageModule };"#;
 }
 function settingsSafetyLockRows() {}
 window.__settingsSafetyLocksModule = { createSettingsSafetyLocksModule };"#;
-        let settings_backend_result_script = r#"function createSettingsBackendResultModule() {}
+let settings_backend_result_script = r#"function createSettingsBackendResultModule() {}
 function settingsBackendResultRows() {
-  return "Patch JSON changed after the last preview. Preview again before saving.";
+  return "Save Settings will review the current values before writing.";
 }
 function settingsBackendResultDetailLines() {
   return "Patch identity:";
 }
 function renderSettingsBackendResultFromEntries() {
-  return "Save Patch is the only persistence command";
+  return "Save Settings is the persistence command";
 }
 window.__settingsBackendResultModule = { createSettingsBackendResultModule };"#;
         let settings_patch_review_script = r#"function renderHandbrakePreviewSummary(settings) {
@@ -847,7 +848,7 @@ function renderSettingsBackendMediaPolicyReadiness() {
   return "Backend media-policy readiness: this table cannot stage settings, save config, launch work, run FFmpeg, publish files, or touch source media";
 }
 function settingsPolicyDeltaRows() {
-  return "Staged media-policy delta:";
+  return "Save-candidate media-policy delta:";
 }
 function settingsEffectivePolicyRows() {
   return "Effective policy trust summary: Launch-active policy is the saved backend config";

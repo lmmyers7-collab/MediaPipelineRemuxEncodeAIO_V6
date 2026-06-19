@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: scripts
 last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: b10e198ba015eafa71f4e887bd319d542df454ef679245171a9b7a00f1d25e16
+sha256: f5bed783c749238491ffba2ad9f6fa12156d1d0bc7ed732d09f93bae32ccaf4f
 ---
 # `src/mediapipeline/tools/dev/refresh_summaries.py`
 

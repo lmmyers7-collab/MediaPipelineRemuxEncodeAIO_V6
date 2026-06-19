@@ -99,11 +99,6 @@ def validate_header(headers: dict, expected_token: str) -> bool:
         return False
 
 
-def make_auth_header(token: str) -> dict[str, str]:
-    """Return an ``Authorization`` header dict for use in worker requests."""
-    return {"Authorization": f"Bearer {token}"}
-
-
 def _header_value(headers: dict, name: str) -> str:
     value = headers.get(name)
     if value is not None:

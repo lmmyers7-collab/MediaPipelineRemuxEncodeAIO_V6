@@ -134,7 +134,7 @@
         return "Worker coordinator URL must not include query strings or fragments.";
       }
       if (parsed.username || parsed.password) {
-        return "Worker coordinator URL must not embed userinfo; use WorkerAuthToken for the shared token.";
+        return "Worker coordinator URL must not embed userinfo; use the shared worker token instead.";
       }
       return "";
     }
@@ -413,8 +413,8 @@
       const data = result?.data && typeof result.data === "object" ? result.data : {};
       const layers = data.layers && typeof data.layers === "object" ? data.layers : {};
       const l3 = layers.l3_paths && typeof layers.l3_paths === "object" ? layers.l3_paths : {};
-      if (!Object.keys(l3).length) return "Generic saved-config backend preflight unavailable.";
-      return `Generic saved-config backend preflight: path layer ${l3.ok ? "reported pass" : "reported review"} (${l3.status || "unknown"}).`;
+      if (!Object.keys(l3).length) return "Backend saved-config preflight unavailable.";
+      return `Backend saved-config preflight: path layer ${l3.ok ? "reported pass" : "reported review"} (${l3.status || "unknown"}).`;
     }
 
     async function testPathMapRow(config, row) {
@@ -430,11 +430,11 @@
         return;
       }
       const lines = [
-        `Local rewrite sample: ${resolved.samplePath}`,
-        `Local rewrite result: ${resolved.resolvedPath}`,
+        `Local staged rewrite sample: ${resolved.samplePath}`,
+        `Local staged rewrite result: ${resolved.resolvedPath}`,
       ];
       if (output) output.textContent = "Testing backend path layer...";
-      setText(config.resultId, [...lines, "Generic saved-config backend preflight: running..."].join("\n"));
+      setText(config.resultId, [...lines, "Backend saved-config preflight: running..."].join("\n"));
       const runner = typeof runNetworkWorkerTestConnection === "function"
         ? runNetworkWorkerTestConnection
         : (options) => window.mediaPipelineNetworkView?.runNetworkWorkerTestConnection?.(options);
@@ -443,7 +443,7 @@
         lines.push(pathLayerStatus(result));
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        lines.push(`Generic saved-config backend preflight unavailable: ${message}`);
+        lines.push(`Backend saved-config preflight unavailable: ${message}`);
       }
       if (output) output.textContent = lines.slice(1).join("\n");
       setText(config.resultId, lines.join("\n"));
@@ -577,7 +577,7 @@
       bindNetworkRoleSetupControls();
       applyNetworkSettingTips();
       updateNetworkRoleVisibility();
-      setText("settings-network-builder-status", "Staged Patch: none (saved values loaded)");
+      setText("settings-network-builder-status", "Save Changes: none (saved values loaded)");
       renderNetworkSettingsBuilderGuidance();
       window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Saved Distributed Mode Settings loaded from saved backend settings.");
     }
@@ -585,7 +585,7 @@
     function markNetworkSettingsBuilderDirty() {
       networkSettingsBuilderState.initialized = true;
       networkSettingsBuilderState.dirty = true;
-      setText("settings-network-builder-status", "Staged Patch: dirty local edits");
+      setText("settings-network-builder-status", "Save Changes: dirty local edits");
       updateNetworkRoleVisibility();
       validateNetworkWorkerUrlFields({ show: true });
       renderNetworkSettingsBuilderGuidance();
@@ -649,15 +649,15 @@
         patch = collectNetworkSettingsBuilderPatch();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setText("settings-network-builder-status", "Staged Patch: invalid network value");
+        setText("settings-network-builder-status", "Save Changes: invalid network value");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Distributed mode settings merged role, coordinator, worker, and path-map keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Distributed mode settings prepared role, coordinator, worker, and path-map keys for Save Settings. Backend Save still validates before writing.");
       networkSettingsBuilderState.initialized = true;
       networkSettingsBuilderState.dirty = true;
-      setText("settings-network-builder-status", `Staged Patch: ${Object.keys(patch).length} network keys ready`);
+      setText("settings-network-builder-status", `Save Changes: ${Object.keys(patch).length} network keys ready`);
       renderNetworkSettingsBuilderGuidance();
       window.mediaPipelineNetworkView?.renderNetworkSettingsPatchHandoff?.("Saved Distributed Mode Settings staged into the shared Settings patch JSON.");
       return true;
@@ -773,7 +773,7 @@
       if (!isSetupRole(roleSetupState.currentRole)) return false;
       const setupIssue = validateNetworkWorkerUrlFields({ includeSetup: roleSetupState.currentRole === "worker", show: true });
       if (setupIssue) {
-        setText("settings-network-builder-status", "Staged Patch: invalid worker URL");
+        setText("settings-network-builder-status", "Save Changes: invalid worker URL");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", setupIssue);
         return false;

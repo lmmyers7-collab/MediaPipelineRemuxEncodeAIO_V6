@@ -653,6 +653,7 @@ def release_dry_run_result(result: dict[str, Any], request: dict[str, Any]) -> C
                     "include_tool_docs": request_bool_option(request, "include_tool_docs", False),
                     "include_tauri_preview_binary": request_bool_option(request, "include_tauri_preview_binary", False),
                     "keep_personal_config": request_bool_option(request, "keep_personal_config", False),
+                    "force": request_bool_option(request, "force", False),
                 },
                 "release_progress": progress,
                 "progress_bars": progress["progress_bars"],

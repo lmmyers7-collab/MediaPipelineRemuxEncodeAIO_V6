@@ -10,6 +10,14 @@ RENAME_MOVIE_FILTER_OPTION_KEYS = (
     "languages_subs_dubs",
     "release_groups",
 )
+RENAME_TV_FILTER_OPTION_KEYS = (
+    "video_source",
+    "audio_channels",
+    "release_flags",
+    "services_containers",
+    "languages_subs_dubs",
+    "release_groups",
+)
 RENAME_TOOL_SIDECAR_SCHEMA_VERSION = "rename_tool.v1"
 PLEX_RENAME_DEFAULT_REMOVE_TERMS = (
     "sample",
@@ -24,5 +32,6 @@ PLEX_RENAME_DEFAULT_REMOVE_TERMS = (
 __all__ = [
     "PLEX_RENAME_DEFAULT_REMOVE_TERMS",
     "RENAME_MOVIE_FILTER_OPTION_KEYS",
+    "RENAME_TV_FILTER_OPTION_KEYS",
     "RENAME_TOOL_SIDECAR_SCHEMA_VERSION",
 ]

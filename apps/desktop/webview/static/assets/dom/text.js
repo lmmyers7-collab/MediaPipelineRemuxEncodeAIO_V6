@@ -99,16 +99,166 @@
       return !isDiagnosticCalloutRoot(node) && diagnosticCalloutText(node.textContent) === text;
     }
 
+    function proseBoxCandidate(node) {
+      return Boolean(node?.classList?.contains("prose-block")
+        || node?.classList?.contains("status-block")
+        || node?.classList?.contains("diagnostic-callout"));
+    }
+
+    function proseBoxText(node) {
+      return diagnosticCalloutText(diagnosticCalloutBodyNode(node)?.textContent || node?.textContent || "");
+    }
+
+    function proseBoxIsEmpty(text) {
+      const normalized = String(text || "").replace(/\s+/g, " ").trim().toLowerCase();
+      if (!normalized) return true;
+      return normalized.startsWith("no ")
+        || normalized.includes("not loaded")
+        || normalized.includes("not selected")
+        || normalized.includes("nothing saved yet")
+        || normalized.includes("select a row")
+        || /\bselect (a|an) .+ (to|before)\b/.test(normalized)
+        || normalized.includes("select a target")
+        || normalized.includes("preview has not run");
+    }
+
+    function proseBoxIsRawArtifact(node, text) {
+      const id = String(node?.id || "").toLowerCase();
+      if (proseBoxIsEmpty(text)) return false;
+      if (node?.closest?.(".settings-save-review-dialog")) return true;
+      const idTokens = id.split(/[^a-z0-9]+/).filter(Boolean);
+      const hasToken = (...tokens) => tokens.some((token) => idTokens.includes(token));
+      if (id === "api-contract" || hasToken("markdown", "json", "tail", "command", "stdout", "stderr")) {
+        return true;
+      }
+      return hasToken("result", "preview", "dry", "run", "apply", "save", "export", "open")
+        && !proseBoxShouldSummarize(text);
+    }
+
+    function proseBoxShouldSummarize(text) {
+      const lines = String(text || "").split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+      if (!lines.length || lines.length > 12) return false;
+      const factLines = lines.filter((line) => /[:=;]/.test(line));
+      return factLines.length >= Math.max(1, Math.ceil(lines.length * 0.5));
+    }
+
+    function proseBoxSummaryItems(text) {
+      return String(text || "").split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .slice(0, 5)
+        .map((line) => {
+          const match = line.match(/^([^:=;]{1,34})[:=]\s*(.+)$/);
+          if (match) return { label: match[1].trim(), value: match[2].trim() };
+          return { label: "Summary", value: line };
+        });
+    }
+
+    function proseBoxExistingSummary(node) {
+      const previous = node?.previousElementSibling;
+      if (previous?.classList?.contains("prose-box-summary-strip")) return previous;
+      return null;
+    }
+
+    function removeProseBoxSummary(node) {
+      proseBoxExistingSummary(node)?.remove();
+    }
+
+    function renderProseBoxSummary(node, text) {
+      if (!node?.parentNode) return;
+      let summary = proseBoxExistingSummary(node);
+      if (!summary) {
+        summary = document.createElement("div");
+        summary.className = "prose-box-summary-strip";
+        summary.setAttribute("role", "list");
+        node.parentNode.insertBefore(summary, node);
+      }
+      summary.replaceChildren();
+      proseBoxSummaryItems(text).forEach((item) => {
+        const chip = document.createElement("span");
+        chip.className = "prose-box-summary-chip";
+        chip.setAttribute("role", "listitem");
+        const label = document.createElement("span");
+        label.className = "prose-box-summary-label";
+        label.textContent = item.label;
+        const value = document.createElement("strong");
+        value.className = "prose-box-summary-value";
+        value.textContent = item.value;
+        chip.append(label, value);
+        summary.appendChild(chip);
+      });
+    }
+
+    function classifyProseBox(node) {
+      const text = proseBoxText(node);
+      if (!proseBoxCandidate(node)) return { disposition: "ignored", defense: "" };
+      if (node.classList?.contains("log-block")) {
+        return {
+          disposition: "defended",
+          defense: "true log/output pane; kept because the scrollable text is the payload to inspect or copy",
+        };
+      }
+      if (proseBoxIsEmpty(text)) {
+        return {
+          disposition: "hidden-empty",
+          defense: "empty/default placeholder; hiding removes visual clutter without losing current operator status",
+        };
+      }
+      if (proseBoxShouldSummarize(text) && !proseBoxIsRawArtifact(node, text)) {
+        return {
+          disposition: "summarized",
+          defense: "compact facts were converted into summary chips; full multiline prose stays hidden in the DOM for copy/test access",
+        };
+      }
+      if (proseBoxIsRawArtifact(node, text)) {
+        return {
+          disposition: "defended",
+          defense: "raw operator artifact; kept visible because the full text is the inspectable or copyable payload",
+        };
+      }
+      return {
+        disposition: "hidden-guidance",
+        defense: "explanatory or guardrail prose; hidden because it does not need default visual space",
+      };
+    }
+
+    function applyProseBoxDispositionToNode(node) {
+      if (!proseBoxCandidate(node) || node.dataset?.diagnosticCalloutBody === "true") return;
+      const classification = classifyProseBox(node);
+      node.dataset.proseBoxDisposition = classification.disposition;
+      node.dataset.proseBoxDefense = classification.defense;
+      if (classification.disposition === "summarized") {
+        renderProseBoxSummary(node, proseBoxText(node));
+        node.hidden = true;
+        return;
+      }
+      removeProseBoxSummary(node);
+      if (classification.disposition === "defended") {
+        node.hidden = false;
+        return;
+      }
+      if (classification.disposition.startsWith("hidden")) {
+        node.hidden = true;
+      }
+    }
+
+    function applyProseBoxDispositions(root = document) {
+      if (!root?.querySelectorAll) return;
+      root.querySelectorAll(".prose-block, .status-block, .diagnostic-callout").forEach(applyProseBoxDispositionToNode);
+    }
+
     function setText(id, value) {
       const node = byId(id);
       if (!node) return;
       if (shouldRenderDiagnosticCallout(node, value)) {
         if (diagnosticCalloutBodyNode(node) && renderedTextMatches(node, value)) return;
         renderDiagnosticCalloutNode(node, value);
+        applyProseBoxDispositionToNode(byId(id));
         return;
       }
       if (renderedTextMatches(node, value)) return;
       resetDiagnosticCalloutNode(node, value);
+      applyProseBoxDispositionToNode(node);
     }
 
     function applyDiagnosticCallouts(root = document) {
@@ -118,6 +268,7 @@
           renderDiagnosticCalloutNode(node, node.textContent || "");
         }
       });
+      applyProseBoxDispositions(root);
     }
 
     function stateFromStatusText(text) {
@@ -358,6 +509,8 @@
       renderedTextMatches,
       setText,
       applyDiagnosticCallouts,
+      applyProseBoxDispositions,
+      applyProseBoxDispositionToNode,
       stateFromStatusText,
       setTextState,
       selectedRowAtAGlanceLines,

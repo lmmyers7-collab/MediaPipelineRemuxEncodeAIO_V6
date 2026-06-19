@@ -63,6 +63,14 @@ SIZE_GUARD_MODE_DESCRIPTIONS = {
     "off": "Disable post-encode size growth checks.",
 }
 
+ENCODE_WASTE_GUARD_MODE_DEFAULT = "off"
+ENCODE_WASTE_GUARD_MODE_NAMES = ("off", "dry_run", "enforce")
+ENCODE_WASTE_GUARD_MODE_DESCRIPTIONS = {
+    "off": "Disable live encode waste projections.",
+    "dry_run": "Record preflight/live projected-oversize evidence without aborting the encode.",
+    "enforce": "For eligible fallback-remux encodes, abort projected-oversize GPU work and try remux fallback.",
+}
+
 DYNAMIC_HDR_POLICY_DEFAULT = "warn"
 DYNAMIC_HDR_POLICY_NAMES = ("off", "warn", "preserve_or_remux", "preserve_or_review")
 DYNAMIC_HDR_POLICY_DESCRIPTIONS = {

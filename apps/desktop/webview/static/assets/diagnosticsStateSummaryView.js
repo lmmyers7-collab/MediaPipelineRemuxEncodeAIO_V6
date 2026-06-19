@@ -48,6 +48,15 @@
     return "unknown";
   }
 
+  function diagnosticsStateSummaryPanelState(payload) {
+    const rows = Array.isArray(payload?.targets) ? payload.targets : [];
+    if (!rows.length) return "empty";
+    const statuses = rows.map((item) => String(diagnosticsStateOperatorStatus(item) || item?.status || "").toLowerCase());
+    if (statuses.includes("blocked") || statuses.includes("error")) return "blocked";
+    if (statuses.some((status) => ["review", "warning", "missing", "unknown", "not available"].includes(status))) return "warning";
+    return "ready";
+  }
+
   function diagnosticsStateRowStatusState(item) {
     const fallback = diagnosticsStateOperatorStatus(item);
     const state = typeof backendRowStatusState === "function" ? backendRowStatusState(item, fallback) : "";
@@ -349,11 +358,11 @@
       groupDataset: "diagnosticsStateActionGroup",
       actionDataset: "diagnosticsStateAction",
       targetDataset: "diagnosticsStateTarget",
-      onTail: (target) => {
-        if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(target);
+      onTail: (target, _action, button) => {
+        if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(target, button);
       },
-      onOpen: (target) => {
-        if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(target);
+      onOpen: (target, _action, button) => {
+        if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(target, button);
       },
     });
   }
@@ -369,11 +378,11 @@
       groupDataset: "diagnosticsStateTriageActionGroup",
       actionDataset: "diagnosticsStateTriageAction",
       targetDataset: "diagnosticsStateTriageTarget",
-      onTail: (target) => {
-        if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(target);
+      onTail: (target, _action, button) => {
+        if (typeof window.requestDiagnosticsTail === "function") window.requestDiagnosticsTail(target, button);
       },
-      onOpen: (target) => {
-        if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(target);
+      onOpen: (target, _action, button) => {
+        if (typeof window.requestDiagnosticsOpen === "function") window.requestDiagnosticsOpen(target, button);
       },
     });
   }
@@ -463,7 +472,19 @@
 
   function renderDiagnosticsStateTriage(payload) {
     const rows = Array.isArray(payload?.triage) ? payload.triage : [];
-    setText("diagnostics-state-triage-status", diagnosticsStateTriageStatusText(payload || {}));
+    const triageStatus = diagnosticsStateTriageStatusText(payload || {});
+    const triageState = rows.some((item) => diagnosticsStateRowStatusState(item) === "blocked")
+      ? "blocked"
+      : rows.some((item) => diagnosticsStateRowStatusState(item) === "warning")
+        ? "warning"
+        : rows.length
+          ? "ready"
+          : "empty";
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-state-triage-status", triageStatus, triageState);
+    } else {
+      setText("diagnostics-state-triage-status", triageStatus);
+    }
     const lines = [
       "Backend read order:",
       ...(Array.isArray(payload?.operator_summary) && payload.operator_summary.length
@@ -480,7 +501,11 @@
     const rows = Array.isArray(payload?.targets) ? payload.targets : [];
     const issues = diagnosticsStateSummaryIssueRows(rows);
     const status = diagnosticsStateRecoveryStatus(rows);
-    setText("diagnostics-state-recovery-status", status);
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-state-recovery-status", status, diagnosticsStateSummaryPanelState(payload));
+    } else {
+      setText("diagnostics-state-recovery-status", status);
+    }
     const counts = rows.reduce((acc, item) => {
       const operatorStatus = diagnosticsStateOperatorStatus(item);
       acc[operatorStatus] = (acc[operatorStatus] || 0) + 1;
@@ -562,7 +587,12 @@
 
   function renderDiagnosticsStateSummary(payload) {
     const rows = Array.isArray(payload?.targets) ? payload.targets : [];
-    setText("diagnostics-state-summary-status", diagnosticsStateSummaryStatusText(payload || {}));
+    const summaryStatus = diagnosticsStateSummaryStatusText(payload || {});
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-state-summary-status", summaryStatus, diagnosticsStateSummaryPanelState(payload || {}));
+    } else {
+      setText("diagnostics-state-summary-status", summaryStatus);
+    }
     const freshnessLines = window.mediaPipelineDom?.payloadFreshnessLines
       ? window.mediaPipelineDom.payloadFreshnessLines({
         payload,

@@ -114,10 +114,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Subtitle builder merged subtitle policy keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Subtitle builder prepared subtitle policy keys for Save Settings. Backend Save still validates before writing.");
       subtitleSettingsBuilderState.initialized = true;
       subtitleSettingsBuilderState.dirty = true;
-      setText("settings-subtitle-builder-status", `${Object.keys(patch).length} subtitle patch keys ready`);
+      setText("settings-subtitle-builder-status", `${Object.keys(patch).length} subtitle change keys ready`);
       renderSubtitleSettingsBuilderGuidance();
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();
@@ -154,7 +154,7 @@
       });
       lines.push("");
       lines.push("Operator rule: fix missing OCR tool/tessdata paths in backend settings before trusting BDPGS-to-SRT runs.");
-      lines.push("Mutation guardrail: saved path evidence is read-only; path edits are staged by the Subtitle builder or raw JSON and still go through backend Preview/Save.");
+      lines.push("Mutation guardrail: saved path evidence is read-only; path edits are staged by the Subtitle builder or raw JSON and still go through backend Save.");
       return lines;
     }
 
@@ -200,7 +200,7 @@
       });
       lines.push("");
       lines.push("Operator rule: configure Subtitle Edit 4.x SubtitleEdit.exe and Tesseract before trusting VobSub-to-SRT runs.");
-      lines.push("Mutation guardrail: saved path evidence is read-only; path edits are staged by the Subtitle builder or raw JSON and still go through backend Preview/Save.");
+      lines.push("Mutation guardrail: saved path evidence is read-only; path edits are staged by the Subtitle builder or raw JSON and still go through backend Save.");
       return lines;
     }
 
@@ -284,7 +284,7 @@
           lines.push("  Boundary: this field stages a config value only; the WebView does not browse arbitrary paths, resolve paths, or run OCR.");
         }
         if (key === "BdpgsOcrTessdataPath") {
-          lines.push("  Boundary: tessdata path evidence is backend-authored after Preview/Save and reload.");
+          lines.push("  Boundary: tessdata path evidence is backend-authored after Save and reload.");
         }
         if (key === "SubSDHTitleKeywords") {
           lines.push("  Boundary: keyword edits only stage backend SDH classification inputs; the WebView does not classify subtitle tracks.");

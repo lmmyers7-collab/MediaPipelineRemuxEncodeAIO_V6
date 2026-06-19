@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0619-024",
+  "title": "Tighten PowerShell rename filters for leaked release tags",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Make pipeline-owned movie and TV destination naming stricter for release groups, video bit-depth tags, upscaled markers, and TV season special markers that leaked into current output paths.",
+  "reason": "Current output folders included release and metadata tokens such as +SP, TTGA, Asiimov, Rapta, Licdom, 10bits, and UpScaled even though the Settings naming filters were enabled.",
+  "affected_areas": [
+    "naming",
+    "pipeline"
+  ],
+  "behavior_before": "PowerShell destination naming could leave selected release groups, video bit-depth plurals, upscaled tags, and TV +SP folder markers in generated Plex movie or TV paths.",
+  "behavior_after": "PowerShell destination naming strips those tags before composing Plex movie and TV folder/file names.",
+  "files_touched": [
+    "ops/pipeline/engine/naming/movie_cleanup.ps1",
+    "ops/pipeline/engine/naming/tv_parsing.ps1",
+    "ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-024.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1"
+  ],
+  "manual_validation": [
+    "Direct PowerShell planner check for current leaked movie/TV output names - passed",
+    "mediapipeline.tools.dev.refresh_summaries - passed; unrelated pre-existing/generated summary dirt remains outside this packet",
+    "ops/pipeline/tests/Unit/Invoke-NamingSupportChecks.ps1 - passed",
+    "python -m unittest tests.python.desktop.test_service_rename_movie tests.python.desktop.test_service_rename_tv tests.python.desktop.test_rename_bad_case_corpus -q - passed",
+    "python -m unittest tests.python.desktop.test_service_rename_preview tests.python.desktop.test_service_rename_preview_runner tests.python.desktop.test_rename_service -q - passed"
+  ],
+  "rollback_plan": "Revert the PowerShell naming filter updates, focused naming support tests, generated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Change packet created before implementation on 2026-06-19.\nImplementation and focused validation completed on 2026-06-19; strict worktree coverage is blocked by unrelated dirty files listed by validate_changes."
+}

@@ -107,7 +107,7 @@ def _top_level_explorer_window_handles() -> list[int]:
     libraries = _windows_api_libraries()
     if libraries is None:
         return []
-    user32, _kernel32 = libraries
+    user32, _ = libraries
     callback_factory = getattr(ctypes, "WINFUNCTYPE", ctypes.CFUNCTYPE)
     callback_type = callback_factory(ctypes.c_int, ctypes.c_void_p, ctypes.c_void_p)
     handles: list[int] = []

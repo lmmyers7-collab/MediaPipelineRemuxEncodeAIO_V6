@@ -109,7 +109,7 @@
         || signal === "pending_destination_overlap"
         || signal === "completed_source_still_pending"
       ));
-      if (hasDrainProof) return { label: "Missing: drain proof", state: "changed", key: "missing_drain_proof" };
+      if (hasDrainProof) return { label: "Missing: drain proof", state: "warning", key: "missing_drain_proof" };
       if (hasPendingProof) return { label: "Missing: pending proof", state: "warning", key: "missing_pending_proof" };
       if (completedProofOutputPath(item) || completedProofSourcePath(item)) return { label: "Missing: no proof", state: "blocked", key: "missing_no_proof" };
       return { label: "Moved/offline unknown", state: "warning", key: "moved_offline_unknown" };

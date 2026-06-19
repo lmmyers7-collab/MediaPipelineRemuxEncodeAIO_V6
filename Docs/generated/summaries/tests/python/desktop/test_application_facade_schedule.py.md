@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_schedule.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 8cc41891e38769c2dcd7cefeda9ada46ae947ac78ffa406f6994c141df2336e7
+sha256: a8eca72580ab4e9859787738269ad8e9ed02ad9a131f06491cffccc2280b9408
 ---
 # `tests/python/desktop/test_application_facade_schedule.py`
 

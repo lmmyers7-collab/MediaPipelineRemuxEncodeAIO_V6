@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_rename_tv_folder.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-04
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 368f5c4f0fb2fd1fea0abdbf61bbeb1f45190bc7519d60c17b07998c5e1a9391
+sha256: 5c0096a21b42b238b4a8536cb8666adf56c934cfbc78bfbc73c27d6596ae2da6
 ---
 # `tests/python/desktop/test_service_rename_tv_folder.py`
 

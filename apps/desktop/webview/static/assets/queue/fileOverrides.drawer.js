@@ -69,7 +69,12 @@
     state.foCurrentPath = path;
     state.foCurrentItem = queueItem;
     state.foLastEffectivePayload = null;
+    state.foDrawerLoadToken = Number(state.foDrawerLoadToken || 0) + 1;
+    const loadToken = state.foDrawerLoadToken;
+    state.foDrawerLoading = true;
+    state.foPendingClearFieldPaths = new Set();
     ctx.series.resetSeriesPreviewState();
+    ctx.series.syncRemuxPilotPromotionState();
 
     const titleEl = ctx.byId("fo-drawer-title");
     const pathEl = ctx.byId("fo-drawer-path");
@@ -82,8 +87,17 @@
     ctx.form.renderDrawerInheritedDefaults(ctx.form.getDrawerLibraryDefaults(queueItem));
     ctx.setStatus("Loading current override…");
     ctx.form.markDrawerClean();
-    ctx.api.loadFileOverrideForPath(path);
-    ctx.api.loadFileOverrideEffectiveForPath(path, queueItem);
+    state.foDrawerLoading = true;
+    ctx.form.setDrawerCommandButtonsDisabled(true);
+    Promise.allSettled([
+      ctx.api.loadFileOverrideForPath(path, loadToken),
+      ctx.api.loadFileOverrideEffectiveForPath(path, queueItem, loadToken),
+    ]).finally(() => {
+      if (!ctx.api.drawerRequestIsCurrent(path, loadToken)) return;
+      state.foDrawerLoading = false;
+      ctx.form.setDrawerCommandButtonsDisabled(false);
+      ctx.series.syncRemuxPilotPromotionState();
+    });
 
     const overlay = ctx.byId("fo-overlay");
     const drawer = ctx.byId("fo-drawer");
@@ -129,6 +143,7 @@
     const saveBtn = ctx.byId("fo-drawer-save");
     const clearBtn = ctx.byId("fo-drawer-clear");
     const seriesBtn = ctx.byId("fo-series-preview-open");
+    const remuxPilotBtn = ctx.byId("fo-remux-pilot-promote");
     const seriesApplyBtn = ctx.byId("fo-series-apply");
     const seriesCloseBtn = ctx.byId("fo-series-modal-close");
     const seriesCancelBtn = ctx.byId("fo-series-cancel");
@@ -141,6 +156,7 @@
     if (saveBtn) saveBtn.addEventListener("click", ctx.api.saveFileOverrideForPath);
     if (clearBtn) clearBtn.addEventListener("click", ctx.api.clearFileOverrideForPath);
     if (seriesBtn) seriesBtn.addEventListener("click", ctx.series.requestSeriesPreview);
+    if (remuxPilotBtn) remuxPilotBtn.addEventListener("click", ctx.series.requestRemuxPilotPromotion);
     if (seriesApplyBtn) seriesApplyBtn.addEventListener("click", ctx.series.applySeriesPreview);
     if (seriesCloseBtn) seriesCloseBtn.addEventListener("click", () => ctx.focus.closeSeriesModal());
     if (seriesCancelBtn) seriesCancelBtn.addEventListener("click", () => ctx.focus.closeSeriesModal());
@@ -166,7 +182,7 @@
       control.addEventListener("change", ctx.form.handleDrawerFormChanged);
     });
     document.querySelectorAll("[data-fo-use-inherited]").forEach((button) => {
-      button.addEventListener("click", () => ctx.api.clearFileOverrideField(button.dataset.foUseInherited || ""));
+      button.addEventListener("click", () => ctx.form.stageUseSavedPolicyField(button.dataset.foUseInherited || ""));
     });
     document.querySelectorAll("[data-fo-route-control]").forEach((control) => {
       control.addEventListener("change", ctx.routePreview.scheduleRoutePreviewFromCurrentForm);

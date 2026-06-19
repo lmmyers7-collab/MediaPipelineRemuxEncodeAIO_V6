@@ -66,6 +66,7 @@ function Write-PipelineEvent {
         [string]$Stage = '',
         [string]$Route = '',
         [string]$Status = '',
+        [string]$SourcePath = '',
         $Data = $null
     )
     $script:CapturedEvents += ,([pscustomobject]@{
@@ -73,6 +74,7 @@ function Write-PipelineEvent {
         Stage = $Stage
         Route = $Route
         Status = $Status
+        SourcePath = $SourcePath
         Data = $Data
     })
     return $true
@@ -98,6 +100,7 @@ function Save-ReproCommand {
 }
 
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\native_process_contracts.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\decide\size_policy.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\process\ffmpeg_progress.ps1')
 
 $script:CapturedLogs = @()
@@ -192,6 +195,97 @@ try {
     $blockedProgressValues = @($script:CapturedProgress | Where-Object { $_.Stage -eq 'remux_mux' } | ForEach-Object { $_.Percent })
     Assert-True ($blockedProgressValues -contains 0) 'blocking mkvmerge warning should still publish initial progress.'
     Assert-True (-not ($blockedProgressValues -contains 100)) 'blocking mkvmerge warning must not publish final 100 percent.'
+
+    $script:CapturedProgress = @()
+    $script:CapturedEvents = @()
+    $script:ReproSaves = 0
+    $script:FFmpegProgressWriteStepPercent = 25
+    $script:StopRequested = $false
+    $script:LastFFmpegAbortCode = ''
+    $script:LastFFmpegAbortReason = ''
+    $script:LastEncodeWasteGuardProjection = $null
+
+    $ffmpegPath = 'ffmpeg.exe'
+    $LocalFailed = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-ffmpeg-waste-guard-{0}" -f ([Guid]::NewGuid().ToString('N')))
+    New-Item -ItemType Directory -Path $LocalFailed | Out-Null
+    $PauseFlag = Join-Path $LocalFailed 'pause.flag'
+    $StopFlag = Join-Path $LocalFailed 'stop.flag'
+    $sourcePath = Join-Path $LocalFailed 'source.bin'
+    $outputPath = Join-Path $LocalFailed 'encode-temp.mkv'
+    [System.IO.File]::WriteAllBytes($sourcePath, (New-Object byte[] 1000))
+    $script:WasteGuardOutputPath = $outputPath
+
+    function Invoke-FFprobeCommand {
+        param(
+            [array]$ArgumentList,
+            [int]$TimeoutSeconds = 0,
+            [string]$Stage = ''
+        )
+        return New-NativeCommandResult -ExitCode 0 -Stdout '100' -Stderr '' -ErrorCode 'OK'
+    }
+
+    function Invoke-NativeProcess {
+        param(
+            [string]$FilePath,
+            [array]$ArgumentList,
+            [int]$TimeoutSeconds = 0,
+            [string]$StopFlagPath = '',
+            [string]$Label = '',
+            [int]$MaxStdoutChars = 0,
+            [int]$MaxStderrChars = 0,
+            [scriptblock]$StderrLineHandler,
+            [scriptblock]$PollHandler,
+            [scriptblock]$ProcessStartedHandler
+        )
+        [System.IO.File]::WriteAllBytes($script:WasteGuardOutputPath, (New-Object byte[] 700))
+        if ($StderrLineHandler) {
+            & $StderrLineHandler 'out_time_us=25000000' 'stderr'
+        }
+        $abort = if ($PollHandler) { & $PollHandler 180 $null } else { $null }
+        if ($abort -and [bool]$abort.Abort) {
+            $result = New-NativeCommandResult -ExitCode -1 -Stdout '' -Stderr '[KILLED: waste guard projection]' -TimedOut:$false -Stopped:$false -ErrorCode ([string]$abort.AbortCode)
+            Set-ExternalToolResultProperty -Result $result -Name 'Aborted' -Value $true
+            Set-ExternalToolResultProperty -Result $result -Name 'AbortCode' -Value ([string]$abort.AbortCode)
+            Set-ExternalToolResultProperty -Result $result -Name 'AbortReason' -Value ([string]$abort.AbortReason)
+            Set-ExternalToolResultProperty -Result $result -Name 'DurationSeconds' -Value 180
+            return $result
+        }
+        return New-NativeCommandResult -ExitCode 0 -Stdout '' -Stderr '' -ErrorCode 'OK'
+    }
+
+    $wasteGuardContext = [pscustomobject][ordered]@{
+        Enabled = $true
+        Mode = 'enforce'
+        Enforce = $true
+        DryRun = $false
+        SourceSizeBytes = 1000L
+        OutputPath = $outputPath
+        LimitRatio = 1.05
+        OversizeMarginPercent = 20
+        MinProgressPercent = 15
+        MinElapsedSeconds = 120
+        ConsecutiveSamples = 1
+        ConsecutiveHits = 0
+        PollSeconds = 0
+    }
+
+    $ffmpegOk = Invoke-FFmpegWithProgress `
+        -FFArgs @('-i', $sourcePath, $outputPath) `
+        -Label 'TEST-FFMPEG-WASTE-GUARD' `
+        -InputFile $sourcePath `
+        -TimeoutSeconds 30 `
+        -ProgressStage 'encode' `
+        -ProgressRoute 'encode' `
+        -ReproStage 'encode' `
+        -OutputPath $outputPath `
+        -WasteGuardContext $wasteGuardContext
+
+    Assert-Equal ([bool]$ffmpegOk) $false 'FFmpeg wrapper should return false when the waste guard aborts.'
+    Assert-Equal ([string]$script:LastFFmpegAbortCode) 'ENCODE_WASTE_GUARD_PROJECTED_OVERSIZE' 'FFmpeg waste guard abort code was not exposed.'
+    Assert-True ($script:LastEncodeWasteGuardProjection -ne $null) 'FFmpeg waste guard abort should expose projection metadata.'
+    Assert-Equal ([bool]$script:LastEncodeWasteGuardProjection.ShouldAbort) $true 'Projection metadata should record an abort decision.'
+
+    Remove-Item -LiteralPath $LocalFailed -Recurse -Force -ErrorAction SilentlyContinue
 } finally {
     Remove-Item -LiteralPath $StopFlag -Force -ErrorAction SilentlyContinue
 }

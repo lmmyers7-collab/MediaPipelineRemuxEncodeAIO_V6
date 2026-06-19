@@ -120,6 +120,10 @@
                 <p id="rename-selection-audit-status" class="status-line">No selection</p>
                 <pre id="rename-selection-audit" class="prose-block compact-text-block">Apply scope: none</pre>
                 <pre id="rename-detail" class="prose-block compact-text-block">No rename row selected. Select a preview row to inspect confidence, source logic, warnings, sidecar moves, and exact destination.</pre>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="rename-log-bad-case-button" class="secondary-button" disabled>Log Bad Rename Case</button>
+                  <span id="rename-log-bad-case-status" class="note">Select a preview row to log a case.</span>
+                </div>
                 <p id="rename-review-board-status" class="status-line">No preview</p>
                 <pre id="rename-review-board" class="prose-block compact-text-block">No rename review board loaded.</pre>
                 <pre id="rename-batch-safety" class="prose-block compact-text-block">No rename batch safety evidence loaded.</pre>
@@ -182,7 +186,7 @@
             <form method="dialog" class="rename-modal-form">
               <h2 id="rename-confirm-title" class="rename-modal-title">Confirm filesystem rename</h2>
               <p id="rename-confirm-count" class="rename-modal-count">Renaming 0 file(s).</p>
-              <p id="rename-confirm-mutation-warning" class="rename-modal-warning">This will rename files on disk. Review every source and destination path before continuing.</p>
+              <p id="rename-confirm-mutation-warning" class="rename-modal-warning">Preview is read-only. Apply filesystem rename sends the checked source paths to backend rename.apply and can rename files on disk.</p>
               <div id="rename-confirm-list" class="rename-modal-list" role="list"></div>
               <p id="rename-confirm-warning" class="rename-modal-warning" hidden></p>
               <div class="action-row action-row-right">
@@ -193,21 +197,61 @@
           </dialog>
 
           <!--
-            Result dialog shown after apply. Renders success/failed/skipped counts + errors.
+            Result dialog shown after apply. Renders renamed/unchanged/skipped/protected/failed counts + errors.
           -->
           <dialog id="rename-result-dialog" class="rename-modal" aria-labelledby="rename-result-title">
             <form method="dialog" class="rename-modal-form">
               <h2 id="rename-result-title" class="rename-modal-title">Rename result</h2>
               <ul id="rename-result-counts" class="rename-modal-counts" role="list">
-                <li>Success: <strong id="rename-result-success">0</strong></li>
-                <li>Failed: <strong id="rename-result-failed">0</strong></li>
+                <li>Renamed: <strong id="rename-result-success">0</strong></li>
+                <li>Unchanged: <strong id="rename-result-unchanged">0</strong></li>
                 <li>Skipped: <strong id="rename-result-skipped">0</strong></li>
+                <li>Protected: <strong id="rename-result-protected">0</strong></li>
+                <li>Failed: <strong id="rename-result-failed">0</strong></li>
               </ul>
               <p id="rename-result-summary" class="rename-modal-summary"></p>
               <div id="rename-result-errors" class="rename-modal-errors" role="region" aria-label="Errors" hidden></div>
               <div class="action-row action-row-right">
                 <button type="button" id="rename-result-open-log-button" class="secondary-button" hidden>Open Log Folder</button>
                 <button type="submit" class="primary-button" value="close">Close</button>
+              </div>
+            </form>
+          </dialog>
+
+          <dialog id="rename-log-case-dialog" class="rename-modal" aria-labelledby="rename-log-case-title">
+            <form method="dialog" class="rename-modal-form">
+              <h2 id="rename-log-case-title" class="rename-modal-title">Log bad rename case</h2>
+              <p class="rename-modal-summary">Append Case writes a backend bad-case corpus entry only. It does not rename files or change staged media paths.</p>
+              <div class="form-grid two-col">
+                <label>Source Folder
+                  <input id="rename-log-case-source-folder" type="text" autocomplete="off">
+                </label>
+                <label>Source File
+                  <input id="rename-log-case-source-file" type="text" autocomplete="off">
+                </label>
+                <label>Expected Name
+                  <input id="rename-log-case-expected-name" type="text" autocomplete="off">
+                </label>
+                <label>Expected Show
+                  <input id="rename-log-case-expected-show" type="text" autocomplete="off">
+                </label>
+                <label>Expected Season
+                  <input id="rename-log-case-expected-season" type="number" min="0" step="1">
+                </label>
+                <label>Status
+                  <select id="rename-log-case-status-select">
+                    <option value="pending">Pending</option>
+                    <option value="active">Active</option>
+                  </select>
+                </label>
+              </div>
+              <label>Notes
+                <textarea id="rename-log-case-notes" rows="3"></textarea>
+              </label>
+              <p id="rename-log-case-message" class="rename-modal-summary"></p>
+              <div class="action-row action-row-right">
+                <button type="button" id="rename-log-case-cancel-button" class="secondary-button" value="cancel">Cancel</button>
+                <button type="button" id="rename-log-case-submit-button" class="primary-button" value="append">Append Case</button>
               </div>
             </form>
           </dialog>

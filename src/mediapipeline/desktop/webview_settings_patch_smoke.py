@@ -212,7 +212,10 @@ def _validate_patch_static_assets(base_url: str) -> None:
         ("function renderSettingsBackendResultFromEntries", "backend result renderer"),
         ("settings-backend-result-rows", "backend result table target"),
         ("settings-backend-result-detail", "backend result detail target"),
-        ("Save Patch was cancelled before any backend save command was sent.", "cancelled save operator feedback"),
+        ("openSettingsSaveReviewDialog", "save review confirmation boundary"),
+        ('apiPost("/api/settings/save-patch"', "settings save route"),
+        ("confirm_save: true", "settings save confirmation guard"),
+        ("settingsRuntimeRestartNoticeLines", "settings save/reload evidence renderer"),
         ("The last save was for different JSON. Do not treat it as proof for the current patch.", "stale save guidance"),
         ("Evidence matches current JSON:", "backend result signature detail"),
     ):

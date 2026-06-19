@@ -144,6 +144,18 @@ function Get-MediaPipelineSizeGuardModeDefault {
     return 'advisory'
 }
 
+function Get-MediaPipelineEncodeWasteGuardModeNames {
+    return @(
+        'off',
+        'dry_run',
+        'enforce'
+    )
+}
+
+function Get-MediaPipelineEncodeWasteGuardModeDefault {
+    return 'off'
+}
+
 function Get-MediaPipelineQualityMetricNames {
     return @('vmaf','ssim','psnr')
 }
@@ -281,6 +293,19 @@ function Resolve-MediaPipelineSizeGuardMode {
     return Get-MediaPipelineSizeGuardModeDefault
 }
 
+function Resolve-MediaPipelineEncodeWasteGuardMode {
+    param([string] $Mode)
+
+    $normalized = if ($Mode) { $Mode.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($normalized)) {
+        return Get-MediaPipelineEncodeWasteGuardModeDefault
+    }
+    if ($normalized -in (Get-MediaPipelineEncodeWasteGuardModeNames)) {
+        return $normalized
+    }
+    return Get-MediaPipelineEncodeWasteGuardModeDefault
+}
+
 function Resolve-MediaPipelineQualityMetric {
     param([string] $Metric)
 
@@ -365,6 +390,17 @@ function Get-MediaPipelineRenameMovieFilterCategoryNames {
         'audio_channels',
         'editions',
         'file_size',
+        'services_containers',
+        'languages_subs_dubs',
+        'release_groups'
+    )
+}
+
+function Get-MediaPipelineRenameTVFilterCategoryNames {
+    return @(
+        'video_source',
+        'audio_channels',
+        'release_flags',
         'services_containers',
         'languages_subs_dubs',
         'release_groups'

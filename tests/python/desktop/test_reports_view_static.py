@@ -39,11 +39,21 @@ COMPONENT_STYLES = (
 class ReportsViewStaticTests(unittest.TestCase):
     def test_all_marker_clear_lets_backend_enumerate_marker_folder(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")
+        html = REPORTS_PAGE.read_text(encoding="utf-8")
 
+        self.assertIn("Preview All Backend Markers", html)
+        self.assertIn("Clear All Backend Markers", html)
+        self.assertIn("Clear All Backend Markers clears all backend failure markers immediately", html)
+        self.assertNotIn("Clear All Backend Markers requires a matching preview", html)
         self.assertIn('return { scope: "all_markers", marker_paths: []', source)
         self.assertIn("all_markers: true", source)
         self.assertIn("if (!request.all_markers) payload.marker_paths = request.marker_paths;", source)
         self.assertIn("all backend failure markers", source)
+        self.assertNotIn("function allFailureMarkerPreviewSignature", source)
+        self.assertNotIn("lastAllFailureMarkerPreviewGate", source)
+        self.assertNotIn("Preview All Backend Markers before Clear All Backend Markers", source)
+        self.assertIn("if (!dryRun && !request.all_markers)", source)
+        self.assertIn("Clearing all backend marker files.", source)
         self.assertIn("function setFailureMarkerSourceMode(enabled)", source)
         self.assertIn("setFailureMarkerSourceMode(true);", source)
         self.assertIn("function applyLocalFailureMarkerClear(request, result)", source)
@@ -61,7 +71,7 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertNotIn("Reports remains read-only", source)
         self.assertIn("Reports triage is read-only", source)
         self.assertIn("Marker Cleanup, which only moves marker JSON through the backend command.", source)
-        self.assertIn("Clear this error?", source)
+        self.assertIn("Clear ${targetText}?", source)
 
     def test_row_keys_use_locale_invariant_lowercase(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")
@@ -97,6 +107,10 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn('clearRows(tbody, 8, lastAuditRows.length ? "No audit rows match the filter." : lastAuditEmptyMessage)', source)
         self.assertIn("function renderAuditControls", source)
         self.assertIn("let selectedAuditRowKeys = new Set();", source)
+        self.assertIn("let reportAuditCommandBusy = \"\";", source)
+        self.assertIn("function setReportAuditCommandBusy", source)
+        self.assertIn("function reportAuditBusyResult", source)
+        self.assertIn("Readiness preview: informational only; this is not a backend dry-run.", source)
         self.assertIn('apiPost("/api/audit/score-policy", request)', source)
         self.assertIn('apiPost("/api/audit/ignore", request)', source)
         self.assertIn('apiPost("/api/audit/export-rerun-csv", request)', source)
@@ -114,8 +128,12 @@ class ReportsViewStaticTests(unittest.TestCase):
     def test_reports_ia_refresh_surface_is_discoverable_without_new_overview_tab(self) -> None:
         source = REPORTS_VIEW.read_text(encoding="utf-8")
         html = REPORTS_PAGE.read_text(encoding="utf-8")
+        styles = COMPONENT_STYLES.read_text(encoding="utf-8")
 
         self.assertIn("<h2>Report Triage</h2>", html)
+        self.assertIn('class="panel report-triage-panel" data-panel-type="evidence"', html)
+        self.assertIn('.report-triage-panel[data-panel-type="evidence"] > .panel-heading h2::after', styles)
+        self.assertIn("content: none;", styles)
         self.assertIn("report-triage-next-action", html)
         self.assertIn("report-triage-action-owner", html)
         self.assertIn("report-triage-report-state", html)
@@ -150,6 +168,13 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("function failureTableEvidenceText", source)
         self.assertIn("function failureActionOwner", source)
         self.assertIn("function auditActionOwner", source)
+        self.assertIn("function hiddenSelectedFailureCount", source)
+        self.assertIn("function hiddenSelectedAuditCount", source)
+        self.assertIn("selected hidden by filter", source)
+        self.assertIn("showing first ${REPORTS_ROW_RENDER_LIMIT} of", source)
+        self.assertIn("setCellStatusChip(statusCell, failureStatusLabel(item), severity)", source)
+        self.assertIn("function reportOwnerPage", source)
+        self.assertIn("button.dataset.reportOwnerNavigate", source)
         self.assertIn("Action owner:", source)
 
     def test_reports_warnings_and_locations_are_actionable_support_evidence(self) -> None:
@@ -165,6 +190,7 @@ class ReportsViewStaticTests(unittest.TestCase):
         self.assertIn("function collectReportWarnings", source)
         self.assertIn("function renderReportWarnings", source)
         self.assertIn("reportCompactPath(item.path)", source)
+        self.assertIn("requestDiagnosticsOpen(target, button)", source)
         self.assertIn("warningRows.length ? \"Review\" : \"Ready\"", source)
 
     def test_failure_review_board_uses_tile_summary_with_detail_fallback(self) -> None:

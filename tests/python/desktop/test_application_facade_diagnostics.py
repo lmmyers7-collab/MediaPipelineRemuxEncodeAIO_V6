@@ -124,6 +124,8 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
             payload = facade.read_diagnostics_state_summary(resolved)
 
         self.assertEqual(payload["schema_version"], "desktop_diagnostics_state_summary.v1")
+        self.assertEqual(payload["autonomy_health"]["schema_version"], "desktop_autonomy_health.v1")
+        self.assertIn(payload["autonomy_health"]["overall_status"], {"ready", "review", "blocked"})
         self.assertIn("Read-only backend summary", payload["guardrail"])
         rows = {row["target"]: row for row in payload["targets"]}
         self.assertEqual(rows["queue_snapshot"]["status"], "ok")

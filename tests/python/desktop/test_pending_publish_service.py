@@ -12,7 +12,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.publish.pending_service import PendingPublishServiceMixin
-from mediapipeline.core.publish.pending_policy import pending_publish_rows
+from mediapipeline.core.publish.pending_policy import pending_publish_preview_fields, pending_publish_rows
 
 
 class DummyPendingPublishService(PendingPublishServiceMixin):
@@ -221,6 +221,38 @@ class PendingPublishServiceTests(unittest.TestCase):
         errors = "\n".join(str(row.get("error") or "") for row in result["health_rows"])
         self.assertIn("Duplicate pending publish local payload", errors)
         self.assertIn("Duplicate pending publish server destination", errors)
+
+    def test_retry_exhausted_manifest_is_dead_letter_review_and_not_drain_ready(self) -> None:
+        service = DummyPendingPublishService()
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            payload = root / "payload.mkv"
+            payload.write_text("payload", encoding="utf-8")
+            manifest = self._current_manifest(
+                root=root,
+                payload=payload,
+                server_out=root / "server-output.mkv",
+                source=root / "source.mkv",
+                retry_count=3,
+            )
+            (root / "payload.mkv.manifest.json").write_text(json.dumps(manifest), encoding="utf-8")
+
+            result = service.scan_pending_publish(self._resolved(root))
+            dto_row = pending_publish_rows([result["rows"][0]])[0]
+            preview = pending_publish_preview_fields(result)
+
+        self.assertEqual(result["rows"][0]["retry_count"], 3)
+        self.assertEqual(result["rows"][0]["retry_limit"], 3)
+        self.assertTrue(result["rows"][0]["retry_exhausted"])
+        self.assertFalse(dto_row["ready_to_drain"])
+        self.assertEqual(dto_row["diagnostic_status"], "retry_exhausted")
+        self.assertEqual(dto_row["drain_recommendation"], "do_not_drain")
+        self.assertEqual(dto_row["operator_trust_state"], "do-not-drain")
+        self.assertEqual(dto_row["recovery_class"], "dead_letter_review")
+        self.assertEqual(dto_row["dead_letter_status"], "retry_exhausted_review")
+        self.assertEqual(preview["retry_budget"]["status"], "blocked")
+        self.assertEqual(preview["retry_budget"]["exhausted_count"], 1)
+        self.assertEqual(preview["retry_exhausted_count"], 1)
 
 
 if __name__ == "__main__":

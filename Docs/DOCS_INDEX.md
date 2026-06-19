@@ -50,10 +50,11 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: repeatable real-media pilot plan.
 - `implementation/release-foundation/PHASE_7_FINALIZATION.md`: change-control and release metadata finalization plan.
 
-## Archived Compatibility Redirects
+## Removed Compatibility Redirects
 
-- `archive/ai/AI_AGENT_START_HERE.md`: archived redirect to `..\AGENTS.md`.
-- `archive/ai/AI_DIRECTIVE.md`: archived redirect to `..\AGENTS.md`.
+- Former `AI_AGENT_START_HERE.md`, `AI_DIRECTIVE.md`, and `AI_HANDOFF.md`
+  material is superseded by root `AGENTS.md` and is not part of the current
+  active guidance surface.
 
 No active standalone fix-checklist redirect remains; use
 `CURRENT_PROJECT_STATE.md` and `..\docs/OPEN_WORK_CHECKLIST.md`.
@@ -109,6 +110,7 @@ No active standalone fix-checklist redirect remains; use
 - `testing/BROWSER_SMOKE_FAILURE_TRIAGE_CHEATSHEET.md`
 - `testing/BROWSER_SMOKE_PREREQUISITES_CHECKLIST.md`
 - `testing/BROWSER_SMOKE_TEST_RUNBOOK.md`
+- `testing/FFMPEG_MEDIA_POLICY_REGRESSION_MATRIX.md`
 - `testing/TEST_COVERAGE_MATRIX.md`
 - `testing/VALIDATION_LADDER_RUNBOOK.md`
 - `testing/WEBVIEW_SMOKE_RESULT_TEMPLATE.md`

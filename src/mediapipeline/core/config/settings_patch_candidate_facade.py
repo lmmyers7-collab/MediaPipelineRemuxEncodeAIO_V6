@@ -13,6 +13,9 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_RENAME_MOVIE_FILTER_OPTIONS,
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,
+    KEY_RENAME_TV_FILTER_OPTIONS,
+    KEY_RENAME_TV_FILTER_TERMS,
+    KEY_RENAME_TV_REMOVE_TERMS,
     KEY_VOBSUB_OCR_TOOL_PATH,
 )
 from mediapipeline.core.config.metadata_network import KEY_COORDINATOR_ALSO_ENCODE_LOCALLY
@@ -50,6 +53,9 @@ _RENAME_CLEANING_POLICY_KEYS = {
     KEY_RENAME_MOVIE_FILTER_OPTIONS,
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,
+    KEY_RENAME_TV_FILTER_OPTIONS,
+    KEY_RENAME_TV_FILTER_TERMS,
+    KEY_RENAME_TV_REMOVE_TERMS,
 }
 
 
@@ -61,6 +67,9 @@ def _normalize_rename_cleaning_policy_values(values: dict[str, Any], changed_key
         KEY_RENAME_MOVIE_FILTER_OPTIONS: policy["movie_filter_options"],
         KEY_RENAME_MOVIE_FILTER_TERMS: policy["movie_filter_terms"],
         KEY_RENAME_MOVIE_REMOVE_TERMS: policy["remove_terms"],
+        KEY_RENAME_TV_FILTER_OPTIONS: policy["tv_filter_options"],
+        KEY_RENAME_TV_FILTER_TERMS: policy["tv_filter_terms"],
+        KEY_RENAME_TV_REMOVE_TERMS: policy["tv_remove_terms"],
     }
     for key in _RENAME_CLEANING_POLICY_KEYS:
         if key not in values:

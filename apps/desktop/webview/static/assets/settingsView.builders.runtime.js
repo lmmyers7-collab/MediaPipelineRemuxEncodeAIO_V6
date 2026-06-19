@@ -89,10 +89,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Runtime builder merged scan, timeout, retry, logging, and tool-fallback keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Runtime builder prepared scan, timeout, retry, logging, and tool-fallback keys for Save Settings. Backend Save still validates before writing.");
       runtimeSettingsBuilderState.initialized = true;
       runtimeSettingsBuilderState.dirty = true;
-      setText("settings-runtime-builder-status", `${Object.keys(patch).length} runtime patch keys ready`);
+      setText("settings-runtime-builder-status", `${Object.keys(patch).length} runtime change keys ready`);
       renderRuntimeSettingsBuilderGuidance();
       return true;
     }

@@ -11,6 +11,7 @@ ROW_OPERATOR_GUIDANCE = {
     "invalid_manifest": "Manifest is invalid. Regenerate or repair from pipeline logs before drain.",
     "unreadable_manifest": "Manifest could not be read. Check file locking, permissions, and JSON validity before drain.",
     "duplicate_target": "Multiple pending manifests reference the same payload or destination. Resolve duplicates before drain.",
+    "retry_exhausted": "Pending publish retry budget is exhausted. Leave the payload parked and review the manifest, drain summary, and run logs before any manual recovery.",
     "row_error": "Pending row has a backend-reported error. Inspect manifest, payload, and run logs before drain.",
 }
 
@@ -22,6 +23,7 @@ ROW_RECOVERY_CLASSES = {
     "invalid_manifest": "manifest_repair",
     "unreadable_manifest": "manifest_repair",
     "duplicate_target": "duplicate_resolution",
+    "retry_exhausted": "dead_letter_review",
     "row_error": "manual_review",
 }
 
@@ -33,6 +35,7 @@ ROW_RECOVERY_ACTIONS = {
     "invalid_manifest": "Repair or regenerate the pending manifest from logs/sidecar evidence before another drain attempt.",
     "unreadable_manifest": "Check locking, permissions, and JSON validity before another drain attempt.",
     "duplicate_target": "Compare duplicate manifests and destinations before draining; one row may be stale or manually copied.",
+    "retry_exhausted": "Do not retry drain automatically. Review as a dead-lettered parked output while preserving payload, manifest, and sidecar evidence.",
     "row_error": "Inspect manifest, payload, destination, Last Stderr, and Run Logs before another drain attempt.",
 }
 
@@ -44,6 +47,7 @@ RECOVERY_PLAN_ACTIONS = {
     "invalid_manifest": "repair_or_regenerate_manifest_from_logs",
     "unreadable_manifest": "unlock_or_repair_manifest_json",
     "duplicate_target": "resolve_duplicate_pending_targets",
+    "retry_exhausted": "dead_letter_review_without_deleting_payload",
     "row_error": "manual_review_with_logs",
 }
 

@@ -6,6 +6,7 @@ from typing import Any
 from urllib.parse import parse_qs, urlsplit
 
 from .handler_policy import (
+    cors_response_headers,
     not_found_payload,
     route_exception_journal_payload,
     options_response_headers,
@@ -169,6 +170,10 @@ def build_local_api_handler_class(owner: Any) -> type[http.server.BaseHTTPReques
             content_type: str = "application/octet-stream",
             extra_headers: list[tuple[str, str]] | None = None,
         ) -> None:
-            send_bytes(self, body, status=status, content_type=content_type, extra_headers=extra_headers)
+            response_headers = [
+                *cors_response_headers(self._cors_response_origin()),
+                *(extra_headers or []),
+            ]
+            send_bytes(self, body, status=status, content_type=content_type, extra_headers=response_headers)
 
     return _Handler

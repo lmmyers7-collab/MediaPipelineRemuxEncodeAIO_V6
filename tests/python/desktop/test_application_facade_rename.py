@@ -149,6 +149,16 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
                     "movie_filter_options": {"release_groups": True},
                 }
             )
+            tv_preview = facade.get_rename_clean_filename_preview(
+                {
+                    "mode": "tv",
+                    "source_folder": "The Web S01 1080p WEB-DL-TTGA",
+                    "filename": "S01E01-Pilot.1080p.WEB-DL-TTGA.mkv",
+                    "tv_filter_terms": {"release_groups": ["TTGA"]},
+                    "tv_filter_options": {"release_groups": True},
+                }
+            )
+            split_catalog = facade.get_rename_cleaning_filter_catalog()
             catalog = facade.get_rename_movie_filter_catalog()
 
         self.assertEqual(default_preview["schema_version"], "desktop_rename_clean_filename_preview.v1")
@@ -161,6 +171,13 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
         self.assertEqual(editable_preview["movie_filter_terms_mode"], "staged")
         self.assertEqual(editable_preview["rename_cleaning_policy_source"], "staged")
         self.assertEqual(editable_preview["movie_filter_term_counts"], {"release_groups": 1})
+        self.assertEqual(tv_preview["target_name"], "The Web - S01E01 - Pilot.mkv")
+        self.assertEqual(tv_preview["preview_source"], "backend_tv_cleaner")
+        self.assertEqual(tv_preview["tv_filter_term_counts"], {"release_groups": 1})
+        self.assertEqual(split_catalog["schema_version"], "desktop_rename_cleaning_filter_catalog.v1")
+        self.assertIn("movie", split_catalog)
+        self.assertIn("tv", split_catalog)
+        self.assertIn("ttga", split_catalog["tv"]["default_terms"]["release_groups"])
         self.assertEqual(catalog["schema_version"], "desktop_rename_movie_filter_catalog.v1")
         self.assertTrue(catalog["movie_filter_terms_enabled"])
         self.assertEqual(catalog["movie_filter_terms_mode"], "saved")

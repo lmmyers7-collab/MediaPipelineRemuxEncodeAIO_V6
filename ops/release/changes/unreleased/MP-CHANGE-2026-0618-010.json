@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0618-010",
+  "title": "WebView command-boundary audit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a generated WebView command-boundary audit that verifies action controls, API route ownership, and frontend no-mutation guardrails.",
+  "reason": "The promoted WebView surface needs durable evidence that every mutation-capable action remains backend-owned and does not locally implement filesystem, settings, queue, rename, publish/drain, or media-policy behavior.",
+  "affected_areas": [
+    "change control",
+    "docs",
+    "tests",
+    "tooling",
+    "webview"
+  ],
+  "behavior_before": "WebView route ownership and frontend mutation boundaries were covered by targeted tests and route ownership generated output, but there was no single generated command-boundary audit over action-like controls and command routes.",
+  "behavior_after": "A generated command-boundary audit reports classified WebView controls, backend-owned API route usage, high-risk route confirmations, and forbidden frontend mutation API scans, with focused tests and WebView prework coverage.",
+  "files_touched": [
+    "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
+    "docs/generated/summaries/docs/inventories/COMMAND_OWNERSHIP_MATRIX.md.md",
+    "docs/generated/summaries/docs/testing/TEST_COVERAGE_MATRIX.md.md",
+    "docs/generated/summaries/ops/scripts/dev/check-webview-command-boundary.mjs.md",
+    "docs/generated/summaries/package.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_command_contracts.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_command_boundary_audit.py.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-010.json",
+    "ops/scripts/dev/check-webview-command-boundary.mjs",
+    "package.json",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/webview/test_webview_command_boundary_audit.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_command_boundary_audit.py"
+  ],
+  "manual_validation": [
+    "PowerShell WebView command-boundary smoke set - passed: Test-WebViewCommandEvidenceSmoke.ps1, Test-WebViewBrowserPendingDrainGuardSmoke.ps1, Test-WebViewBrowserRenameSmoke.ps1, Test-WebViewBrowserSettingsLaunchSmoke.ps1, Test-WebViewBrowserNetworkSmoke.ps1, Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1, Test-WebViewBrowserCompletedPendingProofSmoke.ps1",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_command_boundary_audit tests.webview.test_webview_frontend_mutation_boundary tests.webview.test_webview_network_read_only_boundary tests.webview.test_webview_command_evidence_smoke tests.python.desktop.test_api_command_contracts tests.python.desktop.test_api_contract_payload -q - passed (82 tests)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (376 packets valid)",
+    "node --check ops/scripts/dev/check-webview-command-boundary.mjs - passed",
+    "npm run webview:commands - passed",
+    "npm run webview:prework:check - passed"
+  ],
+  "rollback_plan": "Remove the WebView command-boundary audit script, generated audit JSON, package script wiring, focused unittest, docs coverage notes, generated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "No Local API routes, backend command behavior, media policy, FFmpeg/subtitle/audio logic, publish/drain behavior, rename apply behavior, settings persistence semantics, or source/scratch/output movement are changed.\nWEBVIEW_COMMAND_BOUNDARY_AUDIT.json reports ok=true, violations=0, controls=411, route_usages=76, route_contracts=123, high_risk_route_usages=44, unclassified_high_risk_controls=0."
+}

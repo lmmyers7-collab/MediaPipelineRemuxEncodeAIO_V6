@@ -1,4 +1,8 @@
 (function () {
+  const domHelpers = window.mediaPipelineDom || {};
+  const byIdLocal = typeof byId === "function"
+    ? byId
+    : (typeof domHelpers.byId === "function" ? domHelpers.byId : (id) => document.getElementById(id));
   let lastLaunchReadinessPayload = {};
 
   function launchReadinessSettingsStatus(settings = null) {
@@ -97,6 +101,74 @@
     ];
   }
 
+  function launchReadinessActionLabel(action = {}) {
+    const explicit = String(action.label || action.title || "").trim();
+    if (explicit) return explicit;
+    const kind = String(action.kind || "").toLowerCase();
+    if (kind === "archive_state_journals") return "Archive Event Journal";
+    if (kind === "drain_pending_pushes") return "Drain Parked Outputs";
+    if (kind === "pending_publish_recovery_plan") return "Open Pending Publish";
+    return "Review Action";
+  }
+
+  function launchReadinessRecoveryActions(payload = lastLaunchReadinessPayload) {
+    const readiness = launchReadinessBackendReadiness(payload);
+    if (!readiness) return [];
+    const actions = [];
+    const pushAction = (action) => {
+      if (!action || typeof action !== "object") return;
+      actions.push(action);
+    };
+    pushAction(readiness.recovery_action);
+    (Array.isArray(readiness.non_ready_checks) ? readiness.non_ready_checks : []).forEach((check) => {
+      pushAction(check?.recovery_action);
+      (Array.isArray(check?.recovery_actions) ? check.recovery_actions : []).forEach(pushAction);
+    });
+    const seen = new Set();
+    return actions.filter((action) => {
+      const key = [
+        String(action.kind || ""),
+        String(action.route || ""),
+        JSON.stringify(action.request || {}),
+      ].join("\u0000");
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }
+
+  function renderLaunchReadinessRecoveryActions(payload = lastLaunchReadinessPayload) {
+    const container = byIdLocal("launch-readiness-actions");
+    if (!container) return;
+    const status = byIdLocal("launch-readiness-action-status");
+    const actions = launchReadinessRecoveryActions(payload);
+    container.replaceChildren();
+    container.hidden = actions.length === 0;
+    if (status && !actions.length) status.textContent = "No backend recovery action is advertised.";
+    actions.forEach((action) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary-button";
+      button.dataset.launchRecoveryAction = String(action.kind || "");
+      button.dataset.launchRecoveryRoute = String(action.route || "");
+      try {
+        button.dataset.launchRecoveryRequest = JSON.stringify(action.request || {});
+      } catch (_) {
+        button.dataset.launchRecoveryRequest = "{}";
+      }
+      if (action.requires_confirmation !== undefined) {
+        button.dataset.requiresConfirmation = action.requires_confirmation ? "true" : "false";
+      }
+      button.textContent = launchReadinessActionLabel(action);
+      const description = String(action.description || action.safe_next_action || action.evidence_path || "").trim();
+      if (description) button.title = description;
+      container.appendChild(button);
+    });
+    if (status && actions.length) {
+      status.textContent = "Backend recovery actions are shown only when the backend preflight payload advertises them.";
+    }
+  }
+
   function launchReadinessStatus(payload = {}) {
     const backendReadiness = launchReadinessBackendReadiness(payload);
     if (backendReadiness) return launchReadinessBackendStatus(backendReadiness) || "Backend preflight";
@@ -115,6 +187,15 @@
     if ((schedule?.warnings || []).length || items.length) return "Review";
     if (closeReadiness?.safe_to_close === true || ["idle", "completed", "failed"].includes(state)) return "Ready";
     return "Checking";
+  }
+
+  function launchReadinessStatusState(status) {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized.includes("blocked") || normalized.includes("issue") || normalized.includes("outside schedule") || normalized.includes("critical") || normalized.includes("invalid")) return "blocked";
+    if (normalized.includes("active") || normalized.includes("running")) return "running";
+    if (normalized.includes("ready") || normalized.includes("not watched") || normalized.includes("schedule off")) return "ready";
+    if (normalized.includes("review") || normalized.includes("stale") || normalized.includes("bypassed") || normalized.includes("override")) return "warning";
+    return "unknown";
   }
 
   function launchReadinessLines(payload = {}) {
@@ -186,8 +267,8 @@
   function launchTimingCurrentRequest() {
     if (typeof scheduleCurrentLaunchSelection === "function") return scheduleCurrentLaunchSelection();
     return {
-      mode: byId("pipeline-start-mode")?.value || "validate",
-      schedule_override: byId("pipeline-start-schedule-override")?.value || "",
+      mode: byIdLocal("pipeline-start-mode")?.value || "validate",
+      schedule_override: byIdLocal("pipeline-start-schedule-override")?.value || "",
     };
   }
 
@@ -252,14 +333,21 @@
   }
 
   function renderLaunchTimingTrust(payload = lastLaunchReadinessPayload, request = launchTimingCurrentRequest()) {
-    setText("launch-timing-status", launchTimingStatus(payload || {}, request));
+    const status = launchTimingStatus(payload || {}, request);
+    setText("launch-timing-status", status);
+    const statusNode = byIdLocal("launch-timing-status");
+    if (statusNode) statusNode.dataset.state = launchReadinessStatusState(status);
     setText("launch-timing", launchTimingTrustLines(payload || {}, request).join("\n"));
   }
 
   function renderLaunchReadiness(payload = {}) {
     lastLaunchReadinessPayload = payload || {};
-    setText("launch-readiness-status", launchReadinessStatus(payload));
+    const status = launchReadinessStatus(payload);
+    setText("launch-readiness-status", status);
+    const statusNode = byIdLocal("launch-readiness-status");
+    if (statusNode) statusNode.dataset.state = launchReadinessStatusState(status);
     setText("launch-readiness", launchReadinessLines(payload).join("\n"));
+    renderLaunchReadinessRecoveryActions(lastLaunchReadinessPayload);
     renderLaunchTimingTrust(lastLaunchReadinessPayload);
     if (typeof renderLaunchSettingsIntentChecklist === "function") {
       renderLaunchSettingsIntentChecklist(undefined, lastLaunchReadinessPayload);
@@ -282,7 +370,10 @@
     launchReadinessBackendReadiness,
     launchReadinessBackendStatus,
     launchReadinessBackendLines,
+    launchReadinessRecoveryActions,
+    renderLaunchReadinessRecoveryActions,
     launchReadinessStatus,
+    launchReadinessStatusState,
     launchReadinessLines,
     launchTimingCurrentRequest,
     launchTimingStatus,
@@ -292,7 +383,10 @@
     getLastLaunchReadinessPayload,
   };
   window.launchReadinessStatus = launchReadinessStatus;
+  window.launchReadinessStatusState = launchReadinessStatusState;
   window.launchReadinessLines = launchReadinessLines;
+  window.launchReadinessRecoveryActions = launchReadinessRecoveryActions;
+  window.renderLaunchReadinessRecoveryActions = renderLaunchReadinessRecoveryActions;
   window.launchTimingStatus = launchTimingStatus;
   window.launchTimingTrustLines = launchTimingTrustLines;
   window.renderLaunchTimingTrust = renderLaunchTimingTrust;

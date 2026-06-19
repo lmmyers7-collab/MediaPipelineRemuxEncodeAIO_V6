@@ -180,6 +180,16 @@ textarea[data-state="error"]:focus {
   border-color: var(--semantic-interactive-panel-border);
 }
 
+.secondary-button[data-severity="warning"] {
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
+}
+
+.secondary-button[data-severity="warning"]:hover {
+  background: var(--semantic-warning-bg);
+  border-color: var(--semantic-warning-border);
+}
+
 .danger-button {
   border-color: var(--semantic-danger-border);
   background: var(--grey-800);

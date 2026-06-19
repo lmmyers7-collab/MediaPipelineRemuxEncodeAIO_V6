@@ -641,6 +641,7 @@
       completedSelectedQuickSignalLines: (...args) => completedSelectedQuickSignalLines(...args),
       diagnosticsBridgeHandoffLines: window.diagnosticsBridgeHandoffLines,
       renderCompletedDiagnosticsLinks: (...args) => renderCompletedDiagnosticsLinks(...args),
+      renderCompletedActiveOutputContext: (...args) => renderCompletedActiveOutputContext(...args),
       renderCompletedPromotionActions: (...args) => renderCompletedPromotionActions(...args),
       renderCompletedRows: (...args) => renderCompletedRows(...args),
       renderCompletedSelectedAtAGlance: (...args) => renderCompletedSelectedAtAGlance(...args),
@@ -719,6 +720,8 @@
       makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
       renderCompletedTrustDecision: (...args) => renderCompletedTrustDecision(...args),
       renderCompletedDetail: (...args) => renderCompletedDetail(...args),
+      renderCompletedActiveOutputContext: (...args) => renderCompletedActiveOutputContext(...args),
+      renderCompletedEvidenceCopyState: (...args) => renderCompletedEvidenceCopyState(...args),
       renderCompletedFinalTrust: (...args) => renderCompletedFinalTrust(...args),
       renderCompletedOutputAcceptance: (...args) => renderCompletedOutputAcceptance(...args),
       renderCompletedPilotEvidencePacket: (...args) => renderCompletedPilotEvidencePacket(...args),
@@ -771,12 +774,24 @@
     }).length;
   }
 
+  function completedPublishReconciliationPayloadLoaded(payload = lastPublishReconciliationPayload) {
+    const data = payload && typeof payload === "object" ? payload : {};
+    const status = String(data.status || "").trim().toLowerCase();
+    if (data.stale) return false;
+    if (["not_loaded", "loading", "error", "stale"].includes(status)) return false;
+    return Boolean(status) || Array.isArray(data.rows);
+  }
+
+  function completedPublishReconciliationStateLabel(payload = lastPublishReconciliationPayload) {
+    const data = payload && typeof payload === "object" ? payload : {};
+    if (data.stale) return "stale";
+    const status = String(data.status || "").trim();
+    if (status === "not_loaded") return "not loaded";
+    return status || (Array.isArray(data.rows) ? "loaded" : "not loaded");
+  }
+
   function completedTrustDecisionReconciliationLoaded() {
-    const payload = lastPublishReconciliationPayload && typeof lastPublishReconciliationPayload === "object"
-      ? lastPublishReconciliationPayload
-      : {};
-    const status = String(payload.status || "").trim().toLowerCase();
-    return Boolean(status && status !== "not_loaded") || Array.isArray(payload.rows);
+    return completedPublishReconciliationPayloadLoaded(lastPublishReconciliationPayload);
   }
 
   function renderCompletedTrustDecision({
@@ -805,7 +820,7 @@
     const incompleteReasons = [];
     if (!rowList.length) incompleteReasons.push("no completed history rows loaded");
     if (!pendingProofLoaded) incompleteReasons.push("pending/drain proof not loaded");
-    if (!reconciliationLoaded) incompleteReasons.push("publish reconciliation not loaded");
+    if (!reconciliationLoaded) incompleteReasons.push(`publish reconciliation ${completedPublishReconciliationStateLabel(lastPublishReconciliationPayload)}`);
     let status = "Trust ready";
     if (payload?.error || missingNoProof || movedUnknown) {
       status = "Investigate";
@@ -834,7 +849,7 @@
       `Historical missing outputs: ${missingList.length}.`,
       `Placement evidence: Current=${placementCounts.current || 0}; Missing: pending proof=${pendingProofMissing}; Missing: drain proof=${drainProofMissing}; Missing: no proof=${missingNoProof}; Moved/offline unknown=${movedUnknown}.`,
       `Pending/drain proof: ${pendingProofLoaded ? "loaded or locally derived" : "not loaded"}.`,
-      `Backend publish reconciliation: ${reconciliationLoaded ? (lastPublishReconciliationPayload.status || "loaded") : "not loaded"}.`,
+      `Backend publish reconciliation: ${completedPublishReconciliationStateLabel(lastPublishReconciliationPayload)}.`,
     ];
     if (incompleteReasons.length) lines.push(`Evidence gaps: ${incompleteReasons.join("; ")}.`);
     if (status === "Investigate") {
@@ -848,6 +863,169 @@
     }
     lines.push("Mutation guardrail: this summary is read-only and cannot accept outputs, rerun jobs, drain pending publish, promote files, delete files, rewrite manifests, or touch media.");
     setText("completed-trust-decision-summary", lines.join("\n"));
+  }
+
+  function completedActiveOutputTitle(item) {
+    if (!item) return "No completed row selected";
+    return item.output_file || item.lookup_title || item.output_path || item.source_path || "(unnamed completed row)";
+  }
+
+  function completedActiveOutputPathsLine(item) {
+    if (!item) return "Select a row to keep its output context visible across Completed subtabs.";
+    return [
+      item.output_path ? `Output: ${item.output_path}` : "Output: not reported",
+      item.source_path ? `Source: ${item.source_path}` : "Source: not reported",
+    ].join(" | ");
+  }
+
+  function completedRowIsRenderedInTable(rowKey, tableSelector) {
+    if (!rowKey) return false;
+    return Array.from(document.querySelectorAll(`${tableSelector} tr[data-row-key]`)).some((row) => String(row.dataset.rowKey || "") === rowKey);
+  }
+
+  function completedActiveOutputVisibility(item) {
+    if (!item) return { label: "not evaluated", hidden: false };
+    const lines = typeof completedFilterVisibilityLines === "function" ? completedFilterVisibilityLines(item) : [];
+    const visibilityLine = lines.find((line) => /^Selected row visible in table:/.test(String(line || ""))) || "";
+    const hiddenLine = lines.find((line) => /^Hidden by current filters:/.test(String(line || ""))) || "";
+    const activeLine = lines.find((line) => /^Active filters:/.test(String(line || ""))) || "";
+    const rowKey = String(item.row_key || "");
+    const inCurrentTable = completedRowIsRenderedInTable(rowKey, "#completed-rows");
+    const inHistoryTable = completedRowIsRenderedInTable(rowKey, "#completed-history-rows");
+    if (inCurrentTable || inHistoryTable) {
+      if (hiddenLine) {
+        const renderedLabel = inCurrentTable ? "visible in rendered current table" : "visible in rendered history table";
+        return { label: activeLine ? `${renderedLabel}. ${hiddenLine} ${activeLine}` : `${renderedLabel}. ${hiddenLine}`, hidden: true };
+      }
+      return { label: activeLine ? `${visibilityLine || "Selected row visible in table: yes"} ${activeLine}` : "visible in rendered table", hidden: false };
+    }
+    if (hiddenLine) {
+      return { label: activeLine ? `${hiddenLine} ${activeLine}` : hiddenLine, hidden: true };
+    }
+    if (String(visibilityLine).toLowerCase().includes("yes")) {
+      return {
+        label: "visible after filters but outside the first rendered rows; Show Selected pins it into the displayed table window",
+        hidden: true,
+      };
+    }
+    return {
+      label: hiddenLine || visibilityLine || "not visible in the rendered table",
+      hidden: true,
+    };
+  }
+
+  function renderCompletedActiveOutputContext(item = getSelectedCompletedRow()) {
+    const context = byId("completed-active-output-context");
+    if (!context) return;
+    const selected = item || null;
+    const state = selected && typeof completedSelectedAtAGlanceState === "function"
+      ? completedSelectedAtAGlanceState(selected)
+      : "unknown";
+    const placement = selected && typeof completedOutputPlacement === "function"
+      ? completedOutputPlacement(selected, lastCompletedPendingProofRows)
+      : { label: "not checked", state: "unknown" };
+    const visibility = completedActiveOutputVisibility(selected);
+    context.dataset.state = state || "unknown";
+    setText("completed-active-output-title", completedActiveOutputTitle(selected));
+    setText("completed-active-output-paths", completedActiveOutputPathsLine(selected));
+    setText("completed-active-output-trust", selected && typeof completedSelectedAtAGlanceStatus === "function"
+      ? `${completedSelectedAtAGlanceStatus(selected)} / ${selected.operator_trust_state || selected.output_health || "local proof"}`
+      : "not selected");
+    setText("completed-active-output-placement", placement.label || "not checked");
+    setText("completed-active-output-visibility", visibility.label || "not evaluated");
+    const button = byId("completed-show-selected-button");
+    if (button) {
+      button.disabled = !selected;
+      button.title = selected
+        ? "Clear Completed display filters and pin the selected row into the rendered table window without backend mutation."
+        : "Select a completed row first.";
+    }
+  }
+
+  function showSelectedCompletedRow() {
+    const item = getSelectedCompletedRow();
+    if (!item) {
+      setText("completed-open-status", "Select a completed row before using Show Selected.");
+      renderCompletedActiveOutputContext(null);
+      return;
+    }
+    ["completed-filter", "completed-history-filter"].forEach((id) => {
+      const node = byId(id);
+      if (node) node.value = "";
+    });
+    ["completed-status-filter", "completed-library-filter", "completed-investigation-filter", "completed-history-status-filter", "completed-history-investigation-filter"].forEach((id) => {
+      const node = byId(id);
+      if (node) node.value = "all";
+    });
+    selectedCompletedRowKey = item.row_key || selectedCompletedRowKey;
+    renderCompletedRows();
+    renderCompletedDetail(item);
+    const rowKey = String(item.row_key || "");
+    const renderedRow = Array.from(document.querySelectorAll("#completed-rows tr[data-row-key], #completed-history-rows tr[data-row-key]"))
+      .find((row) => String(row.dataset.rowKey || "") === rowKey);
+    if (renderedRow && typeof renderedRow.focus === "function") {
+      renderedRow.focus({ preventScroll: true });
+    }
+    setText("completed-open-status", "Selected completed row shown locally. Filters were cleared; backend manifest, promotion, rerun, cleanup, and reconcile scopes are unchanged.");
+    renderCompletedActiveOutputContext(item);
+  }
+
+  function completedEvidencePacketAvailable() {
+    const text = completedEvidencePacketText();
+    return Boolean(text && text !== "No copyable pilot evidence packet loaded.");
+  }
+
+  function renderCompletedEvidenceCopyState(message = "") {
+    const available = completedEvidencePacketAvailable();
+    const button = byId("completed-copy-evidence-button");
+    const status = byId("completed-copy-evidence-status");
+    if (button) {
+      button.disabled = !available;
+      button.title = available
+        ? "Copy the rendered evidence packet text. This does not append evidence or mutate media."
+        : "No copyable evidence packet is available for the selected output.";
+    }
+    if (status) {
+      status.dataset.state = available ? "ready" : "blocked";
+      if (message) {
+        status.textContent = message;
+      } else if (!available) {
+        status.textContent = "No evidence packet text is available to copy.";
+      } else if (!String(status.textContent || "").trim() || String(status.textContent || "").includes("No evidence packet")) {
+        status.textContent = "Evidence packet text is ready to copy. Copy does not append evidence, publish, drain, rerun, rename, or touch media.";
+      }
+    }
+  }
+
+  function markPublishReconciliationStale(reason = "Completed output status was refreshed after the last backend reconciliation snapshot.") {
+    const previous = lastPublishReconciliationPayload && typeof lastPublishReconciliationPayload === "object"
+      ? lastPublishReconciliationPayload
+      : {};
+    const hadPrevious = Boolean(previous.status || Array.isArray(previous.rows));
+    lastPublishReconciliationPayload = hadPrevious
+      ? {
+        ...previous,
+        status: "stale",
+        stale: true,
+        stale_reason: reason,
+        summary_lines: [
+          `Backend publish reconciliation is stale: ${reason}`,
+          "Use Refresh Backend Reconciliation for a current backend-owned Completed/Pending/drain-summary proof snapshot.",
+        ],
+      }
+      : {
+        status: "not_loaded",
+        stale: false,
+        rows: [],
+        summary_lines: [
+          "Backend publish reconciliation has not been loaded for this Completed snapshot.",
+          "Use Refresh Backend Reconciliation for a backend-owned Completed/Pending/drain-summary proof snapshot.",
+        ],
+      };
+    selectedPublishReconciliationKey = "";
+    renderPublishReconciliation(lastPublishReconciliationPayload);
+    renderCompletedTrustDecision();
+    renderCompletedReconciliationHint(lastCompletedPayload, lastCompletedRows);
   }
 
   function renderCompleted(completed = {}) {
@@ -941,8 +1119,10 @@
     renderCompletedRealMediaProof(payload, rows, lastCompletedPendingProofRows, lastCompletedPendingPayload, commandEntries);
     renderCompletedFinalTrust(payload, rows, lastCompletedPendingProofRows, lastCompletedPendingPayload, commandEntries);
     renderCompletedPilotEvidencePacket(payload, rows, lastCompletedPendingProofRows, lastCompletedPendingPayload, commandEntries);
+    renderCompletedEvidenceCopyState();
     renderPublishReconciliation(lastPublishReconciliationPayload);
     renderCompletedDetail(getSelectedCompletedRow());
+    renderCompletedActiveOutputContext(getSelectedCompletedRow());
     renderCompletedRows();
     renderCompletedOpenHistory(commandEntries);
   }
@@ -955,7 +1135,7 @@
   async function copyCompletedEvidencePacket() {
     const text = completedEvidencePacketText();
     if (!text || text === "No copyable pilot evidence packet loaded.") {
-      setText("completed-copy-evidence-status", "No evidence packet text is available to copy.");
+      renderCompletedEvidenceCopyState("No evidence packet text is available to copy.");
       return false;
     }
     try {
@@ -973,11 +1153,11 @@
         document.body.removeChild(textarea);
         if (!copied) throw new Error("clipboard command returned false");
       }
-      setText("completed-copy-evidence-status", "Copied evidence packet. This did not append evidence, save settings, publish, drain, rerun, rename, or touch media.");
+      renderCompletedEvidenceCopyState("Copied evidence packet. This did not append evidence, save settings, publish, drain, rerun, rename, or touch media.");
       return true;
     } catch (error) {
       const message = error?.message || String(error);
-      setText("completed-copy-evidence-status", `Copy failed: ${message}. Select the packet text manually if needed.`);
+      renderCompletedEvidenceCopyState(`Copy failed: ${message}. Select the packet text manually if needed.`);
       return false;
     }
   }
@@ -1147,8 +1327,13 @@
     renderCompletedOpenHistory,
     completedRiskStatusLine,
     renderCompletedTrustDecision,
+    renderCompletedActiveOutputContext,
+    showSelectedCompletedRow,
     renderCompletedReconciliationHint,
+    markPublishReconciliationStale,
     completedEvidencePacketText,
+    completedEvidencePacketAvailable,
+    renderCompletedEvidenceCopyState,
     copyCompletedEvidencePacket,
   };
   window.renderCompleted = renderCompleted;
@@ -1272,6 +1457,9 @@
   window.completedOutputPlacement = completedOutputPlacement;
   window.completedPlacementCounts = completedPlacementCounts;
   window.renderCompletedTrustDecision = renderCompletedTrustDecision;
+  window.renderCompletedActiveOutputContext = renderCompletedActiveOutputContext;
+  window.showSelectedCompletedRow = showSelectedCompletedRow;
+  window.markPublishReconciliationStale = markPublishReconciliationStale;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
@@ -1279,5 +1467,6 @@
   window.getLastCompletedPendingProofRows = getLastCompletedPendingProofRows;
   window.requestCompletedOpen = requestCompletedOpen;
   window.renderCompletedOpenHistory = renderCompletedOpenHistory;
+  window.renderCompletedEvidenceCopyState = renderCompletedEvidenceCopyState;
   window.copyCompletedEvidencePacket = copyCompletedEvidencePacket;
 })();

@@ -122,13 +122,21 @@
   }
 
   function setDiagnosticsTailStatus(message) {
-    setText("diagnostics-tail-status", message);
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-tail-status", message);
+    } else {
+      setText("diagnostics-tail-status", message);
+    }
   }
 
   function setDiagnosticsTailBusy(isBusy) {
     diagnosticsTailInFlight = Boolean(isBusy);
     const button = byId("diagnostics-tail-refresh-button");
     if (button) button.disabled = diagnosticsTailInFlight;
+    document.querySelectorAll('[data-open-target-action="tail"], [data-read-diagnostics-tail]').forEach((node) => {
+      node.disabled = diagnosticsTailInFlight;
+      node.setAttribute("aria-busy", diagnosticsTailInFlight ? "true" : "false");
+    });
   }
 
   function diagnosticsTailLines(value) {
@@ -248,16 +256,37 @@
     const tail = payload && typeof payload === "object" ? payload : {};
     const warnings = diagnosticsTailLines(tail.warnings);
     const errors = diagnosticsTailLines(tail.errors);
+    const hasText = Boolean(String(tail.text || "").trim());
+    const missingWarning = warnings.some((item) => /\b(?:missing|not found|no path|not configured)\b/i.test(item));
     const status = tail.ok
       ? tail.truncated
         ? "Loaded truncated"
-        : "Loaded"
+        : hasText
+          ? "Loaded"
+          : "Empty"
       : errors.length
-        ? "Error"
+        ? "Read error"
         : warnings.length
-          ? "Unavailable"
+          ? missingWarning
+            ? "Missing"
+            : "Unavailable"
           : "Not loaded";
-    setDiagnosticsTailStatus(status);
+    const state = tail.ok
+      ? tail.truncated
+        ? "warning"
+        : hasText
+          ? "ready"
+          : "empty"
+      : errors.length
+        ? "blocked"
+        : warnings.length
+          ? "warning"
+          : "empty";
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-tail-status", status, state);
+    } else {
+      setDiagnosticsTailStatus(status);
+    }
     const lines = [
       `Target: ${tail.target || selectedDiagnosticsTailTarget() || ""}`,
       `Label: ${tail.label || ""}`,
@@ -295,32 +324,66 @@
     }
   }
 
-  async function requestDiagnosticsTail(target = "") {
+  async function requestDiagnosticsTail(target = "", sourceButton = null) {
     if (diagnosticsTailInFlight) {
-      setDiagnosticsTailStatus("Read already in progress");
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, "Read already in progress.", "warning");
+      }
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus("diagnostics-tail-status", "Read already in progress", "loading");
+      } else {
+        setDiagnosticsTailStatus("Read already in progress");
+      }
       return;
     }
     if (target) setDiagnosticsTailTarget(target);
     const normalized = selectedDiagnosticsTailTarget();
     if (!normalized) {
-      setDiagnosticsTailStatus("No target");
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus("diagnostics-tail-status", "No target", "warning");
+      } else {
+        setDiagnosticsTailStatus("No target");
+      }
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, "No tail target selected.", "warning");
+      }
       setText("diagnostics-tail-detail", "No diagnostics tail target was selected.");
       setText("diagnostics-tail-evidence", "No diagnostics tail target was selected.");
       return;
     }
     setDiagnosticsTailBusy(true);
-    setDiagnosticsTailStatus("Reading...");
+    if (sourceButton && typeof setActionBusy === "function") {
+      setActionBusy(sourceButton, true, `Reading ${normalized}...`);
+    }
+    if (typeof setPanelStatus === "function") {
+      setPanelStatus("diagnostics-tail-status", "Reading...", "loading");
+    } else {
+      setDiagnosticsTailStatus("Reading...");
+    }
     try {
       const maxBytes = selectedDiagnosticsTailMaxBytes();
       const payload = await apiGet(`/api/diagnostics/tail?target=${encodeURIComponent(normalized)}&max_bytes=${encodeURIComponent(maxBytes)}`, { timeoutMs: 15000 });
       renderDiagnosticsTail(payload);
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, payload?.truncated ? "Tail loaded; truncated." : "Tail loaded.", payload?.truncated ? "warning" : "ready");
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setDiagnosticsTailStatus("Read failed");
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus("diagnostics-tail-status", "Read failed", "blocked");
+      } else {
+        setDiagnosticsTailStatus("Read failed");
+      }
+      if (sourceButton && typeof setInlineActionStatus === "function") {
+        setInlineActionStatus(sourceButton, `Read failed: ${message}`, "blocked");
+      }
       setText("diagnostics-tail-detail", `Diagnostics tail read failed: ${message}`);
       setText("diagnostics-tail-evidence", "Diagnostics tail request failed before backend evidence could be read. Check Local API status and Diagnostics State Artifact Summary.");
       setText("diagnostics-tail-text", "No text was returned.");
     } finally {
+      if (sourceButton && typeof setActionBusy === "function") {
+        setActionBusy(sourceButton, false);
+      }
       setDiagnosticsTailBusy(false);
     }
   }

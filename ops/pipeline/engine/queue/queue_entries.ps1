@@ -255,7 +255,7 @@ function Get-QueuedEntries {
 
     # Load manifest once per call (caller may pass it in for efficiency)
     if ($null -eq $PriorityManifest) {
-        $PriorityManifest = Get-PriorityManifest
+        $PriorityManifest = Get-PriorityManifest -FailClosed
     }
     if ($null -eq $LibraryProfileMetadata) {
         $LibraryProfileMetadata = @{}

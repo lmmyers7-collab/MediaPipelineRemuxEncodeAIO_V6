@@ -3,9 +3,9 @@ file: apps/desktop/tauri/src-tauri/src/backend_process.rs
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shell
-last_modified: 2026-06-15
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: 2e6f8718b3e88015563b75ae37fbbae47f2c968889545e73bea43a77f18d6689
+sha256: 68c2182ed80a979762c5163294e0896953c045587c688bb4aedf61fa60662d43
 ---
 # `apps/desktop/tauri/src-tauri/src/backend_process.rs`
 

@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-NativeProcessCleanupChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-12
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 2f701caaddb4e8f3ab8f896e3274b86c119f4475e8a8d1c8aedc16b5cc5eaeb0
+sha256: 05b720cf9a57b222f327fd0d63ab4f4b64429f00c1590362795733845abc2690
 ---
 # `ops/pipeline/tests/Unit/Invoke-NativeProcessCleanupChecks.ps1`
 

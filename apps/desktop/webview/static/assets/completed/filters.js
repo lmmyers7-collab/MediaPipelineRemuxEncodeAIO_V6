@@ -206,7 +206,9 @@
         ? state.lastPublishReconciliationPayload
         : {};
       const status = String(payload.status || "").trim().toLowerCase();
-      return Boolean(status && status !== "not_loaded") || Array.isArray(payload.rows);
+      if (payload.stale) return false;
+      if (["not_loaded", "loading", "error", "stale"].includes(status)) return false;
+      return Boolean(status) || Array.isArray(payload.rows);
     }
 
     function renderCompletedReconciliationHint(payload, rows) {
@@ -216,9 +218,15 @@
       const missingCount = Array.isArray(missingRows) ? missingRows.length : 0;
       const reviewCount = completedReviewCount(payload, Array.isArray(currentRows) ? currentRows : []);
       const loaded = completedPublishReconciliationLoaded();
+      const reconciliationPayload = state.lastPublishReconciliationPayload && typeof state.lastPublishReconciliationPayload === "object"
+        ? state.lastPublishReconciliationPayload
+        : {};
+      const reconciliationStatus = String(reconciliationPayload.status || "").trim().toLowerCase();
+      const stale = Boolean(reconciliationPayload.stale) || reconciliationStatus === "stale";
+      const unloadedLabel = stale ? "stale" : "not loaded";
       if ((missingCount > 0 || reviewCount > 0) && !loaded) {
         setText("completed-reconciliation-hint", [
-          "Backend publish reconciliation: not loaded.",
+          `Backend publish reconciliation: ${unloadedLabel}.`,
           `Output risk: ${completedRiskStatusLine(payload, rowList)}.`,
           "Safe next step: use Advanced -> Refresh Backend Reconciliation before rerun, cleanup, drain, deletion, or library decisions.",
           "Boundary: this hint is read-only and does not refresh, repair, publish, drain, rerun, rewrite manifests, or touch media.",
@@ -234,7 +242,7 @@
         return;
       }
       setText("completed-reconciliation-hint", [
-        "Backend publish reconciliation: not loaded.",
+        `Backend publish reconciliation: ${unloadedLabel}.`,
         "No Output blockers are visible in the loaded Completed rows. Use Advanced when final placement or Pending Publish proof matters.",
       ].join("\n"));
     }

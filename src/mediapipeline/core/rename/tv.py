@@ -4,7 +4,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from mediapipeline.core.rename.movie import remove_movie_filter_terms
+from mediapipeline.core.rename.constants import RENAME_TV_FILTER_OPTION_KEYS
+from mediapipeline.core.rename.movie import movie_filter_term_pattern, remove_movie_filter_terms
 from mediapipeline.core.rename.tv_folder import (
     TV_ORDINAL_WORDS,
     TV_SPECIALS_FOLDER_PATTERN,
@@ -29,9 +30,158 @@ TV_AUDIO_CHANNEL_TAG_PATTERN = re.compile(r"\b(?:1\.0|2\.0|5\.1|7\.1|6\s*ch|8\s*
 TV_RELEASE_GROUP_SUFFIX_PATTERN = re.compile(
     r"(?i)(?:[\s._-]+(?:chotab|subsplease|erai[\s._-]*raws?|judas|ember|bonkai|neohevc|"
     r"animetime|lostyears|nai|asw|sam|tnp|dedsec|mtbb|smugcat|commie|horriblesubs|"
-    r"kametsu|db|kawaiika|tlacatlc6))+$"
+    r"kametsu|db|kawaiika|tlacatlc6|ttga))+$"
 )
 TV_FORMATTED_TITLE_PATTERN = re.compile(r"(?i)^(?P<prefix>.+\s+-\s+S\d{2}E\d{2,3})(?:\s+-\s+.+)$")
+RENAME_TV_FILTER_DEFAULT_TERMS: dict[str, tuple[str, ...]] = {
+    "video_source": (
+        "2160p",
+        "1080p",
+        "720p",
+        "480p",
+        "uhd",
+        "hdr",
+        "hdr10",
+        "dv",
+        "dolby vision",
+        "hevc",
+        "h264",
+        "h.264",
+        "h265",
+        "h.265",
+        "x264",
+        "x265",
+        "av1",
+        "bd",
+        "bdrip",
+        "blu ray",
+        "blu-ray",
+        "bluray",
+        "web dl",
+        "webdl",
+        "webrip",
+        "hdtv",
+        "dvd",
+        "dvdrip",
+        "remux",
+        "10 bit",
+        "8 bit",
+    ),
+    "audio_channels": (
+        "flac",
+        "aac",
+        "opus",
+        "ac3",
+        "eac3",
+        "ddp",
+        "dts",
+        "truehd",
+        "atmos",
+        "1.0",
+        "2.0",
+        "5.1",
+        "7.1",
+        "6ch",
+        "6 ch",
+        "8ch",
+        "8 ch",
+    ),
+    "release_flags": ("proper", "repack", "rerip", "uncensored", "censored"),
+    "services_containers": ("mkv", "mp4"),
+    "languages_subs_dubs": (
+        "dual audio",
+        "multi audio",
+        "eng sub",
+        "eng subs",
+        "multi sub",
+        "multi subs",
+        "subs",
+        "sub",
+        "subbed",
+        "dubbed",
+    ),
+    "release_groups": (
+        "chotab",
+        "subsplease",
+        "erai raws",
+        "erai-raws",
+        "judas",
+        "ember",
+        "bonkai",
+        "neohevc",
+        "animetime",
+        "lostyears",
+        "nai",
+        "asw",
+        "sam",
+        "tnp",
+        "dedsec",
+        "mtbb",
+        "smugcat",
+        "commie",
+        "horriblesubs",
+        "kametsu",
+        "db",
+        "kawaiika",
+        "tlacatlc6",
+        "ttga",
+    ),
+}
+
+
+def normalize_tv_filter_options(tv_filter_options: dict[str, bool] | None = None) -> dict[str, bool]:
+    options = {key: True for key in RENAME_TV_FILTER_OPTION_KEYS}
+    for key, value in (tv_filter_options or {}).items():
+        if key in options:
+            options[key] = bool(value)
+    return options
+
+
+def normalize_tv_filter_terms(tv_filter_terms: dict[str, list[str]] | None = None) -> dict[str, list[str]]:
+    normalized: dict[str, list[str]] = {}
+    for key, values in (tv_filter_terms or {}).items():
+        if key not in RENAME_TV_FILTER_OPTION_KEYS:
+            continue
+        seen: set[str] = set()
+        terms: list[str] = []
+        for value in values or []:
+            term = str(value or "").strip()
+            folded = term.casefold()
+            if not term or folded in seen:
+                continue
+            seen.add(folded)
+            terms.append(term)
+        if terms:
+            normalized[key] = terms
+    return normalized
+
+
+def rename_tv_filter_default_terms() -> dict[str, list[str]]:
+    return {key: list(values) for key, values in RENAME_TV_FILTER_DEFAULT_TERMS.items()}
+
+
+def collective_tv_filter_terms(tv_filter_terms: dict[str, list[str]] | None, key: str) -> list[str]:
+    seen: set[str] = set()
+    terms: list[str] = []
+    for term in list(RENAME_TV_FILTER_DEFAULT_TERMS.get(key, ())) + list(normalize_tv_filter_terms(tv_filter_terms).get(key, [])):
+        folded = str(term or "").casefold()
+        if not folded or folded in seen:
+            continue
+        seen.add(folded)
+        terms.append(str(term))
+    return terms
+
+
+def strip_tv_release_groups(text: str, tv_filter_options: dict[str, bool] | None = None, tv_filter_terms: dict[str, list[str]] | None = None) -> str:
+    if not normalize_tv_filter_options(tv_filter_options).get("release_groups", True):
+        return str(text or "")
+    result = TV_RELEASE_GROUP_SUFFIX_PATTERN.sub(" ", str(text or ""))
+    for term in collective_tv_filter_terms(tv_filter_terms, "release_groups"):
+        pattern = movie_filter_term_pattern(term, bounded=False)
+        if not pattern:
+            continue
+        result = re.sub(rf"(?i)[\s._-]+[\[\(]?\s*{pattern}\s*[\]\)]?\s*$", " ", result)
+    return result
 
 
 def apply_tv_episode_title_template(file_name: str, *, include_episode_title: bool) -> str:
@@ -52,19 +202,30 @@ def build_tv_rename_name(
     season_number: int,
     episode_number: int,
     remove_terms: list[str] | None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
     include_episode_title: bool = True,
 ) -> str:
     cleaned_show = normalize_plex_filename_component(show_name, remove_terms)
     if not cleaned_show:
         raise ValueError("Show name is required after invalid characters and remove terms are filtered.")
-    episode_title = extract_confident_tv_episode_title(source.stem, remove_terms)
+    episode_title = extract_confident_tv_episode_title(source.stem, remove_terms, tv_filter_options, tv_filter_terms)
     if not include_episode_title:
         episode_title = ""
     title_part = f" - {episode_title}" if episode_title else ""
     return f"{cleaned_show} - S{season_number:02d}E{episode_number:02d}{title_part}{source.suffix.lower()}"
 
 
-def clean_pipeline_tv_name_part(value: str, remove_terms: list[str] | None = None) -> str:
+def clean_pipeline_tv_name_part(
+    value: str,
+    remove_terms: list[str] | None = None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
+    *,
+    preserve_title_terms: bool = False,
+) -> str:
+    filter_options = normalize_tv_filter_options(tv_filter_options)
+    filter_terms = normalize_tv_filter_terms(tv_filter_terms)
     text = remove_default_priority_markers(strip_known_media_suffix(value))
     for _ in range(5):
         before = text
@@ -79,11 +240,19 @@ def clean_pipeline_tv_name_part(value: str, remove_terms: list[str] | None = Non
             break
     text = TV_SEASON_EPISODE_PATTERN.sub(" ", text)
     text = TV_NXM_PATTERN.sub(" ", text)
-    text = re.sub(r"(?i)\b(?:season|s)\s*\d{1,2}\s*(?:\+\s*specials?)?\b", " ", text)
+    text = re.sub(r"(?i)\b(?:season|s)\s*\d{1,2}\s*(?:\+\s*(?:sp|specials?))?\b", " ", text)
     text = re.sub(r"(?i)\b(?:specials?|ova|oav|ona|cour)\b", " ", text)
-    text = TV_AUDIO_CHANNEL_TAG_PATTERN.sub(" ", text)
-    text = TV_RELEASE_TAG_PATTERN.sub(" ", text)
-    text = TV_RELEASE_GROUP_SUFFIX_PATTERN.sub(" ", text)
+    if not preserve_title_terms:
+        if all(filter_options.values()):
+            text = TV_AUDIO_CHANNEL_TAG_PATTERN.sub(" ", text)
+            text = TV_RELEASE_TAG_PATTERN.sub(" ", text)
+        else:
+            for category in ("video_source", "audio_channels", "release_flags", "services_containers", "languages_subs_dubs"):
+                if filter_options.get(category, True):
+                    text = remove_movie_filter_terms(text, collective_tv_filter_terms(filter_terms, category))
+            if filter_options.get("audio_channels", True):
+                text = TV_AUDIO_CHANNEL_TAG_PATTERN.sub(" ", text)
+        text = strip_tv_release_groups(text, filter_options, filter_terms)
     text = remove_movie_filter_terms(text, remove_terms)
     text = re.sub(r"[\[\]{}()]", " ", text)
     text = re.sub(r'[<>:"/\\|?*\x00-\x1f]', " ", text)
@@ -94,11 +263,30 @@ def clean_pipeline_tv_name_part(value: str, remove_terms: list[str] | None = Non
     return text
 
 
-def resolve_tv_folder_season_info(source: Path, remove_terms: list[str] | None = None) -> dict[str, Any] | None:
-    return resolve_tv_folder_season_info_with_cleaner(source, remove_terms, clean_name=clean_pipeline_tv_name_part)
+def resolve_tv_folder_season_info(
+    source: Path,
+    remove_terms: list[str] | None = None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
+) -> dict[str, Any] | None:
+    def clean_show_name(value: str, terms: list[str] | None) -> str:
+        return clean_pipeline_tv_name_part(
+            value,
+            terms,
+            tv_filter_options,
+            tv_filter_terms,
+            preserve_title_terms=True,
+        )
+
+    return resolve_tv_folder_season_info_with_cleaner(source, remove_terms, clean_name=clean_show_name)
 
 
-def extract_confident_tv_episode_title(stem: str, remove_terms: list[str] | None = None) -> str:
+def extract_confident_tv_episode_title(
+    stem: str,
+    remove_terms: list[str] | None = None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
+) -> str:
     text = strip_known_media_suffix(stem)
     title_fragment = ""
     for pattern in (TV_SEASON_EPISODE_PATTERN, TV_NXM_PATTERN, TV_EXPLICIT_EPISODE_PATTERN):
@@ -117,7 +305,7 @@ def extract_confident_tv_episode_title(stem: str, remove_terms: list[str] | None
     if source_tag:
         title_fragment = title_fragment[: source_tag.start()]
     title_fragment = re.sub(r"(?i)\b(?:v\d+|proper|repack|rerip)\b.*$", " ", title_fragment)
-    title = clean_pipeline_tv_name_part(title_fragment, remove_terms)
+    title = clean_pipeline_tv_name_part(title_fragment, remove_terms, tv_filter_options, tv_filter_terms)
     if not title or len(title) > 80:
         return ""
     if re.fullmatch(r"(?i)(?:e?\d{1,3}|v\d+|audio|subs?|subtitles?|dubbed|subbed|english|japanese|bd|hevc|x264|x265)(?:\s+.*)?", title):
@@ -130,13 +318,15 @@ def build_auto_tv_rename_name(
     *,
     season_number: int,
     remove_terms: list[str] | None,
+    tv_filter_options: dict[str, bool] | None = None,
+    tv_filter_terms: dict[str, list[str]] | None = None,
     include_episode_title: bool = True,
 ) -> str:
     stem = source.stem
     season = 0
     episode = 0
     show_fragment = ""
-    folder_info = resolve_tv_folder_season_info(source, remove_terms)
+    folder_info = resolve_tv_folder_season_info(source, remove_terms, tv_filter_options, tv_filter_terms)
     marker_match = TV_SEASON_EPISODE_PATTERN.search(stem)
     if marker_match:
         season = int(marker_match.group("season"))
@@ -168,14 +358,20 @@ def build_auto_tv_rename_name(
             pass
         else:
             raise ValueError("TV auto preview needs SxxEyy, NxM, Episode N, Ep N, or E01 in the filename, or a Show name in the TV fields.")
-    show = clean_pipeline_tv_name_part(show_fragment, remove_terms)
+    show = clean_pipeline_tv_name_part(
+        show_fragment,
+        remove_terms,
+        tv_filter_options,
+        tv_filter_terms,
+        preserve_title_terms=True,
+    )
     if not show and folder_info is not None:
         show = str(folder_info.get("show") or "")
     if not show:
-        show = clean_pipeline_tv_name_part(source.parent.name, remove_terms)
+        show = clean_pipeline_tv_name_part(source.parent.name, remove_terms, tv_filter_options, tv_filter_terms)
     if not show:
         raise ValueError("TV auto preview could not infer a show name before the episode token.")
-    episode_title = extract_confident_tv_episode_title(stem, remove_terms)
+    episode_title = extract_confident_tv_episode_title(stem, remove_terms, tv_filter_options, tv_filter_terms)
     if not include_episode_title:
         episode_title = ""
     title_part = f" - {episode_title}" if episode_title else ""

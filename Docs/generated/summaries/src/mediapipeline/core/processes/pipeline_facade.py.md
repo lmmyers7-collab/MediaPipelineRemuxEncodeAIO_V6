@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/pipeline_facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-16
+last_modified: 2026-06-17
 last_reviewed: 2026-06-04
-sha256: efd3437e20080065649b5c833909f2755e16ffe7547b65ca9a64011870cd3106
+sha256: 118231de85e4516fe8ab481ef4ecc20679acd8af6000daf11445e233b6450f1d
 ---
 # `src/mediapipeline/core/processes/pipeline_facade.py`
 

@@ -103,11 +103,11 @@
       groupDataset: "diagnosticsActionGroup",
       actionDataset: `${datasetPrefix}Action`,
       targetDataset: `${datasetPrefix}Target`,
-      onTail: (_target, action) => {
-        if (onAction) onAction(action);
+      onTail: (_target, action, button) => {
+        if (onAction) onAction(action, button);
       },
-      onOpen: (_target, action) => {
-        if (onAction) onAction(action);
+      onOpen: (_target, action, button) => {
+        if (onAction) onAction(action, button);
       },
     });
     return (result?.readFirst || 0) + (result?.openNext || 0);
@@ -163,7 +163,11 @@
       if (typeof window.setDiagnosticsTailTarget === "function") {
         window.setDiagnosticsTailTarget(target);
       }
-      setText("diagnostics-tail-status", message);
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus("diagnostics-tail-status", message, "changed");
+      } else {
+        setText("diagnostics-tail-status", message);
+      }
       setText("diagnostics-tail-detail", [
         `Bridge source: ${label}`,
         `Target: ${target}`,
@@ -171,10 +175,18 @@
         "Guardrail: bridge selection does not read files, open paths, mutate queue state, or publish outputs.",
       ].join("\n"));
     } else {
-      setText("diagnostics-open-status", message);
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus("diagnostics-open-status", message, "changed");
+      } else {
+        setText("diagnostics-open-status", message);
+      }
     }
     if (!pageShown) {
-      setText("diagnostics-open-status", `${message} Diagnostics page navigation was not available.`);
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus("diagnostics-open-status", `${message} Diagnostics page navigation was not available.`, "warning");
+      } else {
+        setText("diagnostics-open-status", `${message} Diagnostics page navigation was not available.`);
+      }
     }
     return true;
   }

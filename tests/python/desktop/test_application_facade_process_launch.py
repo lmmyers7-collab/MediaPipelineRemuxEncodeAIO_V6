@@ -1151,6 +1151,49 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertIn("pipeline validate", blocked["message"])
         self.assertFalse(hasattr(service, "started_pipeline"))
 
+    def test_pipeline_start_blocks_autonomy_health_before_spawn(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.pending_push_path = root / "State" / "PendingServerPush"
+            resolved.pending_push_path.mkdir(parents=True)
+            manifest = resolved.pending_push_path / "movie.manifest.json"
+            parked_at = (datetime.now() - timedelta(days=4)).astimezone().isoformat()
+            manifest.write_text(
+                json.dumps(
+                    {
+                        "parked_at": parked_at,
+                        "retry_count": 3,
+                        "local_file": str(resolved.pending_push_path / "movie.mkv"),
+                        "server_out": str(root / "Out" / "movie.mkv"),
+                        "manifest_state": "parked",
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            blocked = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
+            preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        self.assertFalse(blocked["ok"])
+        self.assertEqual(blocked["command"], "pipeline.start")
+        self.assertEqual(blocked["severity"], "error")
+        self.assertEqual(blocked["refresh_hint"], "diagnostics")
+        self.assertEqual(blocked["data"]["schema_version"], "desktop_pipeline_autonomy_launch_block.v1")
+        self.assertFalse(blocked["data"]["start_route_allowed"])
+        self.assertEqual(blocked["data"]["autonomy_health"]["overall_status"], "blocked")
+        self.assertFalse(hasattr(service, "started_pipeline"))
+        self.assertEqual(preflight["status"], "blocked")
+        rows = {row["key"]: row for row in preflight["checks"]}
+        self.assertEqual(rows["autonomy_health"]["status"], "blocked")
+        self.assertIn("can_start_new_work=no", rows["autonomy_health"]["evidence"])
+        self.assertTrue(rows["autonomy_health"]["recovery_actions"])
+        self.assertEqual(rows["autonomy_health"]["recovery_actions"][0]["route"], "/api/pending-publish/recovery-plan")
+        readiness_rows = {row["key"]: row for row in preflight["operator_readiness"]["non_ready_checks"]}
+        self.assertEqual(readiness_rows["autonomy_health"]["recovery_actions"][0]["kind"], "pending_publish_recovery_plan")
+
     def test_pipeline_start_blocked_by_active_work_does_not_cancel_existing_schedule_watcher(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -1274,12 +1317,14 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             with patch("mediapipeline.core.processes.preflight_facade.configured_path_health", return_value=health):
                 preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
 
-        self.assertEqual(preflight["status"], "high review")
-        self.assertTrue(preflight["can_request_start"])
+        self.assertEqual(preflight["status"], "blocked")
+        self.assertFalse(preflight["can_request_start"])
         rows = {row["key"]: row for row in preflight["checks"]}
         self.assertEqual(rows["configured_path_health"]["status"], "high review")
         self.assertIn("not reachable", "\n".join(str(item) for item in rows["configured_path_health"]["detail"]))
         self.assertIn("Configured server/folder health", rows["configured_path_health"]["label"])
+        self.assertEqual(rows["autonomy_health"]["status"], "blocked")
+        self.assertIn("can_start_new_work=no", rows["autonomy_health"]["evidence"])
 
     def test_audit_preflight_skips_unc_library_root_exists_check(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

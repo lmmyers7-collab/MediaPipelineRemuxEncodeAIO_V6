@@ -106,6 +106,15 @@ try {
     Assert-Equal $ironLungPlan.FileName 'Iron Lung (2026).mkv' 'Saved rename filter policy should remove custom Iron Lung release group terms.'
     Assert-Equal $hoppersPlan.FileName 'Hoppers (2026).mkv' 'Saved rename filter policy should remove custom Hoppers service and release-group terms.'
     Assert-Equal $languageTagPlan.FileName 'Cinema Paradiso (1988).mkv' 'Saved rename filter policy should remove language and sub-dub release tags.'
+    $strictMovieCases = [ordered]@{
+        'The.Lord.Of.The.Rings.The.War.Of.The.Rohirrim.2024.1080p.WEBRip.10Bit.DDP5.1.x265-Asiimov.mkv' = 'The Lord of the Rings The War of the Rohirrim (2024).mkv'
+        'Mortal.Kombat.II.2026.1080p.WEBRip.AAC5.1.10bits.x265-Rapta.mkv' = 'Mortal Kombat II (2026).mkv'
+        'Cast Away (2000) UpScaled 2160p H265 10 bit DV HDR10+ ita eng AC3 5.1 sub ita eng Licdom.mkv' = 'Cast Away (2000).mkv'
+    }
+    foreach ($case in $strictMovieCases.GetEnumerator()) {
+        $plan = New-PlexMovieDestinationPlan -OriginalName $case.Key -Extension 'mkv'
+        Assert-Equal $plan.FileName $case.Value "Strict movie rename filters should scrub leaked release metadata from '$($case.Key)'."
+    }
     Remove-Variable -Name RenameMovieFilterOptions -Scope Script -ErrorAction SilentlyContinue
     Remove-Variable -Name RenameMovieFilterTerms -Scope Script -ErrorAction SilentlyContinue
     Remove-Variable -Name RenameMovieRemoveTerms -Scope Script -ErrorAction SilentlyContinue
@@ -136,6 +145,17 @@ try {
     Assert-Equal $tvInfo.Episode 3 'TV parser should read SxxEyy episode.'
     Assert-Equal $tvPlan.RelativePath (Join-Path 'TV\Example Show\Season 02' 'Example Show - S02E03 - Pilot.mkv') 'TV destination planner should produce Plex show/season/file path.'
     Assert-Equal $tvPlan.IdentityKey 'Example Show_S02E03' 'TV destination planner identity key should match library index keys.'
+
+    $bookwormFolder = Join-Path $tempRoot 'Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA'
+    New-Item -ItemType Directory -Path $bookwormFolder -Force | Out-Null
+    $bookwormPath = Join-Path $bookwormFolder 'S03E01-The Beginning of Winter.mkv'
+    [System.IO.File]::WriteAllBytes($bookwormPath, [System.Text.Encoding]::UTF8.GetBytes('bookworm-bytes'))
+    $bookwormInfo = Get-TVInfoFromFile (Get-Item -LiteralPath $bookwormPath)
+    $bookwormPlan = New-PlexDestinationPlan -MediaKind TV -File (Get-Item -LiteralPath $bookwormPath) -TvInfo $bookwormInfo -OriginalName $bookwormInfo.OriginalName -Extension 'mkv' -IncludeLibraryFolder
+    Assert-Equal $bookwormInfo.ShowName 'Ascendance of a Bookworm' 'TV folder parser should scrub +SP release metadata and TTGA from show folder names.'
+    Assert-Equal $bookwormInfo.Season 3 'TV parser should preserve season from S03+SP source folders.'
+    Assert-Equal $bookwormInfo.Episode 1 'TV parser should read episode from S03E01 source file.'
+    Assert-Equal $bookwormPlan.RelativePath (Join-Path 'TV\Ascendance of a Bookworm\Season 03' 'Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv') 'TV destination planner should keep release metadata out of Bookworm output paths.'
 
     $sourceA = Join-Path $tempRoot 'IdentityA.mkv'
     $sourceB = Join-Path $tempRoot 'IdentityB.mkv'

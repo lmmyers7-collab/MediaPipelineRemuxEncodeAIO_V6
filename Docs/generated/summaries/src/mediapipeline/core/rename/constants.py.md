@@ -3,9 +3,9 @@ file: src/mediapipeline/core/rename/constants.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-14
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: c318143a6bdf2458f36cfa39384244d99c6a9dba16ab22d4f3c8869945c9f178
+sha256: f48872c2ecf95d5a2ab4da34170b7a7254c72c8c1be36a0a2f5e4a015448ce08
 ---
 # `src/mediapipeline/core/rename/constants.py`
 

@@ -229,6 +229,13 @@ def is_excluded_source_path(recorded: str | Path) -> bool:
     return any(rel == prefix or rel.startswith(prefix + "/") for prefix in EXCLUDE_SOURCE_PREFIXES)
 
 
+def repo_relative_posix(path: Path) -> str:
+    try:
+        return path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+    except (OSError, ValueError):
+        return path.relative_to(REPO_ROOT).as_posix()
+
+
 def in_scope_roots(rel_path: Path) -> bool:
     rel = rel_path.as_posix()
     if is_excluded_source_path(rel):
@@ -350,7 +357,7 @@ def orphan_summaries(sources: Iterable[Path] | None = None) -> list[OrphanSummar
     expected: dict[str, Path] = {}
     for source in source_paths:
         try:
-            rel = source.relative_to(REPO_ROOT).as_posix()
+            rel = repo_relative_posix(source)
         except ValueError:
             continue
         expected[rel] = summary_path_for_source(rel, source.suffix)
@@ -693,7 +700,7 @@ def cmd_check(sources: list[Path], *, check_orphans: bool = False) -> int:
     stale: list[str] = []
     missing: list[str] = []
     for path in sources:
-        rel = path.relative_to(REPO_ROOT).as_posix()
+        rel = repo_relative_posix(path)
         summary_path = summary_path_for_source(rel, path.suffix)
         recorded = existing_summary_sha(summary_path)
         if recorded is None:
@@ -747,7 +754,7 @@ def cmd_generate(sources: list[Path], *, prune_orphans: bool = False) -> int:
     written = 0
     unchanged = 0
     for path in sources:
-        rel = path.relative_to(REPO_ROOT).as_posix()
+        rel = repo_relative_posix(path)
         try:
             changed = write_summary(rel, path)
         except OSError as exc:

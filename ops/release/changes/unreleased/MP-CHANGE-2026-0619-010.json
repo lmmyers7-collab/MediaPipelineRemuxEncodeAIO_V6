@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0619-010",
+  "title": "Expand Launch backend preflight panel",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Expand the Launch backend preflight evidence table and detail blocks so the Settings Check panel shows the loaded rows and selected-row detail without inner vertical scrolling.",
+  "reason": "The Launch Settings Check preflight panel clamps the backend preflight table and detail block with shared evidence styles, hiding visible content behind nested scrollbars even for short preflight result sets.",
+  "affected_areas": [
+    "launch",
+    "webview"
+  ],
+  "behavior_before": "The backend preflight table used the shared detail-table max height and the selected-row detail used the shared prose-block max height, causing scrollbars inside the Settings Check panel.",
+  "behavior_after": "The backend preflight summary, table, and selected-row detail in the Launch Settings Check panel can grow to show their content naturally while preserving backend-owned launch/preflight behavior.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-010.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-010.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_web_static.py -q - failed: 3 unrelated existing expectation failures in settings/home command-feedback tests",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_launch_queue_readiness_smoke.py -q - failed: existing smoke blocked by unexpected /api/ui-preferences POST in dirty worktree before this layout assertion",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [Launch preflight layout files] - passed",
+    "git diff --check -- apps/desktop/webview/static/partials/page-launch.html apps/desktop/webview/static/assets/styles.components.css ops/release/changes/unreleased/MP-CHANGE-2026-0619-010.json - passed with line-ending warnings only",
+    "node inline Launch backend preflight layout contract check - passed",
+    "npm run webview:check - passed",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0619-002 invalid type 'ux' and five unrelated uncovered dirty files: settings/backendResult.js, settingsView.safetyLocks.js, Test-WebViewBrowserVisualClutterScreenshots.ps1, Test-WebViewSettingsPatchEvidenceSmoke.ps1, test_webview_browser_visual_clutter_screenshots.py"
+  ],
+  "rollback_plan": "Revert the Launch backend preflight markup/CSS sizing overrides, refresh generated summaries for the touched files, and remove this change packet.",
+  "related_changes": [],
+  "notes": "Started from a heavily dirty worktree with unrelated generated docs, Tauri, backend, WebView, rename, repair/reconcile, and test changes already present. This packet intentionally covers only the Launch backend preflight panel expansion. No backend API, launch command, queue, settings-save, publish/drain, rename, media-policy, or filesystem mutation behavior changed."
+}

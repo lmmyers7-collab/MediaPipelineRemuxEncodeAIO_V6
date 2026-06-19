@@ -8,6 +8,11 @@
   let maintenanceRefreshQueued = false;
   let changeLedgerRefreshInFlight = false;
   let maintenanceProgressPollTimer = null;
+  let lastReleasePreviewSignature = "";
+  let lastReleasePreviewOk = false;
+  let lastReleasePreviewMessage = "";
+  const CHANGE_LEDGER_ROW_LIMIT = 200;
+  const CHANGE_LEDGER_REFRESH_TIMEOUT_MS = 120000;
   const maintenanceDryRunButtonIds = [
     "release-dry-run-button",
     "release-build-button",
@@ -16,6 +21,61 @@
   ];
   let maintenanceDryRunInFlight = false;
   let dependencyAtlasOpenInFlight = false;
+
+  function maintenanceStatusState(value) {
+    const text = String(value || "").trim().toLowerCase();
+    if (!text) return "empty";
+    if (text === "not loaded" || text === "not checked" || text === "not selected" || text === "no selection"
+        || text === "idle" || text === "none" || text === "no rows" || text.startsWith("no ")) return "empty";
+    if (text.includes("stale")) return "stale";
+    if (text.includes("skip")) return "skipped";
+    if (text.includes("running") || text.includes("active") || text.includes("loading") || text.includes("checking")
+        || text.includes("planning") || text.includes("building") || text.includes("updating") || text.includes("opening")
+        || text.includes("requesting") || text.includes("busy")) return "running";
+    if (text.includes("blocked") || text.includes("failed") || text.includes("error") || text.includes("missing")
+        || text.includes("unavailable") || text.includes("invalid")) return "blocked";
+    if (text.includes("warning") || text.includes("review") || text.includes("unknown") || text.includes("incomplete")
+        || text.includes("limited")) return "warning";
+    if (text === "ok" || text === "pass" || text === "ready" || text === "safe" || text === "complete"
+        || text === "completed" || text === "loaded" || text === "match" || text.startsWith("ready")
+        || text.includes("done")) return "ok";
+    return "";
+  }
+
+  function setMaintenanceStatusText(id, text, state) {
+    const normalized = maintenanceStatusState(state !== undefined ? state : text);
+    if (typeof setTextState === "function") {
+      setTextState(id, text, normalized);
+      return;
+    }
+    setText(id, text);
+    const node = byId(id);
+    if (node) node.dataset.state = normalized;
+  }
+
+  function maintenanceTableRowStatus(value) {
+    const state = maintenanceStatusState(value);
+    if (state === "ok") return "match";
+    if (state === "running") return "running";
+    if (state === "blocked") return "blocked";
+    if (state === "empty") return "empty";
+    if (state === "stale") return "stale";
+    if (state === "skipped") return "warning";
+    return state || "unknown";
+  }
+
+  function releasePackageChipStatus(status) {
+    const raw = String(status || "").trim().toLowerCase();
+    if (raw === "complete" || raw === "ok") return raw;
+    if (raw === "failed" || raw === "error" || raw === "blocked") return raw === "error" ? "error" : "failed";
+    if (raw === "stale" || raw === "skipped") return raw;
+    const state = maintenanceStatusState(raw);
+    if (state === "running") return "running";
+    if (state === "warning") return "warning";
+    if (state === "blocked") return "failed";
+    if (state === "empty") return "empty";
+    return raw || "unknown";
+  }
 
   function setMaintenanceDryRunBusy(isBusy) {
     maintenanceDryRunInFlight = Boolean(isBusy);
@@ -36,7 +96,7 @@
     const releaseKind = releasePackageKindForCommand(command);
     if (releaseKind) setReleasePackageStatus(releaseKind, "warning", "Busy", result.message);
     appendCommandResult(result);
-    setText(statusId, "Busy");
+    setMaintenanceStatusText(statusId, "Busy", "running");
     if (detailId) setText(detailId, result.message);
     return true;
   }
@@ -95,7 +155,7 @@
     setText("maintenance-missing-count", String(lastMaintenance.missing_count || 0));
     setText("maintenance-warning-count", String(lastMaintenance.warning_count || warnings.length || 0));
     setText("maintenance-total-count", String(rows.length));
-    setText("maintenance-status", rows.length ? `${rows.length} check${rows.length === 1 ? "" : "s"}` : "No rows");
+    setMaintenanceStatusText("maintenance-status", rows.length ? `${rows.length} check${rows.length === 1 ? "" : "s"}` : "No rows", maintenanceReadinessStatus(lastMaintenance, rows));
     renderMaintenanceHealthProgress(lastMaintenance.health_progress || { progress_bars: lastMaintenance.progress_bars || [] });
     renderMaintenanceReadiness(lastMaintenance, rows);
     renderMaintenanceToolchain(lastMaintenance.toolchain_evidence || {});
@@ -130,7 +190,7 @@
       "",
       "Source boundary:",
       "- Root CHANGELOG.md remains the canonical human changelog.",
-      "- Structured change packets under ops/ops/release/metadata/changes/ feed this Maintenance ledger and generated change-control docs.",
+      "- Structured change packets under ops/release/changes/unreleased/ and ops/release/changes/released/ feed this Maintenance ledger and generated change-control docs.",
       "- This panel is read-only; agents update packet/changelog files during development, not from the WebView."
     );
     return lines;
@@ -159,7 +219,7 @@
       : hygiene.operator_status
       ? `${hygiene.operator_status} (${counts.total || 0})`
       : payload.schema_version ? `Loaded (${counts.total || 0})` : "Not loaded";
-    setText("maintenance-change-ledger-status", status);
+    setMaintenanceStatusText("maintenance-change-ledger-status", status);
     setText("maintenance-change-ledger-summary", changeLedgerSummaryLines(payload).join("\n"));
   }
 
@@ -209,7 +269,7 @@
 
   function renderChangeLedgerHygiene(ledger) {
     const hygiene = ledger?.hygiene && typeof ledger.hygiene === "object" ? ledger.hygiene : {};
-    setText("maintenance-change-ledger-hygiene-status", changeLedgerHygieneStatus(hygiene));
+    setMaintenanceStatusText("maintenance-change-ledger-hygiene-status", changeLedgerHygieneStatus(hygiene));
     setText("maintenance-change-ledger-hygiene", changeLedgerHygieneLines(ledger || {}).join("\n"));
   }
 
@@ -264,11 +324,15 @@
     const tbody = byId("maintenance-change-ledger-rows");
     if (!tbody) return;
     const rows = filteredChangeLedgerRows();
-    setText("maintenance-change-ledger-table-status", changeLedgerTableStatus(rows));
+    const selectedVisible = rows.some((item) => changeLedgerRowKey(item) === selectedChangeLedgerRowKey);
+    if (!selectedVisible) {
+      selectedChangeLedgerRowKey = rows.length ? changeLedgerRowKey(rows[0]) : "";
+    }
+    setMaintenanceStatusText("maintenance-change-ledger-table-status", changeLedgerTableStatus(rows), rows.length ? "ok" : "empty");
     if (!rows.length) {
       clearRows(tbody, 6, lastChangeLedger ? "No change packets match the current filters." : "No change ledger loaded.");
       updateTableStatusLegend("maintenance-change-ledger-table-legend", tbody, "Change ledger rows");
-      renderChangeLedgerDetail(getSelectedChangeLedgerRow());
+      renderChangeLedgerDetail(null);
       return;
     }
     tbody.replaceChildren();
@@ -292,6 +356,7 @@
       tbody.appendChild(row);
     });
     updateTableStatusLegend("maintenance-change-ledger-table-legend", tbody, "Change ledger rows");
+    renderChangeLedgerDetail(getSelectedChangeLedgerRow());
   }
 
   function changeLedgerDetailLines(item) {
@@ -351,7 +416,7 @@
   }
 
   function renderChangeLedgerDetail(item) {
-    setText("maintenance-change-ledger-detail-status", item ? (item.validation_status || item.status || "selected") : "No selection");
+    setMaintenanceStatusText("maintenance-change-ledger-detail-status", item ? (item.validation_status || item.status || "selected") : "No selection");
     setText("maintenance-change-ledger-detail", changeLedgerDetailLines(item || null).join("\n"));
   }
 
@@ -397,10 +462,47 @@
     return lines;
   }
 
+  function maintenanceHealthErrorProgress(message) {
+    const detail = String(message || "Maintenance health check failed.");
+    return {
+      schema_version: "desktop_maintenance_health_progress.v1",
+      status: "error",
+      mode: "determinate",
+      checked_count: 0,
+      total_steps: 1,
+      summary_lines: [
+        "Health progress: error",
+        `Failure detail: ${detail}`,
+        "Final result: health check failed before a trustworthy readiness snapshot was loaded.",
+      ],
+      steps: [
+        {
+          id: "maintenance_health_refresh",
+          label: "Health refresh",
+          status: "error",
+          required: true,
+          detail,
+        },
+      ],
+      progress_bars: [
+        {
+          id: "maintenance_health",
+          label: "Maintenance health",
+          mode: "determinate",
+          percent: 100,
+          status: "error",
+          detail,
+          source: "/api/maintenance",
+          stale: false,
+        },
+      ],
+    };
+  }
+
   function renderMaintenanceHealthProgress(progress) {
     const payload = progress || {};
     const bars = Array.isArray(payload.progress_bars) ? payload.progress_bars : [];
-    setText("maintenance-progress-status", maintenanceProgressStatus(payload));
+    setMaintenanceStatusText("maintenance-progress-status", maintenanceProgressStatus(payload));
     if (typeof renderProgressBarsInto === "function") {
       renderProgressBarsInto("maintenance-progress-bars", bars, payload, "No maintenance health progress loaded.");
     } else {
@@ -421,8 +523,15 @@
       renderMaintenanceHealthProgress(await apiGet("/api/maintenance/progress"));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setText("maintenance-progress-status", "Unavailable");
-      setText("maintenance-progress-steps", `Maintenance health progress unavailable: ${message}`);
+      renderMaintenanceHealthProgress({
+        ...maintenanceHealthErrorProgress(message),
+        status: "unavailable",
+        summary_lines: [
+          "Health progress: unavailable",
+          `Failure detail: ${message}`,
+          "Polling could not load health-progress details. The main health check result remains authoritative.",
+        ],
+      });
     }
   }
 
@@ -541,7 +650,7 @@
 
   function renderMaintenanceDetail(item) {
     renderMaintenanceDiagnosticsActions(item || null);
-    setText("maintenance-detail-status", item ? (item.operator_status || item.status || "selected") : "No selection");
+    setMaintenanceStatusText("maintenance-detail-status", item ? (item.operator_status || item.status || "selected") : "No selection");
     setText("maintenance-detail", maintenanceDetailLines(item || null).join("\n"));
   }
 
@@ -550,7 +659,7 @@
     if (!tbody) return;
     if (!rows.length) {
       const warnings = Array.isArray(lastMaintenance?.warnings) ? lastMaintenance.warnings : [];
-      clearRows(tbody, 3, warnings.join(" | ") || "No maintenance checks loaded.");
+      clearRows(tbody, 5, warnings.join(" | ") || "No maintenance checks loaded.");
       updateTableStatusLegend("maintenance-table-legend", tbody, "Maintenance rows");
       renderMaintenanceDetail(null);
       return;
@@ -558,10 +667,12 @@
     tbody.replaceChildren();
     rows.forEach((item) => {
       const row = document.createElement("tr");
-      row.dataset.status = item.status === "ok" ? "match" : item.status === "warning" ? "warning" : item.status === "running" ? "running" : "blocked";
+      row.dataset.status = maintenanceTableRowStatus(item.operator_status || item.status);
       appendCells(row, [
         item.status || "",
         item.name || "",
+        item.required === false ? "Optional" : "Required",
+        item.dry_run_impact || item.failure_scope || item.operator_guidance || "",
         item.detail || "",
       ]);
       makeRowSelectable(row, () => selectMaintenanceRow(item), {
@@ -637,7 +748,7 @@
   }
 
   function renderMaintenanceToolchain(evidence) {
-    setText("maintenance-toolchain-status", maintenanceToolchainStatus(evidence || {}));
+    setMaintenanceStatusText("maintenance-toolchain-status", maintenanceToolchainStatus(evidence || {}));
     setText("maintenance-toolchain", maintenanceToolchainLines(evidence || {}).join("\n"));
   }
 
@@ -694,12 +805,12 @@
 
   function renderMaintenanceReadiness(maintenance, rows) {
     const rowList = Array.isArray(rows) ? rows : [];
-    setText("maintenance-readiness-status", maintenanceReadinessStatus(maintenance || {}, rowList));
+    setMaintenanceStatusText("maintenance-readiness-status", maintenanceReadinessStatus(maintenance || {}, rowList));
     setText("maintenance-readiness", maintenanceReadinessLines(maintenance || {}, rowList).join("\n"));
   }
 
   function renderMaintenanceReadinessError(message) {
-    setText("maintenance-readiness-status", "Unavailable");
+    setMaintenanceStatusText("maintenance-readiness-status", "Unavailable", "blocked");
     setText(
       "maintenance-readiness",
       [
@@ -814,6 +925,7 @@
 
   function maintenanceReleaseOptionReviewLines() {
     const request = collectReleaseDryRunRequest();
+    const previewMatches = releasePreviewMatchesCreate(request);
     const lines = [
       "Deployment option review:",
       `- Destination: ${request.destination_root || "blank; backend should use timestamped default"}`,
@@ -825,7 +937,8 @@
       `- Include bundled tool docs: ${request.include_tool_docs ? "yes" : "no"}`,
       `- Include Tauri launcher: ${request.include_tauri_preview_binary ? "yes; required for package-mode launch" : "no"}`,
       `- Keep personal config: ${request.keep_personal_config ? "yes; review before sharing package output" : "no"}`,
-      `- Replace existing destination on create: ${Boolean(byId("release-build-force")?.checked) ? "yes" : "no"}`,
+      `- Replace existing destination on create: ${request.force ? "yes; preview and create use the same force option" : "no"}`,
+      `- Latest matching preview: ${previewMatches ? "yes; same destination/options completed successfully" : lastReleasePreviewSignature ? "no; current destination/options changed or latest preview failed" : "no successful preview recorded in this shell"}`,
     ];
     if (!request.verify) {
       lines.push("- Warning: verify is disabled, so dry-run package confidence is weaker.");
@@ -838,6 +951,9 @@
     }
     if (request.include_optional_tools || request.include_tool_docs) {
       lines.push("- Note: optional payloads increase package surface; compare against release manifest before distribution.");
+    }
+    if (!previewMatches) {
+      lines.push("- Warning: run Preview Deployment with these exact options before Create Deployment, or the create confirmation will call out the mismatch.");
     }
     return lines;
   }
@@ -882,9 +998,10 @@
     return lines;
   }
 
-  function renderMaintenanceDryRunConfidence(history = []) {
-    setText("maintenance-dry-run-confidence-status", maintenanceDryRunConfidenceStatus(history));
-    setText("maintenance-dry-run-confidence", maintenanceDryRunConfidenceLines(history).join("\n"));
+  function renderMaintenanceDryRunConfidence(history = null) {
+    const entries = Array.isArray(history) ? history : typeof getCommandHistory === "function" ? getCommandHistory() : [];
+    setMaintenanceStatusText("maintenance-dry-run-confidence-status", maintenanceDryRunConfidenceStatus(entries));
+    setText("maintenance-dry-run-confidence", maintenanceDryRunConfidenceLines(entries).join("\n"));
   }
 
   async function refreshChangeLedger() {
@@ -892,16 +1009,18 @@
     changeLedgerRefreshInFlight = true;
     const button = byId("maintenance-change-ledger-refresh-button");
     if (button) button.disabled = true;
-    setText("maintenance-change-ledger-status", "Loading...");
+    setMaintenanceStatusText("maintenance-change-ledger-status", "Loading...", "running");
     try {
-      renderChangeLedger(await apiGet("/api/maintenance/change-ledger"));
+      renderChangeLedger(await apiGet(`/api/maintenance/change-ledger?limit=${CHANGE_LEDGER_ROW_LIMIT}`, {
+        timeoutMs: CHANGE_LEDGER_REFRESH_TIMEOUT_MS,
+      }));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setText("maintenance-change-ledger-status", "Error");
+      setMaintenanceStatusText("maintenance-change-ledger-status", "Error", "blocked");
       setText("maintenance-change-ledger-summary", `Change ledger unavailable: ${message}`);
       clearRows(byId("maintenance-change-ledger-rows"), 6, message);
-      setText("maintenance-change-ledger-table-status", "Error");
-      setText("maintenance-change-ledger-hygiene-status", "Unavailable");
+      setMaintenanceStatusText("maintenance-change-ledger-table-status", "Error", "blocked");
+      setMaintenanceStatusText("maintenance-change-ledger-hygiene-status", "Unavailable", "blocked");
       setText("maintenance-change-ledger-hygiene", `Change ledger hygiene unavailable: ${message}`);
       renderChangeLedgerDetail(null);
     } finally {
@@ -918,18 +1037,29 @@
     maintenanceRefreshInFlight = true;
     const button = byId("maintenance-refresh-button");
     if (button) button.disabled = true;
-    setText("maintenance-status", "Checking...");
-    setText("maintenance-progress-status", "Active");
+    setMaintenanceStatusText("maintenance-status", "Checking...", "running");
+    setMaintenanceStatusText("maintenance-progress-status", "Active", "running");
     setText("maintenance-progress-steps", "Starting backend Maintenance health check. Progress will update from /api/maintenance/progress while probes run.");
     startMaintenanceProgressPolling();
     try {
       renderMaintenance(await apiGet("/api/maintenance"));
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      setText("maintenance-status", "Error");
+      lastMaintenance = {
+        error: message,
+        rows: [],
+        warnings: [`Maintenance health check failed: ${message}`],
+        health_progress: maintenanceHealthErrorProgress(message),
+      };
+      setText("maintenance-ok-count", "0");
+      setText("maintenance-missing-count", "0");
+      setText("maintenance-warning-count", "1");
+      setText("maintenance-total-count", "0");
+      setMaintenanceStatusText("maintenance-status", "Error", "blocked");
+      renderMaintenanceHealthProgress(lastMaintenance.health_progress);
       renderMaintenanceReadinessError(message);
       setText("maintenance-warnings", `Maintenance health check failed: ${message}`);
-      clearRows(byId("maintenance-rows"), 3, message);
+      clearRows(byId("maintenance-rows"), 5, message);
       renderMaintenanceDryRunConfidence();
     } finally {
       stopMaintenanceProgressPolling();
@@ -940,6 +1070,61 @@
         window.setTimeout(refreshMaintenance, 0);
       }
     }
+  }
+
+  function releaseRequestSignature(request) {
+    const payload = request || {};
+    const optionKeys = [
+      "destination_root",
+      "zip_package",
+      "verify",
+      "include_tests",
+      "include_dev_docs",
+      "include_optional_tools",
+      "include_tool_docs",
+      "include_tauri_preview_binary",
+      "keep_personal_config",
+      "force",
+    ];
+    const normalized = {};
+    optionKeys.forEach((key) => {
+      normalized[key] = key === "destination_root"
+        ? String(payload[key] || "").trim()
+        : Boolean(payload[key]);
+    });
+    return JSON.stringify(normalized);
+  }
+
+  function recordReleasePreviewResult(request, result) {
+    lastReleasePreviewSignature = releaseRequestSignature(request || {});
+    lastReleasePreviewOk = Boolean(result?.ok);
+    lastReleasePreviewMessage = String(result?.message || (result?.ok ? "Preview completed." : "Preview failed."));
+  }
+
+  function releasePreviewMatchesCreate(request) {
+    return Boolean(lastReleasePreviewOk && lastReleasePreviewSignature && lastReleasePreviewSignature === releaseRequestSignature(request || {}));
+  }
+
+  function releaseBuildConfirmMessage(request) {
+    const destination = request.destination_root || "a timestamped folder next to this bundle";
+    const zipText = request.zip_package ? "and zip" : "without zip";
+    const previewMatches = releasePreviewMatchesCreate(request);
+    const lines = [
+      `Create deployment package at ${destination} ${zipText}?`,
+      "",
+      `Latest matching preview: ${previewMatches ? "yes, same destination/options completed successfully." : "NO matching successful Preview Deployment is recorded for these options."}`,
+      lastReleasePreviewMessage ? `Latest preview result: ${lastReleasePreviewMessage}` : "Latest preview result: none recorded in this shell.",
+      `Replace existing destination: ${request.force ? "yes" : "no"}`,
+      `Keep personal config: ${request.keep_personal_config ? "yes; review before sharing package output" : "no"}`,
+      `Include Tauri launcher: ${request.include_tauri_preview_binary ? "yes" : "no"}`,
+      "",
+      "Create Deployment writes a release folder, manifest, optional zip, and selected launcher payload through the backend release builder.",
+      "Rollback/readiness implication: if this package is wrong, remove the generated deployment folder/zip and rerun Preview Deployment; this action does not validate media processing, subtitles, audio, publish, or pending-drain behavior.",
+    ];
+    if (!previewMatches) {
+      lines.push("", "Recommendation: cancel and run Preview Deployment with these exact options first unless you intentionally accept the mismatch.");
+    }
+    return lines.join("\n");
   }
 
   function collectReleaseDryRunRequest() {
@@ -953,6 +1138,7 @@
       include_tool_docs: Boolean(byId("release-dry-run-tool-docs")?.checked),
       include_tauri_preview_binary: Boolean(byId("release-dry-run-tauri-binary")?.checked),
       keep_personal_config: Boolean(byId("release-dry-run-keep-config")?.checked),
+      force: Boolean(byId("release-build-force")?.checked),
       timeout_seconds: 900,
     };
   }
@@ -980,7 +1166,7 @@
     const cleanValue = String(value || cleanStatus).trim();
     const cleanHint = String(hint || "").trim();
     if (chip) {
-      chip.dataset.status = cleanStatus;
+      chip.dataset.status = releasePackageChipStatus(cleanStatus);
       chip.title = cleanHint || cleanValue;
     }
     setText(`${prefix}-state-value`, cleanValue);
@@ -1077,6 +1263,7 @@
 
   function renderReleaseDryRunResult(result) {
     const data = result?.data || {};
+    const options = data.options && typeof data.options === "object" ? data.options : {};
     const state = releasePackageResultStatus(result, "Preview done");
     setReleasePackageStatus("dry-run", state.status, state.value, `${state.hint} Preview only; no release folder, manifest, or zip was written.`);
     renderReleasePackageProgress(result);
@@ -1088,6 +1275,7 @@
       `Changes manifest: ${data.manifest_changed === true ? "unexpected yes" : "no"}`,
       `Writes zip: ${data.zip_created === true ? "unexpected yes" : "no; preview is dry-run only"}`,
       `Changes zip: ${data.zip_changed === true ? "unexpected yes" : "no; preview is dry-run only"}`,
+      `Replace existing destination option: ${options.force === true ? "yes" : options.force === false ? "no" : "unknown"}`,
       `Safe next action: ${result?.ok ? "Review planned copy counts/options, destination, and package options before Create Deployment." : "Read errors and Diagnostics before trusting release packaging."}`,
       "Guardrail: Preview Deployment is a backend dry-run command; it reports zip intent but must not create release folders, zips, manifests, or copy payloads.",
       "Real-media boundary: release dry-run output does not validate FFmpeg, subtitle OCR/SRT, audio routing, output size, completed sidecars, or pending-publish behavior on media files.",
@@ -1141,7 +1329,7 @@
     if (rejectMaintenanceDryRunWhileBusy("maintenance.release_dry_run", "release-dry-run-status", "release-dry-run-detail")) return;
     const request = collectReleaseDryRunRequest();
     setMaintenanceDryRunBusy(true);
-    setText("release-dry-run-status", "Planning...");
+    setMaintenanceStatusText("release-dry-run-status", "Planning...", "running");
     setReleasePackageStatus(
       "dry-run",
       "running",
@@ -1158,8 +1346,10 @@
     try {
       const result = await apiPost("/api/maintenance/release-dry-run", request);
       appendCommandResult(result);
-      setText("release-dry-run-status", result.ok ? "Complete" : result.severity || "Failed");
+      recordReleasePreviewResult(request, result);
+      setMaintenanceStatusText("release-dry-run-status", result.ok ? "Complete" : result.severity || "Failed");
       renderReleaseDryRunResult(result);
+      renderMaintenanceDryRunConfidence();
       if ((result.refresh_hint || "") === "maintenance") {
         await refreshMaintenance();
       }
@@ -1171,9 +1361,11 @@
         severity: "error",
         message,
       });
-      setText("release-dry-run-status", "Error");
+      recordReleasePreviewResult(request, { ok: false, message });
+      setMaintenanceStatusText("release-dry-run-status", "Error", "blocked");
       setReleasePackageStatus("dry-run", "failed", "Error", message);
       setText("release-dry-run-detail", message);
+      renderMaintenanceDryRunConfidence();
     } finally {
       setMaintenanceDryRunBusy(false);
     }
@@ -1181,6 +1373,7 @@
 
   function renderReleaseBuildResult(result) {
     const data = result?.data || {};
+    const options = data.options && typeof data.options === "object" ? data.options : {};
     const state = releasePackageResultStatus(result, "Build done");
     setReleasePackageStatus("build", state.status, state.value, state.hint);
     renderReleasePackageProgress(result, "release-build-progress-bars");
@@ -1192,6 +1385,7 @@
       `Manifest written: ${data.manifest_exists === true ? "yes" : "no"}`,
       `Zip written: ${data.zip_exists === true ? "yes" : "no"}`,
       `Tauri launcher requested: ${data.options?.include_tauri_preview_binary === true ? "yes" : "no"}`,
+      `Replace existing destination: ${options.force === true ? "yes" : options.force === false ? "no" : "unknown"}`,
       `Safe next action: ${result?.ok ? "Open the destination, review release_manifest.json, then run package-mode validation before distribution." : "Read errors, stderr/stdout, and Diagnostics before retrying deployment."}`,
       "Guardrail: Create Deployment is backend-owned. The WebView submits options only; it does not copy files, zip folders, write manifests, or delete destinations itself.",
       "Real-media boundary: deployment packaging does not validate FFmpeg routing, subtitle OCR/SRT, audio routing, output size, completed sidecars, or pending-publish behavior on media files.",
@@ -1223,11 +1417,9 @@
   async function runReleaseBuild() {
     if (rejectMaintenanceDryRunWhileBusy("maintenance.release_build", "release-build-status", "release-build-detail")) return;
     const request = collectReleaseBuildRequest();
-    const destination = request.destination_root || "a timestamped folder next to this bundle";
-    const zipText = request.zip_package ? "and zip" : "without zip";
-    if (!window.confirm(`Create deployment package at ${destination} ${zipText}?\n\nThis will write release files through the backend release builder.`)) return;
+    if (!window.confirm(releaseBuildConfirmMessage(request))) return;
     setMaintenanceDryRunBusy(true);
-    setText("release-build-status", "Building...");
+    setMaintenanceStatusText("release-build-status", "Building...", "running");
     setReleasePackageStatus(
       "build",
       "running",
@@ -1244,7 +1436,7 @@
     try {
       const result = await apiPost("/api/maintenance/release-build", request);
       appendCommandResult(result);
-      setText("release-build-status", result.ok ? "Complete" : result.severity || "Failed");
+      setMaintenanceStatusText("release-build-status", result.ok ? "Complete" : result.severity || "Failed");
       renderReleaseBuildResult(result);
       if ((result.refresh_hint || "") === "maintenance") {
         await refreshMaintenance();
@@ -1257,7 +1449,7 @@
         severity: "error",
         message,
       });
-      setText("release-build-status", "Error");
+      setMaintenanceStatusText("release-build-status", "Error", "blocked");
       setReleasePackageStatus("build", "failed", "Error", message);
       setText("release-build-detail", message);
     } finally {
@@ -1267,6 +1459,10 @@
 
   function renderBackfillDryRunResult(result) {
     const data = result?.data || {};
+    const progress = data.backfill_progress && typeof data.backfill_progress === "object" ? data.backfill_progress : {};
+    const recordsScanned = data.records_scanned ?? progress.records_scanned ?? "";
+    const recordsWouldWrite = data.records_would_write ?? progress.records_would_write ?? data.sidecars_ingested ?? "";
+    const recordsWritten = data.records_written ?? progress.records_written ?? 0;
     renderBackfillProgress(result);
     const lines = [
       "Dry-run trust summary:",
@@ -1279,6 +1475,9 @@
       "",
       result?.message || "Completed manifest backfill dry run completed.",
       "",
+      `Records scanned: ${recordsScanned}`,
+      `Records would write: ${recordsWouldWrite}`,
+      `Records written: ${recordsWritten}`,
       `Sidecars ingested: ${data.sidecars_ingested || ""}`,
       `Skipped bad JSON: ${data.skipped_bad_json || "0"}`,
       `Manifest: ${data.manifest_path || ""}`,
@@ -1315,12 +1514,12 @@
   async function runBackfillDryRun() {
     if (rejectMaintenanceDryRunWhileBusy("maintenance.completed_backfill_dry_run", "backfill-dry-run-status", "backfill-dry-run-detail")) return;
     setMaintenanceDryRunBusy(true);
-    setText("backfill-dry-run-status", "Running...");
+    setMaintenanceStatusText("backfill-dry-run-status", "Running...", "running");
     setText("backfill-dry-run-detail", "Scanning outsource sidecars with -DryRun. The completed manifest will not be rewritten.");
     try {
       const result = await apiPost("/api/maintenance/completed-backfill-dry-run", { timeout_seconds: 600 });
       appendCommandResult(result);
-      setText("backfill-dry-run-status", result.ok ? "Complete" : result.severity || "Failed");
+      setMaintenanceStatusText("backfill-dry-run-status", result.ok ? "Complete" : result.severity || "Failed");
       renderBackfillDryRunResult(result);
       if ((result.refresh_hint || "") === "maintenance") {
         await refreshMaintenance();
@@ -1333,7 +1532,7 @@
         severity: "error",
         message,
       });
-      setText("backfill-dry-run-status", "Error");
+      setMaintenanceStatusText("backfill-dry-run-status", "Error", "blocked");
       setText("backfill-dry-run-detail", message);
     } finally {
       setMaintenanceDryRunBusy(false);
@@ -1357,13 +1556,19 @@
 
   function renderDependencyAtlasResult(result) {
     const data = result?.data || {};
+    const atlasStale = data.stale === true || dependencyAtlasProgressBars(result).some((bar) => bar?.stale === true);
+    const statusText = atlasStale ? "Stale" : result?.ok ? "Complete" : result?.severity || "Failed";
+    setMaintenanceStatusText("dependency-atlas-status", statusText, atlasStale ? "stale" : statusText);
     renderDependencyAtlasProgress(result);
+    const htmlPath = data.atlas_html || "docs/generated/dependency-atlas/dependency-atlas.html";
+    const pngPath = data.atlas_png || "docs/generated/dependency-atlas/dependency-atlas.png";
     const lines = [
       "Dependency atlas update summary:",
       `Command accepted: ${result?.ok ? "yes" : "no"}`,
       `Writes dependency atlas artifacts: ${data.writes_dependency_atlas === true ? "yes" : "no"}`,
       `Writes media or pipeline state: ${data.writes_media === true ? "unexpected yes" : "no"}`,
-      `Safe next action: ${result?.ok ? "Open docs/generated/dependency-atlas/docs/generated/dependency-atlas.html or docs/generated/dependency-atlas/docs/generated/dependency-atlas.png from the repository root." : "Read errors and Diagnostics before trusting the atlas files."}`,
+      `Stale state: ${atlasStale ? "yes; rerun Update Atlas before relying on these files" : "no"}`,
+      `Safe next action: ${result?.ok ? `Open ${htmlPath} or ${pngPath} from the repository root.` : "Read errors and Diagnostics before trusting the atlas files."}`,
       "Guardrail: this WebView action only asks the backend to run ops/scripts/dev/generate_dependency_atlas.py. It must not mutate media, queue state, settings, completed manifests, pending publish state, or pipeline execution.",
       "",
       result?.message || "Dependency atlas generation finished.",
@@ -1400,7 +1605,7 @@
   async function runDependencyAtlas() {
     if (rejectMaintenanceDryRunWhileBusy("maintenance.dependency_atlas", "dependency-atlas-status", "dependency-atlas-detail")) return;
     setMaintenanceDryRunBusy(true);
-    setText("dependency-atlas-status", "Running...");
+    setMaintenanceStatusText("dependency-atlas-status", "Running...", "running");
     setText("dependency-atlas-detail", "Generating dependency atlas artifacts through backend tooling. This updates files under docs/generated/dependency-atlas only.");
     try {
       const result = await apiPost("/api/maintenance/dependency-atlas", {
@@ -1409,7 +1614,6 @@
         min_overview_files: 2,
       });
       appendCommandResult(result);
-      setText("dependency-atlas-status", result.ok ? "Complete" : result.severity || "Failed");
       renderDependencyAtlasResult(result);
       if ((result.refresh_hint || "") === "maintenance") {
         await refreshMaintenance();
@@ -1422,7 +1626,7 @@
         severity: "error",
         message,
       });
-      setText("dependency-atlas-status", "Error");
+      setMaintenanceStatusText("dependency-atlas-status", "Error", "blocked");
       setText("dependency-atlas-detail", message);
     } finally {
       setMaintenanceDryRunBusy(false);
@@ -1432,12 +1636,25 @@
   async function openDependencyAtlasFolder() {
     if (dependencyAtlasOpenInFlight) return;
     setDependencyAtlasOpenBusy(true);
+    const previousDetail = byId("dependency-atlas-detail")?.textContent || "";
+    setMaintenanceStatusText("dependency-atlas-status", "Opening...", "running");
+    setText("dependency-atlas-detail", ["Opening dependency atlas folder through the backend allowlist.", "", previousDetail].filter(Boolean).join("\n"));
     try {
       const result = await apiPost("/api/maintenance/dependency-atlas/open-folder", {});
       appendCommandResult(result);
       if (!result.ok) {
-        setText("dependency-atlas-status", result.severity || "Open failed");
+        setMaintenanceStatusText("dependency-atlas-status", result.severity || "Open failed");
         setText("dependency-atlas-detail", result.message || "Dependency atlas folder could not be opened.");
+      } else {
+        setMaintenanceStatusText("dependency-atlas-status", "Opened", "ok");
+        setText(
+          "dependency-atlas-detail",
+          [
+            result.message || "Dependency atlas folder open request completed through the backend allowlist.",
+            "",
+            previousDetail,
+          ].filter(Boolean).join("\n")
+        );
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -1447,7 +1664,7 @@
         severity: "error",
         message,
       });
-      setText("dependency-atlas-status", "Error");
+      setMaintenanceStatusText("dependency-atlas-status", "Error", "blocked");
       setText("dependency-atlas-detail", message);
     } finally {
       setDependencyAtlasOpenBusy(false);
@@ -1491,6 +1708,10 @@
     renderMaintenanceReadiness,
     renderMaintenanceToolchain,
     renderMaintenanceReadinessError,
+    maintenanceStatusState,
+    setMaintenanceStatusText,
+    maintenanceTableRowStatus,
+    maintenanceHealthErrorProgress,
     maintenanceReadinessStatus,
     maintenanceToolchainStatus,
     maintenanceToolchainLines,
@@ -1503,6 +1724,10 @@
     refreshMaintenance,
     setMaintenanceDryRunBusy,
     rejectMaintenanceDryRunWhileBusy,
+    releaseRequestSignature,
+    releasePreviewMatchesCreate,
+    releaseBuildConfirmMessage,
+    recordReleasePreviewResult,
     collectReleaseDryRunRequest,
     collectReleaseBuildRequest,
     initMaintenanceViewEvents,

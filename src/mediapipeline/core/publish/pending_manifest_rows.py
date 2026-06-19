@@ -4,6 +4,7 @@ import contextlib
 from pathlib import Path
 from typing import Any
 
+from mediapipeline.core.kernel.contracts.pending_publish import PENDING_PUSH_RETRY_LIMIT
 from mediapipeline.core.publish.pending_format import (
     format_bytes_compact,
     format_pending_datetime_text,
@@ -61,6 +62,9 @@ def invalid_contract_pending_manifest_row(
         "missing_sidecar_count": 0,
         "sidecar_paths": [],
         "schema_version": schema_version,
+        "retry_count": int(int_or_none(manifest.get("retry_count")) or 0),
+        "retry_limit": PENDING_PUSH_RETRY_LIMIT,
+        "retry_exhausted": int(int_or_none(manifest.get("retry_count")) or 0) >= PENDING_PUSH_RETRY_LIMIT,
         "error": f"Current pending manifest contract invalid: {exc}",
     }
 
@@ -132,7 +136,11 @@ def readable_pending_manifest_row(
     missing_sidecars: int,
     schema_version: str,
     error_text: str,
+    retry_count: int = 0,
+    retry_limit: int = PENDING_PUSH_RETRY_LIMIT,
 ) -> dict[str, Any]:
+    safe_retry_count = max(0, int(retry_count or 0))
+    safe_retry_limit = max(1, int(retry_limit or PENDING_PUSH_RETRY_LIMIT))
     return {
         "manifest_path": str(manifest_path),
         "parked_at": parked_at,
@@ -151,5 +159,8 @@ def readable_pending_manifest_row(
         "missing_sidecar_count": missing_sidecars,
         "sidecar_paths": sidecar_paths,
         "schema_version": schema_version or "legacy",
+        "retry_count": safe_retry_count,
+        "retry_limit": safe_retry_limit,
+        "retry_exhausted": safe_retry_count >= safe_retry_limit,
         "error": error_text,
     }

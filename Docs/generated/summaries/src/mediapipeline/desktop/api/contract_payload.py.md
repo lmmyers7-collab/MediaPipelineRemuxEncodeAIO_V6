@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/api/contract_payload.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-13
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 77c6ec9b3aaea69a67303e606040307f6ebce3e32f08fab94794a917ff989a66
+sha256: 8cd8fdc9cf75f4714c8adfa7f3cd060c1aaad129feeba59d18662fe88640fc86
 ---
 # `src/mediapipeline/desktop/api/contract_payload.py`
 

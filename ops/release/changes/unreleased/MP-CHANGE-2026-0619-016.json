@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0619-016",
+  "title": "Slim WebView evidence prose boxes",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Hide or summarize WebView evidence/prose boxes by default and keep only raw copyable artifacts visible with explicit defense metadata.",
+  "reason": "Visible bordered prose/status/callout boxes were creating repeated visual clutter across the operator workbench. The UI now treats factual status as compact chips, hides empty/default guidance, and reserves prose boxes for raw inspectable artifacts.",
+  "affected_areas": [
+    "webview",
+    "visual-clutter",
+    "diagnostics",
+    "evidence"
+  ],
+  "behavior_before": "Browser audit captured 115 visible prose/status/diagnostic boxes across the primary page and subtab matrix, including many empty guidance, read-only guardrail, and factual status paragraphs.",
+  "behavior_after": "Browser audit captures 2 visible defended prose boxes across the same matrix: the copyable Completed pilot evidence Markdown artifact and the Advanced API contract artifact. Other audited prose boxes are summarized into compact chips or hidden by default.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/dom/text.js",
+    "apps/desktop/webview/static/assets/domHelpers.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/dom/text.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/domHelpers.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-016.json",
+    "ops/scripts/smoke/Test-WebViewBrowserProseBoxAudit.ps1",
+    "tests/webview/test_webview_browser_prose_box_audit.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_prose_box_audit.py",
+    "ops/scripts/smoke/Test-WebViewBrowserProseBoxAudit.ps1"
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/dom/text.js - passed",
+    "node --check apps/desktop/webview/static/assets/domHelpers.js - passed",
+    "node --check apps/desktop/webview/static/assets/app.js - passed",
+    "apps/desktop/runtime/Python/python.exe -m py_compile tests/webview/test_webview_browser_prose_box_audit.py - passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserProseBoxAudit.ps1 -Mode before - passed; baseline manifest LocalBase/UiScreenshots/prose-box-cleanup-before-20260619-002959/manifest.json captured 39 screenshots and 115 visible prose boxes",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserProseBoxAudit.ps1 -Mode after - passed; after manifest LocalBase/UiScreenshots/prose-box-cleanup-after-20260619-002910/manifest.json captured 39 screenshots, 1069 audited rows, 2 defended visible boxes, 0 offenders, 458 summarized, and 564 hidden",
+    "Disposition CSV written to LocalBase/UiScreenshots/prose-box-cleanup-after-20260619-002910/prose-box-disposition.csv",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserVisualClutterScreenshots.ps1 - passed; manifest LocalBase/UiScreenshots/validation-clutter-cleanup-20260619-003231/manifest.json captured 39 screenshots with 0 clutter offenders and 0 horizontal-overflow entries",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1 - passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserSampleValidationSmoke.ps1 - passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 - passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1 - passed",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1 - passed; emitted existing malformed ActiveJobs fixture warning while tests completed OK",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (440 packet(s) valid)",
+    "npm run webview:prework:check - failed at webview:lint:budget:check with existing budget increases: warnings 721 > 664, complexity 107 > 101, max-lines-per-function 34 > 33, no-undef 430 > 381, no-unused-vars 148 > 146",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File ops/scripts/smoke/Test-WebViewBrowserLayoutManagerSmoke.ps1 - failed on drawer inventory expectation: missing managed panel settings / Staged Changes; UI reported Current Changes and Save Candidate instead"
+  ],
+  "rollback_plan": "Remove the prose-box disposition helper and summary-chip styles, remove the app startup/refresh calls to apply prose-box dispositions, and remove the prose-box browser audit wrapper/test. The UI would return to showing the previous bordered prose/status/callout boxes by default.",
+  "related_changes": [],
+  "notes": "Only two visible prose boxes remain in the final audit, and both are defended raw artifacts: completed-pilot-evidence-markdown is the copyable Completed evidence Markdown packet, and api-contract is the Advanced API contract artifact. The screenshot matrix records one missing requested subtab because the current Launch page does not expose a Launch/Audit subtab button."
+}

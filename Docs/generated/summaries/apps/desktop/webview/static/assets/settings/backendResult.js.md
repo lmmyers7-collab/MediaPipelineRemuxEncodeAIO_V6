@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settings/backendResult.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-29
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: 534d970bd0e00ad08cd0d12816a67be5ac75d648240e8d2f781a96d8dc88ef11
+sha256: 9451cee8e6d31eae8e16e778a537e5d716af8e1eab76ce8709be167e84fcaa02
 ---
 # `apps/desktop/webview/static/assets/settings/backendResult.js`
 

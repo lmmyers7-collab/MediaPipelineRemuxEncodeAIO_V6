@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0619-005",
+  "title": "Condense Pending Publish overview panels",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-18",
+  "summary": "Condense the Pending Publish WebView page by hiding repeated narrative evidence and empty-state detail behind operator-controlled disclosure rows.",
+  "reason": "The Pending Publish page repeats the same no-drain, empty-table, and backend-boundary guidance across stacked panels, forcing the operator to scroll through duplicated information before reaching rows and diagnostics.",
+  "affected_areas": [
+    "pending_publish",
+    "webview"
+  ],
+  "behavior_before": "Pending Publish showed long action-center, drain, recovery, and history prose blocks expanded by default even when no parked rows were loaded.",
+  "behavior_after": "Pending Publish keeps the safety status, backend command buttons, triage counts, and pending table visible while placing verbose decision, history, and recovery details behind disclosures.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-pending.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-pending.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-005.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-005.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Local API visual check on http://127.0.0.1:18765 - passed; Pending page opened via main nav, compact disclosures were closed by default, temporary server stopped",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/python/desktop/test_application_facade_web_static.py::ApplicationFacadeWebStaticTests::test_pending_publish_action_center_static_contract -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_navigation_static.py::WebViewNavigationStaticTests::test_operational_summary_blocks_are_movable_page_panels -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0619-002 invalid type ux and uncovered dirty files: apps/desktop/webview/static/assets/settings/backendResult.js; ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1; src/mediapipeline/contracts/config_defaults.py; src/mediapipeline/core/rename/contracts.py; src/mediapipeline/core/rename/planner.py; src/mediapipeline/core/rename/service.py",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the Pending Publish partial disclosure changes and this change packet.",
+  "related_changes": [],
+  "notes": "Started from a heavily dirty worktree with unrelated generated docs, Tauri, backend, WebView, rename, repair/reconcile, and test changes already present. This packet intentionally covers only the Pending Publish information-density request.\nCondensed Pending Publish action, drain, and recovery detail with closed details disclosures while preserving existing element IDs and backend command buttons."
+}

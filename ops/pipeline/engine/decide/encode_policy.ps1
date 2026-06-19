@@ -308,6 +308,45 @@ function New-EncodeFfmpegArgumentList {
         )
 }
 
+function New-EncodeWasteGuardSampleArgumentList {
+    param(
+        [Parameter(Mandatory)] [string] $InputPath,
+        [Parameter(Mandatory)] [array] $VideoFlags,
+        [array] $VideoFilterArgs = @(),
+        [Parameter(Mandatory)] [string] $OutputPath,
+        [double] $StartSeconds = 0,
+        [double] $SampleSeconds = 30
+    )
+
+    if ($StartSeconds -lt 0) { $StartSeconds = 0 }
+    if ($SampleSeconds -le 0) { $SampleSeconds = 30 }
+    $muxerName = Get-MediaEncodeOutputMuxerName -OutputPath $OutputPath
+    $videoMapArgs = if (@($VideoFilterArgs).Count -gt 0) {
+        @($VideoFilterArgs)
+    } else {
+        @('-map', '0:V')
+    }
+    $muxerArgs = @('-f', $muxerName)
+    if ($muxerName -eq 'mp4') {
+        $muxerArgs += @('-movflags', '+faststart')
+    }
+    return @(
+        '-ss', ([string]([math]::Round([double]$StartSeconds, 3))),
+        '-t', ([string]([math]::Round([double]$SampleSeconds, 3))),
+        '-i', $InputPath
+    ) + @($videoMapArgs) + @($VideoFlags) + @(
+        '-an',
+        '-sn',
+        '-dn',
+        '-map_chapters', '-1',
+        '-map_metadata', '-1'
+    ) + @($muxerArgs) + @(
+        '-max_muxing_queue_size', '1024',
+        '-y',
+        $OutputPath
+    )
+}
+
 function Get-EncodeArgumentValue {
     param(
         [array] $Arguments = @(),

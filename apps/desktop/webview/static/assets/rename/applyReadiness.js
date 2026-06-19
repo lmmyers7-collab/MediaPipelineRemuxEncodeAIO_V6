@@ -27,8 +27,21 @@
       }
       const checked = getCheckedRenameRows();
       if (checked.length) return { rows: checked, source: "checked rows" };
-      const selected = getSelectedRenameRow();
-      return selected ? { rows: [selected], source: "selected row" } : { rows: [], source: "none" };
+      return { rows: [], source: "none; check intended rows before apply" };
+    }
+
+    function renameStatusState(status) {
+      const normalized = String(status || "").toLowerCase();
+      if (normalized.includes("block") || normalized.includes("fail") || normalized.includes("duplicate")) return "blocked";
+      if (normalized.includes("review") || normalized.includes("warning") || normalized.includes("verify") || normalized.includes("mixed")) return "warning";
+      if (normalized.includes("ready") || normalized.includes("match")) return "ready";
+      if (normalized.includes("no scope") || normalized.includes("waiting") || normalized.includes("no selection")) return "empty";
+      return "unknown";
+    }
+
+    function setRenameStatusState(id, status) {
+      const node = byId(id);
+      if (node) node.dataset.state = renameStatusState(status);
     }
 
     function renameSelectionAuditStatus(rows) {
@@ -65,12 +78,14 @@
       const scope = renameApplyScopeRows();
       const rows = scope.rows;
       const renderedRows = renameRenderedRowsCount();
-      setText("rename-selection-audit-status", renameSelectionAuditStatus(rows));
+      const status = renameSelectionAuditStatus(rows);
+      setText("rename-selection-audit-status", status);
+      setRenameStatusState("rename-selection-audit-status", status);
       if (!rows.length) {
         setText("rename-selection-audit", [
           "Apply scope: none",
-          "Next step: run Preview, then check rows to narrow scope or apply all applicable rows.",
-          "Mutation guardrail: Apply still rebuilds the selected plan through the backend.",
+          "Next step: run Preview, then check intended rows before applying.",
+          "Mutation guardrail: there is no unchecked fallback; Apply only posts checked rows as backend selected_sources.",
         ].join("\n"));
         return;
       }
@@ -101,9 +116,9 @@
       if (errors.length) lines.push(`Errors: ${errors.slice(0, 4).join(" | ")}`);
       if (warnings.length) lines.push(`Warnings: ${warnings.slice(0, 4).join(" | ")}`);
       if (lastRenameRows.length > RENAME_PREVIEW_RENDER_LIMIT) {
-        lines.push("Render cap note: checked scope may include rows not currently rendered; Apply uses backend selected_sources for checked rows, not visible table rows only.");
+        lines.push("Render cap note: checked scope may include rows not currently rendered after Check Applicable; review confirmation before filesystem mutation.");
       }
-      lines.push("Next step: if the audit looks correct, Apply sends this scope as backend selected_sources.");
+      lines.push("Next step: if the audit looks correct, Apply sends these checked rows as backend selected_sources.");
       lines.push("Mutation guardrail: no frontend filesystem mutation is performed.");
       setText("rename-selection-audit", lines.join("\n"));
     }
@@ -128,6 +143,7 @@
       const warningRows = rows.filter((row) => String(row.status || "").toLowerCase() === "warning");
       const matchRows = rows.filter((row) => String(row.status || "").toLowerCase() === "match");
       const duplicateTargets = renameDuplicateTargets(rows);
+      const previewDuplicateTargets = renameDuplicateTargets(lastRenameRows);
       const destinationExistsRows = rows.filter((row) => Boolean(row.destination_exists) && !row.matches_target);
       const sidecarMoves = rows.reduce((acc, row) => acc + Number(row.sidecar_count || 0), 0);
       const forceRows = rows.filter((row) => Boolean(row.force_pipeline_name)).length;
@@ -153,7 +169,7 @@
         "Apply scope",
         rows.length ? "ready" : "blocked",
         `${scope.source}; ${rows.length} row(s) would be submitted as backend selected_sources.`,
-        rows.length ? "Confirm this is the intended batch. Checked rows narrow scope; otherwise all applicable rows are used." : "Run Preview before applying.",
+        rows.length ? "Confirm these checked rows are the intended batch. No unchecked fallback scope is available." : "Check intended rows before applying; Check Applicable skips warnings, blockers, duplicates, and destination collisions.",
       ));
       readinessRows.push(renameApplyReadinessRow(
         "Blocked rows",
@@ -163,9 +179,11 @@
       ));
       readinessRows.push(renameApplyReadinessRow(
         "Duplicate destinations",
-        duplicateTargets.length ? "blocked" : "ready",
-        duplicateTargets.length ? `${duplicateTargets.length} duplicate target(s): ${duplicateTargets.slice(0, 3).join(" | ")}` : "No duplicate destinations inside the current apply scope.",
-        duplicateTargets.length ? "Change row order, overrides, or template before applying to avoid collisions." : "Batch destinations are unique within this preview scope.",
+        (duplicateTargets.length || previewDuplicateTargets.length) ? "blocked" : "ready",
+        (duplicateTargets.length || previewDuplicateTargets.length)
+          ? `${duplicateTargets.length} duplicate target(s) in checked scope; ${previewDuplicateTargets.length} duplicate target(s) in full preview: ${[...new Set([...duplicateTargets, ...previewDuplicateTargets])].slice(0, 3).join(" | ")}`
+          : "No duplicate destinations inside the current preview.",
+        (duplicateTargets.length || previewDuplicateTargets.length) ? "Change row order, overrides, template, or staged paths before applying to avoid collisions." : "Batch destinations are unique within this preview.",
       ));
       readinessRows.push(renameApplyReadinessRow(
         "Existing destinations",
@@ -225,9 +243,10 @@
     function renameApplyReadinessStatus(rows) {
       const lastRenameRows = getLastRenameRows();
       const items = Array.isArray(rows) ? rows : renameApplyReadinessRows();
-      if (!lastRenameRows.length || !renameApplyScopeRows().rows.length) return "No scope";
+      if (!lastRenameRows.length) return "No scope";
       const postures = new Set(items.map((row) => String(row.posture || "").toLowerCase()));
       if (postures.has("blocked")) return "Blocked";
+      if (!renameApplyScopeRows().rows.length) return "No scope";
       if (postures.has("waiting")) return "No scope";
       if (postures.has("review")) return "Review";
       return "Ready";
@@ -236,7 +255,9 @@
     function renderRenameApplyReadiness() {
       const rows = renameApplyReadinessRows();
       const tbody = byId("rename-apply-readiness-rows");
-      setText("rename-apply-readiness-status", renameApplyReadinessStatus(rows));
+      const status = renameApplyReadinessStatus(rows);
+      setText("rename-apply-readiness-status", status);
+      setRenameStatusState("rename-apply-readiness-status", status);
       if (!tbody) return;
       tbody.replaceChildren();
       rows.forEach((item) => {

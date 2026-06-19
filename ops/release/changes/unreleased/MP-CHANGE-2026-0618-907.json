@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0618-907",
+  "title": "Refine Telemetry source trust cues",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Refine the Telemetry tab so normal numeric telemetry is visually neutral, fixture-like or warning-sourced telemetry is explicit, GPU row provenance inherits source evidence, and 0% expected NVENC stays primary even when RAM is high.",
+  "reason": "The follow-up Telemetry scan found residual trust risks where normal values could look like success, fixture/test/read-warning sources could still appear live-normal, structured GPU rows could lose source provenance, and high RAM could obscure expected-but-idle NVENC.",
+  "affected_areas": [
+    "observability",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Telemetry normal KPI/chart states used success coloring, source warnings were limited to the trust strip, structured GPU rows without per-row source rendered as not reported, and memory pressure could outrank an active hardware encode with 0% NVENC.",
+  "behavior_after": "Telemetry normal KPI/chart states are neutral, fixture/test/read-warning source evidence drives a warning operating state, structured GPU rows inherit payload/top-level source, and expected-but-idle NVENC remains the primary warning with high RAM appended as secondary guidance.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/assets/telemetryView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/telemetryView.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-907.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_telemetry_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-907.json",
+    "tests/webview/test_webview_browser_telemetry_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_telemetry_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m py_compile tests/webview/test_webview_browser_telemetry_smoke.py - passed",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_css_design_tokens.py - failed on unrelated styles.pages.css:1963 opacity: 0.75 and styles.queue.css:934 opacity: 0.55",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_frontend_mutation_boundary.py - failed on unrelated API post owner drift and Queue copy assertions",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed; unrelated uncovered docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-026.json.md",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths [Telemetry touched files] - passed; 4 written, 0 unchanged",
+    "git diff --check -- [Telemetry touched files] - passed; line-ending normalization warnings only",
+    "node --check apps/desktop/webview/static/assets/telemetryView.js - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserTelemetrySmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the Telemetry WebView JS/CSS changes, the browser telemetry smoke updates, generated summaries for touched files, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-025"
+  ],
+  "notes": "WebView display and smoke-test coverage only. Backend telemetry routes remain authoritative; this change must not launch processing, mutate queue state, publish, rename, drain pending publish, save settings, or touch source/output/scratch media."
+}

@@ -95,6 +95,21 @@
       return { available: true, reason: "Promote this reviewed output to the final library." };
     }
 
+    function promotionStatusTone(message, available = false) {
+      const text = String(message || "").toLowerCase();
+      if (available || text.includes("ready") || text.includes("promote this reviewed")) return "ready";
+      if (text.includes("in progress") || text.includes("active") || text.includes("running") || text.includes("paused")) return "running";
+      if (text.includes("disabled") || text.includes("offline") || text.includes("not present") || text.includes("no final-library") || text.includes("no destination") || text.includes("not currently marked ready")) return "blocked";
+      return "warning";
+    }
+
+    function setInlineStatus(id, message, state = "unknown") {
+      const node = ctx.byId(id);
+      if (!node) return;
+      node.textContent = message || "";
+      node.dataset.state = state || "unknown";
+    }
+
     function finalLibraryPromotionFlagLines(status = ctx.state.lastFinalLibraryPromotionStatus) {
       const payload = status && typeof status === "object" ? status : {};
       return [
@@ -160,6 +175,13 @@
         button.textContent = "Promote Selected Reviewed Output";
         button.title = action.reason;
       });
+      setInlineStatus(
+        "completed-selected-promotion-status",
+        action.available
+          ? "Confirmable: selected output is ready for backend final-library promotion after operator confirmation."
+          : `Blocked: ${action.reason}`,
+        promotionStatusTone(action.reason, action.available)
+      );
     }
 
     function renderFinalLibraryPromotion(status = {}) {
@@ -198,10 +220,21 @@
       const resumeButton = ctx.byId("final-library-resume-button");
       if (promoteButton) {
         promoteButton.disabled = commandInFlight || !enabled || finalLibraryPromotionRunActive(payload) || eligible <= 0;
+        promoteButton.setAttribute("aria-disabled", String(promoteButton.disabled));
         promoteButton.title = promoteButton.disabled
           ? (enabled ? "No eligible reviewed files are ready for final-library promotion, or a promotion run is active." : "Final Library Promotion is disabled in Settings.")
           : `Promote ${eligible} reviewed file${eligible === 1 ? "" : "s"} to final-library destinations after confirmation.`;
       }
+      const promoteReason = !enabled
+        ? "Blocked: Final Library Promotion is disabled in Settings."
+        : commandInFlight
+          ? "Active: promotion command is already in progress."
+          : finalLibraryPromotionRunActive(payload)
+            ? `Active: promotion run ${active.run_id || ""} is ${active.status || "running"}.`
+            : eligible <= 0
+              ? "Blocked: no reviewed outputs are currently eligible for final-library promotion."
+              : `Confirmable: ${eligible} reviewed output${eligible === 1 ? "" : "s"} can be sent to backend promotion after confirmation.`;
+      setInlineStatus("final-library-promotion-command-status", promoteReason, promotionStatusTone(promoteReason, eligible > 0 && enabled && !commandInFlight && !finalLibraryPromotionRunActive(payload)));
       if (pauseButton) pauseButton.disabled = commandInFlight || !(active.run_id && ["running", "pausing"].includes(activeStatus));
       if (resumeButton) resumeButton.disabled = commandInFlight || !(active.run_id && activeStatus === "paused");
 

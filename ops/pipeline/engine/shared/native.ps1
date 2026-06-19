@@ -353,6 +353,9 @@ function Invoke-NativeProcess {
     $stderr     = [System.Text.StringBuilder]::new()
     $timedOut   = $false
     $stopped    = $false
+    $aborted    = $false
+    $abortCode  = ''
+    $abortReason = ''
     # Suggestion #6 — record whether the requested ProcessPriority was
     # actually applied. Failures here are silent without this (the
     # WARN log line is easy to miss); surfacing it on the
@@ -401,12 +404,38 @@ function Invoke-NativeProcess {
             $didWork = (Receive-NativeProcessLine -LineTask ([ref]$stdoutTask) -Reader $proc.StandardOutput -Builder $stdout -StreamName 'stdout' -LineHandler $StdoutLineHandler -MaxChars $MaxStdoutChars) -or $didWork
             $didWork = (Receive-NativeProcessLine -LineTask ([ref]$stderrTask) -Reader $proc.StandardError -Builder $stderr -StreamName 'stderr' -LineHandler $StderrLineHandler -MaxChars $MaxStderrChars) -or $didWork
             if ($PollHandler) {
-                try { & $PollHandler ([math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)) $proc } catch { DebugLog "Native process poll handler failed for $Label : $_" }
+                try {
+                    $pollResult = & $PollHandler ([math]::Round(((Get-Date) - $startedAt).TotalSeconds, 3)) $proc
+                    if ($null -ne $pollResult) {
+                        $pollAbort = $false
+                        $pollCode = ''
+                        $pollReason = ''
+                        if ($pollResult -is [System.Collections.IDictionary]) {
+                            if ($pollResult.Contains('Abort')) { $pollAbort = [bool]$pollResult['Abort'] }
+                            if ($pollResult.Contains('AbortCode')) { $pollCode = [string]$pollResult['AbortCode'] }
+                            if ($pollResult.Contains('AbortReason')) { $pollReason = [string]$pollResult['AbortReason'] }
+                        } else {
+                            $abortProp = $pollResult.PSObject.Properties['Abort']
+                            $codeProp = $pollResult.PSObject.Properties['AbortCode']
+                            $reasonProp = $pollResult.PSObject.Properties['AbortReason']
+                            if ($abortProp) { $pollAbort = [bool]$abortProp.Value }
+                            if ($codeProp) { $pollCode = [string]$codeProp.Value }
+                            if ($reasonProp) { $pollReason = [string]$reasonProp.Value }
+                        }
+                        if ($pollAbort) {
+                            $aborted = $true
+                            $abortCode = if ([string]::IsNullOrWhiteSpace($pollCode)) { 'NATIVE_ABORTED' } else { $pollCode }
+                            $abortReason = if ([string]::IsNullOrWhiteSpace($pollReason)) { 'poll handler requested abort' } else { $pollReason }
+                            Stop-NativeProcessTree -Process $proc -Label $Label
+                            break
+                        }
+                    }
+                } catch { DebugLog "Native process poll handler failed for $Label : $_" }
             }
             if (-not $didWork) { Start-Sleep -Milliseconds ([math]::Max(10, $PollMilliseconds)) }
         }
 
-        if ($timedOut -or $stopped) {
+        if ($timedOut -or $stopped -or $aborted) {
             try { $proc.WaitForExit(5000) | Out-Null } catch {}
         } else {
             try { $proc.WaitForExit() } catch {}
@@ -438,7 +467,11 @@ function Invoke-NativeProcess {
 
     $stdoutText = $stdout.ToString()
     $stderrText = $stderr.ToString()
-    if ($timedOut) {
+    if ($aborted) {
+        $exitCode = -1
+        $stderrText = ($stderrText + "`n[KILLED: $abortReason]").Trim()
+        $errorCode = if ([string]::IsNullOrWhiteSpace($abortCode)) { 'NATIVE_ABORTED' } else { $abortCode }
+    } elseif ($timedOut) {
         $exitCode = -1
         $stderrText = ($stderrText + "`n[KILLED: TIMEOUT after ${TimeoutSeconds}s]").Trim()
         $errorCode = 'NATIVE_TIMEOUT'
@@ -464,6 +497,9 @@ function Invoke-NativeProcess {
     Set-ExternalToolResultProperty -Result $result -Name 'PriorityRequested' -Value $priorityRequested
     Set-ExternalToolResultProperty -Result $result -Name 'PriorityApplied'   -Value $priorityApplied
     Set-ExternalToolResultProperty -Result $result -Name 'PriorityError'     -Value $priorityError
+    Set-ExternalToolResultProperty -Result $result -Name 'Aborted'           -Value $aborted
+    Set-ExternalToolResultProperty -Result $result -Name 'AbortCode'         -Value $abortCode
+    Set-ExternalToolResultProperty -Result $result -Name 'AbortReason'       -Value $abortReason
     return $result
 }
 

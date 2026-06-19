@@ -14,6 +14,23 @@
     setText,
     updateTableStatusLegend,
   } = {}) {
+    function sampleValidationPanelState(message) {
+      const text = String(message || "").toLowerCase();
+      if (!text || text.includes("not loaded") || text.startsWith("no ")) return "empty";
+      if (text.includes("blocked") || text.includes("error")) return "blocked";
+      if (text.includes("missing") || text.includes("needed") || text.includes("review") || text.includes("pilot needed") || text.includes("gaps") || text.includes("attention")) return "warning";
+      if (text.includes("ready") || text.includes("present") || text.includes("trial")) return "ready";
+      return "unknown";
+    }
+
+    function setRunbookPanelStatus(id, message, state) {
+      if (typeof setPanelStatus === "function") {
+        setPanelStatus(id, message, state || sampleValidationPanelState(message));
+      } else {
+        setText(id, message);
+      }
+    }
+
     function sampleValidationGapPayload(log = {}) {
       return log.evidence_gap_summary && typeof log.evidence_gap_summary === "object" ? log.evidence_gap_summary : {};
     }
@@ -78,7 +95,7 @@
     }
 
     function renderSampleValidationGapSummary(log = {}) {
-      setText("sample-validation-gap-status", sampleValidationGapStatus(log || {}));
+      setRunbookPanelStatus("sample-validation-gap-status", sampleValidationGapStatus(log || {}));
       setText("sample-validation-gap-summary", sampleValidationGapSummaryLines(log || {}).join("\n"));
       const tbody = byId("sample-validation-gap-rows");
       if (!tbody) return;
@@ -192,7 +209,7 @@
     }
 
     function renderSampleValidationRunbook(log = {}) {
-      setText("sample-validation-runbook-status", sampleValidationRunbookStatus(log || {}));
+      setRunbookPanelStatus("sample-validation-runbook-status", sampleValidationRunbookStatus(log || {}));
       setText("sample-validation-runbook-summary", sampleValidationRunbookSummaryLines(log || {}).join("\n"));
       setText("sample-validation-runbook-markdown", sampleValidationRunbookMarkdownLines(log || {}).join("\n"));
       const tbody = byId("sample-validation-runbook-rows");
@@ -316,7 +333,7 @@
     }
 
     function renderSampleValidationCutoverGate(log = {}) {
-      setText("sample-validation-cutover-status", sampleValidationCutoverStatus(log || {}));
+      setRunbookPanelStatus("sample-validation-cutover-status", sampleValidationCutoverStatus(log || {}));
       setText("sample-validation-cutover-summary", sampleValidationCutoverSummaryLines(log || {}).join("\n"));
       const tbody = byId("sample-validation-cutover-rows");
       if (!tbody) return;
@@ -411,7 +428,7 @@
     }
 
     function renderSampleValidationExecutionChecklist(log = {}) {
-      setText("sample-validation-execution-status", sampleValidationExecutionStatus(log || {}));
+      setRunbookPanelStatus("sample-validation-execution-status", sampleValidationExecutionStatus(log || {}));
       setText("sample-validation-execution-summary", sampleValidationExecutionSummaryLines(log || {}).join("\n"));
       const tbody = byId("sample-validation-execution-rows");
       if (!tbody) return;

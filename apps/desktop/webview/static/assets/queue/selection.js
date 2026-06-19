@@ -17,6 +17,7 @@
     renderQueueLaunchDecisionChecklist,
     renderQueueReviewDigest,
     renderQueueRows,
+    updateQueueSelectionVisuals,
     setText,
   } = {}) {
     let selectedQueueRowKey = "";
@@ -175,7 +176,11 @@
       const rows = safeRows();
       if (typeof renderQueueReviewDigest === "function") renderQueueReviewDigest(payload, rows);
       renderLaunchSelectionSurfaces(payload, rows);
-      if (typeof renderQueueRows === "function") renderQueueRows();
+      if (typeof updateQueueSelectionVisuals === "function") {
+        updateQueueSelectionVisuals();
+      } else if (typeof renderQueueRows === "function") {
+        renderQueueRows();
+      }
     }
 
     function selectQueueExcludedRow(item) {

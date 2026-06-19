@@ -895,7 +895,7 @@
       updateTableStatusLegend("completed-pending-proof-legend", tbody, "Completed-to-pending proof rows");
     }
 
-    function publishReconciliationStatusLabel(status) {
+    function publishReconciliationStatusLabel(status, payload = null) {
       const labels = {
         completed_unavailable: "Completed unavailable",
         pending_unavailable: "Pending unavailable",
@@ -907,14 +907,17 @@
         proof_aligned: "Proof aligned",
         no_overlap: "No overlap",
         loading: "Loading",
+        stale: "Stale",
         error: "Error",
         not_loaded: "Not loaded",
       };
+      if (payload?.stale) return "Stale";
       return labels[String(status || "not_loaded")] || String(status || "Unknown");
     }
 
     function publishReconciliationTableStatus(item) {
       const status = String(item?.status || "").toLowerCase();
+      if (status === "stale") return "stale";
       if (status === "blocked") return "blocked";
       if (status === "warning") return "warning";
       if (status === "match") return "match";
@@ -997,19 +1000,31 @@
         const selectedIndex = rows.indexOf(selected);
         state.selectedPublishReconciliationKey = publishReconciliationRowKey(selected, selectedIndex < 0 ? 0 : selectedIndex);
       }
-      setText("publish-reconciliation-status", publishReconciliationStatusLabel(data.status));
+      setText("publish-reconciliation-status", publishReconciliationStatusLabel(data.status, data));
       setText("publish-reconciliation-summary", [
+        data.stale ? `Stale snapshot: ${data.stale_reason || "Completed output status changed after this reconciliation was loaded."}` : "",
         ...(Array.isArray(data.summary_lines) ? data.summary_lines : []),
         data.schema_version ? `Schema: ${data.schema_version}` : "",
         data.completed_source ? `Completed source: ${data.completed_source}` : "",
         data.pending_root ? `Pending root: ${data.pending_root}` : "",
         data.drain_summary_path ? `Drain summary: ${data.drain_summary_path}` : "",
       ].filter(Boolean).join("\n") || "No backend publish reconciliation loaded.");
-      setText("publish-reconciliation-detail", publishReconciliationDetailLines(selected).join("\n"));
+      setText("publish-reconciliation-detail", [
+        data.stale ? "Stale backend reconciliation detail: refresh before trusting this row as current proof." : "",
+        ...publishReconciliationDetailLines(selected),
+      ].filter(Boolean).join("\n"));
       const tbody = byId("publish-reconciliation-rows");
       if (!tbody) return;
       if (!rows.length) {
-        clearRows(tbody, 5, "No backend reconciliation rows were returned.");
+        const status = String(data.status || "").toLowerCase();
+        const message = status === "loading"
+          ? "Backend reconciliation refresh is loading; previous proof rows are hidden until the new snapshot returns."
+          : status === "error"
+            ? "Backend reconciliation failed."
+            : status === "stale"
+              ? "Backend reconciliation is stale. Refresh to load current rows."
+              : "No backend reconciliation rows were returned.";
+        clearRows(tbody, 5, message);
         updateTableStatusLegend("publish-reconciliation-legend", tbody, "Backend publish reconciliation rows");
         return;
       }
@@ -1018,7 +1033,7 @@
         const key = publishReconciliationRowKey(item, index);
         const row = document.createElement("tr");
         row.dataset.rowKey = key;
-        row.dataset.status = publishReconciliationTableStatus(item);
+        row.dataset.status = data.stale ? "stale" : publishReconciliationTableStatus(item);
         appendCells(row, [
           item.signal_label || item.signal || "Review",
           item.status || "review",
@@ -1055,8 +1070,18 @@
         return;
       }
       setPublishReconciliationBusy(true);
-      setText("publish-reconciliation-status", "Loading");
-      setText("publish-reconciliation-summary", "Requesting backend-owned Completed/Pending/drain-summary reconciliation. This does not mutate files.");
+      state.lastPublishReconciliationPayload = {
+        status: "loading",
+        rows: [],
+        summary_lines: [
+          "Requesting backend-owned Completed/Pending/drain-summary reconciliation. This does not mutate files.",
+          "Previous reconciliation rows are hidden while the backend snapshot is in flight.",
+        ],
+      };
+      state.selectedPublishReconciliationKey = "";
+      renderPublishReconciliation(state.lastPublishReconciliationPayload);
+      window.mediaPipelineCompletedView?.renderCompletedTrustDecision?.();
+      window.mediaPipelineCompletedView?.renderCompletedReconciliationHint?.(state.lastCompletedPayload, state.lastCompletedRows);
       try {
         const payload = await apiGet("/api/publish-reconciliation?limit=250", { timeoutMs: 30000 });
         state.lastPublishReconciliationPayload = payload;
@@ -1068,18 +1093,19 @@
         renderCompletedRealMediaProof(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
         renderCompletedFinalTrust(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
         renderCompletedPilotEvidencePacket(state.lastCompletedPayload, state.lastCompletedRows, state.lastCompletedPendingProofRows, state.lastCompletedPendingPayload);
+        window.mediaPipelineCompletedView?.renderCompletedEvidenceCopyState?.();
+        window.mediaPipelineCompletedView?.renderCompletedTrustDecision?.();
         window.mediaPipelineCompletedView?.renderCompletedReconciliationHint?.(state.lastCompletedPayload, state.lastCompletedRows);
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        state.lastPublishReconciliationPayload = { status: "error", rows: [], summary_lines: [`Backend publish reconciliation failed: ${message}`] };
-        setText("publish-reconciliation-status", "Error");
-        setText("publish-reconciliation-summary", [
+        state.lastPublishReconciliationPayload = { status: "error", rows: [], summary_lines: [
           `Backend publish reconciliation failed: ${message}`,
           "Safe next step: use Completed Manifest, Pending Publish, Run Logs, and Last Stderr diagnostics before acting.",
           "Mutation guardrail: failed reconciliation did not repair, rerun, drain, publish, rewrite manifests, or touch media.",
-        ].join("\n"));
-        clearRows(byId("publish-reconciliation-rows"), 5, "Backend reconciliation failed.");
-        setText("publish-reconciliation-detail", "No backend reconciliation row selected.");
+        ] };
+        state.selectedPublishReconciliationKey = "";
+        renderPublishReconciliation(state.lastPublishReconciliationPayload);
+        window.mediaPipelineCompletedView?.renderCompletedTrustDecision?.();
         window.mediaPipelineCompletedView?.renderCompletedReconciliationHint?.(state.lastCompletedPayload, state.lastCompletedRows);
       } finally {
         setPublishReconciliationBusy(false);

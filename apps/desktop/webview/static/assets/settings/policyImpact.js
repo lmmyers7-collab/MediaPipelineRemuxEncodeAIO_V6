@@ -9,7 +9,7 @@
     const isSettingsCommand = deps.isSettingsCommand || function () { return false; };
     const settingsCommandHistoryLine = deps.settingsCommandHistoryLine || function () { return ""; };
     const settingsPatchSaveReadinessIssues = deps.settingsPatchSaveReadinessIssues || function () { return []; };
-    const settingsPatchSaveReadinessStatus = deps.settingsPatchSaveReadinessStatus || function () { return "No patch"; };
+    const settingsPatchSaveReadinessStatus = deps.settingsPatchSaveReadinessStatus || function () { return "No changes"; };
     const makeRowSelectable = deps.makeRowSelectable || function (row, handler) { if (row) row.addEventListener("click", handler); };
     const updateTableStatusLegend = deps.updateTableStatusLegend || function () {};
     const formatConfigValue = deps.formatConfigValue || function (value) { return String(value ?? ""); };
@@ -159,7 +159,7 @@ function settingsMediaPolicyRows() {
       evidence: `keep=${keepLanguages.join(", ") || "(empty)"}; TX3G=${tx3gLanguages.join(", ") || "(empty)"}; BDPGS=${bdpgsLanguages.join(", ") || "(empty)"}; VobSub=${vobSubLanguages.join(", ") || "(empty)"}`,
       action: tx3gGaps.length || bdpgsGaps.length || vobSubGaps.length
         ? `Review extract-only language gaps: TX3G ${tx3gGaps.join(", ") || "none"}; BDPGS ${bdpgsGaps.join(", ") || "none"}; VobSub ${vobSubGaps.join(", ") || "none"}.`
-        : "Preferred subtitle language policy is visible before backend preview/save.",
+        : "Preferred subtitle language policy is visible before backend Save.",
     },
     {
       area: "TX3G / mov_text SRT generation",
@@ -332,7 +332,7 @@ function settingsActiveMediaPolicySummaryLines(rows = settingsActiveMediaPolicyR
     "Active media-policy handoff:",
     `Rows: ${rows.length}; coherent=${counts.coherent || 0}; review=${counts.review || 0}; warning=${counts.warning || 0}; blocked=${counts.blocked || 0}.`,
     "This is the operator-facing bridge between Settings builders and Launch saved-settings checks.",
-    "Builder edits are not launch-active until backend Preview/Save succeeds and settings reload/refresh completes.",
+    "Builder edits are not launch-active until backend Save succeeds and settings reload/refresh completes.",
   ];
   if (reviewRows.length) {
     lines.push("", "Rows needing launch-time attention:");
@@ -373,13 +373,13 @@ function settingsEvidenceMatch(evidence, signature) {
 }
 
 function settingsEvidenceResultLabel(evidence, signature) {
-  if (!signature || signature === "{}") return "no staged patch";
+  if (!signature || signature === "{}") return "no current changes";
   if (!evidence) return "missing";
-  if (evidence.signature !== signature) return "stale";
+  if (evidence.signature !== signature) return "previous result";
   const result = evidence.result || {};
-  if (result.ok === true) return Array.isArray(result.warnings) && result.warnings.length ? "fresh with warnings" : "fresh ok";
-  if (result.ok === false) return "fresh failed";
-  return "fresh unknown";
+  if (result.ok === true) return Array.isArray(result.warnings) && result.warnings.length ? "current needs review" : "current ok";
+  if (result.ok === false) return "current failed";
+  return "current unknown";
 }
 
 function settingsEffectivePolicyRows(entries) {
@@ -415,11 +415,11 @@ function settingsEffectivePolicyRows(entries) {
       checkpoint: "Launch-active source of truth",
       posture: savedKeyCount ? "saved backend active" : "blocked",
       saved: savedKeyCount ? `${savedKeyCount} loaded config key(s); Launch and pipeline use this saved backend config.` : "No saved config values are loaded in WebView.",
-      staged: hasStagedPatch ? `${changedEntries.length} effective staged change(s) remain inactive until backend Save Patch succeeds and settings reload/refresh completes.` : "No staged Changes JSON is active.",
-      action: savedKeyCount ? "Use saved backend settings as the operational source of truth. Do not treat visible builder or Changes JSON edits as launch-active." : "Reload settings from disk before launching or saving.",
+      staged: hasStagedPatch ? `${changedEntries.length} effective current change(s) remain inactive until Save Settings succeeds and settings reload/refresh completes.` : "No current save candidate is active.",
+      action: savedKeyCount ? "Use saved backend settings as the operational source of truth. Do not treat visible builder edits as launch-active." : "Reload settings from disk before launching or saving.",
       detail: [
         `Saved config key count: ${savedKeyCount}`,
-        `Staged patch signature: ${signature || "(unavailable)"}`,
+        `Save candidate signature: ${signature || "(unavailable)"}`,
         "Launch-active rule: saved backend settings win until backend save and reload/refresh complete.",
       ],
     },
@@ -427,43 +427,43 @@ function settingsEffectivePolicyRows(entries) {
       checkpoint: "Saved media-policy readiness",
       posture: readinessBlocked ? "blocked" : (readinessReview ? "review" : (readinessRows.length ? "coherent" : "not loaded")),
       saved: readinessRows.length ? `Backend readiness status=${readinessStatus}; rows=${readinessRows.length}.` : "No backend media-policy readiness payload is loaded.",
-      staged: "Staged Changes JSON does not change saved readiness evidence.",
+      staged: "Current edits do not change saved readiness evidence.",
       action: readinessBlocked
         ? "Resolve blocked saved media-policy rows before unattended runs."
-        : "Use this as saved-policy evidence, then verify any staged candidate with Preview Patch before saving.",
+        : "Use this as saved-policy evidence, then review any staged candidate in Save Settings before writing.",
       detail: readinessRows.slice(0, 8).map((row) => `${row.area || "Policy"}: ${row.posture || "review"}; ${row.operator_check || row.evidence || ""}`),
     },
     {
-      checkpoint: "Staged WebView patch activity",
-      posture: unknownEntries.length ? "blocked" : (changedEntries.length ? "staged inactive" : "idle"),
-      saved: changedEntries.length ? `${changedEntries.length} effective change(s) differ from saved config.` : "No effective staged change differs from saved config.",
-      staged: changedLabels.length ? changedLabels.join(", ") : "No changed staged keys.",
+      checkpoint: "Current WebView changes",
+      posture: unknownEntries.length ? "blocked" : (changedEntries.length ? "not active yet" : "idle"),
+      saved: changedEntries.length ? `${changedEntries.length} effective change(s) differ from saved config.` : "No effective current change differs from saved config.",
+      staged: changedLabels.length ? changedLabels.join(", ") : "No changed keys.",
       action: unknownEntries.length
-        ? "Unknown keys are schema drift. Do not save until backend Preview Patch explains them."
-        : (changedEntries.length ? "Run backend Preview Patch; Save Patch is required before any change can become active." : "No save action is needed for an unchanged patch."),
+        ? "Unknown keys are schema drift. Do not save until backend validation explains them."
+        : (changedEntries.length ? "Use Save Settings to review and validate before any change can become active." : "No save action is needed for an unchanged patch."),
       detail: [
-        `Staged keys: ${list.length}`,
+        `Save candidate keys: ${list.length}`,
         `Effective changes: ${changedEntries.length}`,
         `Unknown changed keys: ${unknownEntries.length}`,
         `Changed keys: ${changedEntries.map((entry) => entry.key).join(", ") || "(none)"}`,
       ],
     },
     {
-      checkpoint: "Backend preview/save proof",
+      checkpoint: "Backend save proof",
       posture: !hasStagedPatch || !changedEntries.length
         ? "idle"
         : (saveMatches && saveResult.ok === true ? "saved proof present" : (previewMatches && previewResult.ok === true ? "previewed" : "review")),
       saved: `Preview=${previewLabel}; Save=${saveLabel}.`,
-      staged: hasStagedPatch ? "Current Changes JSON has a stable signature for evidence matching." : "No staged patch signature is active.",
+      staged: hasStagedPatch ? "Current save candidate has a stable signature for evidence matching." : "No current save-candidate signature is active.",
       action: !changedEntries.length
-        ? "No preview/save proof is needed for an unchanged patch."
+        ? "No save proof is needed for an unchanged patch."
         : (saveMatches && saveResult.ok === true
             ? "Reload/refresh settings before treating saved changes as launch-active."
             : (previewMatches && previewResult.ok === true
-                ? "Preview matches current JSON. Save Patch still requires explicit confirmation and backend success."
-                : "Run Preview Patch before Save Patch; stale or missing preview evidence is not enough.")),
+                ? "Optional preview matches current JSON. Save Settings still requires explicit confirmation and backend success."
+                : "Use Save Settings to review current values before backend validation and write.")),
       detail: [
-        `Current patch signature: ${signature || "(unavailable)"}`,
+        `Current save-candidate signature: ${signature || "(unavailable)"}`,
         `Preview evidence: ${previewLabel}`,
         `Save evidence: ${saveLabel}`,
         `Preview command ok: ${previewResult.ok === true ? "yes" : previewResult.ok === false ? "no" : "unknown"}`,
@@ -472,19 +472,19 @@ function settingsEffectivePolicyRows(entries) {
     },
     {
       checkpoint: "Policy delta attention",
-      posture: deltaStatus === "Blocked review" ? "blocked" : (deltaStatus === "No blocker" || deltaStatus === "No staged change" ? "coherent" : "review"),
+      posture: deltaStatus === "Blocked review" ? "blocked" : (deltaStatus === "No blocker" || deltaStatus === "No current change" ? "coherent" : "review"),
       saved: `Delta status=${deltaStatus}; saved values remain active.`,
-      staged: deltaReviewRows.length ? `${deltaReviewRows.length} staged policy row(s) need attention.` : "No staged media-policy contradictions detected locally.",
+      staged: deltaReviewRows.length ? `${deltaReviewRows.length} current policy row(s) need attention.` : "No current media-policy contradictions detected locally.",
       action: deltaReviewRows.length
-        ? "Review the first changed policy rows below and confirm backend Preview Patch before save."
-        : "No local staged media-policy blocker is visible; backend preview remains authoritative.",
+        ? "Review the first changed policy rows below before Save Settings."
+        : "No local media-policy blocker is visible; backend save remains authoritative.",
       detail: deltaReviewRows.slice(0, 8).map((row) => `${row.area}: ${row.posture}; ${row.check}`),
     },
     {
       checkpoint: "Mutation boundary",
       posture: "backend-owned",
       saved: "Settings display, builders, deltas, and trust rows are read-only until a backend command is sent.",
-      staged: "Preview Patch is non-writing. Save Patch is the only persistence command and requires confirmation.",
+      staged: "Save Settings is the persistence command and requires confirmation.",
       action: "This panel cannot save config, launch work, run FFmpeg, rename files, drain pending publish, or touch source media.",
       detail: [
         "Boundary: frontend may stage JSON and request backend commands only.",
@@ -516,14 +516,14 @@ function settingsEffectivePolicySummaryLines(rows = settingsEffectivePolicyRows(
     "Effective policy trust summary:",
     `Status: ${settingsEffectivePolicyTrustStatus(rows)}`,
     `Rows: ${rows.length}; blocked=${counts.blocked || 0}; review=${counts.review || 0}; staged-inactive=${counts["staged inactive"] || 0}; previewed=${counts.previewed || 0}; saved-backend-active=${counts["saved backend active"] || 0}.`,
-    "Launch-active policy is the saved backend config. WebView builder values and Changes JSON are candidates only.",
-    "Backend Preview Patch is non-writing. Save Patch plus settings reload/refresh is required before staged policy can affect a run.",
+    "Launch-active policy is the saved backend config. WebView builder edits are candidates only.",
+    "Save Settings plus settings reload/refresh is required before staged policy can affect a run.",
   ];
   if (reviewRows.length) {
     lines.push("", "First operator checks:");
     reviewRows.slice(0, 6).forEach((row) => lines.push(`- ${row.checkpoint}: ${row.action}`));
   } else {
-    lines.push("", "No local trust contradiction detected. Continue to backend preview/save only if you intend to change settings.");
+    lines.push("", "No local trust contradiction detected. Continue to Save Settings only if you intend to change settings.");
   }
   lines.push("", "Mutation guardrail: this summary is read-only and cannot save settings, launch work, mutate queues, publish, rename, or touch media.");
   return lines;
@@ -533,7 +533,7 @@ function settingsEffectivePolicyDetailLines(row) {
   if (!row) {
     return [
       "No effective policy row selected.",
-      "Select a row to inspect launch-active state, staged-state limitations, preview/save evidence, and backend ownership.",
+      "Select a row to inspect launch-active state, staged-state limitations, save evidence, and backend ownership.",
       "Mutation guardrail: this detail view is read-only and cannot save settings or touch media.",
     ];
   }
@@ -549,7 +549,7 @@ function settingsEffectivePolicyDetailLines(row) {
     lines.push("", "Proof / detail:");
     detail.forEach((item) => lines.push(`- ${item}`));
   }
-  lines.push("", "Mutation guardrail: effective-policy trust is display-only; backend Preview/Save owns validation and persistence.");
+  lines.push("", "Mutation guardrail: effective-policy trust is display-only; backend Save owns validation and persistence.");
   return lines;
 }
 
@@ -572,7 +572,7 @@ function renderSettingsEffectivePolicyTrustFromEntries(entries) {
   }
   setText("settings-effective-policy-status", settingsEffectivePolicyTrustStatus(rows));
   setText("settings-effective-policy-summary", settingsEffectivePolicySummaryLines(rows).join("\n"));
-  setText("settings-effective-policy-legend", "Effective policy trust rows are read-only; backend Preview/Save remains the only settings persistence boundary.");
+  setText("settings-effective-policy-legend", "Effective policy trust rows are read-only; backend Save remains the only settings persistence boundary.");
   setText("settings-effective-policy-detail", settingsEffectivePolicyDetailLines(selectedSettingsEffectivePolicyRow(rows)).join("\n"));
   const tbody = byId("settings-effective-policy-rows");
   if (!tbody) return;
@@ -615,11 +615,11 @@ function renderSettingsEffectivePolicyTrustForError(message) {
     ].join("\n")
   );
   clearRows(byId("settings-effective-policy-rows"), 5, "Effective policy trust unavailable because Changes JSON is invalid.");
-  setText("settings-effective-policy-legend", "Effective policy trust rows are read-only; backend Preview/Save remains the only settings persistence boundary.");
+  setText("settings-effective-policy-legend", "Effective policy trust rows are read-only; backend Save remains the only settings persistence boundary.");
   setText("settings-effective-policy-detail", [
     "Effective policy trust detail:",
     `Patch JSON is invalid: ${message}`,
-    "Fix Changes JSON before Preview Patch or Save Patch can run.",
+    "Fix Changes JSON before Save Settings can run.",
     "Launch-active rule: saved backend settings remain active.",
   ].join("\n"));
 }
@@ -635,13 +635,13 @@ function settingsMediaPolicySummaryLines(rows = settingsMediaPolicyRows()) {
     "Audio / subtitle policy cross-check:",
     `Rows: ${rows.length}; coherent=${counts.coherent || 0}; review=${counts.review || 0}; warning=${counts.warning || 0}; blocked=${counts.blocked || 0}.`,
     "SRT creation, original-track preservation, language routing, and audio predictability are checked from the visible builder state.",
-    "Preview/Save remains backend-owned; this panel does not change FFmpeg, subtitle, audio, remux, encode, or publish behavior.",
+    "Save Settings remains backend-owned; this panel does not change FFmpeg, subtitle, audio, remux, encode, or publish behavior.",
   ];
   if (reviewRows.length) {
     lines.push("", "Rows needing review:");
     reviewRows.forEach((row) => lines.push(`- ${row.area}: ${row.action}`));
   } else {
-    lines.push("", "No local audio/subtitle contradictions detected. Run backend Preview Patch before saving.");
+    lines.push("", "No local audio/subtitle contradictions detected. Save Settings will run backend validation before writing.");
   }
   return lines;
 }
@@ -766,10 +766,10 @@ function renderSettingsPatchImpactSummaryFromEntries(entries) {
   const lines = [
     `Local impact: ${severity === "none" ? "none" : severity}`,
     `Changed/new keys: ${changedEntries.length}; unchanged keys: ${entries.length - changedEntries.length}; unknown keys: ${unknownEntries.length}`,
-    "Backend preview remains the source of truth before saving.",
+    "Backend Save remains the source of truth before writing.",
   ];
   if (!changedEntries.length) {
-    lines.push("No effective staged changes detected.");
+    lines.push("No effective changes detected.");
     setText("settings-patch-impact-summary", lines.join("\n"));
     return;
   }
@@ -897,7 +897,7 @@ function settingsPolicyDeltaChangedLabels(entries, keys) {
 
 function settingsPolicyDeltaChangedText(entries, keys) {
   const labels = settingsPolicyDeltaChangedLabels(entries, keys);
-  return labels.length ? `Changed: ${labels.join(", ")}.` : "No effective staged change in this area.";
+  return labels.length ? `Changed: ${labels.join(", ")}.` : "No effective current change in this area.";
 }
 
 function settingsPolicyDeltaBoolText(value) {
@@ -905,31 +905,31 @@ function settingsPolicyDeltaBoolText(value) {
 }
 
 function settingsPolicyDeltaStatus(rows) {
-  if (!rows.length) return "No staged change";
+  if (!rows.length) return "No current change";
   const postures = rows.map((row) => String(row.posture || "").toLowerCase());
   if (postures.some((posture) => posture.includes("blocked") || posture.includes("critical"))) return "Blocked review";
   if (postures.some((posture) => posture.includes("high"))) return "High review";
-  if (postures.some((posture) => posture.includes("review") || posture.includes("staged") || posture.includes("preview"))) return "Preview required";
+  if (postures.some((posture) => posture.includes("review") || posture.includes("staged") || posture.includes("preview"))) return "Review";
   return "No blocker";
 }
 
-// Frontend advisory only: backend Preview Patch and Save Patch remain
-// authoritative for schema validation, source-deletion acceptance, and PSD1 writes.
+// Frontend advisory only: backend Save Settings remains authoritative for
+// schema validation, source-deletion acceptance, and PSD1 writes.
 function settingsPolicyDeltaRows(entries) {
   const changedEntries = entries.filter((entry) => entry.changed);
   const unknownEntries = changedEntries.filter((entry) => !entry.field);
   const rows = [];
 
   rows.push({
-    area: "Patch scope",
-    posture: !changedEntries.length ? "idle" : unknownEntries.length ? "blocked" : "staged",
-    current: `${entries.length} staged key(s); ${changedEntries.length} effective change(s).`,
+    area: "Change scope",
+    posture: !changedEntries.length ? "idle" : unknownEntries.length ? "blocked" : "pending",
+    current: `${entries.length} candidate key(s); ${changedEntries.length} effective change(s).`,
     candidate: unknownEntries.length
       ? `${unknownEntries.length} unknown key(s): ${unknownEntries.slice(0, 6).map((entry) => entry.key).join(", ")}${unknownEntries.length > 6 ? ", ..." : ""}`
       : `${changedEntries.length} known effective change(s).`,
     check: changedEntries.length
-      ? "Run backend Preview Patch before Save Patch; Launch continues using saved settings until backend save/reload succeeds."
-      : "No effective settings change is staged.",
+      ? "Use Save Settings to review and validate; Launch continues using saved settings until backend save/reload succeeds."
+      : "No effective settings change is pending.",
   });
 
   const routingKeys = [
@@ -1129,7 +1129,7 @@ function settingsPolicyDeltaRows(entries) {
     area: "Mutation boundary",
     posture: "backend-owned",
     current: "Current config is read-only in this table.",
-    candidate: "Changes JSON is still only staged text until backend Preview/Save succeeds.",
+    candidate: "Current edits are still pending until backend Save succeeds.",
     check: "This delta cannot save settings, launch work, run FFmpeg, rename, drain, publish, or touch files.",
   });
 
@@ -1147,17 +1147,17 @@ function settingsPolicyDeltaSummaryLines(rows) {
     return posture.includes("blocked") || posture.includes("critical") || posture.includes("review") || posture.includes("staged") || posture.includes("preview");
   });
   const lines = [
-    "Staged media-policy delta:",
+    "Save-candidate media-policy delta:",
     `Status: ${settingsPolicyDeltaStatus(rows)}`,
     `Rows: ${rows.length}; blocked=${counts.blocked || 0}; critical-blocked=${counts["critical blocked"] || 0}; review=${counts.review || 0}; preview-required=${counts["preview required"] || 0}; staged=${counts.staged || 0}.`,
-    "This compares current saved values against the local Changes JSON candidate before backend preview/save.",
-    "Backend Preview Patch remains authoritative for schema validation, risk classification, PSD1 serialization, and redacted diff evidence.",
+    "This compares current saved values against the local save candidate before backend Save.",
+    "Backend Save remains authoritative for schema validation, risk classification, PSD1 serialization, and redacted diff evidence.",
   ];
   if (reviewRows.length) {
     lines.push("", "Rows needing operator attention:");
     reviewRows.slice(0, 7).forEach((row) => lines.push(`- ${row.area}: ${row.posture}; ${row.check}`));
   } else {
-    lines.push("", "No staged media-policy contradictions detected locally.");
+    lines.push("", "No current media-policy contradictions detected locally.");
   }
   lines.push("", "Mutation guardrail: this delta is read-only and cannot save settings, launch work, mutate queues, publish, rename, or touch media.");
   return lines;
@@ -1168,10 +1168,10 @@ function renderSettingsPolicyDeltaFromEntries(entries) {
   const tbody = byId("settings-policy-delta-rows");
   setText("settings-policy-delta-status", settingsPolicyDeltaStatus(rows));
   setText("settings-policy-delta-summary", settingsPolicyDeltaSummaryLines(rows).join("\n"));
-  setText("settings-policy-delta-legend", "Staged media-policy delta is read-only; backend preview/save remains authoritative.");
+  setText("settings-policy-delta-legend", "Save-candidate media-policy delta is read-only; backend Save remains authoritative.");
   if (!tbody) return;
   if (!rows.length) {
-    clearRows(tbody, 5, "No staged media-policy delta loaded.");
+    clearRows(tbody, 5, "No save-candidate media-policy delta loaded.");
     return;
   }
   tbody.replaceChildren();
@@ -1192,10 +1192,10 @@ function renderSettingsPolicyDeltaForError(message) {
   setText("settings-policy-delta-status", "Invalid JSON");
   setText(
     "settings-policy-delta-summary",
-    `Staged media-policy delta unavailable because Changes JSON is invalid.\n${message}\nBackend preview/save cannot run until this is valid JSON.`
+    `Save-candidate media-policy delta unavailable because Changes JSON is invalid.\n${message}\nSave Settings cannot run until this is valid JSON.`
   );
-  clearRows(byId("settings-policy-delta-rows"), 5, "Staged media-policy delta unavailable because Changes JSON is invalid.");
-  setText("settings-policy-delta-legend", "Staged media-policy delta is read-only; backend preview/save remains authoritative.");
+  clearRows(byId("settings-policy-delta-rows"), 5, "Save-candidate media-policy delta unavailable because Changes JSON is invalid.");
+  setText("settings-policy-delta-legend", "Save-candidate media-policy delta is read-only; backend Save remains authoritative.");
 }
 
     function settingsLaunchImpactGroupText(entry) {
@@ -1239,12 +1239,12 @@ function renderSettingsPolicyDeltaForError(message) {
       const issues = settingsPatchSaveReadinessIssues(entries);
       const rows = [];
       rows.push({
-        area: "Patch state",
-        posture: changedEntries.length ? "staged" : entries.length ? "unchanged" : "idle",
-        evidence: `${entries.length} staged key(s); ${changedEntries.length} effective change(s); ${entries.filter((entry) => !entry.field).length} unknown key(s).`,
+        area: "Current changes",
+        posture: changedEntries.length ? "pending" : entries.length ? "unchanged" : "idle",
+        evidence: `${entries.length} candidate key(s); ${changedEntries.length} effective change(s); ${entries.filter((entry) => !entry.field).length} unknown key(s).`,
         check: changedEntries.length
-          ? "Launch continues to use saved backend settings until Save Patch succeeds and settings reload/refresh completes."
-          : "No effective staged changes are waiting to affect Launch.",
+          ? "Launch continues to use saved backend settings until Save Settings succeeds and settings reload/refresh completes."
+          : "No effective changes are waiting to affect Launch.",
       });
 
       const grouped = new Map();
@@ -1269,7 +1269,7 @@ function renderSettingsPolicyDeltaForError(message) {
         area: "Save readiness",
         posture: settingsPatchSaveReadinessStatus(entries),
         evidence: issues.length ? issues.slice(0, 4).map((issue) => `[${issue.severity}] ${issue.message}`).join(" | ") : "No local save blocker detected.",
-        check: "Run backend Preview Patch before Save Patch. Backend preview/save owns schema validation, PSD1 writes, backups, and reload.",
+        check: "Use Save Settings to review and validate. Backend save owns schema validation, PSD1 writes, backups, and reload.",
       });
 
       const latestCommand = settingsLaunchImpactLatestSettingsCommand();
@@ -1277,8 +1277,8 @@ function renderSettingsPolicyDeltaForError(message) {
         rows.push({
           area: "Last backend settings command",
           posture: "no history",
-          evidence: "No settings validate/reload/preview/save command is available in recent command history.",
-          check: "Use Preview Patch before Save Patch; use Reload From Disk after out-of-band config edits.",
+          evidence: "No settings validate/reload/save command is available in recent command history.",
+          check: "Use Save Settings for PSD1 writes; use Reload From Disk after out-of-band config edits.",
         });
       } else {
         const command = String(latestCommand.command || latestCommand.raw?.command || "").toLowerCase();
@@ -1292,8 +1292,8 @@ function renderSettingsPolicyDeltaForError(message) {
           check: ok && isSave
             ? "A successful backend save is visible. Confirm Saved Settings Trust/Launch risk after refresh before starting long runs."
             : isPreview
-              ? "Preview does not apply changes to Launch. Save Patch must succeed before Launch uses this config."
-              : "Resolve command warnings/errors before relying on changed settings for Launch.",
+              ? "Preview does not apply changes to Launch. Save Settings must succeed before Launch uses this config."
+            : "Resolve command review items/errors before relying on changed settings for Launch.",
         });
       }
 
@@ -1311,7 +1311,7 @@ function renderSettingsPolicyDeltaForError(message) {
       const postures = rows.map((row) => String(row.posture || "").toLowerCase());
       if (postures.some((posture) => posture.includes("blocked"))) return "Blocked review";
       if (postures.some((posture) => posture.includes("high"))) return "High review";
-      if (postures.some((posture) => posture.includes("staged") || posture.includes("preview only") || posture.includes("review") || posture.includes("no history"))) return "Review";
+      if (postures.some((posture) => posture.includes("pending") || posture.includes("preview only") || posture.includes("review") || posture.includes("no history"))) return "Review";
       return "Ready";
     }
 
@@ -1323,7 +1323,7 @@ function renderSettingsPolicyDeltaForError(message) {
       }, {});
       const reviewRows = rows.filter((row) => {
         const posture = String(row.posture || "").toLowerCase();
-        return posture.includes("staged")
+        return posture.includes("pending")
           || posture.includes("review")
           || posture.includes("blocked")
           || posture.includes("high")
@@ -1333,8 +1333,8 @@ function renderSettingsPolicyDeltaForError(message) {
       const lines = [
         "Settings-to-launch handoff:",
         `Status: ${settingsLaunchImpactStatus(rows)}`,
-        `Rows: ${rows.length}; staged=${counts.staged || 0}; blocked=${counts.blocked || 0}; high-review=${counts["high review"] || 0}; preview-only=${counts["preview only"] || 0}.`,
-        "Launch uses saved backend settings, not unsaved Changes JSON. Save Patch plus refresh/reload is required before a staged patch can affect Launch.",
+        `Rows: ${rows.length}; pending=${counts.staged || 0}; blocked=${counts.blocked || 0}; high-review=${counts["high review"] || 0}; preview-only=${counts["preview only"] || 0}.`,
+        "Launch uses saved backend settings, not unsaved edits. Save Settings plus refresh/reload is required before current changes can affect Launch.",
         "Backend launch validation remains the source of truth for schedule gates, active-work locks, and pipeline start acceptance.",
       ];
       if (reviewRows.length) {
@@ -1361,7 +1361,7 @@ function renderSettingsPolicyDeltaForError(message) {
       rows.forEach((item) => {
         const row = document.createElement("tr");
         const posture = String(item.posture || "").toLowerCase();
-        row.dataset.status = posture.includes("blocked") ? "blocked" : (posture.includes("review") || posture.includes("staged") || posture.includes("preview only") || posture.includes("no history") ? "warning" : "match");
+      row.dataset.status = posture.includes("blocked") ? "blocked" : (posture.includes("review") || posture.includes("pending") || posture.includes("preview only") || posture.includes("no history") ? "warning" : "match");
         appendCells(row, [item.area, item.posture, item.evidence, item.check]);
         tbody.appendChild(row);
       });
@@ -1371,7 +1371,7 @@ function renderSettingsPolicyDeltaForError(message) {
       setText("settings-launch-impact-status", "Invalid JSON");
       setText(
         "settings-launch-impact-summary",
-        `Settings-to-launch handoff unavailable because Changes JSON is invalid.\n${message}\nLaunch will continue using saved backend settings; backend preview/save cannot run until this is valid JSON.`
+        `Settings-to-launch handoff unavailable because Changes JSON is invalid.\n${message}\nLaunch will continue using saved backend settings; Save Settings cannot run until this is valid JSON.`
       );
       clearRows(byId("settings-launch-impact-rows"), 4, "Settings-to-launch handoff unavailable because Changes JSON is invalid.");
       setText("settings-launch-impact-legend", "Settings-to-launch handoff is read-only; backend launch validation remains authoritative.");

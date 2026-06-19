@@ -3,7 +3,7 @@
         <section class="panel" data-panel-type="status">
           <div class="panel-heading">
             <h2>Monitoring Status</h2>
-            <strong id="telemetry-readiness-status">Not loaded</strong>
+            <strong id="telemetry-readiness-status" data-state="loading">Waiting</strong>
           </div>
           <div id="telemetry-operator-state" class="telemetry-operator-state" data-state="waiting">
             <div>
@@ -12,55 +12,77 @@
             </div>
             <p id="telemetry-operator-next-step">Waiting for the first hardware telemetry sample.</p>
           </div>
+          <div class="telemetry-trust-strip" aria-label="Telemetry trust signals">
+            <div class="telemetry-trust-fact" data-state="loading">
+              <span>Live state</span>
+              <strong id="telemetry-live-state">Waiting</strong>
+            </div>
+            <div class="telemetry-trust-fact" data-state="loading">
+              <span>Sample age</span>
+              <strong id="telemetry-sample-age">Unknown</strong>
+            </div>
+            <div class="telemetry-trust-fact" data-state="loading">
+              <span>Source</span>
+              <strong id="telemetry-source">Not reported</strong>
+            </div>
+            <div class="telemetry-trust-fact" data-state="loading">
+              <span>Expected encoder</span>
+              <strong id="telemetry-expected-encoder">Unknown</strong>
+            </div>
+            <div class="telemetry-trust-fact" data-state="loading">
+              <span>Cadence</span>
+              <strong id="telemetry-refresh-cadence">UI 15s / GPU 12s</strong>
+            </div>
+          </div>
           <div class="telemetry-kpi-grid" aria-label="Telemetry at a glance">
-            <div class="telemetry-kpi" data-telemetry-kpi="cpu">
+            <div class="telemetry-kpi" data-telemetry-kpi="cpu" data-state="loading">
               <span>CPU</span>
-              <strong id="telemetry-kpi-cpu-value">...</strong>
+              <strong id="telemetry-kpi-cpu-value" data-state="loading">Waiting</strong>
             </div>
-            <div class="telemetry-kpi" data-telemetry-kpi="encoder">
+            <div class="telemetry-kpi" data-telemetry-kpi="encoder" data-state="loading">
               <span>Video Encoder</span>
-              <strong id="telemetry-kpi-encoder-value">...</strong>
+              <strong id="telemetry-kpi-encoder-value" data-state="loading">Waiting</strong>
             </div>
-            <div class="telemetry-kpi" data-telemetry-kpi="ram">
+            <div class="telemetry-kpi" data-telemetry-kpi="ram" data-state="loading">
               <span>RAM</span>
-              <strong id="telemetry-kpi-ram-value">...</strong>
+              <strong id="telemetry-kpi-ram-value" data-state="loading">Waiting</strong>
             </div>
-            <div class="telemetry-kpi" data-telemetry-kpi="gpu">
+            <div class="telemetry-kpi" data-telemetry-kpi="gpu" data-state="loading">
               <span>GPU telemetry</span>
-              <strong id="telemetry-kpi-gpu-status">Waiting</strong>
+              <strong id="telemetry-kpi-gpu-status" data-state="loading">Waiting</strong>
             </div>
           </div>
           <pre id="telemetry-readiness-summary" class="prose-block">No telemetry readiness loaded.</pre>
         </section>
 
         <div class="telemetry-grid">
-          <section class="panel" data-panel-type="status">
+          <section class="panel" data-panel-type="status" data-telemetry-chart-panel="cpu" data-state="loading">
             <div class="panel-heading">
               <h2>CPU Usage</h2>
-              <strong id="cpu-value">...</strong>
+              <strong id="cpu-value" data-state="loading">Waiting</strong>
             </div>
             <canvas id="cpu-chart" width="520" height="140" role="img" aria-label="CPU usage over the last eight minutes" aria-describedby="cpu-chart-meta cpu-utility-note"></canvas>
-            <p id="cpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
-            <p id="cpu-utility-note" class="note">Task Manager-equivalent (% Utility): ...</p>
+            <p id="cpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | UI refresh 15s | GPU probe up to 12s | Sample age unknown</p>
+            <p id="cpu-utility-note" class="note">Task Manager-equivalent (% Utility): Waiting</p>
           </section>
 
-          <section class="panel" data-panel-type="status">
+          <section class="panel" data-panel-type="status" data-telemetry-chart-panel="encoder" data-state="loading">
             <div class="panel-heading">
               <h2>Video Encoder (NVENC)</h2>
-              <strong id="gpu-value">...</strong>
+              <strong id="gpu-value" data-state="loading">Waiting</strong>
             </div>
             <canvas id="gpu-chart" width="520" height="140" role="img" aria-label="Video encoder usage over the last eight minutes" aria-describedby="gpu-chart-meta gpu-note"></canvas>
-            <p id="gpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
-            <p id="gpu-note" class="note"></p>
+            <p id="gpu-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | UI refresh 15s | GPU probe up to 12s | Sample age unknown</p>
+            <p id="gpu-note" class="note">Waiting for GPU/NVENC telemetry.</p>
           </section>
 
-          <section class="panel" data-panel-type="status">
+          <section class="panel" data-panel-type="status" data-telemetry-chart-panel="ram" data-state="loading">
             <div class="panel-heading">
               <h2>RAM Usage</h2>
-              <strong id="ram-value">...</strong>
+              <strong id="ram-value" data-state="loading">Waiting</strong>
             </div>
             <canvas id="ram-chart" width="520" height="140" role="img" aria-label="RAM usage over the last eight minutes" aria-describedby="ram-chart-meta"></canvas>
-            <p id="ram-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | Refreshes every 4s | Sample age unknown</p>
+            <p id="ram-chart-meta" class="telemetry-chart-meta">0-100% | Last ~8 min | UI refresh 15s | GPU probe up to 12s | Sample age unknown</p>
           </section>
         </div>
 
@@ -75,18 +97,22 @@
                 <tr>
                   <th scope="col" class="num">GPU</th>
                   <th scope="col">Name</th>
+                  <th scope="col">Usage Status</th>
                   <th scope="col" class="num">Video Encoder</th>
                   <th scope="col" class="num">GPU Load</th>
                   <th scope="col" class="num">Memory</th>
+                  <th scope="col" class="num">Temp</th>
+                  <th scope="col" class="num">Sessions</th>
+                  <th scope="col">Source</th>
                 </tr>
               </thead>
               <tbody id="gpu-rows">
-                <tr><td colspan="5">No GPU telemetry loaded.</td></tr>
+                <tr><td colspan="9">No GPU telemetry loaded.</td></tr>
               </tbody>
             </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No GPU detected</span>
-            <span class="empty-state-hint">GPU details appear here when telemetry loads. Check that NVENC is enabled in Settings.</span>
+          <div id="gpu-empty-state" class="empty-state" data-empty-state="hidden" style="display:none">
+            <span class="empty-state-label">GPU telemetry unavailable</span>
+            <span class="empty-state-hint">GPU details appear here when backend telemetry reports supported GPU/NVENC rows.</span>
           </div>
           </div>
         </section>

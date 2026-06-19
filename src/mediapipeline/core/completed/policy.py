@@ -314,7 +314,7 @@ def completed_bitrate_fields(
         output_bitrate_mbps = _completed_derived_bitrate_mbps(output_size, duration_seconds)
         output_bitrate_basis = "output_size_duration" if output_bitrate_mbps is not None else ""
 
-    threshold_mbps, _threshold_path = _completed_first_positive_number(
+    threshold_mbps, _ = _completed_first_positive_number(
         payload,
         (
             ("bitrate_threshold_mbps",),

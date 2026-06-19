@@ -356,7 +356,7 @@ The snapshot contains a container record and two row lists: queue display rows a
 
 ## SQLiteStateMirror
 
-**Contract file**: `app/storage/db.py`
+**Contract file**: `src/mediapipeline/core/storage/db.py`
 **Artifact**: `State\mediapipeline_state.sqlite3`
 **Schema version**: `1`
 **Authority**: Shadow mirror only. The JSON/state artifacts above remain authoritative.
@@ -402,4 +402,3 @@ All contracts are validated at read time by `test_contracts.py`. Schema version 
 - Diagnostics targets (for file access): `docs/archive/completed-audits/DIAGNOSTICS_TARGET_ALLOWLIST_AUDIT.md`
 - API route inventory: `docs/inventories/API_ROUTE_INVENTORY.md`
 - Log artifact catalog: `docs/inventories/LOG_ARTIFACT_CATALOG.md`
-

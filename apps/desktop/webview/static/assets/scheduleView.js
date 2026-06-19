@@ -6,6 +6,7 @@
   let lastScheduleEditorResult = null;
   let scheduleEditorPreviewSignature = "";
   let scheduleEditorDayClipboard = null;
+  let scheduleEditorBusy = "";
   const SCHEDULE_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const SCHEDULE_BLOCKS_PER_DAY = 48;
 
@@ -73,6 +74,42 @@
     return labels[key] || key || "Enqueue only";
   }
 
+  function watchFolderReachability(row) {
+    if (!row || typeof row !== "object" || row.reachable === undefined || row.reachable === null) {
+      return {
+        status: "unknown",
+        status_text: "Unknown",
+        evidence: "Backend did not report reachability for this root.",
+      };
+    }
+    return row.reachable
+      ? {
+        status: "ready",
+        status_text: "Reachable",
+        evidence: "Backend can see this root.",
+      }
+      : {
+        status: "blocked",
+        status_text: "Unreachable",
+        evidence: "Backend reports this root is not reachable.",
+      };
+  }
+
+  function watchFolderLaunchOutcome(row) {
+    const outcome = String(row?.outcome || "").trim();
+    const normalized = outcome.toLowerCase();
+    if (!normalized) {
+      return { status: "unknown", status_text: "Unknown" };
+    }
+    if (/(fail|error|blocked|refus|reject|denied|cancel|abort)/.test(normalized)) {
+      return { status: "blocked", status_text: outcome };
+    }
+    if (/(success|started|running|launched|queued|accepted|ok)/.test(normalized)) {
+      return { status: "ready", status_text: outcome };
+    }
+    return { status: "review", status_text: outcome };
+  }
+
   function watchFolderStatusLabel(payload) {
     if (!payload || typeof payload !== "object" || !payload.schema_version) return "Not loaded";
     const status = String(payload.status || "unknown").toLowerCase();
@@ -121,7 +158,10 @@
     const lastLaunch = payload.last_launch && typeof payload.last_launch === "object" ? payload.last_launch : null;
     const lastRefusal = payload.last_refusal && typeof payload.last_refusal === "object" ? payload.last_refusal : null;
     const rootText = roots.length
-      ? roots.map((root) => `${root.reachable ? "reachable" : "unreachable"}: ${root.path || "(path not reported)"}${root.last_error ? ` (${root.last_error})` : ""}`)
+      ? roots.map((root) => {
+        const reachability = watchFolderReachability(root);
+        return `${reachability.status_text.toLowerCase()}: ${root.path || "(path not reported)"}${root.last_error ? ` (${root.last_error})` : ""}`;
+      })
       : ["none"];
     const lines = [
       "Watch-folder manager:",
@@ -161,14 +201,107 @@
     return lines;
   }
 
+  function watchFolderRootRows(payload) {
+    const roots = Array.isArray(payload?.roots) ? payload.roots : [];
+    if (!roots.length) {
+      return [{
+        root: "No roots reported",
+        status: "review",
+        status_text: payload?.enabled ? "Review" : "Disabled",
+        evidence: payload?.derived_roots_from_library_profiles
+          ? "Backend derives roots from source/library profile settings."
+          : "No watch-folder roots loaded from the backend.",
+      }];
+    }
+    return roots.map((root) => {
+      const reachability = watchFolderReachability(root);
+      return {
+        root: root?.path || "(path not reported)",
+        status: reachability.status,
+        status_text: reachability.status_text,
+        evidence: root?.last_error || reachability.evidence,
+      };
+    });
+  }
+
+  function watchFolderEventRows(payload) {
+    const rows = [];
+    const lastLaunch = payload?.last_launch && typeof payload.last_launch === "object" ? payload.last_launch : null;
+    const lastRefusal = payload?.last_refusal && typeof payload.last_refusal === "object" ? payload.last_refusal : null;
+    const detections = Array.isArray(payload?.recent_detections) ? payload.recent_detections : [];
+    if (lastRefusal) {
+      rows.push({
+        event: "Last refusal",
+        status: "review",
+        status_text: "Review",
+        evidence: `${scheduleDisplayValue(lastRefusal.utc)}; ${lastRefusal.reason || "(reason not reported)"}`,
+      });
+    }
+    if (lastLaunch) {
+      const outcome = watchFolderLaunchOutcome(lastLaunch);
+      rows.push({
+        event: "Last launch",
+        status: outcome.status,
+        status_text: outcome.status_text,
+        evidence: `${scheduleDisplayValue(lastLaunch.requested_utc)}; PID ${lastLaunch.pid || "none"}; ${lastLaunch.message || "(message not reported)"}`,
+      });
+    }
+    detections.slice(-5).reverse().forEach((item) => {
+      rows.push({
+        event: "Stable detection",
+        status: "ready",
+        status_text: "Detected",
+        evidence: `${scheduleDisplayValue(item?.detected_utc)}; ${item?.path || "(path not reported)"}`,
+      });
+    });
+    if (!rows.length) {
+      rows.push({
+        event: "No recent events",
+        status: payload?.pending_work ? "review" : "normal",
+        status_text: payload?.pending_work ? "Pending" : "Idle",
+        evidence: payload?.pending_work ? "Backend reports pending watch-folder work." : "No launch, refusal, or detection rows reported.",
+      });
+    }
+    return rows;
+  }
+
+  function renderWatchFolderTables(payload) {
+    const rootBody = byId("schedule-watch-folder-root-rows");
+    if (rootBody) {
+      rootBody.replaceChildren();
+      watchFolderRootRows(payload || {}).forEach((item) => {
+        const row = document.createElement("tr");
+        row.dataset.status = item.status || "normal";
+        appendCells(row, [item.root, item.status_text, item.evidence]);
+        rootBody.appendChild(row);
+      });
+    }
+    const eventBody = byId("schedule-watch-folder-event-rows");
+    if (eventBody) {
+      eventBody.replaceChildren();
+      watchFolderEventRows(payload || {}).forEach((item) => {
+        const row = document.createElement("tr");
+        row.dataset.status = item.status || "normal";
+        appendCells(row, [item.event, item.status_text, item.evidence]);
+        eventBody.appendChild(row);
+      });
+    }
+  }
+
   function renderWatchFolderStatus(payload) {
     const status = byId("schedule-watch-folder-status");
     if (status) {
       status.textContent = watchFolderStatusLabel(payload);
       status.dataset.state = watchFolderStatusValue(payload);
     }
+    const scope = byId("schedule-watch-folder-scope");
+    if (scope) {
+      scope.dataset.state = "saved";
+      scope.textContent = "Watch Folders: backend-owned scanner state.";
+    }
     setText("schedule-watch-folder-summary", watchFolderSummaryLines(payload || {}).join("\n"));
     setText("schedule-watch-folder-recent", watchFolderRecentLines(payload || {}).join("\n"));
+    renderWatchFolderTables(payload || {});
   }
 
   function scheduleLaunchGuidanceLines(schedule) {
@@ -258,6 +391,32 @@
       .filter((row) => Number(row?.allowed_blocks || 0) > 0).length;
   }
 
+  function scheduleCurrentDayName(schedule) {
+    const evaluation = schedule?.evaluation || {};
+    const explicit = evaluation.current_day || evaluation.day || schedule?.current_day;
+    return explicit ? String(explicit) : "";
+  }
+
+  function scheduleCurrentDayEvidence(schedule) {
+    const evaluation = schedule?.evaluation || {};
+    const currentDay = scheduleCurrentDayName(schedule);
+    if (!schedulePayloadLoaded(schedule || {})) return "Backend current day: not loaded.";
+    if (!currentDay) return "Backend current day: not reported.";
+    const block = Number.isFinite(Number(evaluation.current_block_index))
+      ? `; block ${Number(evaluation.current_block_index)}`
+      : "";
+    const start = evaluation.current_block_start
+      ? `; block start ${scheduleDisplayValue(evaluation.current_block_start)}`
+      : "";
+    return `Backend current day: ${currentDay}${block}${start}.`;
+  }
+
+  function scheduleIsCurrentDayRow(item, schedule = lastSchedule) {
+    if (!item || !schedule?.enabled || schedule?.evaluation?.allowed_now === false) return false;
+    const currentDay = scheduleCurrentDayName(schedule);
+    return Boolean(currentDay && String(item.day || "").toLowerCase() === String(currentDay).toLowerCase());
+  }
+
   function scheduleCoverageStatus(schedule) {
     if (!schedulePayloadLoaded(schedule)) return "Not loaded";
     if ((schedule?.warnings || []).length) return "Review";
@@ -276,9 +435,11 @@
     const allowedDays = scheduleAllowedDayCount(schedule);
     const totalHours = totalBlocks / 2;
     const allowedNow = evaluation.allowed_now !== false;
+    const backendCurrentDay = scheduleCurrentDayName(schedule);
+    const currentDayKnown = !enabled || Boolean(backendCurrentDay);
     const watcherStatus = scheduleWatcherStatusValue(schedule);
     const watcher = scheduleWatcherData(schedule);
-    return [
+    const coverageRows = [
       {
         key: "payload",
         check: "Schedule payload",
@@ -307,11 +468,16 @@
       {
         key: "current-window",
         check: "Current window",
-        status: !enabled ? "ready" : (allowedNow ? "ready" : "blocked"),
-        evidence: enabled ? `Allowed now: ${allowedNow ? "yes" : "no"}` : "Not watched while enforcement is off.",
-        next_step: enabled && !allowedNow ? "Wait for the next allowed start or use an explicit Launch override." : "Still verify close-readiness, settings, queue, and pending-publish state.",
+        status: !enabled ? "ready" : (!currentDayKnown ? "review" : (allowedNow ? "ready" : "blocked")),
+        evidence: enabled
+          ? `Allowed now: ${allowedNow ? "yes" : "no"}; ${scheduleCurrentDayEvidence(schedule)}`
+          : "Not watched while enforcement is off.",
+        next_step: enabled && !currentDayKnown
+          ? "Refresh or inspect backend schedule evaluation before trusting the current-window marker."
+          : (enabled && !allowedNow ? "Wait for the next allowed start or use an explicit Launch override." : "Still verify close-readiness, settings, queue, and pending-publish state."),
         detail: [
           `Status text: ${evaluation.status_text || "(not reported)"}`,
+          scheduleCurrentDayEvidence(schedule),
           `Next allowed start: ${scheduleDisplayValue(evaluation.next_allowed_start)}`,
           `Relevant window end: ${scheduleDisplayValue(evaluation.current_window_end || evaluation.next_allowed_end)}`,
         ],
@@ -352,6 +518,11 @@
         ],
       },
     ];
+    const draftRow = scheduleEditorDraftCoverageRow();
+    if (draftRow) {
+      coverageRows.splice(Math.max(coverageRows.length - 1, 0), 0, draftRow);
+    }
+    return coverageRows;
   }
 
   function scheduleCoverageDetailLines(row, schedule = lastSchedule) {
@@ -405,8 +576,17 @@
     const blocks = Number(item?.allowed_blocks || 0);
     if (!schedulePayloadLoaded(schedule || {})) return "blocked";
     if (blocks <= 0) return schedule?.enabled ? "review" : "normal";
+    if (scheduleIsCurrentDayRow(item, schedule || {})) return blocks >= 48 ? "current-match" : "current";
     if (blocks >= 48) return "match";
     return "ready";
+  }
+
+  function scheduleDayCurrentMarkerText(item, schedule = lastSchedule) {
+    if (!schedule?.enabled) return "not watched because schedule enforcement is off";
+    const currentDay = scheduleCurrentDayName(schedule);
+    if (!currentDay) return "unknown because backend current day was not reported";
+    if (schedule?.evaluation?.allowed_now === false) return "not current because schedule is outside the allowed window";
+    return scheduleIsCurrentDayRow(item, schedule || {}) ? "current saved window" : "not current";
   }
 
   function scheduleDayDetailLines(item, schedule = lastSchedule) {
@@ -427,6 +607,8 @@
       `Status: ${status}`,
       `Allowed blocks: ${blocks} (${hours.toFixed(1)} hour(s))`,
       `Windows: ${windows.length ? windows.join("; ") : "None"}`,
+      `Current window marker: ${scheduleDayCurrentMarkerText(item, schedule || {})}`,
+      scheduleCurrentDayEvidence(schedule || {}),
       "",
     ];
     if (blocks <= 0 && enabled) {
@@ -542,6 +724,70 @@
     return windows.join(", ");
   }
 
+  function scheduleResultGridBlocks(grid, day) {
+    const raw = grid && typeof grid === "object" ? grid[day] : null;
+    return Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => Boolean(Array.isArray(raw) ? raw[index] : false));
+  }
+
+  function scheduleWindowTextOrNone(blockValues) {
+    return scheduleWindowsTextFromBlocks(blockValues) || "none";
+  }
+
+  function scheduleDiffWindowText(leftBlocks, rightBlocks, predicate) {
+    const values = Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => {
+      const left = Boolean(leftBlocks?.[index]);
+      const right = Boolean(rightBlocks?.[index]);
+      return predicate(left, right);
+    });
+    return scheduleWindowTextOrNone(values);
+  }
+
+  function scheduleResultDiffLines(data) {
+    if (!data || typeof data !== "object") return [];
+    const isScheduleResult = data.schema_version === "desktop_schedule_patch_preview.v1" || data.schema_version === "desktop_schedule_save_result.v1";
+    const hasCurrentGrid = data.current_grid && typeof data.current_grid === "object";
+    const hasProposedGrid = data.grid && typeof data.grid === "object";
+    if (!isScheduleResult && !hasCurrentGrid && !hasProposedGrid) return [];
+
+    const lines = [
+      "",
+      "Schedule diff:",
+      `- Current enforcement: ${data.current_enabled ? "on" : "off"}`,
+      `- Proposed enforcement: ${data.enabled ? "on" : "off"}`,
+    ];
+    if (data.changed_enabled) {
+      lines.push("- Enforcement change: yes");
+    }
+    if (!hasCurrentGrid || !hasProposedGrid) {
+      lines.push("- Exact day/window diff unavailable: backend result did not include both current_grid and grid.");
+      return lines;
+    }
+
+    const changedDays = Array.isArray(data.changed_days)
+      ? data.changed_days.filter((day) => SCHEDULE_DAYS.includes(String(day)))
+      : [];
+    const unchangedDays = SCHEDULE_DAYS.filter((day) => !changedDays.includes(day));
+    lines.push(`- Changed day count: ${changedDays.length}`);
+    lines.push(`- Unchanged day count: ${unchangedDays.length}`);
+    if (!changedDays.length && !data.changed_enabled) {
+      lines.push("- No effective schedule changes detected.");
+      return lines;
+    }
+
+    changedDays.forEach((day) => {
+      const currentBlocks = scheduleResultGridBlocks(data.current_grid, day);
+      const proposedBlocks = scheduleResultGridBlocks(data.grid, day);
+      lines.push(
+        `${day}:`,
+        `- Current: ${scheduleWindowTextOrNone(currentBlocks)}`,
+        `- Proposed: ${scheduleWindowTextOrNone(proposedBlocks)}`,
+        `- Added: ${scheduleDiffWindowText(currentBlocks, proposedBlocks, (current, proposed) => proposed && !current)}`,
+        `- Removed: ${scheduleDiffWindowText(currentBlocks, proposedBlocks, (current, proposed) => current && !proposed)}`
+      );
+    });
+    return lines;
+  }
+
   function scheduleEditorSummaryText(text) {
     const value = String(text || "").trim();
     if (!value) return "No windows selected";
@@ -602,6 +848,7 @@
   }
 
   function scheduleToggleEditorBlock(day, index) {
+    if (scheduleEditorBusy) return;
     const values = scheduleEditorBlocksForDay(day);
     if (index >= 0 && index < SCHEDULE_BLOCKS_PER_DAY) {
       values[index] = !values[index];
@@ -610,10 +857,12 @@
   }
 
   function scheduleClearEditorDay(day) {
+    if (scheduleEditorBusy) return;
     scheduleApplyEditorDayBlocks(day, []);
   }
 
   function scheduleAllowAllEditorDay(day) {
+    if (scheduleEditorBusy) return;
     scheduleApplyEditorDayBlocks(
       day,
       Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => index)
@@ -627,15 +876,19 @@
       const key = scheduleDayKey(day);
       const button = byId(`schedule-editor-${key}-paste-day`);
       if (!button) return;
-      button.disabled = !hasClipboard;
-      button.setAttribute("aria-disabled", hasClipboard ? "false" : "true");
-      button.title = hasClipboard
+      const disabled = !hasClipboard || Boolean(scheduleEditorBusy);
+      button.disabled = disabled;
+      button.setAttribute("aria-disabled", disabled ? "true" : "false");
+      button.title = scheduleEditorBusy
+        ? "Schedule preview/save is in progress"
+        : hasClipboard
         ? `Paste copied ${sourceDay} blocks into ${day}`
         : "Copy a day before pasting";
     });
   }
 
   function scheduleCopyEditorDay(day) {
+    if (scheduleEditorBusy) return false;
     const values = scheduleEditorBlocksForDay(day);
     scheduleEditorDayClipboard = {
       day,
@@ -647,6 +900,7 @@
   }
 
   function schedulePasteEditorDay(day) {
+    if (scheduleEditorBusy) return false;
     if (!scheduleEditorDayClipboard?.blocks) {
       setText("schedule-editor-status", "Copy a day before pasting");
       scheduleUpdatePasteDayButtons();
@@ -695,6 +949,91 @@
     });
   }
 
+  function scheduleEditorDraftStats(request = scheduleEditorRequest()) {
+    let totalBlocks = 0;
+    let allowedDays = 0;
+    let allDayDays = 0;
+    let noWindowDays = 0;
+    SCHEDULE_DAYS.forEach((day) => {
+      const blocks = scheduleDraftBlocksFromText(request?.day_windows?.[day] || "");
+      const count = blocks.filter(Boolean).length;
+      totalBlocks += count;
+      if (count > 0) allowedDays += 1;
+      if (count >= SCHEDULE_BLOCKS_PER_DAY) allDayDays += 1;
+      if (count <= 0) noWindowDays += 1;
+    });
+    return {
+      enabled: Boolean(request?.enabled),
+      totalBlocks,
+      totalHours: totalBlocks / 2,
+      allowedDays,
+      allDayDays,
+      noWindowDays,
+      totalWeekBlocks: SCHEDULE_DAYS.length * SCHEDULE_BLOCKS_PER_DAY,
+    };
+  }
+
+  function scheduleEditorDraftPosture() {
+    if (scheduleEditorBusy === "preview") return "previewing";
+    if (scheduleEditorBusy === "save") return "saving";
+    if (scheduleEditorDirty) return "draft";
+    if (scheduleEditorPreviewIsCurrent()) return "previewed";
+    if (lastScheduleEditorResult?.command === "schedule.save" && lastScheduleEditorResult?.ok) return "saved";
+    return "current";
+  }
+
+  function scheduleEditorDraftSummaryText(prefix = "") {
+    const stats = scheduleEditorDraftStats();
+    const posture = scheduleEditorDraftPosture();
+    const stateLabel = {
+      previewing: "backend preview in progress",
+      saving: "backend save in progress",
+      draft: "not saved",
+      previewed: "preview accepted, not saved",
+      saved: "saved result shown",
+      current: "matches saved/current payload",
+    }[posture] || "current";
+    const lead = prefix ? `${prefix} ` : "Editor draft:";
+    return `${lead} enforcement ${stats.enabled ? "on" : "off"}; ${stats.totalBlocks}/${stats.totalWeekBlocks} blocks staged (${stats.totalHours.toFixed(1)} h) across ${stats.allowedDays} day(s); all-day ${stats.allDayDays}; no-window ${stats.noWindowDays}; ${stateLabel}.`;
+  }
+
+  function scheduleEditorDraftCoverageRow() {
+    const hasEditor = Boolean(byId("schedule-editor-monday-windows"));
+    const shouldShow = hasEditor && (scheduleEditorDirty || scheduleEditorPreviewIsCurrent() || Boolean(scheduleEditorBusy));
+    if (!shouldShow) return null;
+    const stats = scheduleEditorDraftStats();
+    const zeroWindowWhenEnabled = stats.enabled && stats.totalBlocks <= 0;
+    const allWeek = stats.totalBlocks >= stats.totalWeekBlocks;
+    const posture = scheduleEditorDraftPosture();
+    return {
+      key: "draft-coverage",
+      check: "Draft coverage",
+      status: zeroWindowWhenEnabled ? "blocked" : (allWeek ? "review" : "changed"),
+      evidence: `${stats.allowedDays} staged day(s), ${stats.totalHours.toFixed(1)} staged hour(s); ${posture}.`,
+      next_step: zeroWindowWhenEnabled
+        ? "Preview will validate the draft, but enforcement with zero windows blocks normal scheduled starts."
+        : "Preview Schedule validates this staged draft before any Save Schedule app-state write.",
+      detail: [
+        `Draft enabled: ${stats.enabled ? "yes" : "no"}`,
+        `Staged allowed days: ${stats.allowedDays}`,
+        `Staged half-hour blocks: ${stats.totalBlocks}`,
+        `Staged allowed hours: ${stats.totalHours.toFixed(1)}`,
+        `All-day day count: ${stats.allDayDays}`,
+        `No-window day count: ${stats.noWindowDays}`,
+        allWeek ? "Review: the draft allows every day and time." : "Draft does not allow every day and time.",
+        "Draft coverage is local staging evidence only. Saved/current Schedule Trust and Launch Windows remain based on the backend payload until Save Schedule succeeds.",
+      ],
+    };
+  }
+
+  function renderScheduleDraftSummary(prefix = "") {
+    const node = byId("schedule-editor-draft-summary");
+    if (!node) return;
+    const posture = scheduleEditorDraftPosture();
+    node.dataset.state = posture;
+    node.textContent = scheduleEditorDraftSummaryText(prefix);
+  }
+
   function scheduleEditorPreviewIsCurrent() {
     return Boolean(
       scheduleEditorPreviewSignature &&
@@ -705,7 +1044,33 @@
     );
   }
 
+  function scheduleSavedScopeText(base) {
+    if (scheduleEditorDirty) return `${base}: saved/current payload; unsaved draft is staged above.`;
+    if (scheduleEditorPreviewIsCurrent()) return `${base}: saved/current payload; previewed draft is not saved.`;
+    if (scheduleEditorBusy === "save") return `${base}: saved/current payload while backend save is pending.`;
+    if (lastScheduleEditorResult?.command === "schedule.save" && lastScheduleEditorResult?.ok) return `${base}: refreshed from saved/current payload after save.`;
+    return `${base}: saved/current payload.`;
+  }
+
+  function renderScheduleSavedScopeNotes() {
+    const state = scheduleEditorDirty || scheduleEditorPreviewIsCurrent() || scheduleEditorBusy ? "draft" : "saved";
+    [
+      ["schedule-current-scope", "Current Schedule"],
+      ["schedule-day-scope", "Weekly View"],
+      ["schedule-timing-scope", "Schedule Trust"],
+      ["schedule-guidance-scope", "Launch Windows"],
+      ["schedule-coverage-scope", "Coverage Review"],
+    ].forEach(([id, label]) => {
+      const node = byId(id);
+      if (!node) return;
+      node.dataset.state = state;
+      node.textContent = scheduleSavedScopeText(label);
+    });
+  }
+
   function scheduleEditorSaveStateText() {
+    if (scheduleEditorBusy === "preview") return "Previewing schedule with backend validation.";
+    if (scheduleEditorBusy === "save") return "Saving schedule through backend app-state service.";
     if (scheduleEditorPreviewIsCurrent()) return "Preview accepted. Save Schedule is available.";
     if (scheduleEditorDirty) return "Draft changed. Preview required before save.";
     if (lastScheduleEditorResult?.command === "schedule.save" && lastScheduleEditorResult?.ok) return "Schedule saved. Preview again before another save.";
@@ -714,9 +1079,36 @@
     return "Preview required before save.";
   }
 
+  function updateScheduleEditorControlLocks() {
+    const busy = Boolean(scheduleEditorBusy);
+    const ids = [
+      "schedule-editor-enabled",
+      "schedule-editor-load-current-button",
+      "schedule-editor-preview-button",
+      "schedule-editor-clear-button",
+      "schedule-editor-allow-all-button",
+    ];
+    ids.forEach((id) => {
+      const node = byId(id);
+      if (!node) return;
+      node.disabled = busy;
+      node.setAttribute("aria-disabled", busy ? "true" : "false");
+    });
+    document.querySelectorAll("#schedule-editor-rows button").forEach((button) => {
+      button.disabled = busy;
+      button.setAttribute("aria-disabled", busy ? "true" : "false");
+    });
+    scheduleUpdatePasteDayButtons();
+  }
+
   function updateScheduleEditorSaveGate() {
     const save = byId("schedule-editor-save-button");
-    const canSave = scheduleEditorPreviewIsCurrent();
+    const canSave = scheduleEditorPreviewIsCurrent() && !scheduleEditorBusy;
+    const panel = byId("schedule-editor-panel");
+    if (panel) {
+      panel.setAttribute("aria-busy", scheduleEditorBusy ? "true" : "false");
+      panel.dataset.state = scheduleEditorDraftPosture();
+    }
     if (save) {
       save.disabled = !canSave;
       save.dataset.state = canSave ? "ready" : "blocked";
@@ -725,6 +1117,20 @@
     const saveState = byId("schedule-editor-save-state");
     if (saveState) saveState.dataset.state = canSave ? "ready" : "blocked";
     setText("schedule-editor-save-state", scheduleEditorSaveStateText());
+    updateScheduleEditorControlLocks();
+    renderScheduleDraftSummary();
+    renderScheduleSavedScopeNotes();
+    if (schedulePayloadLoaded(lastSchedule || {})) renderScheduleCoverage(lastSchedule || {});
+  }
+
+  function setScheduleEditorBusy(value) {
+    scheduleEditorBusy = value || "";
+    const panel = byId("schedule-editor-panel");
+    if (panel) {
+      panel.setAttribute("aria-busy", scheduleEditorBusy ? "true" : "false");
+      panel.dataset.state = scheduleEditorBusy || scheduleEditorDraftPosture();
+    }
+    updateScheduleEditorSaveGate();
   }
 
   function scheduleEditorImpactText(schedule = lastSchedule, request = scheduleCurrentLaunchSelection()) {
@@ -764,6 +1170,7 @@
       `Changed enabled: ${data.changed_enabled ? "yes" : "no"}`,
       `Changed day(s): ${Array.isArray(data.changed_days) && data.changed_days.length ? data.changed_days.join(", ") : "none"}`,
     ];
+    lines.push(...scheduleResultDiffLines(data));
     const warnings = Array.isArray(result.warnings) ? result.warnings.filter(Boolean) : [];
     const errors = Array.isArray(result.errors) ? result.errors.filter(Boolean) : [];
     if (warnings.length) {
@@ -904,15 +1311,20 @@
   }
 
   function loadCurrentScheduleIntoEditor() {
+    if (scheduleEditorBusy) return;
     renderScheduleEditor(lastSchedule || {}, { force: true });
     lastScheduleEditorResult = null;
     scheduleEditorPreviewSignature = "";
+    scheduleEditorDayClipboard = null;
+    scheduleUpdatePasteDayButtons();
     setText("schedule-editor-result", "Loaded current backend schedule payload into the editor.\nMutation guardrail: nothing was saved.");
     updateScheduleEditorSaveGate();
     renderScheduleEditorImpact(lastSchedule || {});
+    renderScheduleDraftSummary("Loaded current:");
   }
 
   function clearScheduleEditorWeek() {
+    if (scheduleEditorBusy) return;
     if (typeof window.confirm === "function" && !window.confirm("Clear the full weekly schedule draft?\n\nThis only stages a draft. Use Preview Schedule and Save Schedule before backend app state changes.")) {
       return;
     }
@@ -920,9 +1332,14 @@
       scheduleApplyEditorDayBlocks(day, [], { dirty: false });
     });
     setScheduleEditorDirty(true);
+    const message = "Week cleared:";
+    setText("schedule-editor-status", "Week cleared");
+    setText("schedule-editor-result", `${scheduleEditorDraftSummaryText(message)}\nDraft is not saved. Use Preview Schedule before Save Schedule.`);
+    renderScheduleDraftSummary(message);
   }
 
   function allowAllScheduleEditorWeek() {
+    if (scheduleEditorBusy) return;
     if (typeof window.confirm === "function" && !window.confirm("Allow every day and time in the weekly schedule draft?\n\nThis only stages a draft. Use Preview Schedule and Save Schedule before backend app state changes.")) {
       return;
     }
@@ -931,12 +1348,17 @@
       scheduleApplyEditorDayBlocks(day, allBlocks, { dirty: false });
     });
     setScheduleEditorDirty(true);
+    const message = "All week allowed:";
+    setText("schedule-editor-status", "All week allowed");
+    setText("schedule-editor-result", `${scheduleEditorDraftSummaryText(message)}\nDraft is not saved. Use Preview Schedule before Save Schedule.`);
+    renderScheduleDraftSummary(message);
   }
 
   async function previewScheduleEditor() {
+    if (scheduleEditorBusy) return;
     setText("schedule-editor-status", "Previewing");
     scheduleEditorPreviewSignature = "";
-    updateScheduleEditorSaveGate();
+    setScheduleEditorBusy("preview");
     const request = scheduleEditorRequest();
     const requestSignature = scheduleEditorRequestSignature(request);
     try {
@@ -958,10 +1380,13 @@
       };
       appendCommandResult(result);
       renderScheduleEditorResult(result);
+    } finally {
+      setScheduleEditorBusy("");
     }
   }
 
   async function saveScheduleEditor() {
+    if (scheduleEditorBusy) return;
     const request = scheduleEditorRequest();
     if (!scheduleEditorPreviewIsCurrent()) {
       const result = {
@@ -993,6 +1418,7 @@
       return;
     }
     setText("schedule-editor-status", "Saving");
+    setScheduleEditorBusy("save");
     try {
       const result = await apiPost("/api/schedule/save", { ...request, confirm_save: true });
       appendCommandResult(result);
@@ -1015,6 +1441,8 @@
       };
       appendCommandResult(result);
       renderScheduleEditorResult(result);
+    } finally {
+      setScheduleEditorBusy("");
     }
   }
 
@@ -1043,6 +1471,7 @@
     if (!schedule?.enabled) return "Schedule off";
     if (override === "ignore") return "Bypassed";
     if (override === "run_once") return "One-shot override";
+    if (!scheduleCurrentDayName(schedule)) return "Review";
     if (evaluation.allowed_now === false) return "Blocked";
     if (mode === "continuous") return "Ready";
     return "Ready";
@@ -1071,6 +1500,7 @@
       `Selected pipeline mode: ${schedulePipelineModeLabel(mode)}`,
       `Selected schedule override: ${scheduleOverrideLabel(override)}`,
       `Schedule enforcement: ${enabled ? "on" : "off"}`,
+      scheduleCurrentDayEvidence(schedule),
       `Allowed now: ${allowed ? "yes" : "no"}`,
       `Next allowed start: ${nextStart}`,
       `Relevant window end: ${windowEnd}`,
@@ -1093,6 +1523,8 @@
       if (mode === "continuous") {
         lines.push("- The override resolves Continuous to a one-shot run, so no continuous schedule-stop watcher is needed.");
       }
+    } else if (!scheduleCurrentDayName(schedule)) {
+      lines.push("- Backend did not report current day/block timing identity; refresh before trusting current-window highlighting.");
     } else if (!allowed) {
       lines.push("- Normal Run Once/Continuous starts should be blocked outside the configured window.");
       lines.push("- Use Run Once Outside Window for a single intentional run, or wait for the next allowed start.");
@@ -1134,10 +1566,15 @@
     const enabledState = byId("schedule-enabled-state");
     if (enabledState) enabledState.dataset.state = lastSchedule.enabled ? "ready" : "review";
     const allowedState = byId("schedule-allowed-state");
-    if (allowedState) allowedState.dataset.state = lastSchedule.enabled && evaluation.allowed_now === false ? "blocked" : "ready";
+    if (allowedState) {
+      allowedState.dataset.state = lastSchedule.enabled && !scheduleCurrentDayName(lastSchedule)
+        ? "review"
+        : (lastSchedule.enabled && evaluation.allowed_now === false ? "blocked" : "ready");
+    }
     setText("schedule-status", warnings.length ? `${warnings.length} warning${warnings.length === 1 ? "" : "s"}` : "Read-only");
     const summary = [
       evaluation.status_text || "",
+      scheduleCurrentDayEvidence(lastSchedule),
       lastSchedule.app_state_path ? `App state: ${lastSchedule.app_state_path}` : "",
       ...warnings,
     ].filter(Boolean);
@@ -1161,9 +1598,10 @@
     selectedScheduleDayName = selected?.day || "";
     rows.forEach((item) => {
       const row = document.createElement("tr");
-      row.dataset.status = scheduleDayRowStatus(item, lastSchedule);
+      const dayStatus = scheduleDayRowStatus(item, lastSchedule);
+      row.dataset.status = dayStatus;
       appendCells(row, [
-        item.day || "",
+        scheduleIsCurrentDayRow(item, lastSchedule) ? `${item.day || ""} (current)` : (item.day || ""),
         Number(item.allowed_hours || 0).toFixed(1),
         item.windows_text || "",
       ]);
@@ -1175,6 +1613,8 @@
     });
     updateTableStatusLegend("schedule-day-legend", tbody, "Weekly windows table");
     renderScheduleDayDetail(selected, lastSchedule);
+    renderScheduleDraftSummary();
+    renderScheduleSavedScopeNotes();
   }
 
   /**

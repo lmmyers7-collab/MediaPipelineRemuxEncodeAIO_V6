@@ -46,6 +46,10 @@ MANIFEST_VERSION = 1
 _MISSING = object()
 
 
+class PriorityManifestReadError(RuntimeError):
+    """Raised when an existing priority manifest cannot be trusted."""
+
+
 # ---------------------------------------------------------------------------
 # Path helpers
 # ---------------------------------------------------------------------------
@@ -64,28 +68,39 @@ def _normalise(path: str | Path) -> str:
 # Read
 # ---------------------------------------------------------------------------
 
-def read_priority_manifest(path: Path) -> dict:
+def read_priority_manifest(path: Path, *, fail_closed: bool = False) -> dict:
     """
-    Load and validate the manifest.  Returns an empty valid manifest dict on
-    any read or parse error — callers should never receive None.
+    Load and validate the manifest.
+
+    Missing manifests are treated as empty. Existing but unreadable or invalid
+    manifests can either fall back to empty for legacy read-only callers or
+    raise PriorityManifestReadError when fail_closed is true.
     """
     try:
         text = path.read_text(encoding="utf-8-sig")
         data = json.loads(text)
         if not isinstance(data, dict):
-            return _empty_manifest()
+            return _manifest_read_failure(path, "manifest root is not an object", fail_closed=fail_closed)
         if data.get("version") != MANIFEST_VERSION:
-            return _empty_manifest()
+            return _manifest_read_failure(path, "manifest version is unsupported", fail_closed=fail_closed)
         entries = data.get("entries")
         if not isinstance(entries, dict):
-            return _empty_manifest()
+            return _manifest_read_failure(path, "manifest entries are not an object", fail_closed=fail_closed)
         return data
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+    except FileNotFoundError:
         return _empty_manifest()
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError) as exc:
+        return _manifest_read_failure(path, str(exc), fail_closed=fail_closed)
 
 
 def _empty_manifest() -> dict:
     return {"version": MANIFEST_VERSION, "entries": {}}
+
+
+def _manifest_read_failure(path: Path, reason: str, *, fail_closed: bool) -> dict:
+    if fail_closed:
+        raise PriorityManifestReadError(f"Priority manifest is unreadable at {path}: {reason}")
+    return _empty_manifest()
 
 
 # ---------------------------------------------------------------------------
@@ -171,16 +186,6 @@ def get_manifest_entry(manifest: dict, source_path: str | Path) -> dict | None:
     return entries.get(norm)
 
 
-def list_high_paths(manifest: dict) -> list[str]:
-    """Return all manifest-flagged high-priority normalised path keys."""
-    return [k for k, v in manifest.get("entries", {}).items() if v.get("level") == "high"]
-
-
-def list_hold_paths(manifest: dict) -> list[str]:
-    """Return all manifest-flagged hold normalised path keys."""
-    return [k for k, v in manifest.get("entries", {}).items() if v.get("level") == "hold"]
-
-
 # ---------------------------------------------------------------------------
 # Write
 # ---------------------------------------------------------------------------
@@ -203,7 +208,7 @@ def set_manifest_entry(
     if level not in VALID_LEVELS:
         raise ValueError(f"Invalid priority level: {level!r}. Must be one of {sorted(VALID_LEVELS)}")
 
-    manifest = read_priority_manifest(manifest_path)
+    manifest = read_priority_manifest(manifest_path, fail_closed=True)
     entries: dict = manifest.setdefault("entries", {})
     norm = _normalise(source_path)
 
@@ -241,7 +246,7 @@ def set_manifest_entries_bulk(
       reason (str, optional)    — operator note
       position (float, optional)— manual-order position
     """
-    manifest = read_priority_manifest(manifest_path)
+    manifest = read_priority_manifest(manifest_path, fail_closed=True)
     entries: dict = manifest.setdefault("entries", {})
     now_iso = datetime.now(timezone.utc).isoformat()
 

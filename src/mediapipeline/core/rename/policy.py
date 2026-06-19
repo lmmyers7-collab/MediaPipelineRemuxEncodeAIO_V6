@@ -40,6 +40,7 @@ from mediapipeline.core.rename.cleaning_policy import (
 )
 from mediapipeline.core.rename.filename_preview import (
     rename_clean_filename_preview_from_request,
+    rename_cleaning_filter_catalog_payload,
     rename_filename_leaf,
     rename_movie_filter_catalog_payload,
     rename_plan_kwargs_from_request,
@@ -132,6 +133,7 @@ __all__ = [
     "rename_configured_media_roots_from_resolved",
     "remove_terms_from_request",
     "rename_clean_filename_preview_from_request",
+    "rename_cleaning_filter_catalog_payload",
     "rename_movie_filter_catalog_payload",
     "rename_filename_leaf",
     "rename_plan_kwargs_from_request",

@@ -82,7 +82,9 @@ class RenamePlannerServiceProtocol(Protocol):
         season_number: int,
         episode_number: int,
         remove_terms: list[str] | None,
-        include_episode_title: bool,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
+        include_episode_title: bool = True,
     ) -> str: ...
     def _build_auto_tv_rename_name(
         self,
@@ -90,7 +92,9 @@ class RenamePlannerServiceProtocol(Protocol):
         *,
         season_number: int,
         remove_terms: list[str] | None,
-        include_episode_title: bool,
+        tv_filter_options: dict[str, bool] | None = None,
+        tv_filter_terms: dict[str, list[str]] | None = None,
+        include_episode_title: bool = True,
     ) -> str: ...
     def _clean_pipeline_movie_name(
         self,

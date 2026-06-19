@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0619-013",
+  "title": "Add remux fallback pilot promotion command",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Add a backend-owned 3-pilot remux fallback promotion command for exact current-queue per-file remux overrides.",
+  "reason": "Operators need a bounded way to apply the already-proven oversized encode fallback behavior across a long current TV queue without creating future folder or show rules.",
+  "affected_areas": [
+    "local-api",
+    "queue",
+    "file-overrides",
+    "webview"
+  ],
+  "behavior_before": "Operators could apply file overrides one row at a time or use the existing current-series override flow, but there was no backend evidence gate for promoting a proven oversized-encode remux fallback across the remaining current queue rows.",
+  "behavior_after": "A confirmed Local API command validates exactly three same-series completed pilot rows with oversized-encode remux fallback evidence, then runs the existing current-series preview machinery and writes exact current-queue remux overrides while protecting exact manual overrides.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js",
+    "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
+    "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
+    "apps/desktop/webview/static/assets/queueView.js",
+    "apps/desktop/webview/static/assets/styles.queue.css",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/src/mediapipeline/core/api/file_overrides/remux_pilot.py.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-013.json.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-013.json",
+    "src/mediapipeline/contracts/api_commands.py",
+    "src/mediapipeline/core/api/commands.py",
+    "src/mediapipeline/core/api/commands_file_overrides.py",
+    "src/mediapipeline/core/api/file_overrides/remux_pilot.py",
+    "src/mediapipeline/desktop/api/contract_command.py",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_api_contract_payload.py",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/python/desktop/test_file_override_tracks.py",
+    "tests/webview/test_webview_browser_queue_file_overrides_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_file_override_tracks.py",
+    "tests/webview/test_webview_browser_queue_file_overrides_smoke.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests\\python\\desktop\\test_file_override_tracks.py tests\\python\\desktop\\test_api_command_contracts.py tests\\python\\desktop\\test_api_contract_payload.py tests\\python\\desktop\\test_application_facade_web_static.py::ApplicationFacadeWebStaticTests::test_queue_file_settings_drawer_series_batch_preview_modal tests\\webview\\test_webview_browser_queue_file_overrides_smoke.py::WebViewBrowserQueueFileOverridesSmoke::test_real_browser_exercises_queue_file_override_drawer_feedback_without_media_mutation -q — passed, 85 tests and 437 subtests",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ... — passed, 17 summaries processed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0619-013.json — passed, 1 summary processed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage — failed because unrelated worktree issues remain outside this packet: ops/release/changes/unreleased/MP-CHANGE-2026-0619-015.json has invalid type bug_fix, and ops/scripts/smoke/Test-WebViewBrowserEvidenceBoxAudit.ps1 plus tests/webview/test_webview_browser_evidence_box_audit.py are uncovered dirty files"
+  ],
+  "rollback_plan": "Revert the new remux pilot command module, command route/contract wiring, WebView affordance, associated tests, regenerated summaries, and this change packet.",
+  "related_changes": [],
+  "notes": "Started from a heavily dirty worktree with unrelated generated docs, WebView, backend, release-packet, and test changes already present. This packet covers only the remux fallback pilot promotion work. Some touched WebView files already contained unrelated dirty changes before this work; those were not reverted."
+}

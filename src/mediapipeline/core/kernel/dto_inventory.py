@@ -172,6 +172,8 @@ class PendingPublishPreviewDto:
     orphan_payload_count: int = 0
     invalid_manifest_count: int = 0
     missing_sidecar_count: int = 0
+    retry_exhausted_count: int = 0
+    retry_budget: JsonMap = field(default_factory=dict)
     recovery_summary: JsonMap = field(default_factory=dict)
     drain_summary: JsonMap = field(default_factory=dict)
     drain_confidence: JsonMap = field(default_factory=dict)

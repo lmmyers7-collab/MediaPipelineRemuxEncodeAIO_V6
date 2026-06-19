@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settings/builderControls.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-11
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: bf09e1cc6aedd2616bcb744f7b71b864aa6b8728155238df091e81a6564ca4fe
+sha256: 04c3c9282c9cebb1c69d458c43069cdc3c53a602b4f89957fa257102774dff43
 ---
 # `apps/desktop/webview/static/assets/settings/builderControls.js`
 

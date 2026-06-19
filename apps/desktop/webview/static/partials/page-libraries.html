@@ -12,16 +12,38 @@
               <strong id="settings-library-active-title">Selected library: Movies</strong>
               <p id="settings-library-active-detail" class="note">Movie and TV are default profiles. They can be edited and saved, but they cannot be deleted.</p>
             </div>
+            <div class="settings-library-state-strip" id="settings-library-state-strip" aria-label="Library profile staging state">
+              <span id="settings-library-editor-state" data-state="saved">Editor: saved settings</span>
+              <span id="settings-library-patch-state" data-state="empty">Patch: none staged</span>
+              <span id="settings-library-route-map-scope" data-state="saved">Route map: saved backend evidence</span>
+            </div>
             <div class="action-row action-row-left wrap-actions">
               <button type="button" class="secondary-button" id="settings-library-add-button">Add Library</button>
               <button type="button" class="danger-button" id="settings-library-delete-button">Delete Library</button>
-              <button type="button" class="secondary-button" id="settings-library-defaults-button">Replace Values With Default</button>
+              <button type="button" class="secondary-button" id="settings-library-defaults-button">Reset Overrides To Defaults</button>
               <button type="button" class="secondary-button" id="settings-library-reset-button">Reset From Current</button>
               <button type="button" class="secondary-button" id="settings-library-build-patch-button">Stage Patch</button>
               <button type="button" class="secondary-button" id="settings-library-preview-button">Preview</button>
               <button type="button" class="primary-button" id="settings-library-save-button">Save Library Profile</button>
             </div>
           </div>
+        </section>
+
+        <section class="panel settings-library-watch-panel" id="settings-library-watch-panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>New Media Auto-Run</h2>
+            <strong id="settings-library-watch-status">Not loaded</strong>
+          </div>
+          <div class="option-grid option-grid-compact">
+            <label class="check-row launch-check-row"><input id="settings-library-watch-auto-run" type="checkbox"> Auto-run new library media</label>
+            <label class="check-row launch-check-row"><input id="settings-library-watch-respect-schedule" type="checkbox"> Respect schedule window</label>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" class="secondary-button" id="settings-library-watch-stage-button">Stage Auto-Run Toggle</button>
+            <button type="button" class="secondary-button" id="settings-library-watch-preview-button">Preview</button>
+            <button type="button" class="primary-button" id="settings-library-watch-save-button">Save Auto-Run Toggle</button>
+          </div>
+          <pre id="settings-library-watch-summary" class="prose-block settings-library-feedback">No watch-folder settings loaded.</pre>
         </section>
 
         <section class="panel settings-libraries-panel" data-panel-type="interactive">
@@ -38,6 +60,8 @@
             <h2>Library Route Map</h2>
             <strong id="library-route-map-status">Not loaded</strong>
           </div>
+          <p id="library-route-map-context" class="note settings-library-route-map-context">Saved backend route-map evidence has not loaded.</p>
+          <pre id="library-route-map-warning-summary" class="prose-block settings-library-feedback" hidden></pre>
           <div class="settings-library-route-map-toolbar" aria-label="Library route map selectors">
             <label>Profile
               <select id="library-route-map-profile-select"></select>

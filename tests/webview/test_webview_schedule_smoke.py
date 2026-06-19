@@ -142,9 +142,33 @@ def _schedule_runner_source() -> str:
         promoteMediaPipelineNamespaces();
         const apiPosts = [];
         const commandResults = [];
+        const SCHEDULE_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+        function emptyGrid() {
+          const grid = {};
+          SCHEDULE_DAYS.forEach((day) => { grid[day] = Array.from({ length: 48 }, () => false); });
+          return grid;
+        }
+        function currentGridFixture() {
+          const grid = emptyGrid();
+          [2, 3, 4, 5].forEach((index) => { grid.Tuesday[index] = true; });
+          grid.Wednesday = Array.from({ length: 48 }, () => true);
+          return grid;
+        }
+        function gridFromDayWindows(dayWindows) {
+          const grid = emptyGrid();
+          SCHEDULE_DAYS.forEach((day) => {
+            grid[day] = context.scheduleDraftBlocksFromText(dayWindows?.[day] || "");
+          });
+          return grid;
+        }
+        function changedDays(left, right) {
+          return SCHEDULE_DAYS.filter((day) => JSON.stringify(left[day] || []) !== JSON.stringify(right[day] || []));
+        }
         context.apiPost = async (url, body) => {
           apiPosts.push({ url, body });
           if (url === "/api/schedule/preview") {
+            const currentGrid = currentGridFixture();
+            const grid = gridFromDayWindows(body.day_windows || {});
             return {
               schema_version: "desktop_command_result.v1",
               command: "schedule.preview",
@@ -155,14 +179,20 @@ def _schedule_runner_source() -> str:
               warnings: [],
               errors: [],
               data: {
+                schema_version: "desktop_schedule_patch_preview.v1",
                 writes_app_state: false,
                 enabled: Boolean(body.enabled),
+                current_enabled: true,
                 changed_enabled: false,
-                changed_days: ["Monday"],
+                changed_days: changedDays(currentGrid, grid),
+                current_grid: currentGrid,
+                grid,
               },
             };
           }
           if (url === "/api/schedule/save") {
+            const currentGrid = currentGridFixture();
+            const grid = gridFromDayWindows(body.day_windows || {});
             return {
               schema_version: "desktop_command_result.v1",
               command: "schedule.save",
@@ -173,10 +203,14 @@ def _schedule_runner_source() -> str:
               warnings: [],
               errors: [],
               data: {
+                schema_version: "desktop_schedule_save_result.v1",
                 writes_app_state: true,
                 enabled: Boolean(body.enabled),
+                current_enabled: true,
                 changed_enabled: false,
-                changed_days: ["Monday"],
+                changed_days: changedDays(currentGrid, grid),
+                current_grid: currentGrid,
+                grid,
               },
             };
           }
@@ -214,6 +248,9 @@ def _schedule_runner_source() -> str:
           enabled: true,
           evaluation: {
             allowed_now: false,
+            current_day: "Monday",
+            current_block_index: 20,
+            current_block_start: "2026-05-18T10:00:00",
             status_text: "Schedule: Waiting | next allowed Tuesday 01:00",
             next_allowed_start: "2026-05-19T01:00:00",
             current_window_end: null,
@@ -238,6 +275,8 @@ def _schedule_runner_source() -> str:
 
         context.renderSchedule(schedule);
         requireContains("editor impact", text("schedule-editor-impact"), ["Launch impact:", "Selected Launch mode:", "Preview the draft before saving schedule changes"]);
+        requireContains("draft summary", text("schedule-editor-draft-summary"), ["Editor draft:", "52/336 blocks staged", "matches saved/current payload"]);
+        requireContains("saved scope", text("schedule-day-scope"), ["Weekly View: saved/current payload"]);
         requireContains("save state", text("schedule-editor-save-state"), ["Preview required before save"]);
         if (!context.document.getElementById("schedule-editor-save-button").disabled) {
           throw new Error("save button should be disabled before backend preview");
@@ -273,12 +312,76 @@ def _schedule_runner_source() -> str:
         context.selectScheduleDay(schedule.day_summaries[2]);
         requireContains("all-day detail", text("schedule-day-detail"), ["Day: Wednesday", "allowed all day", "Schedule Editor panel"]);
 
+        const today = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date());
+        context.renderSchedule({
+          ...schedule,
+          evaluation: { ...schedule.evaluation, allowed_now: true, current_day: today, current_block_index: 18, current_block_start: "2026-05-19T09:00:00" },
+          day_summaries: [{ day: today, allowed_blocks: 2, allowed_hours: 1, windows: ["09:00 - 10:00"], windows_text: "09:00 - 10:00" }],
+        });
+        requireContains("current day row", tableText("schedule-day-rows"), [`${today} (current)`, "09:00 - 10:00"]);
+        requireContains("current day detail", text("schedule-day-detail"), ["Current window marker: current saved window"]);
+        if (context.document.getElementById("schedule-day-rows").children[0]?.dataset?.status !== "current") {
+          throw new Error("partial current row should use current status");
+        }
+        context.renderSchedule({
+          ...schedule,
+          evaluation: { ...schedule.evaluation, allowed_now: true, current_day: today, current_block_index: 18, current_block_start: "2026-05-19T09:00:00" },
+          day_summaries: [{ day: today, allowed_blocks: 48, allowed_hours: 24, windows: ["All day"], windows_text: "All day" }],
+        });
+        if (context.document.getElementById("schedule-day-rows").children[0]?.dataset?.status !== "current-match") {
+          throw new Error("all-day current row should preserve all-day success status with current marker");
+        }
+        requireContains("current all-day row", tableText("schedule-day-rows"), [`${today} (current)`, "All day"]);
+        context.document.getElementById("pipeline-start-mode").value = "once";
+        context.renderSchedule({
+          ...schedule,
+          evaluation: { ...schedule.evaluation, allowed_now: true, current_day: "" },
+          day_summaries: [{ day: today, allowed_blocks: 2, allowed_hours: 1, windows: ["09:00 - 10:00"], windows_text: "09:00 - 10:00" }],
+        });
+        requireNotContains("unknown current day row", tableText("schedule-day-rows"), [`${today} (current)`]);
+        requireContains("unknown current day detail", text("schedule-day-detail"), ["backend current day was not reported"]);
+        requireContains("unknown current trust", text("schedule-timing"), ["Backend current day: not reported", "refresh before trusting current-window highlighting"]);
+        context.document.getElementById("pipeline-start-mode").value = "validate";
+        context.renderSchedule(schedule);
+
+        context.renderWatchFolderStatus({
+          schema_version: "desktop_watch_folders.v1",
+          status: "running",
+          enabled: true,
+          running: true,
+          effective_action: "enqueue_only",
+          network_role: "standalone",
+          roots: [
+            { path: "C:/Media/Movies", reachable: true },
+            { path: "Z:/Missing", reachable: false, last_error: "path unavailable" },
+            { path: "Y:/Unknown" },
+          ],
+          recent_detections: [{ detected_utc: "2026-05-19T01:05:00", path: "C:/Media/Movies/File.mkv" }],
+          last_refusal: { utc: "2026-05-19T00:55:00", reason: "outside schedule window" },
+          last_launch: { requested_utc: "2026-05-19T00:56:00", outcome: "refused", pid: 0, message: "schedule gate closed" },
+        });
+        requireContains("watch root rows", tableText("schedule-watch-folder-root-rows"), ["C:/Media/Movies", "Reachable", "Z:/Missing", "Unreachable", "path unavailable", "Y:/Unknown", "Unknown"]);
+        requireContains("watch event rows", tableText("schedule-watch-folder-event-rows"), ["Last refusal", "outside schedule window", "Last launch", "refused", "schedule gate closed", "Stable detection", "File.mkv"]);
+        const watchEvents = context.document.getElementById("schedule-watch-folder-event-rows").children;
+        if (!Array.from(watchEvents).some((row) => row.children[0]?.textContent === "Last launch" && row.dataset.status === "blocked")) {
+          throw new Error("refused watch-folder launch should render blocked");
+        }
+
         context.clearScheduleEditorWeek();
         let request = context.scheduleEditorRequest();
         if (request.day_windows.Monday !== "" || request.day_windows.Tuesday !== "") {
           throw new Error(`clear week did not blank schedule editor windows: ${JSON.stringify(request.day_windows)}`);
         }
         requireContains("dirty save state", text("schedule-editor-save-state"), ["Draft changed", "Preview required"]);
+        requireContains("clear result", text("schedule-editor-result"), ["Week cleared:", "0/336 blocks staged"]);
+        requireContains("draft scope", text("schedule-day-scope"), ["unsaved draft is staged"]);
+        context.allowAllScheduleEditorWeek();
+        request = context.scheduleEditorRequest();
+        if (request.day_windows.Monday !== "all day" || request.day_windows.Sunday !== "all day") {
+          throw new Error(`allow all did not stage all days: ${JSON.stringify(request.day_windows)}`);
+        }
+        requireContains("allow all result", text("schedule-editor-result"), ["All week allowed:", "336/336 blocks staged"]);
+        context.clearScheduleEditorWeek();
         context.scheduleSetDayBlocks("Monday", [18, 19]);
         request = context.scheduleEditorRequest();
         if (request.day_windows.Monday !== "09:00 - 10:00") {
@@ -294,6 +397,19 @@ def _schedule_runner_source() -> str:
           throw new Error(`Paste Day did not copy Monday windows into Tuesday: ${JSON.stringify(request.day_windows)}`);
         }
         requireContains("paste status", text("schedule-editor-status"), ["Pasted Monday into Tuesday"]);
+        context.loadCurrentScheduleIntoEditor();
+        if (!context.document.getElementById("schedule-editor-tuesday-paste-day").disabled) {
+          throw new Error("Load Current should clear copied day clipboard and disable Paste Day");
+        }
+        context.clearScheduleEditorWeek();
+        context.scheduleSetDayBlocks("Monday", [18, 19]);
+        context.scheduleSetDayBlocks("Tuesday", [18, 19]);
+        const draftCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "draft-coverage");
+        if (!draftCoverage) {
+          throw new Error("staged Schedule draft did not add draft coverage row");
+        }
+        context.selectScheduleCoverageRow(draftCoverage);
+        requireContains("draft coverage detail", text("schedule-coverage-detail"), ["Coverage check: Draft coverage", "local staging evidence only", "Saved/current Schedule Trust"]);
         if (!context.document.getElementById("schedule-editor-save-button").disabled) {
           throw new Error("save button should stay disabled for an unpreviewed draft");
         }
@@ -303,13 +419,65 @@ def _schedule_runner_source() -> str:
           throw new Error("save button should be enabled after successful backend preview");
         }
         requireContains("preview save state", text("schedule-editor-save-state"), ["Preview accepted", "Save Schedule is available"]);
+        requireContains("preview diff", text("schedule-editor-result"), [
+          "Schedule diff:",
+          "Current enforcement: on",
+          "Proposed enforcement: on",
+          "Monday:",
+          "Current: none",
+          "Proposed: 09:00 - 10:00",
+          "Added: 09:00 - 10:00",
+          "Tuesday:",
+          "Removed: 01:00 - 03:00",
+          "Wednesday:",
+          "Removed: all day",
+        ]);
         context.scheduleSetDayBlocks("Tuesday", [2, 3]);
         if (!context.document.getElementById("schedule-editor-save-button").disabled) {
           throw new Error("save button should be disabled after editing a previewed draft");
         }
         requireContains("post-edit save state", text("schedule-editor-save-state"), ["Draft changed", "Preview required"]);
-        await context.previewScheduleEditor();
-        await context.saveScheduleEditor();
+        const originalApiPost = context.apiPost;
+        let delayedPreviewCalls = 0;
+        context.apiPost = async (url, body) => {
+          if (url === "/api/schedule/preview") {
+            delayedPreviewCalls += 1;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+          return originalApiPost(url, body);
+        };
+        const previewPending = context.previewScheduleEditor();
+        if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "true") {
+          throw new Error("Schedule editor panel should expose aria-busy=true while previewing");
+        }
+        await Promise.all([previewPending, context.previewScheduleEditor()]);
+        if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "false") {
+          throw new Error("Schedule editor panel should clear aria-busy after preview");
+        }
+        if (delayedPreviewCalls !== 1) {
+          throw new Error(`duplicate preview guard expected 1 backend call, got ${delayedPreviewCalls}`);
+        }
+        context.apiPost = originalApiPost;
+        let delayedSaveCalls = 0;
+        context.apiPost = async (url, body) => {
+          if (url === "/api/schedule/save") {
+            delayedSaveCalls += 1;
+            await new Promise((resolve) => setTimeout(resolve, 50));
+          }
+          return originalApiPost(url, body);
+        };
+        const savePending = context.saveScheduleEditor();
+        if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "true") {
+          throw new Error("Schedule editor panel should expose aria-busy=true while saving");
+        }
+        await Promise.all([savePending, context.saveScheduleEditor()]);
+        if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "false") {
+          throw new Error("Schedule editor panel should clear aria-busy after save");
+        }
+        if (delayedSaveCalls !== 1) {
+          throw new Error(`duplicate save guard expected 1 backend call, got ${delayedSaveCalls}`);
+        }
+        context.apiPost = originalApiPost;
         if (!apiPosts.some((item) => item.url === "/api/schedule/preview")) {
           throw new Error("schedule preview did not call backend preview route");
         }
@@ -320,7 +488,7 @@ def _schedule_runner_source() -> str:
         if (!commandResults.some((item) => item.command === "schedule.save")) {
           throw new Error("schedule save command result was not appended");
         }
-        requireContains("save result", text("schedule-editor-result"), ["Command: schedule.save", "Writes app state: yes", "Mutation guardrail"]);
+        requireContains("save result", text("schedule-editor-result"), ["Command: schedule.save", "Writes app state: yes", "Schedule diff:", "Mutation guardrail"]);
 
         if (errors.length) {
           throw new Error(`console errors were recorded: ${errors.join("; ")}`);
@@ -340,10 +508,19 @@ class WebViewScheduleSmoke(unittest.TestCase):
         markup = PAGE_SCHEDULE.read_text(encoding="utf-8")
         self.assertLess(markup.index("<h2>Edit Schedule</h2>"), markup.index("<h2>Current Schedule</h2>"))
         self.assertIn("schedule-editor-status-strip", markup)
+        self.assertIn('id="schedule-editor-panel"', markup)
+        self.assertIn('aria-busy="false"', markup)
         self.assertIn("schedule-editor-impact", markup)
+        self.assertIn("schedule-editor-draft-summary", markup)
+        self.assertIn("schedule-current-scope", markup)
+        self.assertIn("schedule-watch-folder-root-rows", markup)
+        self.assertIn("schedule-watch-folder-event-rows", markup)
         self.assertIn("schedule-editor-primary-actions", markup)
         self.assertIn("schedule-editor-bulk-actions", markup)
         self.assertIn('aria-live="polite"', markup)
+        controls_css = (WEB_STATIC / "styles.controls.css").read_text(encoding="utf-8")
+        self.assertIn('tr[data-status="current-match"]', controls_css)
+        self.assertIn('tr[data-status="unknown"]', controls_css)
 
     def test_schedule_coverage_and_day_detail_render_in_node(self) -> None:
         node = shutil.which("node")

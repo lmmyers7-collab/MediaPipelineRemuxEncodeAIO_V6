@@ -47,15 +47,6 @@ HARD_RULE_IDS = {
     "PYTHON_PARSE_ERRORS",
 }
 
-WARNING_RULE_IDS = {
-    "NO_SHARED_UTILS_IMPORTS",
-    "NO_SHARED_CONSTANTS_IMPORTS",
-    "NO_SHARED_PROTOCOLS_IMPORTS",
-    "NO_BARREL_INIT_REEXPORTS",
-    "NO_DOMAIN_IMPORTS_FROM_SHARED_CONSTANTS",
-}
-
-
 @dataclass(frozen=True)
 class ImportEdge:
     source_module: str
@@ -426,26 +417,6 @@ def analyze(root: Path = REPO_ROOT) -> DependencyReport:
     )
 
 
-def has_rule_findings(report: DependencyReport) -> bool:
-    return any(
-        (
-            report.module_cycles,
-            report.package_cycles,
-            report.forbidden_core_desktop_imports,
-            report.direct_app_shared_imports,
-            report.direct_app_shared_utils_imports,
-            report.direct_app_shared_constants_imports,
-            report.direct_app_shared_protocols_imports,
-            report.forbidden_config_imports,
-            report.forbidden_api_ui_imports,
-            report.forbidden_observability_status_imports,
-            report.forbidden_telemetry_observability_imports,
-            report.forbidden_telemetry_status_imports,
-            report.parse_errors,
-        )
-    )
-
-
 def config_rule_id(edge: ImportEdge) -> str:
     target_package = package_name(edge.target_module)
     if target_package == "mediapipeline.core.orchestration":
@@ -802,10 +773,6 @@ def render_report(
         lines.append("")
         lines.extend(render_enforcement(enforcement))
     return "\n".join(lines)
-
-
-def report_to_json(report: DependencyReport) -> str:
-    return json.dumps(asdict(report), indent=2, sort_keys=True)
 
 
 def main(argv: list[str] | None = None) -> int:

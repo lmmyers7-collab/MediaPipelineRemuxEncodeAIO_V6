@@ -15,10 +15,12 @@
     "webview:dom-gaps:check": "node ops/scripts/dev/check-webview-dom-id-gaps.mjs --check",
     "webview:routes": "node ops/scripts/dev/check-webview-route-ownership.mjs --write",
     "webview:routes:check": "node ops/scripts/dev/check-webview-route-ownership.mjs --check",
+    "webview:commands": "node ops/scripts/dev/check-webview-command-boundary.mjs --write",
+    "webview:commands:check": "node ops/scripts/dev/check-webview-command-boundary.mjs --check",
     "webview:slices": "node ops/scripts/dev/webview-split-candidates.mjs --write",
     "webview:slices:check": "node ops/scripts/dev/webview-split-candidates.mjs --check",
     "webview:script-order:smoke": "node ops/scripts/dev/smoke-webview-script-order.mjs",
-    "webview:prework:check": "npm run webview:check && npm run webview:lint:budget:check && npm run webview:map:check && npm run webview:contract:check && npm run webview:slices:check && npm run webview:dom-gaps:check && npm run webview:routes:check && npm run webview:script-order:smoke"
+    "webview:prework:check": "npm run webview:check && npm run webview:lint:budget:check && npm run webview:map:check && npm run webview:contract:check && npm run webview:slices:check && npm run webview:dom-gaps:check && npm run webview:routes:check && npm run webview:commands:check && npm run webview:script-order:smoke"
   },
   "devDependencies": {
     "@babel/generator": "^7.26.0",

@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0618-005",
+  "title": "Fail closed on unreadable queue priority manifests",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Make corrupt or unreadable queue priority manifests block queue preview/runtime planning and ordinary priority updates instead of falling back to an empty manifest.",
+  "reason": "The 2026-06-17 audit set identifies priority/hold manifest corruption as a fail-open queue correctness and data-safety risk.",
+  "affected_areas": [
+    "PowerShell pipeline",
+    "change control",
+    "local api",
+    "queue",
+    "tests"
+  ],
+  "behavior_before": "Corrupt or unreadable priority_manifest.json could be treated as an empty manifest, losing operator hold/high/low intent during preview or launch planning.",
+  "behavior_after": "Existing corrupt or unreadable priority_manifest.json files raise explicit fail-closed errors for preview/runtime planning and normal updates; explicit clear_all can still reset the manifest.",
+  "files_touched": [
+    "docs/ai-audits/2026-06-17-audit-master-registry.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/priority_manifest.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/queue/queue_entries.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-005.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/commands_queue_priority.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/priority_manifest.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_queue.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_queue_priority.py.md",
+    "ops/pipeline/engine/queue/priority_manifest.ps1",
+    "ops/pipeline/engine/queue/queue_entries.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-005.json",
+    "src/mediapipeline/core/api/commands_queue_priority.py",
+    "src/mediapipeline/core/queue/facade.py",
+    "src/mediapipeline/core/queue/priority_manifest.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_queue.py",
+    "tests/python/desktop/test_service_queue_priority.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_queue.py",
+    "tests/python/desktop/test_service_queue_priority.py"
+  ],
+  "manual_validation": [
+    "2026-06-18: PowerShell queue engine unit check passed: ops/pipeline/tests/Unit/Invoke-PipelineQueueEngineChecks.ps1.",
+    "2026-06-18: Python unittest passed: tests.python.desktop.test_service_queue_priority tests.python.desktop.test_application_facade_queue tests.python.desktop.test_application_facade_local_api (72 tests).",
+    "2026-06-18: refresh_summaries wrote summaries for touched source/test/PowerShell/packet files.",
+    "2026-06-18: validate_changes --require-worktree-coverage passed with 363 packet(s) valid."
+  ],
+  "rollback_plan": "Revert the priority-manifest reader changes, focused Python/PowerShell tests, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-001"
+  ],
+  "notes": "Queue behavior change. No media policy, FFmpeg command generation, subtitle behavior, audio behavior, publish/drain flow, source deletion, Tauri lifecycle behavior, or release packaging behavior is intentionally changed. Real-media validation is not required unless broader launch/media behavior changes.\nAddresses AUDIT-010 / RELIABILITY-001 from the 2026-06-17 audit master registry."
+}

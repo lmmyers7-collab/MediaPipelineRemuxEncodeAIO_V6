@@ -130,12 +130,85 @@ function ConvertTo-PipelineEventData {
     return $objectMap
 }
 
+if ($null -eq $script:PipelineEventLogMaxBytes) {
+    $script:PipelineEventLogMaxBytes = 100MB
+}
+if ([string]::IsNullOrWhiteSpace([string]$script:PipelineEventArchiveFolderName)) {
+    $script:PipelineEventArchiveFolderName = 'ArchivedEvents'
+}
+
+function Get-PipelineEventLogArchivePath {
+    param([Parameter(Mandatory)] [string] $Path)
+
+    $eventDir = Split-Path -Parent $Path
+    if ([string]::IsNullOrWhiteSpace($eventDir)) {
+        throw "Pipeline event path has no parent directory: $Path"
+    }
+    $archiveDir = Join-Path $eventDir ([string]$script:PipelineEventArchiveFolderName)
+    if (-not (Test-Path -LiteralPath $archiveDir -PathType Container)) {
+        [System.IO.Directory]::CreateDirectory($archiveDir) | Out-Null
+    }
+    $stamp = Get-Date -Format 'yyyyMMdd_HHmmss'
+    $candidate = Join-Path $archiveDir "pipeline_events.$stamp.archived.jsonl"
+    if (-not (Test-Path -LiteralPath $candidate)) {
+        return $candidate
+    }
+    for ($i = 1; $i -lt 1000; $i++) {
+        $candidate = Join-Path $archiveDir "pipeline_events.$stamp.$i.archived.jsonl"
+        if (-not (Test-Path -LiteralPath $candidate)) {
+            return $candidate
+        }
+    }
+    throw "Could not allocate a unique pipeline event archive path in $archiveDir"
+}
+
+function Invoke-PipelineEventLogRotation {
+    param(
+        [Parameter(Mandatory)] [string] $Path,
+        [Parameter(Mandatory)] [string] $NextLine
+    )
+
+    try {
+        $maxBytes = [int64]$script:PipelineEventLogMaxBytes
+        if ($maxBytes -le 0) {
+            return [pscustomobject]@{ Ok = $true; Rotated = $false; Reason = 'disabled'; ArchivePath = '' }
+        }
+        if ([System.IO.Path]::GetFileName($Path) -ne 'pipeline_events.jsonl') {
+            return [pscustomobject]@{ Ok = $true; Rotated = $false; Reason = 'not_pipeline_event_journal'; ArchivePath = '' }
+        }
+        if (-not (Test-Path -LiteralPath $Path -PathType Leaf)) {
+            return [pscustomobject]@{ Ok = $true; Rotated = $false; Reason = 'missing'; ArchivePath = '' }
+        }
+        $item = Get-Item -LiteralPath $Path -ErrorAction Stop
+        $nextBytes = [System.Text.Encoding]::UTF8.GetByteCount($NextLine + [Environment]::NewLine)
+        if (($item.Length + $nextBytes) -le $maxBytes) {
+            return [pscustomobject]@{ Ok = $true; Rotated = $false; Reason = 'below_threshold'; ArchivePath = '' }
+        }
+        $archive = Get-PipelineEventLogArchivePath -Path $Path
+        Move-Item -LiteralPath $Path -Destination $archive -ErrorAction Stop
+
+        $retentionDays = 0
+        try { $retentionDays = [int]$script:LogRetentionDays } catch { $retentionDays = 0 }
+        if ($retentionDays -gt 0) {
+            $cutoff = (Get-Date).AddDays(-$retentionDays)
+            Get-ChildItem -LiteralPath (Split-Path -Parent $archive) -Filter "pipeline_events.*.archived.jsonl" -ErrorAction SilentlyContinue |
+                Where-Object { $_.LastWriteTime -lt $cutoff } |
+                Remove-Item -Force -ErrorAction SilentlyContinue
+        }
+
+        return [pscustomobject]@{ Ok = $true; Rotated = $true; Reason = 'rotated'; ArchivePath = $archive }
+    } catch {
+        return [pscustomobject]@{ Ok = $false; Rotated = $false; Reason = [string]$_; ArchivePath = '' }
+    }
+}
+
 function Write-JsonLineAppend {
     param(
         [Parameter(Mandatory)] [string] $Path,
         [Parameter(Mandatory)] $Payload,
         [int] $Depth = 8,
-        [switch] $UseLogLock
+        [switch] $UseLogLock,
+        [switch] $RotatePipelineEventLog
     )
 
     $dir = Split-Path -Parent $Path
@@ -150,6 +223,10 @@ function Write-JsonLineAppend {
             if (-not $logLock) { return $false }
             $acquired = $logLock.WaitOne(2000)
             if (-not $acquired) { return $false }
+        }
+        if ($RotatePipelineEventLog) {
+            $rotation = Invoke-PipelineEventLogRotation -Path $Path -NextLine $line
+            if (-not [bool]$rotation.Ok) { return $false }
         }
         [System.IO.File]::AppendAllText(
             $Path,
@@ -204,7 +281,7 @@ function Write-PipelineEvent {
             source_path      = $SourcePath
             data             = ConvertTo-PipelineEventData $Data
         }
-        return (Write-JsonLineAppend -Path $eventPath -Payload $payload -Depth 8 -UseLogLock)
+        return (Write-JsonLineAppend -Path $eventPath -Payload $payload -Depth 8 -UseLogLock -RotatePipelineEventLog)
     } catch {
         Write-Log "Pipeline event write failed: $_" "WARN"
         return $false

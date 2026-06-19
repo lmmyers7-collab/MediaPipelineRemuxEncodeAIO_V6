@@ -26,6 +26,35 @@
     return "Ready for normal operation.";
   }
 
+  function setHomePanelStatus(id, message, state) {
+    if (typeof setPanelStatus === "function") return setPanelStatus(id, message, state);
+    if (typeof setTextState === "function") {
+      setTextState(id, message, state);
+      return state || "";
+    }
+    setText(id, message);
+    return state || "";
+  }
+
+  function homePanelStateFromStatus(value) {
+    const text = String(value || "").trim().toLowerCase();
+    if (!text || text === "no data" || text === "not loaded" || text.startsWith("no ")) return "empty";
+    if (text.includes("block") || text.includes("fail") || text.includes("error")) return "blocked";
+    if (text.includes("review") || text.includes("warning") || text.includes("limited") || text.includes("unknown")) return "warning";
+    if (text.includes("active") || text.includes("running") || text.includes("check")) return "loading";
+    if (text.includes("ready") || text.includes("ok") || text.includes("item") || text.includes("total")) return "ready";
+    return "unknown";
+  }
+
+  function selectHomeListItem(item) {
+    const siblings = Array.from(item?.parentElement?.children || []);
+    siblings.forEach((candidate) => {
+      const selected = candidate === item;
+      candidate.classList.toggle("is-selected", selected);
+      candidate.setAttribute("aria-selected", selected ? "true" : "false");
+    });
+  }
+
   function renderHomeReadiness({ snapshot = null, closeReadiness = null, failures = [] } = {}) {
     const items = Array.isArray(failures) ? failures : [];
     const requiredFailures = items.filter((item) => item.required);
@@ -41,7 +70,7 @@
           : safe === true
             ? "Ready"
             : "Checking";
-    setTextState("home-readiness-status", status, status === "Ready" ? "ok" : status === "Checking" ? "loading" : status === "Backend issue" ? "blocked" : "warning");
+    setHomePanelStatus("home-readiness-status", status, status === "Ready" ? "ok" : status === "Checking" ? "loading" : status === "Backend issue" ? "blocked" : "warning");
     const lines = [
       `Backend snapshot: ${snapshot ? "ok" : "unavailable"}`,
       `Refresh health: ${items.length ? `${items.length} issue${items.length === 1 ? "" : "s"}` : "ok"}`,
@@ -398,6 +427,105 @@
     return parts[parts.length - 1] || text;
   }
 
+  function homeQueuePathSegments(value) {
+    return String(value || "")
+      .replace(/\\/g, "/")
+      .split("/")
+      .map((part) => part.trim())
+      .filter(Boolean);
+  }
+
+  function homeQueueStem(value) {
+    return String(value || "").trim().replace(/\.[A-Za-z0-9]{2,5}$/, "").trim();
+  }
+
+  function homeQueueNumberToken(value) {
+    const match = String(value ?? "").match(/\d{1,3}/);
+    return match ? Number(match[0]) : 0;
+  }
+
+  function homeQueueSeasonEpisodeFromText(value) {
+    const match = homeQueueStem(value).match(/\bS(?<season>\d{1,2})E(?<episode>\d{1,3})(?:[-_]?E\d{1,3})?\b/i);
+    if (!match?.groups) return "";
+    const season = Number(match.groups.season);
+    const episode = Number(match.groups.episode);
+    if (!Number.isFinite(season) || !Number.isFinite(episode) || episode <= 0) return "";
+    return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
+  }
+
+  function homeQueueSeasonEpisodeCode(item = {}) {
+    const seasonValue = item.season_number ?? item.season ?? item.season_value;
+    const episodeValue = item.episode_number ?? item.episode ?? item.start_episode ?? item.start_episode_value;
+    const hasSeasonValue = seasonValue !== undefined && seasonValue !== null && String(seasonValue).trim() !== "";
+    const hasEpisodeValue = episodeValue !== undefined && episodeValue !== null && String(episodeValue).trim() !== "";
+    const season = homeQueueNumberToken(seasonValue);
+    const episode = homeQueueNumberToken(episodeValue);
+    if (hasSeasonValue && hasEpisodeValue && Number.isFinite(season) && Number.isFinite(episode) && episode > 0) {
+      return `S${String(season).padStart(2, "0")}E${String(episode).padStart(2, "0")}`;
+    }
+    return [
+      item.display_name,
+      item.lookup_title,
+      item.title,
+      item.relative_path,
+      item.source_path,
+      item.source_file_name,
+      item.source_file,
+      item.path,
+      item.input_path,
+      item.file,
+    ].map(homeQueueSeasonEpisodeFromText).find(Boolean) || "";
+  }
+
+  function homeQueueLooksTv(item = {}) {
+    const mediaType = String(item.media_type || item.media_kind || item.phase || "").trim().toLowerCase();
+    const haystack = [
+      item.display_name,
+      item.lookup_title,
+      item.title,
+      item.relative_path,
+      item.source_path,
+      item.source_file_name,
+      item.source_file,
+      item.path,
+      item.input_path,
+      item.file,
+    ].join(" ");
+    return mediaType.includes("tv")
+      || mediaType.includes("show")
+      || mediaType.includes("episode")
+      || Boolean(homeQueueSeasonEpisodeCode(item))
+      || /(?:^|[\\/])season\s*\d{1,2}(?:[\\/]|$)/i.test(haystack);
+  }
+
+  function homeQueueRejectSeriesLabel(value) {
+    const text = String(value || "").trim();
+    return !text
+      || /^(?:tv|tv safe|shows?|episodes?|movies?|source|sources|outsource|videos?|media|season\s*\d{1,2}|s\d{1,2})$/i.test(text);
+  }
+
+  function homeQueueSeriesCandidateFromText(value) {
+    let text = homeQueueStem(value).replace(/[._]+/g, " ").replace(/\s+/g, " ").trim();
+    if (!text) return "";
+    const episodeMatch = text.match(/\bS\d{1,2}E\d{1,3}(?:[-_]?E\d{1,3})?\b/i);
+    if (episodeMatch) text = text.slice(0, episodeMatch.index).replace(/[\s._-]+$/g, "").trim();
+    text = text.replace(/\s*\((?:season\s*|s)\d{1,2}\)\s*$/i, "").trim();
+    return homeQueueRejectSeriesLabel(text) ? "" : text;
+  }
+
+  function homeQueueSeriesCandidateFromPath(value) {
+    const parts = homeQueuePathSegments(value).filter((part) => !/^[A-Za-z]:$/.test(part));
+    if (parts.length < 2) return "";
+    for (let index = parts.length - 2; index >= 1; index -= 1) {
+      if (/^(?:season\s*\d{1,2}|s\d{1,2})$/i.test(parts[index])) {
+        const candidate = homeQueueSeriesCandidateFromText(parts[index - 1]);
+        if (candidate) return candidate;
+      }
+    }
+    const parent = homeQueueSeriesCandidateFromText(parts[parts.length - 2]);
+    return parent || "";
+  }
+
   // Release-style movie filenames ("Hoppers.2026.2160p.WEB-DL...") collapse to
   // "Title (Year)". Picks the release year (a 1900-2099 token that is
   // parenthesized, last, or immediately followed by a quality/source tag) so a
@@ -432,7 +560,6 @@
       const leaf = homeQueueLeaf(raw);
       return homeMovieTitleYear(leaf) || leaf;
     }
-    // TV and unknown rows: display_name is already "Show - S01E01 - Title"; keep verbatim.
     return raw;
   }
 
@@ -450,8 +577,42 @@
     return homeNormalizeQueueTitle(raw, item);
   }
 
+  function homeQueueDisplayLabel(item = {}) {
+    const rawTitle = homeQueueTitle(item);
+    if (!homeQueueLooksTv(item)) {
+      return {
+        main: rawTitle || "Untitled queue item",
+        episode: "",
+        accessibleText: rawTitle || "Untitled queue item",
+      };
+    }
+    const episode = homeQueueSeasonEpisodeCode(item);
+    const series = [
+      item.show_name,
+      item.series_name,
+      item.series_title,
+      item.show_title,
+      homeQueueSeriesCandidateFromPath(item.relative_path),
+      homeQueueSeriesCandidateFromPath(item.source_path),
+      homeQueueSeriesCandidateFromPath(item.path),
+      homeQueueSeriesCandidateFromText(item.lookup_title),
+      homeQueueSeriesCandidateFromText(item.display_name),
+      homeQueueSeriesCandidateFromText(item.title),
+      homeQueueSeriesCandidateFromText(item.source_file_name),
+      homeQueueSeriesCandidateFromText(item.source_file),
+      homeQueueSeriesCandidateFromText(rawTitle),
+    ].map((value) => homeQueueSeriesCandidateFromText(value)).find(Boolean);
+    const main = series || "TV series";
+    return {
+      main,
+      episode,
+      accessibleText: [main, episode].filter(Boolean).join(" "),
+    };
+  }
+
   function homeQueueRoute(item = {}) {
     const route = formatProgressValue(item.route_name || item.route || item.mode || "");
+    if (/remux/i.test(route) && /codec check pending/i.test(route)) return "REMUX";
     return /^[a-z_]+$/.test(route) ? route.replace(/_/g, " ").toUpperCase() : route;
   }
 
@@ -461,6 +622,21 @@
       item.operator_status || item.status || item.decision || "",
       item.queue_position || (item.queue_index || item.queue_total ? `${item.queue_index || "?"}/${item.queue_total || "?"}` : ""),
     ].filter(Boolean).map(formatProgressValue).join(" · ");
+  }
+
+  function homeQueueDetailLines(item = {}) {
+    const route = homeQueueRoute(item) || "route not reported";
+    const status = formatProgressValue(item.operator_status || item.status || item.decision || "unknown");
+    const source = homeCompactShortValue(item.source_path || item.path || item.input_path || item.file || "", 120) || "source path not loaded";
+    const output = homeCompactShortValue(item.output_path || item.library_output_root || item.destination_path || "", 120) || "output evidence not loaded";
+    const label = homeQueueDisplayLabel(item);
+    return [
+      `Selected queue item: ${label.accessibleText || "Untitled queue item"}`,
+      `Route/status: ${route}; ${status}.`,
+      `Source: ${source}`,
+      `Output evidence: ${output}`,
+      "Safe next step: open Queue for full backend-owned row evidence before launching or rerunning.",
+    ];
   }
 
   function homeQueueRowIsRunnable(item = {}) {
@@ -674,8 +850,7 @@
       queue.error ? `Error: ${queue.error}` : "",
       ...(Array.isArray(queue.warnings) ? queue.warnings.slice(0, 2) : []),
     ].filter(Boolean);
-    const statusEl = byId("home-queue-snapshot-status");
-    if (statusEl) statusEl.textContent = rows.length ? `${rows.length} items` : "Empty";
+    setHomePanelStatus("home-queue-snapshot-status", rows.length ? `${rows.length} items` : "Empty", rows.length ? "ready" : "empty");
     const pre = byId("home-queue-snapshot");
     if (pre) pre.textContent = lines.join("\n") || "No queue data loaded.";
   }
@@ -819,14 +994,14 @@
     const rows = Array.isArray(completed.rows) ? completed.rows : [];
     const tbody = byId("home-recent-completed-tbody");
     if (!tbody) return;
-    const statusEl = byId("home-recent-completed-status");
-    if (statusEl) statusEl.textContent = rows.length ? `${completed.count || rows.length} total` : "No data";
+    setHomePanelStatus("home-recent-completed-status", rows.length ? `${completed.count || rows.length} total` : "No data", rows.length ? "ready" : "empty");
     tbody.textContent = "";
     const recent = rows.slice(0, 5);
     if (!recent.length) {
       const tr = document.createElement("tr");
       if (typeof appendCells === "function") appendCells(tr, ["No completed files loaded.", "", ""]);
       tbody.appendChild(tr);
+      setText("home-recent-completed-detail", "No completed output rows loaded. Run the pipeline or refresh Completed evidence.");
       return;
     }
     recent.forEach((row) => {
@@ -834,10 +1009,32 @@
       const route = homeCompletedRouteLabel(row);
       const finished = homeCompletedText(row.completed_at || row.manifest_recorded_at) || "-";
       const tr = document.createElement("tr");
+      tr.dataset.status = "completed";
       if (typeof appendCells === "function") appendCells(tr, [model.titleDisplay, route, finished]);
       renderHomeCompletedFileCell(tr.cells[0], model);
+      if (typeof makeRowSelectable === "function") {
+        makeRowSelectable(tr, () => setText("home-recent-completed-detail", homeRecentCompletedDetailLines(row, model).join("\n")), {
+          selected: recent.indexOf(row) === 0,
+          label: `Review completed output ${model.titleDisplay || recent.indexOf(row) + 1}`,
+        });
+      }
       tbody.appendChild(tr);
     });
+    setText("home-recent-completed-detail", homeRecentCompletedDetailLines(recent[0], homeCompletedRowModel(recent[0])).join("\n"));
+  }
+
+  function homeRecentCompletedDetailLines(row = {}, model = homeCompletedRowModel(row)) {
+    const route = homeCompletedRouteLabel(row);
+    const finished = homeCompletedText(row.completed_at || row.manifest_recorded_at) || "finish time not loaded";
+    const output = homeCompactShortValue(row.output_path || row.output_file || row.relative_path || "", 120) || "output path not loaded";
+    const source = homeCompactShortValue(row.source_path || "", 120) || "source evidence not loaded";
+    return [
+      `Selected completed output: ${model.titleDisplay || "Untitled output"}`,
+      `Route/finished: ${route}; ${finished}.`,
+      `Output: ${output}`,
+      `Source: ${source}`,
+      "Safe next step: open Completed for sidecar, pending-publish, diagnostics, and acceptance evidence before trusting output.",
+    ];
   }
 
   function homePromotionRunActive(status = {}) {
@@ -862,12 +1059,20 @@
         : eligible > 0
           ? `Open Output to promote ${eligible} reviewed file${eligible === 1 ? "" : "s"} to the final library.`
           : "No reviewed files are currently eligible for final-library promotion.";
+    const message = !enabled
+      ? "Completed Output unavailable: Final Library Promotion is disabled in Settings."
+      : active
+        ? "Completed Output unavailable: a final-library promotion run is already active."
+        : eligible > 0
+          ? `Completed Output ready: ${eligible} reviewed file${eligible === 1 ? "" : "s"} eligible for promotion review.`
+          : "Completed Output unavailable: no reviewed files are currently eligible for final-library promotion.";
     buttons.forEach((button) => {
       button.disabled = disabled;
       button.setAttribute("aria-disabled", String(disabled));
       button.textContent = "Open Completed Output";
       button.title = title;
     });
+    setText("home-promotion-entry-message", message);
   }
 
   function externalDependencyRows(context = {}) {
@@ -936,7 +1141,7 @@
           area: "Settings raw-key action plan",
           status: blockedRows.length ? "blocked" : highRows.length ? "review" : "ready",
           evidence: `status=${rawStatus}; rows=${rawActionRows.length}; blocked=${blockedRows.length}; high=${highRows.length}; review/exclusion=${reviewRows.length}; schema=${schemaRow?.posture || "unknown"}; OCR=${ocrPosture}`,
-          nextStep: blockedRows.length ? "Open Settings > Raw-key action plan before save, launch, rerun, or OCR decisions; schema drift and blocked raw keys need backend Preview Patch evidence." : highRows.length ? "Open Settings > Raw-key action plan and verify OCR path evidence or advanced settings before unattended processing." : "Raw-key action plan has no blocking/high-review row in the loaded Settings workspace; subtitle keyword builder coverage and auth-token exclusions remain read-only guidance."
+          nextStep: blockedRows.length ? "Open Settings > Raw-key action plan before save, launch, rerun, or OCR decisions; schema drift and blocked raw keys need backend Save evidence." : highRows.length ? "Open Settings > Raw-key action plan and verify OCR path evidence or advanced settings before unattended processing." : "Raw-key action plan has no blocking/high-review row in the loaded Settings workspace; subtitle keyword builder coverage and auth-token exclusions remain read-only guidance."
         });
       } else {
         rows.push({
@@ -1002,43 +1207,68 @@
   }
   function renderExternalDependencyDigest(context = {}) {
     const status = externalDependencyOverallStatus(context);
-    setTextState("home-external-dependencies-status", status === "blocked" ? "Blocked" : status === "review" ? "Review" : status === "ready" ? "Ready" : "Unknown");
+    setHomePanelStatus("home-external-dependencies-status", status === "blocked" ? "Blocked" : status === "review" ? "Review" : status === "ready" ? "Ready" : "Unknown", dependencyStatusLabel(status) === "blocked" ? "blocked" : dependencyStatusLabel(status) === "review" ? "warning" : "ready");
     setText("home-external-dependencies-summary", externalDependencySummaryLines(context).join("\n"));
   }
   function renderHomeNextQueue(context = {}) {
     const queue = context?.queue && typeof context.queue === "object" ? context.queue : {};
     const list = byId("home-next-queue-list");
     if (!list) return;
+    list.setAttribute("role", "listbox");
     list.replaceChildren();
     const rows = homeNextQueueRows(queue, homeCurrentQueueOrder(context, queue.rows));
-    const status = byId("home-next-queue-status");
-    if (status) status.textContent = rows.length ? `${rows.length} ready` : "No runnable";
+    setHomePanelStatus("home-next-queue-status", rows.length ? `${rows.length} ready` : "No runnable", rows.length ? "ready" : "empty");
     if (!rows.length) {
       const empty = document.createElement("li");
       empty.textContent = "No runnable queue items loaded.";
       list.appendChild(empty);
+      setText("home-next-queue-detail", "No runnable queue items loaded. Open Queue for the full backend-owned snapshot.");
       return;
     }
-    rows.forEach(item => {
+    rows.forEach((item, index) => {
       const li = document.createElement("li");
+      li.tabIndex = 0;
+      li.setAttribute("role", "option");
+      li.setAttribute("aria-selected", index === 0 ? "true" : "false");
+      li.classList.toggle("is-selected", index === 0);
+      const label = homeQueueDisplayLabel(item);
+      li.setAttribute("aria-label", `Review queue item ${label.accessibleText || index + 1}`);
       const title = document.createElement("span");
       title.className = "home-next-queue-title";
-      const rawTitle = homeQueueTitle(item);
-      // display_name is already normalized ("Show - S01E01 - Title" / "Movie (Year)").
-      // Render it verbatim and let the CSS ellipsis clip overflow; do NOT pass it
-      // through shortenPath, which prepends a bogus ".../" and makes it look like a file path.
-      title.textContent = rawTitle || "Untitled queue item";
-      if (rawTitle) title.title = rawTitle;
+      const titleMain = document.createElement("span");
+      titleMain.className = "home-next-queue-title-main";
+      titleMain.textContent = label.main || "Untitled queue item";
+      title.appendChild(titleMain);
+      if (label.episode) {
+        const episode = document.createElement("span");
+        episode.className = "home-next-queue-episode";
+        episode.textContent = label.episode;
+        title.appendChild(episode);
+      }
+      title.title = label.accessibleText || "";
       const meta = document.createElement("span");
       meta.className = "home-next-queue-meta";
       meta.textContent = homeQueueMeta(item) || "queued";
       li.append(title, meta);
+      const activate = () => {
+        selectHomeListItem(li);
+        setText("home-next-queue-detail", homeQueueDetailLines(item).join("\n"));
+      };
+      li.addEventListener("click", activate);
+      li.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          activate();
+        }
+      });
       list.appendChild(li);
     });
+    setText("home-next-queue-detail", homeQueueDetailLines(rows[0]).join("\n"));
   }
   function renderDailyDriverReadiness(context = {}) {
     const rows = dailyDriverRows(context);
-    setTextState("daily-driver-status", dailyDriverOverallStatus(rows));
+    const overall = dailyDriverOverallStatus(rows);
+    setHomePanelStatus("daily-driver-status", overall, homePanelStateFromStatus(overall));
     setText("daily-driver-summary", dailyDriverSummaryLines(rows).join("\n"));
     setText("daily-driver-legend", "Daily-driver checklist rows are read-only and do not launch, repair, drain, save, rename, or mutate files.");
     const tbody = byId("daily-driver-rows");

@@ -1,0 +1,7 @@
+# Rename bad-case corpus.
+# Add one JSON object per line. Use status "active" when the case must pass
+# the current rename filters; use "pending" to capture a failure before the
+# filter fix is implemented.
+{"id":"bookworm-s03-sp-ttga","status":"active","kind":"tv_auto","source_folder":"Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA","source_file":"S03E01-The Beginning of Winter.mkv","season_number":1,"expected_season":3,"expected_show":"Ascendance of a Bookworm","expected_clean_folder":"Ascendance of a Bookworm","expected_name":"Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv","notes":"Regression for S03+SP and TTGA leaking into the TV show title."}
+
+{"id":"ascendance-of-a-bookworm-s03e01-the-beginning-of-winter","status":"pending","kind":"tv_auto","source_folder":"Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA","source_file":"S03E01-The Beginning of Winter","season_number":3,"expected_show":"Ascendance of a Bookworm","expected_clean_folder":"Ascendance of a Bookworm","expected_name":"Ascendance of a Bookworm S03E01-The beginning of Winter","expected_season":3,"notes":"+SP 1080p Dual Audio BD Remux FLAC-TTGA should be removed"}

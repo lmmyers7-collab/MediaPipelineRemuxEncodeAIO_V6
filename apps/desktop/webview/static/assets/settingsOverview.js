@@ -203,7 +203,8 @@
   function renderSettingsOperatorTrust(settings) {
     const status = settingsOperatorTrustStatus(settings);
     const summary = settingsOperatorTrustLines(settings).join("\n");
-    setText("home-settings-trust-status", status);
+    if (typeof setPanelStatus === "function") setPanelStatus("home-settings-trust-status", status);
+    else setText("home-settings-trust-status", status);
     setText("home-settings-trust-summary", summary);
     setText("launch-settings-trust-status", status);
     setText("launch-settings-trust-summary", summary);

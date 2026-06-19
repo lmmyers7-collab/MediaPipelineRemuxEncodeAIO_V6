@@ -34,6 +34,18 @@ class RenameTvFolderSeasonTests(unittest.TestCase):
             self.assertEqual(info["show"], "Serial Experiments Lain 1998")
             self.assertEqual(info["source"], "show-season-folder")
 
+    def test_show_folder_strips_season_plus_special_release_metadata(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            folder = Path(temp_dir) / "Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA"
+            folder.mkdir(parents=True)
+            source = folder / "S03E01-The Beginning of Winter.mkv"
+
+            info = resolve_tv_folder_season_info(source, clean_name=_clean_name)
+
+            self.assertEqual(info["season"], 3)
+            self.assertEqual(info["show"], "Ascendance of a Bookworm")
+            self.assertEqual(info["source"], "show-season-folder")
+
     def test_specials_folder_maps_to_season_zero(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             folder = Path(temp_dir) / "Show Name" / "OVA"

@@ -10,6 +10,14 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_COORDINATOR_MAX_JOB_RETRIES,
     KEY_CPU_ENCODE_MAX_THREADS,
     KEY_AUDIO_MAX_CHANNELS,
+    KEY_ENCODE_WASTE_GUARD_CONSECUTIVE_SAMPLES,
+    KEY_ENCODE_WASTE_GUARD_MIN_ELAPSED_SECONDS,
+    KEY_ENCODE_WASTE_GUARD_MIN_PROGRESS_PERCENT,
+    KEY_ENCODE_WASTE_GUARD_OVERSIZE_MARGIN_PERCENT,
+    KEY_ENCODE_WASTE_GUARD_POLL_SECONDS,
+    KEY_ENCODE_WASTE_GUARD_PREFLIGHT_SAMPLE_COUNT,
+    KEY_ENCODE_WASTE_GUARD_PREFLIGHT_SAMPLE_SECONDS,
+    KEY_ENCODE_WASTE_GUARD_PREFLIGHT_TIMEOUT_SECONDS,
     KEY_FALLBACK_CPU_QUALITY,
     KEY_FFMPEG_CPU_ENCODE_TIMEOUT_SECONDS,
     KEY_FFMPEG_ENCODE_TIMEOUT_SECONDS,
@@ -143,6 +151,22 @@ def validate_required_and_numeric_config(values: dict[str, Any], errors: list[st
             minimum=0,
             maximum=1000,
         )
+    if KEY_ENCODE_WASTE_GUARD_MIN_PROGRESS_PERCENT in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_MIN_PROGRESS_PERCENT, "EncodeWasteGuardMinProgressPercent", minimum=0, maximum=95)
+    if KEY_ENCODE_WASTE_GUARD_MIN_ELAPSED_SECONDS in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_MIN_ELAPSED_SECONDS, "EncodeWasteGuardMinElapsedSeconds", minimum=0, maximum=86400)
+    if KEY_ENCODE_WASTE_GUARD_OVERSIZE_MARGIN_PERCENT in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_OVERSIZE_MARGIN_PERCENT, "EncodeWasteGuardOversizeMarginPercent", minimum=0, maximum=1000)
+    if KEY_ENCODE_WASTE_GUARD_CONSECUTIVE_SAMPLES in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_CONSECUTIVE_SAMPLES, "EncodeWasteGuardConsecutiveSamples", minimum=1, maximum=10)
+    if KEY_ENCODE_WASTE_GUARD_POLL_SECONDS in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_POLL_SECONDS, "EncodeWasteGuardPollSeconds", minimum=1, maximum=600)
+    if KEY_ENCODE_WASTE_GUARD_PREFLIGHT_SAMPLE_SECONDS in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_PREFLIGHT_SAMPLE_SECONDS, "EncodeWasteGuardPreflightSampleSeconds", minimum=5, maximum=600)
+    if KEY_ENCODE_WASTE_GUARD_PREFLIGHT_SAMPLE_COUNT in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_PREFLIGHT_SAMPLE_COUNT, "EncodeWasteGuardPreflightSampleCount", minimum=1, maximum=10)
+    if KEY_ENCODE_WASTE_GUARD_PREFLIGHT_TIMEOUT_SECONDS in values:
+        validate_int(values, errors, KEY_ENCODE_WASTE_GUARD_PREFLIGHT_TIMEOUT_SECONDS, "EncodeWasteGuardPreflightTimeoutSeconds", minimum=30, maximum=86400)
     validate_int(values, errors, KEY_MIN_FREE_SPACE_GB, "MinFreeSpaceGB", minimum=0)
     validate_int(values, errors, KEY_OUTSOURCE_MIN_FREE_SPACE_GB, "OutsourceMinFreeSpaceGB", minimum=0)
     validate_int(values, errors, KEY_VIDEO_QUALITY, "VideoQuality", minimum=1, maximum=51)

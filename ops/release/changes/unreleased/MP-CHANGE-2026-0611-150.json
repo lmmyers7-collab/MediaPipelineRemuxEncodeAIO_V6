@@ -435,6 +435,7 @@
     "docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md",
     "docs/reviews/function-module-audit-2026-06-11/FIX_BATCH_PLAN.md",
     "ops/release/changes/unreleased/MP-CHANGE-2026-0611-150.json",
+    "src/mediapipeline/core/kernel/dto_inventory.py",
     "src/mediapipeline/tools/dev/ai_guardrail.py",
     "src/mediapipeline/tools/dev/generate_feature_file_map.py",
     "src/mediapipeline/tools/dev/generate_project_index.py",
@@ -462,5 +463,5 @@
     "W12-004",
     "W12-005"
   ],
-  "notes": "Generated documentation and tooling metadata only; no runtime behavior changes.\nFB-042 also adds generate_feature_file_map so FEATURE_FILE_MAP.md is generated from PROJECT_INDEX.md and checked for missing or legacy path references."
+  "notes": "Generated documentation and tooling metadata only; no runtime behavior changes.\nFB-042 also adds generate_feature_file_map so FEATURE_FILE_MAP.md is generated from PROJECT_INDEX.md and checked for missing or legacy path references.\nAdded dto_inventory.py coverage after strict worktree coverage reported the DTO inventory file as uncovered."
 }

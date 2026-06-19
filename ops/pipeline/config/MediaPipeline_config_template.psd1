@@ -29,6 +29,16 @@
     SizeGuardMode = 'advisory'
     MaxEncodeGrowthPercent = 5
     CompatibilityEncodeGrowthPercent = 15
+    EncodeWasteGuardMode = 'off'
+    EncodeWasteGuardPreflightEnabled = $false
+    EncodeWasteGuardMinProgressPercent = 15
+    EncodeWasteGuardMinElapsedSeconds = 120
+    EncodeWasteGuardOversizeMarginPercent = 20
+    EncodeWasteGuardConsecutiveSamples = 2
+    EncodeWasteGuardPollSeconds = 10
+    EncodeWasteGuardPreflightSampleSeconds = 30
+    EncodeWasteGuardPreflightSampleCount = 3
+    EncodeWasteGuardPreflightTimeoutSeconds = 900
     MinFreeSpaceGB = 50
     OutsourceMinFreeSpaceGB = 50
     DeferredPublish = $false

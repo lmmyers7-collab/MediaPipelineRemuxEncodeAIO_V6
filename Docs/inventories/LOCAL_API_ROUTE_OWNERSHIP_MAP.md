@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 116 (46 read, 70 command).
+Total routes: 140 (49 read, 91 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -49,6 +49,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/failures` | Yes | `desktop_failure_preview.v1` | Reports, Diagnostics | Query params: `source` (`latest_json` or `markers`), `limit` |
 | `GET /api/audit-results` | Yes | `desktop_audit_preview.v1` | Reports | Query params: `priority_only`, `limit`; no rerun CSV written |
 | `GET /api/audit-controls` | Yes | `desktop_audit_controls.v1` | Reports | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
+| `GET /api/rename/cleaning-filters` | Yes | `desktop_rename_cleaning_filter_catalog.v1` | Rename, Settings | Reads backend-owned movie and TV cleaning filter catalogs only |
 | `GET /api/rename/movie-cleaning-filters` | Yes | `desktop_rename_movie_filter_catalog.v1` | Rename | Reads backend-owned movie filename cleaning filter catalog only |
 | `GET /api/rename/clean-filename-preview` | Yes | `desktop_rename_clean_filename_preview.v1` | Rename | Read-only clean-filename preview; accepts query fields and writes nothing |
 | `GET /api/pending-publish` | Yes | `desktop_pending_publish_preview.v1` | Pending Publish | Reads manifests and parked payloads; does not drain |
@@ -61,9 +62,11 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/maintenance` | Yes | `bounded-health-check` | `desktop_maintenance_workspace.v1` | Maintenance | Runs existing env/tool probes; does not repair or change anything |
 | `GET /api/maintenance/progress` | Yes | `none` | `desktop_maintenance_health_progress.v1` | Maintenance | Reads latest maintenance progress; does not run probes |
 | `GET /api/maintenance/change-ledger` | Yes | `none` | `desktop_change_ledger.v1` | Maintenance | Reads structured change-control packets, changelog source status, and hygiene; does not run probes or regenerate files |
+| `GET /api/maintenance/productization` | Yes | `none` | `desktop_productization_status.v1` | Maintenance | Reads backend-owned installer/updater/AppData productization readiness, migration posture, release channel, and close-readiness evidence only |
 | `GET /api/schedule` | Yes | `none` | `desktop_schedule_workspace.v1` | Schedule | Reads persisted schedule state; schedule saves use separate backend command routes |
 | `GET /api/watch-folders/status` | Yes | `none` | `desktop_watch_folders.v1` | Schedule | Reads watch-folder manager state, roots, pending-work status, and recent detections; does not scan on demand or mutate queue/process state |
 | `GET /api/settings/workspace` | Yes | `none` | `desktop_settings_workspace.v1` | Settings | Read-only, redacted settings snapshot |
+| `GET /api/settings/preset-library` | Yes | `none` | `preset_library.v1` | Settings | Reads backend PresetV2 library State JSON only; no active config save, queue mutation, launch, or media touch |
 | `GET /api/libraries/route-map` | Yes | `none` | `library_route_map.v1` | Libraries | Backend-authored Library Route Map and decision-matrix evidence from config, Library Profile inheritance state, and field metadata; no save, launch, plugin execution, queue mutation, or media touch |
 | `GET /api/libraries/route-map/trace` | Yes | `none` | `library_route_trace.v1` | Libraries | Selected-file dry-run trace from existing Queue, Completed, and Sample Validation row evidence only; no probing or media mutation |
 | `GET /api/libraries/route-map/compare` | Yes | `none` | `library_profile_compare.v1` | Libraries | Backend-authored Library Profile diff with explicit/inherited evidence and designation filtering; edits still use existing Library Profile Preview/Save |
@@ -90,11 +93,12 @@ All POST routes require auth. The frontend passes allowlisted parameter keys; th
 | `POST /api/queue/file-overrides/route-preview` | `read-only-preview` | `path`, `proposed_override` | Path must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); previews route impact only | Queue |
 | `POST /api/queue/file-overrides/series-preview` | `read-only-preview` | `path`, `proposed_override` | Selected TV file path must be under configured source roots; previews current queue rows under the same detected source/show root only | Queue |
 | `POST /api/queue/file-overrides/series-apply` | `queue-state-write` | `path`, `proposed_override`, `confirm_apply`, `preview_fingerprint` | Requires `confirm_apply: true` and a matching preview fingerprint; writes exact current-row file overrides only, protects exact manual rows, and creates no future show/folder policy | Queue |
+| `POST /api/queue/file-overrides/remux-pilot-promote` | `queue-state-write` | `pilot_source_paths`, `confirm_apply`, `reason` | Requires `confirm_apply: true`; writes exact per-file remux overrides for eligible current queue rows in the detected pilot series only | Queue |
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | `folder_path`, `proposed_override`, `options` | Folder must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots); previews bounded known-file impact only | Queue |
 | `POST /api/queue/file-overrides/folder-rule` | `queue-state-write` | `folder_path`, `override`, `confirmation`, `clear` | Folder must be under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots) but not equal a source/library root; stream indexes and raw map fields rejected; save requires future-file and exact-file precedence acknowledgement | Queue |
 | `POST /api/subtitle-qa/preview` | `read-only-preview` | `id`, `row_key`, `path`, `source_path`, `output_path`, `scope`, `limit` | Reads already-loaded Queue and Completed subtitle QA evidence only; no probing, conversion, repair, sidecar rewrite, publish, drain, or media touch | Queue, Completed |
 
-Queue state write commands write JSON state under `LocalBase\State`; preview commands are read-only. Queue source scan writes scan-status/source-inventory evidence and refreshes `queue_snapshot.json` through backend curation. These routes do not rename, move, delete, launch processing work, or mutate source media.
+Queue state write commands write JSON state under `LocalBase\State`; preview commands are read-only. Queue source scan writes scan-status/source-inventory evidence and refreshes `queue_snapshot.json` through backend curation. Remux pilot promotion writes exact current-row file overrides only after backend eligibility checks. These routes do not rename, move, delete, launch processing work, or mutate source media.
 
 ### Failure Marker Commands (retry-blocker state only)
 
@@ -104,7 +108,7 @@ Queue state write commands write JSON state under `LocalBase\State`; preview com
 
 Failure marker clear is backend-owned retry-blocker cleanup. It requires `confirm_clear` unless `dry_run` is true, writes a clear manifest, and moves marker JSON out of the active marker folder. It does not delete media files, failure reports, completed manifests, pending publish files, or source/output paths.
 
-### File Open Commands (shell-open; no media mutation)
+### File Open, Pending Recovery, And Repair/Reconcile Dry-Run Commands
 
 | Route | Effect | Request Keys | Allowed Targets | Frontend Caller |
 |---|---|---|---|---|
@@ -112,8 +116,17 @@ Failure marker clear is backend-owned retry-blocker cleanup. It requires `confir
 | `POST /api/completed/open` | `shell-open` | `row_key`, `target` | `output_file`, `play_output_file`, `output_folder`, `sidecar`, `source_folder` | Completed |
 | `POST /api/pending-publish/open` | `shell-open` | `row_key`, `target` | `local_file`, `manifest`, `destination_folder`, `source_folder` | Pending Publish |
 | `POST /api/pending-publish/recovery-plan` | `none` (dry-run) | `scope`, `row_key` | `all`, `selected` | Pending Publish |
+| `POST /api/completed/reconcile-manifest-dry-run` | `none` (dry-run) | `scope`, `row_key`, `limit`, `reason` | Backend-authored dry-run only; no manifest write | No WebView caller; backend route only |
+| `POST /api/completed/reconcile-manifest` | `completed-manifest-write` | `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, `confirm_apply` | Backs up and atomically rewrites existing selected completed manifest rows only after matching dry-run fingerprint | Completed |
+| `POST /api/completed/repair-sidecar-metadata-dry-run` | `none` (dry-run) | `scope`, `row_key`, `limit`, `reason` | Backend-authored dry-run only; no sidecar write | No WebView caller; backend route only |
+| `POST /api/completed/repair-sidecar-metadata` | `completed-sidecar-json-write` | `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, `confirm_apply` | Backs up and atomically rewrites backend-derived sidecar metadata fields only; unknown sidecar fields are preserved | Completed |
+| `POST /api/pending-publish/repair-manifest-dry-run` | `none` (dry-run) | `scope`, `row_key`, `limit`, `reason` | Backend-authored dry-run only; no pending manifest write or drain | No WebView caller; backend route only |
+| `POST /api/pending-publish/repair-manifest` | `pending-manifest-write` | `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, `confirm_apply` | Confirmed route exists but blocks unless backend dry-run supplies complete proposed manifest fields; no drain, publish, move, or delete | Pending Publish |
+| `POST /api/pending-publish/reconcile-orphan-payloads-dry-run` | `none` (dry-run) | `scope`, `row_key`, `limit`, `reason` | Backend-authored dry-run only; no manifest create, drain, or publish | No WebView caller; backend route only |
+| `POST /api/pending-publish/reconcile-orphan-payloads` | `pending-orphan-manifest-write` | `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, `confirm_apply` | Manifest-only confirmed route exists but blocks without complete backend evidence; never moves, deletes, drains, or publishes payloads | Pending Publish |
+| `POST /api/startup/reconcile-dry-run` | `none` (dry-run) | `scope`, `row_key`, `limit`, `reason` | Backend-authored startup reconciliation evidence only; no repair, rebuild, migration, drain, publish, or media touch | No WebView caller; backend route only |
 
-`recovery-plan` effect is `none`: it builds a backend-authored dry-run plan and returns it. No files are drained, moved, deleted, or published.
+`recovery-plan` effect is `none`: it builds a backend-authored dry-run plan and returns it. Repair/reconcile dry-runs are unjournaled and strictly limited to `scope`, `row_key`, `limit`, and `reason`. Confirmed apply routes are backend-owned, journaled, fingerprint-gated, and confirmation-gated. No repair/reconcile route drains, moves, deletes, publishes, reruns, or touches media bytes.
 
 ### Final Library Promotion Commands
 
@@ -151,10 +164,13 @@ UI preference sync is backend-owned state persistence for browser-local customiz
 | `POST /api/maintenance/release-dry-run` | `process-dry-run` | `destination_root`, `zip_package`, `verify`, `include_tests`, … | Maintenance |
 | `POST /api/maintenance/release-build` | `deployment-write` | `destination_root`, `zip_package`, `verify`, `include_tests`, `force`, `confirm_create`, … | Maintenance |
 | `POST /api/maintenance/completed-backfill-dry-run` | `process-dry-run` | `timeout_seconds` | Maintenance |
+| `POST /api/maintenance/retention-dry-run` | `none` | `limit`, `reason` | No WebView caller; backend route only |
 | `POST /api/maintenance/dependency-atlas` | `tooling-artifact-write` | `timeout_seconds`, `min_overview_edge_count`, `min_overview_files` | Maintenance |
 | `POST /api/maintenance/dependency-atlas/open-folder` | `shell-open` | none | Maintenance |
+| `POST /api/maintenance/support-export` | `diagnostics-artifact-write` | `reason`, `include_recent_logs`, `max_log_bytes` | Maintenance |
+| `POST /api/maintenance/archive-state-journals` | `runtime-evidence-archive` | `confirm_archive`, `reason` | Maintenance |
 
-The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under `docs/generated/dependency-atlas/` only; `dependency-atlas/open-folder` opens that backend-resolved folder only and accepts no frontend path. Neither dependency-atlas route touches media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
+The dry-run routes run existing backend scripts with `-DryRun` and write no release folder, zip, manifest, or completed manifest. `dependency-atlas` writes generated dependency-atlas tooling artifacts under `docs/generated/dependency-atlas/` only; `dependency-atlas/open-folder` opens that backend-resolved folder only and accepts no frontend path. State journal archive writes only runtime evidence archives after confirmation. These maintenance routes do not touch media, queue, settings, manifests, pending publish state, or pipeline state. `release-build` requires explicit `confirm_create`, is blocked during active work, runs under the backend maintenance command lock, and writes only release deployment artifacts through the backend release builder.
 
 ### Metrics Commands
 
@@ -171,9 +187,10 @@ Metrics commands write only backend Metrics state under `State\Metrics`. Source 
 |---|---|---|---|---|
 | `POST /api/rename/preview` | `none` | `paths`, `mode`, `show_name`, `season`, `start_episode`, `movie_title`, `movie_year` | None — predictions only | Rename |
 | `POST /api/rename/browse` | `shell-dialog` | `selection_mode` (`files`, `folder`, `folder_files`), `initial_path` | Low — native Windows file/folder browser only; no media mutation | Rename |
+| `POST /api/rename/filter-cases` | `test-fixture-write` | `source_folder`, `source_file`, `expected_name`, `status`, `confirm_append` | Low — appends to rename regression fixture only; no media mutation | Rename |
 | `POST /api/rename/apply` | `filesystem-mutation` | `paths`, `selected_sources`, `confirm_apply`, `allow_outside_configured_roots` | **High** — filesystem rename | Rename |
 
-`rename/browse` only opens the Windows file/folder browser and returns operator-selected paths for staging. `rename/apply` is the only rename mutation route. The backend rebuilds the rename plan independently from the submitted paths and applies only the explicitly selected source rows through the transactional rename service. `confirm_apply` must be set; the backend does not infer confirmation from prior preview calls. Paths outside backend-injected configured media roots also require `allow_outside_configured_roots: true` after explicit operator review.
+`rename/browse` only opens the Windows file/folder browser and returns operator-selected paths for staging. `rename/filter-cases` appends only to `tests/fixtures/rename/bad_rename_cases.jsonl` after `confirm_append: true`; it does not preview, apply, rename, move, delete, or touch media files. `rename/apply` is the only rename media mutation route. The backend rebuilds the rename plan independently from the submitted paths and applies only the explicitly selected source rows through the transactional rename service. `confirm_apply` must be set; the backend does not infer confirmation from prior preview calls. Paths outside backend-injected configured media roots also require `allow_outside_configured_roots: true` after explicit operator review.
 
 ### Settings Commands
 
@@ -183,6 +200,13 @@ Metrics commands write only backend Metrics state under `State\Metrics`. Source 
 | `POST /api/settings/browse-path` | `shell-dialog` | `setting_key`, `selection_mode`, `initial_path` | Low — backend-owned native Windows folder browser for allowlisted path fields only | Settings |
 | `POST /api/settings/preview-patch` | `none` | `changes`, `remove_keys`, `library_profile_resets` | None — returns redacted diff | Settings; Network Worker Mode Settings delegates through Settings view |
 | `POST /api/settings/pipeline-plan-preview` | `none` | `source_media`, `changes`, `remove_keys` | None — validates supplied source facts and returns a backend-owned dry-run pipeline plan only | Settings |
+| `POST /api/settings/preset-library/validate` | `none` | `preset_v2` | None — validates inline PresetV2 only | Settings |
+| `POST /api/settings/preset-library/compare` | `none` | `left_id`, `right_id`, `left_preset_v2`, `right_preset_v2` | None — compares PresetV2 records or inline presets through backend patch projection only | Settings |
+| `POST /api/settings/preset-library/import-preview` | `none` | `records` | None — validates import candidates and reports State JSON target only | Settings |
+| `POST /api/settings/preset-library/save` | `preset-library-state-write` | `id`, `name`, `description`, `tags`, `source`, `imported_from`, `preset_v2`, `confirm_save` | Low — writes backend PresetV2 library JSON under State/PresetLibrary only; does not save active config | Settings |
+| `POST /api/settings/preset-library/export` | `none` | `id`, `preset_v2` | None — returns a preset export payload only | Settings |
+| `POST /api/settings/preset-library/apply-preview` | `none` | `id`, `preset_v2` | None — converts PresetV2 to a legacy settings patch and previews through existing settings policy only | Settings |
+| `POST /api/settings/preset-library/apply` | `config-write` | `id`, `preset_v2`, `confirm_apply` | **High** — converts PresetV2 to a legacy settings patch and saves through the existing backend settings save path for future launches | Settings |
 | `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `library_profile_resets`, `confirm_save` | **High** — writes PSD1 config | Settings; Network Worker Mode Settings delegates through Settings view |
 | `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | None — validation only | Settings Wizard |
 | `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | None — validation only | Settings Wizard |
@@ -192,7 +216,7 @@ Metrics commands write only backend Metrics state under `State\Metrics`. Source 
 | `POST /api/settings/wizard/save` | `config-write` | `wizard`, `confirm_save` | **High** — writes PSD1 config through the normal backend save path | Settings Wizard |
 | `POST /api/settings/reload` | `none` | *(none)* | None — reloads cached state | Settings |
 
-`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Settings Wizard validation/preview routes do not write config. `settings/wizard/save` and `save-patch` perform backup, atomic write, and backend state reload. `confirm_save` must be set. The Network page's Worker Mode Settings panel delegates to these same backend Settings routes for config preview/save only; lifecycle start/stop uses the separate Network Lifecycle routes below.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Preset library save writes `State/PresetLibrary/presets.json` only; preset apply uses existing settings preview/save policy and affects future launches only. Settings Wizard validation/preview routes do not write config. `settings/wizard/save`, `save-patch`, and preset apply perform backup, atomic write, and backend state reload. Confirmation must be set for config writes. The Network page's Worker Mode Settings panel delegates to these same backend Settings routes for config preview/save only; lifecycle start/stop uses the separate Network Lifecycle routes below.
 
 ### Schedule Commands
 
@@ -262,16 +286,19 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 64 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, Settings Wizard validation/preview routes, settings/reload, recovery-plan, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
+| `none` | 78 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/maintenance/dependency-atlas/open-folder` | OS open only; no file mutation |
 | `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker only; no file mutation |
+| `test-fixture-write` | `POST /api/rename/filter-cases` | Appends backend-validated JSONL rows to `tests/fixtures/rename/bad_rename_cases.jsonl` only |
 | `diagnostic-process` | `POST /api/diagnostics/tdarr-matrix-audit`, `POST /api/diagnostics/tdarr-matrix/rerun` | Backend-owned Tdarr Matrix scratch audit presets and isolated reruns only |
+| `diagnostics-artifact-write` | `POST /api/maintenance/support-export` | Backend-owned redacted support export under per-user AppData DiagnosticsExports only |
+| `runtime-evidence-archive` | `POST /api/maintenance/archive-state-journals` | Backend-owned state journal archive evidence only |
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
 | `metrics-state-write` | `POST /api/metrics/sources` | Metrics source registry JSON under `State\Metrics` only |
 | `metrics-backfill-state-write` | `POST /api/metrics/backfill` | Recursive sidecar read plus Metrics cache/status writes under `State\Metrics` only |
-| `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
+| `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/file-overrides/remux-pilot-promote`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `audit-state-write` | `POST /api/audit/score-policy`, `POST /api/audit/ignore` | Audit-only score/ignore state; no queue/media mutation |
 | `report-file-write` | `POST /api/audit/export-rerun-csv` | Writes a backend-owned report CSV artifact only |
@@ -283,7 +310,12 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `validation-log-write` | `POST /api/sample-validation/append` | Appends to operator evidence log only |
 | `app-state-write` | `POST /api/schedule/save` | Writes desktop app schedule keys only |
 | `secret-transfer` | `POST /api/network/coordinator/join-blob` | Returns an unjournaled setup blob containing the worker auth secret; no media or lifecycle mutation |
-| `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/wizard/save`, `POST /api/network/worker/join-cluster` | Writes and reloads PSD1 config |
+| `preset-library-state-write` | `POST /api/settings/preset-library/save` | Writes PresetV2 library State JSON only |
+| `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/preset-library/apply`, `POST /api/settings/wizard/save`, `POST /api/network/worker/join-cluster` | Writes and reloads PSD1 config |
+| `completed-manifest-write` | `POST /api/completed/reconcile-manifest` | Backs up and rewrites existing selected completed manifest rows only |
+| `completed-sidecar-json-write` | `POST /api/completed/repair-sidecar-metadata` | Backs up and rewrites backend-derived sidecar metadata fields only |
+| `pending-manifest-write` | `POST /api/pending-publish/repair-manifest` | Manifest repair route is fingerprint-gated and currently blocked without complete backend evidence |
+| `pending-orphan-manifest-write` | `POST /api/pending-publish/reconcile-orphan-payloads` | Manifest-only orphan route is fingerprint-gated and never moves/deletes/drains/publishes payloads |
 | `filesystem-mutation` | `POST /api/rename/apply`, `POST /api/final-library-promotion/promote-queue` | Renames files or promotes completed outputs through backend-owned file operations |
 | `process-launch` | `POST /api/pipeline/start`, `POST /api/audit/start`, `POST /api/rerun/start` | Spawns backend processes |
 | `backend-lifecycle` | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` | Initiates guarded backend lifecycle operations; forced active-work cleanup requires literal boolean `true` for shutdown, and Network lifecycle start/stop requires confirmation plus provider preconditions |

@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0618-040",
+  "title": "Add private beta release-readiness runner",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add a local umbrella readiness runner for the private beta release lane.",
+  "reason": "Operators need one safe command that exercises the private beta workflow dry-run, static GitHub setup preflight, and workflow dispatch dry-run before moving to live GitHub setup, dispatch, workflow-run, artifact, and published-release verification.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Operators had to run several private beta release helper scripts manually and remember which ones are local/static versus live GitHub checks.",
+  "behavior_after": "Operators can run a single read-only local readiness command that orchestrates the non-publishing private beta checks and returns a structured JSON summary.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-040.json.md",
+    "docs/generated/summaries/ops/scripts/release/Test-PrivateBetaReleaseReadiness.ps1.md",
+    "docs/generated/summaries/tests/python/tooling/test_private_beta_release_readiness.py.md",
+    "docs/operator/PRIVATE_BETA_INSTALL_UPDATE_RUNBOOK.md",
+    "docs/testing/PRIVATE_BETA_RELEASE_CHECKLIST.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-040.json",
+    "ops/scripts/release/Test-PrivateBetaReleaseReadiness.ps1",
+    "tests/python/tooling/test_private_beta_release_readiness.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_private_beta_release_readiness.py"
+  ],
+  "manual_validation": [
+    "pytest tests/python/tooling/test_private_beta_release_readiness.py -q - passed (2 passed)",
+    "pytest tests/python/tooling -k private_beta -q - passed (23 passed, 148 deselected)"
+  ],
+  "rollback_plan": "Remove the release-readiness runner script, tests, docs references, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-020",
+    "MP-CHANGE-2026-0618-023",
+    "MP-CHANGE-2026-0618-027",
+    "MP-CHANGE-2026-0618-038"
+  ],
+  "notes": "This runner must not dispatch workflows, publish releases, upload artifacts, mutate GitHub state, print secret values, or require live GitHub access in its default path."
+}

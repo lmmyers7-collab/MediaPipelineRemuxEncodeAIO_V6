@@ -40,6 +40,10 @@ class AppScheduleHelperTests(unittest.TestCase):
 
         self.assertFalse(result["enabled"])
         self.assertTrue(result["allowed_now"])
+        self.assertEqual(result["current_day"], "Monday")
+        self.assertEqual(result["current_day_index"], 0)
+        self.assertEqual(result["current_block_index"], 20)
+        self.assertEqual(result["current_block_start"], datetime(2026, 5, 4, 10, 0))
         self.assertEqual(result["status_text"], "Schedule: Off")
 
     def test_evaluate_schedule_allowed_window_finds_current_end(self) -> None:
@@ -50,6 +54,9 @@ class AppScheduleHelperTests(unittest.TestCase):
         result = evaluate_schedule(True, grid, now=datetime(2026, 5, 4, 10, 15))
 
         self.assertTrue(result["allowed_now"])
+        self.assertEqual(result["current_day"], "Monday")
+        self.assertEqual(result["current_block_index"], 20)
+        self.assertEqual(result["current_block_start"], datetime(2026, 5, 4, 10, 0))
         self.assertEqual(result["current_window_end"], datetime(2026, 5, 4, 11, 0))
         self.assertEqual(result["next_allowed_start"], datetime(2026, 5, 4, 10, 0))
         self.assertIn("Monday 11:00 AM", result["status_text"])
@@ -63,6 +70,9 @@ class AppScheduleHelperTests(unittest.TestCase):
         result = evaluate_schedule(True, grid, now=datetime(2026, 5, 4, 10, 15))
 
         self.assertFalse(result["allowed_now"])
+        self.assertEqual(result["current_day"], "Monday")
+        self.assertEqual(result["current_block_index"], 20)
+        self.assertEqual(result["current_block_start"], datetime(2026, 5, 4, 10, 0))
         self.assertEqual(result["next_allowed_start"], datetime(2026, 5, 4, 11, 0))
         self.assertEqual(result["next_allowed_end"], datetime(2026, 5, 4, 12, 0))
         self.assertIn("next allowed Monday 11:00 AM", result["status_text"])

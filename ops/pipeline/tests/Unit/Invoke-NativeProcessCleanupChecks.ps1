@@ -104,9 +104,43 @@ try {
     Assert-True ([int]$result.ExitCode -eq -2) "Expected start/run failure exit code -2 after forced reader fault; got $($result.ExitCode)."
     Assert-True ([string]$result.ErrorCode -eq 'NATIVE_START_FAILED') "Expected NATIVE_START_FAILED after forced reader fault; got $($result.ErrorCode)."
     Assert-True (Wait-ProcessExitObserved -ProcessId $childPid -TimeoutMilliseconds 5000) "Child process $childPid remained alive after Invoke-NativeProcess handled a post-start fault."
+
+    $abortChildPid = 0
+    $abortResult = Invoke-NativeProcess `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'Start-Sleep -Seconds 60') `
+        -TimeoutSeconds 0 `
+        -StopFlagPath $stopFlag `
+        -Label 'native-poll-abort-regression-child' `
+        -PollMilliseconds 20 `
+        -ProcessStartedHandler {
+            param($Process)
+            $script:abortChildPid = [int]$Process.Id
+        } `
+        -PollHandler {
+            param($ElapsedSeconds, $Process)
+            if ($ElapsedSeconds -ge 0.05) {
+                return @{
+                    Abort = $true
+                    AbortCode = 'TEST_NATIVE_POLL_ABORT'
+                    AbortReason = 'unit test requested poll abort'
+                }
+            }
+            return $null
+        }
+
+    Assert-True ($abortChildPid -gt 0) 'Native poll-abort test did not capture the child PID.'
+    Assert-True ([int]$abortResult.ExitCode -eq -1) "Expected poll abort exit code -1; got $($abortResult.ExitCode)."
+    Assert-True ([bool]$abortResult.Aborted) 'Poll abort result should expose Aborted=true.'
+    Assert-True ([string]$abortResult.ErrorCode -eq 'TEST_NATIVE_POLL_ABORT') "Poll abort should preserve the requested error code; got $($abortResult.ErrorCode)."
+    Assert-True ([string]$abortResult.AbortReason -eq 'unit test requested poll abort') "Poll abort should preserve the requested reason; got $($abortResult.AbortReason)."
+    Assert-True (Wait-ProcessExitObserved -ProcessId $abortChildPid -TimeoutMilliseconds 5000) "Child process $abortChildPid remained alive after poll abort."
 } finally {
     if ($childPid -gt 0 -and (Test-ProcessAlive -ProcessId $childPid)) {
         Stop-Process -Id $childPid -Force -ErrorAction SilentlyContinue
+    }
+    if ($abortChildPid -gt 0 -and (Test-ProcessAlive -ProcessId $abortChildPid)) {
+        Stop-Process -Id $abortChildPid -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $stopFlag -Force -ErrorAction SilentlyContinue
 }

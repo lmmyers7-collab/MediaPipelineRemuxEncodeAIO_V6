@@ -145,6 +145,7 @@ def diagnostics_state_summary_payload(
     *,
     settings_tool_path_evidence: Mapping[str, Any] | None = None,
     path_health: Mapping[str, Any] | None = None,
+    autonomy_health: Mapping[str, Any] | None = None,
 ) -> dict[str, Any]:
     summaries = [diagnostics_state_summary_item(item) for item in items]
     settings_rows = diagnostics_settings_tool_path_summary_rows(settings_tool_path_evidence)
@@ -192,6 +193,7 @@ def diagnostics_state_summary_payload(
         "settings_tool_path_issues": settings_rows,
         "path_health": dict(path_health or {}),
         "path_health_issues": path_health_rows,
+        "autonomy_health": dict(autonomy_health or {}),
         "warnings": warnings[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
         "errors": errors[:DIAGNOSTICS_STATE_SUMMARY_FACT_LIMIT],
     }

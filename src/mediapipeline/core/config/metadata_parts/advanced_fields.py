@@ -2,14 +2,19 @@
 
 from __future__ import annotations
 
-from mediapipeline.core.rename.constants import PLEX_RENAME_DEFAULT_REMOVE_TERMS, RENAME_MOVIE_FILTER_OPTION_KEYS
+from mediapipeline.core.rename.constants import PLEX_RENAME_DEFAULT_REMOVE_TERMS, RENAME_MOVIE_FILTER_OPTION_KEYS, RENAME_TV_FILTER_OPTION_KEYS
 from mediapipeline.core.rename.movie import rename_movie_filter_default_terms
+from mediapipeline.core.rename.tv import rename_tv_filter_default_terms
 
 from .policy import LOG_LEVEL_VALUES
 
 
 def _rename_movie_filter_options_default() -> dict[str, bool]:
     return {key: True for key in RENAME_MOVIE_FILTER_OPTION_KEYS}
+
+
+def _rename_tv_filter_options_default() -> dict[str, bool]:
+    return {key: True for key in RENAME_TV_FILTER_OPTION_KEYS}
 
 
 QUALITY_METRIC_DESCRIPTIONS = {
@@ -127,6 +132,33 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
         "kind": "list",
         "default": list(PLEX_RENAME_DEFAULT_REMOVE_TERMS),
         "help": "Backend-owned extra movie rename terms removed from cleaned titles. Saving through Settings affects future pipeline naming and Rename apply planning.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "RenameTVFilterOptions",
+        "label": "Rename TV Filter Options",
+        "kind": "json",
+        "default": _rename_tv_filter_options_default(),
+        "help": "Backend-owned TV rename cleaning category toggles. Saving through Settings affects future pipeline naming and Rename apply planning.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "RenameTVFilterTerms",
+        "label": "Rename TV Filter Terms",
+        "kind": "json",
+        "default": rename_tv_filter_default_terms(),
+        "help": "Backend-owned TV rename cleaning term lists by category. Saving through Settings affects future pipeline naming and Rename apply planning.",
+    },
+    {
+        "page": "Advanced",
+        "section": "Runtime",
+        "key": "RenameTVRemoveTerms",
+        "label": "Rename TV Remove Terms",
+        "kind": "list",
+        "default": list(PLEX_RENAME_DEFAULT_REMOVE_TERMS),
+        "help": "Backend-owned extra TV rename terms removed from cleaned show and episode titles. Saving through Settings affects future pipeline naming and Rename apply planning.",
     },
     {
         "page": "Advanced",

@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0619-019",
+  "title": "Harden Launch preflight scope guardrails",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Add explicit active/skipped target modeling for Launch backend preflight so only active workflow payloads contribute to status, rows, and readiness summaries.",
+  "reason": "The immediate inactive CSV blocker was fixed, but future Launch workflows still needed a reusable guardrail that makes target applicability visible and prevents inactive blocked payloads from poisoning active Pipeline readiness.",
+  "affected_areas": [
+    "launch",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Launch preflight request filtering was present for empty CSV state, but skipped-target evidence and status-included payload filtering were not first-class contracts.",
+  "behavior_after": "Launch preflight builds candidate, active, skipped, and status-included sets; summaries show active targets and skipped inactive targets; overall status and rows ignore explicitly inactive payloads.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-019.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-019.json",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_launch_command_buttons_smoke.py -q - passed (6 passed).",
+    "apps/desktop/runtime/Python/python.exe -m pytest tests/webview/test_webview_browser_launch_queue_readiness_smoke.py -q - passed (1 passed).",
+    "Browser verification at http://127.0.0.1:49370 - passed: Launch Readiness showed Pipeline backend preflight with active requests=1, skipped inactive=2, inactive CSV Rerun targets skipped, and preflight rows sourced only from Pipeline. The live status remained Blocked because active Pipeline checks reported autonomy health and active process blockers, not inactive CSV Rerun.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/launchView.preflight.js tests/webview/test_webview_launch_command_buttons_smoke.py tests/webview/test_webview_browser_launch_queue_readiness_smoke.py ops/release/changes/unreleased/MP-CHANGE-2026-0619-019.json - passed (4 summaries written).",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (441 packets valid; no uncovered dirty files reported)."
+  ],
+  "rollback_plan": "Revert the Launch preflight active/skipped target helpers, scoped summary copy, smoke assertions, generated summaries, and this packet; the prior empty-CSV filter remains only as a narrower implementation detail.",
+  "related_changes": [
+    "MP-CHANGE-2026-0619-018"
+  ],
+  "notes": ""
+}

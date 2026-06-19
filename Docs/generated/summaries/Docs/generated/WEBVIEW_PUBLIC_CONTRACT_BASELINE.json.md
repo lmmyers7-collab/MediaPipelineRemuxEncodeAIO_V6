@@ -3,9 +3,9 @@ file: docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-16
+last_modified: 2026-06-17
 last_reviewed: 2026-06-02
-sha256: 1a3a209810e5b16300414afaae3bb2dfa08ac947d122771ac610f59a609545b4
+sha256: af005a76cbf7312139a339a92e85b0bf90cf1aa384efe7567ff5c2e12f8778cb
 ---
 # `docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json`
 

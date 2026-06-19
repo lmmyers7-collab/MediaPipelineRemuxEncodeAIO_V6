@@ -33,11 +33,11 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pipeline/control": {"launchView.js"},
     "/api/pipeline/browse-file": {"launchView.js"},
     "/api/pipeline/start": {"launchView.js"},
-    "/api/audit/start": {"launchView.js", "reportsView.js"},
+    "/api/audit/start": {"reportsView.js"},
     "/api/rerun/start": {"launchView.js"},
-    "/api/audit/score-policy": {"launchView.js", "reportsView.js"},
-    "/api/audit/ignore": {"launchView.js", "reportsView.js"},
-    "/api/audit/export-rerun-csv": {"launchView.js", "reportsView.js"},
+    "/api/audit/score-policy": {"reportsView.js"},
+    "/api/audit/ignore": {"reportsView.js"},
+    "/api/audit/export-rerun-csv": {"reportsView.js"},
     "/api/completed/open": {"completed/openActions.js"},
     "/api/final-library-promotion/promote-queue": {"completed/promotionCommands.js"},
     "/api/final-library-promotion/pause": {"completed/promotionCommands.js"},
@@ -63,9 +63,11 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/queue/file-overrides/route-preview": {"queue/fileOverrides.routePreview.js"},
     "/api/queue/file-overrides/series-preview": {"queue/fileOverrides.drawer.series.js"},
     "/api/queue/file-overrides/series-apply": {"queue/fileOverrides.drawer.series.js"},
+    "/api/queue/file-overrides/remux-pilot-promote": {"queue/fileOverrides.drawer.series.js"},
     "/api/failures/clear": {"reportsView.js"},
     "/api/rename/apply": {"renameView.js"},
     "/api/rename/browse": {"renameView.js"},
+    "/api/rename/filter-cases": {"renameView.js"},
     "/api/rename/preview": {"renameView.js"},
     "/api/schedule/preview": {"scheduleView.js"},
     "/api/schedule/save": {"scheduleView.js"},
@@ -433,16 +435,19 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
     def test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save(self) -> None:
         rename_view = _asset_sources()["renameView.js"]
+        settings_view = _asset_sources()["settingsView.js"]
         settings_html = SETTINGS_PARTIAL.read_text(encoding="utf-8")
 
         for snippet in [
-            "Stage Rename Filter Patch",
-            "Settings Changes JSON",
-            "Browser storage is local draft recovery only and does not persist PSD1 settings",
-            "Preview Patch",
+            "shows the change review dialog",
+            "Save gathers these rename-filter values",
+            "Browser storage is local draft recovery only; filesystem changes still require backend rename apply confirmation",
             "Save Settings",
-            "Guided setup stages the same PSD1-backed settings used by the manual editor.",
-            "Preview and save go through backend validation",
+            "Rename Filter Case Log",
+            "This writes a test fixture only; it does not rename files, save settings, or touch media.",
+            "settings-rename-log-case-submit-button",
+            "Guided setup prepares the same PSD1-backed settings used by the manual editor.",
+            "Save goes through backend validation",
         ]:
             with self.subTest(asset="page-settings.html", snippet=snippet):
                 self.assertIn(snippet, settings_html)
@@ -450,14 +455,17 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertNotIn("validates locally", settings_html)
         for snippet in [
             "function stageRenameCleaningFilterPatch(changes)",
-            "Rename filter patch staged into Settings Changes JSON; no backend save route was called.",
-            "Next step: run Preview Patch, then Save Settings from Settings.",
+            "Rename filter changes prepared for Save Settings; no backend save route was called.",
+            "Next step: press Save Settings.",
             "Browser storage is local draft recovery only",
         ]:
             with self.subTest(asset="renameView.js", snippet=snippet):
                 self.assertIn(snippet, rename_view)
         self.assertNotIn('/api/settings/preview-patch', rename_view)
         self.assertNotIn('/api/settings/save-patch', rename_view)
+        self.assertIn("function settingsRenameLogCasePayload()", settings_view)
+        self.assertIn("renameView.submitRenameBadCasePayload(payload)", settings_view)
+        self.assertNotIn('apiPost("/api/rename/filter-cases"', settings_view)
 
     def test_settings_save_warns_active_runtime_keeps_startup_config(self) -> None:
         settings_view = _asset_sources()["settingsView.js"]
@@ -543,13 +551,15 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
         summary = payload["repair_reconcile_summary"]
 
-        self.assertEqual(summary["status"], "design_only_no_mutation_routes")
+        self.assertEqual(summary["status"], "backend_dry_run_routes_available_no_mutation_routes")
         self.assertFalse(summary["mutation_enabled"])
         self.assertFalse(summary["frontend_allowed"])
-        self.assertIn("dry-run diffs", summary["safe_next_step"])
-        self.assertIn("atomic journals", summary["safe_next_step"])
+        self.assertIn("backend dry-run evidence", summary["safe_next_step"])
+        self.assertIn("mutation routes still require", summary["safe_next_step"])
         for contract in payload["repair_reconcile_contracts"]:
             with self.subTest(contract=contract["key"]):
+                self.assertEqual(contract["current_status"], "backend_dry_run_route_available")
+                self.assertIn("dry_run_route", contract)
                 self.assertEqual(contract["dry_run_contract"]["effect"], "none")
                 self.assertIn("dry_run_only", contract["dry_run_contract"]["required_result_fields"])
                 self.assertIn("would_not_touch", contract["dry_run_contract"]["required_result_fields"])
@@ -558,13 +568,29 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 self.assertEqual(contract["source_file_policy"]["source_media_mutation"], "forbidden")
                 self.assertTrue(any("API_ROUTE_INVENTORY.md" in gate for gate in contract["route_exposure_gates"]))
 
+        allowed_dry_run_routes = {
+            "/api/completed/reconcile-manifest-dry-run",
+            "/api/completed/repair-sidecar-metadata-dry-run",
+            "/api/pending-publish/repair-manifest-dry-run",
+            "/api/pending-publish/reconcile-orphan-payloads-dry-run",
+            "/api/startup/reconcile-dry-run",
+        }
         callable_routes = [
-            f"{route.get('method')} {route.get('path')} ({route.get('effect')})"
+            route
             for route in LOCAL_API_ROUTE_CONTRACT
             if str(route.get("method", "")).upper() == "POST"
             and any(term in str(route.get("path", "")).lower() for term in REPAIR_RECONCILE_ROUTE_TERMS)
         ]
-        self.assertEqual(callable_routes, [])
+        self.assertEqual({route["path"] for route in callable_routes}, allowed_dry_run_routes)
+        for route in callable_routes:
+            with self.subTest(route=route["path"]):
+                self.assertEqual(route["effect"], "none")
+                self.assertIn(
+                    route["data_schema"],
+                    {"desktop_repair_reconcile_dry_run.v1", "desktop_startup_reconciliation_dry_run.v1"},
+                )
+                self.assertFalse(route["mutation_enabled"])
+                self.assertFalse(route["frontend_exposed"])
 
         read_only_reconciliation = [
             route
@@ -574,7 +600,6 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertTrue(read_only_reconciliation)
         for route in read_only_reconciliation:
             with self.subTest(route=route["path"]):
-                self.assertEqual(route["method"], "GET")
                 self.assertEqual(route["effect"], "none")
 
         post_repair_routes = [
@@ -589,8 +614,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "Repair/reconcile boundary",
             "mutation enabled",
             "frontend allowed",
-            "Implement backend dry-run diffs and atomic journals before adding any repair/reconcile command routes.",
-            "repair/reconcile commands are not allowed until the backend owns dry-run proof, atomic write/rollback, and command-journal evidence.",
+            "backend dry-runs exist",
+            "mutation controls remain forbidden",
             "Dry-run contract fields",
             "Rollback journal fields",
             "Source policy: source media mutation=",
@@ -624,7 +649,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
         for snippet in [
             "Frontend advisory only",
-            "backend Preview Patch and Save Patch remain",
+            "backend Save Settings remains",
             "source-deletion acceptance",
             "PSD1 writes",
             "settingsBackendPolicyImpact",

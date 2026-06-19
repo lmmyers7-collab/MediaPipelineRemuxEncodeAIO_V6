@@ -127,6 +127,8 @@ def _validate_static_assets(base_url: str) -> None:
         ('id="settings-backend-media-policy-rows"', "settings policy rows"),
         ('id="settings-backend-result-status"', "settings backend result status"),
         ('id="settings-backend-result-rows"', "settings backend result rows"),
+        ('id="settings-save-review-dialog"', "settings save review dialog"),
+        ('id="settings-save-review-confirm-button"', "settings save review confirmation"),
         ('id="launch-settings-risk-rows"', "launch risk rows"),
         ('data-page-panel="settings"', "settings panel"),
         ('data-page-panel="launch"', "launch panel"),
@@ -142,9 +144,12 @@ def _validate_static_assets(base_url: str) -> None:
         ("Backend media-policy readiness:", "settings readiness heading"),
         ("function settingsBackendResultRows", "settings backend result handoff rows"),
         ("function renderSettingsBackendResultFromEntries", "settings backend result renderer"),
-        ("Patch JSON changed after the last preview. Preview again before saving.", "settings stale preview guidance"),
-        ("Save Patch is the only persistence command", "settings save persistence boundary"),
-        ("Preview/Save remains backend-owned", "settings save ownership boundary"),
+        ("async function saveSettingsPatch()", "settings save command handler"),
+        ('apiPost("/api/settings/save-patch"', "settings save route"),
+        ("confirm_save: true", "settings save confirmation guard"),
+        ("function settingsRuntimeRestartNoticeLines", "settings save/reload evidence renderer"),
+        ("settings-save-patch-button", "settings save panel control"),
+        ("settings-save-header-save-button", "settings save header control"),
     ):
         _require_fragment(settings_js, fragment, label)
 

@@ -54,6 +54,8 @@
       scheduleDisplayValue = null,
       scheduleWatcherSummary = null,
       setText = function () {},
+      showPage = null,
+      activateLaunchTab = null,
       state = {},
       updateTableStatusLegend = function () {},
     } = deps;
@@ -783,7 +785,7 @@
     return "Review";
   }
 
-  function launchCompactGateRow(key, label, status, note, summary, detail = []) {
+  function launchCompactGateRow(key, label, status, note, summary, detail = [], target = {}) {
     const stateValue = launchCompactGateState(status);
     return {
       key,
@@ -793,7 +795,91 @@
       note: note || (stateValue === "ready" ? "OK" : stateValue === "blocked" ? "Blocked" : "Review"),
       summary,
       detail: Array.isArray(detail) ? detail.filter(Boolean) : [],
+      target: target && typeof target === "object" ? target : {},
     };
+  }
+
+  function launchCompactGateActionLabel(row) {
+    const target = row?.target || {};
+    return target.label || "Select this gate to open and highlight its owner evidence.";
+  }
+
+  function launchCompactGateQueryTarget(target = {}) {
+    const selectors = [
+      target.rowSelector,
+      target.selector,
+      target.fallbackSelector,
+      target.focusSelector,
+    ].filter(Boolean);
+    for (const selector of selectors) {
+      const node = document.querySelector(selector);
+      if (node) return node;
+    }
+    if (target.focusId) return byId(target.focusId);
+    return null;
+  }
+
+  function launchCompactGateRevealTarget(node) {
+    if (!node) return;
+    const advancedGate = node.closest("[data-advanced]") || node.closest("[data-panel-advanced]");
+    if (advancedGate && !document.body.classList.contains("advanced-mode")) {
+      advancedGate.classList.add("is-attention-reveal");
+    }
+    const evidenceGate = node.closest("[data-panel-type='evidence']");
+    if (evidenceGate && document.body.classList.contains("evidence-hidden")) {
+      evidenceGate.classList.add("is-attention-reveal");
+    }
+    const launchEvidenceBody = node.closest("#launch-evidence-body");
+    if (launchEvidenceBody?.classList?.contains("is-collapsed")) {
+      launchEvidenceBody.classList.add("is-attention-reveal");
+    }
+  }
+
+  function launchCompactGateHighlightTarget(node) {
+    if (!node || typeof node.classList === "undefined") return;
+    launchCompactGateRevealTarget(node);
+    document.querySelectorAll(".is-attention-target").forEach((item) => item.classList.remove("is-attention-target"));
+    node.classList.add("is-attention-target");
+    if (typeof node.scrollIntoView === "function") {
+      try {
+        node.scrollIntoView({ block: "center", inline: "nearest", behavior: "smooth" });
+      } catch (_) {
+        node.scrollIntoView(false);
+      }
+    }
+    const hadTabIndex = node.hasAttribute("tabindex");
+    if (!hadTabIndex) node.setAttribute("tabindex", "-1");
+    if (typeof node.focus === "function") {
+      try {
+        node.focus({ preventScroll: true });
+      } catch (_) {
+        node.focus();
+      }
+    }
+    window.setTimeout(() => {
+      node.classList.remove("is-attention-target");
+      document.querySelectorAll(".is-attention-reveal").forEach((item) => item.classList.remove("is-attention-reveal"));
+      if (!hadTabIndex && node.getAttribute("tabindex") === "-1") node.removeAttribute("tabindex");
+    }, 2400);
+  }
+
+  function launchCompactGateOpenTarget(row) {
+    const target = row?.target || {};
+    if (target.page && typeof showPage === "function") showPage(target.page);
+    if (target.tab && typeof activateLaunchTab === "function") activateLaunchTab(target.tab, { persist: false });
+    let node = launchCompactGateQueryTarget(target);
+    launchCompactGateRevealTarget(node);
+    if (node?.matches?.("tr[data-selectable-row='true']")) {
+      node.click();
+      node = launchCompactGateQueryTarget(target) || node;
+      launchCompactGateRevealTarget(node);
+    }
+    if (node) {
+      launchCompactGateHighlightTarget(node);
+      setText("pipeline-compact-gate-detail", `${row.label}: ${row.value}. ${row.summary} ${launchCompactGateActionLabel(row)} Backend start remains authoritative.`);
+    } else {
+      setText("pipeline-compact-gate-detail", `${row?.label || "Gate"}: ${row?.value || "Review"}. Target evidence is not rendered yet. Refresh and retry this gate. Backend start remains authoritative.`);
+    }
   }
 
   function launchCompactGateNonReadyCount(rows = []) {
@@ -801,6 +887,26 @@
       const posture = String(row?.posture || row?.status || row?.launchState || "").toLowerCase();
       return posture && !["ready", "ok", "match", "same as saved", "launch-active"].includes(posture);
     }).length;
+  }
+
+  function launchCompactGateSettingsRows(rows = []) {
+    const owned = new Set(["saved-settings", "staged-settings", "risk-handoff"]);
+    return (Array.isArray(rows) ? rows : []).filter((row) => owned.has(row?.key));
+  }
+
+  function launchCompactGateSettingsPosture(settingsRows = [], policyRows = []) {
+    const settingsPostures = (Array.isArray(settingsRows) ? settingsRows : []).map((row) => {
+      const posture = row?.key === "staged-settings"
+        ? launchStartDecisionAdvisoryPosture(row?.posture)
+        : row?.posture;
+      return String(posture || "unknown");
+    });
+    const policyPostures = (Array.isArray(policyRows) ? policyRows : []).map((row) => {
+      const launchState = String(row?.launchState || "");
+      const posture = launchStartDecisionPostureFromStatus(launchState);
+      return launchState.toLowerCase().includes("blocked") ? launchStartDecisionAdvisoryPosture(posture) : posture;
+    });
+    return launchStartDecisionWorstPosture([...settingsPostures, ...policyPostures]);
   }
 
   function launchCompactGateRows(request = collectPipelineStartRequest(), payload = launchSettingsIntentPayload()) {
@@ -823,6 +929,13 @@
         "Refresh",
         "Refresh Backend Preflight before submitting normal start modes.",
         ["No cached Pipeline backend preflight is loaded for the current form state."],
+        {
+          page: "launch",
+          tab: "readiness",
+          selector: "#launch-backend-preflight-refresh-button",
+          fallbackSelector: "#launch-backend-preflight-summary",
+          label: "Opened Launch > Readiness > Backend Preflight. Refresh the backend preflight checks.",
+        },
       ));
     } else {
       const backendStatus = launchBackendPreflightOverallStatus(pipelineBackendPayloads);
@@ -835,6 +948,13 @@
           ? "Backend preflight has non-ready checks; normal Start Pipeline remains blocked by existing backend gate logic if any check is blocked."
           : "Backend preflight is ready-looking; backend start still re-checks state at submission time.",
         launchBackendPreflightSummaryLines(pipelineBackendPayloads),
+        {
+          page: "launch",
+          tab: "readiness",
+          rowSelector: "#launch-backend-preflight-rows tr[data-selectable-row='true']:not([data-status='match'])",
+          fallbackSelector: "#launch-backend-preflight-summary",
+          label: "Opened Launch > Readiness > Backend Preflight and selected the first non-ready check.",
+        },
       ));
     }
 
@@ -852,44 +972,61 @@
       "queue",
       "Queue",
       launchStartDecisionPostureFromStatus(queueStatus),
-      queueRows.length ? `Queue ${queueRows.length}` : "Load Queue",
+      queueRows.length ? `Queue ${queueRows.length}` : "Review Queue",
       queueRows.length
         ? (queueNonReady.length ? `Queue has ${queueNonReady.length} launch handoff item(s) to review.` : "Queue handoff is ready-looking; backend owns actual launch scope.")
-        : "Load Queue before trusting visible launch scope.",
+        : "Queue evidence is not loaded in this view. Use Refresh to update backend evidence before trusting visible launch scope.",
       typeof queueLaunchDecisionSummaryLines === "function" ? queueLaunchDecisionSummaryLines(queuePayload, queueRows, history) : [],
+      {
+        page: "queue",
+        rowSelector: "#queue-launch-decision-rows tr[data-selectable-row='true']:not([data-status='match'])",
+        fallbackSelector: "#queue-launch-decision-summary",
+        label: "Opened Queue > Queue-to-Launch handoff and selected the first non-ready row.",
+      },
     ));
 
     const settingsIntentRows = launchSettingsIntentRows(request, context);
+    const compactSettingsRows = launchCompactGateSettingsRows(settingsIntentRows);
     const policyRows = launchPolicyBoundaryRows();
-    const settingsIntentStatus = launchSettingsIntentStatus(settingsIntentRows);
-    const policyStatus = launchPolicyBoundaryStatus(policyRows);
-    const settingsPosture = launchStartDecisionWorstPosture([
-      launchStartDecisionPostureFromStatus(settingsIntentStatus),
-      launchStartDecisionPostureFromStatus(policyStatus),
-    ]);
-    const settingsNonReady = launchCompactGateNonReadyCount(settingsIntentRows) + launchCompactGateNonReadyCount(policyRows);
+    const settingsPosture = launchCompactGateSettingsPosture(compactSettingsRows, policyRows);
+    const settingsNonReady = launchCompactGateNonReadyCount(compactSettingsRows) + launchCompactGateNonReadyCount(policyRows);
     rows.push(launchCompactGateRow(
       "settings",
       "Settings",
       settingsPosture,
-      settingsNonReady ? `Warn ${settingsNonReady}` : (launchSettingsWorkspace()?.schema_version ? "Saved" : "Load Settings"),
+      settingsNonReady ? `Warn ${settingsNonReady}` : (launchSettingsWorkspace()?.schema_version ? "Saved" : "Review Settings"),
       settingsNonReady
         ? "Saved settings or policy posture needs review before unattended starts."
-        : "Saved settings and policy posture are ready-looking; backend start remains authoritative.",
+        : (launchSettingsWorkspace()?.schema_version ? "Saved settings and policy posture are ready-looking; backend start remains authoritative." : "Saved settings evidence is not loaded in this view. Use Refresh before trusting settings posture."),
       [
-        ...launchSettingsIntentSummaryLines(settingsIntentRows),
+        ...launchSettingsIntentSummaryLines(compactSettingsRows),
         ...launchPolicyBoundarySummaryLines(policyRows),
       ],
+      {
+        page: "launch",
+        tab: "readiness",
+        rowSelector: "#launch-settings-risk-rows tr[data-selectable-row='true'][data-status='blocked'], #launch-settings-risk-rows tr[data-selectable-row='true'][data-status='warning'], #launch-settings-intent-rows tr[data-selectable-row='true']:not([data-status='match']), #launch-policy-boundary-rows tr[data-selectable-row='true']:not([data-status='match'])",
+        fallbackSelector: "#launch-settings-risk-summary",
+        label: "Opened Launch > Readiness > Settings Check and selected the first non-ready settings row.",
+      },
     ));
 
     const timingStatus = typeof launchTimingStatus === "function" ? launchTimingStatus(context, request) : "Unknown";
+    const timingPosture = launchStartDecisionAdvisoryPosture(launchStartDecisionPostureFromStatus(timingStatus));
     rows.push(launchCompactGateRow(
       "schedule",
       "Schedule",
-      launchStartDecisionPostureFromStatus(timingStatus),
-      request?.schedule_override ? "Override" : (context.schedule ? "Window" : "Load Schedule"),
+      timingPosture,
+      request?.schedule_override ? "Override" : (context.schedule ? "Window" : "Review Schedule"),
       `Schedule status is ${timingStatus}; override=${request?.schedule_override || "none"}.`,
       typeof launchTimingTrustLines === "function" ? launchTimingTrustLines(context, request) : [],
+      {
+        page: "launch",
+        tab: "readiness",
+        selector: "#launch-timing",
+        fallbackSelector: "#pipeline-start-schedule-override",
+        label: "Opened Launch > Readiness > Schedule Alignment. Use the schedule evidence, wait for the window, or choose an intentional override.",
+      },
     ));
 
     const closeReadiness = context.closeReadiness || null;
@@ -901,13 +1038,20 @@
       "active",
       "Active",
       active ? "running" : (closeReadiness || snapshot ? "ready" : "unknown"),
-      active ? "Active" : (closeReadiness || snapshot ? "Idle" : "Load State"),
+      active ? "Active" : (closeReadiness || snapshot ? "Idle" : "Review State"),
       active
         ? "Active backend work is reported; Start controls are disabled by existing close-readiness logic."
-        : (closeReadiness || snapshot ? "No active backend work is visible in the latest loaded state." : "Load backend state before starting work."),
+        : (closeReadiness || snapshot ? "No active backend work is visible in the latest loaded state." : "Backend state evidence is not loaded in this view. Use Refresh before starting work."),
       typeof launchReadinessLines === "function"
         ? launchReadinessLines({ snapshot, closeReadiness, schedule: context.schedule || {}, settings: launchSettingsWorkspace(), backendPreflight: pipelineBackendPreflight })
         : [],
+      {
+        page: "launch",
+        tab: "pipeline",
+        selector: active ? "#launch-live-run-strip" : "#pipeline-controller-stage-summary",
+        fallbackSelector: "#launch-readiness",
+        label: active ? "Opened Launch > Pipeline Processor > Live Run for the active backend work." : "Opened Launch > Pipeline Processor state evidence.",
+      },
     ));
 
     const commandRows = typeof launchCommandReviewRows === "function" ? launchCommandReviewRows(history) : [];
@@ -923,6 +1067,13 @@
         ? "Recent launch history is visible; compare it with the current backend preflight before retrying."
         : "No recent launch result is loaded; the next backend response will create command evidence.",
       typeof launchCommandReviewSummaryLines === "function" ? launchCommandReviewSummaryLines(history) : [],
+      {
+        page: "launch",
+        tab: "history",
+        rowSelector: "#launch-command-review-rows tr[data-selectable-row='true']:not([data-status='match'])",
+        fallbackSelector: latestLaunch ? "#launch-history" : "#launch-latest-command-evidence",
+        label: latestLaunch ? "Opened Launch > History and selected the first command-review issue." : "Opened Launch command history; no prior launch command issue is available.",
+      },
     ));
 
     if (backendFetchFailures) {
@@ -988,10 +1139,13 @@
       if (label) label.textContent = item.label;
       if (value) value.textContent = item.value;
       if (note) note.textContent = item.note;
-      button.onclick = () => selectLaunchCompactGate(item);
+      button.onclick = () => {
+        selectLaunchCompactGate(item);
+        launchCompactGateOpenTarget(item);
+      };
     });
     const detail = selected
-      ? `${selected.label}: ${selected.value}. ${selected.summary} Backend start remains authoritative.`
+      ? `${selected.label}: ${selected.value}. ${selected.summary} ${launchCompactGateActionLabel(selected)} Backend start remains authoritative.`
       : "Compact gate not evaluated. Refresh Backend Preflight before submitting normal start modes.";
     setText("pipeline-compact-gate-detail", detail);
     return rows;

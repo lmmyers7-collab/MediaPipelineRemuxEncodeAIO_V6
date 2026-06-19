@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.builders.subtitle.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-11
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: fa3afff7d0441c6961538f34f5be99f78648feac76b57dac34f8e637ab9adf99
+sha256: 671cd20ded702fbebbe03f247fbeb39b86d83a4bb111d6aa91431323963ab6af
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.subtitle.js`
 

@@ -3,9 +3,9 @@ file: docs/README_MediaPipelineRemuxEncodeAIO.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-11
+last_modified: 2026-06-19
 last_reviewed: 2026-06-02
-sha256: 02151c9136b5381c42b9df854991b1c6bc8375548f3af78caba6b3d912c6e44e
+sha256: bcb4f7da34df04ea3ecdc74e15245611f99d8084d6d2024a93e32543c4d0cb48
 ---
 # `docs/README_MediaPipelineRemuxEncodeAIO.md`
 

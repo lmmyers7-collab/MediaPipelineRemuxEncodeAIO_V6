@@ -443,7 +443,7 @@
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         clearRows(tbody, 5, `Patch JSON is invalid: ${message}`);
-        setText("settings-patch-summary-status", "Patch summary unavailable because Changes JSON is invalid.");
+        setText("settings-patch-summary-status", "Change summary unavailable because Changes JSON is invalid.");
         renderSettingsPatchImpactSummaryForError(message);
         renderSettingsPolicyDeltaForError(message);
         renderSettingsEffectivePolicyTrustForError(message);
@@ -462,14 +462,14 @@
       renderSettingsBackendResultFromEntries(impactEntries);
       const keys = Object.keys(patch);
       if (!keys.length) {
-        clearRows(tbody, 5, "No patch keys staged.");
+        clearRows(tbody, 5, "No current change keys.");
         const presetInfo = settingsActivePresetInfo();
         setText(
           "settings-patch-summary-status",
           [
             `Active preset: ${presetInfo.name}`,
             `Preset scope: ${presetInfo.scope}`,
-            "No staged settings changes. Preview/save uses persisted keys; friendly labels are display only.",
+            "No current settings changes. Save uses persisted keys; friendly labels are display only.",
           ].join("\n")
         );
         return;
@@ -512,7 +512,7 @@
         tbody.appendChild(row);
       });
       if (!visibleCount) {
-        clearRows(tbody, 5, "No changed or unknown patch keys to show.");
+        clearRows(tbody, 5, "No changed or unknown keys to show.");
       }
       const changedPersistedKeys = impactEntries
         .filter((entry) => entry.changed)
@@ -526,10 +526,10 @@
         [
           `Active preset: ${presetInfo.name}`,
           `Preset scope: ${presetInfo.scope}`,
-          `${keys.length} staged key${keys.length === 1 ? "" : "s"}: ${changedCount} changed, ${unchangedCount} unchanged, ${unknownCount} unknown, ${visibleCount} shown.`,
+          `${keys.length} candidate key${keys.length === 1 ? "" : "s"}: ${changedCount} changed, ${unchangedCount} unchanged, ${unknownCount} unknown, ${visibleCount} shown.`,
           `Changed persisted keys: ${changedPersistedKeys.join(", ") || "none"}.`,
           unknownPersistedKeys.length ? `Unknown persisted keys needing backend validation: ${unknownPersistedKeys.join(", ")}.` : "Unknown persisted keys needing backend validation: none.",
-          "Preview/save uses persisted keys. Friendly labels are display only and are not saved keys. Backend preview remains the source of truth.",
+          "Save uses persisted keys. Friendly labels are display only and are not saved keys. Backend Save remains the source of truth.",
         ].join("\n")
       );
     }
@@ -592,7 +592,7 @@
       }
       return {
         name: `${profileName} (${status})`,
-        scope: "Preset/profile comparison only; backend Preview/Save writes stable persisted keys.",
+        scope: "Preset/profile comparison only; backend Save writes stable persisted keys.",
       };
     }
 
@@ -1221,8 +1221,8 @@
       const merged = { ...readSettingsPatchJsonForMerge(), ...patch };
       markSettingsPatchTouched();
       textarea.value = JSON.stringify(merged, null, 2);
-      setText("settings-patch-status", "Patch built");
-      setText("settings-patch-detail", detail || "Builder updated Changes JSON. Preview or Save still uses backend validation.");
+      setText("settings-patch-status", "Changes ready");
+      setText("settings-patch-detail", detail || "Builder updated the current save candidate. Save Settings still uses backend validation.");
       renderSettingsPatchSummary();
       renderAllLaunchPreflights();
     }
@@ -1276,9 +1276,9 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Structured builder merged routing, size, and encoder keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Structured builder prepared routing, size, and encoder keys for Save Settings. Backend Save still validates before writing.");
       setSettingsBuilderState(true, true);
-      setText("settings-builder-status", `${Object.keys(patch).length} patch keys ready`);
+      setText("settings-builder-status", `${Object.keys(patch).length} change keys ready`);
       renderSettingsBuilderGuidance();
       return true;
     }
@@ -1295,10 +1295,6 @@
       setText("settings-count", `${settings?.key_count || settingsEntries.length} keys`);
       const pathLines = Object.entries(settings?.paths || {}).map(([key, value]) => `${key}: ${value}`);
       setText("settings-paths", pathLines.join("\n") || settings?.error || "No settings paths loaded.");
-      const auditRootInput = byId("audit-start-library-root");
-      if (auditRootInput && !auditRootInput.value && (settings?.paths || {}).outsource) {
-        auditRootInput.value = settings.paths.outsource;
-      }
       setText("settings-profiles", settingsProfileSummaryLines(settings));
       setText("settings-validation", warnings.join("\n") || "No validation warnings.");
       renderSettingsOverview(config);
@@ -1497,7 +1493,6 @@
     function initSettingsViewEvents() {
       bindSettingsClick("settings-validate-button", addSettingsEventHandlers.validateCurrentSettings);
       bindSettingsClick("settings-reload-button", addSettingsEventHandlers.reloadSettingsFromDisk);
-      bindSettingsClick("settings-preview-patch-button", addSettingsEventHandlers.previewSettingsPatch);
       bindSettingsClick("settings-save-patch-button", addSettingsEventHandlers.saveSettingsPatch);
       bindSettingsClick("settings-summarize-patch-button", renderSettingsPatchSummary);
       const settingsPatchJson = byId("settings-patch-json");
@@ -1627,7 +1622,7 @@
             "warning",
             context,
             key,
-            `${key} is not in backend field metadata loaded by this WebView. Backend preview/save remains authoritative.`
+            `${key} is not in backend field metadata loaded by this WebView. Backend Save remains authoritative.`
           ));
         }
         return hints;
@@ -1711,7 +1706,7 @@
       const hints = settingsPatchLocalValidationHints(changes);
       if (!hints.length) return [];
       return [
-        "Local validation hints (advisory only; backend preview/save remains authoritative):",
+        "Local validation hints (advisory only; backend Save remains authoritative):",
         ...hints.map((hint) => `- [${hint.severity}] ${hint.context}.${hint.key}: ${hint.message}`),
       ];
     }
@@ -1729,7 +1724,7 @@
       const changedKey = (key) => changedEntries.some((entry) => entry.key === key);
 
       entries.filter((entry) => !entry.field).forEach((entry) => {
-        issues.push(settingsReadinessIssue("high", `Unknown key '${entry.key}' is not in the WebView schema; backend preview must validate it before save.`));
+        issues.push(settingsReadinessIssue("high", `Unknown key '${entry.key}' is not in the WebView schema; backend save validation must accept it before writing.`));
       });
       changedEntries.filter((entry) => entry.severity === "high" && entry.field).forEach((entry) => {
         issues.push(settingsReadinessIssue("review", `${entry.label} is a high-impact setting. Confirm the change before saving.`));
@@ -1834,7 +1829,7 @@
     }
 
     function settingsPatchSaveReadinessStatus(entries) {
-      if (!entries.length) return "No patch";
+      if (!entries.length) return "No changes";
       const changedEntries = entries.filter((entry) => entry.changed);
       if (!changedEntries.length) return "No changes";
       const issues = settingsPatchSaveReadinessIssues(entries);
@@ -1870,18 +1865,18 @@
 
       rows.push({
         key: "patch-state",
-        checkpoint: "Patch state",
-        posture: changedEntries.length ? "staged" : entries.length ? "unchanged" : "idle",
-        evidence: `${entries.length} staged key(s); ${changedEntries.length} effective change(s); ${unknownEntries.length} unknown key(s).`,
+        checkpoint: "Current changes",
+        posture: changedEntries.length ? "ready for review" : entries.length ? "unchanged" : "idle",
+        evidence: `${entries.length} candidate key(s); ${changedEntries.length} effective change(s); ${unknownEntries.length} unknown key(s).`,
         action: changedEntries.length
-          ? "Run backend Preview Patch before Save Patch; do not assume local review is complete."
+          ? "Use Save Settings to review these values before the backend writes the PSD1."
           : entries.length
-            ? "No effective save is needed unless the JSON is being edited for a future patch."
-            : "Stage Changes JSON with a builder or manual edit before preview/save.",
+            ? "No effective save is needed unless the JSON is being edited for a future change."
+            : "Prepare Changes JSON with a builder or manual edit before saving.",
         detail: [
           `Readiness status: ${readinessStatus}`,
           groups.length ? `Impacted groups: ${groups.join(", ")}` : "Impacted groups: none",
-          "Backend preview/save remains authoritative for schema validation, PSD1 serialization, backups, and reload.",
+          "Backend Save remains authoritative for schema validation, PSD1 serialization, backups, and reload.",
         ],
       });
 
@@ -1891,13 +1886,13 @@
         posture: unknownEntries.length ? "blocked review" : "known keys",
         evidence: unknownEntries.length
           ? unknownEntries.slice(0, 8).map((entry) => entry.key).join(", ") + (unknownEntries.length > 8 ? `, +${unknownEntries.length - 8} more` : "")
-          : "Every staged key is present in the backend field definitions loaded by the WebView.",
+          : "Every candidate key is present in the backend field definitions loaded by the WebView.",
         action: unknownEntries.length
-          ? "Treat unknown keys as schema drift. Preview Patch must explain them before Save Patch."
-          : "Use structured builders for routine edits; backend Preview Patch still validates known keys.",
+          ? "Treat unknown keys as schema drift. Save Settings will send them through backend validation before any write."
+          : "Use structured builders for routine edits; backend Save Settings still validates known keys.",
         detail: unknownEntries.length
           ? unknownEntries.map((entry) => `${entry.key}: staged=${formatConfigValue(entry.staged)}`)
-          : ["No staged schema-drift keys were detected locally."],
+          : ["No schema-drift keys were detected locally."],
       });
 
       rows.push({
@@ -1908,8 +1903,8 @@
         action: criticalIssues.length
           ? "Do not save until critical source-safety or policy conflicts are deliberately resolved."
           : highIssues.length
-            ? "Review each high-risk item and run backend Preview Patch before Save Patch."
-            : "Continue to medium review and backend preview.",
+            ? "Review each high-risk item before Save Settings."
+            : "Continue to medium review and Save Settings.",
         detail: criticalIssues.concat(highIssues).length
           ? criticalIssues.concat(highIssues).map((issue) => `[${issue.severity}] ${issue.message}`)
           : ["Critical/high checks were clear in local review."],
@@ -1921,8 +1916,8 @@
         posture: reviewIssues.length ? "review" : "clear",
         evidence: reviewIssues.slice(0, 5).map((issue) => `[${issue.severity}] ${issue.message}`).join(" | ") || "No medium/review local issue detected.",
         action: reviewIssues.length
-          ? "Confirm these are intentional before unattended processing; backend preview may add stricter warnings."
-          : "No local policy-review item detected; backend preview is still required before saving meaningful changes.",
+          ? "Confirm these are intentional before unattended processing; backend save validation may add stricter review items."
+          : "No local policy-review item detected; Save Settings still runs backend validation before writing.",
         detail: reviewIssues.length
           ? reviewIssues.map((issue) => `[${issue.severity}] ${issue.message}`)
           : ["No medium/review local checks were triggered."],
@@ -1934,11 +1929,11 @@
           key: "backend-command",
           checkpoint: "Backend evidence",
           posture: "no history",
-          evidence: "No recent settings validate/reload/preview/save command is available.",
-          action: "Use Preview Patch first, then Save Patch only after the backend response is clean.",
+          evidence: "No recent settings validate/reload/save command is available.",
+          action: "Use Save Settings to review changes and send them through backend validation.",
           detail: [
             "No backend command evidence is visible in recent command history.",
-            "This panel never writes the PSD1; Save Patch remains the backend-owned persistence command.",
+            "This panel never writes the PSD1; Save Settings remains the backend-owned persistence command.",
           ],
         });
       } else {
@@ -1954,8 +1949,8 @@
           action: ok && isSave
             ? "Refresh/reload and confirm Saved Settings Trust before relying on this config for Launch."
             : isPreview
-              ? "Preview does not persist settings. Save Patch must succeed before Launch uses the staged config."
-              : "Resolve backend command warning/error before saving or launching with this patch.",
+              ? "Preview does not persist settings. Save Settings must succeed before Launch uses the candidate config."
+              : "Resolve backend command review/error before saving or launching with these changes.",
           detail: [
             `Command: ${command || "unknown"}`,
             `Result: ${latestCommand.result || (ok ? "ok" : latestCommand.severity || "unknown")}`,
@@ -1969,11 +1964,11 @@
         key: "mutation-boundary",
         checkpoint: "Mutation boundary",
         posture: "backend-owned",
-        evidence: "Local review is display-only; Preview Patch and Save Patch remain backend-owned commands.",
+        evidence: "Local review is display-only; Save Settings remains the backend-owned command.",
         action: "Do not treat this table as persistence proof. Confirm backend result and saved trust summary after saving.",
         detail: [
           "This review table does not save settings, launch work, mutate queue state, rewrite PSD1 files, or touch media.",
-          "Backend preview/save owns validation, redacted diffs, backups, PSD1 serialization, reload, and command journaling.",
+          "Backend save owns validation, redacted diffs, backups, PSD1 serialization, reload, and command journaling.",
         ],
       });
 
@@ -1991,7 +1986,7 @@
       if (!row) {
         return [
           "No settings save review row selected.",
-          "Select a row to inspect why a staged patch is blocked, review-needed, preview-only, or safe to continue.",
+          "Select a row to inspect why current changes are blocked, need review, dry-run only, or safe to continue.",
           "Mutation guardrail: this detail view is read-only and cannot save settings, launch work, or touch media files.",
         ];
       }
@@ -2005,7 +2000,7 @@
         lines.push("", "Detail:");
         row.detail.forEach((line) => lines.push(`- ${line}`));
       }
-      lines.push("", "Mutation guardrail: Settings Preview/Save remains backend-owned; this row only explains local review posture.");
+      lines.push("", "Mutation guardrail: Settings Save remains backend-owned; this row only explains local review posture.");
       return lines;
     }
 
@@ -2056,14 +2051,14 @@
       const lines = [
         "Local save readiness checklist:",
         `Status: ${status}`,
-        `Patch keys: ${entries.length}; effective changes: ${changedEntries.length}; unknown keys: ${entries.filter((entry) => !entry.field).length}.`,
-        "Required operator action: use Preview Patch before Save Patch for any non-trivial change.",
-        "Backend preview/save remains the source of truth for schema validation, risk policy, PSD1 serialization, backup creation, and config reload.",
+        `Change keys: ${entries.length}; effective changes: ${changedEntries.length}; unknown keys: ${entries.filter((entry) => !entry.field).length}.`,
+        "Required operator action: press Save Settings and review the change dialog before any non-trivial write.",
+        "Backend save remains the source of truth for schema validation, risk policy, PSD1 serialization, backup creation, and config reload.",
       ];
       if (!entries.length) {
-        lines.push("", "No patch keys are staged.");
+        lines.push("", "No change keys are ready.");
       } else if (!changedEntries.length) {
-        lines.push("", "No effective staged changes were detected.");
+        lines.push("", "No effective changes were detected.");
       }
       const changedGroups = Array.from(new Set(changedEntries.map((entry) => entry.group?.name || "Unknown / custom")));
       if (changedGroups.length) lines.push("", `Impacted group(s): ${changedGroups.join(", ")}.`);
@@ -2071,7 +2066,7 @@
         lines.push("", "Review item(s):");
         issues.forEach((issue) => lines.push(`- [${issue.severity}] ${issue.message}`));
       } else if (changedEntries.length) {
-        lines.push("", "No local blocker detected. Run backend Preview Patch before saving.");
+        lines.push("", "No local blocker detected. Save Settings will run backend validation before writing.");
       }
       lines.push("", "Mutation guardrail: this checklist does not save settings, launch work, mutate queue state, or touch media files.");
       setText("settings-save-readiness", lines.join("\n"));
@@ -2081,7 +2076,7 @@
       setText("settings-save-readiness-status", "Invalid JSON");
       setText(
         "settings-save-readiness",
-        `Local save readiness unavailable because Changes JSON is invalid.\n${message}\nBackend preview/save cannot run until this is valid JSON.`
+        `Local save readiness unavailable because Changes JSON is invalid.\n${message}\nSave Settings cannot run until this is valid JSON.`
       );
       clearRows(byId("settings-save-review-rows"), 4, "Settings save review unavailable because Changes JSON is invalid.");
       setText("settings-save-review-legend", "Settings save review rows: no selectable rows.");
@@ -2090,7 +2085,7 @@
         [
           "Settings save review unavailable because Changes JSON is invalid.",
           message,
-          "Backend preview/save cannot run until this is valid JSON.",
+          "Save Settings cannot run until this is valid JSON.",
           "Mutation guardrail: this detail view is read-only and cannot save settings, launch work, or touch media files.",
         ].join("\n")
       );

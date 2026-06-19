@@ -172,7 +172,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             function clickLaunchTab(tabId) {
               const button = document.querySelector('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab="' + tabId + '"]');
               if (!button) throw new Error("missing Launch tab button " + tabId);
-              button.click();
+              window.mediaPipelineLaunchView.activateLaunchTab(tabId, { persist: false });
               requireLaunchTab(tabId);
             }
             async function waitFor(predicate, label) {
@@ -232,14 +232,14 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (typeof window.mediaPipelineLaunchView?.activateLaunchTab !== "function") throw new Error("missing mediaPipelineLaunchView.activateLaunchTab");
             const launchTabLabels = Array.from(document.querySelectorAll('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab]'))
               .map((button) => button.textContent.trim());
-            const expectedLaunchTabs = ["Pipeline Processor", "Audit", "CSV Rerun", "History", "Readiness"];
+            const expectedLaunchTabs = ["Pipeline Processor", "CSV Rerun", "History", "Readiness"];
             if (JSON.stringify(launchTabLabels) !== JSON.stringify(expectedLaunchTabs)) {
               throw new Error("unexpected Launch tab order: " + JSON.stringify(launchTabLabels));
             }
             const launchPanelOrder = Array.from(document.querySelectorAll('[data-page-panel="launch"] > .launch-tab-panel[data-launch-tab-panel]'))
               .map((panel) => panel.dataset.launchTabPanel)
               .filter((tabId, index, all) => all.indexOf(tabId) === index);
-            const expectedPanelOrder = ["pipeline", "audit", "rerun", "history", "readiness"];
+            const expectedPanelOrder = ["pipeline", "rerun", "history", "readiness"];
             if (JSON.stringify(launchPanelOrder) !== JSON.stringify(expectedPanelOrder)) {
               throw new Error("unexpected Launch panel DOM order: " + JSON.stringify(launchPanelOrder));
             }
@@ -272,7 +272,19 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               }
             });
             byId("pipeline-gate-backend").click();
-            requireText("pipeline-compact-gate-detail", ["Backend:", "Backend start remains authoritative."]);
+            requireText("pipeline-compact-gate-detail", ["Backend:", "Opened Launch > Readiness > Backend Preflight", "Backend start remains authoritative."]);
+            if (!document.querySelector('[data-launch-tab-panel="readiness"]')?.classList.contains("is-active")) {
+              throw new Error("Backend compact gate did not open the Launch readiness tab");
+            }
+            if (!document.querySelector("#launch-backend-preflight-refresh-button.is-attention-target, #launch-backend-preflight-rows tr.is-attention-target")) {
+              throw new Error("Backend compact gate did not highlight backend preflight evidence");
+            }
+            clickLaunchTab("pipeline");
+            byId("pipeline-gate-settings").click();
+            requireText("pipeline-compact-gate-detail", ["Settings:", "Opened Launch > Readiness > Settings Check", "Backend start remains authoritative."]);
+            if (!document.querySelector('[data-launch-tab-panel="readiness"]')?.classList.contains("is-active")) {
+              throw new Error("Settings compact gate did not open the Launch readiness tab");
+            }
             clickLaunchTab("readiness");
             const singleFileRequest = window.mediaPipelineLaunchView.collectPipelineStartRequest();
             if (singleFileRequest.single_file !== "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv") {
@@ -290,7 +302,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                 && text("launch-real-media-proof-summary").includes("Launch real-media sample proof handoff:")
                 && text("launch-sample-execution-summary").includes("Launch sample execution checklist:")
                 && text("launch-pilot-readiness-summary").includes("Launch pilot run readiness:")
-                && text("launch-backend-preflight-summary").includes("Backend launch preflight:")
+                && text("launch-backend-preflight-summary").includes("backend preflight")
                 && !text("launch-backend-preflight-status").includes("Loading")
                 && text("queue-decision-summary").includes("Queue decision header:")
                 && text("queue-attention-summary").includes("Attention required:")
@@ -365,7 +377,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Launch start decision summary:",
               "Signal: Backend preflight",
               "Operator action:",
-              "Backend launch preflight:",
+              "backend preflight",
               "Guardrail: backend-owned start routes remain the only path",
             ]);
             requireText("launch-real-media-proof-summary", [
@@ -591,16 +603,25 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Advisory boundary: queue-route matching uses loaded route/status text only",
             ]);
             const pilotPolicyDetail = text("launch-pilot-readiness-detail");
+            const backendPreflightRefreshButton = byId("launch-backend-preflight-refresh-button");
+            if (!backendPreflightRefreshButton) throw new Error("missing Launch Backend Preflight refresh button");
+            backendPreflightRefreshButton.click();
+            await waitFor(
+              () => tableText("launch-backend-preflight-rows").includes("Pipeline"),
+              "explicit Launch Backend Preflight refresh rows"
+            );
             requireText("launch-backend-preflight-summary", [
-              "Backend launch preflight:",
+              "Pipeline backend preflight:",
               "Source: GET /api/launch/preflight",
-              "Source: GET /api/launch/preflight",
+              "Status scope: active targets only",
+              "active requests=1",
+              "skipped inactive=2",
+              "Inactive targets skipped: CSV Rerun Start: CSV path is not staged.",
             ]);
             requireTableText("launch-backend-preflight-rows", [
               "Pipeline",
               "Process launch lock",
               "Active work guard",
-              "CSV Rerun",
             ]);
             const originalBackendPreflightPayloads = window.mediaPipelineLaunchView.getLastLaunchBackendPreflightPayloads();
             const originalPipelinePreflight = originalBackendPreflightPayloads.find((payload) => String(payload?.target || "").toLowerCase() === "pipeline");
@@ -616,6 +637,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             }
             requireText("pipeline-start-disabled-reason", ["Refresh Backend Preflight"]);
             window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            byId("pipeline-gate-backend").click();
             requireText("pipeline-compact-gate-detail", ["Backend", "Refresh Backend Preflight"]);
             setInput("pipeline-start-mode", "continuous");
             const blockedPipelinePreflight = {
@@ -641,17 +663,33 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             window.mediaPipelineLaunchView.renderLaunchCompactGate();
             requireText("pipeline-gate-backend", ["Backend", "Blocked"]);
             requireText("pipeline-compact-gate-detail", ["Backend", "Backend start remains authoritative."]);
+            byId("pipeline-gate-backend").click();
+            requireText("pipeline-compact-gate-detail", ["Backend", "Opened Launch > Readiness > Backend Preflight", "Backend start remains authoritative."]);
+            requireText("launch-backend-preflight-detail", [
+              "Browser smoke blocker",
+              "Injected cached Backend Preflight blocker",
+              "Resolve injected Backend Preflight blocker.",
+            ]);
+            const selectedBackendBlocker = document.querySelector("#launch-backend-preflight-rows tr.is-selected.is-attention-target");
+            if (!selectedBackendBlocker || !selectedBackendBlocker.textContent.includes("Browser smoke blocker")) {
+              throw new Error("Backend compact gate did not select and highlight the injected blocker row");
+            }
             const launchGateChecks = [
-              ["pipeline-start-button", "Resolve blocked Backend Preflight checks"],
+              ["pipeline-start-button", "Browser smoke blocker"],
               ["pending-drain-button", "Refresh Backend Preflight"],
-              ["audit-start-button", "Resolve blocked Backend Preflight checks"],
-              ["rerun-start-button", "Resolve blocked Backend Preflight checks"],
             ];
             launchGateChecks.forEach(([id, titleFragment]) => {
               const button = byId(id);
               if (!button) throw new Error("missing launch gate button " + id);
               if (!button.disabled || !button.title.includes(titleFragment)) {
                 throw new Error(id + " did not expose blocked launch gate title; disabled=" + button.disabled + "; title=" + button.title);
+              }
+            });
+            ["rerun-dry-run-button", "rerun-start-button"].forEach((id) => {
+              const button = byId(id);
+              if (!button) throw new Error("missing launch gate button " + id);
+              if (button.title.includes("Browser smoke blocker")) {
+                throw new Error(id + " should not inherit pipeline-only blocker title: " + button.title);
               }
             });
             window.mediaPipelineLaunchView.renderLaunchBackendPreflight(originalBackendPreflightPayloads);
@@ -667,7 +705,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Launch command review detail:",
               "Command: pipeline.start",
               "Submitted request:",
-              "Correlated checklist/preflight evidence:",
+              "Correlated checklist/preflight context:",
               "Guardrail: backend start routes re-check this state at submission time",
             ]);
             requireText("launch-history", [
@@ -687,6 +725,10 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Visible rows after display filters:",
               "Selected for Queue actions:",
               "Backend launch scope is owned by Launch; Queue filters, selected rows, and rendered row caps are not submitted as processing scope.",
+            ]);
+            requireText("queue-readiness", [
+              "Mutation guardrail: backend queue mutation and processing start remain backend-owned commands",
+              "local staging controls are not launch scope",
             ]);
             requireText("queue-attention-summary", [
               "Attention required:",
@@ -732,6 +774,10 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (!text("queue-source-inventory").includes("Queue source scan requested.")) {
               throw new Error("Scan Sources did not update source inventory status immediately:\\n" + text("queue-source-inventory"));
             }
+            requireText("queue-filter-summary", [
+              "Queue source scan requested.",
+              "filters, launch scope, queue state commands, source files, and processing commands remain backend-owned",
+            ]);
             if (queueRefreshButton.textContent.trim() !== "Scanning...") {
               throw new Error("Scan Sources button did not switch to scanning text; got " + queueRefreshButton.textContent.trim());
             }
@@ -791,7 +837,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             const owner = window.commandHistoryOwnerPage(launchEntry);
             if (owner !== "Launch") throw new Error("pipeline.start owner should be Launch, got " + owner);
             const scanPosts = posts.filter((post) => post.path === "/api/queue/scan");
-            const unexpectedPosts = posts.filter((post) => post.path !== "/api/queue/scan");
+            const unexpectedPosts = posts.filter((post) => !["/api/queue/scan", "/api/ui-preferences"].includes(post.path));
             if (scanPosts.length !== 1) throw new Error("Scan Sources should post exactly one backend queue scan command: " + JSON.stringify(posts));
             if (scanPosts[0].body.mode !== "inventory_then_curate" || scanPosts[0].body.scope !== "all" || scanPosts[0].body.force !== true) {
               throw new Error("Scan Sources posted unexpected scan payload: " + JSON.stringify(scanPosts[0]));
@@ -966,11 +1012,17 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
 
             self.assertTrue(result["ok"])
             browser_result = result["result"]
-            self.assertEqual(len(browser_result["posts"]), 1)
-            self.assertEqual(browser_result["posts"][0]["path"], "/api/queue/scan")
-            self.assertEqual(browser_result["posts"][0]["body"]["mode"], "inventory_then_curate")
-            self.assertEqual(browser_result["posts"][0]["body"]["scope"], "all")
-            self.assertIs(browser_result["posts"][0]["body"]["force"], True)
+            scan_posts = [post for post in browser_result["posts"] if post["path"] == "/api/queue/scan"]
+            unexpected_posts = [
+                post
+                for post in browser_result["posts"]
+                if post["path"] not in {"/api/queue/scan", "/api/ui-preferences"}
+            ]
+            self.assertEqual(unexpected_posts, [])
+            self.assertEqual(len(scan_posts), 1)
+            self.assertEqual(scan_posts[0]["body"]["mode"], "inventory_then_curate")
+            self.assertEqual(scan_posts[0]["body"]["scope"], "all")
+            self.assertIs(scan_posts[0]["body"]["force"], True)
             self.assertEqual(
                 browser_result["singleFileRequest"]["single_file"],
                 r"E:\Videos\Scratch\Encoded\TV\Sample Pilot.mkv",
@@ -1002,7 +1054,9 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
             self.assertIn("Pilot category coverage", browser_result["pilotReadinessDetail"])
             self.assertIn("Current category record matches: 0", browser_result["pilotReadinessDetail"])
             self.assertIn("Saved policy vs Queue route evidence packet:", browser_result["pilotPolicyDetail"])
-            self.assertIn("Backend launch preflight:", browser_result["backendPreflight"])
+            self.assertIn("Pipeline backend preflight:", browser_result["backendPreflight"])
+            self.assertIn("Status scope: active targets only", browser_result["backendPreflight"])
+            self.assertIn("Inactive targets skipped: CSV Rerun Start", browser_result["backendPreflight"])
             self.assertIn("Queue-to-Launch handoff:", browser_result["queueDecision"])
             self.assertIn("Backend launch gating remains the source of truth.", browser_result["scheduleGuidance"])
             self.assertIn("Launch command review:", browser_result["commandReview"])

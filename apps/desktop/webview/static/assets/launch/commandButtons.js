@@ -5,11 +5,11 @@
       appendCommandResult = function () {},
       byId = function () { return null; },
       clearStartupBanner = function () {},
-      collectAuditStartRequest = function () { return {}; },
       collectPipelineStartRequest = function () { return {}; },
       collectRerunStartRequest = function () { return {}; },
       launchBackendPreflightOverallStatus = function () { return "Not loaded"; },
       launchBackendPreflightPayloadForTarget = function () { return null; },
+      launchBackendPreflightRows = function () { return []; },
       launchPauseRequested = function () { return false; },
       launchPipelineIsActive = function () { return false; },
       launchPreflightRequestMatches = function () { return false; },
@@ -18,6 +18,7 @@
       launchStartDecisionStatus = function () { return "Unknown"; },
       launchStartDecisionWorstPosture = function () { return "unknown"; },
       pipelineProgressIsStuck = function () { return false; },
+      pipelineProgressIsStale = function () { return false; },
       pipelineSingleFileValue = function () { return ""; },
       renderPipelineControllerStatus = function () {},
       setPipelineControlMessage = function () {},
@@ -47,31 +48,48 @@
   const launchCommandButtonIds = [
     "pipeline-start-button",
     "pending-drain-button",
-    "audit-start-button",
     "rerun-dry-run-button",
     "rerun-start-button",
   ];
   const pipelineStartBoundaryNote = "Backend start still re-checks queue, schedule, settings, and process locks; Queue tab display filters and row selection are not submitted.";
 
+  function launchGateResult(blocked, reason, detail = {}) {
+    return { blocked: Boolean(blocked), reason: String(reason || ""), ...detail };
+  }
+
+  function launchFirstNonReadyBackendRow(payload) {
+    const rows = typeof launchBackendPreflightRows === "function" ? launchBackendPreflightRows(payload ? [payload] : []) : [];
+    return rows.find((row) => String(row?.posture || "").toLowerCase() === "blocked")
+      || rows.find((row) => String(row?.posture || "").toLowerCase() !== "ready")
+      || null;
+  }
+
   function launchTargetGate(target, request, options = {}) {
-    const payload = launchBackendPreflightPayloadForTarget(target);
-    const allowMissing = Boolean(options.allowMissing);
     const matchKeys = Array.isArray(options.matchKeys) ? options.matchKeys : [];
+    const payload = launchBackendPreflightPayloadForTarget(target, {
+      request,
+      matchKeys,
+    }) || launchBackendPreflightPayloadForTarget(target);
+    const allowMissing = Boolean(options.allowMissing);
+    const label = options.label || "this start control";
     if (!payload) {
       return allowMissing
-        ? { blocked: false, reason: "Backend start route will re-check queue, settings, schedule, and process locks at submission time." }
-        : { blocked: true, reason: "Refresh Backend Preflight before using this start control." };
+        ? launchGateResult(false, `${label}: Validate can submit without cached Backend Preflight; backend still re-checks queue, settings, schedule, and locks at submission time.`, { state: "ready" })
+        : launchGateResult(true, `Blocked: Backend Preflight is not loaded for ${label}. Action: Refresh Backend Preflight before using this control.`, { state: "stale" });
     }
     if (matchKeys.length && !launchPreflightRequestMatches(payload, request, matchKeys)) {
       return allowMissing
-        ? { blocked: false, reason: "Cached Backend Preflight is for different form values; Validate remains available and backend will re-check at submission time." }
-        : { blocked: true, reason: "Refresh Backend Preflight for the selected mode and form values before using this start control." };
+        ? launchGateResult(false, `${label}: cached Backend Preflight is stale for the current form, but Validate remains available; backend re-checks at submission time.`, { state: "stale" })
+        : launchGateResult(true, `Blocked: cached Backend Preflight is stale for ${label}. Action: Refresh Backend Preflight for the selected mode and form values.`, { state: "stale" });
     }
     const status = launchBackendPreflightOverallStatus([payload]);
     if (launchStartDecisionPostureFromStatus(status) === "blocked") {
-      return { blocked: true, reason: "Resolve blocked Backend Preflight checks before using this start control." };
+      const firstBlocked = launchFirstNonReadyBackendRow(payload);
+      const check = firstBlocked?.check || "Backend Preflight";
+      const action = firstBlocked?.action || "Resolve blocked Backend Preflight checks.";
+      return launchGateResult(true, `Blocked: ${check}. Action: ${action}`, { state: "blocked", row: firstBlocked });
     }
-    return { blocked: false, reason: "Backend start route will re-check queue, settings, schedule, and process locks at submission time." };
+    return launchGateResult(false, `Ready-looking: ${label} Backend Preflight matches the current form. Backend still re-checks queue, settings, schedule, and locks at submission time.`, { state: "ready" });
   }
 
   function launchStartDecisionGate(request) {
@@ -80,9 +98,12 @@
       ? launchStartDecisionPostureFromStatus(launchStartDecisionStatus(rows))
       : launchStartDecisionWorstPosture(rows.map((row) => row.posture));
     if (posture === "blocked") {
-      return { blocked: true, reason: "Resolve blocked Launch Start Summary rows before using this start control." };
+      const firstBlocked = rows.find((row) => String(row?.posture || "").toLowerCase() === "blocked") || rows.find((row) => String(row?.posture || "").toLowerCase() !== "ready");
+      const signal = firstBlocked?.signal || "Launch Start Summary";
+      const action = firstBlocked?.action || "Resolve blocked Launch Start Summary rows before using this start control.";
+      return launchGateResult(true, `Blocked: ${signal}. Action: ${action}`, { state: "blocked", row: firstBlocked });
     }
-    return { blocked: false, reason: "" };
+    return launchGateResult(false, "");
   }
 
   function launchButtonGate(id) {
@@ -92,6 +113,7 @@
       const targetGate = launchTargetGate("pipeline", request, {
         allowMissing,
         matchKeys: ["mode", "sleep_seconds", "schedule_override", "single_file"],
+        label: "Start Pipeline",
       });
       if (targetGate.blocked) return targetGate;
       const decisionGate = launchStartDecisionGate(request);
@@ -103,30 +125,23 @@
       const targetGate = launchTargetGate("pipeline", request, {
         allowMissing: false,
         matchKeys: ["mode", "sleep_seconds", "schedule_override"],
+        label: "Open Pending Publish",
       });
       if (targetGate.blocked) return targetGate;
       const decisionGate = launchStartDecisionGate(request);
       return decisionGate.blocked ? decisionGate : targetGate;
     }
-    if (id === "audit-start-button") {
-      const request = collectAuditStartRequest();
-      const targetGate = launchTargetGate("audit", request, {
-        allowMissing: false,
-        matchKeys: ["library_root", "include_sidecars"],
-      });
-      if (targetGate.blocked) return targetGate;
-      return targetGate;
-    }
     if (id === "rerun-start-button" || id === "rerun-dry-run-button") {
       const request = collectRerunStartRequest({ dry_run: id === "rerun-dry-run-button" });
       const targetGate = launchTargetGate("rerun", request, {
         allowMissing: false,
-        matchKeys: ["csv_path", "stage_mode", "original_mode", "return_mode"],
+        matchKeys: ["csv_path", "dry_run", "stage_mode", "original_mode", "return_mode"],
+        label: id === "rerun-dry-run-button" ? "Preview CSV Rerun" : "Start CSV Rerun",
       });
       if (targetGate.blocked) return targetGate;
       return targetGate;
     }
-    return { blocked: false, reason: "Backend start route will re-check queue, settings, schedule, and process locks at submission time." };
+    return launchGateResult(false, "Ready-looking: backend start route will re-check queue, settings, schedule, and process locks at submission time.", { state: "ready" });
   }
 
   function setButtonClass(button, className) {
@@ -138,9 +153,10 @@
     if (!button) return;
     button.disabled = Boolean(disabled);
     button.setAttribute("aria-disabled", disabled ? "true" : "false");
+    button.dataset.commandState = disabled ? "blocked" : "ready";
     if (reason) button.title = reason;
     if (button.id === "pipeline-start-button") {
-      setText("pipeline-start-disabled-reason", disabled && reason ? reason : pipelineStartBoundaryNote);
+      setText("pipeline-start-disabled-reason", reason || pipelineStartBoundaryNote);
     }
   }
 
@@ -148,19 +164,21 @@
     state.lastLaunchCommandState = { snapshot: snapshot || null, closeReadiness: closeReadiness || null };
     const active = launchPipelineIsActive(snapshot, closeReadiness);
     const stuck = pipelineProgressIsStuck(snapshot);
+    const stale = pipelineProgressIsStale(snapshot);
     syncPipelineScopeControls();
     if (active) clearStartupBanner();
     const startReason = active
-      ? "Disabled while backend close-readiness reports active work. Stop or wait for idle before starting another pipeline/audit/rerun command."
+      ? "Disabled while backend close-readiness reports active work. Stop or wait for idle before starting another pipeline or CSV rerun command."
       : "Backend start route will re-check queue, settings, schedule, and process locks at submission time.";
     launchCommandButtonIds.forEach((id) => {
       const button = byId(id);
-      const gate = active || state.launchCommandInFlight ? { blocked: false, reason: "" } : launchButtonGate(id);
+      const gate = active || state.launchCommandInFlight ? launchGateResult(false, "") : launchButtonGate(id);
       setButtonDisabledWithReason(
         button,
         state.launchCommandInFlight || active || gate.blocked,
         state.launchCommandInFlight ? "A launch command is already in progress." : (active ? startReason : (gate.reason || startReason))
       );
+      if (button) button.dataset.commandState = state.launchCommandInFlight ? "running" : active ? "blocked" : (gate.state || (gate.blocked ? "blocked" : "ready"));
     });
 
     const singleFile = String(byId("pipeline-start-single-file")?.value || "").trim();
@@ -189,7 +207,7 @@
       const disabled = action === "kill" ? (state.controlCommandInFlight || !killable) : (state.controlCommandInFlight || !active);
       const busyReason = "A pipeline control command is already in progress.";
       const idleReason = action === "kill"
-        ? "Disabled: no active backend work and no stuck progress state detected."
+        ? (stale ? "Disabled: stale progress evidence needs Diagnostics review; Force Stop is available only for active or backend-stuck work." : "Disabled: no active backend work and no stuck progress state detected.")
         : "Disabled while no active backend work is reported.";
       const activeReason = {
         pause: `${pauseLabel} the active backend pipeline.`,
@@ -199,6 +217,7 @@
       }[action] || "Backend-owned pipeline control.";
       const effective = action === "kill" ? killable : active;
       setButtonDisabledWithReason(button, disabled, state.controlCommandInFlight ? busyReason : (effective ? activeReason : idleReason));
+      button.dataset.commandState = state.controlCommandInFlight ? "running" : disabled ? (stale ? "stale" : "blocked") : "ready";
       if (action === "pause") setButtonClass(button, active ? "primary-button" : "secondary-button");
       if (action === "rescan") setButtonClass(button, "secondary-button");
       if (action === "stop") setButtonClass(button, active ? "danger-button pipeline-stop-button" : "secondary-button pipeline-stop-button");
@@ -216,12 +235,19 @@
         }
       }
     });
-    renderPipelineControllerStatus(snapshot, closeReadiness, active, stuck);
+    renderPipelineControllerStatus(snapshot, closeReadiness, active, stuck, stale);
   }
 
   function setLaunchCommandBusy(isBusy) {
     state.launchCommandInFlight = Boolean(isBusy);
     updateLaunchCommandButtonStates();
+  }
+
+  function setLaunchCommandButtonState(id, commandState, label = "") {
+    const button = byId(id);
+    if (!button) return;
+    button.dataset.commandState = commandState || "";
+    if (label) button.textContent = label;
   }
 
   function rejectLaunchCommandWhileBusy(command, statusId, detailId) {
@@ -266,6 +292,16 @@
     return window.confirm(controlConfirmMessages[action]);
   }
 
+  async function nextLaunchCommandFrame() {
+    await new Promise((resolve) => {
+      if (typeof window.requestAnimationFrame === "function") {
+        window.requestAnimationFrame(() => resolve());
+      } else {
+        window.setTimeout(resolve, 0);
+      }
+    });
+  }
+
     return {
       controlActionLabels,
       launchButtonGate,
@@ -273,11 +309,13 @@
       setButtonDisabledWithReason,
       updateLaunchCommandButtonStates,
       setLaunchCommandBusy,
+      setLaunchCommandButtonState,
       rejectLaunchCommandWhileBusy,
       setControlCommandBusy,
       rejectControlCommandWhileBusy,
       shouldConfirmControl,
       confirmControlAction,
+      nextLaunchCommandFrame,
     };
   }
 

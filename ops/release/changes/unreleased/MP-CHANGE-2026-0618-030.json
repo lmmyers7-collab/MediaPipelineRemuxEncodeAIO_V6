@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0618-030",
+  "title": "Add autonomy external alert metadata",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-18",
+  "date_completed": "2026-06-18",
+  "summary": "Add read-only external polling and alert metadata to the autonomy health payload.",
+  "reason": "The 30-day hardening plan calls for external alert/export support. The safest next slice is a side-effect-free alert summary that schedulers or monitors can poll without adding notifier credentials, network calls, or media mutation.",
+  "affected_areas": [
+    "diagnostics",
+    "safety",
+    "tests"
+  ],
+  "behavior_before": "External monitors could parse overall autonomy health, blockers, and review items, but there was no compact alert summary with a stable schema, dedupe key, poll interval, and no-side-effect guarantees.",
+  "behavior_after": "Autonomy health includes a read-only external alert payload that summarizes ready/review/blocked state for polling systems without sending notifications, writing files, or changing pipeline state.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-030.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/autonomy_health.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_autonomy_health.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0618-030.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "manual_validation": [
+    "broader local API static suite attempt failed in unrelated WebView assertion: missing requestDiagnosticsTail(target) in diagnosticsView.js; no WebView files touched by this change",
+    "pytest tests/python/desktop/test_autonomy_health.py -q - initially failed before implementation (3 failed, 8 passed)",
+    "pytest tests/python/desktop/test_autonomy_health.py -q - passed (11 passed)",
+    "pytest tests/python/desktop/test_autonomy_health.py tests/python/desktop/test_application_facade_diagnostics.py tests/python/desktop/test_application_facade_process_launch.py tests/python/desktop/test_application_facade_local_api.py::LocalApiServerTests::test_local_api_diagnostics_state_summary_reads_backend_allowlist tests/python/desktop/test_api_contract_payload.py -q - passed (71 passed, 181 subtests)",
+    "refresh_summaries targeted autonomy alert files - passed (3 written)",
+    "validate_changes --require-worktree-coverage - failed due 13 unrelated uncovered dirty WebView/generated-summary files outside this autonomy diagnostics slice",
+    "validate_changes --require-worktree-coverage - final failed due 12 unrelated uncovered dirty WebView/generated-summary files outside this autonomy diagnostics slice"
+  ],
+  "rollback_plan": "Remove the external alert metadata helper, focused tests, generated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0618-022"
+  ],
+  "notes": "Metadata only. This change must not add email/webhook sending, write export files, mutate state, bypass launch gates, or touch media."
+}

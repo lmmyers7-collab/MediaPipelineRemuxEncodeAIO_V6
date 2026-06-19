@@ -130,12 +130,12 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "Check coordinator start",
             "Check coordinator stop",
             "Start coordinator",
-            "Stop coordinator now",
+            "Request coordinator stop",
             "Check worker start",
             "Check worker stop",
             "Test worker connection",
             "Start worker polling",
-            "Stop worker now",
+            "Request worker stop",
             "Create Join Blob",
             "Copy Blob",
             "Join Cluster",
@@ -157,8 +157,6 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "Close",
             "Cancel",
             "Confirm command",
-            "Coordinator",
-            "Worker",
         ):
             self.assertIn(expected, labels)
         diagnostics_buttons = [(label, attrs) for label, attrs in buttons if "data-open-diagnostics=" in attrs]
@@ -167,7 +165,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             self.assertIn("data-open-diagnostics=", attrs)
             self.assertNotIn("id=", attrs)
         tab_buttons = [(label, attrs) for label, attrs in buttons if "data-network-tab=" in attrs]
-        self.assertEqual([(label, "role=\"tab\"" in attrs) for label, attrs in tab_buttons], [("Coordinator", True), ("Worker", True)])
+        self.assertEqual(tab_buttons, [])
         lifecycle_buttons = [
             (label, attrs)
             for label, attrs in buttons
@@ -212,8 +210,6 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
                 or "data-network-future-control=" in attrs
                 or "data-network-test-connection" in attrs
             ):
-                continue
-            if "data-network-tab=" in attrs:
                 continue
             self.assertTrue(any(item in attrs for item in allowed_setting_ids), attrs)
 
@@ -262,8 +258,8 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "function collectPathMapRowsStrict",
             "function testPathMapRow",
             "await runner({ render: false })",
-            "Local rewrite result:",
-            "Generic saved-config backend preflight",
+            "Local staged rewrite result:",
+            "Backend saved-config preflight",
             "Use the coordinator machine name or LAN IP",
             "aria-invalid",
         ):
@@ -327,7 +323,12 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("route?.network_lifecycle", source)
         self.assertIn("apiPost(route, request)", source)
         self.assertIn("function confirmNetworkLifecycleCommand", source)
+        self.assertIn("function confirmNetworkSetupCommand", source)
         self.assertIn("network-lifecycle-confirm-dialog", source)
+        self.assertIn("networkLifecycleDryRunEvidence", source)
+        self.assertIn("function networkLifecycleDryRunAllowsConfirmed", source)
+        self.assertIn("function networkLifecycleFingerprint", source)
+        self.assertIn("function networkSetupMutationRouteSummary", source)
         self.assertIn("function networkWorkerTestConnectionRoute", source)
         self.assertIn("function networkTestConnectionResultLines", source)
         self.assertIn("function runNetworkWorkerTestConnection", source)
@@ -346,14 +347,22 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertNotIn("Stopping may abort active worker work", source)
         self.assertIn("stop polling/new claims", source)
         self.assertIn("active work is preserved for done reporting", source)
+        self.assertIn("Matching dry-run required", source)
+        self.assertIn("Create Join Blob was cancelled before the backend confirmation field was sent.", source)
+        self.assertIn("Join Cluster was cancelled before the backend confirmation field was sent.", source)
         self.assertIn("desktop_network_join_blob_result.v1", source)
         self.assertIn("desktop_network_join_import_result.v1", source)
         self.assertIn("desktop_network_coordinator_discovery.v1", source)
         self.assertIn("confirm_create", source)
+        self.assertIn("confirm_rotate", source)
         self.assertIn("confirm_import", source)
         self.assertIn("navigator.clipboard.writeText", source)
         self.assertIn("postNetworkRoute(route, { timeout_seconds: 2 })", source)
+        self.assertIn("postNetworkRoute(route, request)", source)
         self.assertNotIn('apiPost("/api/network/worker/discover-coordinators"', source)
+        self.assertNotIn('apiPost("/api/network/worker/test-connection"', source)
+        self.assertNotIn('apiPost("/api/network/coordinator/join-blob"', source)
+        self.assertNotIn('apiPost("/api/network/worker/join-cluster"', source)
         self.assertNotIn("/api/network/coordinator/start-dry-run", source)
         self.assertNotIn("/api/network/worker/stop", source)
         self.assertIn("Confirmed lifecycle command was cancelled", source)
@@ -364,8 +373,16 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("network_lifecycle_contracts", source)
         self.assertIn("backend_lifecycle_routes_available_provider_guarded", source)
         self.assertIn("Mutation guardrail", source)
-        self.assertIn("mediapipeline-network-tab", source)
-        self.assertIn("function activateNetworkTab", source)
+        self.assertIn("Lifecycle dry-run routes:", source)
+        self.assertIn("confirmed lifecycle start/stop routes", source)
+        self.assertIn("Setup write/secret routes:", source)
+        self.assertIn("setup secret-transfer", source)
+        self.assertIn("setup config-write", source)
+        self.assertNotIn("mediapipeline-network-tab", source)
+        self.assertNotIn("data-network-tab", source)
+        self.assertIn("function networkRolePanelIds", source)
+        self.assertIn("function syncNetworkRoleDashboards", source)
+        self.assertIn("data-network-role-panel", source)
         self.assertIn("function networkCoordinatorOverviewModel", source)
         self.assertIn("function networkWorkerOverviewModel", source)
         self.assertIn("function renderNetworkRoleDashboards", source)
@@ -389,6 +406,9 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("Worker coordinator URL", source)
         self.assertIn("Coordinator bind endpoint", source)
         self.assertIn("coordinator worker list is persisted on the coordinator host", source)
+        self.assertIn("function networkWorkerHasClaimEvidence", source)
+        self.assertIn('return "running";', source)
+        self.assertIn('return "unknown";', source)
 
     def test_network_view_js_does_not_render_auth_token_settings(self) -> None:
         source = NETWORK_JS.read_text(encoding="utf-8")

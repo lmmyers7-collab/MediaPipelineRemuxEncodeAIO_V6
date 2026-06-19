@@ -53,10 +53,47 @@
       completedIntegrityLines = completedReviewNoop,
     } = reviewIntegrity;
 
+    function completedProofStripState(statusText) {
+      const normalized = String(statusText || "").toLowerCase();
+      if (["clear", "ok", "ready", "pass", "consistent", "complete"].some((token) => normalized.includes(token))) return "ok";
+      if (["blocked", "missing", "failed", "error", "unavailable"].some((token) => normalized.includes(token))) return "blocked";
+      if (["review", "warning", "stale", "aged", "unknown", "check"].some((token) => normalized.includes(token))) return "warning";
+      return "unknown";
+    }
+
+    function completedProofStripChip(label, state) {
+      if (window.mediaPipelineDom?.makeStatusChip) {
+        return window.mediaPipelineDom.makeStatusChip(label, state);
+      }
+      const chip = document.createElement("span");
+      chip.className = "status-chip";
+      chip.dataset.status = state || "unknown";
+      chip.textContent = label || "";
+      return chip;
+    }
+
+    function renderCompletedProofStrip(id, statusText, lines) {
+      const node = byId(id);
+      if (!node) return;
+      const rowLines = Array.isArray(lines) ? lines.map((line) => String(line || "").trim()).filter(Boolean) : [];
+      const state = completedProofStripState(statusText);
+      const chips = [
+        completedProofStripChip(statusText || "Not loaded", state),
+        completedProofStripChip(rowLines.length ? `${rowLines.length} proof lines` : "No proof lines", rowLines.length ? "normal" : "unknown"),
+      ];
+      rowLines.slice(0, 2).forEach((line) => {
+        chips.push(completedProofStripChip(line.replace(/^[-*]\s*/, ""), state));
+      });
+      node.replaceChildren(...chips);
+    }
+
     function renderCompletedIntegrity(completed, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      setText("completed-integrity-status", completedIntegrityStatus(completed || {}, rowList));
-      setText("completed-integrity", completedIntegrityLines(completed || {}, rowList).join("\n"));
+      const status = completedIntegrityStatus(completed || {}, rowList);
+      const lines = completedIntegrityLines(completed || {}, rowList);
+      setText("completed-integrity-status", status);
+      renderCompletedProofStrip("completed-integrity-strip", status, lines);
+      setText("completed-integrity", lines.join("\n"));
     }
 
     function completedWorkflowStatus(completed, rows) {
@@ -114,8 +151,11 @@
 
     function renderCompletedWorkflow(completed, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      setText("completed-workflow-status", completedWorkflowStatus(completed || {}, rowList));
-      setText("completed-workflow", completedWorkflowLines(completed || {}, rowList).join("\n"));
+      const status = completedWorkflowStatus(completed || {}, rowList);
+      const lines = completedWorkflowLines(completed || {}, rowList);
+      setText("completed-workflow-status", status);
+      renderCompletedProofStrip("completed-workflow-strip", status, lines);
+      setText("completed-workflow", lines.join("\n"));
     }
 
     const reviewSizeReviewModule = window.__completedViewReviewSizeReviewModule || {};
@@ -626,8 +666,11 @@
 
     function renderCompletedBreakdown(completed, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      setText("completed-breakdown-status", completedBreakdownStatus(completed || {}, rowList));
-      setText("completed-breakdown", completedBreakdownLines(completed || {}, rowList).join("\n"));
+      const status = completedBreakdownStatus(completed || {}, rowList);
+      const lines = completedBreakdownLines(completed || {}, rowList);
+      setText("completed-breakdown-status", status);
+      renderCompletedProofStrip("completed-breakdown-strip", status, lines);
+      setText("completed-breakdown", lines.join("\n"));
     }
 
     function completedRuntimeStatus(completed, rows) {
@@ -681,8 +724,11 @@
 
     function renderCompletedRuntime(completed, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      setText("completed-runtime-status", completedRuntimeStatus(completed || {}, rowList));
-      setText("completed-runtime", completedRuntimeLines(completed || {}, rowList).join("\n"));
+      const status = completedRuntimeStatus(completed || {}, rowList);
+      const lines = completedRuntimeLines(completed || {}, rowList);
+      setText("completed-runtime-status", status);
+      renderCompletedProofStrip("completed-runtime-strip", status, lines);
+      setText("completed-runtime", lines.join("\n"));
     }
 
     function completedConsistencyStatus(completed, rows) {
@@ -724,8 +770,11 @@
 
     function renderCompletedConsistency(completed, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      setText("completed-consistency-status", completedConsistencyStatus(completed || {}, rowList));
-      setText("completed-consistency", completedConsistencyLines(completed || {}, rowList).join("\n"));
+      const status = completedConsistencyStatus(completed || {}, rowList);
+      const lines = completedConsistencyLines(completed || {}, rowList);
+      setText("completed-consistency-status", status);
+      renderCompletedProofStrip("completed-consistency-strip", status, lines);
+      setText("completed-consistency", lines.join("\n"));
     }
 
     const COMPLETED_VALIDATION_STATE_SCHEMA_VERSION = "desktop_validation_state.v1";
@@ -829,8 +878,11 @@
 
     function renderCompletedValidation(completed, rows) {
       const rowList = Array.isArray(rows) ? rows : [];
-      setText("completed-validation-status", completedValidationStatus(completed || {}, rowList));
-      setText("completed-validation", completedValidationChecklistLines(completed || {}, rowList).join("\n"));
+      const status = completedValidationStatus(completed || {}, rowList);
+      const lines = completedValidationChecklistLines(completed || {}, rowList);
+      setText("completed-validation-status", status);
+      renderCompletedProofStrip("completed-validation-strip", status, lines);
+      setText("completed-validation", lines.join("\n"));
     }
 
     function completedRowReviewChecklistLines(item) {

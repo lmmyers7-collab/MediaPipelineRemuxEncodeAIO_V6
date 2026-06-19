@@ -182,6 +182,9 @@
       foExactTrackWarnings: [],
       foUnmatchedExactSelectors: emptyExactSelectorState(),
       foCommandInFlight: false,
+      foDrawerLoading: false,
+      foDrawerLoadToken: 0,
+      foPendingClearFieldPaths: new Set(),
       foDrawerBaselineSignature: "",
       foDrawerDirty: false,
       foSeriesPreviewPayload: null,
@@ -195,6 +198,9 @@
       state.foExactTrackOverrideEntry = null;
       state.foExactTrackWarnings = [];
       state.foUnmatchedExactSelectors = emptyExactSelectorState();
+      state.foCommandInFlight = false;
+      state.foDrawerLoading = false;
+      state.foPendingClearFieldPaths = new Set();
       state.foDrawerBaselineSignature = "";
       state.foDrawerDirty = false;
       state.foCurrentPath = "";

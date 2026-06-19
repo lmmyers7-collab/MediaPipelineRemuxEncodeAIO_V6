@@ -113,6 +113,29 @@ class MaintenanceChangeLedgerTests(unittest.TestCase):
         self.assertEqual(released["release_version"], "1.0.0")
         self.assertIn("src/mediapipeline/core/maintenance", payload["python_impact"]["summary"])
 
+    def test_change_ledger_bounds_rows_without_losing_full_counts(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            for index in range(1, 4):
+                _write_packet(
+                    root,
+                    f"ops/release/changes/unreleased/MP-CHANGE-2026-0604-00{index}.json",
+                    _packet(f"MP-CHANGE-2026-0604-00{index}"),
+                )
+
+            payload = change_ledger_payload(root, row_limit=2)
+            all_payload = change_ledger_payload(root, row_limit="all")
+
+        self.assertEqual(payload["counts"]["total"], 3)
+        self.assertEqual(payload["row_count"], 3)
+        self.assertEqual(payload["returned_row_count"], 2)
+        self.assertEqual(payload["row_limit"], 2)
+        self.assertEqual(payload["truncated_row_count"], 1)
+        self.assertEqual([row["id"] for row in payload["rows"]], ["MP-CHANGE-2026-0604-003", "MP-CHANGE-2026-0604-002"])
+        self.assertEqual(all_payload["row_limit"], "all")
+        self.assertEqual(all_payload["returned_row_count"], 3)
+        self.assertEqual(all_payload["truncated_row_count"], 0)
+
     def test_change_ledger_reports_uncovered_worktree_paths_as_review(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -161,6 +184,7 @@ class MaintenanceChangeLedgerTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-001.json", _packet("MP-CHANGE-2026-0604-001"))
+            _write_packet(root, "ops/release/changes/unreleased/MP-CHANGE-2026-0604-002.json", _packet("MP-CHANGE-2026-0604-002"))
             facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
             server = LocalApiServer(
                 facade,
@@ -170,7 +194,7 @@ class MaintenanceChangeLedgerTests(unittest.TestCase):
             try:
                 server.start()
                 denied_status, denied = _get_json(f"{server.url}/api/maintenance/change-ledger")
-                ok_status, payload = _get_json(f"{server.url}/api/maintenance/change-ledger", token="ledger-token")
+                ok_status, payload = _get_json(f"{server.url}/api/maintenance/change-ledger?limit=1", token="ledger-token")
             finally:
                 server.stop()
 
@@ -178,15 +202,20 @@ class MaintenanceChangeLedgerTests(unittest.TestCase):
         self.assertEqual(denied["error"], "unauthorized")
         self.assertEqual(ok_status, 200)
         self.assertEqual(payload["schema_version"], "desktop_change_ledger.v1")
-        self.assertEqual(payload["counts"]["total"], 1)
+        self.assertEqual(payload["counts"]["total"], 2)
+        self.assertEqual(payload["row_count"], 2)
+        self.assertEqual(payload["returned_row_count"], 1)
+        self.assertEqual(payload["truncated_row_count"], 1)
         self.assertIn("coverage", payload)
 
     def test_change_ledger_route_is_documented_as_read_only(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
 
         self.assertIn("/api/maintenance/change-ledger", GET_ROUTE_HANDLERS)
+        self.assertTrue(GET_ROUTE_HANDLERS["/api/maintenance/change-ledger"].needs_query)
         self.assertEqual(routes["/api/maintenance/change-ledger"]["method"], "GET")
         self.assertEqual(routes["/api/maintenance/change-ledger"]["effect"], "none")
+        self.assertEqual(routes["/api/maintenance/change-ledger"]["query_keys"], ["limit"])
         self.assertEqual(routes["/api/maintenance/change-ledger"]["response_schema"], "desktop_change_ledger.v1")
 
 

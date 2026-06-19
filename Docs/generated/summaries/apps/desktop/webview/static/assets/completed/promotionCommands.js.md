@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/completed/promotionCommands.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-06
+last_modified: 2026-06-18
 last_reviewed: 2026-06-04
-sha256: 080c91df95a41e0ed327e1b80d1726ba214d0ec767fe9c6d22c030fd8a5e968a
+sha256: 92aa94786e218735187da6f9159e80eca4f504b096a48eaf8e3d759dfca8b94a
 ---
 # `apps/desktop/webview/static/assets/completed/promotionCommands.js`
 

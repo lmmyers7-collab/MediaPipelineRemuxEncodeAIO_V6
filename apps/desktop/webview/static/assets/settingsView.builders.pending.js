@@ -93,10 +93,10 @@
         setText("settings-patch-detail", message);
         return false;
       }
-      writeSettingsPatchJson(patch, "Pending publish builder merged deferred publish, copy, retry, cleanup, and safety keys into Changes JSON. Preview or Save still uses backend validation.");
+      writeSettingsPatchJson(patch, "Pending publish builder prepared deferred publish, copy, retry, cleanup, and safety keys for Save Settings. Backend Save still validates before writing.");
       pendingPublishSettingsBuilderState.initialized = true;
       pendingPublishSettingsBuilderState.dirty = true;
-      setText("settings-pending-builder-status", `${Object.keys(patch).length} pending-publish patch keys ready`);
+      setText("settings-pending-builder-status", `${Object.keys(patch).length} pending-publish change keys ready`);
       renderPendingPublishSettingsBuilderGuidance();
       renderSettingsActiveMediaPolicyHandoff();
       return true;

@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0619-022",
+  "title": "Align documentation with promoted layout",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Refresh stale active documentation so launcher paths, promoted WebView/Tauri state, and package layout references match the current ops/scripts and src/mediapipeline layout.",
+  "reason": "Current operator and AI guidance must not point readers back to removed root launchers, old flat package paths, or obsolete pre-promotion assumptions.",
+  "affected_areas": [
+    "ai_guidance",
+    "documentation",
+    "operator_guidance"
+  ],
+  "behavior_before": "Some active documentation may still mention removed root launchers, old package paths, obsolete AI handoff material, or pre-promotion WebView/Tauri status.",
+  "behavior_after": "Active documentation points to the promoted layout and canonical ops/scripts launcher paths; historical archive wording remains historical unless active navigation needs clarification.",
+  "files_touched": [
+    "AGENTS.md",
+    "CHANGELOG.md",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/DOCS_INDEX.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/README_MediaPipelineRemuxEncodeAIO.md",
+    "docs/architecture/QUEUE_SOURCE_SCAN_AND_CURATION_PLAN.md",
+    "docs/desktop/README.md",
+    "docs/generated/summaries/AGENTS.md.md",
+    "docs/generated/summaries/CHANGELOG.md.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/DOCS_INDEX.md.md",
+    "docs/generated/summaries/docs/README_MediaPipelineRemuxEncodeAIO.md.md",
+    "docs/generated/summaries/docs/architecture/QUEUE_SOURCE_SCAN_AND_CURATION_PLAN.md.md",
+    "docs/generated/summaries/docs/inventories/COMMAND_OWNERSHIP_MATRIX.md.md",
+    "docs/generated/summaries/docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-022.json.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md",
+    "docs/inventories/STATE_FILE_SCHEMA_REFERENCE.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-022.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PowerShell Test-Path check for changed referenced paths - passed",
+    "Targeted rg stale-reference sweep - only intentional historical/removed-surface mentions remained",
+    "mediapipeline.tools.dev.check_active_doc_references - passed",
+    "validate_changes --require-worktree-coverage - failed only on unrelated MP-CHANGE-2026-0619-021 metadata and uncovered ops/pipeline/engine/shared/native.ps1"
+  ],
+  "rollback_plan": "Revert the documentation edits and this change packet if the references are found to be incorrect.",
+  "related_changes": [],
+  "notes": "Docs-only change packet created before edits on 2026-06-19.\nCreated docs alignment packet before edits on 2026-06-19.\nAligned active docs with promoted src/mediapipeline layout, canonical ops/scripts launchers, and removed AI handoff stubs.\nCleaned remaining active app/api and app/queue path references.\nUpdated remaining queue scan plan paths to src/mediapipeline/core.\nRefreshed summaries for touched docs; only new packet summary needed coverage.\nCorrected packet type to docs and covered generated queue-plan summary.\nDocs packet complete; strict coverage blocked by unrelated pre-existing worktree issues.\nAdded generated summaries dirtied by the targeted summary refresh."
+}

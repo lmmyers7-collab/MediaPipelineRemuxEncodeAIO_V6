@@ -79,6 +79,8 @@
       rows.appendChild(row);
     }
     if (applyButton) applyButton.disabled = true;
+    renderRemuxPilotPromotionResult(null);
+    syncRemuxPilotPromotionState();
   }
 
   function fieldPathLabel(path) {
@@ -236,6 +238,109 @@
     setSeriesStatus(data.ok ? "Review the affected rows before applying." : "Preview has blockers.", data.ok ? "info" : "error");
   }
 
+  function selectedPilotSourcePaths() {
+    const rows = typeof window.getSelectedQueuePriorityRows === "function"
+      ? window.getSelectedQueuePriorityRows()
+      : (typeof window.getSelectedQueueRow === "function" ? [window.getSelectedQueueRow()] : []);
+    const paths = [];
+    const seen = new Set();
+    (Array.isArray(rows) ? rows : []).forEach((row) => {
+      const path = String(row?.source_path || "").trim();
+      const key = path.toLocaleLowerCase();
+      if (!path || seen.has(key)) return;
+      seen.add(key);
+      paths.push(path);
+    });
+    return paths;
+  }
+
+  function remuxPilotStatusText(paths) {
+    if (!paths.length) return "";
+    if (paths.length !== 3) return `${paths.length} selected; select exactly 3 pilot rows.`;
+    return "3 pilot rows selected.";
+  }
+
+  function syncRemuxPilotPromotionState() {
+    const button = byId("fo-remux-pilot-promote");
+    if (!button) return;
+    const paths = selectedPilotSourcePaths();
+    button.hidden = paths.length === 0;
+    button.disabled = state.foCommandInFlight || paths.length !== 3;
+    button.title = remuxPilotStatusText(paths);
+    button.setAttribute("aria-label", `Promote remux fallback from ${paths.length} selected pilot row${paths.length === 1 ? "" : "s"}`);
+  }
+
+  function appendProofChip(container, label, tone = "") {
+    if (!container) return;
+    const chip = document.createElement("span");
+    chip.textContent = label;
+    if (tone) chip.dataset.tone = tone;
+    container.appendChild(chip);
+  }
+
+  function renderRemuxPilotPromotionResult(result) {
+    const container = byId("fo-remux-pilot-proof");
+    if (!container) return;
+    container.replaceChildren();
+    if (!result) {
+      container.hidden = true;
+      return;
+    }
+    container.hidden = false;
+    const data = isPlainObject(result) ? result : {};
+    const counts = isPlainObject(data.counts) ? data.counts : {};
+    const detected = isPlainObject(data.detected_series) ? data.detected_series : {};
+    const blockers = Array.isArray(data.blockers) ? data.blockers : [];
+    const pilotEvidence = Array.isArray(data.pilot_evidence) ? data.pilot_evidence : [];
+    appendProofChip(container, data.ok ? "Promotion ready" : "Promotion blocked", data.ok ? "success" : "error");
+    appendProofChip(container, `Pilots: ${pilotEvidence.length}`);
+    if (detected.show_name) appendProofChip(container, `Show: ${detected.show_name}`);
+    appendProofChip(container, `Updated: ${counts.eligible_update_count || 0}`);
+    appendProofChip(container, `Protected: ${counts.protected_manual || 0}`, counts.protected_manual ? "warning" : "");
+    appendProofChip(container, `Skipped: ${counts.skipped || 0}`, counts.skipped ? "warning" : "");
+    blockers.slice(0, 3).forEach((blocker) => {
+      appendProofChip(container, String(blocker?.message || blocker || ""), "error");
+    });
+  }
+
+  async function requestRemuxPilotPromotion() {
+    if (state.foCommandInFlight) { setStatus("File override command already in progress."); return; }
+    const pilotPaths = selectedPilotSourcePaths();
+    if (pilotPaths.length !== 3) {
+      setStatus(remuxPilotStatusText(pilotPaths) || "Select exactly 3 pilot rows.", "warning");
+      syncRemuxPilotPromotionState();
+      return;
+    }
+    state.foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
+    syncRemuxPilotPromotionState();
+    setStatus("Promoting remux fallback from selected pilots...");
+    renderRemuxPilotPromotionResult(null);
+    try {
+      const result = await apiPost("/api/queue/file-overrides/remux-pilot-promote", {
+        pilot_source_paths: pilotPaths,
+        confirm_apply: true,
+        reason: "queue_drawer_selected_pilot_paths",
+      });
+      renderRemuxPilotPromotionResult(result);
+      if (!(result && result.ok)) {
+        setStatus("Error: " + backendErrorMessage(result, "Remux pilot promotion failed."), "error");
+        return;
+      }
+      appendCommandResultFn(result);
+      await refreshAllFn();
+      if (state.foCurrentPath) await loadFileOverrideEffectiveForPath(state.foCurrentPath, state.foCurrentItem);
+      markDrawerClean();
+      setStatus(result.message || "Remux pilot promotion applied.");
+    } catch (err) {
+      setStatus("Error promoting remux fallback: " + (err.message || err), "error");
+    } finally {
+      state.foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+      syncRemuxPilotPromotionState();
+    }
+  }
+
   async function requestSeriesPreview() {
     if (state.foCommandInFlight) { setStatus("File override command already in progress."); return; }
     if (!state.foCurrentPath) { setStatus("No file selected."); return; }
@@ -335,8 +440,11 @@
       resetSeriesPreviewState,
       renderSeriesRows,
       renderSeriesPreview,
+      renderRemuxPilotPromotionResult,
+      syncRemuxPilotPromotionState,
       requestSeriesPreview,
       applySeriesPreview,
+      requestRemuxPilotPromotion,
     };
   }
 

@@ -6,6 +6,16 @@
   const progressDisplayPercentCache = new Map();
   let progressDisplayPercentItemKey = "";
 
+  function setProgressPanelStatus(id, message, state) {
+    if (typeof setPanelStatus === "function") return setPanelStatus(id, message, state);
+    if (typeof setTextState === "function") {
+      setTextState(id, message, state);
+      return state || "";
+    }
+    setText(id, message);
+    return state || "";
+  }
+
   function progressBarStatusLabel(bar) {
     const status = String(bar?.status || "unknown").trim();
     const mode = String(bar?.mode || "determinate").trim();
@@ -862,7 +872,7 @@
     const payload = progress && typeof progress === "object" ? progress : {};
     const items = progressDetailItems(payload);
     const loaded = Object.keys(payload).length > 0;
-    setText("progress-detail-status", loaded ? `${items.length} checks` : "No details");
+    setProgressPanelStatus("progress-detail-status", loaded ? `${items.length} checks` : "No details", loaded ? "ready" : "empty");
     const container = byId("progress-detail-rows");
     if (!container) return;
     if (!loaded) {
@@ -900,7 +910,7 @@
   }
 
   function renderPipelineEvents(events) {
-    setText("pipeline-events-status", events.length ? `${events.length} event${events.length === 1 ? "" : "s"}` : "No events");
+    setProgressPanelStatus("pipeline-events-status", events.length ? `${events.length} event${events.length === 1 ? "" : "s"}` : "No events", events.length ? "changed" : "empty");
     const tbody = byId("pipeline-event-rows");
     if (!tbody) return;
     if (!events.length) {
@@ -1334,7 +1344,8 @@
 
   function renderProgressEvidence(context = {}) {
     const rows = progressEvidenceRows(context || {});
-    setText("progress-evidence-status", progressEvidenceStatus(rows));
+    const status = progressEvidenceStatus(rows);
+    setProgressPanelStatus("progress-evidence-status", status, status.includes("Blocked") ? "blocked" : status.includes("Review") ? "warning" : rows.length ? "ready" : "empty");
     setText("progress-evidence-summary", progressEvidenceSummaryLines(rows).join("\n"));
     const tbody = byId("progress-evidence-rows");
     if (!tbody) return;
@@ -1680,6 +1691,24 @@
     { statusId: "diagnostics-live-run-status", bodyId: "diagnostics-live-run-strip" },
   ];
 
+  function liveRunHandoffLines(context = {}, status = liveRunStatus(context), items = liveRunStripItems(context)) {
+    const active = status.state === "running";
+    const review = status.state === "warning";
+    const stage = items.find((item) => item.label === "Stage")?.value || "No stage";
+    const file = items.find((item) => item.label === "File")?.value || "No current file";
+    const close = items.find((item) => item.label === "Close")?.value || "Unknown";
+    const next = review
+      ? "Open Diagnostics, Active Jobs, Run Logs, and Last Stderr before stopping or closing."
+      : active
+        ? "Monitor Run Progress and wait for close-readiness to report safe before closing."
+        : "No active work is reported; refresh before starting a long unattended operation.";
+    return [
+      `Run state: ${status.label}; stage=${stage}; file=${file}; close=${close}.`,
+      `Safe next step: ${next}`,
+      "Mutation guardrail: this handoff is read-only and cannot start, stop, drain, publish, rename, or touch media.",
+    ];
+  }
+
   function renderLiveRunStrip(context = {}, targets = liveRunStripTargets) {
     const status = liveRunStatus(context);
     const items = liveRunStripItems(context);
@@ -1713,6 +1742,7 @@
         body.appendChild(node);
       });
     });
+    setText("home-run-state-handoff", liveRunHandoffLines(context, status, items).join("\n"));
   }
 
   function activeWorkNextStep({ activeJobs, closeReadiness, state }) {
@@ -1734,7 +1764,7 @@
     const state = snapshot?.pipeline_state || closeReadiness?.state || "unknown";
     const stateActive = ["processing", "running", "active", "publishing"].includes(String(state || "").toLowerCase());
     const active = activeJobs.length > 0 || closeReadiness?.safe_to_close === false || stateActive;
-    setText("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking");
+    setProgressPanelStatus("home-active-work-status", active ? "Active work" : closeReadiness?.safe_to_close === true ? "Idle" : "Checking", active ? "running" : closeReadiness?.safe_to_close === true ? "ok" : "loading");
     const lines = [
       `Pipeline state: ${state}`,
       `Close readiness: ${closeReadiness ? (closeReadiness.safe_to_close ? "safe" : "active work") : "unknown"}`,

@@ -301,6 +301,16 @@ class ServiceConfigValidationTests(unittest.TestCase):
                 '{"sample": ["alpha"], "sample": ["beta"]}',
                 "duplicate JSON object key: sample",
             ),
+            (
+                "RenameTVFilterOptions",
+                '{"sample": true, "sample": false}',
+                "duplicate JSON object key: sample",
+            ),
+            (
+                "RenameTVFilterTerms",
+                '{"sample": NaN}',
+                "non-finite JSON value is not allowed: NaN",
+            ),
         ]
         for key, raw, expected in cases:
             with self.subTest(key=key, raw=raw):

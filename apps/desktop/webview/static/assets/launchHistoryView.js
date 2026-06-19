@@ -4,12 +4,11 @@
 
   function isLaunchCommand(entry) {
     const command = String(entry?.command || "").toLowerCase();
-    return command === "pipeline.start" || command === "audit.start" || command === "rerun.start";
+    return command === "pipeline.start" || command === "rerun.start";
   }
 
   function launchHistoryLabel(command) {
     if (command === "pipeline.start") return "Pipeline";
-    if (command === "audit.start") return "Audit";
     if (command === "rerun.start") return "CSV rerun";
     return command || "Launch";
   }
@@ -51,7 +50,6 @@
   function launchHistoryTarget(command) {
     const normalized = String(command || "").toLowerCase();
     if (normalized === "pipeline.start") return "pipeline";
-    if (normalized === "audit.start") return "audit";
     if (normalized === "rerun.start") return "rerun";
     return "";
   }
@@ -203,7 +201,7 @@
         "Queue-to-Launch handoff",
         "ready",
         "No non-ready Queue-to-Launch Handoff rows are visible in the current snapshot.",
-        "If the command failed, refresh Queue and Diagnostics; cached queue evidence did not predict the block.",
+        "If the command failed, refresh Queue and Diagnostics; cached queue context did not predict the block.",
       )];
     }
     return nonReady.slice(0, 5).map((row) => launchCommandCorrelationRow(
@@ -232,10 +230,10 @@
     const review = rows.filter((row) => row.status === "warning").length;
     const unknown = rows.filter((row) => row.status === "unknown").length;
     if (["ok", "info", "none"].includes(issue)) {
-      return blockers || review || unknown ? "Command accepted; advisory evidence" : "No visible mismatch";
+      return blockers || review || unknown ? "Command accepted; advisory context" : "No visible mismatch";
     }
     if (blockers || review) return "Predicted by checklist";
-    if (unknown) return "Evidence incomplete";
+    if (unknown) return "Context incomplete";
     return "Not predicted by cached checks";
   }
 
@@ -264,15 +262,12 @@
     launchCommandDiagnosticsAdd(actions, "open", "run_logs", "Open Run Logs", "Inspect backend launch and PowerShell process logs around the command time.");
     launchCommandDiagnosticsAdd(actions, "open", "active_jobs", "Open Active Jobs", "Compare the command result against process lifecycle and orphaned-job state.");
     if (target === "pipeline") {
-      launchCommandDiagnosticsAdd(actions, "open", "queue_snapshot", "Open Queue Snapshot", "Compare launch rejection against queue state, blocked rows, and stale snapshot evidence.");
+      launchCommandDiagnosticsAdd(actions, "open", "queue_snapshot", "Open Queue Snapshot", "Compare launch rejection against queue state, blocked rows, and stale snapshot context.");
       launchCommandDiagnosticsAdd(actions, "open", "state", "Open State Folder", "Inspect launch locks, control flags, progress, and runtime state artifacts if process state disagrees.");
-    } else if (target === "audit") {
-      launchCommandDiagnosticsAdd(actions, "tail", "latest_failure_report", "Read Latest Failure", "Review latest failure context if audit launch or report generation failed.");
-      launchCommandDiagnosticsAdd(actions, "open", "audit_reports", "Open Audit Reports", "Inspect audit outputs and report paths before retrying audit launch.");
     } else if (target === "rerun") {
       launchCommandDiagnosticsAdd(actions, "tail", "latest_failure_report", "Read Latest Failure", "Review latest failure context before retrying CSV rerun.");
       launchCommandDiagnosticsAdd(actions, "open", "audit_reports", "Open Audit Reports", "Inspect source CSV/report context before retrying CSV rerun.");
-      launchCommandDiagnosticsAdd(actions, "open", "failed_reports", "Open Failed Reports", "Compare CSV rerun intent against failure-report evidence.");
+      launchCommandDiagnosticsAdd(actions, "open", "failed_reports", "Open Failed Reports", "Compare CSV rerun intent against failure-report context.");
     }
     return actions.slice(0, 10);
   }
@@ -295,7 +290,7 @@
     if (!item) {
       return [
         "Launch diagnostics retry guidance:",
-        "Select a launch command row before retrying a failed pipeline, audit, or CSV rerun start.",
+        "Select a launch command row before retrying a failed pipeline or CSV rerun start.",
         "Read-first order: command detail -> Last Stderr / Latest Failure -> Run Logs.",
         "Open-next order: Active Jobs -> Queue Snapshot / Audit Reports / Failed Reports -> State Folder when needed.",
         "Guardrail: these actions use backend allowlisted diagnostics targets only.",
@@ -313,7 +308,7 @@
       `Open-next targets: ${openTargets}`,
     ];
     if (!["ok", "info", "none"].includes(issue)) {
-      lines.push("Retry rule: do not press Start again until command detail, correlated checklist evidence, and diagnostics targets agree on the cause.");
+      lines.push("Retry rule: do not press Start again until command detail, correlated checklist context, and diagnostics targets agree on the cause.");
     } else {
       lines.push("Post-success rule: use diagnostics only if Home/Launch process state did not update as expected.");
     }
@@ -396,10 +391,10 @@
     } else if (rows.length) {
       lines.push("- Next step: recent launch commands have no visible warning/error result.");
     } else {
-      lines.push("- Next step: start history will appear here after pipeline, audit, or CSV rerun commands refresh.");
+      lines.push("- Next step: start history will appear here after pipeline or CSV rerun commands refresh.");
     }
     lines.push("- Selection behavior: selecting a launch command review row selects that command in the global Command Results and Diagnostics drilldown.");
-    lines.push("- Guardrail: this panel is read-only; launch, audit, CSV rerun, drain, and control commands remain backend-owned.");
+    lines.push("- Guardrail: this panel is read-only; launch, CSV rerun, drain, and control commands remain backend-owned.");
     return lines;
   }
 
@@ -412,7 +407,7 @@
     if (!item) {
       return [
         "Launch command review detail:",
-        "Select a launch command row to compare command result against cached Backend Preflight, Launch intent, and Queue-to-Launch handoff evidence.",
+        "Select a launch command row to compare command result against cached Backend Preflight, Launch intent, and Queue-to-Launch handoff context.",
         "Guardrail: this panel is read-only and cannot retry or launch work.",
       ];
     }
@@ -430,21 +425,21 @@
       "Submitted request:",
       JSON.stringify(launchHistoryRequest(item.entry), null, 2),
       "",
-      "Correlated checklist/preflight evidence:",
+      "Correlated checklist/preflight context:",
     ];
     const rows = launchCommandCorrelationRows(item.entry);
     if (!rows.length) {
       lines.push("- No correlated checklist/preflight rows were available.");
     } else {
       rows.forEach((row) => {
-        lines.push(`- ${row.source} / ${row.checkpoint}: ${row.posture}; ${row.evidence || "no evidence"}; ${row.action || "review before retry"}`);
+        lines.push(`- ${row.source} / ${row.checkpoint}: ${row.posture}; ${row.evidence || "no context"}; ${row.action || "review before retry"}`);
         row.detail.slice(0, 3).forEach((detail) => lines.push(`  ${typeof detail === "object" ? JSON.stringify(detail) : String(detail)}`));
       });
     }
     lines.push("");
     lines.push(...launchCommandDiagnosticsGuidanceLines(item));
     lines.push("");
-    lines.push("Guardrail: backend start routes re-check this state at submission time; cached checklist evidence is explanatory, not authority.");
+    lines.push("Guardrail: backend start routes re-check this state at submission time; cached checklist context is explanatory, not authority.");
     return lines;
   }
 
@@ -505,8 +500,8 @@
         statusId: "launch-history-status",
         statusText: (entries) => `${entries.length} launch${entries.length === 1 ? "" : "es"}`,
         itemLabel: "launch command",
-        emptyHistoryText: "No command history loaded yet. Recent pipeline, audit, and CSV rerun starts will appear here after refresh.",
-        emptyMatchText: "No pipeline, audit, or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.",
+        emptyHistoryText: "No command history loaded yet. Recent pipeline and CSV rerun starts will appear here after refresh.",
+        emptyMatchText: "No pipeline or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.",
         lineFor: launchHistoryLine,
         footer: "Backend launch locking and validation remain the source of truth.",
       });
@@ -515,11 +510,11 @@
     const entries = Array.isArray(history) ? history.filter(isLaunchCommand).slice(0, 6) : [];
     setText("launch-history-status", `${entries.length} launch${entries.length === 1 ? "" : "es"}`);
     if (!Array.isArray(history) || !history.length) {
-      setText("launch-history", "No command history loaded yet. Recent pipeline, audit, and CSV rerun starts will appear here after refresh.");
+      setText("launch-history", "No command history loaded yet. Recent pipeline and CSV rerun starts will appear here after refresh.");
       return;
     }
     if (!entries.length) {
-      setText("launch-history", "No pipeline, audit, or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.");
+      setText("launch-history", "No pipeline or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.");
       return;
     }
     const lines = [
