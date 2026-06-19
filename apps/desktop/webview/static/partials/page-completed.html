@@ -127,6 +127,31 @@
 
         <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
           <div class="panel-heading">
+            <h2>Repair/Reconcile</h2>
+            <strong id="completed-repair-overall-status">Dry-run required</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <span class="status-chip" data-status="review">Manifest</span>
+            <button type="button" id="completed-reconcile-manifest-dry-run-button" class="secondary-button">Dry Run Manifest</button>
+            <button type="button" id="completed-reconcile-manifest-apply-button" class="danger-button" disabled>Apply Manifest</button>
+            <span id="completed-repair-manifest-status" class="inline-action-status" data-state="unknown" role="status" aria-live="polite">Dry-run required</span>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <span class="status-chip" data-status="review">Sidecar</span>
+            <button type="button" id="completed-repair-sidecar-dry-run-button" class="secondary-button">Dry Run Sidecar</button>
+            <button type="button" id="completed-repair-sidecar-apply-button" class="danger-button" disabled>Apply Sidecar</button>
+            <span id="completed-repair-sidecar-status" class="inline-action-status" data-state="unknown" role="status" aria-live="polite">Dry-run required</span>
+          </div>
+          <details class="pending-compact-detail">
+            <summary>Completed repair detail</summary>
+            <pre id="completed-repair-detail" class="prose-block">Select one Completed row, then run a backend dry-run. Apply remains disabled until the backend reports safe_to_apply=true and supplies a matching dry_run_fingerprint.</pre>
+            <pre id="completed-repair-history" class="prose-block">No Completed repair/reconcile history loaded.</pre>
+          </details>
+          <p id="completed-repair-legend" class="note table-legend">Completed repair/reconcile is backend-owned: dry-run first, fingerprint-gated apply, no rename, no rerun, no delete, no publish/drain, and no source-media mutation.</p>
+        </section>
+
+        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
+          <div class="panel-heading">
             <h2>Output Files</h2>
             <button class="secondary-button" type="button" data-page-refresh-button="completed">Refresh Output</button>
             <strong id="completed-status">No rows</strong>

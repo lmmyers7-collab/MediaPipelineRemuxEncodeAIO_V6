@@ -929,7 +929,7 @@ def _network_payload(root: Path) -> dict[str, object]:
                 "status": "backend_lifecycle_routes_available_provider_guarded",
                 "mutation_enabled": True,
                 "frontend_allowed": True,
-                "safe_next_step": "Use Network/Workers dry-runs first. Confirmed start/stop commands are backend-owned, command-journaled, confirmation-gated, and blocked when the real lifecycle provider is unavailable.",
+                "safe_next_step": "Use Network/Workers dry-runs first. Confirmed start/stop commands are backend-owned, command-journaled, confirmation-gated, and blocked when provider hooks are unavailable or preconditions fail.",
             },
             "network_lifecycle_contracts": [
                 {"command": "coordinator.start", "current_status": "backend_route_available_provider_guarded"},

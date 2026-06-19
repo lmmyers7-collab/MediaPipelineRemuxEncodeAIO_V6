@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0619-038",
+  "title": "Dynamic HDR preservation planner",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Added a pure Dynamic HDR preservation planner that maps route, policy, DoVi/HDR10+ evidence, tool availability, x265 capability, and encoder posture to preserve/remux/review decisions.",
+  "reason": "Dynamic HDR detection and tooling existed, but preserve_or_remux/preserve_or_review did not have a deterministic policy helper. This creates a tested decision surface before any high-risk FFmpeg argument or route-selection changes.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "Dynamic HDR evidence could warn about expected encode drops and expose tool/capability probes, but there was no reusable pure planner for policy outcomes.",
+  "behavior_after": "New-DynamicHdrPreservationPlan returns a dynamic_hdr_preservation_plan.v1 object with action, recommended_route, can_preserve_encode, target_dovi_profile, required_artifacts, caveats, and reasons. It is not wired into route selection, FFmpeg arguments, extraction, injection, or file movement.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/dynamic_hdr.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1.md",
+    "docs/implementation/dynamic-hdr-preservation/PLAN.md",
+    "ops/pipeline/engine/process/dynamic_hdr.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-038.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1 planner assertions"
+  ],
+  "manual_validation": [
+    "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrToolingChecks.ps1 - passed",
+    "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrDetectionChecks.ps1 - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    "git diff --check -- <packet touched paths> - passed with LF/CRLF notices only",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed: 460 packet(s) valid"
+  ],
+  "rollback_plan": "Revert New-DynamicHdrPreservationPlan, its tooling-check assertions, the active docs/plan wording, generated summaries, and this packet.",
+  "related_changes": [],
+  "notes": "Add pure Dynamic HDR preserve/remux/review planner without wiring route selection or FFmpeg arguments.\nRefresh generated summaries for Dynamic HDR preservation planner changes."
+}

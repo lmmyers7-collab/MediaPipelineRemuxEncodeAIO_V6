@@ -12,6 +12,7 @@ from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
+from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
@@ -97,6 +98,45 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertIn("fingerprint", result["errors"][0])
             self.assertEqual(_file_state(files["sidecar"]), before)
 
+    def test_pending_manifest_repair_apply_writes_only_manifest_with_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _pending_fixture(root, repairable_manifest=True)
+            manifest = files["pending_manifest"]
+            source_before = _file_state(files["source"])
+            output_before = _file_state(files["output"])
+            payload_before = _file_state(files["pending_payload"])
+            manifest_before = _file_state(manifest)
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            row_key = next(row["row_key"] for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
+            dry_run = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request={"scope": "selected", "row_key": row_key, "reason": "normalize"},
+            ).to_mapping()["data"]
+
+            result = facade.apply_repair_reconcile(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request=_apply_request(dry_run),
+            ).to_mapping()
+
+            repaired = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["data"]["applied"])
+            self.assertEqual(result["data"]["written_paths"], [str(manifest)])
+            self.assertEqual(result["data"]["backup_paths"][0].split("\\")[-1], manifest.name)
+            self.assertTrue(Path(result["data"]["backup_paths"][0]).exists())
+            self.assertNotEqual(_file_state(manifest), manifest_before)
+            PendingPushManifest.from_mapping(repaired)
+            self.assertEqual(repaired["local_file"], str(files["pending_payload"]))
+            self.assertEqual(repaired["output_size"], files["pending_payload"].stat().st_size)
+            self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertEqual(_file_state(files["output"]), output_before)
+            self.assertEqual(_file_state(files["pending_payload"]), payload_before)
+            self.assertTrue(result["data"]["source_payload_output_unchanged"])
+
     def test_orphan_payload_reconcile_apply_is_manifest_only_and_blocks_incomplete_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -104,21 +144,26 @@ class RepairReconcileApplyTests(unittest.TestCase):
             before = _file_state(files["pending_payload"])
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
             row_key = facade.get_pending_publish_preview(resolved).to_mapping()["rows"][0]["row_key"]
+            dry_run = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.reconcile_orphan_payloads",
+                request={"scope": "selected", "row_key": row_key},
+            ).to_mapping()["data"]
+            dry_run_row = dry_run["diff_summary"]["rows"][0]
 
             result = facade.apply_repair_reconcile(
                 resolved,
                 candidate_command="pending_publish.reconcile_orphan_payloads",
-                request={
-                    "scope": "selected",
-                    "row_key": row_key,
-                    "limit": 100,
-                    "reason": "manifest only",
-                    "dry_run_fingerprint": "bad-fingerprint",
-                    "confirm_apply": True,
-                },
+                request=_apply_request(dry_run, reason="manifest only"),
             ).to_mapping()
 
+            self.assertFalse(dry_run["safe_to_apply"])
+            self.assertEqual(dry_run_row["status"], "blocked")
+            self.assertFalse(dry_run_row["proposed_manifest_available"])
+            self.assertIn("server_out", dry_run_row["missing_required_manifest_fields"])
+            self.assertIn("source_path", dry_run_row["missing_required_manifest_fields"])
             self.assertFalse(result["ok"])
+            self.assertIn("safe_to_apply is false", result["errors"][0])
             self.assertFalse(result["data"]["applied"])
             self.assertFalse(result["data"]["written_paths"])
             self.assertFalse((files["pending_payload"].with_suffix(files["pending_payload"].suffix + ".manifest.json")).exists())

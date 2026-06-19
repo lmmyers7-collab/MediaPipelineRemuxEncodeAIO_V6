@@ -90,6 +90,73 @@ try {
     Assert-True ([string]$cachedCapability.Reason -match 'ffmpeg not found') 'Capability cache should keep missing-ffmpeg reason.'
     $forcedCapability = Test-X265DynamicHdrCapability -FfmpegPath $missingFfmpegB -Force
     Assert-Equal $forcedCapability.FfmpegPath $missingFfmpegB 'Capability probe should refresh when Force is supplied.'
+
+    $warnPlan = New-DynamicHdrPreservationPlan `
+        -Route encode `
+        -Policy warn `
+        -DoviPresent:$true `
+        -DoviProfile 8 `
+        -DoviBlCompatId 1
+    Assert-Equal $warnPlan.Action 'warn_only' 'Warn policy should not change encode routing.'
+    Assert-Equal $warnPlan.recommended_route 'encode' 'Warn policy should keep encode route.'
+    Assert-True (-not [bool]$warnPlan.can_preserve_encode) 'Warn policy should not claim encode preservation.'
+
+    $remuxPlan = New-DynamicHdrPreservationPlan `
+        -Route remux `
+        -Policy preserve_or_review `
+        -Hdr10PlusPresent:$true
+    Assert-Equal $remuxPlan.Action 'preserve_by_remux' 'Remux should be the preservation path for dynamic HDR metadata.'
+    Assert-Equal $remuxPlan.recommended_route 'remux' 'Remux preservation should recommend remux.'
+
+    $profile5RemuxPlan = New-DynamicHdrPreservationPlan `
+        -Route encode `
+        -Policy preserve_or_remux `
+        -DoviPresent:$true `
+        -DoviProfile 5
+    Assert-Equal $profile5RemuxPlan.Action 'prefer_remux' 'Unsupported DoVi encode profile should prefer remux under preserve_or_remux.'
+    Assert-Equal $profile5RemuxPlan.recommended_route 'remux' 'Unsupported DoVi profile should recommend remux for preserve_or_remux.'
+    Assert-True ((@($profile5RemuxPlan.Reasons) -join '; ') -match 'profile 5') 'Unsupported DoVi plan should name the profile.'
+
+    $profile5ReviewPlan = New-DynamicHdrPreservationPlan `
+        -Route encode `
+        -Policy preserve_or_review `
+        -DoviPresent:$true `
+        -DoviProfile 5
+    Assert-Equal $profile5ReviewPlan.Action 'hold_review' 'Unsupported DoVi encode profile should hold review under preserve_or_review.'
+    Assert-Equal $profile5ReviewPlan.recommended_route 'review' 'Unsupported DoVi profile should recommend review for preserve_or_review.'
+
+    $missingPrereqPlan = New-DynamicHdrPreservationPlan `
+        -Route encode `
+        -Policy preserve_or_review `
+        -DoviPresent:$true `
+        -DoviProfile 8 `
+        -DoviBlCompatId 1 `
+        -Hdr10PlusPresent:$true `
+        -VideoCodec hevc_nvenc
+    Assert-Equal $missingPrereqPlan.Action 'hold_review' 'Missing tools/capabilities should hold review for preserve_or_review.'
+    $missingPrereqReasons = @($missingPrereqPlan.Reasons) -join '; '
+    Assert-True ($missingPrereqReasons -match 'CPU x265') 'Missing prerequisite plan should require CPU x265.'
+    Assert-True ($missingPrereqReasons -match 'dovi_tool') 'Missing prerequisite plan should require dovi_tool.'
+    Assert-True ($missingPrereqReasons -match 'hdr10plus_tool') 'Missing prerequisite plan should require hdr10plus_tool.'
+
+    $encodePreservePlan = New-DynamicHdrPreservationPlan `
+        -Route encode `
+        -Policy preserve_or_review `
+        -DoviPresent:$true `
+        -DoviProfile 7 `
+        -DoviElPresent:$true `
+        -Hdr10PlusPresent:$true `
+        -DoviToolAvailable:$true `
+        -Hdr10PlusToolAvailable:$true `
+        -X265DolbyVisionCapable:$true `
+        -X265Hdr10PlusCapable:$true `
+        -UseCpuFallback:$true
+    Assert-Equal $encodePreservePlan.Action 'preserve_encode' 'Satisfied prerequisites should allow encode preservation planning.'
+    Assert-True ([bool]$encodePreservePlan.can_preserve_encode) 'Satisfied prerequisites should mark encode preservation possible.'
+    Assert-Equal $encodePreservePlan.target_dovi_profile '8.1' 'DoVi P7 encode preservation should target profile 8.1.'
+    $artifactText = @($encodePreservePlan.required_artifacts) -join '; '
+    Assert-True ($artifactText -match 'dovi_rpu_converted_profile_8_1') 'DoVi P7 plan should require converted RPU artifact.'
+    Assert-True ($artifactText -match 'hdr10plus_json') 'HDR10+ plan should require metadata JSON artifact.'
 } finally {
     $env:PATH = $oldPath
     if (Test-Path -LiteralPath $tempRoot) {

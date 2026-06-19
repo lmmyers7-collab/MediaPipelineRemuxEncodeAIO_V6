@@ -70,6 +70,7 @@ graph LR
   queue -->|14| api
   subtitles -->|13| api
   sample_validation -->|12| api
+  unknown -->|12| kernel
   decide -->|11| api
   network -->|11| api
   tests -->|11| completed
@@ -80,7 +81,6 @@ graph LR
   api -->|9| queue
   tests -->|9| maintenance
   unknown -->|9| api
-  unknown -->|9| kernel
   application -->|8| kernel
   maintenance -->|8| api
   tests -->|8| diagnostics
@@ -102,6 +102,7 @@ graph LR
   rename -->|5| api
   scripts -->|5| diagnostics
   tests -->|5| application
+  tests -->|5| kernel
   tests -->|5| orchestration
   tests -->|5| telemetry
   tests -->|5| validation
@@ -116,7 +117,6 @@ graph LR
   rename -->|4| files
   schedule -->|4| api
   tests -->|4| failures
-  tests -->|4| kernel
   tests -->|4| observability
   api -->|3| rename
   config -->|3| validation
@@ -227,6 +227,7 @@ graph LR
 | queue | api | 14 |
 | subtitles | api | 13 |
 | sample_validation | api | 12 |
+| unknown | kernel | 12 |
 | decide | api | 11 |
 | network | api | 11 |
 | tests | completed | 11 |
@@ -237,7 +238,6 @@ graph LR
 | api | queue | 9 |
 | tests | maintenance | 9 |
 | unknown | api | 9 |
-| unknown | kernel | 9 |
 | application | kernel | 8 |
 | maintenance | api | 8 |
 | tests | diagnostics | 8 |
@@ -259,6 +259,7 @@ graph LR
 | rename | api | 5 |
 | scripts | diagnostics | 5 |
 | tests | application | 5 |
+| tests | kernel | 5 |
 | tests | orchestration | 5 |
 | tests | telemetry | 5 |
 | tests | validation | 5 |
@@ -273,7 +274,6 @@ graph LR
 | rename | files | 4 |
 | schedule | api | 4 |
 | tests | failures | 4 |
-| tests | kernel | 4 |
 | tests | observability | 4 |
 | api | rename | 3 |
 | config | validation | 3 |

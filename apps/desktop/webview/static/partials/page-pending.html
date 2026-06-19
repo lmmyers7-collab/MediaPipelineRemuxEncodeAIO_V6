@@ -290,6 +290,22 @@
             <pre id="pending-recovery-plan-history" class="prose-block">No pending publish recovery plan history loaded.</pre>
           </details>
         </section>
+        <section class="panel" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Manifest Repair</h2>
+            <strong id="pending-repair-manifest-status">Dry-run required</strong>
+          </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="pending-repair-manifest-dry-run-button" class="secondary-button">Dry Run Selected</button>
+            <button type="button" id="pending-repair-manifest-apply-button" class="danger-button" disabled>Apply Repair</button>
+          </div>
+          <details class="pending-compact-detail">
+            <summary>Pending manifest repair detail</summary>
+            <pre id="pending-repair-manifest-detail" class="prose-block">Select one pending row, then run the backend dry-run. Apply remains disabled until the backend reports safe_to_apply=true and supplies a matching dry_run_fingerprint.</pre>
+            <pre id="pending-repair-manifest-history" class="prose-block">No pending manifest repair history loaded.</pre>
+          </details>
+          <p id="pending-repair-manifest-legend" class="note table-legend">Pending manifest repair is backend-owned: dry-run first, fingerprint-gated apply, no drain, no publish, no payload move/delete, and no source-media mutation.</p>
+        </section>
         <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Drain Confidence</h2>

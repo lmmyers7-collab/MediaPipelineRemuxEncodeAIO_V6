@@ -211,7 +211,7 @@ operator configures `mp4`, preservation is treated as unsupported-for-encode
 | --- | --- | --- | --- | --- |
 | 1 — Detect + warn | Probe functions, evidence on sidecar/completed record, WARN log + pipeline event | none | none | Probe + sidecar Extra only (additive) |
 | 2 — Tools + remux verification | Bundled dovi_tool/hdr10plus_tool, resolution wiring, capability probes, verify-on-remux, `DynamicHdrPolicy` key | 3 keys | 2 binaries | Settings schema; remux verify gate |
-| 3 — Preserve on encode | RPU/JSON extract, x265 param injection, CPU forcing, route gating | none | none | FFmpeg command generation (highest risk) |
+| 3 — Preserve on encode | Pure preserve/remux/review planner is implemented; RPU/JSON extract, x265 param injection, CPU forcing, and route gating remain open | none | none | FFmpeg command generation (highest risk) |
 | 4 — Output verification gate | Round-trip verification before publish on both routes | none | none | Publish gating |
 
 Phase 1 is independently valuable and must ship even if 2-4 are never approved.
@@ -566,14 +566,14 @@ do not work around.
 After the Phase 1 evidence block (post encode.ps1:75), when policy is
 `preserve_or_remux`/`preserve_or_review` and evidence shows dynamic metadata:
 
-1. Compute `$preservePlan` via new pure function
-   `Resolve-DynamicHdrEncodePlan` (in `decide/encode_policy.ps1`, near the other
-   pure policy helpers) taking: dovi profile/compat/EL, hdr10plus flag, policy,
-   `$OutputContainer`, tool availability, x265 capability. Returns ordered
-   object: `Supported [bool]`, `Action ('encode_preserve'|'force_remux'|'review'|'drop_warn')`,
-   `NeedsRpu [bool]`, `NeedsP7Conversion [bool]`, `NeedsHdr10PlusJson [bool]`,
-   `ReasonCode [string]`, `Reason [string]`. PURE — no I/O — so it is trivially
-   unit-testable; the support matrix in §2.1 is exactly its truth table.
+1. Compute `$preservePlan` via the pure function
+   `New-DynamicHdrPreservationPlan` in `ops/pipeline/engine/process/dynamic_hdr.ps1`.
+   It takes route, policy, DoVi profile/compat/EL, HDR10+ flag, tool availability,
+   x265 capability, codec, and CPU-fallback posture. It returns an ordered
+   `dynamic_hdr_preservation_plan.v1` object with `action`, `recommended_route`,
+   `can_preserve_encode`, `target_dovi_profile`, `required_artifacts`, `caveats`,
+   and `reasons`. It performs no I/O and does not change routing or FFmpeg
+   arguments by itself; the support matrix in §2.1 is its truth table.
 2. `Action='force_remux'`: log decision, set
    `$script:CurrentRouteReasonCode='dynamic_hdr_force_remux'` and reason text,
    then hand off exactly like the codec fallback does in reverse — mirror

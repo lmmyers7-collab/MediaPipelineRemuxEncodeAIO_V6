@@ -1,7 +1,7 @@
 # Open Work Checklist
 
-> **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review; refreshed 2026-05-30 after legacy-surface cleanup and operator-confirmed default-launcher promotion.
-> **Sources:** archived housekeeping and transition-review evidence under `docs/archive/docs-housekeeping/2026-05-20-review/`, `docs/testing/TEST_COVERAGE_MATRIX.md`, `docs/testing/VALIDATION_LADDER_RUNBOOK.md`, `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`, `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`, `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`, `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`, `docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`, `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`, and `docs/REMEDIATION_CHANGELOG.md`.
+> **Generated:** 2026-05-19 by full scan of all non-archived Markdown files; reconciled 2026-05-20 after stale-gate review; refreshed 2026-05-30 after legacy-surface cleanup and operator-confirmed default-launcher promotion; refreshed 2026-06-19 after a source/docs audit of reopened remediation work.
+> **Sources:** archived housekeeping and transition-review evidence under `docs/archive/docs-housekeeping/2026-05-20-review/`, `docs/testing/TEST_COVERAGE_MATRIX.md`, `docs/testing/VALIDATION_LADDER_RUNBOOK.md`, `docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md`, `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`, `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`, `docs/inventories/RELEASE_PACKAGE_ADMIN_INVENTORY.md`, `docs/architecture/SETTINGS_RAW_KEY_TRIAGE.md`, `docs/architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`, `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`, `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`, `docs/reviews/function-module-audit-2026-06-11/FINDINGS_REGISTER.md`, `docs/reviews/network-coordinator-worker-mode-2026-06-15/FINDINGS_REGISTER.md`, and `docs/REMEDIATION_CHANGELOG.md`.
 > **Excludes:** `docs/archive/`, config backups, run logs.
 
 ---
@@ -72,7 +72,7 @@ No P0 promotion gates remain unresolved. Local source/dev gates are tracked as c
 
 - [x] **Network page lifecycle controls** — Closed as a backend-owned route gate, not as frontend process ownership. WebView Network may call provider-guarded Local API routes for lifecycle dry-runs, confirmed lifecycle start/stop, worker test-connection, coordinator discovery, coordinator join-blob creation, and worker join import. `/api/contract` and `docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md` record the dry-run/cleanup/journal/source-policy gates, and static/API/browser tests prove the frontend does not implement lifecycle, claim, done-report, queue, settings-save, publish, rename, or media mutation logic directly.
 
-- [x] **Repair/reconcile mutation contract** — Completed/Pending repair/reconcile remains design-only, but `/api/contract` now defines explicit dry-run, rollback, source-file, and route-exposure gates before any backend mutation route or WebView control can be added. Source: `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` + archived active-fix evidence.
+- [x] **Repair/reconcile mutation contract** — The contract surface is no longer design-only: `/api/contract` now defines backend dry-run and confirmed apply routes for selected Completed/Pending repairs, with explicit dry-run, rollback, source-file, route-exposure, fingerprint, and confirmation gates. WebView controls and remaining pending apply evidence gaps are tracked in the 2026-06-19 phased workstreams below. Source: `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md` + archived active-fix evidence.
 
 - [x] **Settings builder for remaining raw-only keys** — `SubSDHTitleKeywords` and `SubSupplementalKeywords` are now covered by the Subtitle Settings builder as staged list fields. The WebView only stages list text; backend Preview/Save and backend subtitle classification remain authoritative. Auth tokens remain intentionally hidden. Source: `SETTINGS_RAW_KEY_TRIAGE.md`.
 
@@ -86,12 +86,48 @@ No P0 promotion gates remain unresolved. Local source/dev gates are tracked as c
 
 ---
 
+## 2026-06-19 Phased Remediation Workstreams
+
+These rows are the active implementation worklist reopened by the 2026-06-19
+source/docs audit. They do not reopen the closed promotion gates above unless a
+future code change touches the matching validation gate.
+
+### Completed Elsewhere / No Active Implementation Work
+
+- [x] **Watch-folder auto-start** — Implemented through the desktop watch manager, Local API status route, Schedule/Settings WebView surfaces, config keys, and Python/WebView tests. Keep disabled-by-default scan behavior guarded during future changes.
+- [x] **Objective quality verification** — Implemented for VMAF/SSIM/PSNR with config keys, Settings UI, encode/publish sidecar evidence, PowerShell tests, and completed-policy coverage. Future threshold changes still need media-specific validation.
+- [x] **Settings raw-key cleanup** — Completed for the audited high-priority keys. Network auth tokens remain intentionally hidden/redacted rather than unfinished UI work.
+- [x] **Function/module audit disposition** — The 2026-06-11 findings register records 59 fixed findings, 2 deferred-with-reason findings, and 0 ready-to-fix findings. Deferred items are tracked below.
+- [x] **Historical real-media and package validation gates** — Representative real-media validation and default-launcher/package-mode promotion remain operator-attested complete for the validated behavior. They are recurring gates for future high-risk changes.
+- [x] **Sidecar overwrite fallback local fix** — Local implementation and unit coverage exist for overwrite fallback behavior. External Windows/UNC stress validation remains a future validation consideration for filesystem-risk changes.
+- [x] **Network review reconciliation and hardening** — Reconciled on 2026-06-19 in `docs/reviews/network-coordinator-worker-mode-2026-06-15/DISPOSITION_LEDGER.md`: all 14 P1, 19 P2, and 2 P3 findings are fixed by the 2026-06-15 network implementation batches plus current focused network/WebView tests. Future network lifecycle, coordinator/worker, auth, claim, done/release, join, or WebView route changes still require the network validation ladder.
+
+### Open / Partial Implementation Work
+
+- [ ] **Repair/reconcile operator surface** — Backend dry-run and confirmed apply routes exist for selected Completed/Pending repairs, while startup reconciliation remains dry-run only. Pending manifest repair can now write backend-validated manifest-normalization candidates only, and the WebView has selected-row Pending Publish manifest repair plus Completed manifest reconciliation/sidecar metadata repair dry-run/apply controls with strict fingerprint and `confirm_apply=true` gating. Orphan-payload reconcile controls remain open; orphan dry-runs list missing backend `pending_push_manifest.v1` evidence and confirmed apply remains blocked until a complete backend-derived manifest proposal exists.
+- [ ] **Dynamic HDR preservation** — Detection, warning, tool availability, config, sidecar evidence, and a pure preserve/remux/review planner are implemented. Actual Dolby Vision/HDR10+ preservation during encode remains open and requires extraction/injection command work, FFmpeg/x265 argument wiring, tests, and representative real-media validation.
+- [ ] **Encoder breadth and AV1** — Config/schema choices include AV1/QSV/AMF/libaom families, but encode command generation still needs descriptor-based codec flags, capability probing, fallback behavior, and real-media validation before new encoder families are considered daily-driver safe.
+- [ ] **Mutation-capable Python stage dispatcher** — Stage contracts and dry-run/planning support exist, but mutation-capable stages remain disabled until mutation intent contracts, strict confirmations, journal evidence, rollback/recovery evidence, boundary checks, and representative validation are in place.
+- [ ] **WebView flat export cleanup** — Namespace-first access is guarded, but transitional flat `window.*` compatibility exports remain. Continue reducing them opportunistically by touched domain with WebView static/browser evidence.
+
+### Deferred With Reason
+
+- [ ] **FR-016 multi-video stream policy/evidence** — Deferred until the operator/product policy decides whether multi-video inputs preserve all video streams, encode primary-only with explicit evidence, or block/review. Any behavior change needs FFmpeg command topology tests and representative multi-video real-media validation.
+- [ ] **FR-042 rerun `-DryRun` semantics** — Deferred until the operator contract decides whether evidence-writing dry-run behavior is intentional or a distinct no-write `-PlanOnly` mode is needed. Any change needs temp-LocalBase rerun tests or equivalent smoke coverage.
+
+### Recurring Validation Gates
+
+- [ ] **Real-media rerun gate** — Re-run representative real-media validation after Dynamic HDR, encoder breadth/AV1, media policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior changes.
+- [ ] **Package/open/close rerun gate** — Re-run package/open/close validation after launcher, package, Tauri, Local API bootstrap, or release-layout changes.
+
+---
+
 ## Summary Count
 
-| Priority | Open Count |
+| Category | Count |
 |---|---:|
-| P0 — Blocker | 0 |
-| High | 0 |
-| Medium | 0 |
-| Low | 0 |
-| **Total Open** | **0** |
+| Closed promotion blockers | 0 |
+| Completed elsewhere / no active implementation work | 7 |
+| Open or partial implementation workstreams | 5 |
+| Deferred-with-reason decisions | 2 |
+| Recurring validation gates | 2 |

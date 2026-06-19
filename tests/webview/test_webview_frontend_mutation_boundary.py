@@ -47,14 +47,21 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/maintenance/completed-backfill-dry-run": {"maintenanceView.js"},
     "/api/maintenance/dependency-atlas": {"maintenanceView.js"},
     "/api/maintenance/dependency-atlas/open-folder": {"maintenanceView.js"},
+    "/api/maintenance/archive-state-journals": {"launchView.js"},
     "/api/sample-validation/preview": {"crossPageContextView.sampleValidation.js"},
     "/api/sample-validation/append": {"crossPageContextView.sampleValidation.js"},
     "/api/diagnostics/open": {"diagnosticsView.js"},
     "/api/diagnostics/tdarr-matrix-audit": {"diagnosticsView.js"},
     "/api/diagnostics/tdarr-matrix/evidence/open": {"diagnosticsView.js"},
     "/api/diagnostics/tdarr-matrix/rerun": {"diagnosticsView.js"},
+    "/api/completed/reconcile-manifest-dry-run": {"completedView.repair.js"},
+    "/api/completed/reconcile-manifest": {"completedView.repair.js"},
+    "/api/completed/repair-sidecar-metadata-dry-run": {"completedView.repair.js"},
+    "/api/completed/repair-sidecar-metadata": {"completedView.repair.js"},
     "/api/pending-publish/open": {"pendingPublishView.diagnostics.js"},
     "/api/pending-publish/recovery-plan": {"pendingPublishView.recovery.js"},
+    "/api/pending-publish/repair-manifest-dry-run": {"pendingPublishView.repair.js"},
+    "/api/pending-publish/repair-manifest": {"pendingPublishView.repair.js"},
     "/api/queue/open": {"queue/openActions.js"},
     "/api/queue/scan": {"queueView.js"},
     "/api/queue/priority": {"queueView.js"},
@@ -82,9 +89,6 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/settings/wizard/validate-workers": {"settingsWizard.js"},
     "/api/settings/wizard/preview": {"settingsWizard.js"},
     "/api/settings/wizard/save": {"settingsWizard.js"},
-    "/api/network/worker/test-connection": {"networkView.js"},
-    "/api/network/coordinator/join-blob": {"networkView.js"},
-    "/api/network/worker/join-cluster": {"networkView.js"},
 }
 REPAIR_RECONCILE_ROUTE_TERMS = ("repair", "reconcile", "reconciliation")
 ALLOWED_TAURI_EVENT_BRIDGE = "tauriLifecycleBridge.js"
@@ -411,8 +415,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "loaded queue rows regardless of display filters or render cap",
             "They do not define Launch scope",
             "Save Loaded Backend Order",
-            "save loaded backend rows within their backend phase",
-            "display filters and render caps do not define Launch scope",
+            "Save Loaded Backend Order writes the staged positions",
+            "Display filters and render caps do not define Launch scope",
         ]:
             with self.subTest(asset="page-queue.html", snippet=snippet):
                 self.assertIn(snippet, queue_html)
@@ -547,18 +551,23 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             with self.subTest(route=route):
                 self.assertNotIn(route, route_map)
 
-    def test_repair_reconcile_mutation_remains_design_only_and_not_webview_callable(self) -> None:
+    def test_repair_reconcile_backend_routes_exist_and_webview_exposes_bounded_repair_controls(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
         summary = payload["repair_reconcile_summary"]
 
-        self.assertEqual(summary["status"], "backend_dry_run_routes_available_no_mutation_routes")
-        self.assertFalse(summary["mutation_enabled"])
-        self.assertFalse(summary["frontend_allowed"])
-        self.assertIn("backend dry-run evidence", summary["safe_next_step"])
-        self.assertIn("mutation routes still require", summary["safe_next_step"])
+        self.assertEqual(summary["status"], "backend_dry_run_and_confirmed_apply_routes_available_startup_dry_run_only")
+        self.assertTrue(summary["mutation_enabled"])
+        self.assertTrue(summary["frontend_allowed"])
+        self.assertIn("Confirmed apply routes are backend-owned", summary["safe_next_step"])
+        self.assertIn("startup reconciliation remains dry-run only", summary["safe_next_step"])
+        allowed_apply_routes = {
+            "/api/completed/reconcile-manifest": "completed-manifest-write",
+            "/api/completed/repair-sidecar-metadata": "completed-sidecar-json-write",
+            "/api/pending-publish/repair-manifest": "pending-manifest-write",
+            "/api/pending-publish/reconcile-orphan-payloads": "pending-orphan-manifest-write",
+        }
         for contract in payload["repair_reconcile_contracts"]:
             with self.subTest(contract=contract["key"]):
-                self.assertEqual(contract["current_status"], "backend_dry_run_route_available")
                 self.assertIn("dry_run_route", contract)
                 self.assertEqual(contract["dry_run_contract"]["effect"], "none")
                 self.assertIn("dry_run_only", contract["dry_run_contract"]["required_result_fields"])
@@ -567,6 +576,17 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 self.assertTrue(contract["rollback_contract"]["journal_required"])
                 self.assertEqual(contract["source_file_policy"]["source_media_mutation"], "forbidden")
                 self.assertTrue(any("API_ROUTE_INVENTORY.md" in gate for gate in contract["route_exposure_gates"]))
+                if contract["key"] == "startup_state_reconcile":
+                    self.assertEqual(contract["current_status"], "backend_dry_run_route_available")
+                    self.assertNotIn("apply_route", contract)
+                    self.assertFalse(contract["mutation_enabled"])
+                    self.assertFalse(contract["frontend_allowed"])
+                else:
+                    self.assertEqual(contract["current_status"], "backend_dry_run_and_confirmed_apply_routes_available")
+                    self.assertIn("apply_route", contract)
+                    self.assertTrue(contract["mutation_enabled"])
+                    self.assertTrue(contract["frontend_allowed"])
+                    self.assertEqual(contract["apply_contract"]["effect"], allowed_apply_routes[contract["apply_route"]])
 
         allowed_dry_run_routes = {
             "/api/completed/reconcile-manifest-dry-run",
@@ -581,33 +601,115 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             if str(route.get("method", "")).upper() == "POST"
             and any(term in str(route.get("path", "")).lower() for term in REPAIR_RECONCILE_ROUTE_TERMS)
         ]
-        self.assertEqual({route["path"] for route in callable_routes}, allowed_dry_run_routes)
+        self.assertEqual({route["path"] for route in callable_routes}, allowed_dry_run_routes | set(allowed_apply_routes))
         for route in callable_routes:
             with self.subTest(route=route["path"]):
-                self.assertEqual(route["effect"], "none")
-                self.assertIn(
-                    route["data_schema"],
-                    {"desktop_repair_reconcile_dry_run.v1", "desktop_startup_reconciliation_dry_run.v1"},
-                )
-                self.assertFalse(route["mutation_enabled"])
-                self.assertFalse(route["frontend_exposed"])
+                if route["path"] in allowed_dry_run_routes:
+                    self.assertEqual(
+                        route["data_schema"],
+                        (
+                            "desktop_startup_reconciliation_dry_run.v1"
+                            if route["path"] == "/api/startup/reconcile-dry-run"
+                            else "desktop_repair_reconcile_dry_run.v1"
+                        ),
+                    )
+                    self.assertFalse(route["mutation_enabled"])
+                    self.assertFalse(route["frontend_exposed"])
+                    self.assertEqual(route["effect"], "none")
+                    continue
+                self.assertEqual(route["data_schema"], "desktop_repair_reconcile_apply.v1")
+                self.assertEqual(route["effect"], allowed_apply_routes[route["path"]])
+                self.assertTrue(route["mutation_enabled"])
+                self.assertTrue(route["frontend_exposed"])
 
-        read_only_reconciliation = [
+        read_only_publish_reconciliation = [
             route
             for route in LOCAL_API_ROUTE_CONTRACT
-            if any(term in str(route.get("path", "")).lower() for term in REPAIR_RECONCILE_ROUTE_TERMS)
+            if route.get("path") == "/api/publish-reconciliation"
         ]
-        self.assertTrue(read_only_reconciliation)
-        for route in read_only_reconciliation:
+        self.assertTrue(read_only_publish_reconciliation)
+        for route in read_only_publish_reconciliation:
             with self.subTest(route=route["path"]):
                 self.assertEqual(route["effect"], "none")
 
-        post_repair_routes = [
-            route
-            for route in _literal_api_post_owners()
+        post_repair_routes = {
+            route: owners
+            for route, owners in _literal_api_post_owners().items()
             if any(term in route.lower() for term in REPAIR_RECONCILE_ROUTE_TERMS)
-        ]
-        self.assertEqual(post_repair_routes, [])
+        }
+        self.assertEqual(
+            post_repair_routes,
+            {
+                "/api/completed/reconcile-manifest-dry-run": {"completedView.repair.js"},
+                "/api/completed/reconcile-manifest": {"completedView.repair.js"},
+                "/api/completed/repair-sidecar-metadata-dry-run": {"completedView.repair.js"},
+                "/api/completed/repair-sidecar-metadata": {"completedView.repair.js"},
+                "/api/pending-publish/repair-manifest-dry-run": {"pendingPublishView.repair.js"},
+                "/api/pending-publish/repair-manifest": {"pendingPublishView.repair.js"},
+            },
+        )
+
+        pending_repair_view = _asset_sources()["pendingPublishView.repair.js"]
+        for snippet in [
+            "/api/pending-publish/repair-manifest-dry-run",
+            "/api/pending-publish/repair-manifest",
+            "scope: \"selected\"",
+            "row_key: rowKey",
+            "limit: 1",
+            "dry_run_fingerprint: fingerprint",
+            "confirm_apply: true",
+            "data.safe_to_apply === true",
+            "window.confirm",
+            "Mutation guardrail: this control sends only backend route intent.",
+        ]:
+            with self.subTest(snippet=snippet):
+                self.assertIn(snippet, pending_repair_view)
+        for forbidden in [
+            "manifest_path:",
+            "local_file:",
+            "server_out:",
+            "source_path:",
+            "payload_path:",
+            "sidecar_json:",
+            "patch:",
+            "/api/pending-publish/reconcile-orphan-payloads",
+            "/api/completed/reconcile-manifest",
+            "/api/completed/repair-sidecar-metadata",
+        ]:
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, pending_repair_view)
+
+        completed_repair_view = _asset_sources()["completedView.repair.js"]
+        for snippet in [
+            "/api/completed/reconcile-manifest-dry-run",
+            "/api/completed/reconcile-manifest",
+            "/api/completed/repair-sidecar-metadata-dry-run",
+            "/api/completed/repair-sidecar-metadata",
+            "scope: \"selected\"",
+            "row_key: rowKey",
+            "limit: 1",
+            "dry_run_fingerprint: fingerprint",
+            "confirm_apply: true",
+            "data.safe_to_apply === true",
+            "window.confirm",
+            "Mutation guardrail: Completed repair controls send only backend route intent.",
+        ]:
+            with self.subTest(snippet=snippet):
+                self.assertIn(snippet, completed_repair_view)
+        for forbidden in [
+            "manifest_path:",
+            "local_file:",
+            "server_out:",
+            "source_path:",
+            "output_path:",
+            "payload_path:",
+            "sidecar_json:",
+            "patch:",
+            "/api/pending-publish/reconcile-orphan-payloads",
+            "/api/pending-publish/repair-manifest",
+        ]:
+            with self.subTest(forbidden=forbidden):
+                self.assertNotIn(forbidden, completed_repair_view)
 
         contract_view = _asset_sources()["contractView.js"]
         for snippet in [
@@ -649,7 +751,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
 
         for snippet in [
             "Frontend advisory only",
-            "backend Save Settings remains",
+            "backend Save remains",
             "source-deletion acceptance",
             "PSD1 writes",
             "settingsBackendPolicyImpact",

@@ -6,6 +6,13 @@ import sqlite3
 from pathlib import Path
 from typing import Any, Mapping
 
+from mediapipeline.core.kernel.contracts.base import ContractError
+from mediapipeline.core.kernel.contracts.pending_publish import (
+    PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS,
+    PENDING_PUSH_MANIFEST_REQUIRED_TEXT_FIELDS,
+    PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
+    PendingPushManifest,
+)
 from mediapipeline.core.storage.db import CURRENT_SCHEMA_VERSION, STATE_DB_FILENAME
 
 
@@ -766,7 +773,7 @@ def _set_summary(
     payload["would_write_paths"] = would_write
     payload["would_move_paths"] = would_move
     payload["would_delete_paths"] = would_delete
-    candidate_count = sum(1 for row in rows if str(row.get("status") or "").casefold() in {"candidate", "review"})
+    candidate_count = sum(1 for row in rows if str(row.get("status") or "").casefold() == "candidate")
     blocked_count = sum(1 for row in rows if str(row.get("status") or "").casefold() == "blocked")
     review_count = sum(1 for row in rows if str(row.get("status") or "").casefold() == "review")
     payload["diff_summary"] = {
@@ -779,7 +786,10 @@ def _set_summary(
     }
     preconditions = payload["precondition_results"]
     no_blockers = not _blocked(preconditions) and blocked_count == 0
-    has_mutation_candidate = bool(would_write or would_move or would_delete or not require_mutation_candidate)
+    has_selected_candidate = any(str(row.get("status") or "").casefold() == "candidate" for row in rows)
+    has_mutation_candidate = bool(
+        (has_selected_candidate and (would_write or would_move or would_delete)) or not require_mutation_candidate
+    )
     payload["safe_to_apply"] = bool(no_blockers and has_mutation_candidate)
     payload["dry_run_fingerprint"] = repair_reconcile_dry_run_fingerprint(payload)
     if payload["safe_to_apply"]:
@@ -1014,6 +1024,183 @@ def completed_sidecar_metadata_repair_dry_run(
     )
 
 
+def _set_pending_manifest_field(
+    proposed: dict[str, Any],
+    changed: dict[str, dict[str, Any]],
+    field: str,
+    value: Any,
+) -> None:
+    current_value = proposed.get(field) if field in proposed else "<missing>"
+    if current_value == value:
+        return
+    proposed[field] = value
+    changed[field] = {"current": current_value, "proposed": value}
+
+
+def _pending_manifest_sidecar_paths(sidecar_files: list[Any]) -> list[Path]:
+    paths: list[Path] = []
+    for sidecar in sidecar_files:
+        if not isinstance(sidecar, Mapping):
+            continue
+        raw = str(sidecar.get("local_file") or sidecar.get("parked_file") or "").strip()
+        if raw:
+            paths.append(Path(raw))
+    return paths
+
+
+def _pending_orphan_missing_manifest_evidence(row: Mapping[str, Any]) -> list[str]:
+    missing: list[str] = []
+    if not str(row.get("manifest_path") or "").strip():
+        missing.append("manifest_path")
+    if str(row.get("schema_version") or "").strip() != PENDING_PUSH_MANIFEST_SCHEMA_VERSION:
+        missing.append("schema_version")
+    for field in PENDING_PUSH_MANIFEST_REQUIRED_TEXT_FIELDS:
+        if not str(row.get(field) or "").strip():
+            missing.append(field)
+    if "output_size" not in row or row.get("output_size") in (None, ""):
+        missing.append("output_size")
+    for field in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
+        if not isinstance(row.get(field), list):
+            missing.append(field)
+    return missing
+
+
+def _pending_manifest_repair_candidate_row(
+    *,
+    row: Mapping[str, Any],
+    key: str,
+    manifest_path: str,
+    diagnostic_status: str,
+) -> dict[str, Any]:
+    manifest, read_error = _read_json_object(manifest_path)
+    if manifest is None:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "error": read_error,
+            "safe_next_action": "Fix pending manifest readability before any backend manifest repair.",
+        }
+
+    proposed = dict(manifest)
+    changed: dict[str, dict[str, Any]] = {}
+    reasons: list[str] = []
+    for field in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
+        if field not in proposed or proposed.get(field) is None:
+            _set_pending_manifest_field(proposed, changed, field, [])
+            reasons.append(f"missing_{field}")
+
+    local_file = str(proposed.get("local_file") or "").strip()
+    parked_file = str(proposed.get("parked_file") or "").strip()
+    if not local_file and parked_file:
+        parked_path = Path(parked_file)
+        if parked_path.exists() and parked_path.is_file():
+            _set_pending_manifest_field(proposed, changed, "local_file", parked_file)
+            reasons.append("missing_local_file_copied_from_parked_file")
+
+    output_size_missing = "output_size" not in proposed or proposed.get("output_size") in (None, "")
+    if output_size_missing:
+        local_text = str(proposed.get("local_file") or "").strip()
+        if local_text:
+            local_path = Path(local_text)
+            try:
+                if local_path.exists() and local_path.is_file():
+                    _set_pending_manifest_field(proposed, changed, "output_size", local_path.stat().st_size)
+                    reasons.append("missing_output_size_inferred_from_payload")
+            except OSError:
+                pass
+
+    if not changed:
+        try:
+            PendingPushManifest.from_mapping(manifest)
+        except ContractError as exc:
+            return {
+                "row_key": key,
+                "status": "blocked",
+                "action": "pending_manifest_repair",
+                "manifest_path": manifest_path,
+                "diagnostic_status": diagnostic_status,
+                "error": f"Current pending manifest contract invalid and no safe backend normalization is available: {exc}",
+                "safe_next_action": "Repair pending manifest contract fields manually before confirmed apply.",
+            }
+        return {
+            "row_key": key,
+            "status": "unchanged",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "safe_next_action": "No backend-derived manifest-field repair candidate detected for this pending row.",
+        }
+
+    try:
+        validated = PendingPushManifest.from_mapping(proposed)
+    except ContractError as exc:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "changed_fields": changed,
+            "missing_or_unsafe_fields": sorted(changed),
+            "error": f"Backend proposed manifest still fails pending manifest contract: {exc}",
+            "safe_next_action": "Repair the remaining manifest contract fields manually before confirmed apply.",
+        }
+
+    payload_path = Path(validated.local_file)
+    if not payload_path.exists() or not payload_path.is_file():
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "changed_fields": changed,
+            "missing_or_unsafe_fields": sorted(changed),
+            "error": "Backend proposed manifest points at a missing pending payload.",
+            "safe_next_action": "Restore the pending payload before confirmed manifest repair.",
+        }
+
+    missing_sidecars = [str(path) for path in _pending_manifest_sidecar_paths(validated.sidecar_files) if not path.exists()]
+    if missing_sidecars:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_manifest_repair",
+            "manifest_path": manifest_path,
+            "diagnostic_status": diagnostic_status,
+            "changed_fields": changed,
+            "missing_or_unsafe_fields": sorted(changed),
+            "missing_sidecar_paths": missing_sidecars,
+            "error": "Backend proposed manifest references missing pending sidecar payloads.",
+            "safe_next_action": "Restore missing sidecar payloads before confirmed manifest repair.",
+        }
+
+    return {
+        "row_key": key,
+        "status": "candidate",
+        "action": "pending_manifest_repair",
+        "manifest_path": manifest_path,
+        "diagnostic_status": diagnostic_status,
+        "local_file": validated.local_file,
+        "source_path": validated.source_path,
+        "output_path": validated.server_out,
+        "reasons": reasons,
+        "changed_fields": changed,
+        "proposed": {
+            "local_file": validated.local_file,
+            "source_path": validated.source_path,
+            "output_path": validated.server_out,
+            "manifest_state": validated.manifest_state,
+            "schema_version": PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
+        },
+        "proposed_manifest": proposed,
+        "safe_next_action": "Review the backend-derived manifest diff, then submit the matching dry-run fingerprint to confirmed apply.",
+    }
+
+
 def pending_manifest_repair_dry_run(
     *,
     preview: Mapping[str, Any],
@@ -1049,7 +1236,7 @@ def pending_manifest_repair_dry_run(
         key = _row_key(row)
         status = str(row.get("diagnostic_status") or "").strip().casefold()
         manifest_path = str(row.get("manifest_path") or "").strip()
-        if status in {"unreadable_manifest", "invalid_manifest", "duplicate_target"}:
+        if status in {"unreadable_manifest", "duplicate_target"}:
             diff_rows.append(
                 {
                     "row_key": key,
@@ -1070,13 +1257,6 @@ def pending_manifest_repair_dry_run(
                 )
             )
             continue
-        missing_fields = [
-            field
-            for field in ("local_file", "server_out", "state")
-            if not str(row.get(field) or "").strip()
-        ]
-        if int(row.get("missing_sidecar_count") or 0) > 0:
-            missing_fields.append("sidecar_files")
         if not manifest_path:
             diff_rows.append(
                 {
@@ -1088,7 +1268,7 @@ def pending_manifest_repair_dry_run(
                 }
             )
             continue
-        if not missing_fields and status == "ready":
+        if status == "ready":
             diff_rows.append(
                 {
                     "row_key": key,
@@ -1100,18 +1280,32 @@ def pending_manifest_repair_dry_run(
                 }
             )
             continue
-        diff_rows.append(
-            {
-                "row_key": key,
-                "status": "review",
-                "action": "pending_manifest_repair",
-                "manifest_path": manifest_path,
-                "diagnostic_status": status,
-                "missing_or_unsafe_fields": missing_fields,
-                "safe_next_action": "Review backend-derived evidence; no pending manifest write route exists.",
-            }
+        candidate = _pending_manifest_repair_candidate_row(
+            row=row,
+            key=key,
+            manifest_path=manifest_path,
+            diagnostic_status=status,
         )
-        would_write.append({"path": manifest_path, "reason": "future pending manifest repair mutation would rewrite validated manifest fields"})
+        diff_rows.append(candidate)
+        if candidate.get("status") == "candidate":
+            preconditions.append(
+                _precondition(
+                    f"pending_manifest_repairable:{key}",
+                    "ok",
+                    "Backend-derived proposed manifest validates pending_push_manifest.v1 and preserves payload/source/output paths.",
+                    "Confirmed apply may write only this manifest after matching fingerprint and strict confirmation.",
+                )
+            )
+            would_write.append({"path": manifest_path, "reason": "pending manifest repair will rewrite backend-validated manifest fields"})
+        elif candidate.get("status") == "blocked":
+            preconditions.append(
+                _precondition(
+                    f"pending_manifest_repairable:{key}",
+                    "blocked",
+                    str(candidate.get("error") or status or "pending manifest is not repairable"),
+                    "Do not apply pending manifest repair until backend evidence can build a complete proposed manifest.",
+                )
+            )
     return _set_summary(
         payload,
         rows=diff_rows,
@@ -1189,23 +1383,33 @@ def pending_orphan_payload_reconcile_dry_run(
                 }
             )
             continue
+        missing_manifest_fields = _pending_orphan_missing_manifest_evidence(row)
         diff_rows.append(
             {
                 "row_key": key,
-                "status": "review",
+                "status": "blocked",
                 "action": "pending_orphan_payload_reconcile",
                 "local_file": str(row.get("local_file") or ""),
                 "output_size": row.get("output_size") or 0,
                 "diagnostic_status": status,
-                "safe_next_action": "Review orphan payload evidence; no move, delete, publish, or drain route exists.",
+                "missing_required_manifest_fields": missing_manifest_fields,
+                "required_backend_evidence": (
+                    "A manifest-only orphan reconcile requires a complete backend-derived "
+                    f"{PENDING_PUSH_MANIFEST_SCHEMA_VERSION} proposal; WebView/request payloads must not supply fields."
+                ),
+                "proposed_manifest_available": False,
+                "safe_next_action": (
+                    "Restore the original pending manifest or rerun with backend manifest evidence; this route will not "
+                    "infer destination/source from filename and will not move, delete, drain, or publish payloads."
+                ),
             }
         )
         preconditions.append(
             _precondition(
-                f"pending_payload_ambiguity:{key}",
-                "review",
-                "orphan payload has no manifest-selected destination",
-                "Do not move or delete without a future collision-checked mutation design.",
+                f"pending_payload_manifest_evidence:{key}",
+                "blocked",
+                "orphan payload lacks complete backend-derived pending_push_manifest.v1 evidence",
+                "Restore the manifest or provide backend-owned manifest evidence before any confirmed apply; do not infer source/destination in the frontend.",
             )
         )
     return _set_summary(
@@ -1214,6 +1418,7 @@ def pending_orphan_payload_reconcile_dry_run(
         summary_lines=[
             f"Pending orphan-payload dry-run reviewed {len(selected_rows)} pending-publish row(s).",
             "Existing pending scan, file inventory, recovery classification, and drain summary evidence were reused.",
+            "No backend-derived orphan manifest candidates were safe to apply unless a complete pending_push_manifest.v1 proposal is present.",
             "No pending payload, manifest, sidecar, output, source, or scratch file was moved, deleted, drained, or written.",
         ],
         would_move_paths=[],

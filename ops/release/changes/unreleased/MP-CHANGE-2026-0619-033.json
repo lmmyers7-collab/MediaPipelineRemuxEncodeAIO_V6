@@ -1,0 +1,65 @@
+{
+  "id": "MP-CHANGE-2026-0619-033",
+  "title": "Pending manifest repair apply evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Enabled backend-owned pending manifest repair for narrow manifest-normalization candidates by adding validated dry-run proposals, candidate-only safe-to-apply gating, backup-backed atomic manifest apply, tests, contract wording, active docs, inventories, and refreshed generated summaries.",
+  "reason": "The Phase 4 remediation backlog exposed pending manifest repair apply routes but left them blocked because dry-run evidence did not supply complete backend-derived proposed manifest fields. The backend needed a dry-run-first, fingerprint-gated, manifest-only apply path that preserves source, payload, and output bytes while leaving unsafe pending/orphan cases blocked.",
+  "affected_areas": [
+    "code",
+    "docs",
+    "tests",
+    "generated-context"
+  ],
+  "behavior_before": "Pending manifest repair dry-run marked incomplete pending rows as review evidence and could list would-write paths without a complete proposed manifest. Confirmed pending manifest repair always failed with a hard block, and docs/contracts described the route as unavailable unless future backend evidence supplied complete proposed fields.",
+  "behavior_after": "Pending manifest repair dry-run can build candidate rows only for backend-validated manifest normalization, currently filling missing array fields, copying an existing parked_file into local_file, and inferring output_size from the parked payload when that produces a valid pending_push_manifest.v1. Confirmed apply rewrites only selected candidate manifest JSON after matching fingerprint and strict confirmation, with backup and atomic write evidence. Incomplete pending evidence and orphan-payload reconciliation remain blocked and do not move, delete, drain, publish, or touch source/payload/output bytes.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md",
+    "docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/OPEN_WORK_CHECKLIST.md.md",
+    "docs/generated/summaries/docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md.md",
+    "docs/generated/summaries/docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md.md",
+    "docs/generated/summaries/docs/inventories/API_ROUTE_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/COMMAND_OWNERSHIP_MATRIX.md.md",
+    "docs/generated/summaries/docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/apply.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/dry_run.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/contract_payload.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_dry_run.py.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-033.json",
+    "src/mediapipeline/core/repair_reconcile/apply.py",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "src/mediapipeline/desktop/api/contract_payload.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_repair_reconcile_dry_run.py::RepairReconcileDryRunTests.test_pending_manifest_repair_dry_run_builds_valid_backend_proposal_without_mutation",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py::RepairReconcileDryRunTests.test_pending_manifest_repair_dry_run_blocks_incomplete_backend_proposal",
+    "tests/python/desktop/test_repair_reconcile_apply.py::RepairReconcileApplyTests.test_pending_manifest_repair_apply_writes_only_manifest_with_backup"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile src\\mediapipeline\\core\\repair_reconcile\\dry_run.py src\\mediapipeline\\core\\repair_reconcile\\apply.py src\\mediapipeline\\desktop\\api\\contract_payload.py tests\\python\\desktop\\test_repair_reconcile_dry_run.py tests\\python\\desktop\\test_repair_reconcile_apply.py - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_repair_reconcile_apply -q - passed (18 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_repair_reconcile_apply tests.python.desktop.test_api_contract_payload tests.python.desktop.test_api_command_contracts tests.webview.test_webview_frontend_mutation_boundary -q - passed (84 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_repair_reconcile_dry_run_routes_return_schema_and_suppress_journal tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token -q - passed (2 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - passed (11 written, 5 unchanged)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_repair_reconcile_apply tests.python.desktop.test_api_contract_payload tests.python.desktop.test_api_command_contracts tests.python.desktop.test_application_facade_local_api tests.webview.test_webview_frontend_mutation_boundary -q - failed with one unrelated existing served-HTML assertion expecting data-network-tab=\"coordinator\"; repair/reconcile-specific Local API tests passed by name"
+  ],
+  "rollback_plan": "Revert the pending manifest repair proposal/apply changes in src/mediapipeline/core/repair_reconcile/dry_run.py and apply.py, restore contract payload wording and docs/inventories to the prior blocked-pending-apply posture, remove the new repair/reconcile tests, and refresh generated summaries. Existing pending manifests written by this route can be restored from the per-transaction State/RepairReconcileBackups manifest backup recorded in the command result.",
+  "related_changes": [
+    "MP-CHANGE-2026-0619-031"
+  ],
+  "notes": "Build backend-derived pending manifest repair proposals and candidate-only safe_to_apply evidence.\nApply backend-validated pending manifest repair candidates with backup and atomic manifest rewrite only.\nCover pending manifest dry-run proposal, non-mutation, and incomplete evidence blocking.\nCover pending manifest confirmed apply backup/write behavior and orphan-payload blocking with valid dry-run evidence.\nUpdate repair/reconcile contract payload wording for pending manifest normalization candidates.\nDocument pending manifest dry-run/apply normalization behavior and blocked incomplete evidence.\nAlign route ownership map with backend-validated pending manifest normalization applies.\nClarify command ownership for pending manifest repair dry-run/apply routes.\nUpdate mutation matrix for pending manifest normalization candidates and orphan blocking.\nUpdate repair/reconcile contract for candidate-only pending manifest apply.\nRefresh active backlog status for Phase 4 pending manifest progress and remaining UI/orphan gaps.\nRefresh active state for Phase 4 pending manifest repair behavior.\nRefresh generated summary for Phase 4 pending manifest repair change."
+}

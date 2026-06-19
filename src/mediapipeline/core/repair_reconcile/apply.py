@@ -13,6 +13,7 @@ from mediapipeline.core.completed.manifest import completed_sidecar_path_from_pa
 from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.kernel.dto_commands import CommandResult
 from mediapipeline.core.kernel.models import CompletedJobRecord
+from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 
 from .dry_run import (
     COMPLETED_RECONCILE_MANIFEST_COMMAND,
@@ -156,7 +157,7 @@ def _candidate_rows(dry_run: Mapping[str, Any]) -> list[dict[str, Any]]:
     return [
         dict(row)
         for row in rows or []
-        if isinstance(row, Mapping) and str(row.get("status") or "").casefold() in {"candidate", "review"}
+        if isinstance(row, Mapping) and str(row.get("status") or "").casefold() == "candidate"
     ]
 
 
@@ -269,6 +270,29 @@ def _apply_completed_manifest_reconcile(
     return [manifest_path], backups
 
 
+def _apply_pending_manifest_repair(
+    rows: list[Mapping[str, Any]],
+    *,
+    backup_root: Path,
+) -> tuple[list[Path], list[Path]]:
+    written: list[Path] = []
+    backups: list[Path] = []
+    for row in rows:
+        if str(row.get("status") or "").casefold() != "candidate":
+            raise ValueError(f"Selected pending manifest row is not a repair candidate: {row.get('row_key')}")
+        path = Path(str(row.get("manifest_path") or "").strip())
+        proposed = row.get("proposed_manifest")
+        if not path or not isinstance(proposed, Mapping):
+            raise ValueError(f"Selected pending manifest row lacks backend proposed manifest fields: {row.get('row_key')}")
+        PendingPushManifest.from_mapping(proposed)
+        _read_json_object(path)
+        repaired = dict(proposed)
+        backups.append(_copy_backup(path, backup_root))
+        _atomic_write_text(path, _json_dumps(repaired))
+        written.append(path)
+    return written, backups
+
+
 def apply_repair_reconcile_from_dry_run(
     *,
     resolved: Any,
@@ -334,7 +358,7 @@ def apply_repair_reconcile_from_dry_run(
             manifest_path = Path(str(getattr(resolved, "completed_manifest_path", "") or ""))
             written, backups = _apply_completed_manifest_reconcile(rows, manifest_path=manifest_path, backup_root=backup_root)
         elif candidate_command == PENDING_PUBLISH_REPAIR_MANIFEST_COMMAND:
-            raise ValueError("Pending manifest repair apply is blocked until backend dry-run supplies complete proposed manifest fields.")
+            written, backups = _apply_pending_manifest_repair(rows, backup_root=backup_root)
         elif candidate_command == PENDING_PUBLISH_RECONCILE_ORPHAN_PAYLOADS_COMMAND:
             raise ValueError("Orphan payload reconcile is manifest-only and blocked until backend evidence supplies destination and source fields.")
         else:

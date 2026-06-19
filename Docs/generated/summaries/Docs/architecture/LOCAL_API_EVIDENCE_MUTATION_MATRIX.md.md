@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-19
 last_reviewed: 2026-06-02
-sha256: 5b48ec128cb4cc42a3bf27f2365ee6e1b463707cf7e1a5291cdfff2cd07b41f3
+sha256: f799ede67c979b43fa8d4d4a7239f701d4cbe8f6b1dba5d23730f1a1c747e43c
 ---
 # `docs/architecture/LOCAL_API_EVIDENCE_MUTATION_MATRIX.md`
 

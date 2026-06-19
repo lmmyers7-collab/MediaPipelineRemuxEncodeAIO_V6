@@ -1,0 +1,35 @@
+{
+  "id": "MP-CHANGE-2026-0619-039",
+  "title": "Dependency boundary allowlist maintenance",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Added the missing dependency-boundary allowlist entry for existing advanced settings metadata use of TV rename defaults and regenerated stale project index artifacts.",
+  "reason": "The commit hook surfaced one unallowlisted sibling import alongside existing allowlisted rename defaults imports, plus generated context drift from the staged WebView repair files.",
+  "affected_areas": [
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "Dependency-boundary checks reported one unallowlisted NO_CONFIG_TO_HIGHER_LEVEL finding for advanced_fields -> rename.tv, and generated project index/summary artifacts were stale.",
+  "behavior_after": "The existing TV rename defaults dependency is explicitly allowlisted with owner context, and project index/dependency graph plus the missing pendingPublishView.repair.js summary are regenerated.",
+  "files_touched": [
+    "docs/architecture/dependency_boundary_allowlist.txt",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.repair.js.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-027.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-039.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1 - passed: 0 unallowlisted hard findings",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_project_index - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - passed: 2 written, 30 unchanged"
+  ],
+  "rollback_plan": "Remove the allowlist row, regenerate project index artifacts if needed, remove the generated pendingPublishView.repair.js summary if it is no longer required, and revert this packet.",
+  "related_changes": [],
+  "notes": "Allowlist existing TV rename defaults dependency and regenerate project index/summary drift from pre-commit.\nRefresh stale summary required by pre-commit summary drift hook."
+}

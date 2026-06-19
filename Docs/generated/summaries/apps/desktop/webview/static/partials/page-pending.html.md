@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 4fead02bcaaf86f27c07f3cbb97375294f263496d77ce0a98d27740295bf1e6f
+sha256: 361951b455368f700dd5d8d7dea87ecbf3305ea6ff3ccd96fa54b17991614b65
 ---
 # `apps/desktop/webview/static/partials/page-pending.html`
 

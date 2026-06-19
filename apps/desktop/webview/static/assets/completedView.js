@@ -20,6 +20,14 @@
   let publishReconciliationInFlight = false;
   let lastCompletedEmptyMessage = "No completed jobs available.";
   const COMPLETED_SIZE_COLUMN_MODE_STORAGE_KEY = "mediapipeline.completed.sizeColumnMode";
+  let initCompletedRepairEvents = function () {};
+  let isCompletedRepairCommand = function () { return false; };
+  let repairDryRunIsSafeForSelection = function () { return false; };
+  let renderCompletedRepairControls = function () {};
+  let renderCompletedRepairHistory = function () {};
+  let requestCompletedRepairApply = async function () {};
+  let requestCompletedRepairDryRun = async function () {};
+  let setCompletedRepairBusy = function () {};
 
   function normalizeCompletedSizeColumnMode(value) {
     return String(value || "size").trim().toLowerCase() === "bitrate" ? "bitrate" : "size";
@@ -659,6 +667,35 @@
     selectCompletedRow = completedReviewNoop,
   } = completedSelection);
 
+  const completedRepairModule = window.__completedViewRepairModule || {};
+  delete window.__completedViewRepairModule;
+  const completedRepair = typeof completedRepairModule.createCompletedRepairModule === "function"
+    ? completedRepairModule.createCompletedRepairModule({
+      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
+      byId: typeof byId === "function" ? byId : window.byId,
+      commandHistoryCompactEvidenceLine: typeof window.commandHistoryCompactEvidenceLine === "function" ? window.commandHistoryCompactEvidenceLine : (typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null),
+      renderCompactCommandHistoryBlock: window.mediaPipelineCommandHistory?.renderCompactCommandHistoryBlock || null,
+      getCommandHistory: typeof window.getCommandHistory === "function" ? () => window.getCommandHistory() : (typeof getCommandHistory === "function" ? () => getCommandHistory() : () => []),
+      getSelectedCompletedRow: (...args) => getSelectedCompletedRow(...args),
+      setText: typeof setText === "function" ? setText : window.setText,
+    })
+    : {};
+  initCompletedRepairEvents = typeof completedRepair.initCompletedRepairEvents === "function" ? completedRepair.initCompletedRepairEvents : initCompletedRepairEvents;
+  isCompletedRepairCommand = typeof completedRepair.isCompletedRepairCommand === "function" ? completedRepair.isCompletedRepairCommand : isCompletedRepairCommand;
+  repairDryRunIsSafeForSelection = typeof completedRepair.repairDryRunIsSafeForSelection === "function" ? completedRepair.repairDryRunIsSafeForSelection : repairDryRunIsSafeForSelection;
+  renderCompletedRepairControls = typeof completedRepair.renderCompletedRepairControls === "function" ? completedRepair.renderCompletedRepairControls : renderCompletedRepairControls;
+  renderCompletedRepairHistory = typeof completedRepair.renderCompletedRepairHistory === "function" ? completedRepair.renderCompletedRepairHistory : renderCompletedRepairHistory;
+  requestCompletedRepairApply = typeof completedRepair.requestCompletedRepairApply === "function" ? completedRepair.requestCompletedRepairApply : requestCompletedRepairApply;
+  requestCompletedRepairDryRun = typeof completedRepair.requestCompletedRepairDryRun === "function" ? completedRepair.requestCompletedRepairDryRun : requestCompletedRepairDryRun;
+  setCompletedRepairBusy = typeof completedRepair.setCompletedRepairBusy === "function" ? completedRepair.setCompletedRepairBusy : setCompletedRepairBusy;
+  const selectCompletedRowFromSelection = selectCompletedRow;
+  selectCompletedRow = (...args) => {
+    const result = selectCompletedRowFromSelection(...args);
+    renderCompletedRepairControls();
+    return result;
+  };
+
   const completedFiltersModule = window.__completedViewFiltersModule || {};
   delete window.__completedViewFiltersModule;
   const completedFilters = typeof completedFiltersModule.createCompletedFiltersModule === "function"
@@ -1052,6 +1089,8 @@
     if (!selectedCompletedRowKey && rows.length) {
       selectedCompletedRowKey = rows[0]?.row_key || "";
     }
+    renderCompletedRepairControls();
+    if (typeof getCommandHistory === "function") renderCompletedRepairHistory(getCommandHistory());
     setText("completed-count", String(metricCounts.current));
     setText("completed-encode-count", String(metricCounts.encoded));
     setText("completed-remux-count", String(metricCounts.remuxed));
@@ -1335,7 +1374,16 @@
     completedEvidencePacketAvailable,
     renderCompletedEvidenceCopyState,
     copyCompletedEvidencePacket,
+    initCompletedRepairEvents,
+    isCompletedRepairCommand,
+    repairDryRunIsSafeForSelection,
+    renderCompletedRepairControls,
+    renderCompletedRepairHistory,
+    requestCompletedRepairApply,
+    requestCompletedRepairDryRun,
+    setCompletedRepairBusy,
   };
+  initCompletedRepairEvents();
   window.renderCompleted = renderCompleted;
   window.resetCompletedFilters = resetCompletedFilters;
   window.resetCompletedHistoryFilters = resetCompletedHistoryFilters;
@@ -1469,4 +1517,7 @@
   window.renderCompletedOpenHistory = renderCompletedOpenHistory;
   window.renderCompletedEvidenceCopyState = renderCompletedEvidenceCopyState;
   window.copyCompletedEvidencePacket = copyCompletedEvidencePacket;
+  window.renderCompletedRepairControls = renderCompletedRepairControls;
+  window.requestCompletedRepairDryRun = requestCompletedRepairDryRun;
+  window.requestCompletedRepairApply = requestCompletedRepairApply;
 })();

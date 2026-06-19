@@ -142,6 +142,9 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "startPendingPublishDrain",
               "pendingDrainGuardState",
               "renderPendingDrainOverview",
+              "renderPendingRepairManifestControls",
+              "requestPendingRepairManifestDryRun",
+              "requestPendingRepairManifestApply",
               "getCommandHistory"
             ].forEach(requireFunction);
 
@@ -151,6 +154,67 @@ def _browser_pending_drain_guard_runner_source() -> str:
             };
             window.apiPost = async (path, body) => {
               posts.push({ path, body });
+              if (path === "/api/pending-publish/repair-manifest-dry-run") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Pending manifest repair dry-run safe.",
+                  command: "pending_publish.repair_manifest_dry_run",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_dry_run.v1",
+                    candidate_command: "pending_publish.repair_manifest",
+                    dry_run_only: true,
+                    effect: "none",
+                    scope: body.scope,
+                    selected_row_keys: [body.row_key],
+                    precondition_results: [{ name: "selected row", ok: true }],
+                    diff_summary: {
+                      schema_version: "desktop_repair_reconcile_diff_summary.v1",
+                      candidate_count: 1,
+                      would_write_count: 1,
+                      would_move_count: 0,
+                      would_delete_count: 0,
+                    },
+                    would_write_paths: ["backend-selected-pending-manifest"],
+                    would_move_paths: [],
+                    would_delete_paths: [],
+                    would_not_touch: {
+                      source_media: "hash unchanged",
+                      payload_files: "hash unchanged",
+                      output_media: "hash unchanged",
+                    },
+                    safe_to_apply: true,
+                    mutation_route_available: true,
+                    apply_route_available: true,
+                    dry_run_fingerprint: "browser-dry-run-fingerprint",
+                    operator_confirmation_scope: "selected row only",
+                    suppress_command_journal: true,
+                  },
+                };
+              }
+              if (path === "/api/pending-publish/repair-manifest") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Pending manifest repair applied.",
+                  command: "pending_publish.repair_manifest",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_apply.v1",
+                    candidate_command: "pending_publish.repair_manifest",
+                    effect: "pending-manifest-write",
+                    selected_row_keys: [body.row_key],
+                    applied: true,
+                    blocked: false,
+                    written_paths: ["backend-selected-pending-manifest"],
+                    backup_paths: ["backend-selected-pending-manifest.backup"],
+                    transaction_id: "browser-smoke",
+                    rollback_status: "not_needed",
+                    dry_run_fingerprint: body.dry_run_fingerprint,
+                    expected_dry_run_fingerprint: body.dry_run_fingerprint,
+                    source_payload_output_unchanged: true,
+                  },
+                };
+              }
               return { ok: true, message: "unexpected mocked post", data: { path, body } };
             };
 
@@ -169,6 +233,52 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "Button guard:",
               "Command boundary:",
             ]);
+            const firstPendingRow = Array.isArray(payload.pending.rows) && payload.pending.rows.length ? payload.pending.rows[0] : null;
+            if (!firstPendingRow) throw new Error("missing pending row for repair controls");
+            window.selectPendingRow(firstPendingRow);
+            await waitFor(
+              () => !byId("pending-repair-manifest-dry-run-button").disabled && byId("pending-repair-manifest-apply-button").disabled,
+              "pending manifest repair dry-run ready and apply disabled",
+            );
+            byId("pending-repair-manifest-dry-run-button").click();
+            await waitFor(
+              () => text("pending-repair-manifest-status") === "Dry-run safe"
+                && !byId("pending-repair-manifest-apply-button").disabled,
+              "pending manifest repair dry-run completed",
+            );
+            const repairDryRunPost = posts.find((entry) => entry.path === "/api/pending-publish/repair-manifest-dry-run");
+            if (!repairDryRunPost) throw new Error("missing pending repair dry-run post: " + JSON.stringify(posts));
+            const dryRunKeys = Object.keys(repairDryRunPost.body).sort();
+            if (JSON.stringify(dryRunKeys) !== JSON.stringify(["limit", "reason", "row_key", "scope"])) {
+              throw new Error("pending repair dry-run sent unexpected keys: " + JSON.stringify(repairDryRunPost.body));
+            }
+            for (const forbiddenKey of ["manifest_path", "local_file", "server_out", "source_path", "payload_path", "patch", "sidecar_json"]) {
+              if (Object.prototype.hasOwnProperty.call(repairDryRunPost.body, forbiddenKey)) {
+                throw new Error("pending repair dry-run sent forbidden key " + forbiddenKey + ": " + JSON.stringify(repairDryRunPost.body));
+              }
+            }
+            byId("pending-repair-manifest-apply-button").click();
+            await waitFor(
+              () => text("pending-repair-manifest-status") === "Applied",
+              "pending manifest repair apply completed",
+            );
+            const repairApplyPost = posts.find((entry) => entry.path === "/api/pending-publish/repair-manifest");
+            if (!repairApplyPost) throw new Error("missing pending repair apply post: " + JSON.stringify(posts));
+            if (repairApplyPost.body.confirm_apply !== true) throw new Error("pending repair apply omitted confirm_apply=true");
+            if (repairApplyPost.body.dry_run_fingerprint !== "browser-dry-run-fingerprint") {
+              throw new Error("pending repair apply used wrong fingerprint: " + JSON.stringify(repairApplyPost.body));
+            }
+            const applyKeys = Object.keys(repairApplyPost.body).sort();
+            if (JSON.stringify(applyKeys) !== JSON.stringify(["confirm_apply", "dry_run_fingerprint", "limit", "reason", "row_key", "scope"])) {
+              throw new Error("pending repair apply sent unexpected keys: " + JSON.stringify(repairApplyPost.body));
+            }
+            requireText("pending-repair-manifest-detail", [
+              "Source/payload/output unchanged evidence",
+              "Mutation guardrail",
+            ]);
+            if (confirmCalls !== 1) throw new Error("pending repair apply should ask for one confirmation; confirm calls=" + confirmCalls);
+            posts.length = 0;
+            confirmCalls = 0;
             requireText("pending-drain-decision-chips", [
               "Do not drain",
               "Review first",
@@ -355,6 +465,12 @@ def _browser_pending_drain_guard_runner_source() -> str:
               () => text("pending-drain-guard-status") === "Blocked" && text("pending-drain-guard-summary").includes("Decision: Do not drain") && text("pending-drain-decision-summary").includes("Blocked/review/read-first/unknown:"),
               "guard refresh after blocked recovery plan",
             );
+            if (typeof window.applyAdvancedModePreference === "function") {
+              window.applyAdvancedModePreference(false);
+            } else {
+              document.body.classList.remove("advanced-mode");
+              localStorage.setItem("mediapipeline-advanced-mode", "0");
+            }
             const blockedDrainButton = byId("pending-drain-button");
             if (!blockedDrainButton || blockedDrainButton.disabled !== true || blockedDrainButton.getAttribute("aria-disabled") !== "true") {
               throw new Error("blocked pending drain guard must disable the Drain Parked Outputs button");
@@ -369,7 +485,12 @@ def _browser_pending_drain_guard_runner_source() -> str:
               throw new Error("normal mode guard Why disclosure missing or open by default");
             }
             if (getComputedStyle(normalGuardAdvanced).display !== "none") {
-              throw new Error("normal mode guard advanced diagnostics were visible");
+              throw new Error("normal mode guard advanced diagnostics were visible"
+                + "; display=" + getComputedStyle(normalGuardAdvanced).display
+                + "; bodyClass=" + document.body.className
+                + "; matchesDataAdvanced=" + normalGuardAdvanced.matches("[data-advanced]")
+                + "; closestAdvanced=" + Boolean(normalGuardAdvanced.closest(".advanced-mode"))
+                + "; attr=" + normalGuardAdvanced.getAttribute("data-advanced"));
             }
             const visibleDiagnosticFindings = await scanVisibleDiagnosticCallouts();
             if (visibleDiagnosticFindings.length) {

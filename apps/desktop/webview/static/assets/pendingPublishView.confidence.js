@@ -902,6 +902,8 @@
     const advancedBody = document.createElement("pre");
     advancedBody.className = "prose-block diagnostic-callout-body diagnostic-callout-advanced";
     advancedBody.setAttribute("data-advanced", "");
+    advancedBody.hidden = !document.body.classList.contains("advanced-mode");
+    advancedBody.style.display = document.body.classList.contains("advanced-mode") ? "" : "none";
     advancedBody.textContent = (detailLines || []).filter(Boolean).join("\n");
     root.appendChild(advancedBody);
   }

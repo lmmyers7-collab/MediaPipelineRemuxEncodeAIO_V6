@@ -44,9 +44,10 @@ def _browser_completed_pending_proof_runner_source() -> str:
         r"""
         function completedPendingProofScript(data) {
           return `
-          (() => {
+          (async () => {
             const payload = ${JSON.stringify(data)};
             const posts = [];
+            let confirmCalls = 0;
             function byId(id) { return document.getElementById(id); }
             function text(id) { const node = byId(id); return node ? node.textContent || "" : ""; }
             function requireFunction(name) {
@@ -57,6 +58,19 @@ def _browser_completed_pending_proof_runner_source() -> str:
               for (const fragment of fragments) {
                 if (!actual.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actual);
               }
+            }
+            async function waitFor(predicate, label) {
+              const deadline = Date.now() + 8000;
+              let lastError = null;
+              while (Date.now() < deadline) {
+                try {
+                  if (predicate()) return;
+                } catch (error) {
+                  lastError = error;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 100));
+              }
+              throw new Error("Timed out waiting for " + label + (lastError ? ": " + lastError.message : ""));
             }
             let completedTabsInitialized = false;
             function ensureCompletedTabsInitialized() {
@@ -125,18 +139,223 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedTrustDecision",
               "markPublishReconciliationStale",
               "renderCompletedEvidenceCopyState",
+              "renderCompletedRepairControls",
+              "requestCompletedRepairDryRun",
+              "requestCompletedRepairApply",
               "pendingSampleValidationComparisonLines",
               "copyCompletedEvidencePacket"
             ].forEach(requireFunction);
 
+            window.confirm = () => {
+              confirmCalls += 1;
+              return true;
+            };
+            function restoreSampleValidationContext() {
+              window.mediaPipelineLastCrossPageContext = { sampleValidation: payload.sampleValidation || {} };
+            }
             window.apiPost = async (path, body) => {
               posts.push({ path, body });
+              if (path === "/api/completed/reconcile-manifest-dry-run") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Completed manifest reconcile dry-run safe.",
+                  command: "completed.reconcile_manifest_dry_run",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_dry_run.v1",
+                    candidate_command: "completed.reconcile_manifest",
+                    dry_run_only: true,
+                    effect: "none",
+                    scope: body.scope,
+                    selected_row_keys: [body.row_key],
+                    precondition_results: [{ name: "selected row", ok: true }],
+                    diff_summary: {
+                      schema_version: "desktop_repair_reconcile_diff_summary.v1",
+                      candidate_count: 1,
+                      would_write_count: 1,
+                      would_move_count: 0,
+                      would_delete_count: 0,
+                    },
+                    would_write_paths: ["backend-selected-completed-manifest"],
+                    would_move_paths: [],
+                    would_delete_paths: [],
+                    would_not_touch: {
+                      source_media: "hash unchanged",
+                      output_media: "hash unchanged",
+                      scratch_media: "not touched",
+                    },
+                    safe_to_apply: true,
+                    mutation_route_available: true,
+                    apply_route_available: true,
+                    dry_run_fingerprint: "completed-manifest-fingerprint",
+                    operator_confirmation_scope: "selected row only",
+                    suppress_command_journal: true,
+                  },
+                };
+              }
+              if (path === "/api/completed/reconcile-manifest") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Completed manifest reconcile applied.",
+                  command: "completed.reconcile_manifest",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_apply.v1",
+                    candidate_command: "completed.reconcile_manifest",
+                    effect: "completed-manifest-write",
+                    selected_row_keys: [body.row_key],
+                    applied: true,
+                    blocked: false,
+                    written_paths: ["backend-selected-completed-manifest"],
+                    backup_paths: ["backend-selected-completed-manifest.backup"],
+                    transaction_id: "completed-manifest-browser-smoke",
+                    rollback_status: "not_needed",
+                    dry_run_fingerprint: body.dry_run_fingerprint,
+                    expected_dry_run_fingerprint: body.dry_run_fingerprint,
+                    source_payload_output_unchanged: true,
+                  },
+                };
+              }
+              if (path === "/api/completed/repair-sidecar-metadata-dry-run") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Completed sidecar metadata dry-run safe.",
+                  command: "completed.repair_sidecar_metadata_dry_run",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_dry_run.v1",
+                    candidate_command: "completed.repair_sidecar_metadata",
+                    dry_run_only: true,
+                    effect: "none",
+                    scope: body.scope,
+                    selected_row_keys: [body.row_key],
+                    precondition_results: [{ name: "selected row", ok: true }],
+                    diff_summary: {
+                      schema_version: "desktop_repair_reconcile_diff_summary.v1",
+                      candidate_count: 1,
+                      would_write_count: 1,
+                      would_move_count: 0,
+                      would_delete_count: 0,
+                    },
+                    would_write_paths: ["backend-selected-completed-sidecar"],
+                    would_move_paths: [],
+                    would_delete_paths: [],
+                    would_not_touch: {
+                      source_media: "hash unchanged",
+                      output_media: "hash unchanged",
+                      scratch_media: "not touched",
+                    },
+                    safe_to_apply: true,
+                    mutation_route_available: true,
+                    apply_route_available: true,
+                    dry_run_fingerprint: "completed-sidecar-fingerprint",
+                    operator_confirmation_scope: "selected row only",
+                    suppress_command_journal: true,
+                  },
+                };
+              }
+              if (path === "/api/completed/repair-sidecar-metadata") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Completed sidecar metadata repair applied.",
+                  command: "completed.repair_sidecar_metadata",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_apply.v1",
+                    candidate_command: "completed.repair_sidecar_metadata",
+                    effect: "completed-sidecar-json-write",
+                    selected_row_keys: [body.row_key],
+                    applied: true,
+                    blocked: false,
+                    written_paths: ["backend-selected-completed-sidecar"],
+                    backup_paths: ["backend-selected-completed-sidecar.backup"],
+                    transaction_id: "completed-sidecar-browser-smoke",
+                    rollback_status: "not_needed",
+                    dry_run_fingerprint: body.dry_run_fingerprint,
+                    expected_dry_run_fingerprint: body.dry_run_fingerprint,
+                    source_payload_output_unchanged: true,
+                  },
+                };
+              }
               return { ok: true, message: "unexpected mocked post", data: { path, body } };
             };
-            window.mediaPipelineLastCrossPageContext = { sampleValidation: payload.sampleValidation || {} };
+            restoreSampleValidationContext();
 
             window.renderPendingPublish(payload.pending, {});
             window.renderCompleted(payload.completed);
+            const selectedCompleted = window.getSelectedCompletedRow();
+            if (!selectedCompleted) throw new Error("missing completed row for repair controls");
+            await waitFor(
+              () => !byId("completed-reconcile-manifest-dry-run-button").disabled
+                && byId("completed-reconcile-manifest-apply-button").disabled
+                && !byId("completed-repair-sidecar-dry-run-button").disabled
+                && byId("completed-repair-sidecar-apply-button").disabled,
+              "completed repair controls ready with apply disabled",
+            );
+            byId("completed-reconcile-manifest-dry-run-button").click();
+            await waitFor(
+              () => text("completed-repair-manifest-status") === "Dry-run safe"
+                && !byId("completed-reconcile-manifest-apply-button").disabled,
+              "completed manifest dry-run completed",
+            );
+            byId("completed-reconcile-manifest-apply-button").click();
+            await waitFor(
+              () => text("completed-repair-manifest-status") === "Applied",
+              "completed manifest apply completed",
+            );
+            byId("completed-repair-sidecar-dry-run-button").click();
+            await waitFor(
+              () => text("completed-repair-sidecar-status") === "Dry-run safe"
+                && !byId("completed-repair-sidecar-apply-button").disabled,
+              "completed sidecar dry-run completed",
+            );
+            byId("completed-repair-sidecar-apply-button").click();
+            await waitFor(
+              () => text("completed-repair-sidecar-status") === "Applied",
+              "completed sidecar apply completed",
+            );
+            const completedRepairPosts = posts.slice();
+            const expectedRepairPaths = [
+              "/api/completed/reconcile-manifest-dry-run",
+              "/api/completed/reconcile-manifest",
+              "/api/completed/repair-sidecar-metadata-dry-run",
+              "/api/completed/repair-sidecar-metadata",
+            ];
+            if (JSON.stringify(completedRepairPosts.map((entry) => entry.path)) !== JSON.stringify(expectedRepairPaths)) {
+              throw new Error("completed repair controls posted unexpected paths: " + JSON.stringify(completedRepairPosts));
+            }
+            const dryRunKeys = ["limit", "reason", "row_key", "scope"];
+            const applyKeys = ["confirm_apply", "dry_run_fingerprint", "limit", "reason", "row_key", "scope"];
+            completedRepairPosts.forEach((entry, index) => {
+              const expectedKeys = index % 2 === 0 ? dryRunKeys : applyKeys;
+              const actualKeys = Object.keys(entry.body).sort();
+              if (JSON.stringify(actualKeys) !== JSON.stringify(expectedKeys)) {
+                throw new Error("completed repair post sent unexpected keys: " + JSON.stringify(entry));
+              }
+              for (const forbiddenKey of ["manifest_path", "local_file", "server_out", "source_path", "output_path", "payload_path", "patch", "sidecar_json"]) {
+                if (Object.prototype.hasOwnProperty.call(entry.body, forbiddenKey)) {
+                  throw new Error("completed repair post sent forbidden key " + forbiddenKey + ": " + JSON.stringify(entry.body));
+                }
+              }
+            });
+            if (completedRepairPosts[1].body.confirm_apply !== true || completedRepairPosts[3].body.confirm_apply !== true) {
+              throw new Error("completed repair apply posts omitted confirm_apply=true: " + JSON.stringify(completedRepairPosts));
+            }
+            if (completedRepairPosts[1].body.dry_run_fingerprint !== "completed-manifest-fingerprint") {
+              throw new Error("completed manifest apply used wrong fingerprint: " + JSON.stringify(completedRepairPosts[1]));
+            }
+            if (completedRepairPosts[3].body.dry_run_fingerprint !== "completed-sidecar-fingerprint") {
+              throw new Error("completed sidecar apply used wrong fingerprint: " + JSON.stringify(completedRepairPosts[3]));
+            }
+            if (confirmCalls !== 2) throw new Error("completed repair applies should ask for two confirmations; confirm calls=" + confirmCalls);
+            requireText("completed-repair-detail", [
+              "Completed repair/reconcile controls:",
+              "Source/output/scratch unchanged evidence",
+              "Mutation guardrail",
+            ]);
+            posts.length = 0;
+            confirmCalls = 0;
+            restoreSampleValidationContext();
             window.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
             window.renderCompletedRealMediaProof(payload.completed, payload.completed.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], payload.pending);
             window.mediaPipelineCompletedView.renderCompletedFinalTrust(payload.completed, payload.completed.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], payload.pending);

@@ -15,7 +15,11 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.kernel.contracts.active_job import ACTIVE_JOB_SCHEMA_VERSION
-from mediapipeline.core.kernel.contracts.pending_publish import PENDING_PUSH_MANIFEST_SCHEMA_VERSION
+from mediapipeline.core.kernel.contracts.pending_publish import (
+    PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS,
+    PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
+    PendingPushManifest,
+)
 from mediapipeline.core.storage.db import CURRENT_SCHEMA_VERSION, STATE_DB_FILENAME
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
@@ -174,6 +178,8 @@ def _pending_fixture(
     *,
     unreadable_manifest: bool = False,
     invalid_manifest: bool = False,
+    repairable_manifest: bool = False,
+    incomplete_repair_manifest: bool = False,
     orphan_payload: bool = False,
     duplicate_target: bool = False,
 ) -> tuple[object, dict[str, Path]]:
@@ -196,6 +202,13 @@ def _pending_fixture(
         manifest_payload = _pending_manifest_payload(payload, output, source)
         if invalid_manifest:
             manifest_payload["manifest_state"] = "unsafe_unknown_state"
+        if repairable_manifest or incomplete_repair_manifest:
+            manifest_payload.pop("local_file", None)
+            manifest_payload.pop("output_size", None)
+            for field in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
+                manifest_payload.pop(field, None)
+        if incomplete_repair_manifest:
+            manifest_payload.pop("server_out", None)
         manifest.write_text(json.dumps(manifest_payload), encoding="utf-8")
         if duplicate_target:
             duplicate_payload = pending_root / "Movie-copy.mkv"
@@ -363,9 +376,88 @@ class RepairReconcileDryRunTests(unittest.TestCase):
         self.assertEqual(before, after)
         self.assertFalse(orphan_result["data"]["would_move_paths"])
         self.assertFalse(orphan_result["data"]["would_delete_paths"])
+        self.assertFalse(orphan_result["data"]["would_write_paths"])
+        self.assertFalse(orphan_result["data"]["safe_to_apply"])
+        orphan_row = orphan_result["data"]["diff_summary"]["rows"][0]
+        self.assertEqual(orphan_row["status"], "blocked")
+        self.assertFalse(orphan_row["proposed_manifest_available"])
+        missing_fields = set(orphan_row["missing_required_manifest_fields"])
+        self.assertIn("manifest_path", missing_fields)
+        self.assertIn("schema_version", missing_fields)
+        self.assertIn("server_out", missing_fields)
+        self.assertIn("source_path", missing_fields)
+        self.assertIn("source_identity_v2", missing_fields)
+        self.assertIn("source_identity_v2_algorithm", missing_fields)
+        self.assertIn("sidecar_files", missing_fields)
         self.assertTrue(
-            any(row["status"] == "review" and "ambiguity" in row["key"] for row in orphan_result["data"]["precondition_results"])
+            any(
+                row["status"] == "blocked" and "manifest_evidence" in row["key"]
+                for row in orphan_result["data"]["precondition_results"]
+            )
         )
+
+    def test_pending_manifest_repair_dry_run_builds_valid_backend_proposal_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _pending_fixture(root, repairable_manifest=True)
+            before = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+            payload_size = files["pending_payload"].stat().st_size
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            target = next(row for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
+
+            result = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request={"scope": "selected", "row_key": target["row_key"], "reason": "normalize"},
+            ).to_mapping()
+            after = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+            pending_manifest_path = str(files["pending_manifest"])
+            pending_payload_path = str(files["pending_payload"])
+
+        data = result["data"]
+        _assert_dry_run_shape(self, data, "pending_publish.repair_manifest")
+        self.assertEqual(before, after)
+        self.assertTrue(data["safe_to_apply"])
+        self.assertEqual(
+            data["would_write_paths"],
+            [{"path": pending_manifest_path, "reason": "pending manifest repair will rewrite backend-validated manifest fields"}],
+        )
+        row = data["diff_summary"]["rows"][0]
+        self.assertEqual(row["status"], "candidate")
+        self.assertIn("local_file", row["changed_fields"])
+        self.assertIn("output_size", row["changed_fields"])
+        self.assertIn("sidecar_files", row["changed_fields"])
+        proposed = row["proposed_manifest"]
+        PendingPushManifest.from_mapping(proposed)
+        self.assertEqual(proposed["local_file"], pending_payload_path)
+        self.assertEqual(proposed["output_size"], payload_size)
+        for field in PENDING_PUSH_MANIFEST_REQUIRED_ARRAY_FIELDS:
+            self.assertIn(field, proposed)
+
+    def test_pending_manifest_repair_dry_run_blocks_incomplete_backend_proposal(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _pending_fixture(root, incomplete_repair_manifest=True)
+            before = _file_state(files["pending_manifest"])
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            target = next(row for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
+
+            result = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.repair_manifest",
+                request={"scope": "selected", "row_key": target["row_key"]},
+            ).to_mapping()
+            after = _file_state(files["pending_manifest"])
+
+        data = result["data"]
+        _assert_dry_run_shape(self, data, "pending_publish.repair_manifest")
+        self.assertFalse(data["safe_to_apply"])
+        self.assertEqual(data["would_write_paths"], [])
+        self.assertEqual(data["diff_summary"]["rows"][0]["status"], "blocked")
+        self.assertIn("server_out", data["diff_summary"]["rows"][0]["error"])
+        self.assertEqual(after, before)
 
     def test_unreadable_invalid_and_duplicate_pending_manifest_preconditions_are_blocked(self) -> None:
         cases = [

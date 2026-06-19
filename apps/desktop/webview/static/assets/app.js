@@ -1269,6 +1269,13 @@ function initEvidenceToggle() {
   });
 }
 
+function syncDiagnosticAdvancedCallouts(on) {
+  document.querySelectorAll(".diagnostic-callout-advanced[data-advanced]").forEach((node) => {
+    node.hidden = !on;
+    node.style.display = on ? "" : "none";
+  });
+}
+
 function applyAdvancedModePreference(on) {
   const btn = byId("advanced-toggle");
   document.body.classList.toggle("advanced-mode", on);
@@ -1276,6 +1283,7 @@ function applyAdvancedModePreference(on) {
     btn.setAttribute("aria-pressed", String(on));
     btn.dataset.state = on ? "on" : "off";
   }
+  syncDiagnosticAdvancedCallouts(on);
   try { localStorage.setItem(ADVANCED_MODE_STORAGE_KEY, on ? "1" : "0"); } catch (_) {}
   updatePagePanelEmptyStates();
 }

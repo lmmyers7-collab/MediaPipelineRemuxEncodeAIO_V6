@@ -212,7 +212,7 @@ Confirmed repair/reconcile routes rerun the backend dry-run, require a matching 
 |---|---|---|---|
 | `POST /api/completed/reconcile-manifest` | `completed-manifest-write` | Frontend cannot rewrite completed manifests directly | Rewrites existing selected manifest rows only after matching backend dry-run fingerprint; no row add/remove |
 | `POST /api/completed/repair-sidecar-metadata` | `completed-sidecar-json-write` | Frontend cannot rewrite sidecar JSON directly | Updates only backend-derived sidecar metadata fields; preserves unknown fields |
-| `POST /api/pending-publish/repair-manifest` | `pending-manifest-write` | Frontend cannot repair pending manifests directly | Route is fingerprint-gated and blocks unless backend dry-run supplies complete proposed manifest fields |
+| `POST /api/pending-publish/repair-manifest` | `pending-manifest-write` | Frontend cannot repair pending manifests directly | Route is fingerprint-gated, writes only backend-validated manifest-normalization candidates, and blocks incomplete evidence |
 | `POST /api/pending-publish/reconcile-orphan-payloads` | `pending-orphan-manifest-write` | Frontend cannot reconcile orphan payloads directly | Manifest-only route is fingerprint-gated, blocks without complete backend evidence, and never moves/deletes/drains/publishes payloads |
 
 ### preset-library-state-write (low risk, settings preset library only)
@@ -339,7 +339,7 @@ Current limits:
 
 - Completed manifest reconcile updates existing selected manifest rows only; it does not add or remove rows.
 - Completed sidecar repair updates only backend-derived metadata fields and preserves unknown JSON fields.
-- Pending manifest repair and orphan-payload reconcile remain blocked unless backend evidence supplies complete proposed manifest fields.
+- Pending manifest repair can write only backend-validated manifest-normalization candidates; orphan-payload reconcile remains blocked unless backend evidence supplies complete proposed manifest fields.
 - No repair/reconcile route drains, moves, deletes, publishes, reruns processing, or mutates source/scratch/output media bytes.
 
 The detailed contract remains in `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`.

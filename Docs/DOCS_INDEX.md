@@ -72,7 +72,8 @@ No active standalone fix-checklist redirect remains; use
 - `architecture/MODULE_MAP.md`: codebase layer map and feature-placement guide.
 - `architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md`: backend-owned Network lifecycle/setup route contract, including provider-guarded dry-run/start/stop routes, discovery, test-connection, and join/import setup boundaries.
 - `architecture/NETWORK_MODE_READ_ONLY_DOCUMENTATION.md`: current read-only Network page boundaries.
-- `architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`: design-only gates for future Completed/Pending repair routes.
+- `architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`: backend dry-run and confirmed apply contract for selected Completed/Pending repair routes, with startup reconciliation dry-run only.
+- `reviews/network-coordinator-worker-mode-2026-06-15/DISPOSITION_LEDGER.md`: per-finding disposition ledger for the 2026-06-15 network coordinator/worker review.
 - `architecture/SETTINGS_RAW_KEY_TRIAGE.md`: settings builder/raw-key coverage and intentionally hidden auth keys.
 - `architecture/STATE_SURFACE_INVENTORY.md`: mutable state inventory across PowerShell, Python, and WebView modules.
 - `architecture/TAURI_BACKEND_LIFECYCLE_BOUNDARY.md`: Tauri/WebView2 shell to Python backend lifecycle boundary.

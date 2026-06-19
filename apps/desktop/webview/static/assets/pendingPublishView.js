@@ -72,6 +72,18 @@
   let pendingRecoveryPlanHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pending_publish.recovery_plan_dry_run"); };
   let pendingRecoveryPlanResultData = function (result) { return result?.data && typeof result.data === "object" ? result.data : {}; };
   let pendingRecoveryPlanRowLabel = function (row) { return pendingRecoveryPlanRowKey(row); };
+  let initPendingRepairManifestEvents = function () {};
+  let isPendingRepairManifestCommand = function () { return false; };
+  let pendingRepairDryRunIsSafeForSelection = function () { return false; };
+  let pendingRepairManifestApplyRequest = function () { return null; };
+  let pendingRepairManifestDryRunRequest = function () { return null; };
+  let pendingRepairManifestHistoryLine = function (entry) { return String(entry?.message || entry?.command || "pending_publish.repair_manifest"); };
+  let pendingRepairManifestResultLines = pendingRecoveryFallbackLines;
+  let renderPendingRepairManifestControls = pendingRecoveryFallbackRender;
+  let renderPendingRepairManifestHistory = pendingRecoveryFallbackRender;
+  let requestPendingRepairManifestApply = async function () {};
+  let requestPendingRepairManifestDryRun = async function () {};
+  let setPendingRepairManifestBusy = function () {};
 
   const pendingDrainFallbackRows = function () { return []; };
   const pendingDrainFallbackLines = function () { return []; };
@@ -216,6 +228,7 @@
     if (typeof getCommandHistory === "function") renderPendingDrainHistory(getCommandHistory());
     if (typeof getCommandHistory === "function") renderPendingOpenHistory(getCommandHistory());
     if (typeof getCommandHistory === "function") renderPendingRecoveryPlanHistory(getCommandHistory());
+    if (typeof getCommandHistory === "function") renderPendingRepairManifestHistory(getCommandHistory());
     renderPendingDrainEvents(snapshot || {});
     renderPendingDrainSummary(pending || {});
     renderPendingDrainCorrelation(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
@@ -226,6 +239,7 @@
     renderPendingDrainGuard(pending || {}, rows, snapshot || {}, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDetail(getSelectedPendingRow());
     renderPendingRows();
+    renderPendingRepairManifestControls();
     if (
       typeof window.renderCompletedPendingProof === "function"
       && typeof window.getLastCompletedPayload === "function"
@@ -497,6 +511,7 @@
     renderPendingBackendDrainScopePreview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingRows();
+    renderPendingRepairManifestControls();
     restorePendingSelectionScroll(scrollSnapshot);
   }
 
@@ -842,6 +857,7 @@
       renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+      renderPendingRepairManifestControls();
       return;
     }
     tbody.replaceChildren();
@@ -880,6 +896,7 @@
     renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
+    renderPendingRepairManifestControls();
   }
 
   function resetPendingFilters() {
@@ -1084,6 +1101,34 @@
   pendingRecoveryPlanResultData = typeof pendingRecovery.pendingRecoveryPlanResultData === "function" ? pendingRecovery.pendingRecoveryPlanResultData : pendingRecoveryPlanResultData;
   pendingRecoveryPlanRowLabel = typeof pendingRecovery.pendingRecoveryPlanRowLabel === "function" ? pendingRecovery.pendingRecoveryPlanRowLabel : pendingRecoveryPlanRowLabel;
 
+  const pendingRepairModule = window.__pendingPublishRepairModule || {};
+  delete window.__pendingPublishRepairModule;
+  const pendingRepair = typeof pendingRepairModule.createPendingPublishRepairModule === "function"
+    ? pendingRepairModule.createPendingPublishRepairModule({
+      apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
+      appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
+      byId: typeof byId === "function" ? byId : window.byId,
+      commandHistoryCompactEvidenceLine: typeof window.commandHistoryCompactEvidenceLine === "function" ? window.commandHistoryCompactEvidenceLine : (typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null),
+      renderCompactCommandHistoryBlock: window.mediaPipelineCommandHistory?.renderCompactCommandHistoryBlock || null,
+      getCommandHistory: typeof window.getCommandHistory === "function" ? () => window.getCommandHistory() : (typeof getCommandHistory === "function" ? () => getCommandHistory() : () => []),
+      getSelectedPendingRow: (...args) => getSelectedPendingRow(...args),
+      pendingRowKey: (...args) => pendingRowKey(...args),
+      setText: typeof setText === "function" ? setText : window.setText,
+    })
+    : {};
+  initPendingRepairManifestEvents = typeof pendingRepair.initPendingRepairManifestEvents === "function" ? pendingRepair.initPendingRepairManifestEvents : initPendingRepairManifestEvents;
+  isPendingRepairManifestCommand = typeof pendingRepair.isPendingRepairManifestCommand === "function" ? pendingRepair.isPendingRepairManifestCommand : isPendingRepairManifestCommand;
+  pendingRepairDryRunIsSafeForSelection = typeof pendingRepair.pendingRepairDryRunIsSafeForSelection === "function" ? pendingRepair.pendingRepairDryRunIsSafeForSelection : pendingRepairDryRunIsSafeForSelection;
+  pendingRepairManifestApplyRequest = typeof pendingRepair.pendingRepairManifestApplyRequest === "function" ? pendingRepair.pendingRepairManifestApplyRequest : pendingRepairManifestApplyRequest;
+  pendingRepairManifestDryRunRequest = typeof pendingRepair.pendingRepairManifestDryRunRequest === "function" ? pendingRepair.pendingRepairManifestDryRunRequest : pendingRepairManifestDryRunRequest;
+  pendingRepairManifestHistoryLine = typeof pendingRepair.pendingRepairManifestHistoryLine === "function" ? pendingRepair.pendingRepairManifestHistoryLine : pendingRepairManifestHistoryLine;
+  pendingRepairManifestResultLines = typeof pendingRepair.pendingRepairManifestResultLines === "function" ? pendingRepair.pendingRepairManifestResultLines : pendingRepairManifestResultLines;
+  renderPendingRepairManifestControls = typeof pendingRepair.renderPendingRepairManifestControls === "function" ? pendingRepair.renderPendingRepairManifestControls : renderPendingRepairManifestControls;
+  renderPendingRepairManifestHistory = typeof pendingRepair.renderPendingRepairManifestHistory === "function" ? pendingRepair.renderPendingRepairManifestHistory : renderPendingRepairManifestHistory;
+  requestPendingRepairManifestApply = typeof pendingRepair.requestPendingRepairManifestApply === "function" ? pendingRepair.requestPendingRepairManifestApply : requestPendingRepairManifestApply;
+  requestPendingRepairManifestDryRun = typeof pendingRepair.requestPendingRepairManifestDryRun === "function" ? pendingRepair.requestPendingRepairManifestDryRun : requestPendingRepairManifestDryRun;
+  setPendingRepairManifestBusy = typeof pendingRepair.setPendingRepairManifestBusy === "function" ? pendingRepair.setPendingRepairManifestBusy : setPendingRepairManifestBusy;
+
   const pendingConfidenceState = {
     get selectedPendingDrainDecisionKey() {
       return selectedPendingDrainDecisionKey;
@@ -1174,6 +1219,7 @@
   renderPendingDrainGuard = typeof pendingConfidence.renderPendingDrainGuard === "function" ? pendingConfidence.renderPendingDrainGuard : renderPendingDrainGuard;
 
   initPendingActionCenterEvents();
+  initPendingRepairManifestEvents();
 
   /**
    * Public namespace for the Pending Publish page module.
@@ -1322,6 +1368,18 @@
     renderPendingRecoveryPlanHistory,
     isPendingRecoveryPlanCommand,
     pendingRecoveryPlanHistoryLine,
+    initPendingRepairManifestEvents,
+    isPendingRepairManifestCommand,
+    pendingRepairDryRunIsSafeForSelection,
+    pendingRepairManifestApplyRequest,
+    pendingRepairManifestDryRunRequest,
+    pendingRepairManifestHistoryLine,
+    pendingRepairManifestResultLines,
+    renderPendingRepairManifestControls,
+    renderPendingRepairManifestHistory,
+    requestPendingRepairManifestApply,
+    requestPendingRepairManifestDryRun,
+    setPendingRepairManifestBusy,
   };
   window.renderPendingPublish = renderPendingPublish;
   window.renderPendingFileInventory = renderPendingFileInventory;
@@ -1415,4 +1473,7 @@
   window.renderPendingRecoveryPlanHistory = renderPendingRecoveryPlanHistory;
   window.isPendingRecoveryPlanCommand = isPendingRecoveryPlanCommand;
   window.pendingRecoveryPlanHistoryLine = pendingRecoveryPlanHistoryLine;
+  window.renderPendingRepairManifestControls = renderPendingRepairManifestControls;
+  window.requestPendingRepairManifestDryRun = requestPendingRepairManifestDryRun;
+  window.requestPendingRepairManifestApply = requestPendingRepairManifestApply;
 })();

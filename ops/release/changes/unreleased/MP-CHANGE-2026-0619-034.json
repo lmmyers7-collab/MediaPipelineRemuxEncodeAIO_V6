@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0619-034",
+  "title": "Align served WebView smoke assertions",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Aligned the broad Local API served-WebView smoke with current static source contracts for Network role panels, Rename copy, Queue and Launch guardrails, Diagnostics open/tail helper signatures, Telemetry operator states, Reports diagnostics actions, and app refresh fallback handling.",
+  "reason": "The Phase 1 validation cleanup exposed stale assertions in the large served-static WebView smoke after active WebView modules had already moved to role-panel Network dashboards, source-button diagnostics actions, explicit telemetry states, and failure-aware app refresh flows. Dedicated WebView tests and current source already covered those behaviors, so the smoke needed to assert the current contracts instead of removed hooks or outdated copy.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "generated-context"
+  ],
+  "behavior_before": "The served-WebView Local API smoke expected removed Network tab hooks, stale Settings/Rename/Queue/Launch/Telemetry wording, one-argument Diagnostics open/tail calls, and older app refresh render snippets. The stale expectations caused the broader Local API test module to fail even though current source and focused WebView boundary tests reflected the active behavior.",
+  "behavior_after": "The smoke now asserts current stable hooks and wording: Network role panels and dashboard functions, backend-owned guardrail copy, checked-row Rename apply wording, source-button Diagnostics open/tail calls, explicit NVENC idle-as-expected telemetry state, Reports diagnostics source-button opens, and Pending Publish/Telemetry app refresh fallbacks. No product behavior was changed.",
+  "files_touched": [
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-034.json",
+    "tests/python/desktop/test_application_facade_local_api.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile tests\\python\\desktop\\test_application_facade_local_api.py - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q - passed (1 test)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_network_read_only_boundary -q - passed (12 tests)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_local_api -q - passed (48 tests; expected route-error traceback is emitted by a failure-handling test)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - passed (1 written, 16 unchanged)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m json.tool ops\\release\\changes\\unreleased\\MP-CHANGE-2026-0619-034.json - passed",
+    "git diff --check -- tests/python/desktop/test_application_facade_local_api.py Docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md ops/release/changes/unreleased/MP-CHANGE-2026-0619-034.json - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (456 packets valid)"
+  ],
+  "rollback_plan": "Revert the assertion updates in tests/python/desktop/test_application_facade_local_api.py, refresh the generated summary for that test file, and restore this change packet to planned or remove it if no longer needed.",
+  "related_changes": [
+    "MP-CHANGE-2026-0619-031",
+    "MP-CHANGE-2026-0619-032",
+    "MP-CHANGE-2026-0619-033"
+  ],
+  "notes": "Align served WebView HTML smoke with current Network role-panel hooks instead of removed network tab hooks.\nAlign rename cleaning filter served-HTML assertions with current Settings heading copy and stable controls.\nAlign queue guardrail served-static assertion with current backend-owned queue wording.\nAlign rename selected_sources served-static assertion with current checked-row apply wording.\nAlign queue workflow backend-owned launch wording in served-static Local API smoke.\nAlign served-static Network assertions with role-panel dashboard contract and removed tab hooks.\nAlign Diagnostics open/tail smoke assertions with current source-button helper call shape.\nAlign Reports diagnostics open smoke assertion with current source-button helper call shape.\nAlign telemetry smoke assertion with explicit NVENC idle-as-expected operator state.\nAlign Launch history guardrail smoke assertion with current backend-owned command scope wording.\nAlign app refresh smoke assertion with current pending-publish fallback payload render flow.\nAlign app refresh smoke assertions with current pending-publish and telemetry fallback-aware render flow.\nRefresh generated summary for served-static Local API smoke alignment."
+}

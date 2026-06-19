@@ -1,8 +1,8 @@
 # Network Lifecycle Command Contract
 
-Date: 2026-06-13
+Date: 2026-06-19
 
-This is the source-of-truth contract for WebView/Tauri Network lifecycle commands. The current workspace exposes backend-owned coordinator/worker dry-run routes and confirmed start/stop routes. Confirmed routes are intentionally provider-guarded: they return a blocked command result until the real coordinator or worker lifecycle provider is available and preconditions pass.
+This is the source-of-truth contract for WebView/Tauri Network lifecycle commands. The current workspace exposes backend-owned coordinator/worker dry-run routes and confirmed start/stop routes. Confirmed routes are provider-backed and precondition-guarded: they call only the real coordinator or worker lifecycle provider, and return a blocked command result if the provider hook is unavailable or preconditions fail.
 
 The WebView may render Network lifecycle controls only by calling these Local API routes. It must not infer lifecycle safety, start or stop runtime loops directly, author queue state, release claims, send done reports, write Network state files, launch media work, or touch source/scratch/output/pending-publish files.
 
@@ -14,7 +14,7 @@ The WebView may render Network lifecycle controls only by calling these Local AP
 - Network lifecycle contracts have `mutation_enabled=true` and `frontend_allowed=true` because backend routes now exist.
 - `GET /api/network/workers` remains read-only persisted runtime-state evidence.
 - Dry-run routes have `effect=none` and must report role, lifecycle state, preconditions, active work, pending done reports, state-file posture, redacted config evidence, and `would_not_touch` evidence.
-- Confirmed routes have `effect=backend-lifecycle`, require `confirm_start` or `confirm_stop`, create command-journal evidence, and fail closed when provider preconditions are blocked.
+- Confirmed routes have `effect=backend-lifecycle`, require `confirm_start` or `confirm_stop`, create command-journal evidence, and fail closed when provider hooks or provider preconditions are blocked.
 - Normal Launch is blocked whenever `NetworkRole` is `coordinator` or `worker`; Network work starts only from Network lifecycle controls.
 
 ---
@@ -29,7 +29,7 @@ Operators should use routes in this order:
 4. `POST /api/network/worker/stop-dry-run`
 5. Confirmed `POST /api/network/{coordinator|worker}/{start|stop}` only after the relevant dry-run evidence is acceptable.
 
-Dry-runs are no-mutation. Confirmed routes are still not allowed to substitute for the real dispatcher provider. If the provider hook is unavailable, the route must return a blocked command result instead of starting a normal local run, scanning the queue, releasing claims, or processing media.
+Dry-runs are no-mutation. Confirmed routes are not allowed to substitute a normal local Launch path for the real dispatcher provider. If the provider hook is unavailable, the route must return a blocked command result instead of starting a normal local run, scanning the queue, releasing claims, or processing media.
 
 ---
 
@@ -39,7 +39,7 @@ Each `network_lifecycle_contracts[]` item in `/api/contract` must include:
 
 | Field | Requirement |
 |---|---|
-| `current_status` | `backend_route_available_provider_guarded` while routes exist but the real lifecycle provider is still guarded |
+| `current_status` | `backend_route_available_provider_guarded` for provider-backed routes that are exposed but still fail closed when provider hooks or preconditions are unavailable |
 | `mutation_enabled` | `true` for lifecycle start/stop route exposure |
 | `frontend_allowed` | `true` only for the backend-owned routes in this contract |
 | `dry_run_contract` | Defines the no-mutation result schema and required result fields |
@@ -106,6 +106,8 @@ Current static/unit gates:
 
 Remaining implementation gates before real distributed processing is complete:
 
-- Wire the real coordinator lifecycle provider and worker polling provider into the Local API facade.
-- Add duplicate-start/stop tests, provider active-state tests, command-journal success/failure tests, process cleanup/orphan tests, and source/scratch/output/pending-publish hash checks.
+- Keep the real coordinator lifecycle provider and worker polling provider wired through the Local API facade, and keep provider-unavailable failure coverage for nonstandard harnesses or broken mixin construction.
+- Reconcile the 2026-06-15 network coordinator/worker findings register into fixed, open, superseded, or deferred status with source/test evidence.
+- Close remaining distributed-processing hardening gaps around claim ownership, source identity normalization, durable done/release acceptance, late terminal evidence, worker-result propagation, secret redaction, join-blob journaling, and concurrent claim coverage.
+- Add or preserve duplicate-start/stop tests, provider active-state tests, command-journal success/failure tests, process cleanup/orphan tests, and source/scratch/output/pending-publish hash checks.
 - Add integration coverage proving coordinator-only does not process local files, worker-only claims only coordinator-assigned files, coordinator-local work starts only through Network lifecycle, and done-report/final-acceptance evidence is coordinator-owned.

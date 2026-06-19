@@ -59,6 +59,8 @@
 /* Off by default — operator sees the clean daily-driver layout. */
 [data-advanced] { display: none; }
 
+body:not(.advanced-mode) .diagnostic-callout-advanced[data-advanced] { display: none; }
+
 /*
  * .advanced-mode on <body> (toggled by the Advanced button + persisted to
  * localStorage) restores visibility.  Use display:block here; inner elements

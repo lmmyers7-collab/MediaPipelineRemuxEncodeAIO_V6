@@ -117,7 +117,7 @@ NETWORK_LIFECYCLE_CONTRACTS = [
             "mutate queue, completed, pending publish, scratch, output, or source files",
             "trust frontend-only confirmation logic inside the Local API route",
         ],
-        "safe_next_step": "Use the backend dry-run route first; confirmed start remains blocked until the real coordinator lifecycle provider is available and preconditions pass.",
+        "safe_next_step": "Use the backend dry-run route first; confirmed start is backend-owned and blocked if the coordinator lifecycle provider hook is unavailable or preconditions fail.",
     },
     {
         "key": "coordinator_stop",
@@ -187,7 +187,7 @@ NETWORK_LIFECYCLE_CONTRACTS = [
             "force-release worker claims without a separate reclaim contract",
             "mutate media files or publish state as part of lifecycle stop",
         ],
-        "safe_next_step": "Use the backend dry-run route first; confirmed stop remains blocked until the real coordinator lifecycle provider is available and preconditions pass.",
+        "safe_next_step": "Use the backend dry-run route first; confirmed stop is backend-owned and blocked if the coordinator lifecycle provider hook is unavailable or preconditions fail.",
     },
     {
         "key": "worker_polling_start_stop",
@@ -256,7 +256,7 @@ NETWORK_LIFECYCLE_CONTRACTS = [
             "trust frontend-provided filesystem paths for source mapping",
             "launch encode/remux work from WebView-only logic",
         ],
-        "safe_next_step": "Use the backend dry-run routes first; confirmed worker start/stop remain blocked until the real worker lifecycle provider is available and preconditions pass.",
+        "safe_next_step": "Use the backend dry-run routes first; confirmed worker start/stop are backend-owned and blocked if the worker lifecycle provider hook is unavailable or preconditions fail.",
     },
 ]
 
@@ -575,7 +575,8 @@ REPAIR_RECONCILE_CONTRACTS = [
             "must_report": [
                 "confirmed dry_run_fingerprint and selected row keys",
                 "pending manifest backup path, transaction id, and rollback status",
-                "complete backend-derived proposed manifest fields before any write",
+                "validated backend-derived proposed manifest fields before any write",
+                "source/payload/output preservation status",
             ],
         },
         "rollback_contract": {
@@ -607,7 +608,7 @@ REPAIR_RECONCILE_CONTRACTS = [
             "delete orphan payloads",
             "trust frontend-provided file paths",
         ],
-        "safe_next_step": "Use the backend dry-run route first; confirmed apply remains blocked unless backend evidence supplies complete proposed manifest fields.",
+        "safe_next_step": "Use the backend dry-run route first; confirmed apply writes only backend-validated manifest-normalization candidates and blocks incomplete evidence.",
     },
     {
         "key": "orphan_payload_reconcile",
@@ -797,7 +798,7 @@ def local_api_contract_payload(
             "frontend_allowed": True,
             "contract_count": len(NETWORK_LIFECYCLE_CONTRACTS),
             "status": "backend_lifecycle_routes_available_provider_guarded",
-            "safe_next_step": "Use Network/Workers dry-runs first. Confirmed start/stop commands are backend-owned, command-journaled, confirmation-gated, and blocked when the real lifecycle provider is unavailable.",
+            "safe_next_step": "Use Network/Workers dry-runs first. Confirmed start/stop commands are backend-owned, command-journaled, confirmation-gated, and blocked when provider hooks are unavailable or preconditions fail.",
         },
         "repair_reconcile_contracts": deepcopy(REPAIR_RECONCILE_CONTRACTS),
         "repair_reconcile_summary": {

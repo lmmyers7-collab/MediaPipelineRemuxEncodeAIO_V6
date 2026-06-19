@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_pending_drain_guard_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-17
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 3de6575c8e5e54e8c01a5bed19495aad835f8c50cda5a7e88a71900fb2bb042c
+sha256: bddb10f5bacadeb76320f402c4ea4c73c9bca11d15006db884c76aae1834783d
 ---
 # `tests/webview/test_webview_browser_pending_drain_guard_smoke.py`
 
