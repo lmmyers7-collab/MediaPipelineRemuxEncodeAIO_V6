@@ -36,6 +36,7 @@ from mediapipeline.core.maintenance.productization import (
 from mediapipeline.core.publish.pending_service import PendingPublishServiceMixin
 from mediapipeline.core.paths.service import PathResolutionServiceMixin
 from mediapipeline.core.processes.lifecycle import ProcessLifecycleServiceMixin
+from mediapipeline.core.queue.remux_pilot_auto_service import RemuxPilotAutoPromotionServiceMixin
 from mediapipeline.core.queue.service import QueueServiceMixin
 from mediapipeline.core.maintenance.dependency_atlas import DependencyAtlasServiceMixin
 from mediapipeline.core.maintenance.release import ReleasePackageServiceMixin
@@ -50,6 +51,7 @@ LOG_NAME = "MediaPipelineRemuxEncodeAIO_DesktopApp.log"
 
 class DesktopAppService(
     PathResolutionServiceMixin,
+    RemuxPilotAutoPromotionServiceMixin,
     TelemetryServiceMixin,
     StatusServiceMixin,
     ProcessLifecycleServiceMixin,
@@ -124,6 +126,7 @@ class DesktopAppService(
         self._active_spawned_processes_lock = threading.Lock()
         self._active_spawned_processes: dict[int, tuple[object, str]] = {}
         self.logger = self._create_logger()
+        self._initialize_remux_pilot_auto_promotion()
         self._initialize_telemetry_sampler()
 
     def _create_logger(self) -> logging.Logger:

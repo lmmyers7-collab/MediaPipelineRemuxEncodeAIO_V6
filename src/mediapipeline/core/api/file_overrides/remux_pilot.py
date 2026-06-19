@@ -9,9 +9,11 @@ from typing import Any
 
 from mediapipeline.core.processes.source_path_policy import path_is_under_or_equal, queue_source_roots
 from mediapipeline.core.queue.file_overrides import (
+    FILE_OVERRIDE_BATCH_METADATA_KEY,
     FileOverrideValidationError,
     file_overrides_to_api_payload,
     normalize_file_override_path,
+    read_file_overrides,
     set_file_override_entries,
 )
 
@@ -26,11 +28,16 @@ from .series import (
 
 
 REMUX_PILOT_PROMOTE_COMMAND = "queue.file_overrides.remux_pilot_promote"
+REMUX_PILOT_AUTO_PROMOTE_COMMAND = "queue.file_overrides.remux_pilot_auto_promote"
 REMUX_PILOT_PROMOTE_DATA_SCHEMA = "queue_remux_pilot_promotion.v1"
 REMUX_PILOT_PROMOTE_POST_KEYS = frozenset({"pilot_source_paths", "confirm_apply", "reason"})
 REMUX_PILOT_PROMOTE_BATCH_ORIGIN = "remux_pilot_promotion"
 REMUX_PILOT_FALLBACK_REASON_CODE = "oversized_encode_remux_fallback"
 REMUX_PILOT_OVERRIDE = {"routing": {"profile": "remux"}}
+REMUX_PILOT_AUTO_REASON = (
+    "backend auto-promotion after three current queued TV episodes completed through "
+    "oversized encode remux fallback"
+)
 
 
 def unsupported_remux_pilot_promote_key_errors(request: Mapping[str, Any]) -> list[str]:
@@ -48,6 +55,7 @@ def file_override_remux_pilot_promote_payload(
     resolved: Any,
     pilot_source_paths: Any,
     reason: str = "",
+    skip_source_paths: Any = None,
 ) -> dict[str, Any]:
     manifest_path = getattr(resolved, "file_overrides_path", None)
     if manifest_path is None:
@@ -87,6 +95,7 @@ def file_override_remux_pilot_promote_payload(
         )
 
     pilot_keys = {normalize_file_override_path(path) for path in pilot_paths}
+    skip_keys = _normalised_source_key_set(skip_source_paths)
     selected_source_path, selected_error = _selected_current_series_row(rows, detected_series, pilot_keys)
     if selected_error:
         return _promotion_error(
@@ -109,7 +118,7 @@ def file_override_remux_pilot_promote_payload(
             preview=preview,
         )
 
-    promotion_rows = _promotion_preview_rows(preview, pilot_keys)
+    promotion_rows = _promotion_preview_rows(preview, pilot_keys, skip_keys=skip_keys)
     counts = _promotion_counts(promotion_rows)
     if counts["eligible_update_count"] <= 0:
         return _promotion_error(
@@ -180,6 +189,132 @@ def file_override_remux_pilot_promote_payload(
     return payload
 
 
+def file_override_remux_pilot_auto_promote_payload(
+    *,
+    resolved: Any,
+    reason: str = "",
+) -> dict[str, Any]:
+    manifest_path = getattr(resolved, "file_overrides_path", None)
+    if manifest_path is None:
+        return _auto_promotion_result(
+            message="File overrides service unavailable: state_root is not configured.",
+            severity="warning",
+            blockers=[{"code": "missing_file_overrides", "message": "state_root is not configured."}],
+        )
+
+    completed_rows, completed_error = _read_completed_rows(getattr(resolved, "completed_manifest_path", None))
+    if completed_error:
+        return _auto_promotion_result(
+            message=completed_error,
+            severity="warning",
+            blockers=[{"code": "completed_manifest_unavailable", "message": completed_error}],
+        )
+
+    snapshot, snapshot_error = _read_queue_snapshot(getattr(resolved, "queue_snapshot_path", None))
+    if snapshot_error:
+        return _auto_promotion_result(
+            message=snapshot_error,
+            severity="warning",
+            blockers=[{"code": "queue_snapshot_unavailable", "message": snapshot_error}],
+        )
+    rows = snapshot.get("rows") if isinstance(snapshot, Mapping) else None
+    if not isinstance(rows, list):
+        return _auto_promotion_result(
+            message="Queue snapshot does not contain current queue rows.",
+            severity="warning",
+            blockers=[{"code": "queue_snapshot_unavailable", "message": "Queue snapshot does not contain current queue rows."}],
+        )
+
+    current_queue_keys = _current_queue_source_keys(rows)
+    if not current_queue_keys:
+        return _auto_promotion_result(message="No current queue source paths are available for remux pilot auto-promotion.")
+
+    completed_latest_rows = _latest_completed_rows_by_source(completed_rows, current_queue_keys)
+    groups = _auto_promotion_candidate_groups(resolved, completed_latest_rows)
+    if not groups:
+        return _auto_promotion_result(message="No current queued series has three completed oversized-encode remux fallback pilots.")
+
+    try:
+        manifest = read_file_overrides(Path(manifest_path))
+    except Exception as exc:
+        return _auto_promotion_result(
+            message=f"File overrides manifest could not be read before remux pilot auto-promotion: {exc}",
+            severity="error",
+            blockers=[{"code": "file_overrides_unavailable", "message": str(exc)}],
+            ok=False,
+        )
+
+    results: list[dict[str, Any]] = []
+    blockers: list[dict[str, Any]] = []
+    candidate_count = 0
+    promoted_count = 0
+    no_write_count = 0
+    for show_root_key, candidates in groups.items():
+        if len(candidates) < 3:
+            continue
+        candidate_count += 1
+        identity = _mapping(candidates[0].get("detected_series"))
+        if _series_already_has_remux_pilot_batch(manifest, show_root_key):
+            no_write_count += 1
+            results.append(
+                {
+                    "ok": True,
+                    "action": "already_promoted",
+                    "detected_series": identity,
+                    "candidate_count": len(candidates),
+                    "message": "Series already has a remux pilot promotion batch.",
+                }
+            )
+            continue
+
+        pilot_paths = [str(item.get("source_path") or "") for item in candidates[:3]]
+        completed_series_paths = [str(item.get("source_path") or "") for item in candidates]
+        promotion = file_override_remux_pilot_promote_payload(
+            resolved=resolved,
+            pilot_source_paths=pilot_paths,
+            reason=str(reason or REMUX_PILOT_AUTO_REASON),
+            skip_source_paths=completed_series_paths,
+        )
+        promotion["command"] = REMUX_PILOT_AUTO_PROMOTE_COMMAND
+        promotion["auto_promotion"] = True
+        promotion["manual_command"] = REMUX_PILOT_PROMOTE_COMMAND
+        results.append(promotion)
+        if promotion.get("ok"):
+            promoted_count += 1
+            try:
+                manifest = read_file_overrides(Path(manifest_path))
+            except Exception:
+                pass
+        else:
+            blockers.extend(_blockers_from_promotion(promotion, identity))
+
+    if promoted_count:
+        message = (
+            f"Remux pilot auto-promotion applied to {promoted_count} series"
+            f"{'' if promoted_count == 1 else 'es'}."
+        )
+        severity = "warning" if blockers else "ok"
+        ok = not blockers
+    elif no_write_count:
+        message = "Remux pilot auto-promotion found only series that were already promoted."
+        severity = "ok"
+        ok = True
+    else:
+        message = "No current queued series has three promotable oversized-encode remux fallback pilots."
+        severity = "warning" if blockers else "ok"
+        ok = not blockers
+
+    return _auto_promotion_result(
+        message=message,
+        severity=severity,
+        ok=ok,
+        candidate_series_count=candidate_count,
+        promoted_series_count=promoted_count,
+        results=results,
+        blockers=blockers,
+    )
+
+
 def _validated_pilot_paths(resolved: Any, value: Any) -> tuple[list[str], list[str]]:
     if not isinstance(value, list):
         return [], ["'pilot_source_paths' must be a list of exactly 3 source paths."]
@@ -214,6 +349,128 @@ def _validated_pilot_paths(resolved: Any, value: Any) -> tuple[list[str], list[s
     if len(paths) != 3 and not any("exactly 3" in error for error in errors):
         errors.append("'pilot_source_paths' must contain exactly 3 distinct source paths.")
     return paths, errors
+
+
+def _normalised_source_key_set(value: Any) -> set[str]:
+    if value is None:
+        return set()
+    if not isinstance(value, list):
+        value = list(value) if isinstance(value, (tuple, set)) else [value]
+    keys: set[str] = set()
+    for item in value:
+        key = normalize_file_override_path(item or "")
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _current_queue_source_keys(rows: list[Any]) -> set[str]:
+    keys: set[str] = set()
+    for row_value in rows:
+        if not isinstance(row_value, Mapping):
+            continue
+        key = normalize_file_override_path(row_value.get("source_path") or "")
+        if key:
+            keys.add(key)
+    return keys
+
+
+def _latest_completed_rows_by_source(
+    completed_rows: list[dict[str, Any]],
+    allowed_source_keys: set[str],
+) -> list[dict[str, Any]]:
+    latest: dict[str, dict[str, Any]] = {}
+    order: list[str] = []
+    for row in completed_rows:
+        source_key = normalize_file_override_path(row.get("source_path") or "")
+        if not source_key or source_key not in allowed_source_keys:
+            continue
+        if source_key in latest:
+            order.remove(source_key)
+        latest[source_key] = row
+        order.append(source_key)
+    return [latest[source_key] for source_key in order]
+
+
+def _auto_promotion_candidate_groups(
+    resolved: Any,
+    completed_rows: list[dict[str, Any]],
+) -> dict[str, list[dict[str, Any]]]:
+    groups: dict[str, list[dict[str, Any]]] = {}
+    for row in completed_rows:
+        source_path = str(row.get("source_path") or "").strip()
+        if not source_path:
+            continue
+        if not _completed_row_is_tv(resolved, row, source_path):
+            continue
+        if _publish_state(row) not in {"published", "completed", "success"}:
+            continue
+        if _route_text(row) != "remux":
+            continue
+        if _route_reason_code(row) != REMUX_PILOT_FALLBACK_REASON_CODE:
+            continue
+        if not _fallback_size_policy_triggered(row):
+            continue
+        identity = _pilot_series_identity(resolved, source_path)
+        show_root_key = str(identity.get("show_root_key") or "")
+        if not show_root_key:
+            continue
+        groups.setdefault(show_root_key, []).append(
+            {
+                "source_path": source_path,
+                "source_key": normalize_file_override_path(source_path),
+                "detected_series": identity,
+            }
+        )
+    return groups
+
+
+def _series_already_has_remux_pilot_batch(manifest: Mapping[str, Any], show_root_key: str) -> bool:
+    entries = manifest.get("entries")
+    if not isinstance(entries, Mapping):
+        return False
+    for entry_value in entries.values():
+        if not isinstance(entry_value, Mapping):
+            continue
+        batch = entry_value.get(FILE_OVERRIDE_BATCH_METADATA_KEY)
+        if not isinstance(batch, Mapping):
+            continue
+        if str(batch.get("origin") or "") != REMUX_PILOT_PROMOTE_BATCH_ORIGIN:
+            continue
+        batch_root_key = normalize_file_override_path(batch.get("batch_detected_root") or "")
+        if batch_root_key == show_root_key:
+            return True
+    return False
+
+
+def _blockers_from_promotion(promotion: Mapping[str, Any], identity: Mapping[str, Any]) -> list[dict[str, Any]]:
+    blockers: list[dict[str, Any]] = []
+    promotion_blockers = promotion.get("blockers")
+    if isinstance(promotion_blockers, list):
+        for blocker_value in promotion_blockers:
+            if isinstance(blocker_value, Mapping):
+                message = str(blocker_value.get("message") or "").strip()
+                code = str(blocker_value.get("code") or "blocked").strip() or "blocked"
+            else:
+                message = str(blocker_value or "").strip()
+                code = "blocked"
+            if message:
+                blockers.append(
+                    {
+                        "code": code,
+                        "message": message,
+                        "detected_series": dict(identity),
+                    }
+                )
+    if not blockers:
+        blockers.append(
+            {
+                "code": "blocked",
+                "message": str(promotion.get("message") or "Remux pilot auto-promotion was blocked."),
+                "detected_series": dict(identity),
+            }
+        )
+    return blockers
 
 
 def _read_completed_rows(manifest_path: Any) -> tuple[list[dict[str, Any]], str]:
@@ -391,8 +648,14 @@ def _selected_current_series_row(
     return "", "No current queue row was found for the detected pilot series; refresh Queue before applying."
 
 
-def _promotion_preview_rows(preview: Mapping[str, Any], pilot_keys: set[str]) -> list[dict[str, Any]]:
+def _promotion_preview_rows(
+    preview: Mapping[str, Any],
+    pilot_keys: set[str],
+    *,
+    skip_keys: set[str] | None = None,
+) -> list[dict[str, Any]]:
     rows: list[dict[str, Any]] = []
+    skipped_keys = set(skip_keys or set())
     for row_value in preview.get("rows", []):
         if not isinstance(row_value, Mapping):
             continue
@@ -401,6 +664,9 @@ def _promotion_preview_rows(preview: Mapping[str, Any], pilot_keys: set[str]) ->
         if source_key in pilot_keys and str(row.get("action") or "") in {"will_update", "replace_prior_batch"}:
             row["action"] = "skipped"
             row["reason"] = "Pilot row already provided completed fallback evidence; promotion writes remaining current queue rows only."
+        elif source_key in skipped_keys and str(row.get("action") or "") in {"will_update", "replace_prior_batch"}:
+            row["action"] = "skipped"
+            row["reason"] = "Source already completed with fallback evidence; auto-promotion writes remaining current queue rows only."
         rows.append(row)
     return rows
 
@@ -493,6 +759,31 @@ def _error_messages_from_preview(preview: Mapping[str, Any]) -> list[str]:
         if text and text not in messages:
             messages.append(text)
     return messages
+
+
+def _auto_promotion_result(
+    *,
+    message: str,
+    severity: str = "ok",
+    ok: bool = True,
+    candidate_series_count: int = 0,
+    promoted_series_count: int = 0,
+    results: list[dict[str, Any]] | None = None,
+    blockers: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    blocker_rows = list(blockers or [])
+    return {
+        "ok": ok,
+        "command": REMUX_PILOT_AUTO_PROMOTE_COMMAND,
+        "data_schema": REMUX_PILOT_PROMOTE_DATA_SCHEMA,
+        "severity": severity,
+        "message": message,
+        "candidate_series_count": candidate_series_count,
+        "promoted_series_count": promoted_series_count,
+        "results": list(results or []),
+        "blockers": blocker_rows,
+        "errors": [str(item.get("message") or "") for item in blocker_rows if isinstance(item, Mapping) and item.get("message")],
+    }
 
 
 def _promotion_error(

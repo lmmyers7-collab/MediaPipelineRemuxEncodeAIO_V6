@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0619-030",
+  "title": "Reclassify Output detail tile panel",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Reclassify the Completed Output selected-row detail tile panel so it is no longer marked as evidence in the WebView panel chrome.",
+  "reason": "The panel contains interactive detail tiles and should not display the evidence classification badge.",
+  "affected_areas": [
+    "completed-output",
+    "generated-context",
+    "webview"
+  ],
+  "behavior_before": "The Completed Output panel titled Why This Output Looks Different was marked with data-panel-type=\"evidence\" and rendered with an evidence badge.",
+  "behavior_after": "The panel is marked as an interactive panel while keeping the existing selected-row detail tile behavior.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/layoutManager.js",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/layoutManager.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.layout-manager.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_css_design_tokens.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-030.json",
+    "tests/webview/test_webview_css_design_tokens.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Browser DOM check at http://127.0.0.1:8765/?bust=061907 - Why This Output Looks Different generated panel data-panel-type=interactive and no evidence badge text",
+    "python -m unittest tests.webview.test_webview_browser_layout_manager_smoke.WebViewBrowserLayoutManagerSmoke.test_layout_editor_drawer_manages_tab_and_subsection_boxes -q - failed on pre-existing stale Settings panel label expectation Staged Changes vs Current Changes",
+    "python -m unittest tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests -q - failed on pre-existing unrelated styles.components.css/styles.pages.css/styles.queue.css raw gap/opacity violations",
+    "python -m unittest tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests.test_panel_and_tab_consistency_contract_is_wired -q - passed",
+    "python -m unittest tests.webview.test_webview_navigation_static.WebViewNavigationStaticTests -q - passed"
+  ],
+  "rollback_plan": "Restore the panel data-panel-type to evidence and revert the matching static test expectation.",
+  "related_changes": [],
+  "notes": "Changed Completed Output selected-row detail tile panel to interactive so it no longer renders as evidence.\nPreserved explicit panel type through layout-generated panels so the Output detail tile panel remains interactive after normalization.\nCarried source panel type per generated panel heading so merged Completed overview panes keep their own evidence/interactive classification.\nCompleted Output detail tile panel reclassification is implemented and browser-verified.\nRefresh stale WebView layout-manager CSS generated summary required by summary drift validation."
+}

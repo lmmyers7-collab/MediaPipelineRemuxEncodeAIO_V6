@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/partials/page-completed.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: d6e680561a2c5b0cf73ada098627a71e29d52c4803ca76a71ee4b4fa82cd4b8a
+sha256: 1d13c57b7f230772ae34041219a71b4b5c1b4ca934c235c0f9bf431ce6048b13
 ---
 # `apps/desktop/webview/static/partials/page-completed.html`
 

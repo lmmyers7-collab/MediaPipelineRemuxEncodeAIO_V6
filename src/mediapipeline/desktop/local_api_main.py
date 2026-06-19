@@ -12,6 +12,7 @@ from typing import Sequence
 
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.config.recovery import ensure_canonical_config, restore_verified_last_good_config
+from mediapipeline.core.api.file_overrides.remux_pilot import file_override_remux_pilot_auto_promote_payload
 
 from .api import LocalApiServer
 from .api.http_helpers import NO_TOKEN_DEV_ENV_VAR, no_token_dev_allowed
@@ -166,6 +167,10 @@ def build_backend(
         service,
         selected_pipeline_path,
         selected_config_path,
+    )
+    service.configure_remux_pilot_auto_promotion(
+        resolved_provider=resolved_state.get,
+        payload_builder=file_override_remux_pilot_auto_promote_payload,
     )
     resolved = resolved_state.get()
     startup_progress = record_startup_step(
@@ -344,7 +349,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 startup_steps,
                 "start_background_tasks",
                 "Start background tasks",
-                detail="telemetry sampler ready",
+                detail="telemetry sampler and remux pilot monitor ready",
                 callback=startup_callback,
             )
         )

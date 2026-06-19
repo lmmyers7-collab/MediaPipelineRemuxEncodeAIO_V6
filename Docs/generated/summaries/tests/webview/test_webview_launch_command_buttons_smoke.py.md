@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-19
 last_reviewed: 2026-06-11
-sha256: bafeb85eb565b289c6026a6980c4e257915c9ac9552b90475e9c04b40049efdf
+sha256: e76f9776b81723d7f0a0985fd77279faee56538fb51d86744d4e90fe1ed1671b
 ---
 # `tests/webview/test_webview_launch_command_buttons_smoke.py`
 

@@ -23,6 +23,9 @@ function Do-Remux {
     $script:LastPublishResult = $null
     $script:CurrentDynamicHdrEvidence = $null
     if ($FallbackFromOversizedEncode) {
+        $script:LastRemuxFallbackRejection = $null
+    }
+    if ($FallbackFromOversizedEncode) {
         $script:CurrentSizePolicyResult = $fallbackSizePolicyResult
     } else {
         $script:CurrentSizePolicyResult = $null
@@ -74,6 +77,20 @@ function Do-Remux {
         $codecRoutePlan = Resolve-RemuxCodecRoutePlan -SourceCodec $srcCodec -RemuxSafeVideoCodecs $RemuxSafeVideoCodecs -BasePlan $script:CurrentRoutePlan
         if ($codecRoutePlan.Route -eq 'encode') {
             if ($FallbackFromOversizedEncode) {
+                $fallbackSizePolicyMessage = ''
+                if ($fallbackSizePolicyResult -and $fallbackSizePolicyResult.PSObject.Properties['message']) {
+                    $fallbackSizePolicyMessage = [string]$fallbackSizePolicyResult.message
+                }
+                $script:LastRemuxFallbackRejection = [pscustomobject][ordered]@{
+                    schema_version = 'remux_fallback_rejection.v1'
+                    reason_code = [string]$codecRoutePlan.ReasonCode
+                    reason = [string]$codecRoutePlan.Reason
+                    source_codec = [string]$srcCodec
+                    remux_safe_video_codecs = @($RemuxSafeVideoCodecs)
+                    original_route_reason_code = $fallbackSourceRouteReasonCode
+                    original_route_reason = $fallbackSourceRouteReason
+                    size_policy_message = $fallbackSizePolicyMessage
+                }
                 Write-Log "REMUX FALLBACK: remux blocked by codec/policy check; oversized encode will be rejected: $($codecRoutePlan.Reason)" "WARN"
                 return $false
             }
@@ -95,6 +112,7 @@ function Do-Remux {
             return Do-Encode $file $isTV $tvInfo
         }
         if ($FallbackFromOversizedEncode) {
+            $script:LastRemuxFallbackRejection = $null
             $fallbackSizePolicyMessage = ''
             if ($fallbackSizePolicyResult -and $fallbackSizePolicyResult.PSObject.Properties['message']) {
                 $fallbackSizePolicyMessage = [string]$fallbackSizePolicyResult.message

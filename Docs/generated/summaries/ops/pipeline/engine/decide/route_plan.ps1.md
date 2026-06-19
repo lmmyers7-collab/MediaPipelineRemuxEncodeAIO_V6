@@ -3,9 +3,9 @@ file: ops/pipeline/engine/decide/route_plan.ps1
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-07
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 019a1ea6bf0b748d1331505fddc26c6d74df9c8e036d39957009ae747db04968
+sha256: 0a417a0ac9d15bee24b91fa64aa0aab4c8a2e6905e45d4e03d2c55e9291a29f5
 ---
 # `ops/pipeline/engine/decide/route_plan.ps1`
 

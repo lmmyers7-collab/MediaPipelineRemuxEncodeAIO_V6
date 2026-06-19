@@ -279,14 +279,15 @@ function Add-RoundFailureRecord {
         [string] $ReproPath = $null,
         [int] $RetryCount = 0,
         [int] $RetryLimit = 0,
-        [bool] $Escalated = $false
+        [bool] $Escalated = $false,
+        [hashtable] $AdditionalProperties = @{}
     )
 
     if (-not $script:RoundFailureRecords) {
         $script:RoundFailureRecords = [System.Collections.Generic.List[psobject]]::new()
     }
 
-    $failureRecord = New-StandardFailureRecord -SourcePath $SourcePath -Stage $Stage -Reason $Reason -Classification $Classification -ErrorCode $ErrorCode -ArtifactPath $ArtifactPath -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath -RetryCount $RetryCount -RetryLimit $RetryLimit -Escalated:$Escalated
+    $failureRecord = New-StandardFailureRecord -SourcePath $SourcePath -Stage $Stage -Reason $Reason -Classification $Classification -ErrorCode $ErrorCode -ArtifactPath $ArtifactPath -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath -RetryCount $RetryCount -RetryLimit $RetryLimit -Escalated:$Escalated -AdditionalProperties $AdditionalProperties
     $resolvedCode = $failureRecord.ErrorCode
     $script:RoundFailureRecords.Add($failureRecord)
 
@@ -637,7 +638,8 @@ function Write-SourceFailureState {
         [bool] $Escalated = $false,
         [string] $SuggestedAction = $null,
         [string] $SuggestedRename = $null,
-        [string] $ReproPath = $null
+        [string] $ReproPath = $null,
+        [hashtable] $AdditionalProperties = @{}
     )
 
     $markerPath = Get-SourceFailureMarkerPath $SourceFile
@@ -646,7 +648,7 @@ function Write-SourceFailureState {
         New-Item -ItemType Directory -Path $LocalFailureMarkers -Force | Out-Null
     }
 
-    $standardFailure = New-StandardFailureRecord -SourcePath $SourceFile.FullName -Stage $Stage -Reason $Reason -Classification $Classification -ErrorCode $ErrorCode -ArtifactPath $ArtifactPath -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath -RetryCount $RetryCount -RetryLimit $RetryLimit -Escalated:$Escalated
+    $standardFailure = New-StandardFailureRecord -SourcePath $SourceFile.FullName -Stage $Stage -Reason $Reason -Classification $Classification -ErrorCode $ErrorCode -ArtifactPath $ArtifactPath -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath -RetryCount $RetryCount -RetryLimit $RetryLimit -Escalated:$Escalated -AdditionalProperties $AdditionalProperties
     $resolvedCode = $standardFailure.ErrorCode
     $sourceIdentity = Get-SourceIdentityKey $SourceFile
     $sourceIdentityV2 = Get-SourceIdentityKeyV2 $SourceFile
@@ -682,8 +684,15 @@ function Write-SourceFailureState {
         repro_path       = $ReproPath
     }
 
+    if ($AdditionalProperties) {
+        foreach ($key in @($AdditionalProperties.Keys)) {
+            if ([string]::IsNullOrWhiteSpace([string]$key)) { continue }
+            $payload[$key] = $AdditionalProperties[$key]
+        }
+    }
+
     try {
-        Write-FailureJsonAtomic -Path $markerPath -InputObject $payload -Depth 4 | Out-Null
+        Write-FailureJsonAtomic -Path $markerPath -InputObject $payload -Depth 10 | Out-Null
         Invalidate-FailureMarkerIndex
     } catch {
         Write-Log "Could not write failure marker for $($SourceFile.FullName): $_" "WARN"
@@ -700,7 +709,8 @@ function Register-SourceFailure {
         [string] $ErrorCode = $null,
         [string] $SuggestedAction = $null,
         [string] $SuggestedRename = $null,
-        [string] $ReproPath = $null
+        [string] $ReproPath = $null,
+        [hashtable] $AdditionalProperties = @{}
     )
 
     $resolvedCode = if ($ErrorCode) { $ErrorCode } else { Get-MediaFailureCode -Stage $Stage -Reason $Reason -Classification $Classification }
@@ -759,7 +769,7 @@ function Register-SourceFailure {
 
     $retryText = if ($retryCount -gt 0) { " retry=$retryCount/$retryLimit" } else { "" }
     Write-Log "Failure recorded [$resolvedCode] stage=$Stage classification=$Classification$retryText source=$($SourceFile.FullName)" "ERROR"
-    Write-SourceFailureState -SourceFile $SourceFile -Classification $Classification -Reason $Reason -Stage $Stage -ArtifactPath $artifactPath -ErrorCode $resolvedCode -RetryCount $retryCount -RetryLimit $retryLimit -Escalated:$escalated -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath
-    Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage $Stage -Reason $Reason -Classification $Classification -ErrorCode $resolvedCode -ArtifactPath $artifactPath -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath -RetryCount $retryCount -RetryLimit $retryLimit -Escalated:$escalated
+    Write-SourceFailureState -SourceFile $SourceFile -Classification $Classification -Reason $Reason -Stage $Stage -ArtifactPath $artifactPath -ErrorCode $resolvedCode -RetryCount $retryCount -RetryLimit $retryLimit -Escalated:$escalated -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath -AdditionalProperties $AdditionalProperties
+    Add-RoundFailureRecord -SourcePath $SourceFile.FullName -Stage $Stage -Reason $Reason -Classification $Classification -ErrorCode $resolvedCode -ArtifactPath $artifactPath -SuggestedAction $SuggestedAction -SuggestedRename $SuggestedRename -ReproPath $ReproPath -RetryCount $retryCount -RetryLimit $retryLimit -Escalated:$escalated -AdditionalProperties $AdditionalProperties
     return $artifactPath
 }

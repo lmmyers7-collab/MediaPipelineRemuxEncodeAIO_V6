@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0619-027",
+  "title": "Auto-promote remux fallback after pilot gate",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Make the backend automatically apply current-queue remux file overrides once three same-series TV episodes have proven oversized encode fallback remux behavior.",
+  "reason": "The existing pilot promotion command validates and writes the right overrides, but it requires an explicit WebView/API action. In a live long-series run, the pipeline continues encoding each episode before falling back because no backend process submits the promotion after the third completed fallback row.",
+  "affected_areas": [
+    "file-overrides",
+    "generated-context",
+    "local-api",
+    "process-monitoring",
+    "queue",
+    "tests"
+  ],
+  "behavior_before": "After three fallback-remux episodes completed, no automatic override write occurred; the current run continued routing later episodes through encode before fallback remux.",
+  "behavior_after": "A backend-owned monitor detects the completed-manifest evidence gate during a live API session and reuses the existing remux pilot promotion machinery to write exact current-queue routing.profile=remux overrides for remaining eligible rows.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-027.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/file_overrides/remux_pilot.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/queue/remux_pilot_auto_service.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/local_api_main.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/services.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_file_override_tracks.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-027.json",
+    "src/mediapipeline/core/api/file_overrides/remux_pilot.py",
+    "src/mediapipeline/core/queue/remux_pilot_auto_service.py",
+    "src/mediapipeline/desktop/local_api_main.py",
+    "src/mediapipeline/desktop/services.py",
+    "tests/python/desktop/test_file_override_tracks.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_file_override_tracks.py::FileOverrideTrackMetadataTests::test_remux_pilot_auto_promote_applies_after_three_current_queue_fallbacks",
+    "tests/python/desktop/test_file_override_tracks.py::FileOverrideTrackMetadataTests::test_remux_pilot_auto_promote_catches_up_and_skips_completed_rows",
+    "tests/python/desktop/test_file_override_tracks.py::FileOverrideTrackMetadataTests::test_remux_pilot_auto_promotion_service_runs_once_and_debounces_state"
+  ],
+  "manual_validation": [
+    "2026-06-19: .\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests\\python\\desktop\\test_file_override_tracks.py -q -> 42 passed.",
+    "2026-06-19: .\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests\\python\\desktop\\test_file_override_tracks.py tests\\python\\desktop\\test_api_command_contracts.py tests\\python\\desktop\\test_api_contract_payload.py tests\\python\\desktop\\test_application_facade_core_contracts.py -q -> 102 passed, 460 subtests passed.",
+    "2026-06-19: .\\apps\\desktop\\runtime\\Python\\python.exe -m pytest tests\\webview\\test_webview_browser_queue_file_overrides_smoke.py -q -> 1 passed.",
+    "2026-06-19: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> Change validation passed: 449 packet(s) valid.",
+    "2026-06-19: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths src/mediapipeline/core/queue/remux_pilot_auto_service.py src/mediapipeline/core/api/file_overrides/remux_pilot.py src/mediapipeline/desktop/local_api_main.py src/mediapipeline/desktop/services.py tests/python/desktop/test_file_override_tracks.py ops/release/changes/unreleased/MP-CHANGE-2026-0619-027.json -> OK: 6 source files all have current summaries and no orphan summaries.",
+    "2026-06-19: Live one-shot auto-promotion against E:\\Videos\\Scratch\\State detected Ranma, skipped 28 already-completed current rows, and wrote 133 remux-pilot exact file overrides. Runtime progress then showed CurrentRoute=remux for [TV 30/161]."
+  ],
+  "rollback_plan": "Revert the auto-promotion monitor/service changes, associated tests, regenerated summaries, and this change packet.",
+  "related_changes": [
+    "MP-CHANGE-2026-0619-013"
+  ],
+  "notes": "Started from a dirty worktree with unrelated PowerShell/media-policy edits and generated summaries already present; this packet is scoped to the automatic remux pilot promotion fix.\nInvert remux pilot auto-promotion dependency by accepting an injected payload builder instead of importing the API layer.\nInject the existing remux pilot auto-promotion payload builder from backend startup.\nWire the test harness to the injected remux pilot auto-promotion payload builder.\nRefresh generated project index after remux pilot auto-promotion and route-evidence files were added.\nRefresh generated dependency graph after resolving the remux pilot auto-promotion package cycle."
+}

@@ -129,6 +129,10 @@ function Get-MediaRouteRuleOutcomeEvidence {
     $hardCodes = @(
         'folder_policy_force_encode',
         'folder_policy_force_remux',
+        'folder_policy_force_remux_unsafe',
+        'file_override_force_encode',
+        'file_override_force_remux',
+        'file_override_force_remux_unsafe',
         'codec_outside_policy',
         'plex_strict_score_below_threshold',
         'resolution_over_policy',

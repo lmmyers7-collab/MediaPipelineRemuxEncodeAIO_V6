@@ -140,16 +140,21 @@ function Resolve-RemuxCodecRoutePlan {
     $sizeGuardModeName = if ($BasePlan -and $BasePlan.PSObject.Properties['SizeGuardMode']) { Resolve-MediaRouteSizeGuardModeName -SizeGuardMode ([string]$BasePlan.SizeGuardMode) } else { Resolve-MediaRouteSizeGuardModeName }
     $videoHeight = [int](Get-MediaRouteProfileValue -Profile $profile -Name 'height' -Default 0)
 
-    if ($BasePlan -and [string]$BasePlan.ReasonCode -eq 'folder_policy_force_remux') {
+    $baseReasonCode = if ($BasePlan) { [string]$BasePlan.ReasonCode } else { '' }
+    $isForcedRemuxOverride = ($baseReasonCode -in @('folder_policy_force_remux', 'file_override_force_remux'))
+    $forcedRemuxSourceLabel = if ($baseReasonCode -eq 'file_override_force_remux') { 'file override' } else { 'folder policy' }
+    $unsafeForcedRemuxCode = if ($baseReasonCode -eq 'file_override_force_remux') { 'file_override_force_remux_unsafe' } else { 'folder_policy_force_remux_unsafe' }
+
+    if ($BasePlan -and $isForcedRemuxOverride) {
         if (Test-IsRemuxSafeVideoCodec -CodecName $codec -SafeCodecs $RemuxSafeVideoCodecs) {
-            $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'forced_remux_codec_safe' -Message "folder policy forced remux and codec '$codec' is remux-safe")
-            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux' -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+            $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'forced_remux_codec_safe' -Message "$forcedRemuxSourceLabel forced remux and codec '$codec' is remux-safe")
+            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode $baseReasonCode -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
         }
         if ($hints -and [bool]$hints.allow_unsafe_forced_remux) {
-            $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'unsafe_forced_remux_allowed' -Message "folder policy explicitly allowed unsafe forced remux; codec '$codec' will be attempted as stream copy")
-            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode 'folder_policy_force_remux_unsafe' -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
+            $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'unsafe_forced_remux_allowed' -Message "$forcedRemuxSourceLabel explicitly allowed unsafe forced remux; codec '$codec' will be attempted as stream copy")
+            return New-MediaRoutePlan -Route (Get-MediaRouteRemuxName) -ReasonCode $unsafeForcedRemuxCode -Reason ([string]$BasePlan.Reason) -SourceCodec $codec -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
         }
-        $reasonText = "folder policy forced remux, but codec '$codec' is not remux-safe; encoding instead"
+        $reasonText = "$forcedRemuxSourceLabel forced remux, but codec '$codec' is not remux-safe; encoding instead"
         $trace = @($baseTrace) + (New-MediaRouteDecisionTraceEntry -Code 'forced_remux_rejected_unsafe_codec' -Message $reasonText)
         return New-MediaRoutePlan -Route (Get-MediaRouteEncodeName) -ReasonCode 'forced_remux_rejected_unsafe_codec' -Reason $reasonText -SourceCodec $codec -FallbackFromRemux:$true -SizeGB $sizeGB -ThresholdGB $thresholdGB -IsTV:$isTV -DecisionTrace @($trace) -RouteHints $hints -SourceMediaProfile $profile -EstimatedBitrateMbps $estimatedBitrate -BitrateThresholdMbps $bitrateThreshold -SizeOverThreshold:$sizeOverThreshold -BitrateOverThreshold:$bitrateOverThreshold -PlexCompatibilityScore $plexScore -RoutingProfile $routingProfileName -SizeGuardMode $sizeGuardModeName
     }

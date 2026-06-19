@@ -5,12 +5,12 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 8877ca59a92b27e8c0de8374d5dc5eb7f1539edb586a87bdf9ba4b3dbeb7fb4e
+sha256: 391fa559234a4aa1aca8a2d604cff3952fb07cc236b632b47b44c74318a3913f
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/encode.ps1`
 
 **Purpose:** (no .SYNOPSIS block)
 
-**Functions:** `Do-Encode`, `Get-CurrentEncodeRouteIntentReasonCode`, `Get-EncodeWasteGuardConfigValue`, `Get-EncodeWasteGuardLimitPolicy`, `Invoke-EncodeWasteGuardPreflight`, `Invoke-EncodeWasteGuardRemuxFallback`, `New-EncodeWasteGuardContext`, `New-EncodeWasteGuardSizePolicyMetadata`
+**Functions:** `Add-RemuxFallbackRejectionToFailureReason`, `Do-Encode`, `Get-CurrentEncodeRouteIntentReasonCode`, `Get-EncodeWasteGuardConfigValue`, `Get-EncodeWasteGuardLimitPolicy`, `Get-LastRemuxFallbackRejection`, `Get-LastRemuxFallbackRejectionReasonText`, `Get-RemuxFallbackRejectionValue`, `Invoke-EncodeWasteGuardPreflight`, `Invoke-EncodeWasteGuardRemuxFallback`, `New-EncodeWasteGuardContext`, `New-EncodeWasteGuardSizePolicyMetadata`, `New-RemuxFallbackFailureProperties`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/MediaPipeline/encode.ps1`._

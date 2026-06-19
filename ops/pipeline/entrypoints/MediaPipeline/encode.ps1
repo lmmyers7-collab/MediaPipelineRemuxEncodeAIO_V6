@@ -15,6 +15,80 @@ function Get-CurrentEncodeRouteIntentReasonCode {
     return $routeIntentReasonCode
 }
 
+function Get-RemuxFallbackRejectionValue {
+    param(
+        $Rejection,
+        [Parameter(Mandatory)] [string] $Name,
+        $Default = $null
+    )
+
+    if (-not $Rejection) { return $Default }
+    if ($Rejection -is [System.Collections.IDictionary] -and $Rejection.Contains($Name)) { return $Rejection[$Name] }
+    $prop = $Rejection.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    return $Default
+}
+
+function Get-LastRemuxFallbackRejection {
+    $var = Get-Variable -Name LastRemuxFallbackRejection -Scope Script -ErrorAction SilentlyContinue
+    if (-not $var) { return $null }
+    return $script:LastRemuxFallbackRejection
+}
+
+function Get-LastRemuxFallbackRejectionReasonText {
+    $rejection = Get-LastRemuxFallbackRejection
+    if (-not $rejection) { return '' }
+
+    $reason = [string](Get-RemuxFallbackRejectionValue -Rejection $rejection -Name 'reason' -Default '')
+    $reasonCode = [string](Get-RemuxFallbackRejectionValue -Rejection $rejection -Name 'reason_code' -Default '')
+    $sourceCodec = [string](Get-RemuxFallbackRejectionValue -Rejection $rejection -Name 'source_codec' -Default '')
+    $safeCodecs = @(Get-RemuxFallbackRejectionValue -Rejection $rejection -Name 'remux_safe_video_codecs' -Default @())
+
+    $parts = @()
+    if (-not [string]::IsNullOrWhiteSpace($reason)) { $parts += $reason }
+    if (-not [string]::IsNullOrWhiteSpace($reasonCode)) { $parts += "code=$reasonCode" }
+    if (-not [string]::IsNullOrWhiteSpace($sourceCodec)) { $parts += "source_codec=$sourceCodec" }
+    if ($safeCodecs.Count -gt 0) { $parts += "RemuxSafeVideoCodecs=$($safeCodecs -join ', ')" }
+    return ($parts -join '; ')
+}
+
+function Add-RemuxFallbackRejectionToFailureReason {
+    param([Parameter(Mandatory)] [string] $Reason)
+
+    $detail = Get-LastRemuxFallbackRejectionReasonText
+    if ([string]::IsNullOrWhiteSpace($detail)) { return $Reason }
+    return "$Reason; remux fallback block reason: $detail"
+}
+
+function New-RemuxFallbackFailureProperties {
+    $properties = @{}
+    $rejection = Get-LastRemuxFallbackRejection
+    if ($rejection) {
+        $properties['remux_fallback_rejection'] = $rejection
+    }
+    if (Get-Command -Name Get-ActiveMediaRoutePlanMetadata -ErrorAction SilentlyContinue) {
+        $routePlanMetadata = Get-ActiveMediaRoutePlanMetadata
+        if ($routePlanMetadata -and (Get-Command -Name New-MediaRouteExplanation -ErrorAction SilentlyContinue)) {
+            $routeExplanation = New-MediaRouteExplanation -Metadata $routePlanMetadata
+            if ($routeExplanation) {
+                if ($rejection -and $routeExplanation.PSObject.Properties['remux_fallback']) {
+                    $rejectionReasonCode = [string](Get-RemuxFallbackRejectionValue -Rejection $rejection -Name 'reason_code' -Default '')
+                    $rejectionReason = [string](Get-RemuxFallbackRejectionValue -Rejection $rejection -Name 'reason' -Default '')
+                    $routeExplanation.remux_fallback['attempted'] = $true
+                    $routeExplanation.remux_fallback['accepted'] = $false
+                    $routeExplanation.remux_fallback['blocked_reason_code'] = $rejectionReasonCode
+                    $routeExplanation.remux_fallback['blocked_reason'] = $rejectionReason
+                    $routeExplanation.remux_fallback['codec_gate_code'] = $rejectionReasonCode
+                    $routeExplanation.remux_fallback['codec_gate_reason'] = $rejectionReason
+                    $routeExplanation.decision_summary = @($routeExplanation.decision_summary) + ("remux fallback blocked: {0}" -f $rejectionReasonCode)
+                }
+                $properties['route_explanation'] = $routeExplanation
+            }
+        }
+    }
+    return $properties
+}
+
 function Get-EncodeWasteGuardConfigValue {
     param(
         [Parameter(Mandatory)] [string] $Name,
@@ -293,9 +367,15 @@ function Invoke-EncodeWasteGuardRemuxFallback {
     $script:CurrentRouteReasonCode = $originalRouteReasonCode
     $script:CurrentRouteReason = $originalRouteReason
     $script:CurrentSizePolicyResult = $originalSizePolicyResult
-    $fallbackFailureReason = "$Message; remux fallback unavailable or blocked; projected-oversize encode rejected before publish"
-    $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'operator_required' -Reason $fallbackFailureReason -Stage 'encode-size-policy' -ErrorCode 'ENCODE_SIZE_GUARD_EXCEEDED' -SuggestedAction 'Review the source and remux-safe codec/container policy. Adjust the route, size guard, or encode waste guard settings before retrying; the projected oversized encode was not published.'
-    Write-Log "ENCODE SIZE: remux fallback unavailable; rejecting projected-oversize encode before publish: $(Get-SafeLocalName $SourceFile.Name)" "ERROR"
+    $fallbackFailureReason = Add-RemuxFallbackRejectionToFailureReason -Reason "$Message; remux fallback unavailable or blocked; projected-oversize encode rejected before publish"
+    $fallbackFailureProperties = New-RemuxFallbackFailureProperties
+    $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'operator_required' -Reason $fallbackFailureReason -Stage 'encode-size-policy' -ErrorCode 'ENCODE_SIZE_GUARD_EXCEEDED' -SuggestedAction 'Review the source, remux_fallback_rejection details, and remux-safe codec/container policy. Adjust the route, size guard, or encode waste guard settings before retrying; the projected oversized encode was not published.' -AdditionalProperties $fallbackFailureProperties
+    $fallbackBlockDetail = Get-LastRemuxFallbackRejectionReasonText
+    if ([string]::IsNullOrWhiteSpace($fallbackBlockDetail)) {
+        Write-Log "ENCODE SIZE: remux fallback unavailable; rejecting projected-oversize encode before publish: $(Get-SafeLocalName $SourceFile.Name)" "ERROR"
+    } else {
+        Write-Log "ENCODE SIZE: remux fallback unavailable; rejecting projected-oversize encode before publish: $(Get-SafeLocalName $SourceFile.Name); block reason: $fallbackBlockDetail" "ERROR"
+    }
     return [pscustomobject][ordered]@{ Ok = $false; KeepScratchInput = $false }
 }
 
@@ -311,6 +391,7 @@ function Do-Encode {
     $script:CurrentEncodeAttempts = @()
     $script:LastPublishResult = $null
     $script:CurrentSizePolicyResult = $null
+    $script:LastRemuxFallbackRejection = $null
     $script:LastQualityVerification = $null
     $script:CurrentDynamicHdrEvidence = $null
 
@@ -954,10 +1035,16 @@ function Do-Encode {
             $script:CurrentRouteReasonCode = $originalRouteReasonCode
             $script:CurrentRouteReason = $originalRouteReason
             $script:CurrentSizePolicyResult = $originalSizePolicyResult
-            $fallbackFailureReason = "$($sizePolicy.Message); remux fallback unavailable or blocked; oversized encode rejected before publish"
-            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $fallbackFailureReason -Stage 'encode-size-policy' -ErrorCode 'ENCODE_SIZE_GUARD_EXCEEDED' -SuggestedAction 'Review the source and remux-safe codec/container policy. Adjust the route, size guard, or encode settings before retrying; the oversized encode was not published.'
+            $fallbackFailureReason = Add-RemuxFallbackRejectionToFailureReason -Reason "$($sizePolicy.Message); remux fallback unavailable or blocked; oversized encode rejected before publish"
+            $fallbackFailureProperties = New-RemuxFallbackFailureProperties
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $fallbackFailureReason -Stage 'encode-size-policy' -ErrorCode 'ENCODE_SIZE_GUARD_EXCEEDED' -SuggestedAction 'Review the source, remux_fallback_rejection details, and remux-safe codec/container policy. Adjust the route, size guard, or encode settings before retrying; the oversized encode was not published.' -AdditionalProperties $fallbackFailureProperties
             $localIn = $null
-            Write-Log "ENCODE SIZE: remux fallback unavailable; rejecting oversized encode before publish: $safeName" "ERROR"
+            $fallbackBlockDetail = Get-LastRemuxFallbackRejectionReasonText
+            if ([string]::IsNullOrWhiteSpace($fallbackBlockDetail)) {
+                Write-Log "ENCODE SIZE: remux fallback unavailable; rejecting oversized encode before publish: $safeName" "ERROR"
+            } else {
+                Write-Log "ENCODE SIZE: remux fallback unavailable; rejecting oversized encode before publish: $safeName; block reason: $fallbackBlockDetail" "ERROR"
+            }
             return $false
         }
 

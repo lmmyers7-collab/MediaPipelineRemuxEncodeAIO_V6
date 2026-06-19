@@ -3,9 +3,9 @@ file: ops/pipeline/engine/failures/failure_state.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: failures
-last_modified: 2026-06-12
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: b93a8ad3ae38e8544a0a020e351afb81a335a07f72a0fffd4b3aa0ac17924fdd
+sha256: 890289d1b43453d957e7bb1b413eebb26b8794897c2c21437371f683da846b3f
 ---
 # `ops/pipeline/engine/failures/failure_state.ps1`
 

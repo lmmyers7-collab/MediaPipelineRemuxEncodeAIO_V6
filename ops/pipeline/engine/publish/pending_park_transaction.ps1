@@ -133,6 +133,12 @@ function New-PendingParkManifest {
     }
     if ($RoutePlanMetadata) {
         $manifest['route_plan'] = $RoutePlanMetadata
+        if (Get-Command -Name New-MediaRouteExplanation -ErrorAction SilentlyContinue) {
+            $routeExplanation = New-MediaRouteExplanation -Metadata $RoutePlanMetadata
+            if ($routeExplanation) {
+                $manifest['route_explanation'] = $routeExplanation
+            }
+        }
     }
     return $manifest
 }

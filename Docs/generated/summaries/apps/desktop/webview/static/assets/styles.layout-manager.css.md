@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles.layout-manager.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-12
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 744712e052bd7fe7723d283b58d65a4974885caaced34c008a54942657b8c596
+sha256: 1ff98bf5ff72d20d96fa1ddb89f44e7bad7673480a05b06b52c35b65751ddf57
 ---
 # `apps/desktop/webview/static/assets/styles.layout-manager.css`
 

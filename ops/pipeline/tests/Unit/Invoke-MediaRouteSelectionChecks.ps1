@@ -328,6 +328,50 @@ Assert-Equal ([string]$folderTrace.route_bitrate_bucket) 'explicit_override' 'Fo
 $fallbackRemuxHints = ConvertTo-MediaRouteHintMap @{ size_guard_mode = 'fallback_remux' }
 Assert-Equal ([string]$fallbackRemuxHints.size_guard_mode) 'fallback_remux' 'Route hint normalization must preserve fallback_remux size guard mode.'
 
+$fileOverrideForcedRemux = Resolve-MediaRouteBySize `
+    -FileSizeBytes ([long](1 * 1GB)) `
+    -IsTV:$false `
+    -MovieRoute1080pTargetSizeGB $movieThreshold `
+    -MovieRoute1440pTargetSizeGB $movieThreshold `
+    -MovieRoute4KTargetSizeGB $movieThreshold `
+    -TVRoute1080pTargetSizeGB $tvThreshold `
+    -TVRoute1440pTargetSizeGB $tvThreshold `
+    -TVRoute4KTargetSizeGB $tvThreshold `
+    -DurationSeconds 1800 `
+    -VideoCodec 'hevc' `
+    -VideoHeight 1080 `
+    -RoutingProfile 'plex_direct_stream' `
+    -RouteThresholdMode 'bitrate' `
+    -RouteHints @{ force_route = 'remux'; reason = 'file override routing.profile=remux' }
+Assert-Equal ([string]$fileOverrideForcedRemux.Route) 'remux' 'File override routing.profile=remux should still force remux.'
+Assert-Equal ([string]$fileOverrideForcedRemux.ReasonCode) 'file_override_force_remux' 'File override remux should not report folder_policy_force_remux.'
+Assert-Equal ([string]$fileOverrideForcedRemux.Reason) 'file override forced remux: routing.profile=remux' 'File override remux reason should not mention folder policy.'
+Assert-TraceContains -Plan $fileOverrideForcedRemux -Code 'file_override_force_remux' -Message 'File override remux should have a file override trace code.'
+$fileOverrideForcedRemuxFinal = Resolve-RemuxCodecRoutePlan -SourceCodec 'hevc' -RemuxSafeVideoCodecs @('hevc') -BasePlan $fileOverrideForcedRemux
+Assert-Equal ([string]$fileOverrideForcedRemuxFinal.Route) 'remux' 'File override remux should still remux after codec safety check.'
+Assert-Equal ([string]$fileOverrideForcedRemuxFinal.ReasonCode) 'file_override_force_remux' 'File override remux codec-safe check should preserve file override reason code.'
+Assert-TraceContains -Plan $fileOverrideForcedRemuxFinal -Code 'forced_remux_codec_safe' -Message 'File override remux final route missing forced-remux codec-safe trace.'
+
+$fileOverrideForcedEncode = Resolve-MediaRouteBySize `
+    -FileSizeBytes ([long](1 * 1GB)) `
+    -IsTV:$false `
+    -MovieRoute1080pTargetSizeGB $movieThreshold `
+    -MovieRoute1440pTargetSizeGB $movieThreshold `
+    -MovieRoute4KTargetSizeGB $movieThreshold `
+    -TVRoute1080pTargetSizeGB $tvThreshold `
+    -TVRoute1440pTargetSizeGB $tvThreshold `
+    -TVRoute4KTargetSizeGB $tvThreshold `
+    -DurationSeconds 1800 `
+    -VideoCodec 'hevc' `
+    -VideoHeight 1080 `
+    -RoutingProfile 'plex_direct_stream' `
+    -RouteThresholdMode 'bitrate' `
+    -RouteHints @{ force_route = 'encode'; reason = 'file override routing.profile=encode' }
+Assert-Equal ([string]$fileOverrideForcedEncode.Route) 'encode' 'File override routing.profile=encode should still force encode.'
+Assert-Equal ([string]$fileOverrideForcedEncode.ReasonCode) 'file_override_force_encode' 'File override encode should not report folder_policy_force_encode.'
+Assert-Equal ([string]$fileOverrideForcedEncode.Reason) 'file override forced encode: routing.profile=encode' 'File override encode reason should not mention folder policy.'
+Assert-TraceContains -Plan $fileOverrideForcedEncode -Code 'file_override_force_encode' -Message 'File override encode should have a file override trace code.'
+
 $h264FourK = Resolve-MediaRouteBySize `
     -FileSizeBytes ([long](4 * 1GB)) `
     -IsTV:$false `
@@ -416,6 +460,19 @@ try {
     Assert-Equal ([bool]$forcedEncodeFallback.ShouldFallbackRemux) $false 'Fallback-remux guard should not request remux for forced encode overrides.'
     Assert-Equal ([bool]$forcedEncodeFallback.Metadata.forced_route_override) $true 'Fallback-remux metadata should mark forced encode overrides.'
     Assert-Equal ([bool]$forcedEncodeFallback.Metadata.fallback_remux_eligible) $false 'Fallback-remux metadata should mark forced encode overrides ineligible.'
+
+    $fileOverrideForcedEncodeFallback = Test-MediaEncodeOutputSizePolicy `
+        -SourcePath $sizePolicySourcePath `
+        -OutputPath $sizePolicyOutputPath `
+        -SizeGuardMode 'fallback_remux' `
+        -MaxGrowthPercent 5 `
+        -CompatibilityGrowthPercent 15 `
+        -RouteReasonCode 'file_override_force_encode'
+    Assert-Equal ([bool]$fileOverrideForcedEncodeFallback.Exceeded) $true 'Fallback-remux guard should detect oversized file-override forced encode output.'
+    Assert-Equal ([bool]$fileOverrideForcedEncodeFallback.Ok) $true 'Fallback-remux guard should warn-only for file-override forced encode outputs.'
+    Assert-Equal ([bool]$fileOverrideForcedEncodeFallback.ShouldFallbackRemux) $false 'Fallback-remux guard should not request remux for file-override forced encode outputs.'
+    Assert-Equal ([bool]$fileOverrideForcedEncodeFallback.Metadata.forced_route_override) $true 'Fallback-remux metadata should mark file-override forced encode as override-owned.'
+    Assert-Equal ([bool]$fileOverrideForcedEncodeFallback.Metadata.fallback_remux_eligible) $false 'Fallback-remux metadata should mark file-override forced encode ineligible.'
 
     $forcedRemuxRejectedFallback = Test-MediaEncodeOutputSizePolicy `
         -SourcePath $sizePolicySourcePath `

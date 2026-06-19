@@ -164,45 +164,45 @@
     const bar = document.createElement("div");
     bar.className = "panel-customize-bar";
     bar.setAttribute("aria-hidden", "true");
-  
+
     const handle = document.createElement("span");
     handle.className = "pcb-drag-handle";
     handle.textContent = "⠿";
     handle.title = "Drag to reorder";
-  
+
     const nameEl = document.createElement("span");
     nameEl.className = "pcb-panel-name";
     nameEl.textContent = title || "Panel";
-  
+
     const actions = document.createElement("div");
     actions.className = "pcb-actions";
-  
+
     const btnUp = document.createElement("button");
     btnUp.type = "button";
     btnUp.className = "pcb-btn-move pcb-btn-move-up";
     btnUp.textContent = "↑";
     btnUp.setAttribute("aria-label", `Move ${title || "panel"} up`);
     btnUp.title = "Move this panel up";
-  
+
     const btnDown = document.createElement("button");
     btnDown.type = "button";
     btnDown.className = "pcb-btn-move pcb-btn-move-down";
     btnDown.textContent = "↓";
     btnDown.setAttribute("aria-label", `Move ${title || "panel"} down`);
     btnDown.title = "Move this panel down";
-  
+
     const btnAdv = document.createElement("button");
     btnAdv.type = "button";
     btnAdv.className = "pcb-btn-advanced";
     btnAdv.textContent = "Advanced";
     btnAdv.setAttribute("aria-pressed", "false");
-  
+
     const btnHid = document.createElement("button");
     btnHid.type = "button";
     btnHid.className = "pcb-btn-hidden";
     btnHid.textContent = "Hidden";
     btnHid.setAttribute("aria-pressed", "false");
-  
+
     actions.appendChild(btnUp);
     actions.appendChild(btnDown);
     actions.appendChild(btnAdv);
@@ -210,10 +210,10 @@
     bar.appendChild(handle);
     bar.appendChild(nameEl);
     bar.appendChild(actions);
-  
+
     // Insert bar as the very first child of the panel so it sits above all content.
     panel.insertBefore(bar, panel.firstChild);
-  
+
     _updateCustomizeBar(panel);
   }
 
@@ -673,7 +673,7 @@
       _layoutResetAllTimer = setTimeout(() => _layoutDisarmResetAll(button), 3000);
       return;
     }
-  
+
     const hasUnsaved = typeof closeReadinessRequiresWarning === "function"
       && closeReadinessRequiresWarning();
     if (hasUnsaved && !_layoutResetAllForced) {
@@ -694,7 +694,7 @@
       _layoutResetAllTimer = setTimeout(() => _layoutDisarmResetAll(button), 3000);
       return;
     }
-  
+
     _layoutDisarmResetAll(button);
     try { localStorage.removeItem(LAYOUT_STORAGE_KEY); } catch (_) {}
     document.body.classList.remove("layout-editor-open");
@@ -868,7 +868,7 @@
       if (!options.preserveStatus) _layoutSetStatus("No layout-managed panels exist on this page.");
       return;
     }
-  
+
     containers.forEach((container) => {
       const containerKey = _layoutContainerKey(container);
       const panels = _layoutPanelsInContainer(container);
@@ -878,7 +878,7 @@
       details.open = containerKey === _layoutDrawerSelectedContainerKey
         || container.classList?.contains("page")
         || container.classList?.contains("is-active");
-  
+
       const summary = document.createElement("summary");
       summary.className = "layout-editor-group-summary";
       const title = document.createElement("span");
@@ -892,7 +892,7 @@
         _layoutDrawerSelectedPanelKey = "";
       });
       details.appendChild(summary);
-  
+
       const list = document.createElement("div");
       list.className = "layout-editor-panel-list";
       panels.forEach((panel, index) => {
@@ -905,17 +905,17 @@
         row.draggable = true;
         row.tabIndex = 0;
         row.setAttribute("role", "treeitem");
-  
+
         const grip = document.createElement("button");
         grip.type = "button";
         grip.className = "layout-editor-panel-grip";
         grip.textContent = "↕";
         grip.setAttribute("aria-label", `Drag ${_layoutPanelTitle(panel)}`);
-  
+
         const name = document.createElement("span");
         name.className = "layout-editor-panel-name";
         name.textContent = _layoutPanelTitle(panel);
-  
+
         const actions = document.createElement("div");
         actions.className = "layout-editor-panel-actions";
         actions.append(
@@ -954,7 +954,7 @@
             },
           ),
         );
-  
+
         row.append(grip, name, actions);
         grip.addEventListener("pointerdown", _onLayoutDrawerGripPointerDown);
         row.addEventListener("click", (event) => {
@@ -1218,6 +1218,7 @@
       "launchTabPanel",
       "reportsTabPanel",
       "evidenceToggleExempt",
+      "layoutSourcePanelType",
     ].forEach((key) => {
       if (source.dataset?.[key] !== undefined) target.dataset[key] = source.dataset[key];
     });
@@ -1235,13 +1236,13 @@
     return panel;
   }
 
-  function _extractLooseGroups(nodes, defaultTitle, advanced = false) {
+  function _extractLooseGroups(nodes, defaultTitle, advanced = false, defaultPanelType = "") {
     const groups = [];
     let current = null;
     nodes.forEach((node) => {
       if (!_layoutNodeHasContent(node)) return;
       if (node.nodeType === 1 && node.matches("div[data-advanced]")) {
-        const advancedGroups = _extractLooseGroups(Array.from(node.childNodes), defaultTitle, true);
+        const advancedGroups = _extractLooseGroups(Array.from(node.childNodes), defaultTitle, true, defaultPanelType);
         groups.push(...advancedGroups);
         node.remove();
         current = null;
@@ -1256,6 +1257,7 @@
           title: _layoutPanelTitleFromHeading(node, defaultTitle),
           nodes: [node],
           advanced,
+          panelType: node.dataset?.layoutSourcePanelType || defaultPanelType,
           syntheticHeading: false,
         };
         groups.push(current);
@@ -1266,6 +1268,7 @@
           title: _layoutPanelTitleFromHeading(node, defaultTitle),
           nodes: [node],
           advanced,
+          panelType: node.dataset?.layoutSourcePanelType || defaultPanelType,
           syntheticHeading: false,
         };
         groups.push(current);
@@ -1276,6 +1279,7 @@
           title: defaultTitle,
           nodes: [],
           advanced,
+          panelType: defaultPanelType,
           syntheticHeading: true,
         };
         groups.push(current);
@@ -1289,17 +1293,26 @@
     if (!page || page.dataset.layoutTabPanesNormalized === "true") return;
     page.querySelectorAll("section.panel.settings-tab-pane").forEach((pane) => {
       const container = document.createElement("div");
+      let sourcePanelType = "";
       Array.from(pane.attributes).forEach((attr) => {
-        if (attr.name === "data-panel-type") return;
+        if (attr.name === "data-panel-type") {
+          sourcePanelType = attr.value;
+          return;
+        }
         container.setAttribute(attr.name, attr.value);
       });
       container.className = Array.from(pane.classList)
         .filter((className) => className !== "panel")
         .join(" ");
       while (pane.firstChild) container.appendChild(pane.firstChild);
+      if (sourcePanelType) {
+        const heading = container.querySelector(":scope > .panel-heading");
+        if (heading) heading.dataset.layoutSourcePanelType = sourcePanelType;
+        else container.dataset.layoutSourcePanelType = sourcePanelType;
+      }
       pane.parentNode?.replaceChild(container, pane);
     });
-  
+
     const panesByKey = new Map();
     Array.from(page.querySelectorAll(".settings-tab-pane")).forEach((pane) => {
       const key = _layoutTabPaneKey(pane);
@@ -1331,11 +1344,12 @@
     const isKnownTabPane = container.matches?.(".settings-tab-pane[data-settings-tab], .settings-tab-pane[data-diag-tab], .settings-tab-pane[data-completed-tab], .settings-tab-pane[data-launch-tab-panel], .settings-tab-pane[data-reports-tab-panel]");
     if (!hasPanelishHeading && !isKnownTabPane) return;
     const defaultTitle = _layoutPaneTitle(container);
-    const groups = _extractLooseGroups(nodes, defaultTitle, false);
+    const groups = _extractLooseGroups(nodes, defaultTitle, false, container.dataset.layoutSourcePanelType || "");
     groups.forEach((group) => {
       container.appendChild(_createLayoutGeneratedPanel(group.nodes, {
         title: group.title,
         advanced: group.advanced,
+        panelType: group.panelType || "",
         syntheticHeading: group.syntheticHeading,
       }));
     });
@@ -1455,17 +1469,17 @@
   function _initLayoutContainer(container, state) {
     const containerKey = _layoutContainerKey(container);
     _layoutContainersByKey.set(containerKey, container);
-  
+
     _splitLooseContentIntoPanels(container);
     _flattenAdvancedWrappers(container);
     _splitDirectPanelSubsections(container);
     _flattenAdvancedWrappers(container);
-  
+
     // Dedup map: if two panels on the same page share an identical h2 (key
     // collision), the second gets a "-2" suffix, the third "-3", and so on.
     // This prevents silent localStorage corruption without requiring any HTML changes.
     const _keySeen = new Map();
-  
+
     const panels = Array.from(container.querySelectorAll(":scope > section.panel"))
       .filter((panel) => !_layoutPanelIsEditorExcluded(panel));
     panels.forEach((panel) => {
@@ -1482,7 +1496,7 @@
         hidden: false,
       });
       _injectCustomizeBar(panel, title);
-  
+
       // Wire per-panel button clicks inside the bar.
       const bar = panel.querySelector(".panel-customize-bar");
       if (bar) {
@@ -1497,7 +1511,7 @@
         const btnDown = bar.querySelector(".pcb-btn-move-down");
         if (btnDown) btnDown.addEventListener("click", () => _movePanelByStep(panel, 1));
       }
-  
+
       // DnD listeners — active only when draggable attr is set.
       panel.addEventListener("dragstart", _onDragStart);
       panel.addEventListener("dragover", _onDragOver);
@@ -1505,7 +1519,7 @@
       panel.addEventListener("drop", _onDrop);
       panel.addEventListener("dragend", _onDragEnd);
     });
-  
+
     _layoutDefaultOrders.set(containerKey, panels.map((panel) => panel.dataset.panelKey || "").filter(Boolean));
     _applyStoredOrder(container, panels, state);
     _syncPanelMoveButtons(container);

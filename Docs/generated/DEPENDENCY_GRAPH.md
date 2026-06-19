@@ -51,7 +51,7 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|706| api
+  tests -->|707| api
   tests -->|59| config
   scripts -->|46| api
   tests -->|33| processes
@@ -61,7 +61,7 @@ graph LR
   tests -->|24| rename
   process -->|23| api
   process -->|23| processes
-  tests -->|22| queue
+  tests -->|23| queue
   tests -->|20| status
   config -->|18| kernel
   observability -->|17| api
@@ -79,11 +79,11 @@ graph LR
   tests -->|10| audit
   api -->|9| queue
   tests -->|9| maintenance
+  unknown -->|9| api
   unknown -->|9| kernel
   application -->|8| kernel
   maintenance -->|8| api
   tests -->|8| diagnostics
-  unknown -->|8| api
   tests -->|7| decide
   unknown -->|7| config
   api -->|6| config
@@ -208,7 +208,7 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 706 |
+| tests | api | 707 |
 | tests | config | 59 |
 | scripts | api | 46 |
 | tests | processes | 33 |
@@ -218,7 +218,7 @@ graph LR
 | tests | rename | 24 |
 | process | api | 23 |
 | process | processes | 23 |
-| tests | queue | 22 |
+| tests | queue | 23 |
 | tests | status | 20 |
 | config | kernel | 18 |
 | observability | api | 17 |
@@ -236,11 +236,11 @@ graph LR
 | tests | audit | 10 |
 | api | queue | 9 |
 | tests | maintenance | 9 |
+| unknown | api | 9 |
 | unknown | kernel | 9 |
 | application | kernel | 8 |
 | maintenance | api | 8 |
 | tests | diagnostics | 8 |
-| unknown | api | 8 |
 | tests | decide | 7 |
 | unknown | config | 7 |
 | api | config | 6 |

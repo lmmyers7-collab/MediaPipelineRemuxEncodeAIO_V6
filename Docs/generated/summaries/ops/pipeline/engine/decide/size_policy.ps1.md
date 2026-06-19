@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 105fbdc654d4f9e5e17c6c71e82b5d5972a94a8d0d837e25ef9538033906bddf
+sha256: 8c8416fe997d2863e7beabac3d43b5ca7e47064939755b3195dc49e12fce04c8
 ---
 # `ops/pipeline/engine/decide/size_policy.ps1`
 

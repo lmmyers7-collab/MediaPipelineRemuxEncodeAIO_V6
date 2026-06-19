@@ -705,6 +705,25 @@
     }
     initLaunchRecoveryActionEvents();
     renderAllLaunchPreflights();
+    refreshLaunchBackendPreflight()
+      .then(() => {
+        renderLaunchCompactGate();
+        updateLaunchCommandButtonStates();
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : String(error);
+        setText("launch-backend-preflight-status", "Load failed");
+        const statusNode = byId("launch-backend-preflight-status");
+        if (statusNode) statusNode.dataset.state = "warning";
+        setText("launch-backend-preflight-summary", [
+          "Pipeline backend preflight did not load automatically.",
+          `Error: ${message}`,
+          "Action: refresh the backend preflight from Launch before starting the media pipeline.",
+          "Mutation guardrail: automatic preflight loading is read-only and cannot launch, reserve locks, save settings, drain, rename, publish, or touch media files.",
+        ].join("\n"));
+        renderLaunchCompactGate();
+        updateLaunchCommandButtonStates();
+      });
     syncPipelineModeControls();
     updateLaunchCommandButtonStates();
   }

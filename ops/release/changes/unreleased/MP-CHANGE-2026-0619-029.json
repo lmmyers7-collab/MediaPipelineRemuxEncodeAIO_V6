@@ -1,0 +1,31 @@
+{
+  "id": "MP-CHANGE-2026-0619-029",
+  "title": "Refresh AI agent entry guidance",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Refresh AGENTS.md into a stable AI/code-agent operating contract for this project.",
+  "reason": "The AI entry document should stay focused on durable project architecture, safety, placement, navigation, change workflow, and validation rules instead of duplicating volatile project-status updates.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "AGENTS.md mixed durable agent rules with dated project-state details and duplicated status that belongs in current-state and checklist documents.",
+  "behavior_after": "AGENTS.md delegates volatile status to current-state docs and focuses on stable project model, invariants, placement rules, navigation, change control, validation workflow, high-risk boundaries, launchers, and documentation authority.",
+  "files_touched": [
+    "AGENTS.md",
+    "docs/generated/summaries/AGENTS.md.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-029.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "manual worktree coverage comparison - 46 changed paths, 46 covered by unreleased packets, 0 uncovered; official validate_changes --require-worktree-coverage blocked by unrelated MP-CHANGE-2026-0619-030.json invalid type 'ui'.",
+    "refresh_summaries --paths AGENTS.md - passed; check_active_doc_references - passed; generate_project_index --check - failed due pre-existing unrelated untracked files outside this packet.",
+    "validate_changes - failed before packet coverage because unrelated MP-CHANGE-2026-0619-030.json has invalid type 'ui'."
+  ],
+  "rollback_plan": "Revert AGENTS.md and this change packet to the prior revision if the rewritten guidance proves unclear or conflicts with project docs.",
+  "related_changes": [],
+  "notes": "Rewrite AI entry point as stable project operating contract.\nStable AI operating contract with project model, invariants, placement, navigation, change workflow, validation, high-risk boundaries, launchers, and documentation authority.\nRegenerated AGENTS.md file summary after rewriting the AI entry point."
+}

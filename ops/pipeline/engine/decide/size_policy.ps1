@@ -209,6 +209,7 @@ function Resolve-MediaRouteResolutionSizeSelection {
 function Get-MediaEncodeForcedRouteOverrideReasonCodes {
     return @(
         'folder_policy_force_encode',
+        'file_override_force_encode',
         'forced_remux_rejected_unsafe_codec'
     )
 }

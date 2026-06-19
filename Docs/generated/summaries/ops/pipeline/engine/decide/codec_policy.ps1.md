@@ -3,9 +3,9 @@ file: ops/pipeline/engine/decide/codec_policy.ps1
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-04
+last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 5b0ac83ac14329521f5e4786ae88bc06dbd927cc682d1313d270d56ca4d87ca1
+sha256: 1860795f7e6aa7ae1c10e698579c5426792c514d0e32b54c15a522ab24d4dd84
 ---
 # `ops/pipeline/engine/decide/codec_policy.ps1`
 

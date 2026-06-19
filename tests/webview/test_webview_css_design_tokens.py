@@ -447,7 +447,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn('data-completed-tab="overview"', completed_html)
         self.assertIn("output-overview-kicker", completed_html)
         self.assertIn("<h2>Why This Output Looks Different</h2>", completed_html)
-        self.assertRegex(completed_html, r'<section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="evidence">\s*<div class="panel-heading">\s*<h2>Why This Output Looks Different</h2>')
+        self.assertRegex(completed_html, r'<section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">\s*<div class="panel-heading">\s*<h2>Why This Output Looks Different</h2>')
         self.assertLess(
             completed_html.index('<h2 id="completed-current-output-heading">Current Output Status</h2>'),
             completed_html.index("<h2>Output Files</h2>"),

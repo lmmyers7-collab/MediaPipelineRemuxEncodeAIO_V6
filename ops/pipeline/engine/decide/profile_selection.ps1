@@ -196,6 +196,215 @@ function Get-MediaRouteProfileValue {
     return $Default
 }
 
+function Get-MediaRouteEvidenceValue {
+    param(
+        $Evidence,
+        [Parameter(Mandatory)] [string] $Name,
+        $Default = $null
+    )
+
+    if ($null -eq $Evidence) { return $Default }
+    if ($Evidence -is [System.Collections.IDictionary] -and $Evidence.Contains($Name)) { return $Evidence[$Name] }
+    $prop = $Evidence.PSObject.Properties[$Name]
+    if ($prop) { return $prop.Value }
+    return $Default
+}
+
+function ConvertTo-MediaRouteEvidenceDouble {
+    param(
+        $Value,
+        [double] $Default = 0.0
+    )
+
+    if ($null -eq $Value) { return $Default }
+    if ([string]::IsNullOrWhiteSpace([string]$Value)) { return $Default }
+    try { return [double]$Value } catch { return $Default }
+}
+
+function ConvertTo-MediaRouteEvidenceBool {
+    param(
+        $Value,
+        [bool] $Default = $false
+    )
+
+    if ($null -eq $Value) { return $Default }
+    if ($Value -is [bool]) { return [bool]$Value }
+    $text = ([string]$Value).Trim().ToLowerInvariant()
+    if ($text -in @('true','1','yes')) { return $true }
+    if ($text -in @('false','0','no','')) { return $false }
+    try { return [bool]$Value } catch { return $Default }
+}
+
+function Get-MediaRouteDecisionTraceEntryByCode {
+    param(
+        $Metadata,
+        [Parameter(Mandatory)] [string[]] $Codes
+    )
+
+    $trace = @(Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'decision_trace' -Default @())
+    foreach ($entry in $trace) {
+        $code = [string](Get-MediaRouteEvidenceValue -Evidence $entry -Name 'code' -Default '')
+        if ($Codes -contains $code) { return $entry }
+    }
+    return $null
+}
+
+function New-MediaRouteExplanation {
+    param($Metadata)
+
+    if (-not $Metadata) { return $null }
+
+    $route = [string](Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'route' -Default '')
+    $routeReasonCode = [string](Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'route_reason_code' -Default '')
+    $routeReason = [string](Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'route_reason' -Default '')
+    $sourceCodec = [string](Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'source_codec' -Default '')
+    $routingProfile = [string](Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'routing_profile' -Default '')
+    $routeThresholdMode = [string](Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'route_threshold_mode' -Default '')
+    $sizeGuardMode = [string](Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'size_guard_mode' -Default '')
+    $sizeGB = ConvertTo-MediaRouteEvidenceDouble -Value (Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'size_gb' -Default 0.0)
+    $thresholdGB = ConvertTo-MediaRouteEvidenceDouble -Value (Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'threshold_gb' -Default 0.0)
+    $estimatedBitrateMbps = ConvertTo-MediaRouteEvidenceDouble -Value (Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'estimated_bitrate_mbps' -Default 0.0)
+    $bitrateThresholdMbps = ConvertTo-MediaRouteEvidenceDouble -Value (Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'bitrate_threshold_mbps' -Default 0.0)
+    $sizeOverThreshold = ConvertTo-MediaRouteEvidenceBool -Value (Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'size_over_threshold' -Default $false)
+    $bitrateOverThreshold = ConvertTo-MediaRouteEvidenceBool -Value (Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'bitrate_over_threshold' -Default $false)
+    $plexScore = ConvertTo-MediaRouteEvidenceDouble -Value (Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'plex_compatibility_score' -Default 100.0) -Default 100.0
+    $sizePolicy = Get-MediaRouteEvidenceValue -Evidence $Metadata -Name 'size_policy' -Default $null
+
+    $sizePolicyMode = if ($sizePolicy) {
+        [string](Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'mode' -Default $sizeGuardMode)
+    } else {
+        $sizeGuardMode
+    }
+    $sizePolicyExceeded = if ($sizePolicy) {
+        ConvertTo-MediaRouteEvidenceBool -Value (Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'exceeded' -Default $false)
+    } else {
+        $false
+    }
+    $sizePolicyFallbackEligible = if ($sizePolicy) {
+        ConvertTo-MediaRouteEvidenceBool -Value (Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'fallback_remux_eligible' -Default $false)
+    } else {
+        $false
+    }
+    $sizePolicyShouldFallback = if ($sizePolicy) {
+        ConvertTo-MediaRouteEvidenceBool -Value (Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'should_fallback_remux' -Default $false)
+    } else {
+        $false
+    }
+    $sizePolicyForcedOverride = if ($sizePolicy) {
+        ConvertTo-MediaRouteEvidenceBool -Value (Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'forced_route_override' -Default $false)
+    } else {
+        $false
+    }
+    $sizePolicyMessage = if ($sizePolicy) {
+        [string](Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'message' -Default '')
+    } else {
+        ''
+    }
+
+    $fallbackTrace = Get-MediaRouteDecisionTraceEntryByCode -Metadata $Metadata -Codes @('oversized_encode_remux_fallback')
+    $codecAcceptedTrace = Get-MediaRouteDecisionTraceEntryByCode -Metadata $Metadata -Codes @('codec_remux_safe','codec_allowed_by_routing_profile','forced_remux_codec_safe')
+    $codecBlockedTrace = Get-MediaRouteDecisionTraceEntryByCode -Metadata $Metadata -Codes @('codec_not_remux_safe','forced_remux_rejected_unsafe_codec')
+    $fallbackAccepted = ($null -ne $fallbackTrace -or $routeReasonCode -eq 'oversized_encode_remux_fallback')
+    $fallbackAttempted = ($fallbackAccepted -or $sizePolicyShouldFallback)
+
+    $fallbackBlockReasonCode = ''
+    $fallbackBlockReason = ''
+    if ($sizePolicyExceeded -and $sizePolicyMode -ne 'fallback_remux') {
+        $fallbackBlockReasonCode = 'size_guard_mode_not_fallback_remux'
+        $fallbackBlockReason = "SizeGuardMode '$sizePolicyMode' records the oversize result without attempting remux fallback."
+    } elseif ($sizePolicyForcedOverride) {
+        $fallbackBlockReasonCode = 'forced_route_override'
+        $fallbackBlockReason = 'Fallback remux was not attempted because the encode route was explicitly forced.'
+    } elseif ($sizePolicyExceeded -and -not $sizePolicyFallbackEligible) {
+        $fallbackBlockReasonCode = 'route_reason_not_fallback_remux_eligible'
+        $fallbackBlockReason = 'Fallback remux was not attempted because the encode reason is not an automatic size or bitrate threshold decision.'
+    } elseif ($codecBlockedTrace) {
+        $fallbackBlockReasonCode = [string](Get-MediaRouteEvidenceValue -Evidence $codecBlockedTrace -Name 'code' -Default '')
+        $fallbackBlockReason = [string](Get-MediaRouteEvidenceValue -Evidence $codecBlockedTrace -Name 'message' -Default '')
+    }
+
+    $codecGateCode = ''
+    $codecGateReason = ''
+    if ($codecAcceptedTrace) {
+        $codecGateCode = [string](Get-MediaRouteEvidenceValue -Evidence $codecAcceptedTrace -Name 'code' -Default '')
+        $codecGateReason = [string](Get-MediaRouteEvidenceValue -Evidence $codecAcceptedTrace -Name 'message' -Default '')
+    } elseif ($codecBlockedTrace) {
+        $codecGateCode = [string](Get-MediaRouteEvidenceValue -Evidence $codecBlockedTrace -Name 'code' -Default '')
+        $codecGateReason = [string](Get-MediaRouteEvidenceValue -Evidence $codecBlockedTrace -Name 'message' -Default '')
+    }
+
+    $decisionSummary = @()
+    if (-not [string]::IsNullOrWhiteSpace($routeReasonCode) -or -not [string]::IsNullOrWhiteSpace($routeReason)) {
+        $decisionSummary += ("route={0}; reason_code={1}; reason={2}" -f $route, $routeReasonCode, $routeReason)
+    }
+    if ($sizeOverThreshold -or $bitrateOverThreshold) {
+        $decisionSummary += ("thresholds: size_over={0}; bitrate_over={1}; size={2:N2}GB/{3:N2}GB; bitrate={4:N2}Mbps/{5:N2}Mbps" -f $sizeOverThreshold, $bitrateOverThreshold, $sizeGB, $thresholdGB, $estimatedBitrateMbps, $bitrateThresholdMbps)
+    }
+    if ($sizePolicy) {
+        $decisionSummary += ("size_guard={0}; exceeded={1}; fallback_eligible={2}; should_fallback_remux={3}" -f $sizePolicyMode, $sizePolicyExceeded, $sizePolicyFallbackEligible, $sizePolicyShouldFallback)
+    }
+    if ($fallbackAccepted) {
+        $decisionSummary += 'remux fallback accepted after oversized encode; direct-copy size and bitrate caps were bypassed for this fallback'
+    } elseif (-not [string]::IsNullOrWhiteSpace($fallbackBlockReasonCode)) {
+        $decisionSummary += ("remux fallback not used: {0}" -f $fallbackBlockReasonCode)
+    }
+
+    $operatorNotes = @()
+    if ($sizePolicyExceeded -and $sizePolicyMode -eq 'advisory') {
+        $operatorNotes += 'SizeGuardMode advisory warns and publishes; fallback remux is only attempted when SizeGuardMode is fallback_remux.'
+    } elseif ($sizePolicyExceeded -and $sizePolicyMode -eq 'strict') {
+        $operatorNotes += 'SizeGuardMode strict rejects oversized encodes instead of attempting remux fallback.'
+    }
+    if ($fallbackAccepted) {
+        $operatorNotes += 'The remux fallback is publishable only because the codec/container policy accepted direct stream copy.'
+    } elseif ($fallbackBlockReasonCode -eq 'codec_not_remux_safe' -or $fallbackBlockReasonCode -eq 'forced_remux_rejected_unsafe_codec') {
+        $operatorNotes += 'Adjust RemuxSafeVideoCodecs only after confirming this codec is acceptable for direct-copy output in this library.'
+    }
+
+    return [pscustomobject][ordered]@{
+        schema_version = 'route_explanation.v1'
+        route = $route
+        route_reason_code = $routeReasonCode
+        route_reason = $routeReason
+        why_initial_route = [ordered]@{
+            source_codec = $sourceCodec
+            routing_profile = $routingProfile
+            route_threshold_mode = $routeThresholdMode
+            size_gb = $sizeGB
+            threshold_gb = $thresholdGB
+            estimated_bitrate_mbps = $estimatedBitrateMbps
+            bitrate_threshold_mbps = $bitrateThresholdMbps
+            size_over_threshold = $sizeOverThreshold
+            bitrate_over_threshold = $bitrateOverThreshold
+            plex_compatibility_score = $plexScore
+        }
+        size_guard = [ordered]@{
+            mode = $sizePolicyMode
+            policy_checked = [bool]($null -ne $sizePolicy)
+            message = $sizePolicyMessage
+            ratio = if ($sizePolicy) { ConvertTo-MediaRouteEvidenceDouble -Value (Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'ratio' -Default 0.0) } else { 0.0 }
+            limit_ratio = if ($sizePolicy) { ConvertTo-MediaRouteEvidenceDouble -Value (Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'limit_ratio' -Default 0.0) } else { 0.0 }
+            exceeded = $sizePolicyExceeded
+            enforced = if ($sizePolicy) { ConvertTo-MediaRouteEvidenceBool -Value (Get-MediaRouteEvidenceValue -Evidence $sizePolicy -Name 'enforced' -Default $false) } else { $false }
+            fallback_remux_eligible = $sizePolicyFallbackEligible
+            should_fallback_remux = $sizePolicyShouldFallback
+            forced_route_override = $sizePolicyForcedOverride
+        }
+        remux_fallback = [ordered]@{
+            eligible = $sizePolicyFallbackEligible
+            attempted = $fallbackAttempted
+            accepted = $fallbackAccepted
+            blocked_reason_code = $fallbackBlockReasonCode
+            blocked_reason = $fallbackBlockReason
+            codec_gate_code = $codecGateCode
+            codec_gate_reason = $codecGateReason
+            direct_copy_size_bitrate_caps_bypassed = $fallbackAccepted
+        }
+        decision_summary = @($decisionSummary)
+        operator_notes = @($operatorNotes)
+    }
+}
+
 function Get-ActiveMediaRoutePlanMetadata {
     if (-not $script:CurrentRoutePlan) { return $null }
     $plan = $script:CurrentRoutePlan
@@ -289,6 +498,10 @@ function Add-MediaRoutePlanMetadataToMap {
     $Map['encode_attempts'] = @($Metadata.encode_attempts)
     if ($Metadata.PSObject.Properties['size_policy']) {
         $Map['size_policy'] = $Metadata.size_policy
+    }
+    $routeExplanation = New-MediaRouteExplanation -Metadata $Metadata
+    if ($routeExplanation) {
+        $Map['route_explanation'] = $routeExplanation
     }
     return $Map
 }

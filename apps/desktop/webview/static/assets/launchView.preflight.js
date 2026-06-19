@@ -559,6 +559,44 @@
     return rows.sort((left, right) => launchBackendPreflightStatusRank(left.posture) - launchBackendPreflightStatusRank(right.posture));
   }
 
+  function launchBackendPreflightPipelineBlockers(payloads = []) {
+    return launchBackendPreflightRows(payloads).filter((row) => {
+      const target = String(row?.target || row?.payload?.target || "").toLowerCase();
+      const posture = String(row?.posture || "").toLowerCase();
+      return target === "pipeline" && posture === "blocked";
+    });
+  }
+
+  function renderLaunchBackendPreflightStartupAlert(payloads = []) {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    const blockers = launchBackendPreflightPipelineBlockers(payloads);
+    let node = document.querySelector(".launch-preflight-startup-alert");
+    if (!blockers.length) {
+      if (node && typeof node.remove === "function") node.remove();
+      return;
+    }
+    const topbar = document.querySelector(".topbar");
+    if (!node) {
+      if (!topbar || typeof document.createElement !== "function") return;
+      node = document.createElement("div");
+      node.className = "launch-preflight-startup-alert";
+      node.setAttribute("role", "alert");
+      node.setAttribute("aria-live", "assertive");
+      topbar.insertAdjacentElement("afterend", node);
+    }
+    node.dataset.state = "blocked";
+    const first = blockers[0] || {};
+    const title = document.createElement("strong");
+    title.textContent = "Pipeline launch blocked by backend preflight";
+    const detail = document.createElement("span");
+    detail.textContent = `Backend preflight found ${blockers.length} launch-blocking check${blockers.length === 1 ? "" : "s"}. First blocker: ${first.check || "Backend check"} - ${first.evidence || "no evidence text supplied"}.`;
+    const hint = document.createElement("span");
+    hint.textContent = first.action
+      ? `Open Launch > Readiness > Backend Preflight. Backend action: ${first.action}`
+      : "Open Launch > Readiness > Backend Preflight before starting the media pipeline.";
+    node.replaceChildren(title, detail, hint);
+  }
+
   function getLastLaunchBackendPreflightPayloads() {
     return Array.isArray(lastLaunchBackendPreflightPayloads) ? lastLaunchBackendPreflightPayloads.slice() : [];
   }
@@ -684,6 +722,7 @@
   function renderLaunchBackendPreflight(payloads = []) {
     const items = Array.isArray(payloads) ? payloads : [];
     lastLaunchBackendPreflightPayloads = items.slice();
+    renderLaunchBackendPreflightStartupAlert(items);
     const pipelineBackendPreflight = launchBackendPreflightPayloadForTarget("pipeline", items);
     if (typeof window.renderLaunchReadiness === "function") {
       const readinessPayload = typeof window.getLastLaunchReadinessPayload === "function"
@@ -809,6 +848,7 @@
     }
     renderLaunchScopeReconciliation();
     renderLaunchStartDecisionSummary();
+    return payloads;
   }
 
   function pipelineLaunchPreflightLines(request) {
@@ -950,6 +990,8 @@
       launchBackendPreflightOverallStatus,
       launchBackendPreflightStatusState,
       launchBackendPreflightRows,
+      launchBackendPreflightPipelineBlockers,
+      renderLaunchBackendPreflightStartupAlert,
       getLastLaunchBackendPreflightPayloads,
       launchBackendPreflightPayloadForTarget,
       getLastLaunchBackendPreflightRefreshInfo,

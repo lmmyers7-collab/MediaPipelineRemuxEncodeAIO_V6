@@ -220,9 +220,40 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
           "launch-backend-preflight-summary": {{}},
           "launch-backend-preflight-detail": {{}},
         }};
+        const domNodes = {{}};
+        function makeElement(tagName) {{
+          return {{
+            tagName,
+            className: "",
+            dataset: {{}},
+            attributes: {{}},
+            children: [],
+            textContent: "",
+            setAttribute(name, value) {{ this.attributes[name] = String(value); }},
+            appendChild(child) {{ this.children.push(child); }},
+            replaceChildren(...children) {{
+              this.children = children;
+              this.textContent = children.map((child) => child.textContent || "").join(" ");
+            }},
+            remove() {{
+              this.removed = true;
+              if (domNodes[".launch-preflight-startup-alert"] === this) delete domNodes[".launch-preflight-startup-alert"];
+            }},
+          }};
+        }}
+        domNodes[".topbar"] = {{
+          insertAdjacentElement(position, node) {{
+            this.insertedPosition = position;
+            this.inserted = node;
+            domNodes[".launch-preflight-startup-alert"] = node;
+          }},
+        }};
         const context = {{
           window: {{}},
-          document: {{ createElement() {{ return {{ dataset: {{}}, appendChild() {{}}, replaceChildren() {{}} }}; }} }},
+          document: {{
+            createElement: makeElement,
+            querySelector(selector) {{ return domNodes[selector] || null; }},
+          }},
           URLSearchParams,
         }};
         context.window.window = context.window;
@@ -324,6 +355,25 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
               checks: [{{ key: "csv_path", label: "CSV path", status: "blocked", evidence: "missing", action: "Stage a CSV." }}],
             }},
           ];
+          const alertPayloads = [
+            {{
+              target: "pipeline",
+              _frontend_target_label: "Pipeline",
+              _frontend_preflight_active: true,
+              _frontend_preflight_included: true,
+              status: "blocked",
+              can_request_start: false,
+              checks: [{{ key: "active_work", label: "Active work guard", status: "blocked", evidence: "active worker is running", action: "Wait for active work to finish." }}],
+            }},
+          ];
+          emptyCsvModule.renderLaunchBackendPreflight(alertPayloads);
+          const blockedAlert = domNodes[".launch-preflight-startup-alert"];
+          const blockedAlertText = blockedAlert ? blockedAlert.textContent : "";
+          const blockedAlertState = blockedAlert?.dataset?.state || "";
+          const blockedAlertRole = blockedAlert?.attributes?.role || "";
+          const blockedAlertLive = blockedAlert?.attributes?.["aria-live"] || "";
+          emptyCsvModule.renderLaunchBackendPreflight(poisonPayloads);
+          const alertClearedByReadyPipeline = !domNodes[".launch-preflight-startup-alert"];
           process.stdout.write(JSON.stringify({{
             renderFetchCount,
             fetchUrls,
@@ -341,6 +391,11 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             poisonStatus: emptyCsvModule.launchBackendPreflightOverallStatus(poisonPayloads),
             poisonRows: emptyCsvModule.launchBackendPreflightRows(poisonPayloads).map((row) => row.targetLabel + ":" + row.posture),
             poisonScopeLabel: emptyCsvModule.launchBackendPreflightScopeLabel(poisonPayloads),
+            blockedAlertText,
+            blockedAlertState,
+            blockedAlertRole,
+            blockedAlertLive,
+            alertClearedByReadyPipeline,
           }}));
         }})().catch((error) => {{
           console.error(error && error.stack ? error.stack : String(error));
@@ -604,6 +659,14 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["poisonStatus"], "Ready")
         self.assertEqual(result["poisonRows"], ["Pipeline:ready"])
         self.assertEqual(result["poisonScopeLabel"], "Pipeline backend preflight")
+        self.assertIn("Pipeline launch blocked by backend preflight", result["blockedAlertText"])
+        self.assertIn("Active work guard", result["blockedAlertText"])
+        self.assertIn("active worker is running", result["blockedAlertText"])
+        self.assertIn("Wait for active work to finish.", result["blockedAlertText"])
+        self.assertEqual(result["blockedAlertState"], "blocked")
+        self.assertEqual(result["blockedAlertRole"], "alert")
+        self.assertEqual(result["blockedAlertLive"], "assertive")
+        self.assertTrue(result["alertClearedByReadyPipeline"])
 
     def test_stale_progress_does_not_count_as_stuck_without_backend_stuck_signal(self) -> None:
         result = _run_launch_controller_state_smoke()

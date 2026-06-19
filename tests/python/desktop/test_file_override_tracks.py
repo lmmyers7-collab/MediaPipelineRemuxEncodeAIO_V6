@@ -21,10 +21,14 @@ from mediapipeline.core.api.commands_file_overrides import (  # noqa: E402
     _file_override_effective_payload,
     _file_override_tracks_payload_from_probe_result,
 )
+from mediapipeline.core.api.file_overrides.remux_pilot import (  # noqa: E402
+    file_override_remux_pilot_auto_promote_payload,
+)
 from mediapipeline.contracts.stages import ProbeResult, make_stage_result  # noqa: E402
 from mediapipeline.core.queue.file_overrides import FILE_OVERRIDE_BATCH_METADATA_KEY, FileOverrideValidationError  # noqa: E402
 from mediapipeline.core.queue.file_overrides import normalize_file_override_path, read_file_overrides, resolve_file_override_match  # noqa: E402
 from mediapipeline.core.queue.file_overrides import set_file_override_entry  # noqa: E402
+from mediapipeline.core.queue.remux_pilot_auto_service import RemuxPilotAutoPromotionServiceMixin  # noqa: E402
 from mediapipeline.desktop.api.routes_read import GET_ROUTE_HANDLERS  # noqa: E402
 from mediapipeline.desktop.api.routes_command import POST_ROUTE_HANDLERS  # noqa: E402
 from mediapipeline.desktop.models import ResolvedPaths  # noqa: E402
@@ -41,6 +45,16 @@ class _TrackMetadataHarness(LocalApiFileOverridesCommandPayloadMixin):
 
 class _Facade:
     service = object()
+
+
+class _RemuxPilotAutoPromotionHarness(RemuxPilotAutoPromotionServiceMixin):
+    def __init__(self, resolved: ResolvedPaths) -> None:
+        self.logger = logging.getLogger("test-remux-pilot-auto-promotion")
+        self._initialize_remux_pilot_auto_promotion()
+        self.configure_remux_pilot_auto_promotion(
+            resolved_provider=lambda: resolved,
+            payload_builder=file_override_remux_pilot_auto_promote_payload,
+        )
 
 
 def _get_json(url: str, token: str) -> tuple[int, dict]:
@@ -721,6 +735,112 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(entries[normalize_file_override_path(rows[2]["source_path"])]["routing"]["profile"], "remux")
         self.assertEqual(entries[normalize_file_override_path(manual)]["routing"]["profile"], "encode")
         self.assertFalse(any(normalize_file_override_path(path) in entries for path in pilots))
+
+    def test_remux_pilot_auto_promote_applies_after_three_current_queue_fallbacks(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            rows = [
+                _tv_snapshot_row(
+                    tv_root,
+                    "Pilot Auto",
+                    "Season 01",
+                    f"Pilot.Auto.S01E{episode:02d}.mkv",
+                    episode_number=episode,
+                )
+                for episode in range(1, 6)
+            ]
+            _write_queue_snapshot(resolved, rows)
+            _write_completed_manifest(
+                resolved,
+                [_completed_pilot_row(Path(row["source_path"])) for row in rows[:3]],
+            )
+
+            result = file_override_remux_pilot_auto_promote_payload(resolved=resolved)
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+            entries = manifest["entries"]
+
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["command"], "queue.file_overrides.remux_pilot_auto_promote")
+        self.assertEqual(result["promoted_series_count"], 1)
+        self.assertEqual(result["results"][0]["counts"]["eligible_update_count"], 2)
+        self.assertFalse(any(normalize_file_override_path(row["source_path"]) in entries for row in rows[:3]))
+        self.assertEqual(entries[normalize_file_override_path(rows[3]["source_path"])]["routing"]["profile"], "remux")
+        self.assertEqual(entries[normalize_file_override_path(rows[4]["source_path"])]["routing"]["profile"], "remux")
+
+    def test_remux_pilot_auto_promote_catches_up_and_skips_completed_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            rows = [
+                _tv_snapshot_row(
+                    tv_root,
+                    "Pilot Catchup",
+                    "Season 01",
+                    f"Pilot.Catchup.S01E{episode:02d}.mkv",
+                    episode_number=episode,
+                )
+                for episode in range(1, 7)
+            ]
+            _write_queue_snapshot(resolved, rows)
+            _write_completed_manifest(
+                resolved,
+                [_completed_pilot_row(Path(row["source_path"])) for row in rows[:4]],
+            )
+
+            result = file_override_remux_pilot_auto_promote_payload(resolved=resolved)
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+            entries = manifest["entries"]
+            second_result = file_override_remux_pilot_auto_promote_payload(resolved=resolved)
+            after_second = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["promoted_series_count"], 1)
+        self.assertEqual(result["results"][0]["counts"]["eligible_update_count"], 2)
+        self.assertFalse(any(normalize_file_override_path(row["source_path"]) in entries for row in rows[:4]))
+        self.assertEqual(
+            {
+                normalize_file_override_path(rows[4]["source_path"]),
+                normalize_file_override_path(rows[5]["source_path"]),
+            },
+            set(entries),
+        )
+        self.assertTrue(second_result["ok"], second_result)
+        self.assertEqual(second_result["promoted_series_count"], 0)
+        self.assertEqual(after_second, manifest)
+
+    def test_remux_pilot_auto_promotion_service_runs_once_and_debounces_state(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            rows = [
+                _tv_snapshot_row(
+                    tv_root,
+                    "Pilot Service",
+                    "Season 01",
+                    f"Pilot.Service.S01E{episode:02d}.mkv",
+                    episode_number=episode,
+                )
+                for episode in range(1, 5)
+            ]
+            _write_queue_snapshot(resolved, rows)
+            _write_completed_manifest(
+                resolved,
+                [_completed_pilot_row(Path(row["source_path"])) for row in rows[:3]],
+            )
+            harness = _RemuxPilotAutoPromotionHarness(resolved)
+
+            result = harness.run_remux_pilot_auto_promotion_once()
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+            second_result = harness.run_remux_pilot_auto_promotion_once()
+
+        self.assertTrue(result["ok"], result)
+        self.assertEqual(result["promoted_series_count"], 1)
+        self.assertEqual(manifest["entries"][normalize_file_override_path(rows[3]["source_path"])]["routing"]["profile"], "remux")
+        self.assertEqual(second_result["skipped"], "state_unchanged")
 
     def test_remux_pilot_promote_blocks_invalid_pilot_counts_without_writing(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
