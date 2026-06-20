@@ -407,6 +407,80 @@ function Get-EncodeSelectedGpuDevice {
     return ''
 }
 
+function New-EncodeAttemptDescriptorSelectionEvidence {
+    param(
+        [string] $VideoCodec = '',
+        [bool] $UseCpuFallback = $false,
+        [bool] $IsHDR = $false,
+        [string] $SelectedEncoder = ''
+    )
+
+    $role = if ($UseCpuFallback) { 'cpu_fallback' } else { 'primary' }
+    $evidence = [ordered]@{
+        Active             = $false
+        Resolved           = $false
+        Role               = $role
+        VideoCodec         = [string]$VideoCodec
+        SelectedEncoder    = [string]$SelectedEncoder
+        Family             = ''
+        PrimaryEncoder     = ''
+        CpuFallbackEncoder = ''
+        DescriptorBackend  = ''
+        DescriptorEncoder  = ''
+        Reason             = ''
+        ResolutionTrace    = @()
+    }
+
+    if (-not (Get-Command -Name Resolve-MediaEncoderSelection -ErrorAction SilentlyContinue)) {
+        $evidence.Reason = 'descriptor selection resolver unavailable'
+        return [pscustomobject]$evidence
+    }
+
+    $selection = Resolve-MediaEncoderSelection -VideoCodec $VideoCodec -IsHDR:$IsHDR
+    $evidence.Resolved = [bool]$selection.Resolved
+    $evidence.Family = [string]$selection.Family
+    $evidence.Reason = [string]$selection.Reason
+    $evidence.ResolutionTrace = @($selection.ResolutionTrace)
+    if ($selection.PrimaryDescriptor) {
+        $evidence.PrimaryEncoder = [string]$selection.PrimaryDescriptor.EncoderName
+    }
+    if ($selection.CpuFallbackDescriptor) {
+        $evidence.CpuFallbackEncoder = [string]$selection.CpuFallbackDescriptor.EncoderName
+    }
+    if (-not [bool]$selection.Resolved) {
+        return [pscustomobject]$evidence
+    }
+
+    $attemptDescriptor = if ($UseCpuFallback) { $selection.CpuFallbackDescriptor } else { $selection.PrimaryDescriptor }
+    if ($null -eq $attemptDescriptor) {
+        $evidence.Reason = "descriptor selection did not provide a $role descriptor"
+        return [pscustomobject]$evidence
+    }
+    $evidence.DescriptorBackend = [string]$attemptDescriptor.Backend
+    $evidence.DescriptorEncoder = [string]$attemptDescriptor.EncoderName
+
+    $activeFlagsDescriptor = $null
+    if (Get-Command -Name Resolve-MediaEncoderDescriptorForFlags -ErrorAction SilentlyContinue) {
+        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback
+    }
+    if ($null -eq $activeFlagsDescriptor) {
+        $evidence.Reason = "descriptor flags are not active for $role attempt"
+        return [pscustomobject]$evidence
+    }
+
+    $selected = if ($SelectedEncoder) { $SelectedEncoder.Trim().ToLowerInvariant() } else { '' }
+    $attemptEncoder = ([string]$attemptDescriptor.EncoderName).Trim().ToLowerInvariant()
+    $activeEncoder = ([string]$activeFlagsDescriptor.EncoderName).Trim().ToLowerInvariant()
+    if ([string]::IsNullOrWhiteSpace($selected) -or $selected -ne $attemptEncoder -or $selected -ne $activeEncoder) {
+        $evidence.Reason = "selected encoder '$SelectedEncoder' does not match descriptor-owned $role encoder '$($attemptDescriptor.EncoderName)'"
+        return [pscustomobject]$evidence
+    }
+
+    $evidence.Active = $true
+    $evidence.Reason = "attempt uses descriptor-owned $($attemptDescriptor.Family)/$($attemptDescriptor.Backend) selection"
+    return [pscustomobject]$evidence
+}
+
 function New-EncodeAttemptPlan {
     param(
         [bool] $UseCpuFallback = $false,
@@ -473,6 +547,11 @@ function New-EncodeAttemptPlan {
     # does not falsely attribute a CPU encode to GPU 0 when an earlier hardware
     # attempt left -gpu/-hwaccel_device tokens in argv parsers' memory.
     $selectedGpuDevice = if ($UseCpuFallback) { '' } else { Get-EncodeSelectedGpuDevice -VideoFlags $videoFlags }
+    $descriptorSelection = New-EncodeAttemptDescriptorSelectionEvidence `
+        -VideoCodec $VideoCodec `
+        -UseCpuFallback:$UseCpuFallback `
+        -IsHDR:$IsHDR `
+        -SelectedEncoder $selectedEncoder
     $resolvedCpuPreset = if (Get-Command -Name Resolve-MediaPipelineCpuEncodePreset -ErrorAction SilentlyContinue) {
         Resolve-MediaPipelineCpuEncodePreset -Preset $CpuPreset
     } else {
@@ -494,6 +573,7 @@ function New-EncodeAttemptPlan {
             SelectedEncoder = $selectedEncoder
             EncoderKind     = $encoderKind
             SelectedGpuDevice = $selectedGpuDevice
+            DescriptorSelection = $descriptorSelection
             VideoFlags     = @($videoFlags)
             ArgumentList   = @($argumentList)
             CpuPreset      = [string]$resolvedCpuPreset
@@ -515,6 +595,7 @@ function New-EncodeAttemptPlan {
             SelectedEncoder = $selectedEncoder
             EncoderKind     = $encoderKind
             SelectedGpuDevice = $selectedGpuDevice
+            DescriptorSelection = $descriptorSelection
             VideoFlags     = @($videoFlags)
             ArgumentList   = @($argumentList)
             # D4 fix — keep CpuPreset on every plan shape so consumers
@@ -537,6 +618,7 @@ function New-EncodeAttemptPlan {
         SelectedEncoder = $selectedEncoder
         EncoderKind     = $encoderKind
         SelectedGpuDevice = $selectedGpuDevice
+        DescriptorSelection = $descriptorSelection
         VideoFlags     = @($videoFlags)
         ArgumentList   = @($argumentList)
         # D4 fix — keep CpuPreset on every plan shape so consumers iterating

@@ -10,9 +10,11 @@ for the dormant catalog but is not wired into active encoder selection. A synthe
 SDR runtime/topology matrix executes CPU descriptor rows and reports hardware rows
 as opt-in skips by default. A pure descriptor selection resolver now returns
 primary/fallback descriptors plus trace evidence, including family-consistent CPU
-fallback candidates, but is not wired into `Do-Encode`. Config-key changes, fallback
-wiring, full hardware/HDR runtime matrix coverage, and new encoder enablement remain
-incomplete.
+fallback candidates. Encode attempt plans now expose descriptor-selection evidence
+for current HEVC/libx265 parity paths and explicitly mark dormant AV1 selection as
+not yet active, but new families are not wired into the active `Do-Encode` ladder.
+Config-key changes, fallback wiring, full hardware/HDR runtime matrix coverage, and
+new encoder enablement remain incomplete.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -199,7 +201,8 @@ ffprobes first-frame `side_data_list` and returns **x265-formatted** strings:
 - `ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1` — references it too.
 - `ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1` pins active HEVC
   argument parity and descriptor scaffolding, including pure primary/fallback
-  selection resolution that remains unwired from `Do-Encode`.
+  selection resolution and attempt-plan descriptor-selection evidence that remains
+  inactive for dormant AV1.
 - `ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1` verifies the
   descriptor-owned list/runtime probe scaffold, including exact encoder-list matching
   and list-only/runtime cache separation, without enabling dormant descriptors.

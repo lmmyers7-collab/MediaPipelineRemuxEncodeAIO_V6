@@ -409,7 +409,23 @@ foreach ($case in $snapshotCases) {
     Assert-Equal ([string]$plan.SelectedEncoder) ([string]$case.SelectedEncoder) "SelectedEncoder mismatch for $($case.Name)."
     Assert-Equal ([string]$plan.CpuPreset) ([string]$case.CpuPreset) "CpuPreset mismatch for $($case.Name)."
     Assert-Equal ([string]$plan.EncodeLadder) ([string]$case.EncodeLadder) "EncodeLadder mismatch for $($case.Name)."
+    Assert-True ($null -ne $plan.DescriptorSelection) "Descriptor selection evidence missing for $($case.Name)."
+    Assert-Equal ([bool]$plan.DescriptorSelection.Active) $true "HEVC descriptor selection should be active for $($case.Name)."
+    Assert-Equal ([bool]$plan.DescriptorSelection.Resolved) $true "HEVC descriptor selection should resolve for $($case.Name)."
+    Assert-Equal ([string]$plan.DescriptorSelection.Family) 'hevc' "Descriptor family mismatch for $($case.Name)."
+    Assert-Equal ([string]$plan.DescriptorSelection.SelectedEncoder) ([string]$case.SelectedEncoder) "Descriptor selected encoder mismatch for $($case.Name)."
+    $expectedDescriptorRole = if ([string]$case.Attempt -eq 'cpu_fallback') { 'cpu_fallback' } else { 'primary' }
+    Assert-Equal ([string]$plan.DescriptorSelection.Role) $expectedDescriptorRole "Descriptor role mismatch for $($case.Name)."
+    Assert-True (@($plan.DescriptorSelection.ResolutionTrace).Count -gt 0) "Descriptor selection trace missing for $($case.Name)."
 }
+
+$av1LegacyPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc' }
+Assert-Equal ([string]$av1LegacyPlan.SelectedEncoder) 'av1_nvenc' 'Dormant AV1 primary plan should still expose the literal legacy encoder.'
+Assert-Equal ([bool]$av1LegacyPlan.DescriptorSelection.Resolved) $true 'Dormant AV1 descriptor selection should resolve as evidence.'
+Assert-Equal ([bool]$av1LegacyPlan.DescriptorSelection.Active) $false 'Dormant AV1 descriptor selection must not claim active descriptor flag ownership.'
+Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.PrimaryEncoder) 'av1_nvenc' 'Dormant AV1 descriptor primary evidence mismatch.'
+Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.CpuFallbackEncoder) 'libaom-av1' 'Dormant AV1 descriptor fallback evidence mismatch.'
+Assert-True ([string]$av1LegacyPlan.DescriptorSelection.Reason -match 'descriptor flags are not active') 'Dormant AV1 descriptor selection should explain that activation is still disabled.'
 
 $metadataAttempts = @($snapshotCases | Select-Object -ExpandProperty Attempt -Unique)
 Assert-True ($metadataAttempts -contains 'primary') 'Snapshot set must cover primary attempt metadata.'

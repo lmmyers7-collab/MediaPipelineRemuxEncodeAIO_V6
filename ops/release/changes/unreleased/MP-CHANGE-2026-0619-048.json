@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0619-048",
+  "title": "Surface encoder descriptor selection on attempt plans",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "high",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Surface descriptor-selection evidence on pure encode attempt plans while preserving existing FFmpeg argument snapshots and leaving dormant encoders inactive.",
+  "reason": "Encoder breadth activation needs attempt-plan evidence showing when descriptor selection is actually active for current HEVC/libx265 parity paths and when resolved dormant selections are still legacy/inactive before Do-Encode can safely consume broader descriptor choices.",
+  "affected_areas": [
+    "docs",
+    "media-policy",
+    "tests"
+  ],
+  "behavior_before": "Encode attempt plans exposed selected encoder, encoder kind, GPU device, flags, and arguments, but did not carry descriptor-selection evidence tying the plan to the descriptor resolver or distinguishing active HEVC parity from dormant resolved selections.",
+  "behavior_after": "Encode attempt plans include DescriptorSelection evidence with resolution state, family, selected encoder, primary/fallback descriptor names, trace entries, and an Active flag. Current HEVC/NVENC and libx265 parity plans are marked active; dormant AV1 selection resolves as evidence but remains explicitly inactive because descriptor flag activation is still disabled. FFmpeg arguments, retry decisions, and Do-Encode ladder behavior are unchanged.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encode_policy.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-048.json.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/pipeline/engine/decide/encode_policy.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-048.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 470 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1 - passed with existing allowlisted hard findings and warnings only",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index - passed; regenerated PROJECT_INDEX and DEPENDENCY_GRAPH from 1755 summaries",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - passed; 4 written",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0619-048.json - passed; 1 written",
+    "git diff --check - passed",
+    "pwsh -NoProfile -File ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 - failed on pre-existing unrelated failure-code registry gap: NATIVE_ABORTED is emitted by HEAD:ops/pipeline/engine/shared/native.ps1 but absent from HEAD:ops/pipeline/engine/shared/failure_codes.ps1",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 - passed; snapshot count 22",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 - passed",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1 - passed; CPU rows 3, hardware rows 9 opt-in skipped",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Remove New-EncodeAttemptDescriptorSelectionEvidence and the DescriptorSelection property from New-EncodeAttemptPlan return shapes; remove the descriptor-selection evidence assertions; revert docs/status updates and generated summaries. No active FFmpeg argument or Do-Encode ladder behavior is changed by this slice.",
+  "related_changes": [],
+  "notes": "This change intentionally does not activate AV1, QSV, AMF, H.264, or any new backend and does not alter emitted FFmpeg arguments. Real-media validation was not run because active media command behavior remains unchanged.\nReliability wrapper failure was not introduced by this encoder slice; git show HEAD confirms NATIVE_ABORTED already existed in native.ps1 and was absent from failure_codes.ps1 before these changes."
+}
