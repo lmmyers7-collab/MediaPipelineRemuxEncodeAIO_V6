@@ -6,9 +6,10 @@ HEVC/NVENC plus libx265 descriptor parity scaffold. Dormant H.264/NVENC,
 libx264, AV1/NVENC, libaom AV1, QSV, and AMF descriptor entries are cataloged
 with fail-closed unsupported-HDR guards where needed but are not selected by the
 active resolver. Descriptor-owned list/runtime capability-probe scaffolding exists
-for the dormant catalog but is not wired into active encoder selection. Config-key
-changes, fallback changes, command-topology/runtime matrix tests, and new encoder
-enablement remain incomplete.
+for the dormant catalog but is not wired into active encoder selection. A synthetic
+SDR runtime/topology matrix executes CPU descriptor rows and reports hardware rows
+as opt-in skips by default. Config-key changes, fallback changes, full hardware/HDR
+runtime matrix coverage, and new encoder enablement remain incomplete.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -196,6 +197,10 @@ ffprobes first-frame `side_data_list` and returns **x265-formatted** strings:
 - `ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1` verifies the
   descriptor-owned list/runtime probe scaffold, including exact encoder-list matching
   and list-only/runtime cache separation, without enabling dormant descriptors.
+- `ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1` runs one-frame
+  synthetic SDR encodes through descriptor-owned flags for runtime-available CPU
+  rows and leaves hardware descriptor execution opt-in via
+  `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1`.
 - `ops/pipeline/tests/Invoke-AdversarialForceKillEncodeChecks.ps1`.
 - `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1` (130 keys currently).
 - Python: `tests/python/desktop/test_app_config_contract.py`,
@@ -608,6 +613,10 @@ at runtime).
   encoder-list matching and one-frame lavfi runtime probing for descriptor-owned
   availability helpers. It is not the full runtime matrix required before enabling
   new encoder families.
+- Existing scaffold check: `Invoke-EncoderRuntimeMatrixChecks.ps1` runs synthetic SDR
+  descriptor-topology encodes for CPU rows and reports hardware rows as opt-in skips
+  unless `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1` is set. It is not representative
+  real-media validation and does not cover HDR preservation.
 
 ### 7.3 Validation (this is the strictest rung — release gate + real media)
 

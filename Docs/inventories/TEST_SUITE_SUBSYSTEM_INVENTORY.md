@@ -46,6 +46,7 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncoderCapabilityProbeChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncoderRuntimeMatrixChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-NamingSupportChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-PipelineQueueEngineChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-RerunSourceIdentityChecks.ps1
@@ -68,6 +69,8 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 `Invoke-FailureCodeRegistryChecks.ps1` guards the `FailureCodes.ps1` registry: every classifier return code must be known, every registry row must include family/stage/when-fires/retryability/operator severity/handler/operator-action metadata, representative high-risk metadata rows must stay accurate, broader pipeline outcome/error codes emitted by PowerShell surfaces must be known, and unknown-code metadata lookup must fail closed.
 
 `Invoke-EncoderCapabilityProbeChecks.ps1` guards descriptor-owned encoder capability probe helpers: exact ffmpeg encoder-list matching, missing-ffmpeg failure behavior, list-only probe reporting, one-frame lavfi runtime probing for bundled `libaom-av1`, hardware list-only reporting, and list/runtime cache separation. It does not enable dormant encoder descriptors or replace the future per-encoder runtime matrix.
+
+`Invoke-EncoderRuntimeMatrixChecks.ps1` guards descriptor-owned synthetic SDR runtime topology: it builds descriptor flags, runs one-frame lavfi encodes for runtime-available CPU descriptors, verifies ffprobe codec output, and reports hardware rows as explicit opt-in skips unless `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1` is set. It does not enable dormant encoder descriptors, cover HDR preservation, or replace representative real-media validation.
 
 `Invoke-ConfigKeyRegistryChecks.ps1` guards `ConfigKeys.ps1`: the PowerShell config-key registry must stay in the same order as `ConfigSchema.ps1`, template/live PSD1 files may not contain unknown keys, helper lookups must fail closed, and literal PowerShell `$config[...]`, `$config.ContainsKey(...)`, and `Get-Config*` call sites may not reference unknown config keys. `test_config_keys.py` also guards Python-side Network runtime and settings/media-policy raw registered-key lookups, plus a package-wide registered-key raw-lookup scan across `mediapipeline.desktop`.
 
