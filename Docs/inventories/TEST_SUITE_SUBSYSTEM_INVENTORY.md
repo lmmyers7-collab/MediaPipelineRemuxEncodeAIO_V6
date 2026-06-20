@@ -69,7 +69,7 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 
 `Invoke-FailureCodeRegistryChecks.ps1` guards the `FailureCodes.ps1` registry: every classifier return code must be known, every registry row must include family/stage/when-fires/retryability/operator severity/handler/operator-action metadata, representative high-risk metadata rows must stay accurate, broader pipeline outcome/error codes emitted by PowerShell surfaces must be known, and unknown-code metadata lookup must fail closed.
 
-`Invoke-EncodeFlagPolicyChecks.ps1` guards encode argument parity and descriptor scaffolding: current HEVC/NVENC and libx265 attempt snapshots remain unchanged, dormant descriptor flag shapes fail closed where required, retry classification covers NVENC/QSV/AMF signatures, and descriptor-owned CPU fallback target resolution stays family-consistent without activating new encoder families.
+`Invoke-EncodeFlagPolicyChecks.ps1` guards encode argument parity and descriptor scaffolding: current HEVC/NVENC and libx265 attempt snapshots remain unchanged, dormant descriptor flag shapes fail closed where required, retry classification covers NVENC/QSV/AMF signatures, and descriptor-owned primary/fallback selection resolution stays family-consistent without activating new encoder families.
 
 `Invoke-EncoderCapabilityProbeChecks.ps1` guards descriptor-owned encoder capability probe helpers: exact ffmpeg encoder-list matching, missing-ffmpeg failure behavior, list-only probe reporting, one-frame lavfi runtime probing for bundled `libaom-av1`, hardware list-only reporting, and list/runtime cache separation. It does not enable dormant encoder descriptors or replace the future per-encoder runtime matrix.
 

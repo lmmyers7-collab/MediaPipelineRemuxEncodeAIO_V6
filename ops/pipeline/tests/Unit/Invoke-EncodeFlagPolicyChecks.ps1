@@ -436,6 +436,22 @@ Assert-Equal ([string]$hevcFallbackTarget.Family) 'hevc' 'HEVC fallback target f
 Assert-Equal ([string]$hevcFallbackTarget.EncoderName) 'libx265' 'HEVC fallback target encoder mismatch.'
 Assert-Equal ([bool]$hevcFallbackTarget.HdrBlocked) $false 'HEVC fallback target should not be HDR-blocked.'
 
+$hevcAutoSelection = Resolve-MediaEncoderSelection -VideoCodec 'hevc_nvenc'
+Assert-Equal ([bool]$hevcAutoSelection.Resolved) $true 'HEVC auto selection should resolve.'
+Assert-Equal ([string]$hevcAutoSelection.PrimaryDescriptor.EncoderName) 'hevc_nvenc' 'HEVC auto primary descriptor mismatch.'
+Assert-Equal ([string]$hevcAutoSelection.CpuFallbackDescriptor.EncoderName) 'libx265' 'HEVC auto fallback descriptor mismatch.'
+
+$hevcQsvSelection = Resolve-MediaEncoderSelection -VideoCodec 'hevc_nvenc' -EncoderBackend 'qsv'
+Assert-Equal ([bool]$hevcQsvSelection.Resolved) $true 'Concrete HEVC/QSV selection should resolve as a scaffold.'
+Assert-Equal ([string]$hevcQsvSelection.PrimaryDescriptor.EncoderName) 'hevc_qsv' 'Concrete HEVC/QSV primary descriptor mismatch.'
+Assert-Equal ([string]$hevcQsvSelection.CpuFallbackDescriptor.EncoderName) 'libx265' 'Concrete HEVC/QSV fallback descriptor mismatch.'
+
+$hevcQsvUnavailable = Resolve-MediaEncoderSelection -VideoCodec 'hevc_nvenc' -EncoderBackend 'qsv' -CapabilityProbe { param($Descriptor) [pscustomobject]@{ Available = $false; Reason = "probe rejected $($Descriptor.EncoderName)" } }
+Assert-Equal ([bool]$hevcQsvUnavailable.Resolved) $true 'Unavailable HEVC/QSV selection should still expose the safe CPU fallback.'
+Assert-Equal ($null -eq $hevcQsvUnavailable.PrimaryDescriptor) $true 'Unavailable HEVC/QSV selection must not expose a primary descriptor.'
+Assert-Equal ([string]$hevcQsvUnavailable.CpuFallbackDescriptor.EncoderName) 'libx265' 'Unavailable HEVC/QSV fallback descriptor mismatch.'
+Assert-True ([string]$hevcQsvUnavailable.Reason -match 'probe rejected hevc_qsv') 'Unavailable HEVC/QSV selection should preserve probe reason.'
+
 $h264NvencDescriptor = Get-MediaEncoderDescriptor -Family 'h264' -Backend 'nvenc'
 Assert-True ($null -ne $h264NvencDescriptor) 'Dormant H.264/NVENC descriptor must exist before activation work.'
 Assert-Equal ([string]$h264NvencDescriptor.EncoderName) 'h264_nvenc' 'H.264/NVENC descriptor encoder mismatch.'
@@ -466,6 +482,11 @@ Assert-Equal ([string]$h264FallbackTarget.EncoderName) 'libx264' 'H.264 fallback
 $h264HdrFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'h264_nvenc' -IsHDR:$true
 Assert-Equal ([bool]$h264HdrFallbackTarget.Resolved) $false 'H.264 HDR fallback target must stay blocked until HDR preservation is proven.'
 Assert-Equal ([bool]$h264HdrFallbackTarget.HdrBlocked) $true 'H.264 HDR fallback target should report HDR blocking.'
+
+$h264HdrSelection = Resolve-MediaEncoderSelection -VideoCodec 'h264_nvenc' -IsHDR:$true
+Assert-Equal ([bool]$h264HdrSelection.Resolved) $false 'H.264 HDR selection must fail closed because neither primary nor CPU fallback carries HDR10 metadata.'
+Assert-Equal ($null -eq $h264HdrSelection.PrimaryDescriptor) $true 'H.264 HDR selection must not expose a primary descriptor.'
+Assert-Equal ($null -eq $h264HdrSelection.CpuFallbackDescriptor) $true 'H.264 HDR selection must not expose an unsafe CPU fallback descriptor.'
 
 $h264CpuFlags = @(New-EncoderVideoFlags `
     -Descriptor $h264CpuDescriptor `
@@ -522,6 +543,31 @@ Assert-Equal ([bool]$av1HdrFallbackTarget.HdrBlocked) $true 'AV1 HDR fallback ta
 $unknownFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'vp9_nvenc'
 Assert-Equal ([bool]$unknownFallbackTarget.Resolved) $false 'Unknown fallback target must fail closed.'
 Assert-Equal ([string]$unknownFallbackTarget.Family) '' 'Unknown fallback target family should be empty.'
+
+$av1AutoSelection = Resolve-MediaEncoderSelection -VideoCodec 'av1_nvenc'
+Assert-Equal ([bool]$av1AutoSelection.Resolved) $true 'AV1 auto selection should resolve as a dormant scaffold.'
+Assert-Equal ([string]$av1AutoSelection.PrimaryDescriptor.EncoderName) 'av1_nvenc' 'AV1 auto primary descriptor mismatch.'
+Assert-Equal ([string]$av1AutoSelection.CpuFallbackDescriptor.EncoderName) 'libaom-av1' 'AV1 auto fallback descriptor mismatch.'
+
+$av1HdrSelection = Resolve-MediaEncoderSelection -VideoCodec 'av1_nvenc' -IsHDR:$true
+Assert-Equal ([bool]$av1HdrSelection.Resolved) $true 'AV1/NVENC HDR selection should resolve while CPU fallback stays blocked.'
+Assert-Equal ([string]$av1HdrSelection.PrimaryDescriptor.EncoderName) 'av1_nvenc' 'AV1/NVENC HDR primary descriptor mismatch.'
+Assert-Equal ($null -eq $av1HdrSelection.CpuFallbackDescriptor) $true 'AV1/NVENC HDR selection must not expose HDR-blocked libaom fallback.'
+
+$libaomHdrSelection = Resolve-MediaEncoderSelection -VideoCodec 'libaom-av1' -IsHDR:$true
+Assert-Equal ([bool]$libaomHdrSelection.Resolved) $false 'libaom AV1 HDR selection must fail closed until HDR preservation is proven.'
+
+$svtAv1Selection = Resolve-MediaEncoderSelection -VideoCodec 'libsvtav1'
+Assert-Equal ([bool]$svtAv1Selection.Resolved) $false 'SVT-AV1 selection must fail closed until an explicit descriptor exists.'
+Assert-True ([string]$svtAv1Selection.Reason -match 'unsupported encoder backend') 'SVT-AV1 selection should explain the missing backend descriptor.'
+Assert-Equal ($null -eq $svtAv1Selection.PrimaryDescriptor) $true 'SVT-AV1 selection must not expose a primary descriptor.'
+Assert-Equal ($null -eq $svtAv1Selection.CpuFallbackDescriptor) $true 'SVT-AV1 selection must not expose a fallback descriptor without a supported backend.'
+
+$unknownBackendSelection = Resolve-MediaEncoderSelection -VideoCodec 'hevc_nvenc' -EncoderBackend 'bogus'
+Assert-Equal ([bool]$unknownBackendSelection.Resolved) $false 'Unknown concrete backend must fail closed.'
+Assert-True ([string]$unknownBackendSelection.Reason -match 'unsupported encoder backend') 'Unknown backend selection should explain the invalid backend.'
+Assert-Equal ($null -eq $unknownBackendSelection.PrimaryDescriptor) $true 'Unknown backend selection must not expose a primary descriptor.'
+Assert-Equal ($null -eq $unknownBackendSelection.CpuFallbackDescriptor) $true 'Unknown backend selection must not expose a fallback descriptor.'
 
 $av1CpuFlags = @(New-EncoderVideoFlags `
     -Descriptor $av1CpuDescriptor `

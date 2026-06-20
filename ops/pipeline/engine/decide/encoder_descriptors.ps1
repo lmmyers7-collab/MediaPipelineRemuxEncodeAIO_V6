@@ -344,6 +344,35 @@ function Resolve-MediaEncoderFamilyForCodec {
     return ''
 }
 
+function Resolve-MediaEncoderBackendForCodec {
+    param(
+        [string] $VideoCodec = ''
+    )
+
+    $codec = if ($VideoCodec) { $VideoCodec.Trim().ToLowerInvariant() } else { '' }
+    $libx265Name = if (Get-Command -Name Get-MediaVideoCodecLibx265Name -ErrorAction SilentlyContinue) {
+        (Get-MediaVideoCodecLibx265Name).Trim().ToLowerInvariant()
+    } else {
+        'libx265'
+    }
+    if ($codec -eq $libx265Name) { return 'cpu' }
+    $backendByCodec = @{
+        hevc_nvenc  = 'nvenc'
+        hevc_qsv    = 'qsv'
+        hevc_amf    = 'amf'
+        h264_nvenc  = 'nvenc'
+        h264_qsv    = 'qsv'
+        h264_amf    = 'amf'
+        libx264     = 'cpu'
+        av1_nvenc   = 'nvenc'
+        av1_qsv     = 'qsv'
+        av1_amf     = 'amf'
+        'libaom-av1' = 'cpu'
+    }
+    if ($backendByCodec.ContainsKey($codec)) { return [string]$backendByCodec[$codec] }
+    return ''
+}
+
 function Resolve-MediaEncoderCpuFallbackDescriptor {
     param(
         [string] $VideoCodec = '',
@@ -384,6 +413,156 @@ function Resolve-MediaEncoderCpuFallbackDescriptor {
 
     $result.Resolved = $true
     $result.Reason = "resolved CPU fallback descriptor '$family/cpu'"
+    return $result
+}
+
+function New-MediaEncoderSelectionTraceEntry {
+    param(
+        [Parameter(Mandatory)] [string] $Stage,
+        [Parameter(Mandatory)] [string] $Status,
+        [Parameter(Mandatory)] [string] $Message,
+        $Descriptor = $null,
+        [string] $Family = '',
+        [string] $Backend = '',
+        [string] $EncoderName = ''
+    )
+
+    if ($null -ne $Descriptor) {
+        if ([string]::IsNullOrWhiteSpace($Family)) { $Family = [string]$Descriptor.Family }
+        if ([string]::IsNullOrWhiteSpace($Backend)) { $Backend = [string]$Descriptor.Backend }
+        if ([string]::IsNullOrWhiteSpace($EncoderName)) { $EncoderName = [string]$Descriptor.EncoderName }
+    }
+
+    return [pscustomobject][ordered]@{
+        Stage       = $Stage
+        Status      = $Status
+        Message     = $Message
+        Family      = $Family
+        Backend     = $Backend
+        EncoderName = $EncoderName
+    }
+}
+
+function Test-MediaEncoderCapabilityProbeValue {
+    param(
+        $ProbeResult
+    )
+
+    if ($null -eq $ProbeResult) { return $false }
+    if ($ProbeResult -is [bool]) { return [bool]$ProbeResult }
+    if ($ProbeResult.PSObject.Properties['Available']) { return [bool]$ProbeResult.Available }
+    if ($ProbeResult.PSObject.Properties['RuntimeOk']) { return [bool]$ProbeResult.RuntimeOk }
+    return $false
+}
+
+function Resolve-MediaEncoderSelection {
+    param(
+        [string] $VideoCodec = '',
+        [string] $EncoderBackend = 'auto',
+        [bool] $IsHDR = $false,
+        [scriptblock] $CapabilityProbe = $null
+    )
+
+    $codec = if ($VideoCodec) { $VideoCodec.Trim().ToLowerInvariant() } else { '' }
+    $backend = if ($EncoderBackend) { $EncoderBackend.Trim().ToLowerInvariant() } else { 'auto' }
+    if ([string]::IsNullOrWhiteSpace($backend)) { $backend = 'auto' }
+    $trace = @()
+    $result = [pscustomobject][ordered]@{
+        Resolved              = $false
+        Reason                = ''
+        VideoCodec            = [string]$VideoCodec
+        EncoderBackend        = [string]$backend
+        Family                = ''
+        PrimaryDescriptor     = $null
+        CpuFallbackDescriptor = $null
+        ResolutionTrace       = @()
+    }
+
+    $family = Resolve-MediaEncoderFamilyForCodec -VideoCodec $codec
+    $result.Family = [string]$family
+    if ([string]::IsNullOrWhiteSpace($family)) {
+        $result.Reason = "unsupported encoder family for codec '$VideoCodec'"
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'family' -Status 'blocked' -Message $result.Reason
+        $result.ResolutionTrace = @($trace)
+        return $result
+    }
+    $trace += New-MediaEncoderSelectionTraceEntry -Stage 'family' -Status 'resolved' -Message "resolved family '$family'" -Family $family
+
+    $fallback = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec $codec -IsHDR:$IsHDR
+    if ($fallback.Descriptor -and -not [bool]$fallback.HdrBlocked) {
+        $result.CpuFallbackDescriptor = $fallback.Descriptor
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'cpu_fallback' -Status 'resolved' -Message $fallback.Reason -Descriptor $fallback.Descriptor
+    } elseif ($fallback.HdrBlocked) {
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'cpu_fallback' -Status 'blocked' -Message $fallback.Reason -Family $family -Backend 'cpu' -EncoderName ([string]$fallback.EncoderName)
+    } else {
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'cpu_fallback' -Status 'blocked' -Message $fallback.Reason -Family $family -Backend 'cpu'
+    }
+
+    $primaryBackend = ''
+    if ($backend -eq 'auto') {
+        $primaryBackend = Resolve-MediaEncoderBackendForCodec -VideoCodec $codec
+        if ([string]::IsNullOrWhiteSpace($primaryBackend)) {
+            $result.Reason = "unsupported encoder backend for codec '$VideoCodec'"
+            $trace += New-MediaEncoderSelectionTraceEntry -Stage 'primary' -Status 'blocked' -Message $result.Reason -Family $family
+            $result.Resolved = $false
+            $result.CpuFallbackDescriptor = $null
+            $result.ResolutionTrace = @($trace)
+            return $result
+        }
+    } elseif ($backend -in @('cpu', 'nvenc', 'qsv', 'amf')) {
+        $primaryBackend = $backend
+    } else {
+        $result.Reason = "unsupported encoder backend '$EncoderBackend'"
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'primary' -Status 'blocked' -Message $result.Reason -Family $family
+        $result.Resolved = $false
+        $result.CpuFallbackDescriptor = $null
+        $result.ResolutionTrace = @($trace)
+        return $result
+    }
+
+    $primary = Get-MediaEncoderDescriptor -Family $family -Backend $primaryBackend
+    if ($null -eq $primary) {
+        $result.Reason = "missing primary descriptor for '$family/$primaryBackend'"
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'primary' -Status 'blocked' -Message $result.Reason -Family $family -Backend $primaryBackend
+        $result.Resolved = $false
+        $result.ResolutionTrace = @($trace)
+        return $result
+    }
+
+    if ($backend -eq 'auto' -and $primaryBackend -eq 'cpu' -and ([string]$primary.EncoderName).Trim().ToLowerInvariant() -ne $codec) {
+        $result.Reason = "literal CPU codec '$VideoCodec' does not match descriptor encoder '$($primary.EncoderName)'"
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'primary' -Status 'blocked' -Message $result.Reason -Descriptor $primary
+        $result.Resolved = $false
+        $result.ResolutionTrace = @($trace)
+        return $result
+    }
+
+    if ($IsHDR -and -not [bool]$primary.SupportsHdr10Metadata) {
+        $result.Reason = "primary descriptor '$family/$primaryBackend' does not support HDR10 metadata preservation"
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'primary' -Status 'blocked' -Message $result.Reason -Descriptor $primary
+        $result.Resolved = ($null -ne $result.CpuFallbackDescriptor)
+        $result.ResolutionTrace = @($trace)
+        return $result
+    }
+
+    if ($CapabilityProbe -and $primaryBackend -ne 'cpu') {
+        $probeResult = & $CapabilityProbe $primary
+        if (-not (Test-MediaEncoderCapabilityProbeValue -ProbeResult $probeResult)) {
+            $probeReason = if ($probeResult -and $probeResult.PSObject.Properties['Reason']) { [string]$probeResult.Reason } else { "capability probe rejected '$($primary.EncoderName)'" }
+            $result.Reason = $probeReason
+            $trace += New-MediaEncoderSelectionTraceEntry -Stage 'capability' -Status 'blocked' -Message $probeReason -Descriptor $primary
+            $result.Resolved = ($null -ne $result.CpuFallbackDescriptor)
+            $result.ResolutionTrace = @($trace)
+            return $result
+        }
+        $trace += New-MediaEncoderSelectionTraceEntry -Stage 'capability' -Status 'available' -Message "capability probe accepted '$($primary.EncoderName)'" -Descriptor $primary
+    }
+
+    $result.PrimaryDescriptor = $primary
+    $result.Resolved = $true
+    $result.Reason = "resolved primary descriptor '$family/$primaryBackend'"
+    $trace += New-MediaEncoderSelectionTraceEntry -Stage 'primary' -Status 'resolved' -Message $result.Reason -Descriptor $primary
+    $result.ResolutionTrace = @($trace)
     return $result
 }
 
