@@ -1,8 +1,10 @@
 # ==============================================================================
 # ops\pipeline\engine\decide\encoder_descriptors.ps1
 # ==============================================================================
-# Data-first encoder descriptors. Phase 1 intentionally covers only the existing
-# supported HEVC/NVENC primary path and libx265 CPU fallback path.
+# Data-first encoder descriptors. The active resolver intentionally routes only
+# the existing HEVC/NVENC primary path and libx265 CPU fallback path through the
+# descriptor builder. Dormant descriptors may describe future supported pairs
+# before route selection is allowed to activate them.
 # ==============================================================================
 
 function Get-MediaEncoderDescriptor {
@@ -13,9 +15,7 @@ function Get-MediaEncoderDescriptor {
 
     $normalizedFamily = if ($Family) { $Family.Trim().ToLowerInvariant() } else { '' }
     $normalizedBackend = if ($Backend) { $Backend.Trim().ToLowerInvariant() } else { '' }
-    if ($normalizedFamily -ne 'hevc') { return $null }
-
-    if ($normalizedBackend -eq 'nvenc') {
+    if ($normalizedFamily -eq 'hevc' -and $normalizedBackend -eq 'nvenc') {
         return [pscustomobject][ordered]@{
             EncoderName            = 'hevc_nvenc'
             Family                 = 'hevc'
@@ -40,7 +40,7 @@ function Get-MediaEncoderDescriptor {
         }
     }
 
-    if ($normalizedBackend -eq 'cpu') {
+    if ($normalizedFamily -eq 'hevc' -and $normalizedBackend -eq 'cpu') {
         $encoderName = if (Get-Command -Name Get-MediaVideoCodecLibx265Name -ErrorAction SilentlyContinue) {
             Get-MediaVideoCodecLibx265Name
         } else {
@@ -61,6 +61,44 @@ function Get-MediaEncoderDescriptor {
             ProbeEncoderName       = 'libx265'
             FailurePatternKind     = 'none'
             ContainerNotes         = 'Existing libx265 CPU fallback behavior; descriptor path must remain argument-identical.'
+        }
+    }
+
+    if ($normalizedFamily -eq 'h264' -and $normalizedBackend -eq 'nvenc') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'h264_nvenc'
+            Family                 = 'h264'
+            Backend                = 'nvenc'
+            RateControlKind        = 'nvenc_cq'
+            QualityOffset          = 0
+            UsesVbv                = $true
+            PresetMap              = @{}
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @('-profile:v', 'high')
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'h264_nvenc'
+            FailurePatternKind     = 'nvenc'
+            ContainerNotes         = 'Dormant H.264 NVENC descriptor; not selected by the active parity resolver.'
+        }
+    }
+
+    if ($normalizedFamily -eq 'h264' -and $normalizedBackend -eq 'cpu') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'libx264'
+            Family                 = 'h264'
+            Backend                = 'cpu'
+            RateControlKind        = 'x264_crf'
+            QualityOffset          = 0
+            UsesVbv                = $false
+            PresetMap              = @{}
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @('-profile:v', 'high')
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'libx264'
+            FailurePatternKind     = 'none'
+            ContainerNotes         = 'Dormant x264 CPU descriptor; not selected by the active parity resolver.'
         }
     }
 
@@ -111,6 +149,10 @@ function New-EncoderVideoFlags {
         [string] $Hdr10MaxCll = ''
     )
 
+    if ($IsHDR -and -not [bool]$Descriptor.SupportsHdr10Metadata) {
+        throw "Encoder descriptor '$($Descriptor.Family)/$($Descriptor.Backend)' does not support HDR10 metadata preservation."
+    }
+
     $ladderProfile = Get-MediaEncodeLadderProfile -Ladder $EncodeLadder -IsTV:$IsTV
     $effectiveVideoQuality = Get-MediaEncodeBoundedQuality -Quality ([int]$VideoQuality + [int]$ladderProfile.quality_delta + [int]$Descriptor.QualityOffset)
     $cpuLadderDelta = [int][math]::Round([double]$ladderProfile.quality_delta / 2.0, [System.MidpointRounding]::AwayFromZero)
@@ -132,27 +174,6 @@ function New-EncoderVideoFlags {
             $textPreset = if ($CpuPreset) { $CpuPreset.Trim().ToLowerInvariant() } else { '' }
             if ([string]::IsNullOrWhiteSpace($textPreset)) { 'medium' } else { $textPreset }
         }
-        $x265ParamPairs = [System.Collections.Generic.List[string]]::new()
-        $x265ParamPairs.Add('log-level=error')
-        if ($CpuMaxThreads -gt 0) {
-            $frameThreads = [int][math]::Max(1, [math]::Ceiling([double]$CpuMaxThreads / 4.0))
-            $x265ParamPairs.Add("pools=$CpuMaxThreads")
-            $x265ParamPairs.Add("frame-threads=$frameThreads")
-        }
-        if ($IsHDR) {
-            $x265ParamPairs.Add('hdr10=1')
-            $x265ParamPairs.Add('hdr10-opt=1')
-            $x265ParamPairs.Add('repeat-headers=1')
-            $x265ParamPairs.Add('colorprim=bt2020')
-            $x265ParamPairs.Add('transfer=smpte2084')
-            $x265ParamPairs.Add('colormatrix=bt2020nc')
-            if (-not [string]::IsNullOrWhiteSpace($Hdr10MasterDisplay)) {
-                $x265ParamPairs.Add("master-display=$Hdr10MasterDisplay")
-            }
-            if (-not [string]::IsNullOrWhiteSpace($Hdr10MaxCll)) {
-                $x265ParamPairs.Add("max-cll=$Hdr10MaxCll")
-            }
-        }
         $flags = @(
             '-c:v', [string]$Descriptor.EncoderName,
             '-preset', $resolvedCpuPreset,
@@ -161,8 +182,36 @@ function New-EncoderVideoFlags {
         if ($CpuMaxThreads -gt 0) {
             $flags += @('-threads', [string]$CpuMaxThreads)
         }
-        $flags += @('-x265-params', ($x265ParamPairs -join ':'))
+        if ([string]$Descriptor.RateControlKind -eq 'x265_crf') {
+            $x265ParamPairs = [System.Collections.Generic.List[string]]::new()
+            $x265ParamPairs.Add('log-level=error')
+            if ($CpuMaxThreads -gt 0) {
+                $frameThreads = [int][math]::Max(1, [math]::Ceiling([double]$CpuMaxThreads / 4.0))
+                $x265ParamPairs.Add("pools=$CpuMaxThreads")
+                $x265ParamPairs.Add("frame-threads=$frameThreads")
+            }
+            if ($IsHDR) {
+                $x265ParamPairs.Add('hdr10=1')
+                $x265ParamPairs.Add('hdr10-opt=1')
+                $x265ParamPairs.Add('repeat-headers=1')
+                $x265ParamPairs.Add('colorprim=bt2020')
+                $x265ParamPairs.Add('transfer=smpte2084')
+                $x265ParamPairs.Add('colormatrix=bt2020nc')
+                if (-not [string]::IsNullOrWhiteSpace($Hdr10MasterDisplay)) {
+                    $x265ParamPairs.Add("master-display=$Hdr10MasterDisplay")
+                }
+                if (-not [string]::IsNullOrWhiteSpace($Hdr10MaxCll)) {
+                    $x265ParamPairs.Add("max-cll=$Hdr10MaxCll")
+                }
+            }
+            $flags += @('-x265-params', ($x265ParamPairs -join ':'))
+        } elseif ([string]$Descriptor.RateControlKind -ne 'x264_crf') {
+            throw "Unsupported CPU encoder rate-control kind '$($Descriptor.RateControlKind)'."
+        }
     } else {
+        if ([string]$Descriptor.RateControlKind -ne 'nvenc_cq') {
+            throw "Unsupported hardware encoder rate-control kind '$($Descriptor.RateControlKind)'."
+        }
         $flags = @(
             '-c:v', [string]$Descriptor.EncoderName,
             '-preset', $VideoPreset,

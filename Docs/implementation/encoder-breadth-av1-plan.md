@@ -2,9 +2,10 @@
 
 Date: 2026-06-11
 Status: in progress. Phase 0 encode-flag snapshots exist, and Phase 1 now has a
-HEVC/NVENC plus libx265 descriptor parity scaffold. No AV1/QSV/AMF descriptors,
-capability probing, config-key changes, fallback changes, or new encoder enablement
-are complete.
+HEVC/NVENC plus libx265 descriptor parity scaffold. Dormant H.264/NVENC and
+libx264 descriptor entries are cataloged with fail-closed HDR guards but are not
+selected by the active resolver. No AV1/QSV/AMF descriptors, capability probing,
+config-key changes, fallback changes, or new encoder enablement are complete.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -383,11 +384,12 @@ report the snapshot count and any surprises found while snapshotting.
 ## 5. Phase 1 — encoder-descriptor refactor (behavior-identical)
 
 Status: partial. `ops/pipeline/engine/decide/encoder_descriptors.ps1` defines the
-existing HEVC/NVENC primary and libx265 CPU fallback descriptors, the canonical
+existing HEVC/NVENC primary and libx265 CPU fallback descriptors, plus dormant
+H.264/NVENC and libx264 descriptors for future activation work. The canonical
 module loader registers it before `EncodePolicy.ps1`, and `New-EncodeVideoFlags`
-delegates to the descriptor path only for those two already-supported cases. Unknown
-or not-yet-enabled encoders still use the legacy branch so Phase 0 snapshots remain
-unchanged.
+delegates to the descriptor path only for the two already-supported HEVC cases.
+Unknown, H.264, AV1, and not-yet-enabled encoders still use the legacy branch so
+Phase 0 snapshots remain unchanged.
 
 **Intent:** restructure `New-EncodeVideoFlags` around descriptors without changing a
 single emitted argument. Phase 0 snapshots prove it.
