@@ -428,9 +428,6 @@ Assert-Equal ([string]$hevcCpuDescriptor.EncoderName) 'libx265' 'HEVC/CPU descri
 Assert-Equal ([string]$hevcCpuDescriptor.RateControlKind) 'x265_crf' 'HEVC/CPU descriptor rate-control mismatch.'
 Assert-Equal ([bool]$hevcCpuDescriptor.UsesVbv) $false 'HEVC/CPU descriptor must preserve no-VBV CRF behavior.'
 
-Assert-True ($null -eq (Get-MediaEncoderDescriptor -Family 'av1' -Backend 'nvenc')) 'AV1 descriptor must stay absent until its dedicated phase.'
-Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'av1_nvenc' -UseCpuFallback:$false)) 'AV1 NVENC must keep the legacy branch in the parity scaffold.'
-
 $h264NvencDescriptor = Get-MediaEncoderDescriptor -Family 'h264' -Backend 'nvenc'
 Assert-True ($null -ne $h264NvencDescriptor) 'Dormant H.264/NVENC descriptor must exist before activation work.'
 Assert-Equal ([string]$h264NvencDescriptor.EncoderName) 'h264_nvenc' 'H.264/NVENC descriptor encoder mismatch.'
@@ -463,6 +460,47 @@ $h264CpuFlags = @(New-EncoderVideoFlags `
     -CpuMaxThreads 8)
 Assert-Equal (@($h264CpuFlags) -join '|') '-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high' 'Dormant H.264/CPU descriptor flags mismatch.'
 Assert-Throws { New-EncoderVideoFlags -Descriptor $h264CpuDescriptor -IsHDR:$true -VideoCodec 'libx264' -VideoPreset 'p7' -VideoQuality 22 | Out-Null } 'H.264/CPU HDR use must fail closed until HDR preservation is proven.'
+
+$av1NvencDescriptor = Get-MediaEncoderDescriptor -Family 'av1' -Backend 'nvenc'
+Assert-True ($null -ne $av1NvencDescriptor) 'Dormant AV1/NVENC descriptor must exist before activation work.'
+Assert-Equal ([string]$av1NvencDescriptor.EncoderName) 'av1_nvenc' 'AV1/NVENC descriptor encoder mismatch.'
+Assert-Equal ([string]$av1NvencDescriptor.RateControlKind) 'nvenc_cq' 'AV1/NVENC descriptor rate-control mismatch.'
+Assert-Equal ([bool]$av1NvencDescriptor.SupportsHdr10Metadata) $true 'AV1/NVENC descriptor should be able to carry HDR10 color metadata.'
+Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'av1_nvenc' -UseCpuFallback:$false)) 'AV1/NVENC must keep the legacy branch until activation work.'
+
+$av1NvencSdrFlags = @(New-EncoderVideoFlags `
+    -Descriptor $av1NvencDescriptor `
+    -VideoCodec 'av1_nvenc' `
+    -VideoPreset 'p7' `
+    -VideoQuality 22)
+Assert-Equal (@($av1NvencSdrFlags) -join '|') '-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M' 'Dormant AV1/NVENC SDR descriptor flags mismatch.'
+Assert-True (-not (@($av1NvencSdrFlags) -contains '-profile:v')) 'AV1/NVENC must not inherit HEVC profile flags for SDR.'
+
+$av1NvencHdrFlags = @(New-EncoderVideoFlags `
+    -Descriptor $av1NvencDescriptor `
+    -IsHDR:$true `
+    -VideoCodec 'av1_nvenc' `
+    -VideoPreset 'p7' `
+    -VideoQuality 22)
+Assert-Equal (@($av1NvencHdrFlags) -join '|') '-c:v|av1_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc' 'Dormant AV1/NVENC HDR descriptor flags mismatch.'
+Assert-True (-not (@($av1NvencHdrFlags) -contains '-profile:v')) 'AV1/NVENC HDR must omit HEVC-style main10 profile flags.'
+
+$av1CpuDescriptor = Get-MediaEncoderDescriptor -Family 'av1' -Backend 'cpu'
+Assert-True ($null -ne $av1CpuDescriptor) 'Dormant AV1/CPU descriptor must exist before activation work.'
+Assert-Equal ([string]$av1CpuDescriptor.EncoderName) 'libaom-av1' 'AV1/CPU descriptor encoder mismatch.'
+Assert-Equal ([string]$av1CpuDescriptor.RateControlKind) 'aom_crf' 'AV1/CPU descriptor rate-control mismatch.'
+Assert-Equal ([bool]$av1CpuDescriptor.SupportsHdr10Metadata) $false 'libaom AV1 descriptor must not claim HDR10 metadata support.'
+Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libaom-av1' -UseCpuFallback:$true)) 'AV1/CPU must keep the legacy CPU branch until activation work.'
+
+$av1CpuFlags = @(New-EncoderVideoFlags `
+    -Descriptor $av1CpuDescriptor `
+    -VideoCodec 'libaom-av1' `
+    -VideoPreset 'p7' `
+    -VideoQuality 22 `
+    -FallbackCpuQuality 20 `
+    -CpuMaxThreads 8)
+Assert-Equal (@($av1CpuFlags) -join '|') '-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8' 'Dormant AV1/CPU descriptor flags mismatch.'
+Assert-Throws { New-EncoderVideoFlags -Descriptor $av1CpuDescriptor -IsHDR:$true -VideoCodec 'libaom-av1' -VideoPreset 'p7' -VideoQuality 22 | Out-Null } 'AV1/CPU HDR use must fail closed until HDR preservation is proven.'
 
 $retryCases = @(
     @{ Name = 'success does not retry'; Success = $true; StopRequested = $false; ForceCpu = $false; VideoCodec = 'hevc_nvenc'; ErrorText = 'No NVENC capable devices found'; Expected = $false },

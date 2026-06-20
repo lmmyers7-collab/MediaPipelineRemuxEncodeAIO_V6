@@ -102,6 +102,57 @@ function Get-MediaEncoderDescriptor {
         }
     }
 
+    if ($normalizedFamily -eq 'av1' -and $normalizedBackend -eq 'nvenc') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'av1_nvenc'
+            Family                 = 'av1'
+            Backend                = 'nvenc'
+            RateControlKind        = 'nvenc_cq'
+            QualityOffset          = 0
+            UsesVbv                = $true
+            PresetMap              = @{}
+            HdrHandlerKind         = 'libav_side_data'
+            SupportsHdr10Metadata  = $true
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @(
+                '-pix_fmt', 'p010le',
+                '-color_primaries', 'bt2020',
+                '-color_trc', 'smpte2084',
+                '-colorspace', 'bt2020nc'
+            )
+            ProbeEncoderName       = 'av1_nvenc'
+            FailurePatternKind     = 'nvenc'
+            ContainerNotes         = 'Dormant AV1 NVENC descriptor; omits HEVC-style main10 profile flag.'
+        }
+    }
+
+    if ($normalizedFamily -eq 'av1' -and $normalizedBackend -eq 'cpu') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'libaom-av1'
+            Family                 = 'av1'
+            Backend                = 'cpu'
+            RateControlKind        = 'aom_crf'
+            QualityOffset          = 2
+            UsesVbv                = $false
+            PresetMap              = @{
+                p1 = '8'
+                p2 = '7'
+                p3 = '6'
+                p4 = '5'
+                p5 = '4'
+                p6 = '2'
+                p7 = '1'
+            }
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'libaom-av1'
+            FailurePatternKind     = 'none'
+            ContainerNotes         = 'Dormant libaom AV1 descriptor; not selected by the active parity resolver.'
+        }
+    }
+
     return $null
 }
 
@@ -167,6 +218,12 @@ function New-EncoderVideoFlags {
     }
 
     $isCpuDescriptor = ([string]$Descriptor.Backend -eq 'cpu')
+    $presetMap = $Descriptor.PresetMap
+    $mappedVideoPreset = if ($presetMap -and $presetMap.ContainsKey($VideoPreset)) {
+        [string]$presetMap[$VideoPreset]
+    } else {
+        [string]$VideoPreset
+    }
     if ($isCpuDescriptor) {
         $resolvedCpuPreset = if (Get-Command -Name Resolve-MediaPipelineCpuEncodePreset -ErrorAction SilentlyContinue) {
             Resolve-MediaPipelineCpuEncodePreset -Preset $CpuPreset
@@ -205,6 +262,16 @@ function New-EncoderVideoFlags {
                 }
             }
             $flags += @('-x265-params', ($x265ParamPairs -join ':'))
+        } elseif ([string]$Descriptor.RateControlKind -eq 'aom_crf') {
+            $flags = @(
+                '-c:v', [string]$Descriptor.EncoderName,
+                '-crf', $effectiveCpuQuality,
+                '-b:v', '0',
+                '-cpu-used', $mappedVideoPreset
+            )
+            if ($CpuMaxThreads -gt 0) {
+                $flags += @('-threads', [string]$CpuMaxThreads)
+            }
         } elseif ([string]$Descriptor.RateControlKind -ne 'x264_crf') {
             throw "Unsupported CPU encoder rate-control kind '$($Descriptor.RateControlKind)'."
         }
@@ -214,7 +281,7 @@ function New-EncoderVideoFlags {
         }
         $flags = @(
             '-c:v', [string]$Descriptor.EncoderName,
-            '-preset', $VideoPreset,
+            '-preset', $mappedVideoPreset,
             '-cq', $effectiveVideoQuality
         )
         if ($Descriptor.UsesVbv) {

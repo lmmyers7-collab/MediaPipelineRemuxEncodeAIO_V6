@@ -2,10 +2,12 @@
 
 Date: 2026-06-11
 Status: in progress. Phase 0 encode-flag snapshots exist, and Phase 1 now has a
-HEVC/NVENC plus libx265 descriptor parity scaffold. Dormant H.264/NVENC and
-libx264 descriptor entries are cataloged with fail-closed HDR guards but are not
-selected by the active resolver. No AV1/QSV/AMF descriptors, capability probing,
-config-key changes, fallback changes, or new encoder enablement are complete.
+HEVC/NVENC plus libx265 descriptor parity scaffold. Dormant H.264/NVENC,
+libx264, AV1/NVENC, and libaom AV1 descriptor entries are cataloged with
+fail-closed unsupported-HDR guards where needed but are not selected by the
+active resolver. QSV/AMF descriptors, capability probing, config-key changes,
+fallback changes, command-topology/runtime tests, and new encoder enablement
+remain incomplete.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -225,10 +227,10 @@ returns `$null` for unsupported pairs, else an ordered pscustomobject:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `EncoderName` | string | exact ffmpeg `-c:v` value (`hevc_nvenc`, `libsvtav1`, ...) |
+| `EncoderName` | string | exact ffmpeg `-c:v` value (`hevc_nvenc`, `libaom-av1`, `libsvtav1`, ...) |
 | `Family` | string | `hevc` / `av1` / `h264` |
 | `Backend` | string | `nvenc` / `qsv` / `amf` / `cpu` |
-| `RateControlKind` | string | `nvenc_cq` / `x265_crf` / `svtav1_crf` / `qsv_global_quality` / `amf_cqp` / `x264_crf` |
+| `RateControlKind` | string | `nvenc_cq` / `x265_crf` / `aom_crf` / `svtav1_crf` / `qsv_global_quality` / `amf_cqp` / `x264_crf` |
 | `QualityOffset` | int | added to the family base quality before bounding (calibration hook, section 11 D5) |
 | `UsesVbv` | bool | whether ladder `-maxrate/-bufsize` are emitted (true only for NVENC initially) |
 | `PresetMap` | hashtable | maps operator `p1..p7` to backend-native preset tokens (section 3.4) |
@@ -252,13 +254,14 @@ compatibility wrapper that resolves the descriptor and delegates (callers in
 | Family \ Backend | nvenc | qsv | amf | cpu |
 | --- | --- | --- | --- | --- |
 | hevc | `hevc_nvenc` (today's behavior, frozen) | `hevc_qsv` (Phase 4) | `hevc_amf` (Phase 5) | `libx265` (today's behavior, frozen) |
-| av1 | `av1_nvenc` (Phase 3) | `av1_qsv` (Phase 4, optional) | — (not planned) | `libsvtav1` (Phase 3) |
+| av1 | `av1_nvenc` (Phase 3) | `av1_qsv` (Phase 4, optional) | `av1_amf` (Phase 5, optional) | `libaom-av1` (active enum, Phase 3) / `libsvtav1` (future enum fan-out, optional) |
 | h264 | `h264_nvenc` (Phase 3 cleanup, see D7) | — | — | `libx264` (Phase 3 cleanup, see D7) |
 
 ### 3.3 Resolution semantics (back-compat is the law)
 
 - Codec family is derived from `VideoCodec`: `hevc_nvenc|libx265 -> hevc`,
-  `av1_nvenc|libsvtav1|av1_qsv -> av1`, `h264_nvenc|libx264 -> h264`.
+  `av1_nvenc|av1_qsv|av1_amf|libaom-av1|libsvtav1 -> av1`,
+  `h264_nvenc|libx264 -> h264`.
 - New key `EncoderBackend` (Phase 2), values `auto|nvenc|qsv|amf|cpu`, default `auto`.
 - **`EncoderBackend = auto` (or key absent) preserves today's behavior exactly**: the
   literal `VideoCodec` encoder is the primary attempt; safe retry uses the same
@@ -273,19 +276,19 @@ compatibility wrapper that resolves the descriptor and delegates (callers in
 
 Operator-facing `VideoPreset` stays `p1..p7` everywhere (no settings-schema churn):
 
-| p | nvenc | qsv | amf (`-quality`) | libsvtav1 (`-preset`) |
-| --- | --- | --- | --- | --- |
-| p1 | p1 | veryfast | speed | 12 |
-| p2 | p2 | faster | speed | 11 |
-| p3 | p3 | fast | speed | 10 |
-| p4 | p4 | medium | balanced | 9 |
-| p5 | p5 | slow | balanced | 8 |
-| p6 | p6 | slower | quality | 6 |
-| p7 | p7 | veryslow | quality | 4 |
+| p | nvenc | qsv | amf (`-quality`) | libaom-av1 (`-cpu-used`) | libsvtav1 (`-preset`) |
+| --- | --- | --- | --- | --- | --- |
+| p1 | p1 | veryfast | speed | 8 | 12 |
+| p2 | p2 | faster | speed | 7 | 11 |
+| p3 | p3 | fast | speed | 6 | 10 |
+| p4 | p4 | medium | balanced | 5 | 9 |
+| p5 | p5 | slow | balanced | 4 | 8 |
+| p6 | p6 | slower | quality | 2 | 6 |
+| p7 | p7 | veryslow | quality | 1 | 4 |
 
 `libx265`/`libx264` keep the existing separate `CpuEncodePreset` key (unchanged).
-libsvtav1 deliberately does NOT use `CpuEncodePreset` (x265 preset names are not
-SVT-AV1 presets); it maps from `VideoPreset` per the table.
+AV1 CPU encoders deliberately do NOT use `CpuEncodePreset` (x265 preset names are not
+valid AV1 preset/speed tokens); they map from `VideoPreset` per the table.
 
 ### 3.5 Rate-control mapping (initial values; calibration required, section 10.4)
 
@@ -294,6 +297,7 @@ SVT-AV1 presets); it maps from `VideoPreset` per the table.
 | hevc_nvenc | `-cq <Q>` + VBV (FROZEN — current behavior) | `VideoQuality` + full ladder delta, bounded 14-32 |
 | libx265 | `-crf <Q>`, no VBV (FROZEN) | `FallbackCpuQuality` + half ladder delta (AwayFromZero), bounded |
 | av1_nvenc | `-cq <Q>` + VBV | `VideoQuality` + full ladder delta, bounded |
+| libaom-av1 | `-crf <Q> -b:v 0 -cpu-used <map>`, no VBV | `FallbackCpuQuality` + 2 (QualityOffset) + half ladder delta, bounded |
 | libsvtav1 | `-crf <Q>`, no VBV, `-preset <map>` | `FallbackCpuQuality` + 2 (QualityOffset) + half ladder delta, bounded |
 | hevc_qsv | `-global_quality <Q>` (ICQ), no VBV | `VideoQuality` + 2 (QualityOffset) + full ladder delta, bounded |
 | av1_qsv | `-global_quality <Q>`, no VBV | same as hevc_qsv |
@@ -311,7 +315,7 @@ packet.
 | `libav_side_data` | hevc_nvenc, av1_nvenc | Current GPU-branch behavior: `-profile/-pix_fmt p010le` + `-color_primaries bt2020 -color_trc smpte2084 -colorspace bt2020nc`; NVENC consumes mastering metadata from libav side data (encode_policy.ps1:239-254 comment). For av1_nvenc: `-pix_fmt p010le` but NO `-profile:v main10` (AV1 Main covers 10-bit; verify accepted profile tokens via `ffmpeg -h encoder=av1_nvenc`). |
 | `x265_params` | libx265 | Current CPU-branch behavior (encode_policy.ps1:197-221), FROZEN. |
 | `svtav1_params` | libsvtav1 | `-svtav1-params mastering-display=<G()B()R()WP()L() string>:content-light=<MaxCLL,MaxFALL>` plus `enable-hdr=1` if supported, `-pix_fmt p010le`, and libav color flags. The x265-format strings from `Get-SourceHdr10MasteringMetadata` use the same `G()B()R()WP()L()` syntax SVT-AV1 expects and `max-cll "X,Y"` maps directly to `content-light=X,Y` — but MUST be verified against the bundled ffmpeg's SVT-AV1 build (`ffmpeg -h encoder=libsvtav1`) before relying on it. |
-| `none` | hevc_qsv, hevc_amf, av1_qsv (until proven) | `SupportsHdr10Metadata = $false`. HDR sources never use these backends (D6). |
+| `none` | libaom-av1, hevc_qsv, hevc_amf, av1_qsv (until proven) | `SupportsHdr10Metadata = $false`. HDR sources never use these backends (D6). |
 
 ---
 
@@ -385,11 +389,12 @@ report the snapshot count and any surprises found while snapshotting.
 
 Status: partial. `ops/pipeline/engine/decide/encoder_descriptors.ps1` defines the
 existing HEVC/NVENC primary and libx265 CPU fallback descriptors, plus dormant
-H.264/NVENC and libx264 descriptors for future activation work. The canonical
-module loader registers it before `EncodePolicy.ps1`, and `New-EncodeVideoFlags`
-delegates to the descriptor path only for the two already-supported HEVC cases.
-Unknown, H.264, AV1, and not-yet-enabled encoders still use the legacy branch so
-Phase 0 snapshots remain unchanged.
+H.264/NVENC, libx264, AV1/NVENC, and libaom AV1 descriptors for future
+activation work. The canonical module loader registers it before
+`EncodePolicy.ps1`, and `New-EncodeVideoFlags` delegates to the descriptor path
+only for the two already-supported HEVC cases. Unknown, H.264, AV1, and
+not-yet-enabled encoders still use the legacy branch so Phase 0 snapshots remain
+unchanged.
 
 **Intent:** restructure `New-EncodeVideoFlags` around descriptors without changing a
 single emitted argument. Phase 0 snapshots prove it.
@@ -532,47 +537,56 @@ operator's RTX machine); pending-publish/queue smokes for regression
 
 ---
 
-## 7. Phase 3 — AV1 (libsvtav1 + av1_nvenc) — first new encoders
+## 7. Phase 3 — AV1 (libaom/libsvt + av1_nvenc) — first new encoders
 
-**Intent:** biggest payoff first. SVT-AV1 is CPU-only and deterministic to validate;
-av1_nvenc requires an RTX 40-series (operator's host has an NVIDIA GPU; the probe
-decides at runtime).
+**Intent:** biggest payoff first. CPU AV1 is deterministic to validate, while
+av1_nvenc requires an RTX 40-series or newer-capable NVIDIA path (the probe decides
+at runtime).
 
 ### 7.1 Scope
 
-- Populate descriptors `(av1, cpu) = libsvtav1` and `(av1, nvenc) = av1_nvenc` per
-  sections 3.4-3.6. Verify flag names against the BUNDLED ffmpeg first:
-  `ffmpeg -h encoder=libsvtav1`, `ffmpeg -h encoder=av1_nvenc`, `ffmpeg -encoders`.
-  Locate the bundled binary the same way the pipeline does (`$script:ffmpegPath`
-  resolution — grep `ffmpegPath` in `ops/pipeline/engine/`). If the bundled build
-  lacks libsvtav1, STOP and report to the operator (tool upgrade is its own
-  §7 decision; do not swap ffmpeg builds yourself).
-- Extend `VideoCodec` choices with `libsvtav1` across the full section 2.1 fan-out
-  table (same 13-step checklist shape as section 6.2; `av1_nvenc` is already in the
-  enums everywhere).
+- Populate descriptors for the active config enum first: `(av1, cpu) = libaom-av1`
+  and `(av1, nvenc) = av1_nvenc` per sections 3.4-3.6. The bundled ffmpeg also
+  advertises `libsvtav1`; adding `libsvtav1` as a selectable config value is a
+  separate enum fan-out change. Verify flag names against the BUNDLED ffmpeg first:
+  `ffmpeg -h encoder=libaom-av1`, `ffmpeg -h encoder=libsvtav1`,
+  `ffmpeg -h encoder=av1_nvenc`, `ffmpeg -encoders`. Locate the bundled binary the
+  same way the pipeline does (`$script:ffmpegPath` resolution — grep `ffmpegPath`
+  in `ops/pipeline/engine/`). If the bundled build lacks the selected CPU AV1
+  encoder, STOP and report to the operator (tool upgrade is its own §7 decision; do
+  not swap ffmpeg builds yourself).
+- `av1_nvenc`, `av1_qsv`, `av1_amf`, and `libaom-av1` are already in the active
+  config enum. Extending choices with `libsvtav1`, if desired, requires the full
+  section 2.1 fan-out table and is separate from activating the existing
+  `libaom-av1` path.
 - **Family-consistent CPU fallback (deliberate behavior change, D2):** when the
-  resolved family is `av1`, the CPU fallback descriptor is `libsvtav1`, not
-  `libx265`. `hevc`-family files keep `libx265` byte-identical. Implement in
-  `Resolve-EncoderSelection`; surface in `Do-Encode` fallback events
+  resolved family is `av1`, the CPU fallback descriptor is the selected CPU AV1
+  descriptor (`libaom-av1` for the active enum unless a later `libsvtav1` fan-out is
+  approved), not `libx265`. `hevc`-family files keep `libx265` byte-identical.
+  Implement in `Resolve-EncoderSelection`; surface in `Do-Encode` fallback events
   (`to_encoder` becomes the descriptor's `EncoderName` instead of the hardcoded
   `Get-MediaVideoCodecLibx265Name` at encode.ps1:156/274/387/428 — this edit hits
   legacy string assertions; see rule 6 in section 0).
-- CPU-encode plumbing that must apply to libsvtav1 exactly as it does to libx265
+- CPU-encode plumbing that must apply to the selected CPU AV1 encoder exactly as it does to libx265
   (these are keyed off `UseCpuFallback`, so verify they trigger, not rebuild them):
   CPU mutex, `-IsCpuEncode` scratch recheck, `FFmpegCpuEncodeTimeoutSeconds`,
   `CpuEncodeProcessPriority`, `encode_cpu` progress stage. `CpuMaxThreads` is
-  x265-params-specific; for libsvtav1 emit only libav `-threads N` (and
-  `-svtav1-params lp=N` if the bundled build supports it — verify).
-- HDR10: implement `svtav1_params` handler (section 3.6). For `av1_nvenc`, the
-  `libav_side_data` handler minus `-profile:v main10` (verify accepted `-profile`
-  tokens; omit the flag entirely if unclear — AV1 Main supports 10-bit).
+  x265-params-specific; for `libaom-av1` emit only libav `-threads N` plus
+  `-cpu-used <map>`. For optional `libsvtav1`, emit only libav `-threads N` and
+  `-svtav1-params lp=N` if the bundled build supports it — verify first.
+- HDR10: keep `libaom-av1` fail-closed until HDR10 metadata preservation is proven.
+  For `av1_nvenc`, use the `libav_side_data` handler minus `-profile:v main10`
+  (verify accepted `-profile` tokens; omit the flag entirely if unclear — AV1 Main
+  supports 10-bit). Optional `libsvtav1` activation needs a verified
+  `svtav1_params` handler (section 3.6).
 - Failure detection: confirm `Test-IsNvencError` patterns cover av1_nvenc failures
-  (they should — same NVENC driver layer); add an `svt`/`libsvtav1` stderr pattern
-  set to `Test-IsHardwareEncoderFailure` only if real failures prove undetected
-  (CPU failures route through generic ffmpeg failure codes today).
-- Sidecar/telemetry: `EncoderKind` for libsvtav1 currently returns
+  (they should — same NVENC driver layer); add CPU AV1 stderr pattern sets only if
+  real failures prove undetected (CPU failures route through generic ffmpeg failure
+  codes today).
+- Sidecar/telemetry: `EncoderKind` for `libaom-av1`/`libsvtav1` currently returns
   `software_or_unknown` (`Get-EncodeEncoderKind`, encode_policy.ps1:322-335) — add
-  `svt|libsvtav1 -> 'cpu'` mapping (additive; assert in unit checks).
+  AV1 CPU encoder mappings to `cpu` when activation begins (additive; assert in
+  unit checks).
 - Size policy: `Test-MediaEncodeOutputSizePolicy` consumes route reason codes, not
   encoder names (encode.ps1:468-476) — confirm no change needed; AV1 outputs are
   expected SMALLER, so the growth guard is safe. Do not touch routing thresholds.
@@ -591,10 +605,11 @@ decides at runtime).
 
 Agent-side: all prior commands, plus targeted 5-10s lavfi clip encodes through the
 bundled ffmpeg for each new descriptor (SDR + HDR10 synthetic) asserting exit 0 and
-`ffprobe` shows: correct codec, 10-bit pix_fmt for HDR, mastering-display/CLL side
-data present for libsvtav1 HDR, chapters preserved (mkv), faststart (mp4). Put these
-in a NEW `ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1` that SKIPS
-(with a clear message, exit 0) any backend the host probe reports unavailable.
+`ffprobe` shows: correct codec, 10-bit pix_fmt for HDR-capable descriptors,
+mastering-display/CLL side data present only for descriptors whose HDR handler claims
+metadata preservation, chapters preserved (mkv), faststart (mp4). Put these in a NEW
+`ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1` that SKIPS (with a
+clear message, exit 0) any backend the host probe reports unavailable.
 
 Operator-side (required, not self-certified):
 - `.\ops\scripts\release\test.ps1` (release gate).
@@ -646,7 +661,7 @@ When an encoder choice or key changes, walk section 2.1's table plus:
 - Summaries under `docs/generated/summaries/` for every edited source file.
 
 Discovery command per phase (run, then reconcile every hit):
-`Grep pattern "hevc_nvenc|libx265|av1_nvenc|libsvtav1|hevc_qsv|hevc_amf"` repo-wide
+`Grep pattern "hevc_nvenc|libx265|av1_nvenc|libaom-av1|libsvtav1|hevc_qsv|hevc_amf"` repo-wide
 (respect `.rgignore`).
 
 ---
@@ -664,8 +679,8 @@ Discovery command per phase (run, then reconcile every hit):
 ### 10.4 Quality/size calibration protocol (Phases 3-5)
 
 For each new encoder, encode the same 2-3 real sources with the family control
-encoder (hevc: hevc_nvenc@cq22; av1: libsvtav1 is its own baseline vs libx265
-crf20) and the candidate. Record output size, encode wall time, and the operator's
+encoder (hevc: hevc_nvenc@cq22; av1: the selected CPU AV1 descriptor is its own
+baseline vs libx265 crf20) and the candidate. Record output size, encode wall time, and the operator's
 subjective quality verdict in the real-media worksheet. Adjust the descriptor
 `QualityOffset` so the candidate's size/quality lands at-or-better than the control.
 Final offsets go in the change packet's `notes` and the descriptor file.
