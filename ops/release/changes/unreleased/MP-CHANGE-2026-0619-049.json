@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0619-049",
+  "title": "Register native abort outcome code",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Register the native-process poll-abort outcome code so emitted NATIVE_ABORTED results are covered by outcome metadata and the failure-code registry gate.",
+  "reason": "The reliability wrapper was blocked by a pre-existing registry gap: Native.ps1 emitted NATIVE_ABORTED, but FailureCodes.ps1 did not list it as a known outcome. That made the failure-code registry scan fail before later reliability checks could run.",
+  "affected_areas": [
+    "process-lifecycle",
+    "tests"
+  ],
+  "behavior_before": "Invoke-NativeProcess could emit NATIVE_ABORTED when a poll handler requested abort without a specific code, but Get-MediaPipelineKnownOutcomeCodes did not include that outcome, so Invoke-FailureCodeRegistryChecks.ps1 failed with an unknown emitted code.",
+  "behavior_after": "NATIVE_ABORTED is a known process-lifecycle outcome with retryable warning metadata handled by the native process surface, and the registry check pins that metadata explicitly.",
+  "files_touched": [
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-049.json.md",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-049.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 471 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1 - passed with existing allowlisted hard findings and warnings only",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index - passed; regenerated PROJECT_INDEX and DEPENDENCY_GRAPH from 1756 summaries",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - passed; 2 written",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0619-049.json - passed; 1 written",
+    "git diff --check - passed",
+    "pwsh -NoProfile -File ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 - failure-code registry step now passed, then wrapper failed later on unrelated Invoke-MediaRouteSelectionChecks.ps1 assertion: unknown-height movie expected encode but got remux",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1 - passed; classifier codes 38, outcome codes 159, emitted codes scanned 93",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1 - failed independently on unrelated route-selection assertion: unknown-height movie expected encode but got remux"
+  ],
+  "rollback_plan": "Remove NATIVE_ABORTED from Get-MediaPipelineKnownOutcomeCodes and remove the explicit NATIVE_ABORTED metadata assertion from Invoke-FailureCodeRegistryChecks.ps1.",
+  "related_changes": [],
+  "notes": "This is registry/test metadata only. It does not change native-process execution, abort behavior, cleanup, retry behavior, or media policy.\nThis packet fixes the NATIVE_ABORTED registry blocker only. The remaining reliability-wrapper failure is in media route selection and no route-policy files are touched in this change."
+}

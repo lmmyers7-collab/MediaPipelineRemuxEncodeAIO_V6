@@ -140,6 +140,10 @@ $bdpgsTool = Get-MediaPipelineOutcomeCodeMetadata -Code 'SUBTITLE_BDPGS_OCR_TOOL
 if (-not $bdpgsTool -or $bdpgsTool.Stage -ne 'subtitle-bdpgs' -or $bdpgsTool.HandledBy -notmatch 'Subtitles\.Bdpgs' -or $bdpgsTool.OperatorAction -notmatch 'OCR tool') {
     throw 'SUBTITLE_BDPGS_OCR_TOOL_MISSING metadata should point operators at OCR configuration.'
 }
+$nativeAborted = Get-MediaPipelineOutcomeCodeMetadata -Code 'NATIVE_ABORTED'
+if (-not $nativeAborted -or $nativeAborted.Family -ne 'process_lifecycle' -or $nativeAborted.Stage -ne 'process-lifecycle' -or -not [bool]$nativeAborted.Retryable -or $nativeAborted.OperatorSeverity -ne 'warning' -or $nativeAborted.HandledBy -notmatch 'Native') {
+    throw 'NATIVE_ABORTED metadata should be registered as a retryable native process-lifecycle outcome.'
+}
 if ($null -ne (Get-MediaPipelineOutcomeCodeMetadata -Code 'NOT_A_REAL_OUTCOME_CODE')) {
     throw 'Outcome metadata lookup returned metadata for an unknown outcome code.'
 }

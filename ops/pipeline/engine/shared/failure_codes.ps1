@@ -85,6 +85,7 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'MEDIA_PROBE_TIMEOUT',
         'MKVMERGE_WARNINGS',
         'MKVMERGE_WARNING_STREAM_LOSS',
+        'NATIVE_ABORTED',
         'NATIVE_START_FAILED',
         'NATIVE_STOPPED',
         'NATIVE_TIMEOUT',
