@@ -314,6 +314,79 @@ function Resolve-MediaEncoderDescriptorForFlags {
     return $null
 }
 
+function Resolve-MediaEncoderFamilyForCodec {
+    param(
+        [string] $VideoCodec = ''
+    )
+
+    $codec = if ($VideoCodec) { $VideoCodec.Trim().ToLowerInvariant() } else { '' }
+    $libx265Name = if (Get-Command -Name Get-MediaVideoCodecLibx265Name -ErrorAction SilentlyContinue) {
+        (Get-MediaVideoCodecLibx265Name).Trim().ToLowerInvariant()
+    } else {
+        'libx265'
+    }
+    if ($codec -eq $libx265Name) { return 'hevc' }
+    $familyByCodec = @{
+        hevc_nvenc = 'hevc'
+        hevc_qsv   = 'hevc'
+        hevc_amf   = 'hevc'
+        h264_nvenc = 'h264'
+        h264_qsv   = 'h264'
+        h264_amf   = 'h264'
+        libx264    = 'h264'
+        av1_nvenc  = 'av1'
+        av1_qsv    = 'av1'
+        av1_amf    = 'av1'
+        'libaom-av1' = 'av1'
+        libsvtav1  = 'av1'
+    }
+    if ($familyByCodec.ContainsKey($codec)) { return [string]$familyByCodec[$codec] }
+    return ''
+}
+
+function Resolve-MediaEncoderCpuFallbackDescriptor {
+    param(
+        [string] $VideoCodec = '',
+        [bool] $IsHDR = $false
+    )
+
+    $family = Resolve-MediaEncoderFamilyForCodec -VideoCodec $VideoCodec
+    $result = [pscustomobject][ordered]@{
+        Resolved    = $false
+        Reason      = ''
+        InputCodec  = [string]$VideoCodec
+        Family      = [string]$family
+        Backend     = 'cpu'
+        EncoderName = ''
+        IsHDR       = [bool]$IsHDR
+        HdrBlocked  = $false
+        Descriptor  = $null
+    }
+
+    if ([string]::IsNullOrWhiteSpace($family)) {
+        $result.Reason = "unsupported encoder family for codec '$VideoCodec'"
+        return $result
+    }
+
+    $descriptor = Get-MediaEncoderDescriptor -Family $family -Backend 'cpu'
+    if ($null -eq $descriptor) {
+        $result.Reason = "missing CPU fallback descriptor for family '$family'"
+        return $result
+    }
+
+    $result.Descriptor = $descriptor
+    $result.EncoderName = [string]$descriptor.EncoderName
+    if ($IsHDR -and -not [bool]$descriptor.SupportsHdr10Metadata) {
+        $result.HdrBlocked = $true
+        $result.Reason = "CPU fallback descriptor '$family/cpu' does not support HDR10 metadata preservation"
+        return $result
+    }
+
+    $result.Resolved = $true
+    $result.Reason = "resolved CPU fallback descriptor '$family/cpu'"
+    return $result
+}
+
 function Get-MediaEncoderDescriptorProbeCacheKey {
     param(
         [Parameter(Mandatory)] $Descriptor,

@@ -8,8 +8,10 @@ with fail-closed unsupported-HDR guards where needed but are not selected by the
 active resolver. Descriptor-owned list/runtime capability-probe scaffolding exists
 for the dormant catalog but is not wired into active encoder selection. A synthetic
 SDR runtime/topology matrix executes CPU descriptor rows and reports hardware rows
-as opt-in skips by default. Config-key changes, fallback changes, full hardware/HDR
-runtime matrix coverage, and new encoder enablement remain incomplete.
+as opt-in skips by default. A descriptor-owned CPU fallback target helper now resolves
+family-consistent fallback candidates but is not wired into `Do-Encode`. Config-key
+changes, fallback wiring, full hardware/HDR runtime matrix coverage, and new encoder
+enablement remain incomplete.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -194,6 +196,9 @@ ffprobes first-frame `side_data_list` and returns **x265-formatted** strings:
   for `AGENTS.md` (lines 1-14). New unit checks must copy this harness pattern.
 - `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` — references `hevc_nvenc`.
 - `ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1` — references it too.
+- `ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1` pins active HEVC
+  argument parity and descriptor scaffolding, including family-consistent CPU
+  fallback target resolution that remains unwired from `Do-Encode`.
 - `ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1` verifies the
   descriptor-owned list/runtime probe scaffold, including exact encoder-list matching
   and list-only/runtime cache separation, without enabling dormant descriptors.

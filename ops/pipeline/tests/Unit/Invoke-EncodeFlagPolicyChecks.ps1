@@ -427,6 +427,14 @@ Assert-True ($null -ne $hevcCpuDescriptor) 'HEVC/CPU descriptor must exist for l
 Assert-Equal ([string]$hevcCpuDescriptor.EncoderName) 'libx265' 'HEVC/CPU descriptor encoder mismatch.'
 Assert-Equal ([string]$hevcCpuDescriptor.RateControlKind) 'x265_crf' 'HEVC/CPU descriptor rate-control mismatch.'
 Assert-Equal ([bool]$hevcCpuDescriptor.UsesVbv) $false 'HEVC/CPU descriptor must preserve no-VBV CRF behavior.'
+Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec ' hevc_nvenc ') 'hevc' 'Family resolver should trim and map HEVC/NVENC.'
+Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'LIBX265') 'hevc' 'Family resolver should map libx265 case-insensitively.'
+
+$hevcFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'hevc_nvenc' -IsHDR:$true
+Assert-Equal ([bool]$hevcFallbackTarget.Resolved) $true 'HEVC fallback target should resolve for HDR because libx265 carries HDR10 metadata.'
+Assert-Equal ([string]$hevcFallbackTarget.Family) 'hevc' 'HEVC fallback target family mismatch.'
+Assert-Equal ([string]$hevcFallbackTarget.EncoderName) 'libx265' 'HEVC fallback target encoder mismatch.'
+Assert-Equal ([bool]$hevcFallbackTarget.HdrBlocked) $false 'HEVC fallback target should not be HDR-blocked.'
 
 $h264NvencDescriptor = Get-MediaEncoderDescriptor -Family 'h264' -Backend 'nvenc'
 Assert-True ($null -ne $h264NvencDescriptor) 'Dormant H.264/NVENC descriptor must exist before activation work.'
@@ -449,6 +457,15 @@ Assert-Equal ([string]$h264CpuDescriptor.EncoderName) 'libx264' 'H.264/CPU descr
 Assert-Equal ([string]$h264CpuDescriptor.RateControlKind) 'x264_crf' 'H.264/CPU descriptor rate-control mismatch.'
 Assert-Equal ([bool]$h264CpuDescriptor.UsesVbv) $false 'H.264/CPU descriptor must use CRF without VBV.'
 Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libx264' -UseCpuFallback:$true)) 'H.264/CPU must keep the legacy CPU branch until activation work.'
+Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'h264_amf') 'h264' 'Family resolver should map H.264 AMF.'
+Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'libx264') 'h264' 'Family resolver should map libx264.'
+
+$h264FallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'h264_nvenc'
+Assert-Equal ([bool]$h264FallbackTarget.Resolved) $true 'H.264 SDR fallback target should resolve to libx264.'
+Assert-Equal ([string]$h264FallbackTarget.EncoderName) 'libx264' 'H.264 fallback target encoder mismatch.'
+$h264HdrFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'h264_nvenc' -IsHDR:$true
+Assert-Equal ([bool]$h264HdrFallbackTarget.Resolved) $false 'H.264 HDR fallback target must stay blocked until HDR preservation is proven.'
+Assert-Equal ([bool]$h264HdrFallbackTarget.HdrBlocked) $true 'H.264 HDR fallback target should report HDR blocking.'
 
 $h264CpuFlags = @(New-EncoderVideoFlags `
     -Descriptor $h264CpuDescriptor `
@@ -491,6 +508,20 @@ Assert-Equal ([string]$av1CpuDescriptor.EncoderName) 'libaom-av1' 'AV1/CPU descr
 Assert-Equal ([string]$av1CpuDescriptor.RateControlKind) 'aom_crf' 'AV1/CPU descriptor rate-control mismatch.'
 Assert-Equal ([bool]$av1CpuDescriptor.SupportsHdr10Metadata) $false 'libaom AV1 descriptor must not claim HDR10 metadata support.'
 Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libaom-av1' -UseCpuFallback:$true)) 'AV1/CPU must keep the legacy CPU branch until activation work.'
+Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'av1_qsv') 'av1' 'Family resolver should map AV1 QSV.'
+Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'libaom-av1') 'av1' 'Family resolver should map libaom AV1.'
+Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'libsvtav1') 'av1' 'Family resolver should reserve the future SVT-AV1 family mapping.'
+
+$av1FallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'av1_nvenc'
+Assert-Equal ([bool]$av1FallbackTarget.Resolved) $true 'AV1 SDR fallback target should resolve to libaom-av1.'
+Assert-Equal ([string]$av1FallbackTarget.EncoderName) 'libaom-av1' 'AV1 fallback target encoder mismatch.'
+$av1HdrFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'av1_nvenc' -IsHDR:$true
+Assert-Equal ([bool]$av1HdrFallbackTarget.Resolved) $false 'AV1 HDR fallback target must stay blocked until HDR preservation is proven.'
+Assert-Equal ([bool]$av1HdrFallbackTarget.HdrBlocked) $true 'AV1 HDR fallback target should report HDR blocking.'
+
+$unknownFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec 'vp9_nvenc'
+Assert-Equal ([bool]$unknownFallbackTarget.Resolved) $false 'Unknown fallback target must fail closed.'
+Assert-Equal ([string]$unknownFallbackTarget.Family) '' 'Unknown fallback target family should be empty.'
 
 $av1CpuFlags = @(New-EncoderVideoFlags `
     -Descriptor $av1CpuDescriptor `

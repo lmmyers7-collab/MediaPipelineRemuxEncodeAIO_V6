@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0619-046",
+  "title": "Encoder descriptor fallback target helper",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "high",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Add descriptor-owned CPU fallback target resolution for encoder families without wiring it into active Do-Encode fallback behavior.",
+  "reason": "Encoder breadth activation needs a family-consistent fallback target before Do-Encode can replace hardcoded libx265 fallback events and plan arguments. This slice adds the resolver and coverage while preserving current active command behavior.",
+  "affected_areas": [
+    "docs",
+    "media-policy",
+    "tests"
+  ],
+  "behavior_before": "Dormant descriptors and synthetic runtime checks existed, but the descriptor layer had no reusable helper that mapped an encoder codec to its family-specific CPU fallback descriptor or reported HDR blocking before future fallback activation work.",
+  "behavior_after": "The descriptor layer can resolve codec names to encoder families and return a structured CPU fallback target for HEVC, H.264, and AV1. HDR inputs fail closed for fallback descriptors that do not claim HDR10 preservation. The active resolver and Do-Encode path remain unchanged.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-046.json.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-046.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 468 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1 - passed; unallowlisted hard findings 0",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index - passed; PROJECT_INDEX.md regenerated",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - passed; 4 summaries written",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0619-046.json - passed; 1 summary written",
+    "git diff --check - passed with Git line-ending warnings only",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 - passed; snapshot count 22",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 - passed",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1 - passed; 3 CPU descriptor rows executed, 9 hardware rows skipped by default",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Remove Resolve-MediaEncoderFamilyForCodec and Resolve-MediaEncoderCpuFallbackDescriptor, remove the added assertions from Invoke-EncodeFlagPolicyChecks.ps1, and revert the docs/test-inventory status updates. No active media command behavior is changed by this slice.",
+  "related_changes": [],
+  "notes": "This change intentionally does not replace hardcoded Do-Encode fallback event fields or activate family-consistent fallback behavior. Real-media validation was not run because active FFmpeg command generation remains unchanged."
+}
