@@ -314,6 +314,154 @@ function Resolve-MediaEncoderDescriptorForFlags {
     return $null
 }
 
+function Get-MediaEncoderDescriptorProbeCacheKey {
+    param(
+        [Parameter(Mandatory)] $Descriptor,
+        [string] $FfmpegPath = '',
+        [bool] $SkipRuntimeProbe = $false
+    )
+
+    $pathKey = if ($FfmpegPath) { $FfmpegPath.Trim().ToLowerInvariant() } else { '' }
+    $probeMode = if ($SkipRuntimeProbe) { 'list' } else { 'runtime' }
+    return @(
+        ([string]$Descriptor.Family).Trim().ToLowerInvariant(),
+        ([string]$Descriptor.Backend).Trim().ToLowerInvariant(),
+        ([string]$Descriptor.ProbeEncoderName).Trim().ToLowerInvariant(),
+        $probeMode,
+        $pathKey
+    ) -join '|'
+}
+
+function Test-MediaEncoderDescriptorListMatch {
+    param(
+        [Parameter(Mandatory)] [string] $EncoderListText,
+        [Parameter(Mandatory)] $Descriptor
+    )
+
+    $probeEncoder = ([string]$Descriptor.ProbeEncoderName).Trim()
+    if ([string]::IsNullOrWhiteSpace($probeEncoder)) { return $false }
+    $escaped = [regex]::Escape($probeEncoder)
+    return ($EncoderListText -match "(?im)^\s*V[\.\w]+\s+$escaped\b")
+}
+
+function New-MediaEncoderDescriptorProbeArgumentList {
+    param(
+        [Parameter(Mandatory)] $Descriptor
+    )
+
+    return @(
+        '-hide_banner', '-loglevel', 'error',
+        '-f', 'lavfi', '-i', 'color=c=black:s=256x144:r=1',
+        '-frames:v', '1',
+        '-c:v', [string]$Descriptor.ProbeEncoderName,
+        '-f', 'null', '-'
+    )
+}
+
+function Test-MediaEncoderDescriptorAvailable {
+    param(
+        [Parameter(Mandatory)] $Descriptor,
+        [string] $FfmpegPath = $(Get-Variable -Name ffmpegPath -Scope Script -ValueOnly -ErrorAction SilentlyContinue),
+        [int] $TimeoutSeconds = 15,
+        [switch] $Force,
+        [switch] $SkipRuntimeProbe
+    )
+
+    if (-not $script:EncoderDescriptorCapabilityProbeCache) {
+        $script:EncoderDescriptorCapabilityProbeCache = @{}
+    }
+    $cacheKey = Get-MediaEncoderDescriptorProbeCacheKey -Descriptor $Descriptor -FfmpegPath $FfmpegPath -SkipRuntimeProbe ([bool]$SkipRuntimeProbe)
+    if (-not $Force -and $script:EncoderDescriptorCapabilityProbeCache.ContainsKey($cacheKey)) {
+        return $script:EncoderDescriptorCapabilityProbeCache[$cacheKey]
+    }
+
+    $result = [pscustomobject][ordered]@{
+        Available           = $false
+        Probed              = $false
+        RuntimeProbeSkipped = $false
+        Reason              = ''
+        EncoderListMatch    = $false
+        RuntimeOk           = $false
+        EncoderName         = [string]$Descriptor.EncoderName
+        Family              = [string]$Descriptor.Family
+        Backend             = [string]$Descriptor.Backend
+        ProbeEncoderName    = [string]$Descriptor.ProbeEncoderName
+        ProbedAt            = (Get-Date).ToString('o')
+    }
+
+    if ([string]::IsNullOrWhiteSpace($FfmpegPath) -or -not (Test-Path -LiteralPath $FfmpegPath -PathType Leaf)) {
+        $result.Reason = "ffmpeg not found at '$FfmpegPath'"
+        $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $result
+        return $result
+    }
+
+    try {
+        $listOut = & $FfmpegPath -hide_banner -encoders 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            $result.Reason = "ffmpeg -encoders exited $LASTEXITCODE"
+            $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $result
+            return $result
+        }
+        $listText = ($listOut | Out-String)
+        $result.EncoderListMatch = Test-MediaEncoderDescriptorListMatch -EncoderListText $listText -Descriptor $Descriptor
+        if (-not $result.EncoderListMatch) {
+            $result.Reason = "ffmpeg build does not list encoder '$($result.ProbeEncoderName)'"
+            $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $result
+            return $result
+        }
+    } catch {
+        $result.Reason = "ffmpeg -encoders threw: $($_.Exception.Message)"
+        $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $result
+        return $result
+    }
+
+    if ($SkipRuntimeProbe) {
+        $result.RuntimeProbeSkipped = $true
+        $result.Reason = "encoder '$($result.ProbeEncoderName)' is listed; runtime availability not confirmed because probe was skipped"
+        $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $result
+        return $result
+    }
+
+    $result.Probed = $true
+    try {
+        $proc = [System.Diagnostics.Process]::new()
+        $psi = [System.Diagnostics.ProcessStartInfo]@{
+            FileName               = $FfmpegPath
+            UseShellExecute        = $false
+            RedirectStandardError  = $true
+            RedirectStandardOutput = $true
+            CreateNoWindow         = $true
+        }
+        foreach ($arg in (New-MediaEncoderDescriptorProbeArgumentList -Descriptor $Descriptor)) {
+            $psi.ArgumentList.Add([string]$arg)
+        }
+        $proc.StartInfo = $psi
+        [void]$proc.Start()
+        $stderrTask = $proc.StandardError.ReadToEndAsync()
+        if (-not $proc.WaitForExit([int]([math]::Max(1, $TimeoutSeconds)) * 1000)) {
+            try { $proc.Kill() } catch {}
+            $result.Reason = "encoder '$($result.ProbeEncoderName)' probe timed out after ${TimeoutSeconds}s"
+            $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $result
+            return $result
+        }
+        $stderrText = ''
+        try { $stderrText = $stderrTask.Result } catch {}
+        if ($proc.ExitCode -eq 0) {
+            $result.RuntimeOk = $true
+            $result.Available = $true
+            $result.Reason = "encoder '$($result.ProbeEncoderName)' probe succeeded"
+        } else {
+            $tail = ($stderrText -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 1)
+            $result.Reason = "encoder '$($result.ProbeEncoderName)' probe exit $($proc.ExitCode): $tail"
+        }
+    } catch {
+        $result.Reason = "encoder '$($result.ProbeEncoderName)' probe threw: $($_.Exception.Message)"
+    }
+
+    $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $result
+    return $result
+}
+
 function New-EncoderVideoFlags {
     param(
         [Parameter(Mandatory)] $Descriptor,

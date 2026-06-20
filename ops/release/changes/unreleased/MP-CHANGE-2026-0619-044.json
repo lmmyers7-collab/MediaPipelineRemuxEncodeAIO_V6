@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0619-044",
+  "title": "Encoder descriptor capability probe scaffold",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "high",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Add descriptor-owned encoder capability probe helpers for the dormant encoder catalog without changing active encoder selection or FFmpeg command generation.",
+  "reason": "The encoder breadth/AV1 work needs host capability evidence before dormant H.264/AV1/QSV/AMF descriptors can be safely activated. This slice adds the probe scaffold and focused coverage while preserving current HEVC/libx265 behavior.",
+  "affected_areas": [
+    "docs",
+    "media-policy",
+    "tests"
+  ],
+  "behavior_before": "Encoder descriptors could build flags and resolve current HEVC/libx265 selections, but the dormant descriptor catalog had no shared list/runtime availability probe helper. Active encoder routing still relied on existing NVENC-specific probes elsewhere.",
+  "behavior_after": "Encoder descriptors expose reusable list/runtime capability probe helpers with exact ffmpeg encoder-list matching, optional one-frame lavfi runtime probing, cache separation for list-only versus runtime checks, and missing-ffmpeg failure reporting. The helpers are not wired into active resolver or Do-Encode paths.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-044.json.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-044.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 466 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1 - passed; unallowlisted hard findings 0",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index - passed; PROJECT_INDEX.md regenerated",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index --check - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - passed; 3 summaries written",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - passed; 1750 source files current",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0619-044.json - passed; 1 summary written",
+    "git diff --check - passed with Git line-ending warnings only",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 - passed; snapshot count 22",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 - passed",
+    "pwsh -NoProfile -File ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Remove the new probe helper functions, remove the focused PowerShell probe check, and revert the docs/status wording to the prior dormant-descriptor-only state. No active media behavior or generated command path is changed by this slice.",
+  "related_changes": [],
+  "notes": "Added descriptor-owned list/runtime capability probe helpers without wiring them into active selection.\nAdded focused PowerShell unit coverage for encoder probe list matching, runtime probing, and cache separation.\nList-only probe mode reports EncoderListMatch/RuntimeProbeSkipped but keeps Available=false until runtime probing succeeds.\nUpdated encoder breadth backlog status to show capability probe scaffold exists but active activation remains open.\nUpdated current-state encoder remediation summary for dormant capability probe scaffold status.\nUpdated encoder implementation plan with probe scaffold status and focused test reference.\nDocumented the new encoder capability probe PowerShell unit check in the test inventory.\nReal-media validation not run: this scaffold does not activate new encoder families or change active FFmpeg command generation.\nRecorded generated summary for the new encoder capability probe unit check."
+}
