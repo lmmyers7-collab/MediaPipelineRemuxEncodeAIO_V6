@@ -15,6 +15,24 @@ function Get-MediaEncoderDescriptor {
 
     $normalizedFamily = if ($Family) { $Family.Trim().ToLowerInvariant() } else { '' }
     $normalizedBackend = if ($Backend) { $Backend.Trim().ToLowerInvariant() } else { '' }
+    $qsvPresetMap = @{
+        p1 = 'veryfast'
+        p2 = 'faster'
+        p3 = 'fast'
+        p4 = 'medium'
+        p5 = 'slow'
+        p6 = 'slower'
+        p7 = 'veryslow'
+    }
+    $amfQualityMap = @{
+        p1 = 'speed'
+        p2 = 'speed'
+        p3 = 'speed'
+        p4 = 'balanced'
+        p5 = 'balanced'
+        p6 = 'quality'
+        p7 = 'quality'
+    }
     if ($normalizedFamily -eq 'hevc' -and $normalizedBackend -eq 'nvenc') {
         return [pscustomobject][ordered]@{
             EncoderName            = 'hevc_nvenc'
@@ -64,6 +82,44 @@ function Get-MediaEncoderDescriptor {
         }
     }
 
+    if ($normalizedFamily -eq 'hevc' -and $normalizedBackend -eq 'qsv') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'hevc_qsv'
+            Family                 = 'hevc'
+            Backend                = 'qsv'
+            RateControlKind        = 'qsv_global_quality'
+            QualityOffset          = 2
+            UsesVbv                = $false
+            PresetMap              = $qsvPresetMap
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'hevc_qsv'
+            FailurePatternKind     = 'qsv'
+            ContainerNotes         = 'Dormant HEVC QSV descriptor; not selected by the active parity resolver.'
+        }
+    }
+
+    if ($normalizedFamily -eq 'hevc' -and $normalizedBackend -eq 'amf') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'hevc_amf'
+            Family                 = 'hevc'
+            Backend                = 'amf'
+            RateControlKind        = 'amf_cqp'
+            QualityOffset          = 0
+            UsesVbv                = $false
+            PresetMap              = $amfQualityMap
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'hevc_amf'
+            FailurePatternKind     = 'amf'
+            ContainerNotes         = 'Dormant HEVC AMF descriptor; not selected by the active parity resolver.'
+        }
+    }
+
     if ($normalizedFamily -eq 'h264' -and $normalizedBackend -eq 'nvenc') {
         return [pscustomobject][ordered]@{
             EncoderName            = 'h264_nvenc'
@@ -102,6 +158,44 @@ function Get-MediaEncoderDescriptor {
         }
     }
 
+    if ($normalizedFamily -eq 'h264' -and $normalizedBackend -eq 'qsv') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'h264_qsv'
+            Family                 = 'h264'
+            Backend                = 'qsv'
+            RateControlKind        = 'qsv_global_quality'
+            QualityOffset          = 2
+            UsesVbv                = $false
+            PresetMap              = $qsvPresetMap
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'h264_qsv'
+            FailurePatternKind     = 'qsv'
+            ContainerNotes         = 'Dormant H.264 QSV descriptor; not selected by the active parity resolver.'
+        }
+    }
+
+    if ($normalizedFamily -eq 'h264' -and $normalizedBackend -eq 'amf') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'h264_amf'
+            Family                 = 'h264'
+            Backend                = 'amf'
+            RateControlKind        = 'amf_cqp'
+            QualityOffset          = 0
+            UsesVbv                = $false
+            PresetMap              = $amfQualityMap
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'h264_amf'
+            FailurePatternKind     = 'amf'
+            ContainerNotes         = 'Dormant H.264 AMF descriptor; not selected by the active parity resolver.'
+        }
+    }
+
     if ($normalizedFamily -eq 'av1' -and $normalizedBackend -eq 'nvenc') {
         return [pscustomobject][ordered]@{
             EncoderName            = 'av1_nvenc'
@@ -123,6 +217,44 @@ function Get-MediaEncoderDescriptor {
             ProbeEncoderName       = 'av1_nvenc'
             FailurePatternKind     = 'nvenc'
             ContainerNotes         = 'Dormant AV1 NVENC descriptor; omits HEVC-style main10 profile flag.'
+        }
+    }
+
+    if ($normalizedFamily -eq 'av1' -and $normalizedBackend -eq 'qsv') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'av1_qsv'
+            Family                 = 'av1'
+            Backend                = 'qsv'
+            RateControlKind        = 'qsv_global_quality'
+            QualityOffset          = 2
+            UsesVbv                = $false
+            PresetMap              = $qsvPresetMap
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'av1_qsv'
+            FailurePatternKind     = 'qsv'
+            ContainerNotes         = 'Dormant AV1 QSV descriptor; not selected by the active parity resolver.'
+        }
+    }
+
+    if ($normalizedFamily -eq 'av1' -and $normalizedBackend -eq 'amf') {
+        return [pscustomobject][ordered]@{
+            EncoderName            = 'av1_amf'
+            Family                 = 'av1'
+            Backend                = 'amf'
+            RateControlKind        = 'amf_cqp'
+            QualityOffset          = 0
+            UsesVbv                = $false
+            PresetMap              = $amfQualityMap
+            HdrHandlerKind         = 'none'
+            SupportsHdr10Metadata  = $false
+            ProfileArgsSdr         = @()
+            ProfileArgsHdr         = @()
+            ProbeEncoderName       = 'av1_amf'
+            FailurePatternKind     = 'amf'
+            ContainerNotes         = 'Dormant AV1 AMF descriptor; not selected by the active parity resolver.'
         }
     }
 
@@ -276,14 +408,29 @@ function New-EncoderVideoFlags {
             throw "Unsupported CPU encoder rate-control kind '$($Descriptor.RateControlKind)'."
         }
     } else {
-        if ([string]$Descriptor.RateControlKind -ne 'nvenc_cq') {
+        if ([string]$Descriptor.RateControlKind -eq 'qsv_global_quality') {
+            $flags = @(
+                '-c:v', [string]$Descriptor.EncoderName,
+                '-preset', $mappedVideoPreset,
+                '-global_quality', $effectiveVideoQuality
+            )
+        } elseif ([string]$Descriptor.RateControlKind -eq 'amf_cqp') {
+            $flags = @(
+                '-c:v', [string]$Descriptor.EncoderName,
+                '-quality', $mappedVideoPreset,
+                '-rc', 'cqp',
+                '-qp_i', $effectiveVideoQuality,
+                '-qp_p', $effectiveVideoQuality
+            )
+        } elseif ([string]$Descriptor.RateControlKind -eq 'nvenc_cq') {
+            $flags = @(
+                '-c:v', [string]$Descriptor.EncoderName,
+                '-preset', $mappedVideoPreset,
+                '-cq', $effectiveVideoQuality
+            )
+        } else {
             throw "Unsupported hardware encoder rate-control kind '$($Descriptor.RateControlKind)'."
         }
-        $flags = @(
-            '-c:v', [string]$Descriptor.EncoderName,
-            '-preset', $mappedVideoPreset,
-            '-cq', $effectiveVideoQuality
-        )
         if ($Descriptor.UsesVbv) {
             $flags += @('-maxrate', [string]$ladderProfile.maxrate, '-bufsize', [string]$ladderProfile.bufsize)
         }

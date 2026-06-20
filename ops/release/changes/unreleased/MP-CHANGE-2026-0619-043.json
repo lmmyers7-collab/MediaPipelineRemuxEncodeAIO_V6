@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0619-043",
+  "title": "Dormant QSV AMF encoder descriptors",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "high",
+  "date_started": "2026-06-19",
+  "date_completed": "2026-06-19",
+  "summary": "Adds dormant HEVC/H.264/AV1 QSV and AMF descriptors plus descriptor-level flag-generation assertions without routing those codecs through the active descriptor resolver.",
+  "reason": "Continue the encoder-breadth migration toward descriptor-backed QSV/AMF support while preserving existing encode-argument parity and keeping new hardware backends inactive until capability probing, runtime topology checks, fallback wiring, and real-media validation are ready.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "media-policy",
+    "tests"
+  ],
+  "behavior_before": "The descriptor catalog covered active HEVC/NVENC and libx265 parity paths plus dormant H.264 and AV1 entries. QSV/AMF choices still fell through the legacy branch, and no descriptor-level QSV/AMF flag shape was pinned.",
+  "behavior_after": "The descriptor catalog includes dormant HEVC/H.264/AV1 QSV descriptors using preset plus global-quality flags and HEVC/H.264/AV1 AMF descriptors using CQP flags. Unsupported HDR use fails closed for these descriptors. Resolve-MediaEncoderDescriptorForFlags still returns null for QSV/AMF choices, so current pipeline behavior remains unchanged.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0619-043.json.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0619-043.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1"
+  ],
+  "manual_validation": [
+    "bundled ffmpeg -h encoder=hevc_amf/h264_amf/av1_amf - confirmed AMF -rc, -qp_i, -qp_p, and -quality options",
+    "bundled ffmpeg -h encoder=hevc_qsv/h264_qsv/av1_qsv - confirmed QSV encoder help is available with preset option",
+    "git diff --check - passed (line-ending warnings only)",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed (465 packets valid)",
+    "mediapipeline.tools.dev.check_active_doc_references - passed",
+    "mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1 - passed (0 unallowlisted hard findings)",
+    "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1 - passed (22 encode snapshots unchanged; dormant QSV/AMF descriptor guards passed)",
+    "pwsh -NoProfile -File ops\\pipeline\\tests\\Unit\\Invoke-PipelinePlanExecutorChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert MP-CHANGE-2026-0619-043 to remove the dormant QSV/AMF descriptors, QSV/AMF flag generation, focused assertions, generated summaries, and documentation updates. No runtime state or media files are mutated by this change.",
+  "related_changes": [],
+  "notes": "Add dormant QSV/AMF descriptor catalog and direct flag checks without activating resolver selection.\nReal-media validation was not run; no QSV/AMF encoder path is activated by this packet.\nRefresh generated summaries for the dormant QSV/AMF descriptor slice.\nRegenerate project index/dependency graph after QSV/AMF descriptor summary updates."
+}

@@ -502,6 +502,52 @@ $av1CpuFlags = @(New-EncoderVideoFlags `
 Assert-Equal (@($av1CpuFlags) -join '|') '-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8' 'Dormant AV1/CPU descriptor flags mismatch.'
 Assert-Throws { New-EncoderVideoFlags -Descriptor $av1CpuDescriptor -IsHDR:$true -VideoCodec 'libaom-av1' -VideoPreset 'p7' -VideoQuality 22 | Out-Null } 'AV1/CPU HDR use must fail closed until HDR preservation is proven.'
 
+$qsvDescriptorCases = @(
+    @{ Family = 'hevc'; Codec = 'hevc_qsv'; Preset = 'p7'; ExpectedPreset = 'veryslow'; Expected = '-c:v|hevc_qsv|-preset|veryslow|-global_quality|24' },
+    @{ Family = 'h264'; Codec = 'h264_qsv'; Preset = 'p1'; ExpectedPreset = 'veryfast'; Expected = '-c:v|h264_qsv|-preset|veryfast|-global_quality|24' },
+    @{ Family = 'av1';  Codec = 'av1_qsv';  Preset = 'p4'; ExpectedPreset = 'medium'; Expected = '-c:v|av1_qsv|-preset|medium|-global_quality|24' }
+)
+foreach ($case in $qsvDescriptorCases) {
+    $descriptor = Get-MediaEncoderDescriptor -Family ([string]$case.Family) -Backend 'qsv'
+    Assert-True ($null -ne $descriptor) "Dormant $($case.Family)/QSV descriptor must exist before activation work."
+    Assert-Equal ([string]$descriptor.EncoderName) ([string]$case.Codec) "$($case.Family)/QSV descriptor encoder mismatch."
+    Assert-Equal ([string]$descriptor.RateControlKind) 'qsv_global_quality' "$($case.Family)/QSV descriptor rate-control mismatch."
+    Assert-Equal ([string]$descriptor.FailurePatternKind) 'qsv' "$($case.Family)/QSV descriptor failure pattern mismatch."
+    Assert-Equal ([bool]$descriptor.SupportsHdr10Metadata) $false "$($case.Family)/QSV descriptor must stay HDR-blocked until real validation."
+    Assert-Equal ([string]$descriptor.PresetMap[[string]$case.Preset]) ([string]$case.ExpectedPreset) "$($case.Family)/QSV preset map mismatch."
+    Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec ([string]$case.Codec) -UseCpuFallback:$false)) "$($case.Family)/QSV must keep the legacy branch until activation work."
+    $flags = @(New-EncoderVideoFlags `
+        -Descriptor $descriptor `
+        -VideoCodec ([string]$case.Codec) `
+        -VideoPreset ([string]$case.Preset) `
+        -VideoQuality 22)
+    Assert-Equal (@($flags) -join '|') ([string]$case.Expected) "Dormant $($case.Family)/QSV descriptor flags mismatch."
+    Assert-Throws { New-EncoderVideoFlags -Descriptor $descriptor -IsHDR:$true -VideoCodec ([string]$case.Codec) -VideoPreset ([string]$case.Preset) -VideoQuality 22 | Out-Null } "$($case.Family)/QSV HDR use must fail closed until HDR preservation is proven."
+}
+
+$amfDescriptorCases = @(
+    @{ Family = 'hevc'; Codec = 'hevc_amf'; Preset = 'p7'; ExpectedQuality = 'quality'; Expected = '-c:v|hevc_amf|-quality|quality|-rc|cqp|-qp_i|22|-qp_p|22' },
+    @{ Family = 'h264'; Codec = 'h264_amf'; Preset = 'p1'; ExpectedQuality = 'speed'; Expected = '-c:v|h264_amf|-quality|speed|-rc|cqp|-qp_i|22|-qp_p|22' },
+    @{ Family = 'av1';  Codec = 'av1_amf';  Preset = 'p4'; ExpectedQuality = 'balanced'; Expected = '-c:v|av1_amf|-quality|balanced|-rc|cqp|-qp_i|22|-qp_p|22' }
+)
+foreach ($case in $amfDescriptorCases) {
+    $descriptor = Get-MediaEncoderDescriptor -Family ([string]$case.Family) -Backend 'amf'
+    Assert-True ($null -ne $descriptor) "Dormant $($case.Family)/AMF descriptor must exist before activation work."
+    Assert-Equal ([string]$descriptor.EncoderName) ([string]$case.Codec) "$($case.Family)/AMF descriptor encoder mismatch."
+    Assert-Equal ([string]$descriptor.RateControlKind) 'amf_cqp' "$($case.Family)/AMF descriptor rate-control mismatch."
+    Assert-Equal ([string]$descriptor.FailurePatternKind) 'amf' "$($case.Family)/AMF descriptor failure pattern mismatch."
+    Assert-Equal ([bool]$descriptor.SupportsHdr10Metadata) $false "$($case.Family)/AMF descriptor must stay HDR-blocked until real validation."
+    Assert-Equal ([string]$descriptor.PresetMap[[string]$case.Preset]) ([string]$case.ExpectedQuality) "$($case.Family)/AMF quality map mismatch."
+    Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec ([string]$case.Codec) -UseCpuFallback:$false)) "$($case.Family)/AMF must keep the legacy branch until activation work."
+    $flags = @(New-EncoderVideoFlags `
+        -Descriptor $descriptor `
+        -VideoCodec ([string]$case.Codec) `
+        -VideoPreset ([string]$case.Preset) `
+        -VideoQuality 22)
+    Assert-Equal (@($flags) -join '|') ([string]$case.Expected) "Dormant $($case.Family)/AMF descriptor flags mismatch."
+    Assert-Throws { New-EncoderVideoFlags -Descriptor $descriptor -IsHDR:$true -VideoCodec ([string]$case.Codec) -VideoPreset ([string]$case.Preset) -VideoQuality 22 | Out-Null } "$($case.Family)/AMF HDR use must fail closed until HDR preservation is proven."
+}
+
 $retryCases = @(
     @{ Name = 'success does not retry'; Success = $true; StopRequested = $false; ForceCpu = $false; VideoCodec = 'hevc_nvenc'; ErrorText = 'No NVENC capable devices found'; Expected = $false },
     @{ Name = 'stop does not retry'; Success = $false; StopRequested = $true; ForceCpu = $false; VideoCodec = 'hevc_nvenc'; ErrorText = 'No NVENC capable devices found'; Expected = $false },
