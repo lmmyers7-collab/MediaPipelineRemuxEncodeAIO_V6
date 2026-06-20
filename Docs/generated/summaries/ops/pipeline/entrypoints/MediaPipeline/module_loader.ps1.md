@@ -3,9 +3,9 @@ file: ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-11
+last_modified: 2026-06-19
 last_reviewed: 2026-06-10
-sha256: dff4ca8eb37160bd1ec3301b736e2d5b2acc8be4b483dfbe5fb0ab1a3ec76798
+sha256: 3f264195455e70528b8a37811a534a4be75bb42925d4356565b86fa770529577
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1`
 

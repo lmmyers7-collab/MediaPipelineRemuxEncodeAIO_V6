@@ -134,6 +134,7 @@ function New-SmokeVideo {
 . (Join-Path $projectRoot 'ops\pipeline\engine\config\config_schema.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\shared\media_constants.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\shared\failure_codes.ps1')
+. (Join-Path $projectRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
 
 $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-e2e-smoke-" + [guid]::NewGuid().ToString('N'))

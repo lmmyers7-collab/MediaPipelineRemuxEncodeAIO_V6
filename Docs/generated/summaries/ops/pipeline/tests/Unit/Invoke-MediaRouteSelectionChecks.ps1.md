@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-19
 last_reviewed: 2026-06-04
-sha256: 674e6f211ecede339e61e49b71022d71ce4208d8da6dc4a1e78c0ed080348a91
+sha256: 1ca2abdfdfcd31b0c35beb6156184508fc1d09c58fd466bc9e302d67e2a7a3ad
 ---
 # `ops/pipeline/tests/Unit/Invoke-MediaRouteSelectionChecks.ps1`
 

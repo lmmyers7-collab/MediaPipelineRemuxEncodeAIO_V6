@@ -11,6 +11,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 }
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\media_constants.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\routing.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
 
 function Assert-Equal {

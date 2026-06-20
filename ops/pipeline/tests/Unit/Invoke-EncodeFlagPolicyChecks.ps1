@@ -14,6 +14,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 . (Join-Path $repoRoot 'ops\pipeline\engine\shared\failure_codes.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\choice_registry.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\default_values.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
 
 function Assert-Equal {
@@ -400,6 +401,21 @@ $metadataAttempts = @($snapshotCases | Select-Object -ExpandProperty Attempt -Un
 Assert-True ($metadataAttempts -contains 'primary') 'Snapshot set must cover primary attempt metadata.'
 Assert-True ($metadataAttempts -contains 'hardware_safe_retry') 'Snapshot set must cover hardware safe-retry attempt metadata.'
 Assert-True ($metadataAttempts -contains 'cpu_fallback') 'Snapshot set must cover CPU fallback attempt metadata.'
+
+$hevcNvencDescriptor = Get-MediaEncoderDescriptor -Family 'hevc' -Backend 'nvenc'
+Assert-True ($null -ne $hevcNvencDescriptor) 'HEVC/NVENC descriptor must exist for the behavior-identical descriptor scaffold.'
+Assert-Equal ([string]$hevcNvencDescriptor.EncoderName) 'hevc_nvenc' 'HEVC/NVENC descriptor encoder mismatch.'
+Assert-Equal ([string]$hevcNvencDescriptor.RateControlKind) 'nvenc_cq' 'HEVC/NVENC descriptor rate-control mismatch.'
+Assert-Equal ([bool]$hevcNvencDescriptor.UsesVbv) $true 'HEVC/NVENC descriptor must preserve VBV emission.'
+
+$hevcCpuDescriptor = Get-MediaEncoderDescriptor -Family 'hevc' -Backend 'cpu'
+Assert-True ($null -ne $hevcCpuDescriptor) 'HEVC/CPU descriptor must exist for libx265 fallback.'
+Assert-Equal ([string]$hevcCpuDescriptor.EncoderName) 'libx265' 'HEVC/CPU descriptor encoder mismatch.'
+Assert-Equal ([string]$hevcCpuDescriptor.RateControlKind) 'x265_crf' 'HEVC/CPU descriptor rate-control mismatch.'
+Assert-Equal ([bool]$hevcCpuDescriptor.UsesVbv) $false 'HEVC/CPU descriptor must preserve no-VBV CRF behavior.'
+
+Assert-True ($null -eq (Get-MediaEncoderDescriptor -Family 'av1' -Backend 'nvenc')) 'AV1 descriptor must stay absent until its dedicated phase.'
+Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'av1_nvenc' -UseCpuFallback:$false)) 'AV1 NVENC must keep the legacy branch in the parity scaffold.'
 
 $retryCases = @(
     @{ Name = 'success does not retry'; Success = $true; StopRequested = $false; ForceCpu = $false; VideoCodec = 'hevc_nvenc'; ErrorText = 'No NVENC capable devices found'; Expected = $false },

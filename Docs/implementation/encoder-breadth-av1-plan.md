@@ -1,7 +1,10 @@
 # Hardware-encoder breadth + AV1 — implementation master plan
 
 Date: 2026-06-11
-Status: proposed (not started; no production code changed by this document)
+Status: in progress. Phase 0 encode-flag snapshots exist, and Phase 1 now has a
+HEVC/NVENC plus libx265 descriptor parity scaffold. No AV1/QSV/AMF descriptors,
+capability probing, config-key changes, fallback changes, or new encoder enablement
+are complete.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -313,6 +316,9 @@ packet.
 
 ## 4. Phase 0 — characterization tests (freeze current behavior)
 
+Status: complete for the current snapshot scope. `ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1`
+pins 22 encode argument/metadata cases and is the parity oracle for later phases.
+
 **Intent:** lock today's exact FFmpeg argument lists before anything moves.
 **Production code changed: none.** This phase only adds a test file.
 
@@ -375,6 +381,13 @@ report the snapshot count and any surprises found while snapshotting.
 ---
 
 ## 5. Phase 1 — encoder-descriptor refactor (behavior-identical)
+
+Status: partial. `ops/pipeline/engine/decide/encoder_descriptors.ps1` defines the
+existing HEVC/NVENC primary and libx265 CPU fallback descriptors, the canonical
+module loader registers it before `EncodePolicy.ps1`, and `New-EncodeVideoFlags`
+delegates to the descriptor path only for those two already-supported cases. Unknown
+or not-yet-enabled encoders still use the legacy branch so Phase 0 snapshots remain
+unchanged.
 
 **Intent:** restructure `New-EncodeVideoFlags` around descriptors without changing a
 single emitted argument. Phase 0 snapshots prove it.

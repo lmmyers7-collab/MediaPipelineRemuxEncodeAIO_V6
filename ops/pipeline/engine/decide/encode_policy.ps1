@@ -7,6 +7,12 @@
 # and receive explicit FFmpeg argument lists / attempt metadata back.
 # ==============================================================================
 
+$encodePolicyModuleRoot = if ($PSScriptRoot) { $PSScriptRoot } else { Split-Path -Parent $PSCommandPath }
+$encoderDescriptorsModule = Join-Path $encodePolicyModuleRoot 'encoder_descriptors.ps1'
+if (Test-Path -LiteralPath $encoderDescriptorsModule -PathType Leaf) {
+    . $encoderDescriptorsModule
+}
+
 function Get-MediaEncodeLadderNames {
     if (Get-Command -Name Get-MediaPipelineEncodeLadderNames -ErrorAction SilentlyContinue) {
         return @(Get-MediaPipelineEncodeLadderNames)
@@ -147,6 +153,25 @@ function New-EncodeVideoFlags {
         [string] $Hdr10MasterDisplay = '',
         [string] $Hdr10MaxCll = ''
     )
+
+    $descriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback
+    if ($null -ne $descriptor) {
+        return @(New-EncoderVideoFlags `
+            -Descriptor $descriptor `
+            -IsHDR:$IsHDR `
+            -IsTV:$IsTV `
+            -UseSafeHardwareRetry:$UseSafeHardwareRetry `
+            -VideoCodec $VideoCodec `
+            -VideoPreset $VideoPreset `
+            -VideoQuality $VideoQuality `
+            -ExtraVideoFlags $ExtraVideoFlags `
+            -FallbackCpuQuality $FallbackCpuQuality `
+            -EncodeLadder $EncodeLadder `
+            -CpuPreset $CpuPreset `
+            -CpuMaxThreads $CpuMaxThreads `
+            -Hdr10MasterDisplay $Hdr10MasterDisplay `
+            -Hdr10MaxCll $Hdr10MaxCll)
+    }
 
     $ladderProfile = Get-MediaEncodeLadderProfile -Ladder $EncodeLadder -IsTV:$IsTV
     $effectiveVideoQuality = Get-MediaEncodeBoundedQuality -Quality ([int]$VideoQuality + [int]$ladderProfile.quality_delta)

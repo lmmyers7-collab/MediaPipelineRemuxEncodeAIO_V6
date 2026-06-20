@@ -226,6 +226,7 @@ function Assert-NoAcceptedOutput {
 . (Join-Path $projectRoot 'ops\pipeline\engine\config\config_schema.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\shared\media_constants.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\shared\failure_codes.ps1')
+. (Join-Path $projectRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
 . (Join-Path $projectRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
 
 if (-not (Test-FFmpegEncoderAvailable -EncoderName 'libx265')) {

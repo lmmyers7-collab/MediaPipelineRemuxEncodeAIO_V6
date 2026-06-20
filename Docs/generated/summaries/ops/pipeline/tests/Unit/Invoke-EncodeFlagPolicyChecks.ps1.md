@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-15
+last_modified: 2026-06-19
 last_reviewed: 2026-06-11
-sha256: 9e281bafc21a634d9d483d6cb8578970fcb200e59b7571516bc6725ee66dd1f2
+sha256: 86072055c62a4166f5441e101a0940dae44d2c405e36f47d955beab7199e3c6c
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1`
 
