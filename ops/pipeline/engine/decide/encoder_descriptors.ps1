@@ -626,6 +626,75 @@ function New-MediaEncoderDescriptorProbeArgumentList {
     )
 }
 
+function Invalidate-EncoderBackendProbe {
+    param(
+        [Parameter(Mandatory)] [string] $Backend,
+        [string] $Reason = '',
+        [string] $SourcePath = '',
+        [string] $Trigger = 'runtime_encoder_failure',
+        [switch] $SuppressEvent
+    )
+
+    $backendName = if ($Backend) { $Backend.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($backendName)) {
+        throw 'Encoder backend is required for probe invalidation.'
+    }
+    if ([string]::IsNullOrWhiteSpace($Reason)) {
+        $Reason = "encoder backend '$backendName' failed at runtime; probe cache invalidated"
+    }
+    if ([string]::IsNullOrWhiteSpace($Trigger)) {
+        $Trigger = 'runtime_encoder_failure'
+    }
+
+    if (-not $script:EncoderDescriptorBackendInvalidations) {
+        $script:EncoderDescriptorBackendInvalidations = @{}
+    }
+    if (-not $script:EncoderDescriptorCapabilityProbeCache) {
+        $script:EncoderDescriptorCapabilityProbeCache = @{}
+    }
+
+    $alreadyInvalidated = $script:EncoderDescriptorBackendInvalidations.ContainsKey($backendName)
+    $invalidation = [pscustomobject][ordered]@{
+        Available           = $false
+        Probed              = $true
+        RuntimeProbeSkipped = $false
+        Reason              = [string]$Reason
+        EncoderListMatch    = $false
+        RuntimeOk           = $false
+        EncoderName         = ''
+        Family              = ''
+        Backend             = $backendName
+        ProbeEncoderName    = ''
+        ProbedAt            = (Get-Date).ToString('o')
+        InvalidatedAt       = (Get-Date).ToString('o')
+        Trigger             = [string]$Trigger
+        BackendInvalidated  = $true
+    }
+    $script:EncoderDescriptorBackendInvalidations[$backendName] = $invalidation
+
+    foreach ($key in @($script:EncoderDescriptorCapabilityProbeCache.Keys)) {
+        $parts = ([string]$key) -split '\|'
+        if ($parts.Count -ge 2 -and $parts[1] -eq $backendName) {
+            $script:EncoderDescriptorCapabilityProbeCache.Remove($key)
+        }
+    }
+
+    if (-not $SuppressEvent -and -not $alreadyInvalidated) {
+        if (Get-Command -Name Write-Log -ErrorAction SilentlyContinue) {
+            Write-Log "Encoder backend probe cache invalidated for ${backendName}: $Reason" "WARN"
+        }
+        if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+            Write-PipelineEvent -EventType 'gpu_unavailable' -Stage 'encode' -Status 'warn' -SourcePath $SourcePath -Data @{
+                trigger = [string]$Trigger
+                reason  = [string]$Reason
+                backend = $backendName
+            } | Out-Null
+        }
+    }
+
+    return $invalidation
+}
+
 function Test-MediaEncoderDescriptorAvailable {
     param(
         [Parameter(Mandatory)] $Descriptor,
@@ -639,6 +708,28 @@ function Test-MediaEncoderDescriptorAvailable {
         $script:EncoderDescriptorCapabilityProbeCache = @{}
     }
     $cacheKey = Get-MediaEncoderDescriptorProbeCacheKey -Descriptor $Descriptor -FfmpegPath $FfmpegPath -SkipRuntimeProbe ([bool]$SkipRuntimeProbe)
+    $backendName = ([string]$Descriptor.Backend).Trim().ToLowerInvariant()
+    if (-not $Force -and $script:EncoderDescriptorBackendInvalidations -and $script:EncoderDescriptorBackendInvalidations.ContainsKey($backendName)) {
+        $invalidation = $script:EncoderDescriptorBackendInvalidations[$backendName]
+        $invalidatedResult = [pscustomobject][ordered]@{
+            Available           = $false
+            Probed              = $true
+            RuntimeProbeSkipped = $false
+            Reason              = [string]$invalidation.Reason
+            EncoderListMatch    = $false
+            RuntimeOk           = $false
+            EncoderName         = [string]$Descriptor.EncoderName
+            Family              = [string]$Descriptor.Family
+            Backend             = [string]$Descriptor.Backend
+            ProbeEncoderName    = [string]$Descriptor.ProbeEncoderName
+            ProbedAt            = (Get-Date).ToString('o')
+            InvalidatedAt       = if ($invalidation.PSObject.Properties['InvalidatedAt']) { [string]$invalidation.InvalidatedAt } else { (Get-Date).ToString('o') }
+            Trigger             = if ($invalidation.PSObject.Properties['Trigger']) { [string]$invalidation.Trigger } else { 'runtime_encoder_failure' }
+            BackendInvalidated  = $true
+        }
+        $script:EncoderDescriptorCapabilityProbeCache[$cacheKey] = $invalidatedResult
+        return $invalidatedResult
+    }
     if (-not $Force -and $script:EncoderDescriptorCapabilityProbeCache.ContainsKey($cacheKey)) {
         return $script:EncoderDescriptorCapabilityProbeCache[$cacheKey]
     }
@@ -718,6 +809,9 @@ function Test-MediaEncoderDescriptorAvailable {
             $result.RuntimeOk = $true
             $result.Available = $true
             $result.Reason = "encoder '$($result.ProbeEncoderName)' probe succeeded"
+            if ($Force -and $script:EncoderDescriptorBackendInvalidations -and $script:EncoderDescriptorBackendInvalidations.ContainsKey($backendName)) {
+                $script:EncoderDescriptorBackendInvalidations.Remove($backendName)
+            }
         } else {
             $tail = ($stderrText -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 1)
             $result.Reason = "encoder '$($result.ProbeEncoderName)' probe exit $($proc.ExitCode): $tail"

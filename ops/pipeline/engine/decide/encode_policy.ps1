@@ -905,10 +905,16 @@ function Invalidate-NvencAvailableProbe {
     } else {
         ''
     }
+    $invalidationReason = if ([string]::IsNullOrWhiteSpace($Reason)) { 'NVENC failed at runtime; probe cache invalidated' } else { $Reason }
+    $backendInvalidation = if (Get-Command -Name Invalidate-EncoderBackendProbe -ErrorAction SilentlyContinue) {
+        Invalidate-EncoderBackendProbe -Backend 'nvenc' -Reason $invalidationReason -SourcePath $SourcePath -Trigger 'runtime_nvenc_failure'
+    } else {
+        $null
+    }
     $script:NvencAvailableProbe = [pscustomobject]@{
         Available            = $false
         Probed               = $true
-        Reason               = if ([string]::IsNullOrWhiteSpace($Reason)) { 'NVENC failed at runtime; probe cache invalidated' } else { $Reason }
+        Reason               = $invalidationReason
         EncoderListMatch     = $false
         RuntimeOk            = $false
         ProbedAt             = (Get-Date).ToString('o')
@@ -919,15 +925,18 @@ function Invalidate-NvencAvailableProbe {
         ProbeEncoderName     = $previousProbeEncoder
         FfmpegPath           = $previousFfmpegPath
         DescriptorProbeCache = $true
-        InvalidatedAt        = (Get-Date).ToString('o')
+        BackendInvalidated   = $true
+        InvalidatedAt        = if ($backendInvalidation -and $backendInvalidation.PSObject.Properties['InvalidatedAt']) { [string]$backendInvalidation.InvalidatedAt } else { (Get-Date).ToString('o') }
+        Trigger              = 'runtime_nvenc_failure'
     }
 
-    if ($previous) {
+    if ($previous -and -not $backendInvalidation) {
         Write-Log "NVENC probe cache invalidated: $($script:NvencAvailableProbe.Reason)" "WARN"
         if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
             Write-PipelineEvent -EventType 'gpu_unavailable' -Stage 'encode' -Status 'warn' -SourcePath $SourcePath -Data @{
                 trigger = 'runtime_nvenc_failure'
                 reason  = [string]$script:NvencAvailableProbe.Reason
+                backend = 'nvenc'
             } | Out-Null
         }
     }

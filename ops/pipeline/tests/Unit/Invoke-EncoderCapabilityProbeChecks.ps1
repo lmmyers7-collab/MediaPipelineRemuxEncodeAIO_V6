@@ -87,9 +87,75 @@ Assert-Equal ([bool]$hardwareListOnly.EncoderListMatch) $true 'Bundled ffmpeg sh
 Assert-Equal ([bool]$hardwareListOnly.Available) $false 'Hardware list-only probe must stay fail-closed until runtime probing succeeds.'
 Assert-Equal ([bool]$hardwareListOnly.RuntimeProbeSkipped) $true 'Hardware list-only probe must not claim runtime validation.'
 
+$script:ProbeInvalidationEvents = @()
+$script:ProbeInvalidationLogs = @()
+function Write-PipelineEvent {
+    param(
+        [string] $EventType,
+        [string] $Stage = '',
+        [string] $Status = '',
+        [string] $SourcePath = '',
+        $Data = $null
+    )
+    $script:ProbeInvalidationEvents += ,([pscustomobject]@{
+        EventType  = $EventType
+        Stage      = $Stage
+        Status     = $Status
+        SourcePath = $SourcePath
+        Data       = $Data
+    })
+    return $true
+}
+function Write-Log {
+    param([string] $Message, [string] $Level = 'INFO')
+    $script:ProbeInvalidationLogs += ,([pscustomobject]@{ Message = $Message; Level = $Level })
+}
+
+$previousDescriptorInvalidations = $script:EncoderDescriptorBackendInvalidations
+$previousDescriptorProbeCache = $script:EncoderDescriptorCapabilityProbeCache
+try {
+    $script:EncoderDescriptorBackendInvalidations = @{}
+    $script:EncoderDescriptorCapabilityProbeCache = @{}
+    $backendInvalidation = Invalidate-EncoderBackendProbe `
+        -Backend 'nvenc' `
+        -Reason 'unit backend invalidation' `
+        -SourcePath 'unit-source.mkv'
+    Assert-Equal ([bool]$backendInvalidation.BackendInvalidated) $true 'Generic backend invalidation should mark descriptor probes invalidated.'
+    Assert-Equal ([string]$backendInvalidation.Backend) 'nvenc' 'Generic backend invalidation should normalize backend evidence.'
+    Assert-Equal ([string]$backendInvalidation.Trigger) 'runtime_encoder_failure' 'Generic backend invalidation should default the trigger evidence.'
+
+    $blockedHardwareProbe = Test-MediaEncoderDescriptorAvailable `
+        -Descriptor $av1NvencDescriptor `
+        -FfmpegPath $ffmpegPath `
+        -SkipRuntimeProbe
+    Assert-Equal ([bool]$blockedHardwareProbe.Available) $false 'Backend invalidation must keep later descriptor probes unavailable.'
+    Assert-Equal ([bool]$blockedHardwareProbe.BackendInvalidated) $true 'Backend invalidation should be visible on later descriptor probe results.'
+    Assert-Equal ([string]$blockedHardwareProbe.Reason) 'unit backend invalidation' 'Backend invalidation reason should carry to later descriptor probe results.'
+    Assert-Equal ([string]$blockedHardwareProbe.ProbeEncoderName) 'av1_nvenc' 'Invalidated descriptor result should preserve the requested probe encoder.'
+
+    $forcedHardwareListProbe = Test-MediaEncoderDescriptorAvailable `
+        -Descriptor $av1NvencDescriptor `
+        -FfmpegPath $ffmpegPath `
+        -SkipRuntimeProbe `
+        -Force
+    Assert-Equal ([bool]$forcedHardwareListProbe.EncoderListMatch) $true 'Forced descriptor probe should bypass backend invalidation for explicit rechecks.'
+    Assert-Equal ([bool]$forcedHardwareListProbe.RuntimeProbeSkipped) $true 'Forced list-only descriptor probe should still avoid hardware runtime execution.'
+    Assert-Equal ($null -eq $forcedHardwareListProbe.PSObject.Properties['BackendInvalidated']) $true 'Forced descriptor probe should not report backend invalidation when it bypasses the invalidated cache.'
+
+    $invalidationEvent = @($script:ProbeInvalidationEvents | Where-Object { $_.EventType -eq 'gpu_unavailable' } | Select-Object -First 1)
+    Assert-True ($invalidationEvent.Count -eq 1) 'Generic backend invalidation should emit one gpu_unavailable event.'
+    Assert-Equal ([string]$invalidationEvent[0].Data.backend) 'nvenc' 'Generic backend invalidation event should carry backend evidence.'
+    Assert-Equal ([string]$invalidationEvent[0].Data.trigger) 'runtime_encoder_failure' 'Generic backend invalidation event should carry trigger evidence.'
+} finally {
+    $script:EncoderDescriptorBackendInvalidations = $previousDescriptorInvalidations
+    $script:EncoderDescriptorCapabilityProbeCache = $previousDescriptorProbeCache
+}
+
 $previousNvencProbe = $script:NvencAvailableProbe
+$previousDescriptorInvalidations = $script:EncoderDescriptorBackendInvalidations
 try {
     $script:NvencAvailableProbe = $null
+    $script:EncoderDescriptorBackendInvalidations = @{}
     $missingFfmpegPath = Join-Path $repoRoot 'LocalBase\missing-ffmpeg.exe'
     $hevcMissingProbe = Test-NvencAvailable `
         -FfmpegPath $missingFfmpegPath `
@@ -112,8 +178,10 @@ try {
         -TestEncoder 'hevc_nvenc'
     Assert-Equal ([string]$invalidatedProbe.Reason) 'unit invalidation' 'Runtime invalidation should still short-circuit later legacy NVENC probe calls.'
     Assert-Equal ([bool]$invalidatedProbe.DescriptorProbeCache) $true 'Runtime invalidation should preserve descriptor-backed NVENC probe evidence.'
+    Assert-Equal ([bool]$invalidatedProbe.BackendInvalidated) $true 'Runtime invalidation should also mark the descriptor backend invalidated.'
 } finally {
     $script:NvencAvailableProbe = $previousNvencProbe
+    $script:EncoderDescriptorBackendInvalidations = $previousDescriptorInvalidations
 }
 
 Write-Host 'Encoder capability probe checks passed.'
