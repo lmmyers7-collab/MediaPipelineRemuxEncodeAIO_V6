@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0621-018",
+  "title": "Validate completed manifest apply",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Added confirmed-apply fixture coverage for completed manifest reconciliation and corrected the completed manifest dry-run operator guidance to point at the available confirmed apply route.",
+  "reason": "Repair/reconcile validation had coverage for sidecar, pending manifest, orphan payload, fingerprint rejection, strict payload validation, and journaling, but not the completed manifest reconciliation apply branch itself.",
+  "affected_areas": [
+    "core",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "The completed manifest reconciliation apply route existed but lacked a focused confirmed-apply test proving a selected backend dry-run candidate rewrites only the completed manifest with a backup while preserving source, output, and sidecar files. The dry-run candidate guidance still said no completed manifest write route existed.",
+  "behavior_after": "The apply suite now covers completed manifest reconciliation with strict dry-run fingerprint flow, manifest backup/write evidence, selected row scope, and source/output/sidecar preservation. Completed manifest dry-run candidate guidance now directs operators to the matching confirmed apply route.",
+  "files_touched": [
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/dry_run.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-018.json",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_command_contracts -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_contract_payload -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_apply -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_apply.RepairReconcileApplyTests.test_completed_manifest_reconcile_apply_writes_only_manifest_with_backup -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run -q - passed",
+    ".\\ops\\scripts\\smoke\\Test-LocalApiRepairReconcileDryRunContractSmoke.ps1 - passed",
+    "generate_project_index - passed",
+    "git diff --check - passed",
+    "refresh_summaries --check --paths src/mediapipeline/core/repair_reconcile/dry_run.py tests/python/desktop/test_repair_reconcile_apply.py - passed",
+    "validate_changes --require-worktree-coverage - passed"
+  ],
+  "rollback_plan": "Revert this packet, the completed manifest dry-run guidance string change, the added apply test coverage, and the regenerated summaries.",
+  "related_changes": [],
+  "notes": "Update completed manifest dry-run guidance to point at the available confirmed apply route.\nAdd confirmed apply coverage for completed manifest reconciliation preserving source/output/sidecar state.\nRefresh generated summaries for the changed repair/reconcile dry-run and apply-test files.\nRefresh dependency graph for the new test import edge."
+}

@@ -13,10 +13,12 @@ from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
+from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
+from mediapipeline.desktop.models import CompletedJobRecord
 from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService
 from tests.python.desktop.test_repair_reconcile_dry_run import _completed_fixture, _file_state, _pending_fixture, _pending_manifest_payload
 
@@ -71,6 +73,79 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(repaired["operator_note"], "preserve me")
             self.assertEqual(_file_state(files["output"]), output_before)
             self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertTrue(result["data"]["source_payload_output_unchanged"])
+
+    def test_completed_manifest_reconcile_apply_writes_only_manifest_with_backup(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _completed_fixture(root)
+            manifest = files["completed_manifest"]
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_completed_preview(resolved).to_mapping()
+            row = dict(preview["rows"][0])
+            manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
+            manifest_payload.pop("output_path", None)
+            manifest_payload["output_file"] = files["output"].name
+            manifest.write_text(json.dumps(manifest_payload, sort_keys=True) + "\n", encoding="utf-8")
+            row_key = completed_record_key(CompletedJobRecord(sidecar_path=manifest, payload=dict(manifest_payload)))
+            row.update(
+                {
+                    "row_key": row_key,
+                    "source_path": str(files["source"]),
+                    "output_path": str(files["output"]),
+                    "output_file": files["output"].name,
+                    "output_exists": True,
+                    "manifest_output_path": "",
+                    "manifest_output_file": files["output"].name,
+                    "sidecar_path": str(manifest),
+                    "expected_sidecar_path": str(files["sidecar"]),
+                    "sidecar_exists": True,
+                    "sidecar_matches_output": False,
+                    "consistency_issues": ["manifest_missing_output_path"],
+                }
+            )
+            preview["rows"] = [row]
+            manifest_before = _file_state(manifest)
+            source_before = _file_state(files["source"])
+            output_before = _file_state(files["output"])
+            sidecar_before = _file_state(files["sidecar"])
+            original_get_completed_preview = facade.get_completed_preview
+            facade.get_completed_preview = lambda _resolved, **_kwargs: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
+            try:
+                dry_run = facade.plan_repair_reconcile_dry_run(
+                    resolved,
+                    candidate_command="completed.reconcile_manifest",
+                    request={"scope": "selected", "row_key": row_key, "reason": "restore output path"},
+                ).to_mapping()["data"]
+
+                result = facade.apply_repair_reconcile(
+                    resolved,
+                    candidate_command="completed.reconcile_manifest",
+                    request=_apply_request(dry_run, reason="manifest only"),
+                ).to_mapping()
+            finally:
+                facade.get_completed_preview = original_get_completed_preview  # type: ignore[method-assign]
+
+            repaired = json.loads(manifest.read_text(encoding="utf-8"))
+            backup_path = Path(result["data"]["backup_paths"][0])
+            dry_run_row = dry_run["diff_summary"]["rows"][0]
+            self.assertTrue(dry_run["safe_to_apply"])
+            self.assertEqual(dry_run_row["status"], "candidate")
+            self.assertEqual(dry_run_row["reasons"], ["manifest_missing_output_path"])
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["data"]["applied"])
+            self.assertEqual(result["data"]["selected_row_keys"], [row_key])
+            self.assertEqual(result["data"]["written_paths"], [str(manifest)])
+            self.assertEqual(backup_path.name, manifest.name)
+            self.assertTrue(backup_path.exists())
+            self.assertEqual(json.loads(backup_path.read_text(encoding="utf-8")), manifest_payload)
+            self.assertNotEqual(_file_state(manifest), manifest_before)
+            self.assertEqual(repaired["source_path"], str(files["source"]))
+            self.assertEqual(repaired["output_path"], str(files["output"]))
+            self.assertEqual(repaired["output_file"], files["output"].name)
+            self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertEqual(_file_state(files["output"]), output_before)
+            self.assertEqual(_file_state(files["sidecar"]), sidecar_before)
             self.assertTrue(result["data"]["source_payload_output_unchanged"])
 
     def test_apply_rejects_mismatched_dry_run_fingerprint_without_mutating(self) -> None:

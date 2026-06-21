@@ -51,7 +51,7 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|707| api
+  tests -->|708| api
   tests -->|59| config
   scripts -->|46| api
   tests -->|33| processes
@@ -70,10 +70,10 @@ graph LR
   queue -->|14| api
   subtitles -->|13| api
   sample_validation -->|12| api
+  tests -->|12| completed
   unknown -->|12| kernel
   decide -->|11| api
   network -->|11| api
-  tests -->|11| completed
   tests -->|11| paths
   completed -->|10| api
   contracts -->|10| kernel
@@ -208,7 +208,7 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 707 |
+| tests | api | 708 |
 | tests | config | 59 |
 | scripts | api | 46 |
 | tests | processes | 33 |
@@ -227,10 +227,10 @@ graph LR
 | queue | api | 14 |
 | subtitles | api | 13 |
 | sample_validation | api | 12 |
+| tests | completed | 12 |
 | unknown | kernel | 12 |
 | decide | api | 11 |
 | network | api | 11 |
-| tests | completed | 11 |
 | tests | paths | 11 |
 | completed | api | 10 |
 | contracts | kernel | 10 |

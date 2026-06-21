@@ -891,7 +891,7 @@ def completed_manifest_reconcile_dry_run(
                     "output_file": str(row.get("output_file") or Path(output_path).name if output_path else ""),
                     "expected_sidecar_path": str(row.get("expected_sidecar_path") or ""),
                 },
-                "safe_next_action": "Review the dry-run diff; no completed manifest write route exists.",
+                "safe_next_action": "Review the dry-run diff, then submit the fingerprint to the matching confirmed apply route.",
             }
         )
     if manifest_path and any(row.get("status") == "candidate" for row in diff_rows):
