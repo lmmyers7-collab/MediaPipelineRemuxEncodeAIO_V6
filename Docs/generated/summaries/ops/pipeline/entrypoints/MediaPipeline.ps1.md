@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: a09567ee3ab259b09d556e3c9e2fa7b60b59f04a9c3621a418c4f99e305e4719
+sha256: 47de523ea0f555a6aee15dc4bb18102d81ecd92d814dc3a28211fdd2f2132ede
 ---
 # `ops/pipeline/entrypoints/MediaPipeline.ps1`
 

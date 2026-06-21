@@ -40,6 +40,7 @@
     MinFreeSpaceGB = 50
     OutsourceMinFreeSpaceGB = 50
     VideoCodec = 'hevc_nvenc'
+    EncoderBackend = 'auto'
     VideoPreset = 'p7'
     VideoQuality = 21
     OutputContainer = 'mkv'

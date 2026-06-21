@@ -10,6 +10,9 @@ from .policy import (
     DYNAMIC_HDR_POLICY_DEFAULT,
     DYNAMIC_HDR_POLICY_DESCRIPTIONS,
     DYNAMIC_HDR_POLICY_NAMES,
+    ENCODER_BACKEND_DEFAULT,
+    ENCODER_BACKEND_DESCRIPTIONS,
+    ENCODER_BACKEND_NAMES,
 )
 
 
@@ -35,6 +38,17 @@ VIDEO_CONFIG_FIELD_DEFINITIONS = (
             "libaom-av1",
         ),
         "help": "Applies only when encoding is required. Selects the video encoder used for encoded output.",
+    },
+    {
+        "page": "Video",
+        "section": "Video",
+        "key": "EncoderBackend",
+        "label": "Encoder Backend Preference",
+        "kind": "combo",
+        "choices": ENCODER_BACKEND_NAMES,
+        "default": ENCODER_BACKEND_DEFAULT,
+        "choice_help": ENCODER_BACKEND_DESCRIPTIONS,
+        "help": "Stored backend preference for encoder capability diagnostics. Normal encode selection remains controlled by VideoCodec until descriptor-backed activation is validated.",
     },
     {
         "page": "Video",

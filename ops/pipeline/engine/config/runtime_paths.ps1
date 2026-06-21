@@ -17,7 +17,7 @@ function Get-MediaPipelineResolvedConfigDump {
         'MovieRoute1080pTargetSizeGB','MovieRoute1440pTargetSizeGB','MovieRoute4KTargetSizeGB',
         'TVRoute1080pTargetSizeGB','TVRoute1440pTargetSizeGB','TVRoute4KTargetSizeGB',
         'MinFreeSpaceGB',
-        'VideoCodec','VideoPreset','VideoQuality','OutputContainer','DynamicHdrPolicy','DoviToolPath','Hdr10PlusToolPath','RemuxSafeVideoCodecs',
+        'VideoCodec','EncoderBackend','VideoPreset','VideoQuality','OutputContainer','DynamicHdrPolicy','DoviToolPath','Hdr10PlusToolPath','RemuxSafeVideoCodecs',
         'RenameMovieFilterOptions','RenameMovieFilterTerms','RenameMovieRemoveTerms',
         'RenameTVFilterOptions','RenameTVFilterTerms','RenameTVRemoveTerms','SubKeepLanguages',
         'StripFormatting','MergeAdjacent','RemoveKaraoke','KeepSignsAndSongs',

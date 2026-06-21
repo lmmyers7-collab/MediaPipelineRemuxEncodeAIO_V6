@@ -750,6 +750,18 @@
       "title": "Videocodec",
       "type": "string"
     },
+    "EncoderBackend": {
+      "default": "auto",
+      "enum": [
+        "auto",
+        "nvenc",
+        "qsv",
+        "amf",
+        "cpu"
+      ],
+      "title": "Encoderbackend",
+      "type": "string"
+    },
     "VideoPreset": {
       "default": "p7",
       "enum": [

@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_config_option_policy.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-19
+last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: f5fef8ee7754926e13616a6ef2db72bf9a3ed5a879364118e53031b31f689713
+sha256: 311c82252fd75c6d915a9117d8338fc53a818550cf007e08945eaf5e92021066
 ---
 # `tests/python/desktop/test_service_config_option_policy.py`
 

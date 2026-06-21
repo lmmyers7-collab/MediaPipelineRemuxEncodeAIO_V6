@@ -50,6 +50,7 @@ KEY_FINAL_LIBRARY_PROMOTION_VERIFICATION_MODE: Final = "FinalLibraryPromotionVer
 KEY_FINAL_LIBRARY_PROMOTION_CLEANUP_AFTER_VERIFIED: Final = "FinalLibraryPromotionCleanupAfterVerified"
 KEY_FINAL_LIBRARY_PROMOTION_OVERWRITE_EXISTING: Final = "FinalLibraryPromotionOverwriteExisting"
 KEY_VIDEO_CODEC: Final = "VideoCodec"
+KEY_ENCODER_BACKEND: Final = "EncoderBackend"
 KEY_VIDEO_PRESET: Final = "VideoPreset"
 KEY_VIDEO_QUALITY: Final = "VideoQuality"
 KEY_OUTPUT_CONTAINER: Final = "OutputContainer"

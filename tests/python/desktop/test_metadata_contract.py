@@ -89,6 +89,7 @@ DISPLAY_SECTION_GROUP_EXPECTATIONS = {
     "EncodeTuningPreset": ("Presets", "editor"),
     "EncodeLadder": ("Presets", "editor"),
     "VideoCodec": ("Video", "editor"),
+    "EncoderBackend": ("Video", None),
     "OutputContainer": ("Container", "editor"),
     "MovieRoute1080pTargetSizeGB": ("Size / Bitrate Guards", "editor"),
     "MovieRoute1440pTargetSizeGB": ("Size / Bitrate Guards", "editor"),
@@ -152,6 +153,13 @@ REPRESENTATIVE_DISPLAY_TAXONOMY = {
         ("quality",),
         "soft",
         "Applies only when encoding is required. Selects the encoder speed/compression tradeoff.",
+    ),
+    "EncoderBackend": (
+        "Backend",
+        "Video",
+        ("quality", "output"),
+        "advisory",
+        "Stored backend preference for encoder capability diagnostics. Normal encode selection remains controlled by VideoCodec until descriptor-backed activation is validated.",
     ),
     "AudioPassthroughProfile": (
         "Passthrough",
@@ -280,6 +288,8 @@ class MetadataContractTests(unittest.TestCase):
         self.assertEqual({fields[key]["override_group"] for key in routing_editor_keys}, {"editor"})
         self.assertEqual({fields[key]["override_group"] for key in size_editor_keys}, {"editor"})
         self.assertEqual(video_section_groups, {"editor", "video"})
+        self.assertFalse(fields["EncoderBackend"]["library_override_allowed"])
+        self.assertEqual(fields["EncoderBackend"]["scope"], "global_only")
 
     def test_representative_phase3_display_taxonomy_is_backend_owned(self) -> None:
         fields = _fields_by_key()

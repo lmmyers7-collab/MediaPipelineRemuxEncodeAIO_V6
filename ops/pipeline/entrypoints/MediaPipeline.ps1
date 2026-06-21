@@ -567,7 +567,7 @@ if ($DumpEncoderCapabilitiesPath) {
     try {
         $capabilityReport = New-MediaEncoderCapabilityReport `
             -VideoCodec ([string]$VideoCodec) `
-            -EncoderBackend 'auto' `
+            -EncoderBackend ([string]$EncoderBackend) `
             -FfmpegPath $ffmpegPath `
             -TimeoutSeconds 15
         Write-MediaEncoderCapabilityReport -Report $capabilityReport -Path $DumpEncoderCapabilitiesPath | Out-Null

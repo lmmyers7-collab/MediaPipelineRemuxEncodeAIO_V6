@@ -53,6 +53,7 @@ $script:MediaPipelineConfigKeyRegistry = [ordered]@{
     FinalLibraryPromotionCleanupAfterVerified = 'FinalLibraryPromotionCleanupAfterVerified'
     FinalLibraryPromotionOverwriteExisting = 'FinalLibraryPromotionOverwriteExisting'
     VideoCodec = 'VideoCodec'
+    EncoderBackend = 'EncoderBackend'
     VideoPreset = 'VideoPreset'
     VideoQuality = 'VideoQuality'
     OutputContainer = 'OutputContainer'

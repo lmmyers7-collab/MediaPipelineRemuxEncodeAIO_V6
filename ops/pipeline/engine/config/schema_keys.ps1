@@ -158,7 +158,7 @@ function Get-MediaPipelineConfigOrderedKeys {
         'DeferredPublish',
         'FinalLibraryPromotionEnabled','FinalLibraryPromotionRules','FinalLibraryPromotionVerificationMode',
         'FinalLibraryPromotionCleanupAfterVerified','FinalLibraryPromotionOverwriteExisting',
-        'VideoCodec','VideoPreset','VideoQuality','OutputContainer','DynamicHdrPolicy','DoviToolPath','Hdr10PlusToolPath','EncodeTuningPreset','EncodeLadder','ExtraVideoFlags',
+        'VideoCodec','EncoderBackend','VideoPreset','VideoQuality','OutputContainer','DynamicHdrPolicy','DoviToolPath','Hdr10PlusToolPath','EncodeTuningPreset','EncodeLadder','ExtraVideoFlags',
         'AudioPassthroughProfile','CompatibleAudioCodecs','PreferredDefaultAudioLanguages',
         'AudioTranscodeCodec','AudioTranscodeBitrate','AudioTranscodeAutoBitrateByChannels','AudioDownmixMode','AudioMaxChannels','AllowNoAudio',
         'SubKeepLanguages','ConvertTx3gToSrt','DropTx3gAfterConversion','CreateExternalTx3gSrtSidecars',

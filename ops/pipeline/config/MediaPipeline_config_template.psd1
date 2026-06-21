@@ -48,6 +48,7 @@
     FinalLibraryPromotionCleanupAfterVerified = $false
     FinalLibraryPromotionOverwriteExisting = $false
     VideoCodec = 'hevc_nvenc'
+    EncoderBackend = 'auto'
     VideoPreset = 'p7'
     VideoQuality = 22
     OutputContainer = 'mkv'

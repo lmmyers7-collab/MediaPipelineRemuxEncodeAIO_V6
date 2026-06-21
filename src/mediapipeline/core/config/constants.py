@@ -71,6 +71,16 @@ ENCODE_WASTE_GUARD_MODE_DESCRIPTIONS = {
     "enforce": "For eligible fallback-remux encodes, abort projected-oversize GPU work and try remux fallback.",
 }
 
+ENCODER_BACKEND_DEFAULT = "auto"
+ENCODER_BACKEND_NAMES = ("auto", "nvenc", "qsv", "amf", "cpu")
+ENCODER_BACKEND_DESCRIPTIONS = {
+    "auto": "Let the encoder policy choose from the configured video codec and available hardware.",
+    "nvenc": "Prefer NVIDIA NVENC encoders when descriptor activation is enabled.",
+    "qsv": "Prefer Intel Quick Sync encoders when descriptor activation is enabled.",
+    "amf": "Prefer AMD AMF encoders when descriptor activation is enabled.",
+    "cpu": "Prefer CPU encoders when descriptor activation is enabled.",
+}
+
 DYNAMIC_HDR_POLICY_DEFAULT = "warn"
 DYNAMIC_HDR_POLICY_NAMES = ("off", "warn", "preserve_or_remux", "preserve_or_review")
 DYNAMIC_HDR_POLICY_DESCRIPTIONS = {

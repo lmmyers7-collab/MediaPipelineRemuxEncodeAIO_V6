@@ -291,6 +291,7 @@ function Get-MediaPipelineConfigDefaultValues {
         FinalLibraryPromotionCleanupAfterVerified = $false
         FinalLibraryPromotionOverwriteExisting = $false
         VideoCodec                 = 'hevc_nvenc'
+        EncoderBackend             = Get-MediaPipelineEncoderBackendDefault
         VideoPreset                = 'p7'
         VideoQuality               = 22
         OutputContainer            = 'mkv'

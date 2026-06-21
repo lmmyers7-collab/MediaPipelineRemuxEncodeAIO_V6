@@ -98,6 +98,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
             "SizeGuardMode": SIZE_GUARD_MODE_NAMES,
             "EncodeWasteGuardMode": ENCODE_WASTE_GUARD_MODE_NAMES,
             "VideoCodec": VIDEO_CODEC_VALUES,
+            "EncoderBackend": ("auto", "nvenc", "qsv", "amf", "cpu"),
             "VideoPreset": ("p1", "p2", "p3", "p4", "p5", "p6", "p7"),
             "FinalLibraryPromotionVerificationMode": ("cautious", "fast"),
             "AudioPassthroughProfile": AUDIO_PASSTHROUGH_PROFILE_NAMES,
@@ -126,6 +127,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
                 "ValidExtensions": ["mkv"],
                 "RobocopyFlags": ["R:3"],
                 "VideoCodec": "vp9",
+                "EncoderBackend": "vaapi",
                 "VideoPreset": "p9",
             }
         )
@@ -149,6 +151,7 @@ class ServiceConfigOptionPolicyTests(unittest.TestCase):
             "libx264, libx265.",
             errors,
         )
+        self.assertIn("EncoderBackend must be one of: auto, nvenc, qsv, amf, cpu.", errors)
         self.assertIn("VideoPreset must be one of: p1, p2, p3, p4, p5, p6, p7.", errors)
         self.assertEqual(warnings, [])
 

@@ -11,16 +11,19 @@ descriptor-backed cache, and backend probe invalidation has generic descriptor-c
 support. A read-only `-DumpEncoderCapabilitiesPath` diagnostic can write resolved
 primary/fallback descriptor capability evidence, and the Settings wizard hardware
 probe now threads configured-FFmpeg encoder listings into video-only
-`EncodingCapabilityFacts` plus UI backend annotations. Hardware descriptors are not
-wired into active encoder selection. A synthetic SDR runtime/topology matrix executes
+`EncodingCapabilityFacts` plus UI backend annotations. A dormant global
+`EncoderBackend` config key now round-trips through the PowerShell/Python schema
+surfaces with default `auto`, but it feeds only the capability diagnostic; normal
+encode selection still follows `VideoCodec`. Hardware descriptors are not wired into
+active encoder selection. A synthetic SDR runtime/topology matrix executes
 CPU descriptor rows and reports hardware rows as opt-in skips by default. A pure
 descriptor selection resolver now returns primary/fallback descriptors plus trace
 evidence, including family-consistent CPU fallback candidates. Encode attempt plans
 now expose descriptor-selection evidence for current HEVC/libx265 parity paths and
 explicitly mark dormant AV1 selection as not yet active, but new families are not
 wired into the active `Do-Encode` ladder.
-Config-key changes, fallback wiring, full hardware/HDR runtime matrix coverage, and
-new encoder enablement remain incomplete.
+Fallback wiring, broader Local API/WebView capability threading, full hardware/HDR
+runtime matrix coverage, and new encoder enablement remain incomplete.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder

@@ -13,6 +13,7 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_CPU_ENCODE_PRESET,
     KEY_CPU_ENCODE_PROCESS_PRIORITY,
     KEY_DYNAMIC_HDR_POLICY,
+    KEY_ENCODER_BACKEND,
     KEY_ENCODE_WASTE_GUARD_MODE,
     KEY_ENCODE_LADDER,
     KEY_ENCODE_TUNING_PRESET,
@@ -41,6 +42,7 @@ from mediapipeline.core.config.constants import (
     ROUTING_PROFILE_NAMES,
     SIZE_GUARD_MODE_NAMES,
     DYNAMIC_HDR_POLICY_NAMES,
+    ENCODER_BACKEND_NAMES,
 )
 
 
@@ -98,6 +100,10 @@ def validate_option_config(values: dict[str, Any], errors: list[str], warnings: 
     dynamic_hdr_policy = str(values.get(KEY_DYNAMIC_HDR_POLICY, "warn") or "warn").strip().lower()
     if dynamic_hdr_policy not in DYNAMIC_HDR_POLICY_NAMES:
         errors.append(f"DynamicHdrPolicy must be one of: {', '.join(DYNAMIC_HDR_POLICY_NAMES)}.")
+
+    encoder_backend = str(values.get(KEY_ENCODER_BACKEND, "auto") or "auto").strip().lower()
+    if encoder_backend not in ENCODER_BACKEND_NAMES:
+        errors.append(f"EncoderBackend must be one of: {', '.join(ENCODER_BACKEND_NAMES)}.")
 
     video_codec = str(values.get(KEY_VIDEO_CODEC, "") or "").strip().lower()
     allowed_video_codecs = {

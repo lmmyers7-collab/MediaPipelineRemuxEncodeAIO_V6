@@ -139,6 +139,14 @@ _PHASE3_DISPLAY_METADATA_BY_KEY: dict[str, dict[str, object]] = {
         "strictness": "soft",
         "help_text": "Applies only when encoding is required. Selects the video encoder used for encoded output.",
     },
+    "EncoderBackend": {
+        "label": "Encoder Backend Preference",
+        "short_label": "Backend",
+        "section": "Video",
+        "rule_taxonomy": ("quality", "output"),
+        "strictness": "advisory",
+        "help_text": "Stored backend preference for encoder capability diagnostics. Normal encode selection remains controlled by VideoCodec until descriptor-backed activation is validated.",
+    },
     "OutputContainer": {
         "label": "Output Container",
         "short_label": "Container",

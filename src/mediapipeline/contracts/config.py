@@ -120,6 +120,7 @@ PS_CONFIG_KEY_ORDER: tuple[str, ...] = (
     "FinalLibraryPromotionCleanupAfterVerified",
     "FinalLibraryPromotionOverwriteExisting",
     "VideoCodec",
+    "EncoderBackend",
     "VideoPreset",
     "VideoQuality",
     "OutputContainer",
@@ -303,9 +304,20 @@ DESKTOP_SCHEMA_CONFIG_KEYS: tuple[str, ...] = (
     "SizeGuardMode",
     "MaxEncodeGrowthPercent",
     "CompatibilityEncodeGrowthPercent",
+    "EncodeWasteGuardMode",
+    "EncodeWasteGuardPreflightEnabled",
+    "EncodeWasteGuardMinProgressPercent",
+    "EncodeWasteGuardMinElapsedSeconds",
+    "EncodeWasteGuardOversizeMarginPercent",
+    "EncodeWasteGuardConsecutiveSamples",
+    "EncodeWasteGuardPollSeconds",
+    "EncodeWasteGuardPreflightSampleSeconds",
+    "EncodeWasteGuardPreflightSampleCount",
+    "EncodeWasteGuardPreflightTimeoutSeconds",
     "DeferredPublish",
     "AggressiveEpisodeParsing",
     "VideoCodec",
+    "EncoderBackend",
     "VideoPreset",
     "VideoQuality",
     "OutputContainer",
@@ -818,6 +830,7 @@ class Config(BaseModel):
         "av1_amf",
         "libaom-av1",
     ] = "hevc_nvenc"
+    EncoderBackend: Literal["auto", "nvenc", "qsv", "amf", "cpu"] = "auto"
     VideoPreset: Literal["p1", "p2", "p3", "p4", "p5", "p6", "p7"] = "p7"
     VideoQuality: int = Field(default=22, ge=1, le=51)
     OutputContainer: Literal["mkv", "mp4"] = "mkv"
@@ -1152,6 +1165,7 @@ class Config(BaseModel):
         "QualitySampleMode",
         "QualityFailAction",
         "VideoCodec",
+        "EncoderBackend",
         "VideoPreset",
         "OutputContainer",
         "DynamicHdrPolicy",

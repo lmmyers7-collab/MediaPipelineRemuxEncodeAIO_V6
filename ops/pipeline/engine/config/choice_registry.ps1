@@ -13,6 +13,14 @@ function Get-MediaPipelineVideoCodecNames {
     )
 }
 
+function Get-MediaPipelineEncoderBackendNames {
+    return @('auto','nvenc','qsv','amf','cpu')
+}
+
+function Get-MediaPipelineEncoderBackendDefault {
+    return 'auto'
+}
+
 function Get-MediaPipelineVideoPresetNames {
     return @('p1','p2','p3','p4','p5','p6','p7')
 }

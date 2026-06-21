@@ -340,6 +340,7 @@ function Test-MediaPipelineConfigEncodeAudioPolicy {
 
     foreach ($optionPolicy in @(
         @{ Key = 'VideoCodec'; Label = 'VideoCodec'; Allowed = @(Get-MediaPipelineVideoCodecNames) },
+        @{ Key = 'EncoderBackend'; Label = 'EncoderBackend'; Allowed = @(Get-MediaPipelineEncoderBackendNames) },
         @{ Key = 'VideoPreset'; Label = 'VideoPreset'; Allowed = @(Get-MediaPipelineVideoPresetNames) },
         @{ Key = 'OutputContainer'; Label = 'OutputContainer'; Allowed = @(Get-MediaPipelineOutputContainerNames) },
         @{ Key = 'DynamicHdrPolicy'; Label = 'DynamicHdrPolicy'; Allowed = @(Get-MediaPipelineDynamicHdrPolicyNames); AllowBlank = $true },
