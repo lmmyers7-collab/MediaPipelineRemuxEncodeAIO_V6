@@ -1400,6 +1400,14 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(report["detail"][0]["operator_status_state"], "ready")
         self.assertEqual(report["detail"][0]["available_encoders"], ["h264_nvenc"])
         self.assertEqual(report["detail"][0]["backend_counts"]["nvenc"], {"available": 1, "unavailable": 0, "total": 1})
+        self.assertEqual(
+            report["detail"][0]["encoding_capability_facts"]["supported_video_codecs"],
+            ["h264"],
+        )
+        self.assertEqual(
+            report["detail"][0]["encoding_capability_facts"]["supported_encoder_backends"],
+            ["copy", "nvenc"],
+        )
 
     def test_audit_preflight_skips_unc_library_root_exists_check(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

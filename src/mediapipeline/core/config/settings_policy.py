@@ -7,6 +7,7 @@ import shutil
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from mediapipeline.core.config.encoding_capabilities import encoding_capability_facts_from_encoder_rows
 from mediapipeline.core.kernel.config_keys import (
     KEY_ALLOW_SYSTEM_TOOLS,
     KEY_BDPGS_OCR_TESSDATA_PATH,
@@ -186,6 +187,7 @@ def _settings_encoder_capability_report_base(path: Path | None) -> dict[str, Any
         "available_encoders": [],
         "unavailable_encoders": [],
         "backend_counts": {},
+        "encoding_capability_facts": {},
         "summary_lines": [],
         "errors": [],
     }
@@ -203,6 +205,7 @@ def _settings_encoder_capability_report_from_payload(
     ]
     available = [row["encoder_name"] for row in rows if row["available"]]
     unavailable = [row["encoder_name"] for row in rows if not row["available"]]
+    capability_facts = encoding_capability_facts_from_encoder_rows(rows).model_dump()
     report_schema = str(report.get("schema") or report.get("schema_version") or "")
     errors: list[str] = []
     if report_schema != ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA:
@@ -236,6 +239,7 @@ def _settings_encoder_capability_report_from_payload(
             "available_encoders": available,
             "unavailable_encoders": unavailable,
             "backend_counts": _settings_encoder_backend_counts(rows),
+            "encoding_capability_facts": capability_facts,
             "summary_lines": summary,
             "errors": errors,
         }

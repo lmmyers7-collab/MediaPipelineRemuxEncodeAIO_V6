@@ -22,7 +22,11 @@ from mediapipeline.core.config.preset_migration import (
     legacy_config_patch_from_preset_v2,
     preset_v2_from_legacy_config,
 )
-from mediapipeline.core.config.encoding_capabilities import EncodingCapabilityFacts, validate_encoding_capabilities
+from mediapipeline.core.config.encoding_capabilities import (
+    EncodingCapabilityFacts,
+    encoding_capability_facts_from_encoder_rows,
+    validate_encoding_capabilities,
+)
 from mediapipeline.core.config.preset_policy import (
     PRESET_POLICY_WRITE_FORMAT,
     PRESET_POLICY_SCHEMA_VERSION,
@@ -295,6 +299,50 @@ class PresetPolicyContractTests(unittest.TestCase):
         self.assertIn("video.codecFamily", issue_paths)
         self.assertIn("video.encoderBackend", issue_paths)
         self.assertIn("filters.denoise", issue_paths)
+
+    def test_encoding_capability_facts_can_be_derived_from_descriptor_rows(self) -> None:
+        facts = encoding_capability_facts_from_encoder_rows(
+            [
+                {
+                    "encoder_name": "hevc_nvenc",
+                    "family": "hevc",
+                    "backend": "nvenc",
+                    "available": True,
+                },
+                {
+                    "encoder_name": "libx265",
+                    "family": "hevc",
+                    "backend": "cpu",
+                    "available": True,
+                },
+                {
+                    "encoder_name": "libaom-av1",
+                    "family": "av1",
+                    "backend": "cpu",
+                    "available": True,
+                },
+                {
+                    "encoder_name": "h264_qsv",
+                    "family": "h264",
+                    "backend": "qsv",
+                    "available": False,
+                },
+            ]
+        )
+
+        self.assertEqual(facts.supported_video_codecs, ["av1", "h265", "hevc"])
+        self.assertEqual(facts.supported_encoder_backends, ["copy", "cpu", "libaom", "nvenc", "x265"])
+
+        issues = validate_encoding_capabilities(
+            {
+                "version": 2,
+                "name": "QSV request",
+                "video": {"codec": "h264_qsv", "codecFamily": "h264", "encoderBackend": "qsv"},
+            },
+            facts,
+        )
+
+        self.assertEqual([issue.path for issue in issues], ["video.codecFamily", "video.encoderBackend"])
 
     def test_legacy_or_preset_adapter_reads_both_shapes(self) -> None:
         legacy_effective = effective_decision_policy_from_legacy_or_preset({"OutputContainer": "mp4"})

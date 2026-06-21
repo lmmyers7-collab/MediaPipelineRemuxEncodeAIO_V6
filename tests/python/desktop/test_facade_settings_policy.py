@@ -130,6 +130,14 @@ class SettingsFacadePolicyTests(unittest.TestCase):
         self.assertEqual(evidence["unavailable_encoders"], ["libx265"])
         self.assertEqual(evidence["backend_counts"]["nvenc"], {"available": 1, "unavailable": 0, "total": 1})
         self.assertEqual(evidence["backend_counts"]["cpu"], {"available": 0, "unavailable": 1, "total": 1})
+        self.assertEqual(
+            evidence["encoding_capability_facts"]["supported_video_codecs"],
+            ["h265", "hevc"],
+        )
+        self.assertEqual(
+            evidence["encoding_capability_facts"]["supported_encoder_backends"],
+            ["copy", "nvenc"],
+        )
 
     def test_encoder_capability_report_malformed_json_is_non_blocking_review_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

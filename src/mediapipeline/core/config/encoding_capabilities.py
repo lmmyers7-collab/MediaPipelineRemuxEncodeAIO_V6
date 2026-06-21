@@ -9,6 +9,28 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from mediapipeline.core.config.preset_policy import FiltersPolicy, PresetV2, PresetValidationIssue
 
+_ENCODER_BACKEND_ALIASES_BY_NAME: dict[str, tuple[str, ...]] = {
+    "libx264": ("x264",),
+    "libx265": ("x265",),
+    "libaom-av1": ("libaom",),
+    "libsvtav1": ("svt_av1", "svtav1"),
+}
+
+_ENCODER_CODECS_BY_NAME: dict[str, str] = {
+    "h264_nvenc": "h264",
+    "h264_qsv": "h264",
+    "libx264": "h264",
+    "hevc_nvenc": "hevc",
+    "hevc_qsv": "hevc",
+    "hevc_amf": "hevc",
+    "libx265": "hevc",
+    "av1_nvenc": "av1",
+    "av1_qsv": "av1",
+    "av1_amf": "av1",
+    "libaom-av1": "av1",
+    "libsvtav1": "av1",
+}
+
 
 def _normalized_text(value: Any) -> str:
     if value is None:
@@ -77,6 +99,61 @@ def active_video_filter_names(filters: FiltersPolicy) -> list[str]:
     if filters.colorspace != "source":
         names.append("colorspace")
     return names
+
+
+def encoding_capability_facts_from_encoder_rows(
+    rows: Sequence[Mapping[str, Any]],
+    *,
+    available_only: bool = True,
+) -> EncodingCapabilityFacts:
+    """Build video capability facts from descriptor capability report rows."""
+
+    codecs: set[str] = set()
+    backends: set[str] = {"copy"}
+    for row in rows:
+        if available_only and not _row_is_available(row):
+            continue
+        codec = _encoder_row_codec(row)
+        if codec:
+            codecs.add(codec)
+            if codec == "hevc":
+                codecs.add("h265")
+        for backend in _encoder_row_backends(row):
+            backends.add(backend)
+    return EncodingCapabilityFacts(
+        supported_video_codecs=sorted(codecs),
+        supported_encoder_backends=sorted(backends),
+    )
+
+
+def _row_is_available(row: Mapping[str, Any]) -> bool:
+    value = row.get("available")
+    if isinstance(value, bool):
+        return value
+    return _normalized_text(value) in {"1", "true", "yes", "available", "ok", "ready"}
+
+
+def _encoder_row_codec(row: Mapping[str, Any]) -> str:
+    family = _normalized_text(row.get("family"))
+    if family in {"h264", "h265", "hevc", "av1", "copy"}:
+        return "hevc" if family == "h265" else family
+    return _ENCODER_CODECS_BY_NAME.get(_normalized_text(row.get("encoder_name")), "")
+
+
+def _encoder_row_backends(row: Mapping[str, Any]) -> list[str]:
+    backends: set[str] = set()
+    backend = _normalized_text(row.get("backend"))
+    if backend:
+        backends.add(backend)
+    name = _normalized_text(row.get("encoder_name"))
+    if name.endswith("_nvenc"):
+        backends.add("nvenc")
+    elif name.endswith("_qsv"):
+        backends.add("qsv")
+    elif name.endswith("_amf"):
+        backends.add("amf")
+    backends.update(_ENCODER_BACKEND_ALIASES_BY_NAME.get(name, ()))
+    return sorted(backends)
 
 
 def validate_encoding_capabilities(
@@ -150,5 +227,6 @@ def _check_container(preset: PresetV2, facts: EncodingCapabilityFacts, issues: l
 __all__ = [
     "EncodingCapabilityFacts",
     "active_video_filter_names",
+    "encoding_capability_facts_from_encoder_rows",
     "validate_encoding_capabilities",
 ]

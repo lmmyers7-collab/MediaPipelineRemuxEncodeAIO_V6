@@ -296,6 +296,7 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
                     "available_encoders": available,
                     "unavailable_encoders": unavailable,
                     "backend_counts": report.get("backend_counts") or {},
+                    "encoding_capability_facts": report.get("encoding_capability_facts") or {},
                     "summary_lines": list(report.get("summary_lines") or []),
                     "errors": list(report.get("errors") or []),
                 }
