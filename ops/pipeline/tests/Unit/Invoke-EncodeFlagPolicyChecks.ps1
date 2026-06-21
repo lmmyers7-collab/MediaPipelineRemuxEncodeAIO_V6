@@ -462,12 +462,23 @@ Assert-Equal ([string]$h264CpuFallbackPlan.DescriptorSelection.Role) 'cpu_fallba
 Assert-Equal ([string]$h264CpuFallbackPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'H.264/NVENC CPU fallback descriptor backend mismatch.'
 Assert-Equal (@($h264CpuFallbackPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'H.264/NVENC CPU fallback command topology mismatch.'
 
+$libx264PrimaryPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'libx264'; CpuMaxThreads = 8 }
+Assert-Equal ([string]$libx264PrimaryPlan.SelectedEncoder) 'libx264' 'libx264 primary plan should expose the H.264 CPU descriptor encoder.'
+Assert-Equal ([bool]$libx264PrimaryPlan.DescriptorSelection.Resolved) $true 'libx264 primary descriptor selection should resolve.'
+Assert-Equal ([bool]$libx264PrimaryPlan.DescriptorSelection.Active) $true 'libx264 primary descriptor selection should be active.'
+Assert-Equal ([string]$libx264PrimaryPlan.DescriptorSelection.Role) 'primary' 'libx264 primary descriptor role mismatch.'
+Assert-Equal ([string]$libx264PrimaryPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'libx264 primary descriptor backend mismatch.'
+Assert-Equal (@($libx264PrimaryPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'libx264 primary command topology mismatch.'
+
 $hevcHdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'hevc_nvenc' -IsHDR:$true
 Assert-Equal ([bool]$hevcHdrReadiness.ok) $true 'HEVC/NVENC HDR should be active for descriptor-owned primary flags.'
 Assert-Equal ([string]$hevcHdrReadiness.descriptor_encoder) 'hevc_nvenc' 'HEVC/NVENC readiness descriptor mismatch.'
 $h264SdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc'
 Assert-Equal ([bool]$h264SdrReadiness.ok) $true 'H.264/NVENC SDR should be active for descriptor-owned primary flags.'
 Assert-Equal ([string]$h264SdrReadiness.family) 'h264' 'H.264/NVENC readiness family mismatch.'
+$libx264Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'libx264'
+Assert-Equal ([bool]$libx264Readiness.ok) $true 'libx264 primary should be active for descriptor-owned H.264 CPU flags.'
+Assert-Equal ([string]$libx264Readiness.descriptor_encoder) 'libx264' 'libx264 primary readiness descriptor mismatch.'
 $h264FallbackReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc' -UseCpuFallback:$true
 Assert-Equal ([bool]$h264FallbackReadiness.ok) $true 'H.264/NVENC CPU fallback should be active for descriptor-owned fallback flags.'
 Assert-Equal ([string]$h264FallbackReadiness.descriptor_encoder) 'libx264' 'H.264/NVENC CPU fallback readiness descriptor mismatch.'
@@ -477,9 +488,6 @@ Assert-Equal ([string]$h264HdrReadiness.error_code) 'ENCODE_ENCODER_HDR_UNSUPPOR
 $av1Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc'
 Assert-Equal ([bool]$av1Readiness.ok) $false 'AV1/NVENC should remain inactive until descriptor activation and validation.'
 Assert-Equal ([string]$av1Readiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'AV1/NVENC inactive readiness error code mismatch.'
-$libx264Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'libx264'
-Assert-Equal ([bool]$libx264Readiness.ok) $false 'libx264 primary encode should remain inactive until CPU-primary policy is implemented.'
-Assert-Equal ([string]$libx264Readiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'libx264 inactive readiness error code mismatch.'
 $unknownReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'vp9_nvenc'
 Assert-Equal ([bool]$unknownReadiness.ok) $false 'Unknown encoder readiness must fail closed.'
 Assert-Equal ([string]$unknownReadiness.error_code) 'ENCODE_ENCODER_UNSUPPORTED' 'Unknown encoder readiness error code mismatch.'
@@ -572,10 +580,13 @@ Assert-Equal (@($h264NvencFlags) -join '|') '-c:v|h264_nvenc|-preset|p7|-cq|22|-
 Assert-Throws { New-EncoderVideoFlags -Descriptor $h264NvencDescriptor -IsHDR:$true -VideoCodec 'h264_nvenc' -VideoPreset 'p7' -VideoQuality 22 | Out-Null } 'H.264/NVENC HDR use must fail closed until HDR preservation is proven.'
 
 $h264CpuDescriptor = Get-MediaEncoderDescriptor -Family 'h264' -Backend 'cpu'
-Assert-True ($null -ne $h264CpuDescriptor) 'Dormant H.264/CPU descriptor must exist before activation work.'
+Assert-True ($null -ne $h264CpuDescriptor) 'H.264/CPU descriptor must exist for libx264 activation.'
 Assert-Equal ([string]$h264CpuDescriptor.EncoderName) 'libx264' 'H.264/CPU descriptor encoder mismatch.'
 Assert-Equal ([string]$h264CpuDescriptor.RateControlKind) 'x264_crf' 'H.264/CPU descriptor rate-control mismatch.'
 Assert-Equal ([bool]$h264CpuDescriptor.UsesVbv) $false 'H.264/CPU descriptor must use CRF without VBV.'
+$libx264ActiveFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libx264' -UseCpuFallback:$false
+Assert-True ($null -ne $libx264ActiveFlagsDescriptor) 'libx264 primary flags should now be descriptor-owned.'
+Assert-Equal ([string]$libx264ActiveFlagsDescriptor.EncoderName) 'libx264' 'libx264 active primary flags descriptor mismatch.'
 $h264FallbackFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'h264_nvenc' -UseCpuFallback:$true
 Assert-True ($null -ne $h264FallbackFlagsDescriptor) 'H.264/NVENC CPU fallback flags should now be descriptor-owned.'
 Assert-Equal ([string]$h264FallbackFlagsDescriptor.EncoderName) 'libx264' 'H.264/NVENC CPU fallback active flags descriptor mismatch.'

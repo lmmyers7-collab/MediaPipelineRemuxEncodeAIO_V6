@@ -3,9 +3,9 @@ file: ops/pipeline/engine/decide/encoder_descriptors.ps1
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-20
+last_modified: 2026-06-21
 last_reviewed: 2026-06-19
-sha256: a4c300041ba5b0b0d26ccefe54fc8692d6dbeb7c38f34e4f901c579a8f984370
+sha256: b62aa949090df79c81b04a1ed8680c83cc525dd0a932919f0e10fb8ec36970fa
 ---
 # `ops/pipeline/engine/decide/encoder_descriptors.ps1`
 
