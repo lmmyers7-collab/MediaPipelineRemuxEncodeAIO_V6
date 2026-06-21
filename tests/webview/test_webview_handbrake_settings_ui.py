@@ -407,6 +407,46 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         for token in forbidden:
             self.assertNotIn(token, repair_block.group("body"))
 
+    def test_encoder_capability_report_is_read_only_settings_evidence(self) -> None:
+        html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
+
+        for token in (
+            "Encoder Capability Evidence",
+            'id="settings-encoder-capability-status"',
+            'id="settings-encoder-capability-summary"',
+            'id="settings-encoder-capability-rows"',
+            "No encoder capability rows are loaded.",
+            "read-only annotations from backend diagnostic evidence",
+            "unavailable rows do not remove saved choices",
+        ):
+            self.assertIn(token, html)
+
+        for token in (
+            "encoder_capability_report",
+            "function settingsEncoderCapabilityReport",
+            "function renderSettingsEncoderCapabilityReport",
+            "settingsEncoderCapabilitySummaryLines",
+            "Read-only annotation: dropdown choices stay visible",
+            "backend Save and encode planning remain authoritative",
+            "Unavailable",
+            "Available",
+        ):
+            self.assertIn(token, video_builder_js)
+
+        self.assertIn("renderSettingsEncoderCapabilityReport(lastSettings);", settings_js)
+        self.assertIn("getLastSettings,", settings_js)
+
+        render_block = re.search(
+            r"function renderSettingsEncoderCapabilityReport\(settings = getLastSettings\(\)\) \{(?P<body>.*?)\n    \}",
+            video_builder_js,
+            re.S,
+        )
+        self.assertIsNotNone(render_block)
+        for forbidden in ("apiPost(", "apiGet(", "writeSettingsPatchJson", "settingsBuilderInputValue"):
+            self.assertNotIn(forbidden, render_block.group("body"))
+
     def test_routing_labels_are_visible_without_taxonomy_badges(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")

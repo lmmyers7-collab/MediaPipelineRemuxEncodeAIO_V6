@@ -6,6 +6,28 @@ Operator-approved scope (chat, 2026-06-02): execute ADR-0013 Wave 1 step 1,
 Wave 2 (steps 2-3), Wave 3 (steps 4-5), Wave 4 (step 6), then Wave 5
 (steps 7-8) on follow-up approval ("just continue").
 
+## Encoder capability Settings WebView annotations 2026-06-21
+
+Scope: continue the encoder breadth/AV1 remediation stream by rendering the
+backend-authored `encoder_capability_report` from `/api/settings/workspace` in
+the Settings Media Output tab as read-only encoder/backend availability
+annotations. Packet `ops/release/changes/unreleased/MP-CHANGE-2026-0621-011.json`.
+
+In scope:
+- Add a read-only Settings Media Output evidence panel for existing descriptor
+  capability report rows.
+- Annotate video-builder guidance with the saved capability report status.
+- Keep all `VideoCodec` and `EncoderBackend` choices visible; unavailable
+  capability rows are advisory evidence only.
+- Update WebView static tests, DOM inventory, generated summaries, and active
+  Phase 6 docs.
+
+Out of scope: generating the capability diagnostic, running FFmpeg from WebView,
+filtering or removing dropdown choices, enabling dormant hardware descriptors,
+changing encoder selection/fallback behavior, launch preflight, queue/network
+behavior, source/scratch/output movement, pending publish, and real-media
+validation.
+
 ## Encoder breadth settings workspace capability evidence 2026-06-21
 
 Scope: continue the encoder breadth/AV1 remediation stream by threading existing

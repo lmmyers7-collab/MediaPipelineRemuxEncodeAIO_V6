@@ -301,9 +301,11 @@ const videoDetailSettingsBuilderModule = window.__settingsViewVideoBuilderModule
 delete window.__settingsViewVideoBuilderModule;
 const videoDetailSettingsBuilder = typeof videoDetailSettingsBuilderModule.createVideoDetailSettingsBuilder === "function"
   ? videoDetailSettingsBuilderModule.createVideoDetailSettingsBuilder({
+    clearRows,
     byId,
     formatSettingsChoiceLabel,
     formatSettingsListValue,
+    getLastSettings,
     parseSettingsListText,
     readSettingsBuilderNumber,
     refreshSettingsSelectChoices,
@@ -324,6 +326,10 @@ const markVideoDetailSettingsBuilderDirty = videoDetailSettingsBuilder.markVideo
 const collectVideoDetailSettingsBuilderPatch = videoDetailSettingsBuilder.collectVideoDetailSettingsBuilderPatch || function () { return {}; };
 const applyVideoDetailSettingsBuilderToPatch = videoDetailSettingsBuilder.applyVideoDetailSettingsBuilderToPatch || function () {};
 const renderVideoDetailSettingsBuilderGuidance = videoDetailSettingsBuilder.renderVideoDetailSettingsBuilderGuidance || function () {};
+const settingsEncoderCapabilityReport = videoDetailSettingsBuilder.settingsEncoderCapabilityReport || function () { return {}; };
+const settingsEncoderCapabilityStatus = videoDetailSettingsBuilder.settingsEncoderCapabilityStatus || function () { return "Not loaded"; };
+const settingsEncoderCapabilitySummaryLines = videoDetailSettingsBuilder.settingsEncoderCapabilitySummaryLines || function () { return []; };
+const renderSettingsEncoderCapabilityReport = videoDetailSettingsBuilder.renderSettingsEncoderCapabilityReport || function () {};
 
 const qualityDetailSettingsBuilderModule = window.__settingsViewQualityBuilderModule || {};
 delete window.__settingsViewQualityBuilderModule;
@@ -1243,6 +1249,7 @@ function renderSettings(settings) {
   renderSettingsAdvancedControls();
   const fn = settingsPatchReviewFunction("renderSettings");
   if (fn) fn(lastSettings);
+  renderSettingsEncoderCapabilityReport(lastSettings);
   applySettingsFieldMetadataToControls();
   renderSettingsAdvancedControls();
 }
@@ -2109,6 +2116,7 @@ async function reloadSettingsFromDisk() {
     markSettingsPatchTouched, settingsPatchIsTouched, settingsPatchEffectiveChangedEntries, settingsPatchHasUnsavedChanges, settingsStableJsonValue, settingsPatchSignature, settingsCurrentPatchSignature,
     syncSettingsBuilderFromConfig, collectSettingsBuilderPatch, applySettingsBuilderToPatch, refreshSettingsBuilderChoices, renderSettingsBuilderGuidance, markSettingsBuilderDirty,
     syncVideoDetailSettingsBuilderFromConfig, collectVideoDetailSettingsBuilderPatch, applyVideoDetailSettingsBuilderToPatch, renderVideoDetailSettingsBuilderGuidance, markVideoDetailSettingsBuilderDirty,
+    settingsEncoderCapabilityReport, settingsEncoderCapabilityStatus, settingsEncoderCapabilitySummaryLines, renderSettingsEncoderCapabilityReport,
     syncQualityDetailSettingsBuilderFromConfig, collectQualityDetailSettingsBuilderPatch, applyQualityDetailSettingsBuilderToPatch, renderQualityDetailSettingsBuilderGuidance, markQualityDetailSettingsBuilderDirty,
     syncFileSafetySettingsBuilderFromConfig, collectFileSafetySettingsBuilderPatch, applyFileSafetySettingsBuilderToPatch, renderFileSafetySettingsBuilderGuidance, markFileSafetySettingsBuilderDirty,
     syncNetworkSettingsBuilderFromConfig, collectNetworkSettingsBuilderPatch, applyNetworkSettingsBuilderToPatch, renderNetworkSettingsBuilderGuidance, markNetworkSettingsBuilderDirty,

@@ -4,7 +4,7 @@ Date: 2026-06-20
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1810. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1816. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -638,7 +638,7 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1810
+Count: 1816
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1974,6 +1974,7 @@ settings-builder-apply-button
 settings-builder-compat-growth
 settings-builder-encode-ladder
 settings-builder-encode-tuning
+settings-builder-encoder-backend
 settings-builder-guidance
 settings-builder-max-growth
 settings-builder-movie-1080p-target
@@ -2017,6 +2018,11 @@ settings-effective-policy-status
 settings-effective-policy-summary
 settings-encode-ladder-help
 settings-encode-tuning-help
+settings-encoder-capability-legend
+settings-encoder-capability-panel
+settings-encoder-capability-rows
+settings-encoder-capability-status
+settings-encoder-capability-summary
 settings-file-safety-aggressive-episode
 settings-file-safety-apply-button
 settings-file-safety-builder-status
@@ -2453,5 +2459,4 @@ wizard-video-preset
 wizard-video-quality
 wizard-video-strategy
 ```
-
 <!-- END GENERATED DOM ID MANIFEST -->

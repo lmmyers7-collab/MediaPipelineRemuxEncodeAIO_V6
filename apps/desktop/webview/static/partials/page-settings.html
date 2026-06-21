@@ -1181,6 +1181,29 @@
           <pre id="settings-video-guidance" class="prose-block">No video detail guidance loaded.</pre>
           <p class="note">Use this for direct-copy allowlists and fallback encode controls. Backend Save remains authoritative before any future run uses these values.</p>
         </section>
+        <section class="panel" data-panel-type="evidence" id="settings-encoder-capability-panel">
+          <div class="panel-heading">
+            <h2>Encoder Capability Evidence</h2>
+            <strong id="settings-encoder-capability-status">Not loaded</strong>
+          </div>
+          <pre id="settings-encoder-capability-summary" class="prose-block">No encoder capability evidence loaded.</pre>
+          <div class="table-wrap detail-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Encoder</th>
+                  <th scope="col">Backend</th>
+                  <th scope="col">Status</th>
+                  <th scope="col">Evidence</th>
+                </tr>
+              </thead>
+              <tbody id="settings-encoder-capability-rows">
+                <tr><td colspan="4">No encoder capability rows are loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <p id="settings-encoder-capability-legend" class="note table-legend">Encoder capability rows are read-only annotations from backend diagnostic evidence; unavailable rows do not remove saved choices.</p>
+        </section>
         <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Quality Verification <span class="impact-chip" data-impact="medium" title="Quality verification — objective post-encode metric, sampling, thresholds, and review action">Medium Impact</span></h2>

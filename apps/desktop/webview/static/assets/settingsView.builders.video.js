@@ -3,8 +3,10 @@
   function createVideoDetailSettingsBuilder(deps) {
     const {
       byId,
+      clearRows,
       formatSettingsChoiceLabel,
       formatSettingsListValue,
+      getLastSettings,
       parseSettingsListText,
       readSettingsBuilderNumber,
       refreshSettingsSelectChoices,
@@ -231,6 +233,82 @@
       return formatSettingsChoiceLabel(settingsBuilderInputValue(id) || "");
     }
 
+    function settingsEncoderCapabilityReport(settings = getLastSettings()) {
+      const report = settings?.encoder_capability_report;
+      return report && typeof report === "object" ? report : {};
+    }
+
+    function settingsEncoderCapabilityStatus(report = settingsEncoderCapabilityReport()) {
+      return String(report.operator_status || "Not loaded");
+    }
+
+    function settingsEncoderCapabilityBackendCountsText(counts) {
+      if (!counts || typeof counts !== "object") return "";
+      return Object.entries(counts)
+        .map(([backend, bucket]) => {
+          const available = Number(bucket?.available || 0);
+          const total = Number(bucket?.total || 0);
+          return `${backend}: ${available}/${total} available`;
+        })
+        .join("; ");
+    }
+
+    function settingsEncoderCapabilitySummaryLines(report = settingsEncoderCapabilityReport()) {
+      if (!report?.schema_version) {
+        return ["No encoder capability report is loaded."];
+      }
+      const lines = Array.isArray(report.summary_lines) && report.summary_lines.length
+        ? report.summary_lines.map((line) => String(line))
+        : [`Status: ${settingsEncoderCapabilityStatus(report)}.`];
+      if (report.source_path) lines.push(`Evidence file: ${report.source_path}.`);
+      if (report.generated_at) lines.push(`Generated: ${report.generated_at}.`);
+      const counts = settingsEncoderCapabilityBackendCountsText(report.backend_counts);
+      if (counts) lines.push(`Backend availability: ${counts}.`);
+      lines.push("Read-only annotation: dropdown choices stay visible; backend Save and encode planning remain authoritative.");
+      return lines;
+    }
+
+    function settingsEncoderCapabilityRowEvidence(row) {
+      const flags = [];
+      if (row.encoder_list_match) flags.push("listed");
+      if (row.runtime_ok) flags.push("runtime ok");
+      if (row.runtime_probe_skipped) flags.push("runtime skipped");
+      if (row.backend_invalidated) flags.push("backend invalidated");
+      if (row.probed_at) flags.push(`probed ${row.probed_at}`);
+      if (row.reason) flags.push(row.reason);
+      return flags.join("; ") || "No row evidence.";
+    }
+
+    function appendEncoderCapabilityCell(row, value) {
+      const cell = document.createElement("td");
+      cell.textContent = value === null || value === undefined ? "" : String(value);
+      row.appendChild(cell);
+    }
+
+    function renderSettingsEncoderCapabilityReport(settings = getLastSettings()) {
+      const report = settingsEncoderCapabilityReport(settings);
+      setText("settings-encoder-capability-status", settingsEncoderCapabilityStatus(report));
+      setText("settings-encoder-capability-summary", settingsEncoderCapabilitySummaryLines(report).join("\n"));
+      const tbody = byId("settings-encoder-capability-rows");
+      if (!tbody) return;
+      const rows = Array.isArray(report.encoders) ? report.encoders : [];
+      if (!rows.length) {
+        clearRows(tbody, 4, "No encoder capability rows are loaded.");
+      } else {
+        tbody.textContent = "";
+        rows.forEach((item) => {
+          const row = document.createElement("tr");
+          const roles = Array.isArray(item.roles) ? item.roles.join(", ") : "";
+          appendEncoderCapabilityCell(row, item.encoder_name || item.probe_encoder_name || "(unknown)");
+          appendEncoderCapabilityCell(row, [item.backend, item.family, roles].filter(Boolean).join(" / "));
+          appendEncoderCapabilityCell(row, item.available ? "Available" : "Unavailable");
+          appendEncoderCapabilityCell(row, settingsEncoderCapabilityRowEvidence(item));
+          tbody.appendChild(row);
+        });
+      }
+      setText("settings-encoder-capability-legend", "Encoder capability rows are read-only annotations from backend diagnostic evidence; unavailable rows do not remove saved choices.");
+    }
+
     function collectVideoDetailSettingsBuilderPatch() {
       const patch = {};
       videoDetailSettingsBuilderFields.forEach(([key, id, kind]) => {
@@ -284,9 +362,14 @@
         if (key === "FallbackCpuQuality" && Number(settingsBuilderInputValue(id)) < 18) {
           lines.push("  Warning: low CPU CRF values can grow outputs and extend fallback runs substantially.");
         }
-        if (key === "ExtraVideoFlags" && parseSettingsListText(byId(id)?.value || "").length) {
-          lines.push("  Warning: legacy raw FFmpeg flags should normally stay empty unless EncodeTuningPreset is custom_legacy_flags.");
-        }
+      if (key === "ExtraVideoFlags" && parseSettingsListText(byId(id)?.value || "").length) {
+        lines.push("  Warning: legacy raw FFmpeg flags should normally stay empty unless EncodeTuningPreset is custom_legacy_flags.");
+      }
+      });
+      const capabilityReport = settingsEncoderCapabilityReport();
+      lines.push("", `Encoder capability report: ${settingsEncoderCapabilityStatus(capabilityReport)}.`);
+      settingsEncoderCapabilitySummaryLines(capabilityReport).slice(0, 4).forEach((line) => {
+        lines.push(`  ${line}`);
       });
       updateVideoDetailSliderReadouts();
       setText("settings-video-guidance", lines.join("\n") || "No video detail guidance loaded.");
@@ -298,6 +381,10 @@
       collectVideoDetailSettingsBuilderPatch,
       applyVideoDetailSettingsBuilderToPatch,
       renderVideoDetailSettingsBuilderGuidance,
+      settingsEncoderCapabilityReport,
+      settingsEncoderCapabilityStatus,
+      settingsEncoderCapabilitySummaryLines,
+      renderSettingsEncoderCapabilityReport,
     };
   }
 
