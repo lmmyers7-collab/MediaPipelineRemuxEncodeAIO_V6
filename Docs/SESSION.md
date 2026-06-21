@@ -6,6 +6,27 @@ Operator-approved scope (chat, 2026-06-02): execute ADR-0013 Wave 1 step 1,
 Wave 2 (steps 2-3), Wave 3 (steps 4-5), Wave 4 (step 6), then Wave 5
 (steps 7-8) on follow-up approval ("just continue").
 
+## Encoder runtime matrix HDR coverage 2026-06-21
+
+Scope: continue the encoder breadth/AV1 remediation stream by extending the
+descriptor-owned runtime matrix test with synthetic HDR10 coverage for
+HDR-capable descriptors. Packet
+`ops/release/changes/unreleased/MP-CHANGE-2026-0621-013.json`.
+
+In scope:
+- Add HDR10 synthetic matrix rows for HEVC CPU, HEVC/NVENC, and AV1/NVENC
+  descriptor topology.
+- Build descriptor flags before hardware runtime skips so dormant hardware rows
+  still prove HDR flag shape without requiring host hardware.
+- Execute only runtime-available rows; hardware execution remains gated by
+  `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1`.
+- Assert executed HDR rows produce 10-bit BT.2020 non-constant-color-space output.
+
+Out of scope: enabling dormant hardware descriptors, changing `Do-Encode`,
+changing FFmpeg production argument generation, changing quality offsets,
+running real-media validation, or certifying HDR side-data preservation for real
+operator media.
+
 ## Encoder capability Launch preflight evidence 2026-06-21
 
 Scope: continue the encoder breadth/AV1 remediation stream by threading the

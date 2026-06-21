@@ -19,16 +19,18 @@ now exposes a bounded read-only summary of an existing `encoder_capabilities.jso
 diagnostic artifact when present; normal encode selection still follows
 `VideoCodec`, and the Settings Media Output tab renders those rows as read-only
 encoder/backend availability annotations without filtering saved choices. Hardware
-descriptors are not wired into active encoder selection. A synthetic SDR runtime/topology matrix executes
-CPU descriptor rows and reports hardware rows as opt-in skips by default. A pure
+descriptors are not wired into active encoder selection. A synthetic SDR/HDR10
+runtime-topology matrix executes available CPU descriptor rows, proves HDR flag
+topology before opt-in hardware skips, and reports hardware rows as opt-in skips
+by default. A pure
 descriptor selection resolver now returns primary/fallback descriptors plus trace
 evidence, including family-consistent CPU fallback candidates. Encode attempt plans
 now expose descriptor-selection evidence for current HEVC/libx265 parity paths and
 explicitly mark dormant AV1 selection as not yet active, but new families are not
 wired into the active `Do-Encode` ladder.
-Fallback wiring, full hardware/HDR runtime matrix coverage, and new encoder
-enablement remain incomplete. Launch preflight now surfaces the existing
-descriptor capability report as non-blocking read-only evidence.
+Fallback wiring, host-hardware runtime execution, real-media HDR validation, and
+new encoder enablement remain incomplete. Launch preflight now surfaces the
+existing descriptor capability report as non-blocking read-only evidence.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -648,20 +650,23 @@ at runtime).
   encoder-list matching and one-frame lavfi runtime probing for descriptor-owned
   availability helpers. It is not the full runtime matrix required before enabling
   new encoder families.
-- Existing scaffold check: `Invoke-EncoderRuntimeMatrixChecks.ps1` runs synthetic SDR
-  descriptor-topology encodes for CPU rows and reports hardware rows as opt-in skips
-  unless `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1` is set. It is not representative
-  real-media validation and does not cover HDR preservation.
+- Existing scaffold check: `Invoke-EncoderRuntimeMatrixChecks.ps1` runs synthetic
+  SDR/HDR10 descriptor-topology encodes for available CPU rows, asserts HDR flag
+  topology before hardware rows are skipped, and reports hardware rows as opt-in
+  skips unless `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1` is set. It is not
+  representative real-media validation and does not certify real-media HDR side-data
+  preservation.
 
 ### 7.3 Validation (this is the strictest rung — release gate + real media)
 
-Agent-side: all prior commands, plus targeted 5-10s lavfi clip encodes through the
-bundled ffmpeg for each new descriptor (SDR + HDR10 synthetic) asserting exit 0 and
-`ffprobe` shows: correct codec, 10-bit pix_fmt for HDR-capable descriptors,
-mastering-display/CLL side data present only for descriptors whose HDR handler claims
-metadata preservation, chapters preserved (mkv), faststart (mp4). Put these in a NEW
-`ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1` that SKIPS (with a
-clear message, exit 0) any backend the host probe reports unavailable.
+Agent-side: all prior commands, plus targeted lavfi clip encodes through the
+bundled ffmpeg for each new descriptor. The existing
+`ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1` covers synthetic
+SDR rows, synthetic HDR10 rows for HDR-capable descriptor topology, 10-bit output
+for executed HDR rows, and clear skip evidence for unavailable or hardware-gated
+backends. Do not treat this as real-media side-data proof; mastering-display/CLL,
+chapter, faststart, and Plex direct-play evidence remain part of the operator-side
+real-media worksheet.
 
 Operator-side (required, not self-certified):
 - `.\ops\scripts\release\test.ps1` (release gate).
