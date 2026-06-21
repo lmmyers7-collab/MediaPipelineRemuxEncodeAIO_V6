@@ -24,8 +24,9 @@ diagnostic artifact when present; normal encode selection still follows
 encoder/backend availability annotations without filtering saved choices. Hardware
 descriptors are not wired into active encoder selection. A synthetic SDR/HDR10
 runtime-topology matrix executes available CPU descriptor rows, proves HDR flag
-topology before opt-in hardware skips, and reports hardware rows as opt-in skips
-by default. A pure
+topology plus HDR-capable hardware topology before opt-in hardware skips,
+asserts HDR-unsafe hardware descriptors fail closed, and reports hardware rows
+as opt-in skips by default. A pure
 descriptor selection resolver now returns primary/fallback descriptors plus trace
 evidence, including family-consistent CPU fallback candidates. Encode attempt plans
 now expose descriptor-selection evidence for current HEVC/libx265 parity paths and
@@ -659,10 +660,11 @@ at runtime).
   new encoder families.
 - Existing scaffold check: `Invoke-EncoderRuntimeMatrixChecks.ps1` runs synthetic
   SDR/HDR10 descriptor-topology encodes for available CPU rows, asserts HDR flag
-  topology before hardware rows are skipped, and reports hardware rows as opt-in
-  skips unless `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1` is set. It is not
-  representative real-media validation and does not certify real-media HDR side-data
-  preservation.
+  topology and HDR-capable hardware topology before hardware rows are skipped,
+  asserts HDR-unsafe hardware descriptors fail closed, and reports hardware rows
+  as opt-in skips unless `MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1` is set. It is
+  not representative real-media validation and does not certify real-media HDR
+  side-data preservation.
 
 ### 7.3 Validation (this is the strictest rung — release gate + real media)
 
@@ -670,8 +672,9 @@ Agent-side: all prior commands, plus targeted lavfi clip encodes through the
 bundled ffmpeg for each new descriptor. The existing
 `ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1` covers synthetic
 SDR rows, synthetic HDR10 rows for HDR-capable descriptor topology, 10-bit output
-for executed HDR rows, and clear skip evidence for unavailable or hardware-gated
-backends. Do not treat this as real-media side-data proof; mastering-display/CLL,
+for executed HDR rows, fail-closed HDR evidence for unsupported hardware
+descriptors, and clear skip evidence for unavailable or hardware-gated backends.
+Do not treat this as real-media side-data proof; mastering-display/CLL,
 chapter, faststart, and Plex direct-play evidence remain part of the operator-side
 real-media worksheet.
 

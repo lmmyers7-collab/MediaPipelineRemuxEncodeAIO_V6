@@ -32,6 +32,27 @@ function Assert-True {
     if (-not $Condition) { throw $Message }
 }
 
+function Assert-Throws {
+    param(
+        [Parameter(Mandatory)] [scriptblock] $ScriptBlock,
+        [Parameter(Mandatory)] [string] $Message,
+        [string] $ExpectedPattern = ''
+    )
+
+    $didThrow = $false
+    $errorText = ''
+    try {
+        & $ScriptBlock | Out-Null
+    } catch {
+        $didThrow = $true
+        $errorText = [string]$_.Exception.Message
+    }
+    if (-not $didThrow) { throw $Message }
+    if (-not [string]::IsNullOrWhiteSpace($ExpectedPattern) -and $errorText -notmatch $ExpectedPattern) {
+        throw "$Message Unexpected error text: $errorText"
+    }
+}
+
 function Invoke-Tool {
     param(
         [Parameter(Mandatory)] [string] $ExePath,
@@ -118,12 +139,45 @@ $matrixCases = @(
     @{ Family = 'av1';  Backend = 'nvenc'; Codec = 'av1_nvenc';  ExpectedCodec = 'av1';  Preset = 'p1'; Mode = 'hdr10' }
 )
 
+$hardwareBackends = @('nvenc', 'qsv', 'amf')
+$hardwareHdrBlockCases = @(
+    @{ Family = 'h264'; Backend = 'nvenc'; Codec = 'h264_nvenc'; Preset = 'p1' },
+    @{ Family = 'hevc'; Backend = 'qsv';   Codec = 'hevc_qsv';   Preset = 'p1' },
+    @{ Family = 'h264'; Backend = 'qsv';   Codec = 'h264_qsv';   Preset = 'p1' },
+    @{ Family = 'av1';  Backend = 'qsv';   Codec = 'av1_qsv';    Preset = 'p1' },
+    @{ Family = 'hevc'; Backend = 'amf';   Codec = 'hevc_amf';   Preset = 'p1' },
+    @{ Family = 'h264'; Backend = 'amf';   Codec = 'h264_amf';   Preset = 'p1' },
+    @{ Family = 'av1';  Backend = 'amf';   Codec = 'av1_amf';    Preset = 'p1' }
+)
+
 $runHardwareRows = ([string]$env:MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE).Trim() -eq '1'
 $tempBase = [System.IO.Path]::GetFullPath([System.IO.Path]::GetTempPath())
 $tempRoot = Join-Path $tempBase ('mediapipeline-encoder-runtime-matrix-' + [guid]::NewGuid().ToString('N'))
 $passed = 0
 $hdrPassed = 0
 $skipped = 0
+$hardwareRows = 0
+$hardwareRowsSkippedByDefault = 0
+$hardwareHdrTopologyRows = 0
+$hardwareHdrBlockedRows = 0
+
+foreach ($blockCase in $hardwareHdrBlockCases) {
+    $descriptor = Get-MediaEncoderDescriptor -Family ([string]$blockCase.Family) -Backend ([string]$blockCase.Backend)
+    $caseLabel = "$($blockCase.Family)/$($blockCase.Backend)/hdr10-blocked"
+    Assert-True ($null -ne $descriptor) "HDR-block descriptor missing for $caseLabel."
+    Assert-True ($hardwareBackends -contains ([string]$blockCase.Backend)) "HDR-block case must cover a hardware backend: $caseLabel."
+    Assert-Equal ([bool]$descriptor.SupportsHdr10Metadata) $false "HDR-block case must advertise unsupported HDR metadata: $caseLabel."
+    Assert-Throws {
+        New-EncoderVideoFlags `
+            -Descriptor $descriptor `
+            -IsHDR:$true `
+            -VideoCodec ([string]$blockCase.Codec) `
+            -VideoPreset ([string]$blockCase.Preset) `
+            -VideoQuality 22
+    } "HDR-block case must fail closed before FFmpeg flag construction: $caseLabel." 'does not support HDR10 metadata preservation'
+    $hardwareHdrBlockedRows += 1
+}
+
 try {
     [void](New-Item -ItemType Directory -Path $tempRoot -Force)
 
@@ -133,6 +187,8 @@ try {
         $mode = if ($case.ContainsKey('Mode')) { [string]$case.Mode } else { 'sdr' }
         $isHdr = $mode -eq 'hdr10'
         $caseLabel = "$($case.Family)/$($case.Backend)/$mode"
+        $isHardware = $hardwareBackends -contains ([string]$case.Backend)
+        if ($isHardware) { $hardwareRows += 1 }
         if ($isHdr) {
             Assert-True ([bool]$descriptor.SupportsHdr10Metadata) "HDR runtime matrix case requires an HDR-capable descriptor: $caseLabel."
         }
@@ -175,9 +231,9 @@ try {
                 Assert-Contains -Items $videoFlags -Expected '-colorspace' -Message "HDR libav-side-data flags for $caseLabel must set color space."
                 Assert-Contains -Items $videoFlags -Expected 'bt2020nc' -Message "HDR libav-side-data flags for $caseLabel must carry BT.2020 non-constant matrix."
             }
+            if ($isHardware) { $hardwareHdrTopologyRows += 1 }
         }
 
-        $isHardware = @('nvenc', 'qsv', 'amf') -contains ([string]$case.Backend)
         if ($isHardware -and -not $runHardwareRows) {
             $listed = Test-MediaEncoderDescriptorAvailable `
                 -Descriptor $descriptor `
@@ -185,6 +241,7 @@ try {
                 -SkipRuntimeProbe `
                 -Force
             $skipped += 1
+            $hardwareRowsSkippedByDefault += 1
             Write-Host "Skipping $caseLabel hardware runtime topology row by default. EncoderListMatch=$($listed.EncoderListMatch). Set MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1 to require host hardware execution."
             continue
         }
@@ -241,4 +298,10 @@ try {
 
 Assert-True ($passed -gt 0) 'Encoder runtime matrix must execute at least one descriptor row on this toolchain.'
 Assert-True ($hdrPassed -gt 0) 'Encoder runtime matrix must execute at least one HDR descriptor row on this toolchain.'
-Write-Host "Encoder runtime matrix checks passed. Rows passed: $passed. HDR rows passed: $hdrPassed. Rows skipped: $skipped."
+Assert-True ($hardwareRows -gt 0) 'Encoder runtime matrix must include hardware descriptor rows.'
+Assert-True ($hardwareHdrTopologyRows -gt 0) 'Encoder runtime matrix must verify at least one HDR-capable hardware descriptor topology row before execution or skip.'
+Assert-True ($hardwareHdrBlockedRows -gt 0) 'Encoder runtime matrix must verify HDR-unsafe hardware descriptors fail closed.'
+if (-not $runHardwareRows) {
+    Assert-Equal $hardwareRowsSkippedByDefault $hardwareRows 'Default encoder runtime matrix must skip every hardware row unless MEDIAPIPELINE_ENCODER_RUNTIME_HARDWARE=1 is set.'
+}
+Write-Host "Encoder runtime matrix checks passed. Rows passed: $passed. HDR rows passed: $hdrPassed. Rows skipped: $skipped. Hardware rows: $hardwareRows. Default hardware skips: $hardwareRowsSkippedByDefault. Hardware HDR topology rows: $hardwareHdrTopologyRows. Hardware HDR-blocked rows: $hardwareHdrBlockedRows."
