@@ -320,7 +320,8 @@ function Invoke-NativeProcess {
         # priority class change automatically. Used by CPU-bound external
         # tools (BDPGS OCR, audio-transcode-active ffmpeg, etc.) to keep
         # the desktop UI responsive while heavy work runs.
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [string]$WorkingDirectory = ''
     )
 
     if ([string]::IsNullOrWhiteSpace($Label)) { $Label = Split-Path $FilePath -Leaf }
@@ -332,6 +333,17 @@ function Invoke-NativeProcess {
         CreateNoWindow         = $true
     }
     foreach ($arg in $ArgumentList) { $psi.ArgumentList.Add([string]$arg) }
+    $workingDirectoryText = if ($WorkingDirectory) { ([string]$WorkingDirectory).Trim() } else { '' }
+    if (-not [string]::IsNullOrWhiteSpace($workingDirectoryText)) {
+        try {
+            $psi.WorkingDirectory = (Resolve-Path -LiteralPath $workingDirectoryText -ErrorAction Stop).ProviderPath
+        } catch {
+            $result = New-NativeCommandResult -ExitCode -2 -Stdout "" -Stderr "Failed to resolve working directory '$workingDirectoryText' for native command '$FilePath': $_" -ErrorCode 'NATIVE_START_FAILED'
+            Set-ExternalToolResultProperty -Result $result -Name 'WorkingDirectory' -Value $workingDirectoryText
+            return $result
+        }
+    }
+    $effectiveWorkingDirectory = [string]$psi.WorkingDirectory
 
     # CPU-A2 — resolve the priority enum once before Process.Start.
     $priorityClassEnum = $null
@@ -449,7 +461,9 @@ function Invoke-NativeProcess {
             DebugLog "Native process cleanup failed after start/run error for $Label : $_"
         }
         $stderr = "Failed to start native command '$FilePath': $_"
-        return (New-NativeCommandResult -ExitCode -2 -Stdout "" -Stderr $stderr -ErrorCode 'NATIVE_START_FAILED')
+        $result = New-NativeCommandResult -ExitCode -2 -Stdout "" -Stderr $stderr -ErrorCode 'NATIVE_START_FAILED'
+        Set-ExternalToolResultProperty -Result $result -Name 'WorkingDirectory' -Value $effectiveWorkingDirectory
+        return $result
     }
 
     $drainMs = if ($timedOut -or $stopped) { [math]::Max(1000, $DrainMilliseconds) } else { [math]::Min([math]::Max(250, $DrainMilliseconds), 1000) }
@@ -500,6 +514,7 @@ function Invoke-NativeProcess {
     Set-ExternalToolResultProperty -Result $result -Name 'Aborted'           -Value $aborted
     Set-ExternalToolResultProperty -Result $result -Name 'AbortCode'         -Value $abortCode
     Set-ExternalToolResultProperty -Result $result -Name 'AbortReason'       -Value $abortReason
+    Set-ExternalToolResultProperty -Result $result -Name 'WorkingDirectory'  -Value $effectiveWorkingDirectory
     return $result
 }
 
@@ -513,7 +528,8 @@ function Invoke-NativeCommand {
         [scriptblock]$StdoutLineHandler,
         [scriptblock]$StderrLineHandler,
         [scriptblock]$PollHandler,
-        [int]$PollMilliseconds = 100
+        [int]$PollMilliseconds = 100,
+        [string]$WorkingDirectory = ''
     )
     $nativeArgs = @{
         FilePath          = $FilePath
@@ -521,6 +537,7 @@ function Invoke-NativeCommand {
         TimeoutSeconds    = $TimeoutSeconds
         ProcessPriority   = $ProcessPriority
         PollMilliseconds  = $PollMilliseconds
+        WorkingDirectory  = $WorkingDirectory
     }
     if ($StdoutLineHandler) { $nativeArgs.StdoutLineHandler = $StdoutLineHandler }
     if ($StderrLineHandler) { $nativeArgs.StderrLineHandler = $StderrLineHandler }
@@ -544,7 +561,8 @@ function Invoke-ExternalToolCommand {
         # CPU-A2 — non-empty / non-'inherit' values lower the child's
         # ProcessPriorityClass right after launch. Used by BDPGS OCR and
         # other CPU-bound tool calls so they don't starve the desktop.
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [string]$WorkingDirectory = ''
     )
 
     $startedAt = Get-Date
@@ -561,6 +579,7 @@ function Invoke-ExternalToolCommand {
             command_line     = $commandLine
             timeout_seconds  = $TimeoutSeconds
             process_priority = $ProcessPriority
+            working_directory = $WorkingDirectory
         } | Out-Null
     }
 
@@ -569,6 +588,7 @@ function Invoke-ExternalToolCommand {
         ArgumentList    = $ArgumentList
         TimeoutSeconds  = $TimeoutSeconds
         ProcessPriority = $ProcessPriority
+        WorkingDirectory = $WorkingDirectory
     }
     if ($ErrorHandler) {
         $nativeArgs.ErrorHandler = $ErrorHandler
@@ -607,6 +627,12 @@ function Invoke-ExternalToolCommand {
         $priorityRequestedField = if ($result.PSObject.Properties['PriorityRequested']) { [string]$result.PriorityRequested } else { 'inherit' }
         $priorityAppliedField   = if ($result.PSObject.Properties['PriorityApplied']) { [bool]$result.PriorityApplied } else { $true }
         $priorityErrorField     = if ($result.PSObject.Properties['PriorityError']) { [string]$result.PriorityError } else { '' }
+        $workingDirectoryField  = $WorkingDirectory
+        if ($result -is [System.Collections.IDictionary] -and $result.Contains('WorkingDirectory')) {
+            $workingDirectoryField = [string]$result['WorkingDirectory']
+        } elseif ($result.PSObject.Properties['WorkingDirectory']) {
+            $workingDirectoryField = [string]$result.WorkingDirectory
+        }
         Write-PipelineEvent -EventType 'tool_completed' -Stage $Stage -Status $(if ([int]$result.ExitCode -eq 0) { 'succeeded' } else { 'failed' }) -Data @{
             tool_name           = $ToolName
             executable          = $FilePath
@@ -621,6 +647,7 @@ function Invoke-ExternalToolCommand {
             priority_requested  = $priorityRequestedField
             priority_applied    = $priorityAppliedField
             priority_error      = $priorityErrorField
+            working_directory   = $workingDirectoryField
         } | Out-Null
     }
 
@@ -646,10 +673,11 @@ function Invoke-FFmpegCommand {
         [string]$Stage = 'ffmpeg',
         [switch]$SaveReproOnFailure,
         [scriptblock]$ErrorHandler,
-        [string]$ProcessPriority = 'inherit'
+        [string]$ProcessPriority = 'inherit',
+        [string]$WorkingDirectory = ''
     )
 
-    return Invoke-ExternalToolCommand -ToolName 'ffmpeg' -FilePath $ffmpegPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority
+    return Invoke-ExternalToolCommand -ToolName 'ffmpeg' -FilePath $ffmpegPath -ArgumentList $ArgumentList -TimeoutSeconds $TimeoutSeconds -Stage $Stage -SaveReproOnFailure:$SaveReproOnFailure -ErrorHandler $ErrorHandler -ProcessPriority $ProcessPriority -WorkingDirectory $WorkingDirectory
 }
 
 function Invoke-MkvmergeCommand {

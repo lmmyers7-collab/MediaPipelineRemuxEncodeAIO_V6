@@ -3,9 +3,9 @@ file: ops/pipeline/engine/shared/native.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: shared
-last_modified: 2026-06-19
+last_modified: 2026-06-20
 last_reviewed: 2026-06-04
-sha256: ef931559c3f753c36bc532343c5180bd7310b9787230101faf6211a3acdb4e2a
+sha256: 0793060bbcfa0d58421434054a4acff74e75eb57a36da2757e224d1165cf5d63
 ---
 # `ops/pipeline/engine/shared/native.ps1`
 

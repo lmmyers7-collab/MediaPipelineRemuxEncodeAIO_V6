@@ -86,8 +86,23 @@ $script:StopFlag = $stopFlag
 $childPid = 0
 $childExe = Join-Path $pipelineRoot 'runtime\PowerShell-7.6.0-win-x64\pwsh.exe'
 Assert-True (Test-Path -LiteralPath $childExe -PathType Leaf) "Promoted bundled PowerShell child runtime was not found: $childExe"
+$workingDirectoryRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-native-working-directory-{0}" -f ([Guid]::NewGuid().ToString('N')))
+New-Item -ItemType Directory -Path $workingDirectoryRoot | Out-Null
+$resolvedWorkingDirectoryRoot = (Resolve-Path -LiteralPath $workingDirectoryRoot).ProviderPath
 
 try {
+    $workingDirectoryResult = Invoke-NativeProcess `
+        -FilePath $childExe `
+        -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', '[Console]::Out.Write((Get-Location).ProviderPath)') `
+        -TimeoutSeconds 10 `
+        -StopFlagPath $stopFlag `
+        -Label 'native-working-directory-regression-child' `
+        -WorkingDirectory $workingDirectoryRoot
+
+    Assert-True ([int]$workingDirectoryResult.ExitCode -eq 0) "Expected working-directory child to exit cleanly; got $($workingDirectoryResult.ExitCode)."
+    Assert-True (([string]$workingDirectoryResult.Stdout).Trim() -eq $resolvedWorkingDirectoryRoot) "Native process did not start in the requested working directory."
+    Assert-True ([string]$workingDirectoryResult.WorkingDirectory -eq $resolvedWorkingDirectoryRoot) "Native result did not retain the resolved working directory."
+
     $result = Invoke-NativeProcess `
         -FilePath $childExe `
         -ArgumentList @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-Command', 'Start-Sleep -Seconds 60') `
@@ -143,6 +158,7 @@ try {
         Stop-Process -Id $abortChildPid -Force -ErrorAction SilentlyContinue
     }
     Remove-Item -LiteralPath $stopFlag -Force -ErrorAction SilentlyContinue
+    Remove-Item -LiteralPath $workingDirectoryRoot -Recurse -Force -ErrorAction SilentlyContinue
 }
 
 Write-Host 'Native process cleanup checks passed.'

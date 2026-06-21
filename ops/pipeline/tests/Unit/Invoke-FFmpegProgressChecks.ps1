@@ -204,6 +204,7 @@ try {
     $script:LastFFmpegAbortCode = ''
     $script:LastFFmpegAbortReason = ''
     $script:LastEncodeWasteGuardProjection = $null
+    $script:CapturedFFmpegWorkingDirectory = ''
 
     $ffmpegPath = 'ffmpeg.exe'
     $LocalFailed = Join-Path ([System.IO.Path]::GetTempPath()) ("mediapipeline-ffmpeg-waste-guard-{0}" -f ([Guid]::NewGuid().ToString('N')))
@@ -235,8 +236,10 @@ try {
             [int]$MaxStderrChars = 0,
             [scriptblock]$StderrLineHandler,
             [scriptblock]$PollHandler,
-            [scriptblock]$ProcessStartedHandler
+            [scriptblock]$ProcessStartedHandler,
+            [string]$WorkingDirectory = ''
         )
+        $script:CapturedFFmpegWorkingDirectory = $WorkingDirectory
         [System.IO.File]::WriteAllBytes($script:WasteGuardOutputPath, (New-Object byte[] 700))
         if ($StderrLineHandler) {
             & $StderrLineHandler 'out_time_us=25000000' 'stderr'
@@ -278,12 +281,18 @@ try {
         -ProgressRoute 'encode' `
         -ReproStage 'encode' `
         -OutputPath $outputPath `
-        -WasteGuardContext $wasteGuardContext
+        -WasteGuardContext $wasteGuardContext `
+        -WorkingDirectory $LocalFailed
 
     Assert-Equal ([bool]$ffmpegOk) $false 'FFmpeg wrapper should return false when the waste guard aborts.'
     Assert-Equal ([string]$script:LastFFmpegAbortCode) 'ENCODE_WASTE_GUARD_PROJECTED_OVERSIZE' 'FFmpeg waste guard abort code was not exposed.'
     Assert-True ($script:LastEncodeWasteGuardProjection -ne $null) 'FFmpeg waste guard abort should expose projection metadata.'
     Assert-Equal ([bool]$script:LastEncodeWasteGuardProjection.ShouldAbort) $true 'Projection metadata should record an abort decision.'
+    Assert-Equal ([string]$script:CapturedFFmpegWorkingDirectory) $LocalFailed 'FFmpeg wrapper did not pass the requested working directory to the native runner.'
+    $ffmpegStarted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_started' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
+    $ffmpegCompleted = @($script:CapturedEvents | Where-Object { $_.EventType -eq 'tool_completed' -and $_.Data.tool_name -eq 'ffmpeg' })[-1]
+    Assert-Equal ([string]$ffmpegStarted.Data.working_directory) $LocalFailed 'FFmpeg started event did not retain the requested working directory.'
+    Assert-Equal ([string]$ffmpegCompleted.Data.working_directory) $LocalFailed 'FFmpeg completed event did not retain the requested working directory.'
 
     Remove-Item -LiteralPath $LocalFailed -Recurse -Force -ErrorAction SilentlyContinue
 } finally {

@@ -19,6 +19,7 @@ function Complete-FFmpegToolEvent {
         [bool]$TimedOut,
         [bool]$Stopped,
         [AllowNull()] [string]$Stderr,
+        [AllowNull()] [string]$WorkingDirectory,
         [AllowNull()] [string]$RunnerException
     )
 
@@ -60,6 +61,7 @@ function Complete-FFmpegToolEvent {
         priority_requested  = [string]$script:LastFFmpegPriorityRequested
         priority_applied    = [bool]$script:LastFFmpegPriorityApplied
         priority_error      = [string]$script:LastFFmpegPriorityError
+        working_directory   = $WorkingDirectory
     }
     if (-not [string]::IsNullOrWhiteSpace($RunnerException)) {
         $eventData.runner_exception = $RunnerException

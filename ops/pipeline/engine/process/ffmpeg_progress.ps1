@@ -101,7 +101,8 @@ function Invoke-FFmpegWithProgress {
         [switch]$CpuEncode,
         [string]$ProcessPriority = 'inherit',
         [string]$OutputPath = '',
-        [AllowNull()] $WasteGuardContext = $null
+        [AllowNull()] $WasteGuardContext = $null,
+        [string]$WorkingDirectory = ''
     )
 
     $duration = 0
@@ -130,6 +131,7 @@ function Invoke-FFmpegWithProgress {
         timeout_seconds  = $TimeoutSeconds
         cpu_encode       = [bool]$CpuEncode
         process_priority = if ($priorityClassEnum) { [string]$priorityClassEnum } else { 'inherit' }
+        working_directory = $WorkingDirectory
     } | Out-Null
 
     $proc       = $null
@@ -292,7 +294,8 @@ function Invoke-FFmpegWithProgress {
         -MaxStderrChars 262144 `
         -StderrLineHandler $stderrLineHandler `
         -PollHandler $pollHandler `
-        -ProcessStartedHandler $processStartedHandler
+        -ProcessStartedHandler $processStartedHandler `
+        -WorkingDirectory $WorkingDirectory
 
     if ([int]$result.ExitCode -eq -2) {
         throw ([string]$result.Stderr)
@@ -315,6 +318,12 @@ function Invoke-FFmpegWithProgress {
     }
     $exitCode = [int]$result.ExitCode
     $Global:ffmpegProcess = $null
+    $completedWorkingDirectory = $WorkingDirectory
+    if ($result -is [System.Collections.IDictionary] -and $result.Contains('WorkingDirectory')) {
+        $completedWorkingDirectory = [string]$result['WorkingDirectory']
+    } elseif ($result.PSObject.Properties['WorkingDirectory']) {
+        $completedWorkingDirectory = [string]$result.WorkingDirectory
+    }
 
     # Expose full stderr text for caller inspection (e.g. NVENC fallback logic).
     # Kept at script scope so callers don't need to change signature.
@@ -331,7 +340,8 @@ function Invoke-FFmpegWithProgress {
         -ExitCode $exitCode `
         -TimedOut $timedOut `
         -Stopped $stopped `
-        -Stderr ([string]$result.Stderr) | Out-Null
+        -Stderr ([string]$result.Stderr) `
+        -WorkingDirectory $completedWorkingDirectory | Out-Null
 
     if ($script:StopRequested) { Write-Log "$Label : stopped by user request"; return $false }
 
@@ -388,6 +398,7 @@ function Invoke-FFmpegWithProgress {
                 -TimedOut $timedOut `
                 -Stopped $stopped `
                 -Stderr ($errorLines.ToString()) `
+                -WorkingDirectory $WorkingDirectory `
                 -RunnerException $message | Out-Null
         } catch {}
         try {
