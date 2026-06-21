@@ -14,7 +14,7 @@
     "tests"
   ],
   "behavior_before": "Invoke-EncoderRuntimeMatrixChecks.ps1 executed available SDR CPU descriptor rows and reported hardware rows as opt-in skips, but did not cover HDR flag topology or executed HDR output evidence.",
-  "behavior_after": "Invoke-EncoderRuntimeMatrixChecks.ps1 includes SDR and HDR10 descriptor rows, builds descriptor flags before hardware skips, asserts HDR flag topology for HDR-capable descriptors, executes runtime-available rows, and verifies 10-bit BT.2020 output for executed HDR rows without enabling dormant hardware descriptors.",
+  "behavior_after": "Invoke-EncoderRuntimeMatrixChecks.ps1 includes SDR and HDR10 descriptor rows, builds descriptor flags before hardware skips, asserts HDR flag topology for HDR-capable descriptors, executes runtime-available rows, and verifies 10-bit BT.2020/PQ output tags for executed HDR rows without enabling dormant hardware descriptors.",
   "files_touched": [
     "docs/CURRENT_PROJECT_STATE.md",
     "docs/OPEN_WORK_CHECKLIST.md",
@@ -32,15 +32,15 @@
   ],
   "manual_validation": [
     "PowerShell parser check for ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1 -> Parser OK",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> 501 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index -> regenerated PROJECT_INDEX.md and DEPENDENCY_GRAPH.md",
     "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed -> refreshed changed summaries",
     "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check -> current summaries verified",
-    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index -> regenerated PROJECT_INDEX.md and DEPENDENCY_GRAPH.md",
-    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> 501 packets valid",
     "git diff --check -> passed",
     "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 -> passed",
     "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1 -> passed; rows passed 4, HDR rows passed 1, rows skipped 11"
   ],
   "rollback_plan": "Revert the HDR runtime matrix rows/assertions, docs/status updates, regenerated summaries, and this packet. No media, queue, publish, settings-state, or encoder activation recovery is required because the change is test-only and uses temporary lavfi outputs.",
   "related_changes": [],
-  "notes": "Add synthetic HDR10 runtime matrix rows and HDR flag/output assertions without enabling hardware rows.\nDocument scoped HDR runtime matrix slice and exclusions.\nUpdate encoder breadth status for SDR/HDR10 matrix coverage and remaining hardware/real-media gates.\nUpdate current-state summary with synthetic HDR10 runtime matrix coverage.\nClarify runtime matrix coverage versus host hardware and real-media validation.\nDocument HDR10 assertions in encoder runtime matrix test coverage.\nRefresh generated summary for changed HDR runtime matrix documentation or test content.\nRun project-index generator after HDR runtime matrix summary refresh."
+  "notes": "Add synthetic HDR10 runtime matrix rows and HDR flag/output assertions without enabling hardware rows.\nDocument scoped HDR runtime matrix slice and exclusions.\nUpdate encoder breadth status for SDR/HDR10 matrix coverage and remaining hardware/real-media gates.\nUpdate current-state summary with synthetic HDR10 runtime matrix coverage.\nClarify runtime matrix coverage versus host hardware and real-media validation.\nDocument HDR10 assertions in encoder runtime matrix test coverage.\nRefresh generated summary for changed HDR runtime matrix documentation or test content.\nRun project-index generator after HDR runtime matrix summary refresh.\nClarify synthetic SDR/HDR10 encoder runtime matrix evidence and remaining hardware/real-media gates."
 }
