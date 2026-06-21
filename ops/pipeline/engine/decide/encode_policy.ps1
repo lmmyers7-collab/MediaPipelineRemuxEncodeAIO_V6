@@ -744,6 +744,18 @@ function New-EncodeAttemptPlan {
     }
 }
 
+function Test-NvencEncoderListMatch {
+    param(
+        [string] $EncoderListText = '',
+        [string] $TestEncoder = 'hevc_nvenc'
+    )
+
+    $encoder = if ($TestEncoder) { $TestEncoder.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($encoder)) { $encoder = 'hevc_nvenc' }
+    $escapedEncoder = [regex]::Escape($encoder)
+    return ([string]$EncoderListText -match "(?im)^\s*V[\.\w]+\s+$escapedEncoder\b")
+}
+
 function Test-NvencAvailable {
     <#
     .SYNOPSIS
@@ -792,7 +804,10 @@ function Test-NvencAvailable {
         return $result
     }
 
-    # Step 1 — does ffmpeg list any nvenc encoder at all?
+    $testEncoderName = if ($TestEncoder) { $TestEncoder.Trim().ToLowerInvariant() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($testEncoderName)) { $testEncoderName = 'hevc_nvenc' }
+
+    # Step 1 — does ffmpeg list the exact NVENC encoder this run will try?
     try {
         $listOut = & $FfmpegPath -hide_banner -encoders 2>&1
         if ($LASTEXITCODE -ne 0) {
@@ -800,10 +815,11 @@ function Test-NvencAvailable {
             $script:NvencAvailableProbe = $result
             return $result
         }
-        if ($listOut -match '(?im)^\s*V[\.\w]+\s+(?:hevc_nvenc|h264_nvenc|av1_nvenc)\b') {
+        $listText = ($listOut | Out-String)
+        if (Test-NvencEncoderListMatch -EncoderListText $listText -TestEncoder $testEncoderName) {
             $result.EncoderListMatch = $true
         } else {
-            $result.Reason = 'ffmpeg build does not include any NVENC encoder'
+            $result.Reason = "ffmpeg build does not include encoder '$testEncoderName'"
             $script:NvencAvailableProbe = $result
             return $result
         }
@@ -822,7 +838,7 @@ function Test-NvencAvailable {
             '-hide_banner','-loglevel','error',
             '-f','lavfi','-i','color=c=black:s=256x144:r=1',
             '-frames:v','1',
-            '-c:v', $TestEncoder,
+            '-c:v', $testEncoderName,
             '-f','null','-'
         )
         $proc = [System.Diagnostics.Process]::new()

@@ -550,6 +550,15 @@ Assert-True ($metadataAttempts -contains 'primary') 'Snapshot set must cover pri
 Assert-True ($metadataAttempts -contains 'hardware_safe_retry') 'Snapshot set must cover hardware safe-retry attempt metadata.'
 Assert-True ($metadataAttempts -contains 'cpu_fallback') 'Snapshot set must cover CPU fallback attempt metadata.'
 
+$fakeNvencEncoderList = @'
+ V....D hevc_nvenc           NVIDIA NVENC hevc encoder (codec hevc)
+ V....D h264_nvenc           NVIDIA NVENC h264 encoder (codec h264)
+'@
+Assert-True (Test-NvencEncoderListMatch -EncoderListText $fakeNvencEncoderList -TestEncoder 'hevc_nvenc') 'NVENC startup probe list matching should accept the configured HEVC encoder.'
+Assert-True (Test-NvencEncoderListMatch -EncoderListText $fakeNvencEncoderList -TestEncoder ' h264_nvenc ') 'NVENC startup probe list matching should trim and accept the configured H.264 encoder.'
+Assert-True (-not (Test-NvencEncoderListMatch -EncoderListText $fakeNvencEncoderList -TestEncoder 'av1_nvenc')) 'NVENC startup probe list matching must not treat HEVC/H.264 NVENC as AV1 NVENC support.'
+Assert-True (-not (Test-NvencEncoderListMatch -EncoderListText ' V....D xav1_nvenc' -TestEncoder 'av1_nvenc')) 'NVENC startup probe list matching must not accept suffix-only encoder names.'
+
 $hevcNvencDescriptor = Get-MediaEncoderDescriptor -Family 'hevc' -Backend 'nvenc'
 Assert-True ($null -ne $hevcNvencDescriptor) 'HEVC/NVENC descriptor must exist for the behavior-identical descriptor scaffold.'
 Assert-Equal ([string]$hevcNvencDescriptor.EncoderName) 'hevc_nvenc' 'HEVC/NVENC descriptor encoder mismatch.'

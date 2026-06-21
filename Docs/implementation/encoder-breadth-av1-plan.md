@@ -168,10 +168,10 @@ stay byte-identical until Phase 3 deliberately changes documented cases.
   - route reason codes `gpu_unavailable_cpu_only` / `hardware_encoder_cpu_fallback`
     (encode.ps1:361-367) and `route_actions.video = 'encode_software'` mutation
     (encode.ps1:373-381).
-- `Test-NvencAvailable` (`encode_policy.ps1:484-598`): two-step probe (ffmpeg
-  `-encoders` regex at line 540 already matches `hevc_nvenc|h264_nvenc|av1_nvenc`,
-  then a 1-frame lavfi null encode). Cache `$script:NvencAvailableProbe`;
-  invalidation helper at lines 600-643.
+- `Test-NvencAvailable` (`encode_policy.ps1`): two-step probe (ffmpeg
+  `-encoders` exact match for the configured `TestEncoder`, then a 1-frame lavfi
+  null encode with that encoder). Cache `$script:NvencAvailableProbe`;
+  invalidation helper keeps later files on CPU fallback after runtime failure.
 
 ### 2.4 HDR10 metadata source
 
