@@ -6,13 +6,15 @@ HEVC/NVENC plus libx265 descriptor parity scaffold. Dormant H.264/NVENC,
 libx264, AV1/NVENC, libaom AV1, QSV, and AMF descriptor entries are cataloged
 with fail-closed unsupported-HDR guards where needed but are not selected by the
 active resolver. Descriptor-owned list/runtime capability-probe scaffolding exists
-for the dormant catalog but is not wired into active encoder selection. A synthetic
-SDR runtime/topology matrix executes CPU descriptor rows and reports hardware rows
-as opt-in skips by default. A pure descriptor selection resolver now returns
-primary/fallback descriptors plus trace evidence, including family-consistent CPU
-fallback candidates. Encode attempt plans now expose descriptor-selection evidence
-for current HEVC/libx265 parity paths and explicitly mark dormant AV1 selection as
-not yet active, but new families are not wired into the active `Do-Encode` ladder.
+for the dormant catalog, and the legacy NVENC startup probe now bridges through the
+descriptor-backed cache, but hardware descriptors are not wired into active encoder
+selection. A synthetic SDR runtime/topology matrix executes CPU descriptor rows and
+reports hardware rows as opt-in skips by default. A pure descriptor selection
+resolver now returns primary/fallback descriptors plus trace evidence, including
+family-consistent CPU fallback candidates. Encode attempt plans now expose
+descriptor-selection evidence for current HEVC/libx265 parity paths and explicitly
+mark dormant AV1 selection as not yet active, but new families are not wired into
+the active `Do-Encode` ladder.
 Config-key changes, fallback wiring, full hardware/HDR runtime matrix coverage, and
 new encoder enablement remain incomplete.
 Implementing agent: Codex
@@ -168,9 +170,10 @@ stay byte-identical until Phase 3 deliberately changes documented cases.
   - route reason codes `gpu_unavailable_cpu_only` / `hardware_encoder_cpu_fallback`
     (encode.ps1:361-367) and `route_actions.video = 'encode_software'` mutation
     (encode.ps1:373-381).
-- `Test-NvencAvailable` (`encode_policy.ps1`): two-step probe (ffmpeg
-  `-encoders` exact match for the configured `TestEncoder`, then a 1-frame lavfi
-  null encode with that encoder). Cache `$script:NvencAvailableProbe`;
+- `Test-NvencAvailable` (`encode_policy.ps1`): legacy wrapper over the
+  descriptor-backed list/runtime probe cache. It still exposes
+  `$script:NvencAvailableProbe`, requires an exact `-encoders` match for the
+  configured `TestEncoder`, then runs the descriptor's 1-frame lavfi null encode;
   invalidation helper keeps later files on CPU fallback after runtime failure.
 
 ### 2.4 HDR10 metadata source
@@ -475,9 +478,9 @@ changing any default encode behavior.
   1-frame lavfi null encode of the descriptor's `ProbeEncoderName`. Per-backend cache
   hashtable `$script:EncoderBackendProbes[<backend>]` with the same result shape
   (`Available/Probed/Reason/EncoderListMatch/RuntimeOk/ProbedAt`).
-- `Test-NvencAvailable`, `Invalidate-NvencAvailableProbe`,
-  `Test-NvencProbeReportsAvailable` become thin wrappers over the nvenc cache entry
-  (their names are asserted by legacy checks and used by `Do-Encode`; keep them).
+- `Test-NvencAvailable` is now a legacy wrapper over the descriptor probe cache.
+  `Invalidate-NvencAvailableProbe` and `Test-NvencProbeReportsAvailable` still expose
+  the existing NVENC cache semantics required by `Do-Encode`; keep their names.
 - Generalize invalidation: `Invalidate-EncoderBackendProbe -Backend ... -Reason ...`
   emitting the same `gpu_unavailable` pipeline event shape (additive `backend` field
   in `Data`).

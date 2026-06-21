@@ -11,6 +11,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'AGENTS.md') -PathType Lea
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\choice_registry.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\config\default_values.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
 
 function Assert-Equal {
     param(
@@ -85,5 +86,34 @@ $hardwareListOnly = Test-MediaEncoderDescriptorAvailable `
 Assert-Equal ([bool]$hardwareListOnly.EncoderListMatch) $true 'Bundled ffmpeg should list av1_nvenc even when this host may not support runtime NVENC.'
 Assert-Equal ([bool]$hardwareListOnly.Available) $false 'Hardware list-only probe must stay fail-closed until runtime probing succeeds.'
 Assert-Equal ([bool]$hardwareListOnly.RuntimeProbeSkipped) $true 'Hardware list-only probe must not claim runtime validation.'
+
+$previousNvencProbe = $script:NvencAvailableProbe
+try {
+    $script:NvencAvailableProbe = $null
+    $missingFfmpegPath = Join-Path $repoRoot 'LocalBase\missing-ffmpeg.exe'
+    $hevcMissingProbe = Test-NvencAvailable `
+        -FfmpegPath $missingFfmpegPath `
+        -TestEncoder 'hevc_nvenc' `
+        -Force
+    Assert-Equal ([bool]$hevcMissingProbe.DescriptorProbeCache) $true 'Legacy NVENC probe should be backed by the descriptor probe cache.'
+    Assert-Equal ([string]$hevcMissingProbe.ProbeEncoderName) 'hevc_nvenc' 'Legacy NVENC probe should preserve the HEVC probe encoder name.'
+    Assert-Equal ([bool]$hevcMissingProbe.Available) $false 'Missing ffmpeg should keep the bridged NVENC probe unavailable.'
+
+    $av1MissingProbe = Test-NvencAvailable `
+        -FfmpegPath $missingFfmpegPath `
+        -TestEncoder 'av1_nvenc'
+    Assert-Equal ([string]$av1MissingProbe.ProbeEncoderName) 'av1_nvenc' 'Legacy NVENC cache must not reuse a HEVC probe result for AV1/NVENC.'
+    Assert-Equal ([string]$av1MissingProbe.Backend) 'nvenc' 'Legacy NVENC probe should preserve descriptor backend evidence.'
+    Assert-Equal ([bool]$av1MissingProbe.Available) $false 'Missing ffmpeg should keep the AV1/NVENC bridge unavailable.'
+
+    Invalidate-NvencAvailableProbe -Reason 'unit invalidation'
+    $invalidatedProbe = Test-NvencAvailable `
+        -FfmpegPath $missingFfmpegPath `
+        -TestEncoder 'hevc_nvenc'
+    Assert-Equal ([string]$invalidatedProbe.Reason) 'unit invalidation' 'Runtime invalidation should still short-circuit later legacy NVENC probe calls.'
+    Assert-Equal ([bool]$invalidatedProbe.DescriptorProbeCache) $true 'Runtime invalidation should preserve descriptor-backed NVENC probe evidence.'
+} finally {
+    $script:NvencAvailableProbe = $previousNvencProbe
+}
 
 Write-Host 'Encoder capability probe checks passed.'

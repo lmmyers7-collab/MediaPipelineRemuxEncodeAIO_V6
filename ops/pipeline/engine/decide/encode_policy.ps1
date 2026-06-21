@@ -750,10 +750,70 @@ function Test-NvencEncoderListMatch {
         [string] $TestEncoder = 'hevc_nvenc'
     )
 
+    $descriptor = Resolve-NvencProbeDescriptor -TestEncoder $TestEncoder
+    if (Get-Command -Name Test-MediaEncoderDescriptorListMatch -ErrorAction SilentlyContinue) {
+        return (Test-MediaEncoderDescriptorListMatch -EncoderListText ([string]$EncoderListText) -Descriptor $descriptor)
+    }
+
+    $escapedEncoder = [regex]::Escape(([string]$descriptor.ProbeEncoderName))
+    return ([string]$EncoderListText -match "(?im)^\s*V[\.\w]+\s+$escapedEncoder\b")
+}
+
+function Resolve-NvencProbeDescriptor {
+    param(
+        [string] $TestEncoder = 'hevc_nvenc'
+    )
+
     $encoder = if ($TestEncoder) { $TestEncoder.Trim().ToLowerInvariant() } else { '' }
     if ([string]::IsNullOrWhiteSpace($encoder)) { $encoder = 'hevc_nvenc' }
-    $escapedEncoder = [regex]::Escape($encoder)
-    return ([string]$EncoderListText -match "(?im)^\s*V[\.\w]+\s+$escapedEncoder\b")
+
+    $family = if (Get-Command -Name Resolve-MediaEncoderFamilyForCodec -ErrorAction SilentlyContinue) {
+        Resolve-MediaEncoderFamilyForCodec -VideoCodec $encoder
+    } else {
+        ''
+    }
+    if ([string]::IsNullOrWhiteSpace($family)) {
+        $family = 'unknown'
+    }
+
+    if ($family -ne 'unknown' -and (Get-Command -Name Get-MediaEncoderDescriptor -ErrorAction SilentlyContinue)) {
+        $descriptor = Get-MediaEncoderDescriptor -Family $family -Backend 'nvenc'
+        if ($descriptor -and ([string]$descriptor.ProbeEncoderName).Trim().ToLowerInvariant() -eq $encoder) {
+            return $descriptor
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        EncoderName           = $encoder
+        Family                = $family
+        Backend               = 'nvenc'
+        ProbeEncoderName      = $encoder
+        SupportsHdr10Metadata = $false
+    }
+}
+
+function Convert-DescriptorProbeToNvencProbeResult {
+    param(
+        [Parameter(Mandatory)] $ProbeResult,
+        [Parameter(Mandatory)] $Descriptor,
+        [string] $FfmpegPath = ''
+    )
+
+    return [pscustomobject][ordered]@{
+        Available           = [bool]$ProbeResult.Available
+        Probed              = [bool]$ProbeResult.Probed
+        Reason              = [string]$ProbeResult.Reason
+        EncoderListMatch    = [bool]$ProbeResult.EncoderListMatch
+        RuntimeOk           = [bool]$ProbeResult.RuntimeOk
+        ProbedAt            = if ($ProbeResult.PSObject.Properties['ProbedAt']) { [string]$ProbeResult.ProbedAt } else { (Get-Date).ToString('o') }
+        RuntimeProbeSkipped = if ($ProbeResult.PSObject.Properties['RuntimeProbeSkipped']) { [bool]$ProbeResult.RuntimeProbeSkipped } else { $false }
+        EncoderName         = if ($ProbeResult.PSObject.Properties['EncoderName']) { [string]$ProbeResult.EncoderName } else { [string]$Descriptor.EncoderName }
+        Family              = if ($ProbeResult.PSObject.Properties['Family']) { [string]$ProbeResult.Family } else { [string]$Descriptor.Family }
+        Backend             = if ($ProbeResult.PSObject.Properties['Backend']) { [string]$ProbeResult.Backend } else { [string]$Descriptor.Backend }
+        ProbeEncoderName    = if ($ProbeResult.PSObject.Properties['ProbeEncoderName']) { [string]$ProbeResult.ProbeEncoderName } else { [string]$Descriptor.ProbeEncoderName }
+        FfmpegPath          = [string]$FfmpegPath
+        DescriptorProbeCache = $true
+    }
 }
 
 function Test-NvencAvailable {
@@ -763,10 +823,10 @@ function Test-NvencAvailable {
     this host, and cache the answer for the run.
 
     .DESCRIPTION
-    Two-step probe: (1) `ffmpeg -encoders` lists nvenc encoders only when
-    the binary was built with NVENC support; that's a quick filter. (2)
-    a 1-frame null encode to nvenc verifies the driver and a usable GPU
-    are present, which `-encoders` does not check.
+    Legacy wrapper over the descriptor-backed two-step probe: (1)
+    `ffmpeg -encoders` must list the configured NVENC test encoder; (2)
+    a 1-frame null encode with that descriptor verifies the driver and a
+    usable GPU are present, which `-encoders` does not check.
 
     Returns a [pscustomobject] with:
       - Available  [bool]     final answer
@@ -785,95 +845,33 @@ function Test-NvencAvailable {
         [switch] $Force
     )
 
-    if (-not $Force -and $script:NvencAvailableProbe) {
-        return $script:NvencAvailableProbe
-    }
-
-    $result = [pscustomobject]@{
-        Available        = $false
-        Probed           = $false
-        Reason           = ''
-        EncoderListMatch = $false
-        RuntimeOk        = $false
-        ProbedAt         = (Get-Date).ToString('o')
-    }
-
-    if ([string]::IsNullOrWhiteSpace($FfmpegPath) -or -not (Test-Path -LiteralPath $FfmpegPath)) {
-        $result.Reason = "ffmpeg not found at '$FfmpegPath'"
-        $script:NvencAvailableProbe = $result
-        return $result
-    }
-
     $testEncoderName = if ($TestEncoder) { $TestEncoder.Trim().ToLowerInvariant() } else { '' }
     if ([string]::IsNullOrWhiteSpace($testEncoderName)) { $testEncoderName = 'hevc_nvenc' }
+    $ffmpegPathKey = if ($FfmpegPath) { $FfmpegPath.Trim().ToLowerInvariant() } else { '' }
 
-    # Step 1 — does ffmpeg list the exact NVENC encoder this run will try?
-    try {
-        $listOut = & $FfmpegPath -hide_banner -encoders 2>&1
-        if ($LASTEXITCODE -ne 0) {
-            $result.Reason = "ffmpeg -encoders exited $LASTEXITCODE"
-            $script:NvencAvailableProbe = $result
-            return $result
+    if (-not $Force -and $script:NvencAvailableProbe) {
+        if ($script:NvencAvailableProbe.PSObject.Properties['InvalidatedAt']) {
+            return $script:NvencAvailableProbe
         }
-        $listText = ($listOut | Out-String)
-        if (Test-NvencEncoderListMatch -EncoderListText $listText -TestEncoder $testEncoderName) {
-            $result.EncoderListMatch = $true
-        } else {
-            $result.Reason = "ffmpeg build does not include encoder '$testEncoderName'"
-            $script:NvencAvailableProbe = $result
-            return $result
+
+        $cachedProbeEncoder = if ($script:NvencAvailableProbe.PSObject.Properties['ProbeEncoderName']) { ([string]$script:NvencAvailableProbe.ProbeEncoderName).Trim().ToLowerInvariant() } else { '' }
+        $cachedFfmpegPath = if ($script:NvencAvailableProbe.PSObject.Properties['FfmpegPath']) { ([string]$script:NvencAvailableProbe.FfmpegPath).Trim().ToLowerInvariant() } else { '' }
+        if ([string]::IsNullOrWhiteSpace($cachedProbeEncoder) -or ($cachedProbeEncoder -eq $testEncoderName -and $cachedFfmpegPath -eq $ffmpegPathKey)) {
+            return $script:NvencAvailableProbe
         }
-    } catch {
-        $result.Reason = "ffmpeg -encoders threw: $($_.Exception.Message)"
-        $script:NvencAvailableProbe = $result
-        return $result
     }
 
-    # Step 2 — runtime probe: 1 frame from lavfi color source -> nvenc.
-    # This is the cheapest reliable way to verify driver+GPU are usable
-    # before we burn the first real encode finding out NVENC is dead.
-    $result.Probed = $true
-    try {
-        $probeArgs = @(
-            '-hide_banner','-loglevel','error',
-            '-f','lavfi','-i','color=c=black:s=256x144:r=1',
-            '-frames:v','1',
-            '-c:v', $testEncoderName,
-            '-f','null','-'
-        )
-        $proc = [System.Diagnostics.Process]::new()
-        $psi = [System.Diagnostics.ProcessStartInfo]@{
-            FileName               = $FfmpegPath
-            UseShellExecute        = $false
-            RedirectStandardError  = $true
-            RedirectStandardOutput = $true
-            CreateNoWindow         = $true
-        }
-        foreach ($a in $probeArgs) { $psi.ArgumentList.Add([string]$a) }
-        $proc.StartInfo = $psi
-        [void]$proc.Start()
-        $stderrTask = $proc.StandardError.ReadToEndAsync()
-        if (-not $proc.WaitForExit([int]([math]::Max(1, $TimeoutSeconds)) * 1000)) {
-            try { $proc.Kill() } catch {}
-            $result.Reason = "NVENC probe timed out after ${TimeoutSeconds}s"
-            $script:NvencAvailableProbe = $result
-            return $result
-        }
-        $stderrText = ''
-        try { $stderrText = $stderrTask.Result } catch {}
-        if ($proc.ExitCode -eq 0) {
-            $result.RuntimeOk = $true
-            $result.Available = $true
-            $result.Reason = 'NVENC probe succeeded'
-        } else {
-            $tail = ($stderrText -split "`r?`n" | Where-Object { $_.Trim() } | Select-Object -Last 1)
-            $result.Reason = "NVENC probe exit $($proc.ExitCode): $tail"
-        }
-    } catch {
-        $result.Reason = "NVENC probe threw: $($_.Exception.Message)"
+    $descriptor = Resolve-NvencProbeDescriptor -TestEncoder $testEncoderName
+    $probeArgs = @{
+        Descriptor     = $descriptor
+        FfmpegPath     = $FfmpegPath
+        TimeoutSeconds = $TimeoutSeconds
     }
-    $script:NvencAvailableProbe = $result
-    return $result
+    if ($Force) { $probeArgs['Force'] = $true }
+
+    $probeResult = Test-MediaEncoderDescriptorAvailable @probeArgs
+    $script:NvencAvailableProbe = Convert-DescriptorProbeToNvencProbeResult -ProbeResult $probeResult -Descriptor $descriptor -FfmpegPath $FfmpegPath
+    return $script:NvencAvailableProbe
 }
 
 function Invalidate-NvencAvailableProbe {
@@ -900,14 +898,28 @@ function Invalidate-NvencAvailableProbe {
     )
 
     $previous = if ($script:NvencAvailableProbe) { [bool]$script:NvencAvailableProbe.Available } else { $true }
+    $previousProbeEncoder = if ($script:NvencAvailableProbe -and $script:NvencAvailableProbe.PSObject.Properties['ProbeEncoderName']) { [string]$script:NvencAvailableProbe.ProbeEncoderName } else { 'hevc_nvenc' }
+    $previousFfmpegPath = if ($script:NvencAvailableProbe -and $script:NvencAvailableProbe.PSObject.Properties['FfmpegPath']) { [string]$script:NvencAvailableProbe.FfmpegPath } else { '' }
+    $previousFamily = if (Get-Command -Name Resolve-MediaEncoderFamilyForCodec -ErrorAction SilentlyContinue) {
+        Resolve-MediaEncoderFamilyForCodec -VideoCodec $previousProbeEncoder
+    } else {
+        ''
+    }
     $script:NvencAvailableProbe = [pscustomobject]@{
-        Available        = $false
-        Probed           = $true
-        Reason           = if ([string]::IsNullOrWhiteSpace($Reason)) { 'NVENC failed at runtime; probe cache invalidated' } else { $Reason }
-        EncoderListMatch = $false
-        RuntimeOk        = $false
-        ProbedAt         = (Get-Date).ToString('o')
-        InvalidatedAt    = (Get-Date).ToString('o')
+        Available            = $false
+        Probed               = $true
+        Reason               = if ([string]::IsNullOrWhiteSpace($Reason)) { 'NVENC failed at runtime; probe cache invalidated' } else { $Reason }
+        EncoderListMatch     = $false
+        RuntimeOk            = $false
+        ProbedAt             = (Get-Date).ToString('o')
+        RuntimeProbeSkipped  = $false
+        EncoderName          = $previousProbeEncoder
+        Family               = $previousFamily
+        Backend              = 'nvenc'
+        ProbeEncoderName     = $previousProbeEncoder
+        FfmpegPath           = $previousFfmpegPath
+        DescriptorProbeCache = $true
+        InvalidatedAt        = (Get-Date).ToString('o')
     }
 
     if ($previous) {
