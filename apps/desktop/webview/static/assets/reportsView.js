@@ -2730,9 +2730,4 @@
     activateReportsTab,
     initReportsTabNav,
   };
-  window.initReportsViewEvents = initReportsViewEvents;
-  window.renderFailureRows = renderFailureRows;
-  window.renderAuditRows = renderAuditRows;
-  window.renderAuditControls = renderAuditControls;
-  window.renderReportOpenHistory = renderReportOpenHistory;
 })();

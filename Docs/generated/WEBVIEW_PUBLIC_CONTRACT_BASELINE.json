@@ -1085,7 +1085,6 @@
       "initDiagnosticsViewEvents",
       "initLaunchViewEvents",
       "initMaintenanceViewEvents",
-      "initReportsViewEvents",
       "initSampleValidationViewEvents",
       "initScheduleViewEvents",
       "initSettingsViewEvents",
@@ -1316,8 +1315,6 @@
       "renderActiveJobDiagnosticsActions",
       "renderActiveJobRows",
       "renderAudioSettingsBuilderGuidance",
-      "renderAuditControls",
-      "renderAuditRows",
       "renderCommandDiagnosticsEvidence",
       "renderCompleted",
       "renderCompletedActiveOutputContext",
@@ -1360,7 +1357,6 @@
       "renderDiagnosticsRefreshFailures",
       "renderDiagnosticsTail",
       "renderExternalDependencyDigest",
-      "renderFailureRows",
       "renderFileSafetySettingsBuilderGuidance",
       "renderFinalLibraryPromotionSettingsGuidance",
       "renderLaunchBackendPreflight",
@@ -1420,7 +1416,6 @@
       "renderRenameApplyHistory",
       "renderRenameBulkEditor",
       "renderRenameFileSourceSummary",
-      "renderReportOpenHistory",
       "renderRuntimeSettingsBuilderGuidance",
       "renderSchedule",
       "renderScheduleTimingTrust",
@@ -18447,13 +18442,7 @@
       "namespace_exports": [
         "mediaPipelineReportsView"
       ],
-      "flat_window_exports": [
-        "initReportsViewEvents",
-        "renderAuditControls",
-        "renderAuditRows",
-        "renderFailureRows",
-        "renderReportOpenHistory"
-      ],
+      "flat_window_exports": [],
       "api_routes": [
         "/api/audit/export-rerun-csv",
         "/api/audit/ignore",

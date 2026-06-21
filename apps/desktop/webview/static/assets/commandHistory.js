@@ -1311,7 +1311,7 @@
     if (typeof renderDiagnosticsOpenHistory === "function") renderDiagnosticsOpenHistory(commandHistory);
     if (typeof renderRenameApplyHistory === "function") renderRenameApplyHistory(commandHistory);
     if (typeof renderPipelineControlHistory === "function") renderPipelineControlHistory(commandHistory);
-    if (typeof renderReportOpenHistory === "function") renderReportOpenHistory(commandHistory);
+    window.mediaPipelineReportsView?.renderReportOpenHistory?.(commandHistory);
     window.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(commandHistory);
     const tbody = byId("command-rows");
     if (!tbody) return;

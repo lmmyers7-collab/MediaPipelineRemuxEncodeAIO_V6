@@ -1655,7 +1655,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   initLaunchViewEvents();
   window.mediaPipelineMetricsView?.initMetricsViewEvents?.();
-  if (typeof initReportsViewEvents === "function") initReportsViewEvents();
+  window.mediaPipelineReportsView?.initReportsViewEvents?.();
   if (typeof initScheduleViewEvents === "function") initScheduleViewEvents();
   initDiagnosticsViewEvents();
   window.mediaPipelineNetworkView?.initNetworkViewEvents?.();
@@ -1743,11 +1743,11 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pendingClearFiltersButton = byId("pending-clear-filters-button");
   if (pendingClearFiltersButton) pendingClearFiltersButton.addEventListener("click", () => window.mediaPipelinePendingPublishView?.resetPendingFilters?.());
   const failureFilter = byId("failure-filter");
-  if (failureFilter) failureFilter.addEventListener("input", renderFailureRows);
+  if (failureFilter) failureFilter.addEventListener("input", () => window.mediaPipelineReportsView?.renderFailureRows?.());
   const failureSourceMarkers = byId("failure-source-markers");
   if (failureSourceMarkers) failureSourceMarkers.addEventListener("change", refreshAll);
   const auditPreviewFilter = byId("audit-preview-filter");
-  if (auditPreviewFilter) auditPreviewFilter.addEventListener("input", renderAuditRows);
+  if (auditPreviewFilter) auditPreviewFilter.addEventListener("input", () => window.mediaPipelineReportsView?.renderAuditRows?.());
   const auditPreviewPriorityOnly = byId("audit-preview-priority-only");
   if (auditPreviewPriorityOnly) auditPreviewPriorityOnly.addEventListener("change", refreshAll);
   document.querySelectorAll("[data-control-action]").forEach((button) => {

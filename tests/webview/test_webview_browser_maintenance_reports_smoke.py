@@ -220,14 +220,20 @@ def _browser_maintenance_reports_runner_source() -> str:
               "renderBackfillProgress",
               "backfillProgressBars",
               "renderMaintenanceDryRunHistory",
+              "getCommandHistory",
+              "appendCommandResult",
+            ].forEach(requireFunction);
+            [
               "renderReports",
               "renderFailurePreview",
               "renderAuditPreview",
               "renderAuditControls",
               "initReportsViewEvents",
-              "getCommandHistory",
-              "appendCommandResult",
-            ].forEach(requireFunction);
+            ].forEach((name) => {
+              if (typeof window.mediaPipelineReportsView[name] !== "function") {
+                throw new Error("missing Reports namespace helper " + name);
+              }
+            });
             [
               "setReleasePackageStatus",
               "renderReleasePackageInFlightProgress",
@@ -1071,7 +1077,6 @@ def _browser_maintenance_reports_runner_source() -> str:
               }],
             };
             window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
-            window.initReportsViewEvents();
             window.mediaPipelineReportsView.initReportsViewEvents();
             const hiddenFailureCheckbox = document.querySelector('#failure-rows input[type="checkbox"]');
             if (!hiddenFailureCheckbox) throw new Error("failure hidden-selection checkbox missing");

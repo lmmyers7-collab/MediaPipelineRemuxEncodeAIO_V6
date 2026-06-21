@@ -447,7 +447,6 @@ def _node_runner_source() -> str:
           "renderPendingOpenHistory",
           "renderPendingRecoveryPlanHistory",
           "renderDiagnosticsOpenHistory",
-          "renderReportOpenHistory",
           "renderMaintenanceDryRunHistory",
           "renderPipelineControlHistory",
           "renderRenameApplyHistory",
@@ -457,6 +456,7 @@ def _node_runner_source() -> str:
           if (typeof context[name] === "function") context[name](renderedHistory);
         });
         context.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(renderedHistory);
+        context.mediaPipelineReportsView?.renderReportOpenHistory?.(renderedHistory);
         context.renderBackendLifecycleHistory(renderedHistory);
         const sampleValidationActions = context.commandHistoryDiagnosticsActions({
           command: "diagnostics.open",
