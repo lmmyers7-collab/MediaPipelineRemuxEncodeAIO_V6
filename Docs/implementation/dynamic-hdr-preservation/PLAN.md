@@ -563,6 +563,16 @@ do not work around.
 
 ### 6.1 Decision gating in `Do-Encode`
 
+Status 2026-06-21: `Resolve-DynamicHdrEncodePreservationDecision` now folds the
+existing evidence object, configured policy, MKV-only output guard, tool
+availability, and x265 capability evidence into a side-effect-free decision
+object. It identifies warn/off/no-op cases, unsupported containers,
+`preserve_or_remux` remux preference, `preserve_or_review` hold-review cases,
+and the CPU/libx265 `preserve_encode` path with `should_extract`,
+`should_force_cpu`, and `should_attempt_gpu=false`. `Do-Encode` does not consume
+this decision yet; route changes, extraction invocation, and x265 artifact
+injection remain open.
+
 After the Phase 1 evidence block (post encode.ps1:75), when policy is
 `preserve_or_remux`/`preserve_or_review` and evidence shows dynamic metadata:
 

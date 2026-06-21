@@ -158,6 +158,80 @@ try {
     Assert-True ($artifactText -match 'dovi_rpu_converted_profile_8_1') 'DoVi P7 plan should require converted RPU artifact.'
     Assert-True ($artifactText -match 'hdr10plus_json') 'HDR10+ plan should require metadata JSON artifact.'
 
+    $missingEvidenceDecision = Resolve-DynamicHdrEncodePreservationDecision -Evidence $null -Policy 'preserve_or_review'
+    Assert-Equal $missingEvidenceDecision.action 'none' 'Missing Dynamic HDR evidence should not change encode routing.'
+    Assert-Equal $missingEvidenceDecision.reason_code 'dynamic_hdr_evidence_missing' 'Missing evidence reason code mismatch.'
+
+    $noDynamicEvidence = [pscustomobject][ordered]@{
+        dynamic_metadata_present = $false
+        dovi_present             = $false
+        hdr10plus_present        = $false
+        summary                  = 'no dynamic HDR metadata detected'
+    }
+    $noDynamicDecision = Resolve-DynamicHdrEncodePreservationDecision -Evidence $noDynamicEvidence -Policy 'preserve_or_review'
+    Assert-Equal $noDynamicDecision.action 'none' 'Absent Dynamic HDR metadata should not change encode routing.'
+    Assert-True ([bool]$noDynamicDecision.should_attempt_gpu) 'Absent Dynamic HDR metadata should leave GPU attempts enabled.'
+
+    $doviHdr10PlusEvidence = [pscustomobject][ordered]@{
+        dynamic_metadata_present = $true
+        dovi_present             = $true
+        dovi_profile             = 7
+        dovi_bl_compat_id        = -1
+        dovi_el_present          = $true
+        hdr10plus_present        = $true
+        summary                  = 'DoVi profile 7 (EL present) + HDR10+'
+    }
+    $warnDecision = Resolve-DynamicHdrEncodePreservationDecision -Evidence $doviHdr10PlusEvidence -Policy 'warn' -VideoCodec 'hevc_nvenc'
+    Assert-Equal $warnDecision.action 'warn_only' 'Warn policy should not activate Dynamic HDR preservation.'
+    Assert-True ([bool]$warnDecision.should_attempt_gpu) 'Warn policy should leave GPU attempts enabled.'
+    Assert-True (-not [bool]$warnDecision.should_force_cpu) 'Warn policy should not force CPU.'
+
+    $preserveDecision = Resolve-DynamicHdrEncodePreservationDecision `
+        -Evidence $doviHdr10PlusEvidence `
+        -Policy 'preserve_or_review' `
+        -OutputContainer 'mkv' `
+        -VideoCodec 'hevc_nvenc' `
+        -DoviToolAvailable:$true `
+        -Hdr10PlusToolAvailable:$true `
+        -X265DolbyVisionCapable:$true `
+        -X265Hdr10PlusCapable:$true
+    Assert-Equal $preserveDecision.action 'preserve_encode' 'Satisfied Dynamic HDR preservation decision should preserve via CPU encode.'
+    Assert-True ([bool]$preserveDecision.should_extract) 'Satisfied Dynamic HDR preservation decision should require metadata extraction.'
+    Assert-True ([bool]$preserveDecision.should_force_cpu) 'Satisfied Dynamic HDR preservation decision should force CPU encode.'
+    Assert-True (-not [bool]$preserveDecision.should_attempt_gpu) 'Satisfied Dynamic HDR preservation decision should skip GPU attempts.'
+    Assert-Equal $preserveDecision.reason_code 'dynamic_hdr_preserve_encode_cpu' 'Preserve decision reason code mismatch.'
+    Assert-Equal $preserveDecision.target_dovi_profile '8.1' 'Preserve decision target profile mismatch.'
+
+    $missingToolDecision = Resolve-DynamicHdrEncodePreservationDecision `
+        -Evidence $doviHdr10PlusEvidence `
+        -Policy 'preserve_or_remux' `
+        -OutputContainer 'mkv' `
+        -VideoCodec 'hevc_nvenc' `
+        -Hdr10PlusToolAvailable:$true `
+        -X265DolbyVisionCapable:$true `
+        -X265Hdr10PlusCapable:$true
+    Assert-Equal $missingToolDecision.action 'prefer_remux' 'Missing DoVi tool under preserve_or_remux should prefer remux.'
+    Assert-True ([bool]$missingToolDecision.should_prefer_remux) 'Missing DoVi tool decision should flag remux preference.'
+    Assert-True ((@($missingToolDecision.reasons) -join '; ') -match 'dovi_tool') 'Missing DoVi tool decision should name the missing tool.'
+
+    $unsupportedProfileEvidence = [pscustomobject][ordered]@{
+        dynamic_metadata_present = $true
+        dovi_present             = $true
+        dovi_profile             = 5
+        dovi_bl_compat_id        = -1
+        dovi_el_present          = $false
+        hdr10plus_present        = $false
+        summary                  = 'DoVi profile 5'
+    }
+    $unsupportedReviewDecision = Resolve-DynamicHdrEncodePreservationDecision -Evidence $unsupportedProfileEvidence -Policy 'preserve_or_review' -OutputContainer 'mkv' -DoviToolAvailable:$true -X265DolbyVisionCapable:$true
+    Assert-Equal $unsupportedReviewDecision.action 'hold_review' 'Unsupported DoVi profile under preserve_or_review should hold review.'
+    Assert-True ([bool]$unsupportedReviewDecision.should_hold_review) 'Unsupported DoVi profile should flag hold review.'
+    Assert-Equal $unsupportedReviewDecision.error_code 'DYNAMIC_HDR_UNPRESERVABLE' 'Unsupported DoVi profile review error code mismatch.'
+
+    $mp4Decision = Resolve-DynamicHdrEncodePreservationDecision -Evidence $doviHdr10PlusEvidence -Policy 'preserve_or_remux' -OutputContainer 'mp4' -DoviToolAvailable:$true -Hdr10PlusToolAvailable:$true -X265DolbyVisionCapable:$true -X265Hdr10PlusCapable:$true
+    Assert-Equal $mp4Decision.action 'prefer_remux' 'Non-MKV Dynamic HDR preserve_or_remux decision should prefer remux.'
+    Assert-Equal $mp4Decision.reason_code 'dynamic_hdr_output_container_unsupported' 'Non-MKV decision reason code mismatch.'
+
     $noMetadataExtractionPlan = New-DynamicHdrMetadataExtractionPlan `
         -ScratchPath 'source.mkv' `
         -WorkDir 'work' `
