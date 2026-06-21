@@ -595,6 +595,15 @@ After the Phase 1 evidence block (post encode.ps1:75), when policy is
 
 ### 6.2 Metadata extraction (in `dynamic_hdr.ps1`)
 
+Status 2026-06-21: `New-DynamicHdrMetadataExtractionPlan` now builds a
+fail-closed command topology for HEVC stream extraction, Dolby Vision RPU
+extraction/summary, and HDR10+ JSON extraction. It requires explicit MKV video
+track IDs instead of assuming track `0`, chooses ffmpeg Annex-B extraction for
+non-MKV inputs, records temp artifact paths for the existing cleanup flow, and
+does not execute tools or alter routing. Runtime execution, output artifact
+verification, policy fallback after tool failure, and real-media validation
+remain open.
+
 `Export-DynamicHdrMetadata -ScratchPath $localIn -Evidence $evidence -WorkDir $script:processingDir`
 returns `RpuPath`, `Hdr10PlusJsonPath`, `RpuFrameCount`, `Ok`, `Reason`,
 `ErrorCode`. Steps (all temp files GUID-named in `$script:processingDir`,

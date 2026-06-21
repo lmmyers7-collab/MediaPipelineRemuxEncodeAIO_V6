@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0620-005",
+  "title": "Plan dynamic HDR metadata extraction commands",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-21",
+  "summary": "Adds a pure Dynamic HDR metadata extraction command planner for HEVC stream extraction, Dolby Vision RPU extraction/summary, and HDR10+ JSON extraction. The planner is fail-closed and does not execute tools, change routing, or mutate media.",
+  "reason": "Dynamic HDR encode preservation needs auditable extraction topology before runtime execution can be safely wired into the high-risk encode path.",
+  "affected_areas": [
+    "docs",
+    "generated_docs",
+    "powershell",
+    "tests"
+  ],
+  "behavior_before": "Dynamic HDR detection, tool evidence, preserve/remux/review planning, and guarded x265 parameter slots existed, but there was no backend-owned command topology for extracting HEVC, Dolby Vision RPU, or HDR10+ metadata artifacts.",
+  "behavior_after": "New-DynamicHdrMetadataExtractionPlan returns a dynamic_hdr_metadata_extraction_plan.v1 object with temp artifact paths and command specs. It requires explicit MKV video track IDs, uses ffmpeg Annex-B extraction for non-MKV inputs, supports DoVi profile 7 to 8.1 and profile 8.1, supports HDR10+ JSON extraction, and fails closed for missing paths, tools, track identity, or unsupported profiles.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/dynamic_hdr.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1.md",
+    "docs/implementation/dynamic-hdr-preservation/PLAN.md",
+    "ops/pipeline/engine/process/dynamic_hdr.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-005.json"
+  ],
+  "tests_added": [
+    "Extended ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1 with no-op, MKV, MP4, missing-track, missing-tool, and unsupported-profile extraction planner cases."
+  ],
+  "manual_validation": [
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrToolingChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrDetectionChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-FailureCodeRegistryChecks.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_project_index --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "git diff --check"
+  ],
+  "rollback_plan": "Revert this packet plus the Dynamic HDR planner/test/doc/generated-summary changes. Existing detection, preserve/remux/review planning, and x265 parameter wiring remain separate changes.",
+  "related_changes": [],
+  "notes": "Add fail-closed Dynamic HDR metadata extraction command planner.\nCover extraction command topology and fail-closed prerequisites.\nReflect extraction command planner progress while keeping runtime preservation open.\nUpdate active gap summary for extraction command planner progress.\nRecord Phase 3 extraction planner status and remaining work.\nRefresh summary after active-state documentation update.\nRefresh Dynamic HDR process summary after extraction planner addition.\nRefresh Dynamic HDR tooling test summary after coverage additions.\nHigh-risk boundary note: this slice plans commands only. It does not execute dovi_tool, hdr10plus_tool, mkvextract, or ffmpeg; it does not change Do-Encode routing; it does not move, delete, publish, or mutate source/output/pending media. Runtime extraction/injection, output verification, policy routing, and representative real-media validation remain open."
+}

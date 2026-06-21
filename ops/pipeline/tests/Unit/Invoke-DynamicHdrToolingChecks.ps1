@@ -157,6 +157,90 @@ try {
     $artifactText = @($encodePreservePlan.required_artifacts) -join '; '
     Assert-True ($artifactText -match 'dovi_rpu_converted_profile_8_1') 'DoVi P7 plan should require converted RPU artifact.'
     Assert-True ($artifactText -match 'hdr10plus_json') 'HDR10+ plan should require metadata JSON artifact.'
+
+    $noMetadataExtractionPlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'source.mkv' `
+        -WorkDir 'work' `
+        -PlanId 'noop'
+    Assert-True ([bool]$noMetadataExtractionPlan.ok) 'Absent dynamic metadata should produce an ok no-op extraction plan.'
+    Assert-True (-not [bool]$noMetadataExtractionPlan.required) 'Absent dynamic metadata should not require extraction.'
+
+    $mkvExtractionPlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'source.mkv' `
+        -WorkDir 'work' `
+        -DoviPresent:$true `
+        -DoviProfile 7 `
+        -DoviElPresent:$true `
+        -Hdr10PlusPresent:$true `
+        -DoviToolPath 'tools\dovi_tool.exe' `
+        -Hdr10PlusToolPath 'tools\hdr10plus_tool.exe' `
+        -MkvExtractPath 'tools\mkvextract.exe' `
+        -VideoTrackId 4 `
+        -PlanId 'case-01'
+    $expectedHevcPath = Join-Path 'work' 'dynamic_hdr_case-01.hevc'
+    $expectedRpuPath = Join-Path 'work' 'dynamic_hdr_case-01.rpu.bin'
+    $expectedHdr10PlusPath = Join-Path 'work' 'dynamic_hdr_case-01.hdr10plus.json'
+    Assert-True ([bool]$mkvExtractionPlan.ok) 'MKV extraction command plan should be ready.'
+    Assert-Equal $mkvExtractionPlan.target_dovi_profile '8.1' 'MKV DoVi P7 extraction plan should target profile 8.1.'
+    Assert-Equal $mkvExtractionPlan.dovi_conversion_mode 'profile7_to_81' 'MKV DoVi P7 extraction plan should convert to profile 8.1.'
+    Assert-Equal $mkvExtractionPlan.hevc_path $expectedHevcPath 'MKV extraction HEVC path mismatch.'
+    Assert-Equal $mkvExtractionPlan.rpu_path $expectedRpuPath 'MKV extraction RPU path mismatch.'
+    Assert-Equal $mkvExtractionPlan.hdr10plus_json_path $expectedHdr10PlusPath 'MKV extraction HDR10+ path mismatch.'
+    Assert-Equal ((@($mkvExtractionPlan.commands.extract_hevc.arguments) -join '|')) "tracks|source.mkv|4:$expectedHevcPath" 'MKV extraction must use the supplied video track id.'
+    Assert-Equal ((@($mkvExtractionPlan.commands.extract_dovi_rpu.arguments) -join '|')) "-m|2|extract-rpu|-i|$expectedHevcPath|-o|$expectedRpuPath" 'DoVi P7 extraction command mismatch.'
+    Assert-Equal ((@($mkvExtractionPlan.commands.summarize_dovi_rpu.arguments) -join '|')) "info|-i|$expectedRpuPath|--summary" 'DoVi RPU summary command mismatch.'
+    Assert-Equal ((@($mkvExtractionPlan.commands.extract_hdr10plus.arguments) -join '|')) "extract|-i|$expectedHevcPath|-o|$expectedHdr10PlusPath" 'HDR10+ extraction command mismatch.'
+    Assert-Equal @($mkvExtractionPlan.temp_files).Count 4 'Extraction plan should track all temp artifacts for cleanup.'
+    Assert-True ((@($mkvExtractionPlan.caveats) -join '; ') -match 'enhancement layer') 'DoVi P7 EL caveat should be explicit.'
+
+    $mkvMissingTrackPlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'source.mkv' `
+        -WorkDir 'work' `
+        -DoviPresent:$true `
+        -DoviProfile 8 `
+        -DoviBlCompatId 1 `
+        -DoviToolPath 'tools\dovi_tool.exe' `
+        -MkvExtractPath 'tools\mkvextract.exe' `
+        -PlanId 'missing-track'
+    Assert-True (-not [bool]$mkvMissingTrackPlan.ok) 'MKV extraction must fail closed without an explicit video track id.'
+    Assert-Equal $mkvMissingTrackPlan.error_code 'DYNAMIC_HDR_VIDEO_TRACK_UNRESOLVED' 'MKV missing track-id error code mismatch.'
+    Assert-True ([string]$mkvMissingTrackPlan.reason -match 'must not assume track 0') 'MKV missing track-id reason should reject track 0 assumptions.'
+
+    $mp4ExtractionPlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'clip.mp4' `
+        -WorkDir 'work' `
+        -DoviPresent:$true `
+        -DoviProfile 8 `
+        -DoviBlCompatId 1 `
+        -DoviToolPath 'tools\dovi_tool.exe' `
+        -FfmpegPath 'tools\ffmpeg.exe' `
+        -PlanId 'mp4-case'
+    $mp4HevcPath = Join-Path 'work' 'dynamic_hdr_mp4-case.hevc'
+    $mp4RpuPath = Join-Path 'work' 'dynamic_hdr_mp4-case.rpu.bin'
+    Assert-True ([bool]$mp4ExtractionPlan.ok) 'MP4 extraction command plan should be ready.'
+    Assert-Equal ((@($mp4ExtractionPlan.commands.extract_hevc.arguments) -join '|')) "-i|clip.mp4|-map|0:v:0|-c:v|copy|-bsf:v|hevc_mp4toannexb|-f|hevc|$mp4HevcPath" 'MP4 extraction should use ffmpeg Annex B conversion.'
+    Assert-Equal ((@($mp4ExtractionPlan.commands.extract_dovi_rpu.arguments) -join '|')) "extract-rpu|-i|$mp4HevcPath|-o|$mp4RpuPath" 'DoVi P8.1 extraction command mismatch.'
+
+    $unsupportedProfilePlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'clip.mp4' `
+        -WorkDir 'work' `
+        -DoviPresent:$true `
+        -DoviProfile 5 `
+        -DoviToolPath 'tools\dovi_tool.exe' `
+        -FfmpegPath 'tools\ffmpeg.exe' `
+        -PlanId 'profile5'
+    Assert-True (-not [bool]$unsupportedProfilePlan.ok) 'Unsupported DoVi profiles must not get extraction commands.'
+    Assert-Equal $unsupportedProfilePlan.error_code 'DYNAMIC_HDR_UNPRESERVABLE' 'Unsupported profile error code mismatch.'
+    Assert-True ($null -eq $unsupportedProfilePlan.commands.extract_hevc) 'Unsupported DoVi profiles must not populate HEVC extraction commands.'
+
+    $missingToolPlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'clip.mp4' `
+        -WorkDir 'work' `
+        -Hdr10PlusPresent:$true `
+        -FfmpegPath 'tools\ffmpeg.exe' `
+        -PlanId 'missing-tool'
+    Assert-True (-not [bool]$missingToolPlan.ok) 'Missing HDR10+ tool should fail closed.'
+    Assert-Equal $missingToolPlan.error_code 'DYNAMIC_HDR_TOOL_MISSING' 'Missing HDR10+ tool error code mismatch.'
 } finally {
     $env:PATH = $oldPath
     if (Test-Path -LiteralPath $tempRoot) {
