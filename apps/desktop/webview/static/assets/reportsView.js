@@ -511,15 +511,13 @@
     setText("report-failure-json-state", latestPaths.latest_failure_json ? "Present" : "Missing");
     setText("report-audit-csv-state", latestPaths.latest_audit_csv ? "Present" : "Missing");
     setText("report-priority-csv-state", latestPaths.latest_priority_csv ? "Present" : "Missing");
-    if (typeof renderAuditProgressInto === "function") {
-      renderAuditProgressInto({
-        containerId: "report-progress-bars",
-        statusId: "report-progress-status",
-        summaryId: "report-progress-summary",
-        snapshot: snapshotPayload,
-        emptyText: "No audit report progress loaded.",
-      });
-    }
+    window.mediaPipelineProgressView?.renderAuditProgressInto?.({
+      containerId: "report-progress-bars",
+      statusId: "report-progress-status",
+      summaryId: "report-progress-summary",
+      snapshot: snapshotPayload,
+      emptyText: "No audit report progress loaded.",
+    });
     const latestRows = ["latest_failure_report", "latest_failure_json", "latest_audit_csv", "latest_priority_csv"].map((key) => ({
       key,
       label: reportLabel(key),

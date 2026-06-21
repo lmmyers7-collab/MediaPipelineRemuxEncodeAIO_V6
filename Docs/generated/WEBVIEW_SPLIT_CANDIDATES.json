@@ -32,8 +32,8 @@
           "topic": "app-refresh",
           "line_range": {
             "start": 664,
-            "end": 986,
-            "line_count": 323
+            "end": 984,
+            "line_count": 321
           },
           "functions_to_move": [
             "refreshGet",
@@ -230,8 +230,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 1015,
-            "end": 1304,
+            "start": 1013,
+            "end": 1302,
             "line_count": 290
           },
           "functions_to_move": [

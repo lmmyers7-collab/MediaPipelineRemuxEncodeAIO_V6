@@ -124,7 +124,7 @@ function renderSnapshot(snapshot) {
     closeReadiness: lastCloseReadiness,
   });
   const recentEvents = Array.isArray(snapshot.recent_events) ? snapshot.recent_events : [];
-  renderPipelineEvents(recentEvents);
+  window.mediaPipelineProgressView?.renderPipelineEvents?.(recentEvents);
   renderSparkline(recentEvents);
   window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
@@ -887,13 +887,11 @@ async function refreshAllNow(options = {}) {
       failures,
     });
   }
-  if (typeof renderHomeActiveWork === "function") {
-    renderHomeActiveWork({
-      snapshot: values.snapshot || lastSnapshot,
-      diagnostics: values.diagnostics || null,
-      closeReadiness: values["close readiness"] || lastCloseReadiness,
-    });
-  }
+  window.mediaPipelineProgressView?.renderHomeActiveWork?.({
+    snapshot: values.snapshot || lastSnapshot,
+    diagnostics: values.diagnostics || null,
+    closeReadiness: values["close readiness"] || lastCloseReadiness,
+  });
   window.mediaPipelineProgressView?.renderLiveRunStrip?.({
     snapshot: values.snapshot || lastSnapshot,
     diagnostics: values.diagnostics || null,

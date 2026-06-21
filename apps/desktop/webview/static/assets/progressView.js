@@ -1833,10 +1833,6 @@
   };
   window.renderProgressBarsInto = renderProgressBarsInto;
   window.renderProgressBars = renderProgressBars;
-  window.renderAuditProgressInto = renderAuditProgressInto;
   window.renderProgressDetails = renderProgressDetails;
-  window.renderPipelineEvents = renderPipelineEvents;
   window.renderProgressEvidence = renderProgressEvidence;
-  window.renderHomeActiveWork = renderHomeActiveWork;
-  window.renderLiveRunStrip = renderLiveRunStrip;
 })();

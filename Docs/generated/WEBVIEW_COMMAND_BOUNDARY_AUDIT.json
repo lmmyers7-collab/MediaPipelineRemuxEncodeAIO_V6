@@ -4544,7 +4544,7 @@
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2460,
+      "line": 2458,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4560,7 +4560,7 @@
       "normalized_route": "/api/audit/ignore",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2420,
+      "line": 2418,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4576,7 +4576,7 @@
       "normalized_route": "/api/audit/score-policy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2376,
+      "line": 2374,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4592,7 +4592,7 @@
       "normalized_route": "/api/audit/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2342,
+      "line": 2340,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4834,7 +4834,7 @@
       "normalized_route": "/api/failures/clear",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 1180,
+      "line": 1178,
       "script_owner": "Reports",
       "allowed_owners": [
         "Reports"
@@ -5864,7 +5864,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1118,
+      "line": 1116,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"

@@ -98,6 +98,12 @@ def _browser_home_live_state_runner_source() -> str:
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
+            function requireNamespaceFunction(namespaceName, name) {
+              const namespace = window[namespaceName] || {};
+              if (typeof namespace[name] !== "function") {
+                throw new Error("missing namespace function " + namespaceName + "." + name);
+              }
+            }
             function clickRowByText(tbodyId, fragment) {
               const tbody = byId(tbodyId);
               if (!tbody) throw new Error("missing tbody " + tbodyId);
@@ -171,11 +177,6 @@ def _browser_home_live_state_runner_source() -> str:
               "renderHomeStorageHealth",
               "renderDailyDriverReadiness",
               "renderHomeReadiness",
-              "renderHomeActiveWork",
-              "renderProgressBars",
-              "renderProgressDetails",
-              "renderProgressEvidence",
-              "renderDiagnosticsProgress",
               "renderCommandHistoryPayload",
               "getCommandHistory",
               "renderCrossPageContext",
@@ -183,6 +184,13 @@ def _browser_home_live_state_runner_source() -> str:
               "renderExternalDependencyDigest",
               "updatePagePanelEmptyStates",
             ].forEach(requireFunction);
+            [
+              "renderHomeActiveWork",
+              "renderProgressBars",
+              "renderProgressDetails",
+              "renderProgressEvidence",
+              "renderDiagnosticsProgress",
+            ].forEach((name) => requireNamespaceFunction("mediaPipelineProgressView", name));
 
             window.showPage("home");
             await waitFor(
