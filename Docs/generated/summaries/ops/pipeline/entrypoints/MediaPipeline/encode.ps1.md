@@ -3,9 +3,9 @@ file: ops/pipeline/entrypoints/MediaPipeline/encode.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-19
+last_modified: 2026-06-20
 last_reviewed: 2026-06-04
-sha256: 391fa559234a4aa1aca8a2d604cff3952fb07cc236b632b47b44c74318a3913f
+sha256: 39e1ea6142dc8cfb8be520634bede7cd402a5847d2d4c4cc67c92bd7c05bd960
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/encode.ps1`
 

@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0620-009",
+  "title": "Apply dynamic HDR encode policy routing",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-21",
+  "summary": "Apply the existing Dynamic HDR encode preservation decision to Do-Encode before FFmpeg attempt planning. Preserve/review routes now fail closed to operator review, preserve/remux routes try a guarded remux fallback before allowing warn/drop encode behavior, and DynamicHdrPolicy=off skips Dynamic HDR probes.",
+  "reason": "Dynamic HDR detection, planning, and x265 parameter helpers existed, but the encode route still ignored preserve/remux/review policy decisions at runtime.",
+  "affected_areas": [
+    "generated",
+    "powershell",
+    "tests"
+  ],
+  "behavior_before": "Do-Encode detected Dynamic HDR metadata and always warned that encode would drop it, even when DynamicHdrPolicy requested preserve_or_review or preserve_or_remux. DynamicHdrPolicy=off still paid the Dynamic HDR probe cost, and encode-to-remux Dynamic HDR fallback had no dedicated rejection evidence.",
+  "behavior_after": "Do-Encode skips Dynamic HDR probes when DynamicHdrPolicy=off. Under preserve_or_review, unsupported or not-yet-wired preserve encode decisions register operator_required dynamic-hdr-policy failures before FFmpeg attempt planning. Under preserve_or_remux, Do-Encode tries a guarded Do-Remux fallback; codec-policy rejection records Dynamic HDR remux fallback evidence and then allows warning/drop encode semantics.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/remux.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1.md",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-009.json"
+  ],
+  "tests_added": [
+    "Expanded Invoke-DynamicHdrDetectionChecks.ps1 static assertions for encode policy routing and guarded remux fallback evidence."
+  ],
+  "manual_validation": [
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrDetectionChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrToolingChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-FailureCodeRegistryChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Invoke-ReliabilityRegressionChecks.ps1",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    "SKIPPED: Representative real-media Dynamic HDR validation remains required before daily-driver completion."
+  ],
+  "rollback_plan": "Revert the encode/remux policy-routing edits and the matching Dynamic HDR detection test assertions.",
+  "related_changes": [],
+  "notes": "Touches FFmpeg/media-policy-adjacent routing. Do not claim full Dynamic HDR preservation until extraction/injection, output verification, and representative real-media validation are complete.\nPin Dynamic HDR encode policy routing and guarded remux fallback contracts.\nRegister DYNAMIC_HDR_PRESERVATION_NOT_READY as a known outcome code for fail-closed encode policy routing.\nRefresh generated summary after Dynamic HDR remux fallback update.\nRefresh generated summary after Dynamic HDR encode routing update.\nRefresh generated summary after Dynamic HDR detection check update.\nRefresh generated summary after Dynamic HDR outcome code registry update."
+}

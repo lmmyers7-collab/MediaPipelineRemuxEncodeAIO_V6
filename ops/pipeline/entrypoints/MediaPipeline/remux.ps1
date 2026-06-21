@@ -6,7 +6,7 @@
 # ==============================================================================
 
 function Do-Remux {
-    param($file, [bool]$isTV, $tvInfo, [switch] $FallbackFromOversizedEncode)
+    param($file, [bool]$isTV, $tvInfo, [switch] $FallbackFromOversizedEncode, [switch] $FallbackFromDynamicHdrEncode)
     $safeName   = Get-SafeLocalName $file.Name
     $localIn    = $null
     $paths      = $null
@@ -24,6 +24,9 @@ function Do-Remux {
     $script:CurrentDynamicHdrEvidence = $null
     if ($FallbackFromOversizedEncode) {
         $script:LastRemuxFallbackRejection = $null
+    }
+    if ($FallbackFromDynamicHdrEncode) {
+        $script:LastDynamicHdrRemuxFallbackRejection = $null
     }
     if ($FallbackFromOversizedEncode) {
         $script:CurrentSizePolicyResult = $fallbackSizePolicyResult
@@ -76,6 +79,20 @@ function Do-Remux {
         }
         $codecRoutePlan = Resolve-RemuxCodecRoutePlan -SourceCodec $srcCodec -RemuxSafeVideoCodecs $RemuxSafeVideoCodecs -BasePlan $script:CurrentRoutePlan
         if ($codecRoutePlan.Route -eq 'encode') {
+            if ($FallbackFromDynamicHdrEncode) {
+                $script:LastDynamicHdrRemuxFallbackRejection = [pscustomobject][ordered]@{
+                    schema_version = 'dynamic_hdr_remux_fallback_rejection.v1'
+                    reason_code = [string]$codecRoutePlan.ReasonCode
+                    reason = [string]$codecRoutePlan.Reason
+                    source_codec = [string]$srcCodec
+                    remux_safe_video_codecs = @($RemuxSafeVideoCodecs)
+                    original_route_reason_code = [string]$script:CurrentRouteReasonCode
+                    original_route_reason = [string]$script:CurrentRouteReason
+                }
+                Write-Log "DYNAMIC HDR REMUX FALLBACK: remux blocked by codec/policy check; encode may continue only under preserve_or_remux warning semantics: $($codecRoutePlan.Reason)" "WARN"
+                $localIn = $null
+                return $false
+            }
             if ($FallbackFromOversizedEncode) {
                 $fallbackSizePolicyMessage = ''
                 if ($fallbackSizePolicyResult -and $fallbackSizePolicyResult.PSObject.Properties['message']) {

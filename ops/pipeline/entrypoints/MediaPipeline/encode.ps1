@@ -461,11 +461,124 @@ function Do-Encode {
                 Write-Log "ENCODE: HDR source but no HDR10 mastering metadata in side_data ($($hdr10Meta.Reason)); CPU-encoded HDR output will lack master-display/MaxCLL SEI" "WARN"
             }
         }
-        if ($isHDR) {
+        $dynamicHdrPolicy = Resolve-DynamicHdrPolicy -Policy ([string]$script:DynamicHdrPolicy)
+        $dynamicHdrEncodeDecision = $null
+        if ($isHDR -and $dynamicHdrPolicy -ne 'off') {
             $doviState = Get-DolbyVisionState -FilePath $localIn
             $hdr10PlusState = Test-Hdr10PlusPresence -FilePath $localIn
-            $script:CurrentDynamicHdrEvidence = New-DynamicHdrEvidence -Route 'encode' -DoviState $doviState -Hdr10PlusState $hdr10PlusState
+            $script:CurrentDynamicHdrEvidence = New-DynamicHdrEvidence -Route 'encode' -Policy $dynamicHdrPolicy -DoviState $doviState -Hdr10PlusState $hdr10PlusState
             if ([bool]$script:CurrentDynamicHdrEvidence.dynamic_metadata_present) {
+                $dynamicHdrTools = [pscustomobject][ordered]@{ DoviToolAvailable = $false; Hdr10PlusToolAvailable = $false }
+                $dynamicHdrCapability = [pscustomobject][ordered]@{ DolbyVision = $false; Hdr10Plus = $false }
+                if ($dynamicHdrPolicy -in @('preserve_or_remux','preserve_or_review')) {
+                    $dynamicHdrTools = Test-DynamicHdrToolsAvailable -DoviToolPath ([string]$script:DoviToolPath) -Hdr10PlusToolPath ([string]$script:Hdr10PlusToolPath)
+                    $dynamicHdrCapability = Test-X265DynamicHdrCapability -FfmpegPath $ffmpegPath
+                }
+                $dynamicHdrEncodeDecision = Resolve-DynamicHdrEncodePreservationDecision `
+                    -Evidence $script:CurrentDynamicHdrEvidence `
+                    -Policy $dynamicHdrPolicy `
+                    -OutputContainer ([string]$OutputContainer) `
+                    -VideoCodec ([string]$VideoCodec) `
+                    -DoviToolAvailable:([bool]$dynamicHdrTools.DoviToolAvailable) `
+                    -Hdr10PlusToolAvailable:([bool]$dynamicHdrTools.Hdr10PlusToolAvailable) `
+                    -X265DolbyVisionCapable:([bool]$dynamicHdrCapability.DolbyVision) `
+                    -X265Hdr10PlusCapable:([bool]$dynamicHdrCapability.Hdr10Plus)
+                $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'policy_action' -NotePropertyValue ([string]$dynamicHdrEncodeDecision.action) -Force
+                $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'policy_reason_code' -NotePropertyValue ([string]$dynamicHdrEncodeDecision.reason_code) -Force
+                $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'policy_reason' -NotePropertyValue ([string]$dynamicHdrEncodeDecision.reason) -Force
+                $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'recommended_route' -NotePropertyValue ([string]$dynamicHdrEncodeDecision.recommended_route) -Force
+
+                if ([string]$dynamicHdrEncodeDecision.action -eq 'preserve_encode') {
+                    $notReadyReason = 'Dynamic HDR encode preservation was selected, but Do-Encode extraction/injection wiring is not enabled yet'
+                    $script:CurrentDynamicHdrEvidence.outcome = 'preserve_encode_not_ready'
+                    $script:CurrentDynamicHdrEvidence.policy_reason = $notReadyReason
+                    if ($dynamicHdrPolicy -eq 'preserve_or_review') {
+                        Write-Log "DYNAMIC HDR: $notReadyReason; routing source to review" "ERROR"
+                        Write-PipelineEvent -EventType 'dynamic_hdr_policy_review' -Stage 'encode_prepare' -Route 'encode' -Status 'blocked' -SourcePath $file.FullName -Data @{
+                            policy      = $dynamicHdrPolicy
+                            action      = 'preserve_encode'
+                            reason_code = 'dynamic_hdr_preserve_encode_not_ready'
+                            summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                        } | Out-Null
+                        $failureProperties = [ordered]@{
+                            dynamic_hdr_policy      = $dynamicHdrPolicy
+                            dynamic_hdr_action      = 'preserve_encode'
+                            dynamic_hdr_reason_code = 'dynamic_hdr_preserve_encode_not_ready'
+                            dynamic_hdr_summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                            dynamic_hdr_reasons     = @($notReadyReason)
+                        }
+                        $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $notReadyReason -Stage 'dynamic-hdr-policy' -ErrorCode 'DYNAMIC_HDR_PRESERVATION_NOT_READY' -SuggestedAction 'Keep DynamicHdrPolicy=warn or preserve_or_remux until Dynamic HDR extraction, x265 injection, output verification, and real-media validation are complete.' -AdditionalProperties $failureProperties
+                        $localIn = $null
+                        return $false
+                    }
+                    $script:CurrentDynamicHdrEvidence.policy_action = 'prefer_remux'
+                    $script:CurrentDynamicHdrEvidence.policy_reason_code = 'dynamic_hdr_preserve_encode_not_ready'
+                    $script:CurrentDynamicHdrEvidence.recommended_route = 'remux'
+                }
+
+                if ([bool]$dynamicHdrEncodeDecision.should_hold_review) {
+                    $script:CurrentDynamicHdrEvidence.outcome = 'blocked_review'
+                    Write-Log ("DYNAMIC HDR: preserve policy requires review before encode publishes '{0}': {1}" -f $script:CurrentDynamicHdrEvidence.summary, $dynamicHdrEncodeDecision.reason) "ERROR"
+                    Write-PipelineEvent -EventType 'dynamic_hdr_policy_review' -Stage 'encode_prepare' -Route 'encode' -Status 'blocked' -SourcePath $file.FullName -Data @{
+                        policy      = $dynamicHdrPolicy
+                        action      = [string]$dynamicHdrEncodeDecision.action
+                        reason_code = [string]$dynamicHdrEncodeDecision.reason_code
+                        summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                    } | Out-Null
+                    $failureProperties = [ordered]@{
+                        dynamic_hdr_policy      = $dynamicHdrPolicy
+                        dynamic_hdr_action      = [string]$dynamicHdrEncodeDecision.action
+                        dynamic_hdr_reason_code = [string]$dynamicHdrEncodeDecision.reason_code
+                        dynamic_hdr_summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                        dynamic_hdr_reasons     = @($dynamicHdrEncodeDecision.reasons)
+                    }
+                    $failureErrorCode = if ([string]::IsNullOrWhiteSpace([string]$dynamicHdrEncodeDecision.error_code)) { 'DYNAMIC_HDR_UNPRESERVABLE' } else { [string]$dynamicHdrEncodeDecision.error_code }
+                    $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason ([string]$dynamicHdrEncodeDecision.reason) -Stage 'dynamic-hdr-policy' -ErrorCode $failureErrorCode -SuggestedAction 'Use preserve_or_remux for remux-safe sources, switch DynamicHdrPolicy to warn to allow static-HDR10 encode loss intentionally, or provide validated Dynamic HDR tools/capability before retrying preserve_or_review.' -AdditionalProperties $failureProperties
+                    $localIn = $null
+                    return $false
+                }
+
+                $shouldTryDynamicHdrRemux = ([bool]$dynamicHdrEncodeDecision.should_prefer_remux -or ([string]$script:CurrentDynamicHdrEvidence.policy_action -eq 'prefer_remux'))
+                if ($shouldTryDynamicHdrRemux) {
+                    $savedDynamicHdrEvidence = $script:CurrentDynamicHdrEvidence
+                    $originalRoutePlan = $script:CurrentRoutePlan
+                    $originalRouteReasonCode = [string]$script:CurrentRouteReasonCode
+                    $originalRouteReason = [string]$script:CurrentRouteReason
+                    $script:CurrentRouteReasonCode = 'dynamic_hdr_prefer_remux'
+                    $script:CurrentRouteReason = "Dynamic HDR preserve policy prefers remux before lossy encode: $($script:CurrentDynamicHdrEvidence.summary)"
+                    Write-Log "DYNAMIC HDR: attempting remux fallback before encode because policy '$dynamicHdrPolicy' should preserve $($script:CurrentDynamicHdrEvidence.summary)" "WARN"
+                    Write-PipelineEvent -EventType 'dynamic_hdr_policy_remux_fallback' -Stage 'encode_prepare' -Route 'remux' -Status 'started' -SourcePath $file.FullName -Data @{
+                        policy      = $dynamicHdrPolicy
+                        action      = [string]$script:CurrentDynamicHdrEvidence.policy_action
+                        reason_code = [string]$script:CurrentDynamicHdrEvidence.policy_reason_code
+                        summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                    } | Out-Null
+                    $script:LastDynamicHdrRemuxFallbackRejection = $null
+                    $dynamicHdrRemuxOk = Do-Remux $file $isTV $tvInfo -FallbackFromDynamicHdrEncode
+                    if ($dynamicHdrRemuxOk) {
+                        $localIn = $null
+                        return $true
+                    }
+                    if (-not $script:LastDynamicHdrRemuxFallbackRejection) {
+                        $localIn = $null
+                        return $false
+                    }
+                    $script:CurrentDynamicHdrEvidence = $savedDynamicHdrEvidence
+                    $script:CurrentRoutePlan = $originalRoutePlan
+                    $script:CurrentRouteReasonCode = $originalRouteReasonCode
+                    $script:CurrentRouteReason = $originalRouteReason
+                    $script:CurrentDynamicHdrEvidence.outcome = 'will_drop_encode_remux_blocked'
+                    $script:CurrentDynamicHdrEvidence.policy_reason = "remux fallback was blocked: $($script:LastDynamicHdrRemuxFallbackRejection.reason)"
+                    Write-Log "DYNAMIC HDR: remux fallback blocked; preserve_or_remux allows encode to continue with dynamic metadata drop warning: $($script:LastDynamicHdrRemuxFallbackRejection.reason)" "WARN"
+                    Write-PipelineEvent -EventType 'dynamic_hdr_policy_remux_fallback' -Stage 'encode_prepare' -Route 'remux' -Status 'blocked' -SourcePath $file.FullName -Data @{
+                        policy      = $dynamicHdrPolicy
+                        action      = [string]$script:CurrentDynamicHdrEvidence.policy_action
+                        reason_code = [string]$script:CurrentDynamicHdrEvidence.policy_reason_code
+                        summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                        block_code  = [string]$script:LastDynamicHdrRemuxFallbackRejection.reason_code
+                    } | Out-Null
+                }
+
                 Write-Log ("ENCODE: source carries dynamic HDR metadata ({0}) - it will be DROPPED by this encode (static HDR10 only)" -f $script:CurrentDynamicHdrEvidence.summary) "WARN"
                 Write-PipelineEvent -EventType 'dynamic_hdr_metadata_dropped' -Stage 'encode_prepare' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
                     dovi_present      = [bool]$script:CurrentDynamicHdrEvidence.dovi_present
@@ -474,8 +587,13 @@ function Do-Encode {
                     summary           = [string]$script:CurrentDynamicHdrEvidence.summary
                     outcome           = [string]$script:CurrentDynamicHdrEvidence.outcome
                     probe_error       = [string]$script:CurrentDynamicHdrEvidence.probe_error
+                    policy            = $dynamicHdrPolicy
+                    policy_action     = [string]$script:CurrentDynamicHdrEvidence.policy_action
+                    policy_reason     = [string]$script:CurrentDynamicHdrEvidence.policy_reason
                 } | Out-Null
             }
+        } elseif ($isHDR) {
+            Write-Log "ENCODE: DynamicHdrPolicy=off; skipping Dynamic HDR probes and preservation routing" "DEBUG"
         }
         $usingCpu    = $false
         $usingSafeRetry = $false
