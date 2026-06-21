@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0621-025",
+  "title": "Validate completed manifest apply API posture",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Added Local API validation for Completed manifest reconciliation. The test proves the completed reconcile dry-run/apply sequence is command-journaled as repair-only, writes only the completed manifest with backup evidence, preserves source/output/sidecar hashes, and records no drain command.",
+  "reason": "Repair/reconcile remediation needed route-level source/output evidence for Completed manifest apply, matching the pending repair Local API posture now covered. This adds automated proof without changing Completed/Pending repair behavior, publish, drain, or source-media handling.",
+  "affected_areas": [
+    "docs",
+    "generated-docs",
+    "test"
+  ],
+  "behavior_before": "Completed manifest reconcile had facade-level manifest-only and hash-stability coverage, but live Local API apply coverage for Completed repair routes only asserted journaling for sidecar repair.",
+  "behavior_after": "The repair/reconcile apply suite now exercises the Completed manifest reconcile dry-run/apply sequence through Local API, confirms strict repair journaling and backup evidence, and verifies source, output, and sidecar files are unchanged.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-025.json",
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_repair_reconcile_apply -q - passed; 12 tests",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_repair_reconcile_apply tests.python.desktop.test_repair_reconcile_dry_run -q - passed; 24 tests",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_repair_reconcile_apply.RepairReconcileApplyTests.test_local_api_completed_manifest_apply_is_journaled_without_touching_media -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 513 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - passed; 1760 source files current, no orphan summaries",
+    "git diff --check - passed"
+  ],
+  "rollback_plan": "Revert the added Local API test and matching documentation/status wording. No runtime repair, publish, drain, or media movement implementation changed.",
+  "related_changes": [],
+  "notes": "Added Local API Completed manifest reconcile validation for command journaling, source/output/sidecar hash stability, backup evidence, and no drain command."
+}

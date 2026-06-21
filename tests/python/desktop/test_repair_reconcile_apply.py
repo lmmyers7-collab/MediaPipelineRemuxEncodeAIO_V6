@@ -397,6 +397,97 @@ class RepairReconcileApplyTests(unittest.TestCase):
         self.assertEqual(len(commands["entries"]), 1)
         self.assertEqual(commands["entries"][0]["command"], "completed.repair_sidecar_metadata")
 
+    def test_local_api_completed_manifest_apply_is_journaled_without_touching_media(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _completed_fixture(root)
+            manifest = files["completed_manifest"]
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            preview = facade.get_completed_preview(resolved).to_mapping()
+            row = dict(preview["rows"][0])
+            manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
+            manifest_payload.pop("output_path", None)
+            manifest_payload["output_file"] = files["output"].name
+            manifest.write_text(json.dumps(manifest_payload, sort_keys=True) + "\n", encoding="utf-8")
+            row_key = completed_record_key(CompletedJobRecord(sidecar_path=manifest, payload=dict(manifest_payload)))
+            row.update(
+                {
+                    "row_key": row_key,
+                    "source_path": str(files["source"]),
+                    "output_path": str(files["output"]),
+                    "output_file": files["output"].name,
+                    "output_exists": True,
+                    "manifest_output_path": "",
+                    "manifest_output_file": files["output"].name,
+                    "sidecar_path": str(manifest),
+                    "expected_sidecar_path": str(files["sidecar"]),
+                    "sidecar_exists": True,
+                    "sidecar_matches_output": False,
+                    "consistency_issues": ["manifest_missing_output_path"],
+                }
+            )
+            preview["rows"] = [row]
+            manifest_before = _file_state(manifest)
+            source_before = _file_state(files["source"])
+            output_before = _file_state(files["output"])
+            sidecar_before = _file_state(files["sidecar"])
+            original_get_completed_preview = facade.get_completed_preview
+            facade.get_completed_preview = lambda _resolved, **_kwargs: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                dry_run_request = Request(
+                    f"{server.url}/api/completed/reconcile-manifest-dry-run",
+                    data=json.dumps({"scope": "selected", "row_key": row_key, "reason": "restore output path"}).encode("utf-8"),
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(dry_run_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    dry_run_payload = json.loads(response.read().decode("utf-8"))
+                apply_request = Request(
+                    f"{server.url}/api/completed/reconcile-manifest",
+                    data=json.dumps(_apply_request(dry_run_payload["data"], reason="manifest only")).encode("utf-8"),
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(apply_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    apply_payload = json.loads(response.read().decode("utf-8"))
+                commands_request = Request(
+                    f"{server.url}/api/commands?limit=10",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(commands_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    commands = json.loads(response.read().decode("utf-8"))
+            finally:
+                facade.get_completed_preview = original_get_completed_preview  # type: ignore[method-assign]
+                server.stop()
+
+            repaired = json.loads(manifest.read_text(encoding="utf-8"))
+            backup_path = Path(apply_payload["data"]["backup_paths"][0])
+            self.assertTrue(dry_run_payload["ok"])
+            self.assertTrue(dry_run_payload["data"]["safe_to_apply"])
+            self.assertTrue(dry_run_payload["data"]["suppress_command_journal"])
+            self.assertEqual(dry_run_payload["data"]["diff_summary"]["rows"][0]["reasons"], ["manifest_missing_output_path"])
+            self.assertTrue(apply_payload["ok"])
+            self.assertTrue(apply_payload["data"]["applied"])
+            self.assertEqual(apply_payload["data"]["candidate_command"], "completed.reconcile_manifest")
+            self.assertEqual(apply_payload["data"]["selected_row_keys"], [row_key])
+            self.assertEqual(apply_payload["data"]["written_paths"], [str(manifest)])
+            self.assertEqual(backup_path.name, manifest.name)
+            self.assertTrue(backup_path.exists())
+            self.assertEqual(json.loads(backup_path.read_text(encoding="utf-8")), manifest_payload)
+            self.assertNotEqual(_file_state(manifest), manifest_before)
+            self.assertEqual(repaired["source_path"], str(files["source"]))
+            self.assertEqual(repaired["output_path"], str(files["output"]))
+            self.assertEqual(repaired["output_file"], files["output"].name)
+            self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertEqual(_file_state(files["output"]), output_before)
+            self.assertEqual(_file_state(files["sidecar"]), sidecar_before)
+            self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
+            self.assertEqual(len(commands["entries"]), 1)
+            self.assertEqual(commands["entries"][0]["command"], "completed.reconcile_manifest")
+            self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
+
     def test_local_api_pending_manifest_apply_is_journaled_without_draining_or_touching_media(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
