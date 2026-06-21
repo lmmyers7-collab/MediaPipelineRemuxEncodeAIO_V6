@@ -1,8 +1,12 @@
 (function () {
   const launchReadinessView = window.mediaPipelineLaunchReadinessView || {};
-  const launchReadinessStatus = window.launchReadinessStatus || launchReadinessView.launchReadinessStatus || function () { return "Checking"; };
-  const launchReadinessLines = window.launchReadinessLines || launchReadinessView.launchReadinessLines || function () { return []; };
-  const renderLaunchReadiness = window.renderLaunchReadiness || launchReadinessView.renderLaunchReadiness || function () {};
+  const launchReadinessStatus = launchReadinessView.launchReadinessStatus || window.launchReadinessStatus || function () { return "Checking"; };
+  const launchReadinessLines = launchReadinessView.launchReadinessLines || window.launchReadinessLines || function () { return []; };
+  const launchTimingStatus = launchReadinessView.launchTimingStatus || window.launchTimingStatus || null;
+  const launchTimingTrustLines = launchReadinessView.launchTimingTrustLines || window.launchTimingTrustLines || null;
+  const renderLaunchTimingTrust = launchReadinessView.renderLaunchTimingTrust || window.renderLaunchTimingTrust || null;
+  const renderLaunchReadiness = launchReadinessView.renderLaunchReadiness || window.renderLaunchReadiness || function () {};
+  const getLastLaunchReadinessPayload = launchReadinessView.getLastLaunchReadinessPayload || window.getLastLaunchReadinessPayload || null;
   const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
   const isLaunchCommand = launchHistoryView.isLaunchCommand || window.isLaunchCommand || function () { return false; };
   const launchHistoryLine = launchHistoryView.launchHistoryLine || window.launchHistoryLine || function () { return ""; };
@@ -269,7 +273,7 @@
       collectPipelineStartRequest: (...args) => collectPipelineStartRequest(...args),
       formatSettingsChoiceLabel: typeof window.formatSettingsChoiceLabel === "function" ? window.formatSettingsChoiceLabel : (typeof formatSettingsChoiceLabel === "function" ? formatSettingsChoiceLabel : null),
       getCommandHistory: typeof window.getCommandHistory === "function" ? () => window.getCommandHistory() : (typeof getCommandHistory === "function" ? () => getCommandHistory() : () => []),
-      getLastLaunchReadinessPayload: typeof window.getLastLaunchReadinessPayload === "function" ? () => window.getLastLaunchReadinessPayload() : (typeof getLastLaunchReadinessPayload === "function" ? () => getLastLaunchReadinessPayload() : () => ({})),
+      getLastLaunchReadinessPayload: typeof getLastLaunchReadinessPayload === "function" ? () => getLastLaunchReadinessPayload() : () => ({}),
       getLastQueueRows: typeof window.getLastQueueRows === "function" ? () => window.getLastQueueRows() : (typeof getLastQueueRows === "function" ? () => getLastQueueRows() : () => []),
       getLastSettings: typeof window.getLastSettings === "function" ? () => window.getLastSettings() : (typeof getLastSettings === "function" ? () => getLastSettings() : () => ({})),
       isLaunchCommand,
@@ -619,7 +623,7 @@
       renderLaunchSettingsIntentChecklist: (...args) => renderLaunchSettingsIntentChecklist(...args),
       renderLaunchSettingsRiskHandoff: (...args) => renderLaunchSettingsRiskHandoff(...args),
       renderLaunchStartDecisionSummary: (...args) => renderLaunchStartDecisionSummary(...args),
-      renderLaunchTimingTrust: typeof window.renderLaunchTimingTrust === "function" ? window.renderLaunchTimingTrust : (typeof renderLaunchTimingTrust === "function" ? renderLaunchTimingTrust : null),
+      renderLaunchTimingTrust: typeof renderLaunchTimingTrust === "function" ? renderLaunchTimingTrust : null,
       renderQueueLaunchDecisionChecklist: typeof window.renderQueueLaunchDecisionChecklist === "function" ? window.renderQueueLaunchDecisionChecklist : (typeof renderQueueLaunchDecisionChecklist === "function" ? renderQueueLaunchDecisionChecklist : null),
       renderScheduleTimingTrust: typeof window.renderScheduleTimingTrust === "function" ? window.renderScheduleTimingTrust : (typeof renderScheduleTimingTrust === "function" ? renderScheduleTimingTrust : null),
       setText: typeof setText === "function" ? setText : window.setText,
@@ -1324,9 +1328,6 @@
   window.isPipelineControlCommand = isPipelineControlCommand;
   window.pipelineControlHistoryLine = pipelineControlHistoryLine;
   window.renderPipelineControlHistory = renderPipelineControlHistory;
-  window.launchReadinessStatus = launchReadinessStatus;
-  window.launchReadinessLines = launchReadinessLines;
-  window.renderLaunchReadiness = renderLaunchReadiness;
   window.syncPipelineModeControls = syncPipelineModeControls;
   window.selectPipelineModePreset = selectPipelineModePreset;
   window.browsePipelineSingleFile = browsePipelineSingleFile;

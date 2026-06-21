@@ -1055,7 +1055,6 @@
       "getLastDiagnosticsLogRows",
       "getLastLaunchBackendPreflightPayloads",
       "getLastLaunchBackendPreflightRefreshInfo",
-      "getLastLaunchReadinessPayload",
       "getLastPendingPublishPayload",
       "getLastQueuePayload",
       "getLastQueueRows",
@@ -1101,10 +1100,6 @@
       "launchPolicyBoundaryStatus",
       "launchPolicyBoundarySummaryLines",
       "launchQueueIntentCategoryMatch",
-      "launchReadinessLines",
-      "launchReadinessRecoveryActions",
-      "launchReadinessStatus",
-      "launchReadinessStatusState",
       "launchRealMediaProofDetailLines",
       "launchRealMediaProofRows",
       "launchRealMediaProofStatus",
@@ -1137,8 +1132,6 @@
       "launchStartDecisionRows",
       "launchStartDecisionStatus",
       "launchStartDecisionSummaryLines",
-      "launchTimingStatus",
-      "launchTimingTrustLines",
       "launchWorksheetEvidence",
       "launchWorksheetRunRows",
       "launchWorksheetRunsMatchingSample",
@@ -1333,11 +1326,8 @@
       "renderLaunchCommandHistory",
       "renderLaunchCompactGate",
       "renderLaunchPolicyBoundary",
-      "renderLaunchReadiness",
-      "renderLaunchReadinessRecoveryActions",
       "renderLaunchSettingsIntentChecklist",
       "renderLaunchSettingsRiskHandoff",
-      "renderLaunchTimingTrust",
       "renderNetworkSettingsBuilderGuidance",
       "renderPendingBackendDrainScopePreview",
       "renderPendingDetail",
@@ -2213,7 +2203,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3674
+    "top_level_declaration_count": 3679
   },
   "scripts": [
     {
@@ -20086,18 +20076,7 @@
       "namespace_exports": [
         "mediaPipelineLaunchReadinessView"
       ],
-      "flat_window_exports": [
-        "getLastLaunchReadinessPayload",
-        "launchReadinessLines",
-        "launchReadinessRecoveryActions",
-        "launchReadinessStatus",
-        "launchReadinessStatusState",
-        "launchTimingStatus",
-        "launchTimingTrustLines",
-        "renderLaunchReadiness",
-        "renderLaunchReadinessRecoveryActions",
-        "renderLaunchTimingTrust"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [],
       "event_types": []
@@ -20602,563 +20581,583 @@
           "kind": "const"
         },
         {
-          "name": "renderLaunchReadiness",
+          "name": "launchTimingStatus",
           "line": 5,
           "kind": "const"
         },
         {
-          "name": "launchHistoryView",
+          "name": "launchTimingTrustLines",
           "line": 6,
           "kind": "const"
         },
         {
-          "name": "isLaunchCommand",
+          "name": "renderLaunchTimingTrust",
           "line": 7,
           "kind": "const"
         },
         {
-          "name": "launchHistoryLine",
+          "name": "renderLaunchReadiness",
           "line": 8,
           "kind": "const"
         },
         {
-          "name": "launchCommandCorrelationRows",
+          "name": "getLastLaunchReadinessPayload",
           "line": 9,
           "kind": "const"
         },
         {
-          "name": "launchCommandCorrelationStatus",
+          "name": "launchHistoryView",
           "line": 10,
           "kind": "const"
         },
         {
-          "name": "launchCommandDiagnosticsActions",
+          "name": "isLaunchCommand",
           "line": 11,
           "kind": "const"
         },
         {
-          "name": "launchCommandReviewRows",
+          "name": "launchHistoryLine",
           "line": 12,
           "kind": "const"
         },
         {
-          "name": "launchCommandReviewStatus",
+          "name": "launchCommandCorrelationRows",
           "line": 13,
           "kind": "const"
         },
         {
-          "name": "launchCommandReviewSummaryLines",
+          "name": "launchCommandCorrelationStatus",
           "line": 14,
           "kind": "const"
         },
         {
-          "name": "renderLaunchCommandHistory",
+          "name": "launchCommandDiagnosticsActions",
           "line": 15,
           "kind": "const"
         },
         {
-          "name": "domHelpers",
+          "name": "launchCommandReviewRows",
           "line": 16,
           "kind": "const"
         },
         {
-          "name": "jsonDetailText",
+          "name": "launchCommandReviewStatus",
           "line": 17,
           "kind": "const"
         },
         {
+          "name": "launchCommandReviewSummaryLines",
+          "line": 18,
+          "kind": "const"
+        },
+        {
+          "name": "renderLaunchCommandHistory",
+          "line": 19,
+          "kind": "const"
+        },
+        {
+          "name": "domHelpers",
+          "line": 20,
+          "kind": "const"
+        },
+        {
+          "name": "jsonDetailText",
+          "line": 21,
+          "kind": "const"
+        },
+        {
           "name": "renderJsonDetail",
-          "line": 25,
+          "line": 29,
           "kind": "const"
         },
         {
           "name": "LAUNCH_TAB_STORAGE_KEY",
-          "line": 28,
+          "line": 32,
           "kind": "const"
         },
         {
           "name": "launchCommandInFlight",
-          "line": 29,
-          "kind": "let"
-        },
-        {
-          "name": "controlCommandInFlight",
-          "line": 30,
-          "kind": "let"
-        },
-        {
-          "name": "pipelineFileBrowseInFlight",
-          "line": 31,
-          "kind": "let"
-        },
-        {
-          "name": "pipelineStartScope",
-          "line": 32,
-          "kind": "let"
-        },
-        {
-          "name": "selectedLaunchSettingsRiskKey",
           "line": 33,
           "kind": "let"
         },
         {
-          "name": "selectedLaunchPolicyBoundaryKey",
+          "name": "controlCommandInFlight",
           "line": 34,
           "kind": "let"
         },
         {
-          "name": "selectedLaunchSettingsIntentKey",
+          "name": "pipelineFileBrowseInFlight",
           "line": 35,
           "kind": "let"
         },
         {
-          "name": "selectedLaunchScopeReconciliationKey",
+          "name": "pipelineStartScope",
           "line": 36,
           "kind": "let"
         },
         {
-          "name": "selectedLaunchStartDecisionKey",
+          "name": "selectedLaunchSettingsRiskKey",
           "line": 37,
           "kind": "let"
         },
         {
-          "name": "selectedLaunchCompactGateKey",
+          "name": "selectedLaunchPolicyBoundaryKey",
           "line": 38,
           "kind": "let"
         },
         {
-          "name": "selectedLaunchRealMediaProofKey",
+          "name": "selectedLaunchSettingsIntentKey",
           "line": 39,
           "kind": "let"
         },
         {
-          "name": "selectedLaunchSampleExecutionKey",
+          "name": "selectedLaunchScopeReconciliationKey",
           "line": 40,
           "kind": "let"
         },
         {
-          "name": "lastLaunchRealMediaProofContext",
+          "name": "selectedLaunchStartDecisionKey",
           "line": 41,
           "kind": "let"
         },
         {
-          "name": "lastLaunchCommandState",
+          "name": "selectedLaunchCompactGateKey",
           "line": 42,
           "kind": "let"
         },
         {
-          "name": "launchCoordinatorState",
+          "name": "selectedLaunchRealMediaProofKey",
+          "line": 43,
+          "kind": "let"
+        },
+        {
+          "name": "selectedLaunchSampleExecutionKey",
           "line": 44,
+          "kind": "let"
+        },
+        {
+          "name": "lastLaunchRealMediaProofContext",
+          "line": 45,
+          "kind": "let"
+        },
+        {
+          "name": "lastLaunchCommandState",
+          "line": 46,
+          "kind": "let"
+        },
+        {
+          "name": "launchCoordinatorState",
+          "line": 48,
           "kind": "const"
         },
         {
           "name": "launchControllerStateModule",
-          "line": 57,
+          "line": 61,
           "kind": "const"
         },
         {
           "name": "launchControllerState",
-          "line": 59,
+          "line": 63,
           "kind": "const"
         },
         {
           "name": "launchStartRequestModule",
-          "line": 81,
+          "line": 85,
           "kind": "const"
         },
         {
           "name": "launchStartRequest",
-          "line": 83,
+          "line": 87,
           "kind": "const"
         },
         {
           "name": "launchStatusRenderModule",
-          "line": 94,
+          "line": 98,
           "kind": "const"
         },
         {
           "name": "launchStatusRender",
-          "line": 96,
+          "line": 100,
           "kind": "const"
         },
         {
           "name": "launchScopeControlsModule",
-          "line": 128,
+          "line": 132,
           "kind": "const"
         },
         {
           "name": "launchScopeControls",
-          "line": 130,
+          "line": 134,
           "kind": "const"
         },
         {
           "name": "launchCommandButtonsModule",
-          "line": 148,
+          "line": 152,
           "kind": "const"
         },
         {
           "name": "launchCommandButtons",
-          "line": 150,
+          "line": 154,
           "kind": "const"
         },
         {
           "name": "launchTabIds",
-          "line": 189,
-          "kind": "function"
-        },
-        {
-          "name": "activateLaunchTab",
           "line": 193,
           "kind": "function"
         },
         {
+          "name": "activateLaunchTab",
+          "line": 197,
+          "kind": "function"
+        },
+        {
           "name": "initLaunchTabNav",
-          "line": 214,
+          "line": 218,
           "kind": "function"
         },
         {
           "name": "launchRiskState",
-          "line": 234,
+          "line": 238,
           "kind": "const"
         },
         {
           "name": "launchRiskModule",
-          "line": 255,
-          "kind": "const"
-        },
-        {
-          "name": "launchRiskFallbackRows",
-          "line": 257,
-          "kind": "const"
-        },
-        {
-          "name": "launchRiskFallbackLines",
-          "line": 258,
-          "kind": "const"
-        },
-        {
-          "name": "launchRiskFallbackStatus",
           "line": 259,
           "kind": "const"
         },
         {
-          "name": "launchRiskFallbackWorkspace",
-          "line": 260,
-          "kind": "const"
-        },
-        {
-          "name": "launchRiskFallbackPayload",
+          "name": "launchRiskFallbackRows",
           "line": 261,
           "kind": "const"
         },
         {
-          "name": "launchRiskFallbackRender",
+          "name": "launchRiskFallbackLines",
           "line": 262,
           "kind": "const"
         },
         {
-          "name": "launchRisk",
+          "name": "launchRiskFallbackStatus",
           "line": 263,
           "kind": "const"
         },
         {
+          "name": "launchRiskFallbackWorkspace",
+          "line": 264,
+          "kind": "const"
+        },
+        {
+          "name": "launchRiskFallbackPayload",
+          "line": 265,
+          "kind": "const"
+        },
+        {
+          "name": "launchRiskFallbackRender",
+          "line": 266,
+          "kind": "const"
+        },
+        {
+          "name": "launchRisk",
+          "line": 267,
+          "kind": "const"
+        },
+        {
           "name": "launchPreflightFallbackRows",
-          "line": 323,
+          "line": 327,
           "kind": "const"
         },
         {
           "name": "launchPreflightFallbackLines",
-          "line": 324,
+          "line": 328,
           "kind": "const"
         },
         {
           "name": "launchPreflightFallbackStatus",
-          "line": 325,
+          "line": 329,
           "kind": "const"
         },
         {
           "name": "launchPreflightFallbackRender",
-          "line": 326,
+          "line": 330,
           "kind": "const"
         },
         {
           "name": "launchPilotReadinessContext",
-          "line": 327,
-          "kind": "let"
-        },
-        {
-          "name": "launchPilotPathFromRow",
-          "line": 328,
-          "kind": "let"
-        },
-        {
-          "name": "launchPilotRowLabel",
-          "line": 329,
-          "kind": "let"
-        },
-        {
-          "name": "launchPilotRunReadinessRows",
-          "line": 330,
-          "kind": "let"
-        },
-        {
-          "name": "launchPilotRunReadinessStatus",
           "line": 331,
           "kind": "let"
         },
         {
-          "name": "launchPilotRunReadinessSummaryLines",
+          "name": "launchPilotPathFromRow",
           "line": 332,
           "kind": "let"
         },
         {
-          "name": "launchPilotRunReadinessDetailLines",
+          "name": "launchPilotRowLabel",
           "line": 333,
           "kind": "let"
         },
         {
-          "name": "renderLaunchPilotRunReadiness",
+          "name": "launchPilotRunReadinessRows",
           "line": 334,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightOverallStatus",
+          "name": "launchPilotRunReadinessStatus",
           "line": 335,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightStatusState",
+          "name": "launchPilotRunReadinessSummaryLines",
           "line": 336,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightRows",
+          "name": "launchPilotRunReadinessDetailLines",
           "line": 337,
           "kind": "let"
         },
         {
-          "name": "getLastLaunchBackendPreflightPayloads",
+          "name": "renderLaunchPilotRunReadiness",
           "line": 338,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightPayloadForTarget",
+          "name": "launchBackendPreflightOverallStatus",
           "line": 339,
           "kind": "let"
         },
         {
-          "name": "getLastLaunchBackendPreflightRefreshInfo",
+          "name": "launchBackendPreflightStatusState",
           "line": 340,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightSummaryLines",
+          "name": "launchBackendPreflightRows",
           "line": 341,
           "kind": "let"
         },
         {
-          "name": "launchBackendPreflightDetailLines",
+          "name": "getLastLaunchBackendPreflightPayloads",
           "line": 342,
           "kind": "let"
         },
         {
-          "name": "renderLaunchBackendPreflight",
+          "name": "launchBackendPreflightPayloadForTarget",
           "line": 343,
           "kind": "let"
         },
         {
-          "name": "refreshLaunchBackendPreflight",
+          "name": "getLastLaunchBackendPreflightRefreshInfo",
           "line": 344,
           "kind": "let"
         },
         {
-          "name": "pipelineLaunchPreflightLines",
+          "name": "launchBackendPreflightSummaryLines",
           "line": 345,
           "kind": "let"
         },
         {
-          "name": "rerunLaunchPreflightLines",
+          "name": "launchBackendPreflightDetailLines",
           "line": 346,
           "kind": "let"
         },
         {
-          "name": "renderLaunchPreflight",
+          "name": "renderLaunchBackendPreflight",
           "line": 347,
           "kind": "let"
         },
         {
-          "name": "renderAllLaunchPreflights",
+          "name": "refreshLaunchBackendPreflight",
           "line": 348,
           "kind": "let"
         },
         {
-          "name": "isPipelineControlCommand",
+          "name": "pipelineLaunchPreflightLines",
           "line": 349,
           "kind": "let"
         },
         {
-          "name": "pipelineControlHistoryLine",
+          "name": "rerunLaunchPreflightLines",
           "line": 350,
           "kind": "let"
         },
         {
-          "name": "renderPipelineControlHistory",
+          "name": "renderLaunchPreflight",
           "line": 351,
           "kind": "let"
         },
         {
-          "name": "pipelineControlHistoryEntries",
-          "line": 353,
-          "kind": "function"
+          "name": "renderAllLaunchPreflights",
+          "line": 352,
+          "kind": "let"
         },
         {
-          "name": "renderPipelineControlLatest",
+          "name": "isPipelineControlCommand",
+          "line": 353,
+          "kind": "let"
+        },
+        {
+          "name": "pipelineControlHistoryLine",
+          "line": 354,
+          "kind": "let"
+        },
+        {
+          "name": "renderPipelineControlHistory",
+          "line": 355,
+          "kind": "let"
+        },
+        {
+          "name": "pipelineControlHistoryEntries",
           "line": 357,
           "kind": "function"
         },
         {
+          "name": "renderPipelineControlLatest",
+          "line": 361,
+          "kind": "function"
+        },
+        {
           "name": "renderLaunchLatestCommandEvidence",
-          "line": 367,
+          "line": 371,
           "kind": "function"
         },
         {
           "name": "renderPipelineControlJournal",
-          "line": 384,
+          "line": 388,
           "kind": "function"
         },
         {
           "name": "launchScopeState",
-          "line": 391,
+          "line": 395,
           "kind": "const"
         },
         {
           "name": "launchScopeModule",
-          "line": 412,
-          "kind": "const"
-        },
-        {
-          "name": "launchScopeFallbackRows",
-          "line": 414,
-          "kind": "const"
-        },
-        {
-          "name": "launchScopeFallbackLines",
-          "line": 415,
-          "kind": "const"
-        },
-        {
-          "name": "launchScopeFallbackStatus",
           "line": 416,
           "kind": "const"
         },
         {
-          "name": "launchScopeFallbackRender",
-          "line": 417,
-          "kind": "const"
-        },
-        {
-          "name": "launchScope",
+          "name": "launchScopeFallbackRows",
           "line": 418,
           "kind": "const"
         },
         {
+          "name": "launchScopeFallbackLines",
+          "line": 419,
+          "kind": "const"
+        },
+        {
+          "name": "launchScopeFallbackStatus",
+          "line": 420,
+          "kind": "const"
+        },
+        {
+          "name": "launchScopeFallbackRender",
+          "line": 421,
+          "kind": "const"
+        },
+        {
+          "name": "launchScope",
+          "line": 422,
+          "kind": "const"
+        },
+        {
           "name": "launchRealMediaState",
-          "line": 499,
+          "line": 503,
           "kind": "const"
         },
         {
           "name": "launchRealMediaModule",
-          "line": 520,
-          "kind": "const"
-        },
-        {
-          "name": "launchRealMediaFallbackRows",
-          "line": 522,
-          "kind": "const"
-        },
-        {
-          "name": "launchRealMediaFallbackLines",
-          "line": 523,
-          "kind": "const"
-        },
-        {
-          "name": "launchRealMediaFallbackStatus",
           "line": 524,
           "kind": "const"
         },
         {
-          "name": "launchRealMediaFallbackObject",
-          "line": 525,
-          "kind": "const"
-        },
-        {
-          "name": "launchRealMediaFallbackRender",
+          "name": "launchRealMediaFallbackRows",
           "line": 526,
           "kind": "const"
         },
         {
-          "name": "launchRealMedia",
+          "name": "launchRealMediaFallbackLines",
           "line": 527,
           "kind": "const"
         },
         {
+          "name": "launchRealMediaFallbackStatus",
+          "line": 528,
+          "kind": "const"
+        },
+        {
+          "name": "launchRealMediaFallbackObject",
+          "line": 529,
+          "kind": "const"
+        },
+        {
+          "name": "launchRealMediaFallbackRender",
+          "line": 530,
+          "kind": "const"
+        },
+        {
+          "name": "launchRealMedia",
+          "line": 531,
+          "kind": "const"
+        },
+        {
           "name": "launchPreflightModule",
-          "line": 571,
+          "line": 575,
           "kind": "const"
         },
         {
           "name": "launchPreflight",
-          "line": 573,
+          "line": 577,
           "kind": "const"
         },
         {
           "name": "initLaunchViewEvents",
-          "line": 667,
+          "line": 671,
           "kind": "function"
         },
         {
           "name": "initLaunchRecoveryActionEvents",
-          "line": 737,
+          "line": 741,
           "kind": "function"
         },
         {
           "name": "requestPipelineControl",
-          "line": 757,
+          "line": 761,
           "kind": "function"
         },
         {
           "name": "browsePipelineSingleFile",
-          "line": 811,
+          "line": 815,
           "kind": "function"
         },
         {
           "name": "clearPipelineSingleFile",
-          "line": 869,
+          "line": 873,
           "kind": "function"
         },
         {
           "name": "pipelineStartConfirmMessage",
-          "line": 882,
+          "line": 886,
           "kind": "function"
         },
         {
           "name": "startPipelineFromForm",
-          "line": 896,
+          "line": 900,
           "kind": "function"
         },
         {
           "name": "startPendingPublishDrain",
-          "line": 972,
+          "line": 976,
           "kind": "function"
         },
         {
           "name": "startStateJournalArchive",
-          "line": 1059,
+          "line": 1063,
           "kind": "function"
         },
         {
           "name": "startRerunFromForm",
-          "line": 1126,
+          "line": 1130,
           "kind": "function"
         }
       ],
@@ -21192,8 +21191,6 @@
         "launchPolicyBoundaryStatus",
         "launchPolicyBoundarySummaryLines",
         "launchQueueIntentCategoryMatch",
-        "launchReadinessLines",
-        "launchReadinessStatus",
         "launchRealMediaProofDetailLines",
         "launchRealMediaProofRows",
         "launchRealMediaProofStatus",
@@ -21236,7 +21233,6 @@
         "renderLaunchCommandHistory",
         "renderLaunchCompactGate",
         "renderLaunchPolicyBoundary",
-        "renderLaunchReadiness",
         "renderLaunchSettingsIntentChecklist",
         "renderLaunchSettingsRiskHandoff",
         "renderPipelineControlHistory",
@@ -23521,648 +23517,653 @@
           "kind": "function"
         },
         {
-          "name": "renderSnapshot",
+          "name": "renderLaunchReadinessPanel",
           "line": 93,
           "kind": "function"
         },
         {
+          "name": "renderSnapshot",
+          "line": 97,
+          "kind": "function"
+        },
+        {
           "name": "dashboardText",
-          "line": 137,
+          "line": 139,
           "kind": "function"
         },
         {
           "name": "dashboardCount",
-          "line": 141,
+          "line": 143,
           "kind": "function"
         },
         {
           "name": "dashboardBoolean",
-          "line": 146,
+          "line": 148,
           "kind": "function"
         },
         {
           "name": "dashboardEventData",
-          "line": 154,
+          "line": 156,
           "kind": "function"
         },
         {
           "name": "dashboardEventIsStopRequested",
-          "line": 158,
+          "line": 160,
           "kind": "function"
         },
         {
           "name": "dashboardEventIsFailure",
-          "line": 166,
+          "line": 168,
           "kind": "function"
         },
         {
           "name": "dashboardProgressHasStopRequested",
-          "line": 175,
+          "line": 177,
           "kind": "function"
         },
         {
           "name": "dashboardLatestStopRequestedOutcome",
-          "line": 191,
+          "line": 193,
           "kind": "function"
         },
         {
           "name": "renderDashboardIssueMetric",
-          "line": 201,
+          "line": 203,
           "kind": "function"
         },
         {
           "name": "dashboardHasOwn",
-          "line": 225,
+          "line": 227,
           "kind": "function"
         },
         {
           "name": "dashboardPipelineStateAllowsEmptyScan",
-          "line": 229,
+          "line": 231,
           "kind": "function"
         },
         {
           "name": "dashboardQueueScanStatus",
-          "line": 234,
+          "line": 236,
           "kind": "function"
         },
         {
           "name": "dashboardQueueProgress",
-          "line": 239,
+          "line": 241,
           "kind": "function"
         },
         {
           "name": "dashboardQueueScanRunning",
-          "line": 244,
+          "line": 246,
           "kind": "function"
         },
         {
           "name": "dashboardQueueStale",
-          "line": 249,
+          "line": 251,
           "kind": "function"
         },
         {
           "name": "dashboardQueueBlockingWarnings",
-          "line": 256,
+          "line": 258,
           "kind": "function"
         },
         {
           "name": "dashboardQueueRunnableCount",
-          "line": 261,
+          "line": 263,
           "kind": "function"
         },
         {
           "name": "dashboardQueueHasFreshEmptyProof",
-          "line": 267,
+          "line": 269,
           "kind": "function"
         },
         {
           "name": "renderHomePipelineQueueOutcome",
-          "line": 283,
+          "line": 285,
           "kind": "function"
         },
         {
           "name": "renderCloseReadiness",
-          "line": 292,
+          "line": 294,
           "kind": "function"
         },
         {
           "name": "handleTauriBackendLifecycleEvent",
-          "line": 336,
+          "line": 334,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycle",
-          "line": 342,
+          "line": 340,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandEntries",
-          "line": 346,
+          "line": 344,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandLine",
-          "line": 350,
+          "line": 348,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleHistory",
-          "line": 359,
+          "line": 357,
           "kind": "function"
         },
         {
           "name": "_backendLifecycleSliceCompatibility",
-          "line": 363,
+          "line": 361,
           "kind": "const"
         },
         {
           "name": "backendShutdownStatusMessage",
-          "line": 370,
+          "line": 368,
           "kind": "function"
         },
         {
           "name": "appendBackendShutdownResult",
-          "line": 378,
+          "line": 376,
           "kind": "function"
         },
         {
           "name": "rejectBackendShutdown",
-          "line": 384,
+          "line": 382,
           "kind": "function"
         },
         {
           "name": "requestBackendShutdown",
-          "line": 398,
+          "line": 396,
           "kind": "function"
         },
         {
           "name": "closeReadinessRequiresWarning",
-          "line": 439,
+          "line": 437,
           "kind": "function"
         },
         {
           "name": "closeReadinessWarningMessage",
-          "line": 443,
+          "line": 441,
           "kind": "function"
         },
         {
           "name": "rowOpenActionGroup",
-          "line": 447,
+          "line": 445,
           "kind": "function"
         },
         {
           "name": "initBackendRowOpenActions",
-          "line": 451,
+          "line": 449,
           "kind": "function"
         },
         {
           "name": "refreshTimeLabel",
-          "line": 455,
+          "line": 453,
           "kind": "function"
         },
         {
           "name": "renderRefreshInProgress",
-          "line": 459,
+          "line": 457,
           "kind": "function"
         },
         {
           "name": "renderRefreshHealth",
-          "line": 463,
+          "line": 461,
           "kind": "function"
         },
         {
           "name": "attachRefreshMetadata",
-          "line": 467,
+          "line": 465,
           "kind": "function"
         },
         {
           "name": "initPageRefreshButtons",
-          "line": 471,
+          "line": 469,
           "kind": "function"
         },
         {
           "name": "refreshFailure",
-          "line": 475,
+          "line": 473,
           "kind": "function"
         },
         {
           "name": "renderHomeReadiness",
-          "line": 479,
+          "line": 477,
           "kind": "function"
         },
         {
           "name": "dailyDriverRows",
-          "line": 483,
+          "line": 481,
           "kind": "function"
         },
         {
           "name": "dailyDriverStatusClass",
-          "line": 487,
+          "line": 485,
           "kind": "function"
         },
         {
           "name": "dailyDriverSummaryLines",
-          "line": 491,
+          "line": 489,
           "kind": "function"
         },
         {
           "name": "dependencyStatusLabel",
-          "line": 495,
+          "line": 493,
           "kind": "function"
         },
         {
           "name": "homeProgressPercent",
-          "line": 499,
+          "line": 497,
           "kind": "function"
         },
         {
           "name": "renderHomePendingCount",
-          "line": 504,
+          "line": 502,
           "kind": "function"
         },
         {
           "name": "renderHomeNetworkRole",
-          "line": 508,
+          "line": 506,
           "kind": "function"
         },
         {
           "name": "renderHomeStorageHealth",
-          "line": 512,
+          "line": 510,
           "kind": "function"
         },
         {
           "name": "renderHomeQueueSnapshot",
-          "line": 516,
+          "line": 514,
           "kind": "function"
         },
         {
           "name": "renderHomeRecentCompleted",
-          "line": 520,
+          "line": 518,
           "kind": "function"
         },
         {
           "name": "renderHomePromotionEntry",
-          "line": 524,
+          "line": 522,
           "kind": "function"
         },
         {
           "name": "externalDependencyRows",
-          "line": 528,
+          "line": 526,
           "kind": "function"
         },
         {
           "name": "externalDependencyOverallStatus",
-          "line": 532,
+          "line": 530,
           "kind": "function"
         },
         {
           "name": "externalDependencySummaryLines",
-          "line": 536,
+          "line": 534,
           "kind": "function"
         },
         {
           "name": "externalDependencyEvidenceText",
-          "line": 540,
+          "line": 538,
           "kind": "function"
         },
         {
           "name": "renderExternalDependencyDigest",
-          "line": 544,
+          "line": 542,
           "kind": "function"
         },
         {
           "name": "renderHomeNextQueue",
-          "line": 567,
+          "line": 565,
           "kind": "function"
         },
         {
           "name": "renderDailyDriverReadiness",
-          "line": 571,
+          "line": 569,
           "kind": "function"
         },
         {
           "name": "recordLocalUiDiagnostic",
-          "line": 581,
+          "line": 579,
           "kind": "function"
         },
         {
           "name": "renderTelemetrySafely",
-          "line": 595,
+          "line": 593,
           "kind": "function"
         },
         {
           "name": "renderControlReadiness",
-          "line": 629,
+          "line": 627,
           "kind": "function"
         },
         {
           "name": "updatePagePanelEmptyStates",
-          "line": 633,
+          "line": 631,
           "kind": "function"
         },
         {
           "name": "showPage",
-          "line": 637,
+          "line": 635,
           "kind": "function"
         },
         {
           "name": "applyDefaultActionTooltips",
-          "line": 642,
+          "line": 640,
           "kind": "function"
         },
         {
           "name": "normalizeRefreshOptions",
-          "line": 648,
+          "line": 646,
           "kind": "function"
         },
         {
           "name": "mergeRefreshOptions",
-          "line": 655,
+          "line": 653,
           "kind": "function"
         },
         {
           "name": "refreshGet",
-          "line": 664,
+          "line": 662,
           "kind": "function"
         },
         {
           "name": "refreshAll",
-          "line": 675,
+          "line": 673,
           "kind": "function"
         },
         {
           "name": "refreshCurrentOutputStatus",
-          "line": 705,
+          "line": 703,
           "kind": "function"
         },
         {
           "name": "refreshAllNow",
-          "line": 709,
+          "line": 707,
           "kind": "function"
         },
         {
           "name": "initSettingsTabNav",
-          "line": 1013,
+          "line": 1009,
           "kind": "function"
         },
         {
           "name": "initDiagnosticsTabNav",
-          "line": 1017,
+          "line": 1013,
           "kind": "function"
         },
         {
           "name": "initCompletedTabNav",
-          "line": 1021,
+          "line": 1017,
           "kind": "function"
         },
         {
           "name": "initNavigation",
-          "line": 1025,
+          "line": 1021,
           "kind": "function"
         },
         {
           "name": "renderSparkline",
-          "line": 1029,
+          "line": 1025,
           "kind": "function"
         },
         {
           "name": "initLaunchEvidenceToggle",
-          "line": 1033,
+          "line": 1029,
           "kind": "function"
         },
         {
           "name": "initCollapsibleSummaries",
-          "line": 1037,
+          "line": 1033,
           "kind": "function"
         },
         {
           "name": "initThemeToggle",
-          "line": 1041,
+          "line": 1037,
           "kind": "function"
         },
         {
           "name": "applyThemePreference",
-          "line": 1045,
+          "line": 1041,
           "kind": "function"
         },
         {
           "name": "UI_PREFERENCES_ROUTE",
-          "line": 1049,
+          "line": 1045,
           "kind": "const"
         },
         {
           "name": "UI_PREFERENCE_KEY_RE",
-          "line": 1050,
+          "line": 1046,
           "kind": "const"
         },
         {
           "name": "ADVANCED_MODE_STORAGE_KEY",
-          "line": 1051,
+          "line": 1047,
           "kind": "const"
         },
         {
           "name": "EVIDENCE_HIDDEN_STORAGE_KEY",
-          "line": 1052,
+          "line": 1048,
           "kind": "const"
         },
         {
           "name": "THEME_STORAGE_KEY",
-          "line": 1053,
+          "line": 1049,
           "kind": "const"
         },
         {
           "name": "uiPreferenceSyncInstalled",
-          "line": 1055,
+          "line": 1051,
           "kind": "let"
         },
         {
           "name": "uiPreferenceSyncTimer",
-          "line": 1056,
+          "line": 1052,
           "kind": "let"
         },
         {
           "name": "uiPreferenceRemoteRefreshTimer",
-          "line": 1057,
+          "line": 1053,
           "kind": "let"
         },
         {
           "name": "uiPreferenceSyncInFlight",
-          "line": 1058,
+          "line": 1054,
           "kind": "let"
         },
         {
           "name": "uiPreferenceSyncPending",
-          "line": 1059,
+          "line": 1055,
           "kind": "let"
         },
         {
           "name": "uiPreferenceApplyingRemote",
-          "line": 1060,
+          "line": 1056,
           "kind": "let"
         },
         {
           "name": "uiPreferenceLocalDirty",
-          "line": 1061,
+          "line": 1057,
           "kind": "let"
         },
         {
           "name": "uiPreferenceLastSerialized",
-          "line": 1062,
+          "line": 1058,
           "kind": "let"
         },
         {
           "name": "isSharedUiPreferenceKey",
-          "line": 1064,
+          "line": 1060,
           "kind": "function"
         },
         {
           "name": "collectSharedUiPreferences",
-          "line": 1068,
+          "line": 1064,
           "kind": "function"
         },
         {
           "name": "currentUiPreferenceSurface",
-          "line": 1081,
+          "line": 1077,
           "kind": "function"
         },
         {
           "name": "readBooleanUiPreference",
-          "line": 1086,
+          "line": 1082,
           "kind": "function"
         },
         {
           "name": "sharedUiPreferencePayload",
-          "line": 1090,
+          "line": 1086,
           "kind": "function"
         },
         {
           "name": "persistSharedUiPreferencesNow",
-          "line": 1097,
+          "line": 1093,
           "kind": "function"
         },
         {
           "name": "applySharedUiPreferenceStorage",
-          "line": 1133,
+          "line": 1129,
           "kind": "function"
         },
         {
           "name": "hasPendingSharedUiPreferenceWrite",
-          "line": 1154,
+          "line": 1150,
           "kind": "function"
         },
         {
           "name": "scheduleSharedUiPreferenceSync",
-          "line": 1158,
+          "line": 1154,
           "kind": "function"
         },
         {
           "name": "restoreSharedUiPreferences",
-          "line": 1168,
+          "line": 1164,
           "kind": "function"
         },
         {
           "name": "startSharedUiPreferenceRemoteRefresh",
-          "line": 1212,
+          "line": 1208,
           "kind": "function"
         },
         {
           "name": "installSharedUiPreferenceStorageSync",
-          "line": 1225,
+          "line": 1221,
           "kind": "function"
         },
         {
           "name": "initAdvancedToggle",
-          "line": 1246,
+          "line": 1242,
           "kind": "function"
         },
         {
           "name": "initEvidenceToggle",
-          "line": 1259,
+          "line": 1255,
           "kind": "function"
         },
         {
           "name": "syncDiagnosticAdvancedCallouts",
-          "line": 1270,
+          "line": 1266,
           "kind": "function"
         },
         {
           "name": "applyAdvancedModePreference",
-          "line": 1277,
+          "line": 1273,
           "kind": "function"
         },
         {
           "name": "applyEvidenceHiddenPreference",
-          "line": 1289,
+          "line": 1285,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPage",
-          "line": 1342,
+          "line": 1338,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPanel",
-          "line": 1346,
+          "line": 1342,
           "kind": "function"
         },
         {
           "name": "shortcutTypingTarget",
-          "line": 1350,
+          "line": 1346,
           "kind": "function"
         },
         {
           "name": "shortcutElementVisible",
-          "line": 1354,
+          "line": 1350,
           "kind": "function"
         },
         {
           "name": "focusActivePageSearch",
-          "line": 1358,
+          "line": 1354,
           "kind": "function"
         },
         {
           "name": "dispatchShortcutInputChange",
-          "line": 1362,
+          "line": 1358,
           "kind": "function"
         },
         {
           "name": "clearActivePageFilters",
-          "line": 1366,
+          "line": 1362,
           "kind": "function"
         },
         {
           "name": "activePageSelectableRows",
-          "line": 1370,
+          "line": 1366,
           "kind": "function"
         },
         {
           "name": "moveActivePageSelection",
-          "line": 1374,
+          "line": 1370,
           "kind": "function"
         },
         {
           "name": "focusActivePageDetail",
-          "line": 1378,
+          "line": 1374,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutRegistry",
-          "line": 1382,
+          "line": 1378,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutHelpText",
-          "line": 1386,
+          "line": 1382,
           "kind": "function"
         },
         {
           "name": "initKeyboardShortcuts",
-          "line": 1390,
+          "line": 1386,
           "kind": "function"
         },
         {
           "name": "_layoutRenderDrawer",
-          "line": 1515,
+          "line": 1511,
           "kind": "function"
         },
         {
           "name": "_movePanelByStep",
-          "line": 1519,
+          "line": 1515,
           "kind": "function"
         },
         {
           "name": "applyStoredLayoutPreferences",
-          "line": 1523,
+          "line": 1519,
           "kind": "function"
         },
         {
           "name": "applySharedUiPreferenceRuntimeState",
-          "line": 1527,
+          "line": 1523,
           "kind": "function"
         },
         {
           "name": "initLayoutManager",
-          "line": 1541,
+          "line": 1537,
           "kind": "function"
         }
       ],

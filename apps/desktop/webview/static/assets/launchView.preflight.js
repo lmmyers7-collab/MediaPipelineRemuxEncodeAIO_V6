@@ -724,11 +724,12 @@
     lastLaunchBackendPreflightPayloads = items.slice();
     renderLaunchBackendPreflightStartupAlert(items);
     const pipelineBackendPreflight = launchBackendPreflightPayloadForTarget("pipeline", items);
-    if (typeof window.renderLaunchReadiness === "function") {
-      const readinessPayload = typeof window.getLastLaunchReadinessPayload === "function"
-        ? window.getLastLaunchReadinessPayload()
+    const launchReadinessView = window.mediaPipelineLaunchReadinessView || {};
+    if (typeof launchReadinessView.renderLaunchReadiness === "function") {
+      const readinessPayload = typeof launchReadinessView.getLastLaunchReadinessPayload === "function"
+        ? launchReadinessView.getLastLaunchReadinessPayload()
         : {};
-      window.renderLaunchReadiness({
+      launchReadinessView.renderLaunchReadiness({
         ...(readinessPayload && typeof readinessPayload === "object" ? readinessPayload : {}),
         backendPreflight: pipelineBackendPreflight,
         backendReadiness: pipelineBackendPreflight?.operator_readiness || null,

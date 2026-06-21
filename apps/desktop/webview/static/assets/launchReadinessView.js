@@ -382,14 +382,4 @@
     renderLaunchReadiness,
     getLastLaunchReadinessPayload,
   };
-  window.launchReadinessStatus = launchReadinessStatus;
-  window.launchReadinessStatusState = launchReadinessStatusState;
-  window.launchReadinessLines = launchReadinessLines;
-  window.launchReadinessRecoveryActions = launchReadinessRecoveryActions;
-  window.renderLaunchReadinessRecoveryActions = renderLaunchReadinessRecoveryActions;
-  window.launchTimingStatus = launchTimingStatus;
-  window.launchTimingTrustLines = launchTimingTrustLines;
-  window.renderLaunchTimingTrust = renderLaunchTimingTrust;
-  window.renderLaunchReadiness = renderLaunchReadiness;
-  window.getLastLaunchReadinessPayload = getLastLaunchReadinessPayload;
 })();

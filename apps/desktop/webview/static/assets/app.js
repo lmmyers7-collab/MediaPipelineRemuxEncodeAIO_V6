@@ -90,6 +90,10 @@ function renderTauriBackendLifecycleAlert(event = lastTauriBackendLifecycleEvent
   return window.mediaPipelineAppTauriLifecycle?.renderTauriBackendLifecycleAlert?.(event);
 }
 
+function renderLaunchReadinessPanel(payload) {
+  window.mediaPipelineLaunchReadinessView?.renderLaunchReadiness?.(payload);
+}
+
 function renderSnapshot(snapshot) {
   lastSnapshot = snapshot || {};
   const state = snapshot.pipeline_state || "idle";
@@ -128,9 +132,7 @@ function renderSnapshot(snapshot) {
   renderSparkline(recentEvents);
   window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
-  if (typeof renderLaunchReadiness === "function") {
-    renderLaunchReadiness({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
-  }
+  renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
 }
 
@@ -301,9 +303,7 @@ function renderCloseReadiness(closeReadiness) {
     setTextState("diagnostics-close-status", "Unknown", "empty");
     setText("diagnostics-close-readiness", "Close readiness has not loaded yet.");
     renderControlReadiness(lastSnapshot, lastCloseReadiness);
-    if (typeof renderLaunchReadiness === "function") {
-      renderLaunchReadiness({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
-    }
+    renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
     renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
     return;
   }
@@ -317,9 +317,7 @@ function renderCloseReadiness(closeReadiness) {
   setTextState("diagnostics-close-status", safe ? "Safe" : "Blocked", safe ? "ok" : "blocked");
   setText("diagnostics-close-readiness", formatCloseReadiness(closeReadiness));
   renderControlReadiness(lastSnapshot, lastCloseReadiness);
-  if (typeof renderLaunchReadiness === "function") {
-    renderLaunchReadiness({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
-  }
+  renderLaunchReadinessPanel({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, schedule: lastSchedule, settings: getLastSettings() });
   renderBackendLifecycle(lastCloseReadiness, lastSnapshot);
 }
 
@@ -878,15 +876,13 @@ async function refreshAllNow(options = {}) {
     maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
   };
   renderExternalDependencyDigest(dependencyContext);
-  if (typeof renderLaunchReadiness === "function") {
-    renderLaunchReadiness({
-      snapshot: values.snapshot || lastSnapshot,
-      closeReadiness: values["close readiness"] || lastCloseReadiness,
-      schedule: values.schedule || lastSchedule,
-      settings: values.settings || getLastSettings(),
-      failures,
-    });
-  }
+  renderLaunchReadinessPanel({
+    snapshot: values.snapshot || lastSnapshot,
+    closeReadiness: values["close readiness"] || lastCloseReadiness,
+    schedule: values.schedule || lastSchedule,
+    settings: values.settings || getLastSettings(),
+    failures,
+  });
   window.mediaPipelineProgressView?.renderHomeActiveWork?.({
     snapshot: values.snapshot || lastSnapshot,
     diagnostics: values.diagnostics || null,
