@@ -499,6 +499,77 @@ try {
     Assert-True (-not ([string]$x265Paths.hdr10plus_json_path).Contains(':')) 'Dynamic HDR10+ x265 path should be colon-free.'
     Assert-Equal $x265Paths.rpu_frame_count 42 'Dynamic HDR x265 path result should carry RPU frame-count evidence.'
 
+    $script:DynamicHdrOutputDoviState = [pscustomobject][ordered]@{
+        Known = $true
+        Reason = ''
+        DoviPresent = $true
+        DoviProfile = 8
+        DoviBlCompatId = 1
+    }
+    $script:DynamicHdrOutputHdr10PlusState = [pscustomobject][ordered]@{
+        Known = $true
+        Reason = ''
+        Hdr10PlusPresent = $true
+    }
+    function Get-DolbyVisionState {
+        param([string] $FilePath)
+        return $script:DynamicHdrOutputDoviState
+    }
+    function Test-Hdr10PlusPresence {
+        param([string] $FilePath)
+        return $script:DynamicHdrOutputHdr10PlusState
+    }
+
+    $verificationOutput = Join-Path $tempRoot 'encoded-output.mkv'
+    Set-Content -LiteralPath $verificationOutput -Value 'encoded output' -Encoding ASCII
+    $verificationEvidence = [pscustomobject][ordered]@{
+        dovi_present      = $true
+        hdr10plus_present = $true
+        x265_artifacts    = [pscustomobject][ordered]@{
+            target_dovi_profile = '8.1'
+            rpu_frame_count     = 42
+        }
+    }
+    $verificationOk = Test-DynamicHdrOutputPreservation -SourceEvidence $verificationEvidence -OutputPath $verificationOutput -ExpectedRpuFrameCount 42
+    Assert-True ([bool]$verificationOk.ok) 'Dynamic HDR output verification should pass when expected DoVi and HDR10+ metadata are detected.'
+    Assert-Equal $verificationOk.output_dovi_profile 8 'Dynamic HDR output verification should capture DoVi profile.'
+    Assert-Equal $verificationOk.output_dovi_bl_compat_id 1 'Dynamic HDR output verification should capture DoVi BL compatibility id.'
+    Assert-True ([bool]$verificationOk.output_hdr10plus_present) 'Dynamic HDR output verification should capture HDR10+ presence.'
+    Assert-Equal $verificationOk.expected_frame_count 42 'Dynamic HDR output verification should preserve expected RPU frame-count evidence.'
+
+    $script:DynamicHdrOutputHdr10PlusState = [pscustomobject][ordered]@{
+        Known = $true
+        Reason = ''
+        Hdr10PlusPresent = $false
+    }
+    $missingHdr10PlusVerification = Test-DynamicHdrOutputPreservation -SourceEvidence $verificationEvidence -OutputPath $verificationOutput -ExpectedRpuFrameCount 42
+    Assert-True (-not [bool]$missingHdr10PlusVerification.ok) 'Dynamic HDR output verification should fail closed when expected HDR10+ metadata is absent.'
+    Assert-Equal $missingHdr10PlusVerification.error_code 'DYNAMIC_HDR_OUTPUT_METADATA_MISSING' 'Missing HDR10+ output metadata error code mismatch.'
+
+    $script:DynamicHdrOutputDoviState = [pscustomobject][ordered]@{
+        Known = $false
+        Reason = 'ffprobe could not read output'
+        DoviPresent = $false
+        DoviProfile = 0
+        DoviBlCompatId = -1
+    }
+    $script:DynamicHdrOutputHdr10PlusState = [pscustomobject][ordered]@{
+        Known = $true
+        Reason = ''
+        Hdr10PlusPresent = $true
+    }
+    $unknownDoviVerification = Test-DynamicHdrOutputPreservation -SourceEvidence $verificationEvidence -OutputPath $verificationOutput -ExpectedRpuFrameCount 42
+    Assert-True (-not [bool]$unknownDoviVerification.ok) 'Dynamic HDR output verification should fail closed when DoVi output probing is inconclusive.'
+    Assert-Equal $unknownDoviVerification.error_code 'DYNAMIC_HDR_OUTPUT_VERIFY_UNKNOWN' 'Unknown DoVi output verification error code mismatch.'
+
+    $noExpectedEvidence = [pscustomobject][ordered]@{
+        dovi_present      = $false
+        hdr10plus_present = $false
+    }
+    $noExpectedVerification = Test-DynamicHdrOutputPreservation -SourceEvidence $noExpectedEvidence -OutputPath (Join-Path $tempRoot 'does-not-exist.mkv')
+    Assert-True ([bool]$noExpectedVerification.ok) 'Dynamic HDR output verification should be a no-op when no metadata was expected.'
+    Assert-Equal $noExpectedVerification.reason 'no Dynamic HDR metadata was expected in output' 'No-op output verification reason mismatch.'
+
     $missingArtifactExtraction = [pscustomobject][ordered]@{
         ok                   = $true
         reason               = ''

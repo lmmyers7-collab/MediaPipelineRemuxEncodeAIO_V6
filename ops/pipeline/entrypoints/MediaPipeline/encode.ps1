@@ -1191,6 +1191,34 @@ function Do-Encode {
             return $false
         }
 
+        if ($dynamicHdrForceCpuEncode -and $script:CurrentDynamicHdrEvidence) {
+            Set-ProgressStage -Stage 'encode_verify' -Status "Verifying Dynamic HDR preservation" -Route $verifyRoute -Percent $null -SaveNow
+            $expectedRpuFrameCount = 0
+            if ($script:CurrentDynamicHdrEvidence.PSObject.Properties['x265_artifacts']) {
+                $expectedRpuFrameCount = [int](Get-DynamicHdrResultValue -Result $script:CurrentDynamicHdrEvidence.x265_artifacts -Name 'rpu_frame_count')
+            }
+            $dynamicHdrVerification = Test-DynamicHdrOutputPreservation -SourceEvidence $script:CurrentDynamicHdrEvidence -OutputPath $tempOut -ExpectedRpuFrameCount $expectedRpuFrameCount
+            $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'verification' -NotePropertyValue $dynamicHdrVerification -Force
+            Write-PipelineEvent -EventType 'dynamic_hdr_output_verification' -Stage 'encode_verify' -Route $verifyRoute -Status $(if ([bool]$dynamicHdrVerification.ok) { 'succeeded' } else { 'failed' }) -SourcePath $file.FullName -Data $dynamicHdrVerification | Out-Null
+            if (-not [bool]$dynamicHdrVerification.ok) {
+                $script:CurrentDynamicHdrEvidence.outcome = 'output_verify_failed'
+                $verifyErrorCode = if ([string]::IsNullOrWhiteSpace([string]$dynamicHdrVerification.error_code)) { 'DYNAMIC_HDR_OUTPUT_VERIFY_FAILED' } else { [string]$dynamicHdrVerification.error_code }
+                $failureProperties = [ordered]@{
+                    dynamic_hdr_policy      = [string]$dynamicHdrPolicy
+                    dynamic_hdr_action      = 'preserve_encode'
+                    dynamic_hdr_reason_code = $verifyErrorCode
+                    dynamic_hdr_summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                    dynamic_hdr_verification = $dynamicHdrVerification
+                }
+                $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason ([string]$dynamicHdrVerification.reason) -Stage 'dynamic-hdr-output-verify' -ErrorCode $verifyErrorCode -SuggestedAction 'Inspect the encoded temp output with ffprobe, dovi_tool, and hdr10plus_tool. Dynamic HDR preserve mode blocks publish until expected Dolby Vision or HDR10+ metadata is detected in output.' -AdditionalProperties $failureProperties
+                $localIn = $null
+                Write-Log "DYNAMIC HDR VERIFY: $($dynamicHdrVerification.reason)" "ERROR"
+                return $false
+            }
+            $script:CurrentDynamicHdrEvidence.outcome = 'preserved_encode_verified'
+            Write-Log "DYNAMIC HDR VERIFY: expected dynamic metadata detected in encoded output"
+        }
+
         $script:LastQualityVerification = $null
         if ([bool]$script:EnableQualityVerification) {
             Set-ProgressStage -Stage 'encode_verify' -Status "Verifying encode quality ($($script:QualityMetric))" -Route $verifyRoute -Percent $null -SaveNow

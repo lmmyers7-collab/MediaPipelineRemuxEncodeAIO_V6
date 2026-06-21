@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0620-013",
+  "title": "Verify dynamic HDR encode output before publish",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-20",
+  "summary": "Add a fail-closed Dynamic HDR output verification gate for preservation-ready CPU/libx265 encodes before publish.",
+  "reason": "Dynamic HDR extraction and x265 parameter wiring were present, but the pipeline still needed to prove that the produced encode exposed the expected Dolby Vision or HDR10+ metadata before allowing publish.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "Preservation-ready Dynamic HDR encodes could proceed from successful FFmpeg execution into quality, size, and publish checks without a dedicated output-metadata verification step.",
+  "behavior_after": "Preservation-ready Dynamic HDR encodes probe the encoded temp output before quality, size, and publish checks; missing or inconclusive Dolby Vision/HDR10+ metadata records operator-required failure evidence and blocks publish.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/dynamic_hdr.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1.md",
+    "ops/pipeline/engine/process/dynamic_hdr.ps1",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-013.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1"
+  ],
+  "manual_validation": [
+    "PowerShell parser check for modified scripts - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "mediapipeline.tools.dev.refresh_summaries --check - passed",
+    "ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-FailureCodeRegistryChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the Dynamic HDR output verification helper, encode-stage verification gate, new failure codes, targeted test assertions, generated summaries, and status-doc updates in this packet.",
+  "related_changes": [],
+  "notes": "Add Dynamic HDR output verification failure codes.\nAdd Dynamic HDR output preservation verification helper.\nBlock Dynamic HDR preserve encodes before publish when output metadata verification fails.\nCover Dynamic HDR output verification success and fail-closed cases.\nAssert encode output verification wiring and evidence.\nUpdate Dynamic HDR backlog status after output verification gate.\nUpdate current Dynamic HDR preservation status.\nTrack current-state doc using repository path casing.\nTrack open-work checklist using repository path casing.\nRefresh generated summary for current-state doc.\nRefresh generated summary for Dynamic HDR process helper.\nRefresh generated summary for failure-code registry.\nRefresh generated summary for encode entrypoint.\nRefresh generated summary for Dynamic HDR detection checks.\nRefresh generated summary for Dynamic HDR tooling checks."
+}

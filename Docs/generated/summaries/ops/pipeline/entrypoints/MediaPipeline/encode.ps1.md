@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: process
 last_modified: 2026-06-20
 last_reviewed: 2026-06-04
-sha256: 31b83bdeaefb7fa8bb2eb93bd4f7755056caa449916be45f0d559cf4a85096a0
+sha256: df5c269ce192a7599a903d1d9db1236db5d15f0fcf6c737eb470251672d89f82
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/encode.ps1`
 

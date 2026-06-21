@@ -1131,6 +1131,99 @@ function Resolve-DynamicHdrX265ArtifactPaths {
     return [pscustomobject]$base
 }
 
+function Test-DynamicHdrOutputPreservation {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $SourceEvidence,
+        [Parameter(Mandatory)] [string] $OutputPath,
+        [int] $ExpectedRpuFrameCount = 0
+    )
+
+    $expectedDovi = [bool](Get-DynamicHdrResultValue -Result $SourceEvidence -Name 'dovi_present')
+    $expectedHdr10Plus = [bool](Get-DynamicHdrResultValue -Result $SourceEvidence -Name 'hdr10plus_present')
+    $expectedProfile = ''
+    $x265Artifacts = Get-DynamicHdrResultValue -Result $SourceEvidence -Name 'x265_artifacts'
+    if ($null -ne $x265Artifacts) {
+        $expectedProfile = [string](Get-DynamicHdrResultValue -Result $x265Artifacts -Name 'target_dovi_profile')
+    }
+
+    $base = [ordered]@{
+        schema_version             = 'dynamic_hdr_output_verification.v1'
+        checked                    = $true
+        ok                         = $false
+        reason                     = ''
+        error_code                 = ''
+        output_path                = [string]$OutputPath
+        expected_dovi_present      = [bool]$expectedDovi
+        expected_hdr10plus_present = [bool]$expectedHdr10Plus
+        expected_dovi_profile      = [string]$expectedProfile
+        output_dovi_present        = $false
+        output_dovi_profile        = 0
+        output_dovi_bl_compat_id   = -1
+        output_hdr10plus_present   = $false
+        expected_frame_count       = [int]$ExpectedRpuFrameCount
+        rpu_frame_count            = 0
+        dovi_state                 = $null
+        hdr10plus_state            = $null
+    }
+
+    if (-not $expectedDovi -and -not $expectedHdr10Plus) {
+        $base.ok = $true
+        $base.reason = 'no Dynamic HDR metadata was expected in output'
+        return [pscustomobject]$base
+    }
+    if ([string]::IsNullOrWhiteSpace($OutputPath) -or -not (Test-Path -LiteralPath $OutputPath -PathType Leaf)) {
+        $base.reason = 'output path is missing for Dynamic HDR verification'
+        $base.error_code = 'DYNAMIC_HDR_OUTPUT_VERIFY_FAILED'
+        return [pscustomobject]$base
+    }
+    if (-not (Get-Command Get-DolbyVisionState -ErrorAction SilentlyContinue) -or
+        -not (Get-Command Test-Hdr10PlusPresence -ErrorAction SilentlyContinue)) {
+        $base.reason = 'Dynamic HDR output probe helpers are unavailable'
+        $base.error_code = 'DYNAMIC_HDR_OUTPUT_VERIFY_UNKNOWN'
+        return [pscustomobject]$base
+    }
+
+    $doviState = Get-DolbyVisionState -FilePath $OutputPath
+    $hdr10PlusState = Test-Hdr10PlusPresence -FilePath $OutputPath
+    $base.dovi_state = $doviState
+    $base.hdr10plus_state = $hdr10PlusState
+    $base.output_dovi_present = [bool](Get-DynamicHdrResultValue -Result $doviState -Name 'DoviPresent')
+    $base.output_dovi_profile = [int](Get-DynamicHdrResultValue -Result $doviState -Name 'DoviProfile')
+    $base.output_dovi_bl_compat_id = [int](Get-DynamicHdrResultValue -Result $doviState -Name 'DoviBlCompatId')
+    $base.output_hdr10plus_present = [bool](Get-DynamicHdrResultValue -Result $hdr10PlusState -Name 'Hdr10PlusPresent')
+
+    if ($expectedDovi -and -not [bool](Get-DynamicHdrResultValue -Result $doviState -Name 'Known')) {
+        $base.reason = "Dolby Vision output verification was inconclusive: $([string](Get-DynamicHdrResultValue -Result $doviState -Name 'Reason'))"
+        $base.error_code = 'DYNAMIC_HDR_OUTPUT_VERIFY_UNKNOWN'
+        return [pscustomobject]$base
+    }
+    if ($expectedHdr10Plus -and -not [bool](Get-DynamicHdrResultValue -Result $hdr10PlusState -Name 'Known')) {
+        $base.reason = "HDR10+ output verification was inconclusive: $([string](Get-DynamicHdrResultValue -Result $hdr10PlusState -Name 'Reason'))"
+        $base.error_code = 'DYNAMIC_HDR_OUTPUT_VERIFY_UNKNOWN'
+        return [pscustomobject]$base
+    }
+    if ($expectedDovi -and -not [bool]$base.output_dovi_present) {
+        $base.reason = 'expected Dolby Vision metadata was not detected in encoded output'
+        $base.error_code = 'DYNAMIC_HDR_OUTPUT_METADATA_MISSING'
+        return [pscustomobject]$base
+    }
+    if ($expectedProfile -eq '8.1' -and ([int]$base.output_dovi_profile -ne 8 -or [int]$base.output_dovi_bl_compat_id -ne 1)) {
+        $base.reason = "expected Dolby Vision profile 8.1 output, got profile $($base.output_dovi_profile) BL compatibility $($base.output_dovi_bl_compat_id)"
+        $base.error_code = 'DYNAMIC_HDR_OUTPUT_METADATA_MISSING'
+        return [pscustomobject]$base
+    }
+    if ($expectedHdr10Plus -and -not [bool]$base.output_hdr10plus_present) {
+        $base.reason = 'expected HDR10+ metadata was not detected in encoded output'
+        $base.error_code = 'DYNAMIC_HDR_OUTPUT_METADATA_MISSING'
+        return [pscustomobject]$base
+    }
+
+    $base.ok = $true
+    $base.reason = 'expected Dynamic HDR metadata was detected in encoded output'
+    return [pscustomobject]$base
+}
+
 function Clear-DynamicHdrCapabilityProbe {
     $script:X265DynamicHdrCapabilityCache = $null
 }
