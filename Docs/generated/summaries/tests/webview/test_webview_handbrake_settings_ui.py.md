@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 6f2e5056b4bdb9e14c3711e9a2beff41356668dba4cd71064b0fc7b5b14fee85
+sha256: c5486993deac373b7611493f691c963fe51331b919f010186f268e5994d5eade
 ---
 # `tests/webview/test_webview_handbrake_settings_ui.py`
 

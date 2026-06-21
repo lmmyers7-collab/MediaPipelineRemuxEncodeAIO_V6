@@ -73,6 +73,7 @@
   const videoDetailSettingsBuilderFields = [
     ["EncodeLadder", "settings-builder-encode-ladder", "select"],
     ["VideoCodec", "settings-builder-video-codec", "select"],
+    ["EncoderBackend", "settings-builder-encoder-backend", "select"],
     ["OutputContainer", "settings-builder-output-container", "select"],
     ["EncodeTuningPreset", "settings-builder-encode-tuning", "select"],
     ["VideoPreset", "settings-video-preset", "preset_slider"],

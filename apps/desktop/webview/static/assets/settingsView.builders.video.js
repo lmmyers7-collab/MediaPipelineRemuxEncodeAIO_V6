@@ -165,6 +165,7 @@
       refreshSettingsSelectChoices(videoDetailSettingsBuilderFields);
       setVideoDetailBuilderControl("settings-builder-encode-ladder", "EncodeLadder", "select", "auto");
       setVideoDetailBuilderControl("settings-builder-video-codec", "VideoCodec", "select", "hevc_nvenc");
+      setVideoDetailBuilderControl("settings-builder-encoder-backend", "EncoderBackend", "select", "auto");
       setVideoDetailBuilderControl("settings-builder-output-container", "OutputContainer", "select", "mkv");
       setVideoDetailBuilderControl("settings-builder-encode-tuning", "EncodeTuningPreset", "select", "balanced_nvenc");
       setVideoDetailBuilderControl("settings-video-preset", "VideoPreset", "preset_slider", "p5");

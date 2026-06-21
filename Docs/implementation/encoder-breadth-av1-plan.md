@@ -13,8 +13,9 @@ primary/fallback descriptor capability evidence, and the Settings wizard hardwar
 probe now threads configured-FFmpeg encoder listings into video-only
 `EncodingCapabilityFacts` plus UI backend annotations. A dormant global
 `EncoderBackend` config key now round-trips through the PowerShell/Python schema
-surfaces with default `auto`, but it feeds only the capability diagnostic; normal
-encode selection still follows `VideoCodec`. Hardware descriptors are not wired into
+surfaces and the WebView video detail settings builder with default `auto`, but
+it feeds only saved settings and the capability diagnostic; normal encode
+selection still follows `VideoCodec`. Hardware descriptors are not wired into
 active encoder selection. A synthetic SDR runtime/topology matrix executes
 CPU descriptor rows and reports hardware rows as opt-in skips by default. A pure
 descriptor selection resolver now returns primary/fallback descriptors plus trace
@@ -543,7 +544,8 @@ will catch most omissions:
   snapshots (assert via smoke + log diff).
 - Python/UI: the Settings wizard hardware probe now emits video-only
   `EncodingCapabilityFacts` and backend rows from the configured FFmpeg encoder list.
-  Remaining work is to thread descriptor dump evidence into
+  The WebView video detail builder now exposes `EncoderBackend` as a saveable
+  select without filtering choices. Remaining work is to thread descriptor dump evidence into
   `validate_encoding_capabilities` callers (grep callers of
   `EncodingCapabilityFacts`) and broader choice annotations. UI choice filtering =
   annotate unavailable encoders in `choice_help` ("not detected on this machine") —

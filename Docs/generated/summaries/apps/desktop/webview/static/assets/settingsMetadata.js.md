@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsMetadata.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 81528dc72a8ec8d8243514477db50003d0574a11b3dd6c4edd0b1358eca00f8f
+sha256: 275273b885393797dc346080fa31c3f8670519c32c90942bb478e9918893db63
 ---
 # `apps/desktop/webview/static/assets/settingsMetadata.js`
 

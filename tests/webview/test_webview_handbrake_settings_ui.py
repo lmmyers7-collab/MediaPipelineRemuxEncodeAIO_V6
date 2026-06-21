@@ -63,6 +63,7 @@ EDITOR_BUILDER_KEYS = {
 VIDEO_DETAIL_BUILDER_KEYS = {
     "EncodeLadder",
     "VideoCodec",
+    "EncoderBackend",
     "OutputContainer",
     "EncodeTuningPreset",
     "VideoPreset",
@@ -666,7 +667,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(token, html)
 
         self.assertIn('["VideoPreset", "settings-video-preset", "preset_slider"]', metadata_js)
+        self.assertIn('["EncoderBackend", "settings-builder-encoder-backend", "select"]', metadata_js)
         self.assertIn('["VideoQuality", "settings-video-quality", "quality_slider"]', metadata_js)
+        self.assertIn('id="settings-builder-encoder-backend"', html)
+        self.assertIn(
+            'setVideoDetailBuilderControl("settings-builder-encoder-backend", "EncoderBackend", "select", "auto")',
+            builder_js,
+        )
         self.assertIn(
             'setVideoDetailBuilderControl("settings-video-preset", "VideoPreset", "preset_slider", "p5")',
             builder_js,

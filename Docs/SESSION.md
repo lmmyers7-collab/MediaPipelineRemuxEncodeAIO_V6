@@ -6,6 +6,25 @@ Operator-approved scope (chat, 2026-06-02): execute ADR-0013 Wave 1 step 1,
 Wave 2 (steps 2-3), Wave 3 (steps 4-5), Wave 4 (step 6), then Wave 5
 (steps 7-8) on follow-up approval ("just continue").
 
+## Encoder breadth Phase 6 settings exposure 2026-06-21
+
+Scope: continue the encoder breadth/AV1 remediation stream by exposing the
+dormant global `EncoderBackend` key in the WebView video detail settings
+builder, without activating new hardware encoder families or changing
+`Do-Encode` selection behavior. Packet
+`ops/release/changes/unreleased/MP-CHANGE-2026-0621-009.json`.
+
+In scope:
+- Add the `EncoderBackend` select to the WebView video detail builder.
+- Ensure the builder syncs/saves the key through existing backend-owned settings
+  save validation.
+- Update WebView static tests and active docs/inventories to show the key is
+  directly surfaced but still dormant for runtime selection.
+
+Out of scope: FFmpeg command generation, descriptor activation, capability-based
+choice filtering, queue/network behavior, source/scratch/output movement,
+pending-publish drain behavior, and real-media validation.
+
 ## Network worker hardening A1 2026-06-14 (operator requested "execute this MD")
 
 Scope: execute the first work item only from
