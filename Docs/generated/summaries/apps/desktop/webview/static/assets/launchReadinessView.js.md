@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 4a58629881bb32107f70e32feff859ddd180e6835ec50794c9197e2f77c5c65e
+sha256: 5088ebfe118bd3fb23e0280e717c49cd23ca761aa9ca62e00d934ba10ae52abf
 ---
 # `apps/desktop/webview/static/assets/launchReadinessView.js`
 

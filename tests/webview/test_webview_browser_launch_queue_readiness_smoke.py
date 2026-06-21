@@ -222,11 +222,13 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "refreshLaunchBackendPreflight",
               "renderQueueLaunchDecisionChecklist",
               "queueLaunchDecisionRows",
-              "renderScheduleTimingTrust",
               "getCommandHistory",
               "renderLaunchCommandHistory",
               "commandHistoryOwnerPage",
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineScheduleView?.renderScheduleTimingTrust !== "function") {
+              throw new Error("missing mediaPipelineScheduleView.renderScheduleTimingTrust");
+            }
 
             window.showPage("launch");
             if (typeof window.mediaPipelineLaunchView?.activateLaunchTab !== "function") throw new Error("missing mediaPipelineLaunchView.activateLaunchTab");

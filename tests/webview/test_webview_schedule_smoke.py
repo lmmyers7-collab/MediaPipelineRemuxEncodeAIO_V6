@@ -128,6 +128,10 @@ def _schedule_runner_source() -> str:
         for (const asset of payload.assets) {
           vm.runInContext(asset.source, context, { filename: asset.name });
         }
+        const scheduleView = context.mediaPipelineScheduleView;
+        if (!scheduleView || typeof scheduleView !== "object") {
+          throw new Error("missing mediaPipelineScheduleView namespace");
+        }
         function promoteMediaPipelineNamespaces() {
           Object.keys(context)
             .filter((key) => key.startsWith("mediaPipeline"))
@@ -157,7 +161,7 @@ def _schedule_runner_source() -> str:
         function gridFromDayWindows(dayWindows) {
           const grid = emptyGrid();
           SCHEDULE_DAYS.forEach((day) => {
-            grid[day] = context.scheduleDraftBlocksFromText(dayWindows?.[day] || "");
+            grid[day] = scheduleView.scheduleDraftBlocksFromText(dayWindows?.[day] || "");
           });
           return grid;
         }
@@ -273,7 +277,7 @@ def _schedule_runner_source() -> str:
           ],
         };
 
-        context.renderSchedule(schedule);
+        scheduleView.renderSchedule(schedule);
         requireContains("editor impact", text("schedule-editor-impact"), ["Launch impact:", "Selected Launch mode:", "Preview the draft before saving schedule changes"]);
         requireContains("draft summary", text("schedule-editor-draft-summary"), ["Editor draft:", "52/336 blocks staged", "matches saved/current payload"]);
         requireContains("saved scope", text("schedule-day-scope"), ["Weekly View: saved/current payload"]);
@@ -296,24 +300,24 @@ def _schedule_runner_source() -> str:
           throw new Error("Paste Day should be disabled until a day is copied");
         }
 
-        const weeklyCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "weekly-coverage");
-        context.selectScheduleCoverageRow(weeklyCoverage);
+        const weeklyCoverage = scheduleView.scheduleCoverageRows(schedule).find((row) => row.key === "weekly-coverage");
+        scheduleView.selectScheduleCoverageRow(weeklyCoverage);
         requireContains("weekly coverage detail", text("schedule-coverage-detail"), ["Allowed days: 2", "Allowed half-hour blocks: 52", "Allowed hours: 26.0"]);
 
-        const enforcementCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "enforcement");
-        context.selectScheduleCoverageRow(enforcementCoverage);
+        const enforcementCoverage = scheduleView.scheduleCoverageRows(schedule).find((row) => row.key === "enforcement");
+        scheduleView.selectScheduleCoverageRow(enforcementCoverage);
         requireContains("enforcement detail", text("schedule-coverage-detail"), ["backend schedule-stop watcher"]);
         requireNotContains("enforcement detail", text("schedule-coverage-detail"), ["V" + "5 remains", "fallback workspace"]);
 
-        const watcherCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "continuous-watcher");
-        context.selectScheduleCoverageRow(watcherCoverage);
+        const watcherCoverage = scheduleView.scheduleCoverageRows(schedule).find((row) => row.key === "continuous-watcher");
+        scheduleView.selectScheduleCoverageRow(watcherCoverage);
         requireContains("watcher coverage detail", text("schedule-coverage-detail"), ["PID: 2222", "Deadline:", "Launch backend start arms this watcher"]);
 
-        context.selectScheduleDay(schedule.day_summaries[2]);
+        scheduleView.selectScheduleDay(schedule.day_summaries[2]);
         requireContains("all-day detail", text("schedule-day-detail"), ["Day: Wednesday", "allowed all day", "Schedule Editor panel"]);
 
         const today = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date());
-        context.renderSchedule({
+        scheduleView.renderSchedule({
           ...schedule,
           evaluation: { ...schedule.evaluation, allowed_now: true, current_day: today, current_block_index: 18, current_block_start: "2026-05-19T09:00:00" },
           day_summaries: [{ day: today, allowed_blocks: 2, allowed_hours: 1, windows: ["09:00 - 10:00"], windows_text: "09:00 - 10:00" }],
@@ -323,7 +327,7 @@ def _schedule_runner_source() -> str:
         if (context.document.getElementById("schedule-day-rows").children[0]?.dataset?.status !== "current") {
           throw new Error("partial current row should use current status");
         }
-        context.renderSchedule({
+        scheduleView.renderSchedule({
           ...schedule,
           evaluation: { ...schedule.evaluation, allowed_now: true, current_day: today, current_block_index: 18, current_block_start: "2026-05-19T09:00:00" },
           day_summaries: [{ day: today, allowed_blocks: 48, allowed_hours: 24, windows: ["All day"], windows_text: "All day" }],
@@ -333,7 +337,7 @@ def _schedule_runner_source() -> str:
         }
         requireContains("current all-day row", tableText("schedule-day-rows"), [`${today} (current)`, "All day"]);
         context.document.getElementById("pipeline-start-mode").value = "once";
-        context.renderSchedule({
+        scheduleView.renderSchedule({
           ...schedule,
           evaluation: { ...schedule.evaluation, allowed_now: true, current_day: "" },
           day_summaries: [{ day: today, allowed_blocks: 2, allowed_hours: 1, windows: ["09:00 - 10:00"], windows_text: "09:00 - 10:00" }],
@@ -342,9 +346,9 @@ def _schedule_runner_source() -> str:
         requireContains("unknown current day detail", text("schedule-day-detail"), ["backend current day was not reported"]);
         requireContains("unknown current trust", text("schedule-timing"), ["Backend current day: not reported", "refresh before trusting current-window highlighting"]);
         context.document.getElementById("pipeline-start-mode").value = "validate";
-        context.renderSchedule(schedule);
+        scheduleView.renderSchedule(schedule);
 
-        context.renderWatchFolderStatus({
+        scheduleView.renderWatchFolderStatus({
           schema_version: "desktop_watch_folders.v1",
           status: "running",
           enabled: true,
@@ -367,23 +371,23 @@ def _schedule_runner_source() -> str:
           throw new Error("refused watch-folder launch should render blocked");
         }
 
-        context.clearScheduleEditorWeek();
-        let request = context.scheduleEditorRequest();
+        scheduleView.clearScheduleEditorWeek();
+        let request = scheduleView.scheduleEditorRequest();
         if (request.day_windows.Monday !== "" || request.day_windows.Tuesday !== "") {
           throw new Error(`clear week did not blank schedule editor windows: ${JSON.stringify(request.day_windows)}`);
         }
         requireContains("dirty save state", text("schedule-editor-save-state"), ["Draft changed", "Preview required"]);
         requireContains("clear result", text("schedule-editor-result"), ["Week cleared:", "0/336 blocks staged"]);
         requireContains("draft scope", text("schedule-day-scope"), ["unsaved draft is staged"]);
-        context.allowAllScheduleEditorWeek();
-        request = context.scheduleEditorRequest();
+        scheduleView.allowAllScheduleEditorWeek();
+        request = scheduleView.scheduleEditorRequest();
         if (request.day_windows.Monday !== "all day" || request.day_windows.Sunday !== "all day") {
           throw new Error(`allow all did not stage all days: ${JSON.stringify(request.day_windows)}`);
         }
         requireContains("allow all result", text("schedule-editor-result"), ["All week allowed:", "336/336 blocks staged"]);
-        context.clearScheduleEditorWeek();
-        context.scheduleSetDayBlocks("Monday", [18, 19]);
-        request = context.scheduleEditorRequest();
+        scheduleView.clearScheduleEditorWeek();
+        scheduleView.scheduleSetDayBlocks("Monday", [18, 19]);
+        request = scheduleView.scheduleEditorRequest();
         if (request.day_windows.Monday !== "09:00 - 10:00") {
           throw new Error(`block editor did not generate a 30-minute window draft: ${JSON.stringify(request.day_windows)}`);
         }
@@ -392,29 +396,29 @@ def _schedule_runner_source() -> str:
           throw new Error("Paste Day should be enabled after copying a day");
         }
         context.document.getElementById("schedule-editor-tuesday-paste-day").click();
-        request = context.scheduleEditorRequest();
+        request = scheduleView.scheduleEditorRequest();
         if (request.day_windows.Tuesday !== "09:00 - 10:00") {
           throw new Error(`Paste Day did not copy Monday windows into Tuesday: ${JSON.stringify(request.day_windows)}`);
         }
         requireContains("paste status", text("schedule-editor-status"), ["Pasted Monday into Tuesday"]);
-        context.loadCurrentScheduleIntoEditor();
+        scheduleView.loadCurrentScheduleIntoEditor();
         if (!context.document.getElementById("schedule-editor-tuesday-paste-day").disabled) {
           throw new Error("Load Current should clear copied day clipboard and disable Paste Day");
         }
-        context.clearScheduleEditorWeek();
-        context.scheduleSetDayBlocks("Monday", [18, 19]);
-        context.scheduleSetDayBlocks("Tuesday", [18, 19]);
-        const draftCoverage = context.scheduleCoverageRows(schedule).find((row) => row.key === "draft-coverage");
+        scheduleView.clearScheduleEditorWeek();
+        scheduleView.scheduleSetDayBlocks("Monday", [18, 19]);
+        scheduleView.scheduleSetDayBlocks("Tuesday", [18, 19]);
+        const draftCoverage = scheduleView.scheduleCoverageRows(schedule).find((row) => row.key === "draft-coverage");
         if (!draftCoverage) {
           throw new Error("staged Schedule draft did not add draft coverage row");
         }
-        context.selectScheduleCoverageRow(draftCoverage);
+        scheduleView.selectScheduleCoverageRow(draftCoverage);
         requireContains("draft coverage detail", text("schedule-coverage-detail"), ["Coverage check: Draft coverage", "local staging evidence only", "Saved/current Schedule Trust"]);
         if (!context.document.getElementById("schedule-editor-save-button").disabled) {
           throw new Error("save button should stay disabled for an unpreviewed draft");
         }
-        context.initScheduleViewEvents();
-        await context.previewScheduleEditor();
+        scheduleView.initScheduleViewEvents();
+        await scheduleView.previewScheduleEditor();
         if (context.document.getElementById("schedule-editor-save-button").disabled) {
           throw new Error("save button should be enabled after successful backend preview");
         }
@@ -432,7 +436,7 @@ def _schedule_runner_source() -> str:
           "Wednesday:",
           "Removed: all day",
         ]);
-        context.scheduleSetDayBlocks("Tuesday", [2, 3]);
+        scheduleView.scheduleSetDayBlocks("Tuesday", [2, 3]);
         if (!context.document.getElementById("schedule-editor-save-button").disabled) {
           throw new Error("save button should be disabled after editing a previewed draft");
         }
@@ -446,11 +450,11 @@ def _schedule_runner_source() -> str:
           }
           return originalApiPost(url, body);
         };
-        const previewPending = context.previewScheduleEditor();
+        const previewPending = scheduleView.previewScheduleEditor();
         if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "true") {
           throw new Error("Schedule editor panel should expose aria-busy=true while previewing");
         }
-        await Promise.all([previewPending, context.previewScheduleEditor()]);
+        await Promise.all([previewPending, scheduleView.previewScheduleEditor()]);
         if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "false") {
           throw new Error("Schedule editor panel should clear aria-busy after preview");
         }
@@ -466,11 +470,11 @@ def _schedule_runner_source() -> str:
           }
           return originalApiPost(url, body);
         };
-        const savePending = context.saveScheduleEditor();
+        const savePending = scheduleView.saveScheduleEditor();
         if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "true") {
           throw new Error("Schedule editor panel should expose aria-busy=true while saving");
         }
-        await Promise.all([savePending, context.saveScheduleEditor()]);
+        await Promise.all([savePending, scheduleView.saveScheduleEditor()]);
         if (context.document.getElementById("schedule-editor-panel")["aria-busy"] !== "false") {
           throw new Error("Schedule editor panel should clear aria-busy after save");
         }

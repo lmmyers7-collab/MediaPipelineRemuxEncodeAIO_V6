@@ -1619,7 +1619,7 @@
 
   /**
    * Public namespace for the Schedule page module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Schedule consumers should use this namespace; no flat window.* exports remain for this module.
    */
   window.mediaPipelineScheduleView = {
     renderSchedule,
@@ -1669,14 +1669,4 @@
     scheduleOverrideLabel,
     scheduleDisplayValue,
   };
-  window.renderSchedule = renderSchedule;
-  window.renderScheduleTimingTrust = renderScheduleTimingTrust;
-  window.initScheduleViewEvents = initScheduleViewEvents;
-  window.scheduleTimingTrustStatus = scheduleTimingTrustStatus;
-  window.scheduleTimingTrustLines = scheduleTimingTrustLines;
-  window.scheduleCurrentLaunchSelection = scheduleCurrentLaunchSelection;
-  window.scheduleWatcherSummary = scheduleWatcherSummary;
-  window.schedulePipelineModeLabel = schedulePipelineModeLabel;
-  window.scheduleOverrideLabel = scheduleOverrideLabel;
-  window.scheduleDisplayValue = scheduleDisplayValue;
 })();

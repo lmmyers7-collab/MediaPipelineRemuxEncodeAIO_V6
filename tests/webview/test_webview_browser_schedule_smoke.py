@@ -56,6 +56,11 @@ def _browser_schedule_runner_source() -> str:
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
+            function requireNamespaceFunction(namespace, namespaceName, name) {
+              if (!namespace || typeof namespace[name] !== "function") {
+                throw new Error("missing " + namespaceName + "." + name);
+              }
+            }
             async function waitFor(predicate, label) {
               const deadline = Date.now() + 15000;
               let lastError = null;
@@ -99,14 +104,17 @@ def _browser_schedule_runner_source() -> str:
             }
             [
               "showPage",
+              "renderAllLaunchPreflights",
+              "getCommandHistory",
+            ].forEach(requireFunction);
+            const scheduleView = window.mediaPipelineScheduleView;
+            [
               "renderSchedule",
               "scheduleEditorRequest",
               "scheduleSetDayBlocks",
               "previewScheduleEditor",
               "saveScheduleEditor",
-              "renderAllLaunchPreflights",
-              "getCommandHistory",
-            ].forEach(requireFunction);
+            ].forEach((name) => requireNamespaceFunction(scheduleView, "mediaPipelineScheduleView", name));
 
             const today = new Intl.DateTimeFormat("en-US", { weekday: "long" }).format(new Date());
             const todayInputId = "schedule-editor-" + today.toLowerCase() + "-windows";

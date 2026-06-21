@@ -7,6 +7,10 @@
   const renderLaunchTimingTrust = launchReadinessView.renderLaunchTimingTrust || window.renderLaunchTimingTrust || null;
   const renderLaunchReadiness = launchReadinessView.renderLaunchReadiness || window.renderLaunchReadiness || function () {};
   const getLastLaunchReadinessPayload = launchReadinessView.getLastLaunchReadinessPayload || window.getLastLaunchReadinessPayload || null;
+  const scheduleView = window.mediaPipelineScheduleView || {};
+  const renderScheduleTimingTrust = typeof scheduleView.renderScheduleTimingTrust === "function" ? scheduleView.renderScheduleTimingTrust : null;
+  const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
+  const scheduleWatcherSummary = typeof scheduleView.scheduleWatcherSummary === "function" ? scheduleView.scheduleWatcherSummary : null;
   const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
   const isLaunchCommand = launchHistoryView.isLaunchCommand || window.isLaunchCommand || function () { return false; };
   const launchHistoryLine = launchHistoryView.launchHistoryLine || window.launchHistoryLine || function () { return ""; };
@@ -282,7 +286,7 @@
       pipelineModeLabel,
       queueCurrentFilterScope: typeof window.queueCurrentFilterScope === "function" ? window.queueCurrentFilterScope : (typeof queueCurrentFilterScope === "function" ? queueCurrentFilterScope : null),
       queueFilterScopeDetailLines: typeof window.queueFilterScopeDetailLines === "function" ? window.queueFilterScopeDetailLines : (typeof queueFilterScopeDetailLines === "function" ? queueFilterScopeDetailLines : null),
-      scheduleDisplayValue: typeof scheduleDisplayValue === "function" ? scheduleDisplayValue : window.scheduleDisplayValue,
+      scheduleDisplayValue,
       setText: typeof setText === "function" ? setText : window.setText,
       settingsCommandHistoryLine: typeof window.mediaPipelineSettingsCommandHistory?.settingsCommandHistoryLine === "function" ? window.mediaPipelineSettingsCommandHistory.settingsCommandHistoryLine : null,
       settingsLaunchImpactRows: typeof window.settingsLaunchImpactRows === "function" ? window.settingsLaunchImpactRows : (typeof settingsLaunchImpactRows === "function" ? settingsLaunchImpactRows : null),
@@ -471,8 +475,8 @@
       queueLaunchDecisionRows: typeof window.queueLaunchDecisionRows === "function" ? window.queueLaunchDecisionRows : (typeof queueLaunchDecisionRows === "function" ? queueLaunchDecisionRows : null),
       queueLaunchDecisionStatus: typeof window.queueLaunchDecisionStatus === "function" ? window.queueLaunchDecisionStatus : (typeof queueLaunchDecisionStatus === "function" ? queueLaunchDecisionStatus : null),
       queueLaunchDecisionSummaryLines: typeof window.queueLaunchDecisionSummaryLines === "function" ? window.queueLaunchDecisionSummaryLines : (typeof queueLaunchDecisionSummaryLines === "function" ? queueLaunchDecisionSummaryLines : null),
-      scheduleDisplayValue: typeof scheduleDisplayValue === "function" ? scheduleDisplayValue : window.scheduleDisplayValue,
-      scheduleWatcherSummary: typeof scheduleWatcherSummary === "function" ? scheduleWatcherSummary : window.scheduleWatcherSummary,
+      scheduleDisplayValue,
+      scheduleWatcherSummary,
       setText: typeof setText === "function" ? setText : window.setText,
       showPage: typeof showPage === "function" ? showPage : window.showPage,
       activateLaunchTab: (...args) => activateLaunchTab(...args),
@@ -625,7 +629,7 @@
       renderLaunchStartDecisionSummary: (...args) => renderLaunchStartDecisionSummary(...args),
       renderLaunchTimingTrust: typeof renderLaunchTimingTrust === "function" ? renderLaunchTimingTrust : null,
       renderQueueLaunchDecisionChecklist: typeof window.renderQueueLaunchDecisionChecklist === "function" ? window.renderQueueLaunchDecisionChecklist : (typeof renderQueueLaunchDecisionChecklist === "function" ? renderQueueLaunchDecisionChecklist : null),
-      renderScheduleTimingTrust: typeof window.renderScheduleTimingTrust === "function" ? window.renderScheduleTimingTrust : (typeof renderScheduleTimingTrust === "function" ? renderScheduleTimingTrust : null),
+      renderScheduleTimingTrust: typeof renderScheduleTimingTrust === "function" ? renderScheduleTimingTrust : null,
       setText: typeof setText === "function" ? setText : window.setText,
       state: launchRealMediaState,
       updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,

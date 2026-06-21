@@ -7246,6 +7246,19 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function scheduleSetDayBlocks", schedule_view_js)
         self.assertIn("function scheduleBlockLabel", schedule_view_js)
         self.assertIn("function loadCurrentScheduleIntoEditor", schedule_view_js)
+        for flat_schedule_export in (
+            "window.renderSchedule =",
+            "window.renderScheduleTimingTrust =",
+            "window.initScheduleViewEvents =",
+            "window.scheduleTimingTrustStatus =",
+            "window.scheduleTimingTrustLines =",
+            "window.scheduleCurrentLaunchSelection =",
+            "window.scheduleWatcherSummary =",
+            "window.schedulePipelineModeLabel =",
+            "window.scheduleOverrideLabel =",
+            "window.scheduleDisplayValue =",
+        ):
+            self.assertNotIn(flat_schedule_export, schedule_view_js)
         self.assertIn("function clearScheduleEditorWeek", schedule_view_js)
         self.assertIn("function allowAllScheduleEditorWeek", schedule_view_js)
         self.assertNotIn("function scheduleCopyEditorDayToTargets", schedule_view_js)
@@ -7551,7 +7564,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertNotIn("audit-launch-progress-bars", launch_view_preflight_js)
         self.assertIn("window.mediaPipelineReportsView?.initReportsViewEvents?.();", js)
         self.assertNotIn('if (typeof initReportsViewEvents === "function") initReportsViewEvents();', js)
-        self.assertIn('if (typeof initScheduleViewEvents === "function") initScheduleViewEvents();', js)
+        self.assertIn("window.mediaPipelineScheduleView?.initScheduleViewEvents?.();", js)
+        self.assertNotIn('if (typeof initScheduleViewEvents === "function") initScheduleViewEvents();', js)
         self.assertIn("const maintenanceView = window.mediaPipelineMaintenanceView || {}", js)
         self.assertIn("maintenanceView.initMaintenanceViewEvents?.();", js)
         self.assertIn("maintenanceView.runReleaseDryRun?.()", js)
@@ -7706,6 +7720,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("launchReadinessView.renderLaunchReadiness({", launch_view_preflight_js)
         self.assertIn("renderLaunchTimingTrust()", launch_view_preflight_js)
         self.assertIn("renderScheduleTimingTrust()", launch_view_preflight_js)
+        self.assertIn("const scheduleView = window.mediaPipelineScheduleView || {}", launch_view_js)
+        self.assertIn("renderScheduleTimingTrust: typeof renderScheduleTimingTrust === \"function\" ? renderScheduleTimingTrust : null", launch_view_js)
         self.assertIn("function initLaunchViewEvents", launch_view_js)
         self.assertIn("function initLaunchTabNav", launch_view_js)
         self.assertIn("function activateLaunchTab", launch_view_js)

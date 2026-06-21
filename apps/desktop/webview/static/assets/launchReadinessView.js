@@ -1,5 +1,13 @@
 (function () {
   const domHelpers = window.mediaPipelineDom || {};
+  const scheduleView = window.mediaPipelineScheduleView || {};
+  const scheduleCurrentLaunchSelection = typeof scheduleView.scheduleCurrentLaunchSelection === "function" ? scheduleView.scheduleCurrentLaunchSelection : null;
+  const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
+  const scheduleOverrideLabel = typeof scheduleView.scheduleOverrideLabel === "function" ? scheduleView.scheduleOverrideLabel : null;
+  const schedulePipelineModeLabel = typeof scheduleView.schedulePipelineModeLabel === "function" ? scheduleView.schedulePipelineModeLabel : null;
+  const scheduleTimingTrustLines = typeof scheduleView.scheduleTimingTrustLines === "function" ? scheduleView.scheduleTimingTrustLines : null;
+  const scheduleTimingTrustStatus = typeof scheduleView.scheduleTimingTrustStatus === "function" ? scheduleView.scheduleTimingTrustStatus : null;
+  const scheduleWatcherSummary = typeof scheduleView.scheduleWatcherSummary === "function" ? scheduleView.scheduleWatcherSummary : null;
   const byIdLocal = typeof byId === "function"
     ? byId
     : (typeof domHelpers.byId === "function" ? domHelpers.byId : (id) => document.getElementById(id));
