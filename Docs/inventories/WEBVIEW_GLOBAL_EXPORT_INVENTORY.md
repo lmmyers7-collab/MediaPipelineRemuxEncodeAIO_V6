@@ -10,9 +10,9 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 
 - **74 JS files** total in `assets/`
 - **34 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
-- **61 files** also export flat functions directly onto `window`
+- **60 files** also export flat functions directly onto `window`
 - **40 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.repair.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `pendingPublishView.repair.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
-- **Flat export total:** 812
+- **Flat export total:** 806
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
 - **All 32 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
 
@@ -71,9 +71,9 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `queueView.launch.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.review.js` | - | 1 | Generated from current `window.* =` assignments |
 | `queueView.summary.js` | - | 1 | Generated from current `window.* =` assignments |
-| `renameHistoryView.js` | mediaPipelineRenameHistoryView | 3 | Generated from current `window.* =` assignments |
+| `renameHistoryView.js` | mediaPipelineRenameHistoryView | 0 | Generated from current `window.* =` assignments |
 | `renameLabels.js` | mediaPipelineRenameLabels | 0 | Generated from current `window.* =` assignments |
-| `renameView.js` | mediaPipelineRenameView | 21 | Generated from current `window.* =` assignments |
+| `renameView.js` | mediaPipelineRenameView | 18 | Generated from current `window.* =` assignments |
 | `reportsView.js` | mediaPipelineReportsView | 0 | Generated from current `window.* =` assignments |
 | `scheduleView.js` | mediaPipelineScheduleView | 10 | Generated from current `window.* =` assignments |
 | `settingsCommandHistory.js` | mediaPipelineSettingsCommandHistory | 0 | Generated from current `window.* =` assignments |
@@ -235,7 +235,7 @@ Risk: Low — documentation only.
 
 Generated from `apps/desktop/webview/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
-Flat export total: 812
+Flat export total: 806
 
 <!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->
 ### apiClient.js
@@ -1310,11 +1310,8 @@ __queueSummaryModule
 
 Namespace objects: mediaPipelineRenameHistoryView
 
-Flat exports (3):
+Flat exports (0):
 ```text
-isRenameApplyCommand
-renameApplyHistoryLine
-renderRenameApplyHistory
 ```
 
 ### renameLabels.js
@@ -1329,7 +1326,7 @@ Flat exports (0):
 
 Namespace objects: mediaPipelineRenameView
 
-Flat exports (21):
+Flat exports (18):
 ```text
 refreshRenamePreview
 renderRenameBulkEditor
@@ -1349,9 +1346,6 @@ addRenamePathFromInput
 clearRenamePaths
 applyRenameSelectedOverride
 clearRenameSelectedOverride
-isRenameApplyCommand
-renameApplyHistoryLine
-renderRenameApplyHistory
 ```
 
 ### reportsView.js

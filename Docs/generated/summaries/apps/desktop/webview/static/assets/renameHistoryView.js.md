@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/renameHistoryView.js
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-02
+last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 966cd28916ad278b5dd0d6eb881e0effc35065382ce7511a8a947bca681b6a4a
+sha256: a8404f44d29a6e794c39c1dc11e8179686c4ea10f9ec8d188f064d138268e1d6
 ---
 # `apps/desktop/webview/static/assets/renameHistoryView.js`
 

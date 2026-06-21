@@ -5,9 +5,9 @@
   const renameConfidenceExplanation = renameLabels.renameConfidenceExplanation || function () { return "Confidence not reported by backend."; };
   const renameConfidenceLabel = renameLabels.renameConfidenceLabel || function () { return ""; };
   const renameHistoryView = window.mediaPipelineRenameHistoryView || {};
-  const isRenameApplyCommand = window.isRenameApplyCommand || renameHistoryView.isRenameApplyCommand || function () { return false; };
-  const renameApplyHistoryLine = window.renameApplyHistoryLine || renameHistoryView.renameApplyHistoryLine || function () { return ""; };
-  const renderRenameApplyHistory = window.renderRenameApplyHistory || renameHistoryView.renderRenameApplyHistory || function () {};
+  const isRenameApplyCommand = renameHistoryView.isRenameApplyCommand || function () { return false; };
+  const renameApplyHistoryLine = renameHistoryView.renameApplyHistoryLine || function () { return ""; };
+  const renderRenameApplyHistory = renameHistoryView.renderRenameApplyHistory || function () {};
   const RENAME_PREVIEW_RENDER_LIMIT = 250;
   const RENAME_CLEANING_FILTER_STORAGE_KEY = "mediapipeline.rename.cleaningFilters.v1";
   const RENAME_FILTER_CATALOG_ROUTE = "/api/rename/cleaning-filters";
@@ -2261,7 +2261,4 @@
   window.clearRenamePaths = clearRenamePaths;
   window.applyRenameSelectedOverride = applyRenameSelectedOverride;
   window.clearRenameSelectedOverride = clearRenameSelectedOverride;
-  window.isRenameApplyCommand = isRenameApplyCommand;
-  window.renameApplyHistoryLine = renameApplyHistoryLine;
-  window.renderRenameApplyHistory = renderRenameApplyHistory;
 })();

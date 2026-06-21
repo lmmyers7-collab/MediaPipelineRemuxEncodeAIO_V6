@@ -48,14 +48,11 @@
 
   /**
    * Public namespace for the rename history module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Prefer this namespace from new code; this module has no remaining flat window.* exports.
    */
   window.mediaPipelineRenameHistoryView = {
     isRenameApplyCommand,
     renameApplyHistoryLine,
     renderRenameApplyHistory,
   };
-  window.isRenameApplyCommand = isRenameApplyCommand;
-  window.renameApplyHistoryLine = renameApplyHistoryLine;
-  window.renderRenameApplyHistory = renderRenameApplyHistory;
 })();

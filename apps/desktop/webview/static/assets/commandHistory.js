@@ -1309,7 +1309,7 @@
     if (typeof renderCompletedPilotEvidencePacket === "function") renderCompletedPilotEvidencePacket(undefined, undefined, undefined, undefined, commandHistory);
     if (typeof renderPendingOpenHistory === "function") renderPendingOpenHistory(commandHistory);
     if (typeof renderDiagnosticsOpenHistory === "function") renderDiagnosticsOpenHistory(commandHistory);
-    if (typeof renderRenameApplyHistory === "function") renderRenameApplyHistory(commandHistory);
+    window.mediaPipelineRenameHistoryView?.renderRenameApplyHistory?.(commandHistory);
     if (typeof renderPipelineControlHistory === "function") renderPipelineControlHistory(commandHistory);
     window.mediaPipelineReportsView?.renderReportOpenHistory?.(commandHistory);
     window.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(commandHistory);

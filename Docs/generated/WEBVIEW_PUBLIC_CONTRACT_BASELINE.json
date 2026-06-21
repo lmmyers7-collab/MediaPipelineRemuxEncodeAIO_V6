@@ -1093,7 +1093,6 @@
       "isPipelineControlCommand",
       "isQueueLaunchCommand",
       "isQueueOpenCommand",
-      "isRenameApplyCommand",
       "launchBackendPreflightDetailLines",
       "launchBackendPreflightPayloadForTarget",
       "launchBackendPreflightRows",
@@ -1302,7 +1301,6 @@
       "refreshRenamePreview",
       "rejectPendingOpenWhileBusy",
       "rejectPendingRecoveryPlanWhileBusy",
-      "renameApplyHistoryLine",
       "renderActiveJobDetail",
       "renderActiveJobDiagnosticsActions",
       "renderActiveJobRows",
@@ -1405,7 +1403,6 @@
       "renderQueueSettingsBuilderGuidance",
       "renderQueueSummary",
       "renderQueueWorkflow",
-      "renderRenameApplyHistory",
       "renderRenameBulkEditor",
       "renderRenameFileSourceSummary",
       "renderRuntimeSettingsBuilderGuidance",
@@ -9545,11 +9542,7 @@
       "namespace_exports": [
         "mediaPipelineRenameHistoryView"
       ],
-      "flat_window_exports": [
-        "isRenameApplyCommand",
-        "renameApplyHistoryLine",
-        "renderRenameApplyHistory"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [],
       "event_types": []
@@ -10469,12 +10462,9 @@
         "clearRenameBulkOverrides",
         "clearRenamePaths",
         "clearRenameSelectedOverride",
-        "isRenameApplyCommand",
         "moveCheckedRenamePaths",
         "naturalSortRenamePaths",
         "refreshRenamePreview",
-        "renameApplyHistoryLine",
-        "renderRenameApplyHistory",
         "renderRenameBulkEditor",
         "renderRenameFileSourceSummary",
         "setRenameBulkForce",
