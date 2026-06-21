@@ -397,6 +397,105 @@ class RepairReconcileApplyTests(unittest.TestCase):
         self.assertEqual(len(commands["entries"]), 1)
         self.assertEqual(commands["entries"][0]["command"], "completed.repair_sidecar_metadata")
 
+    def test_local_api_pending_manifest_apply_is_journaled_without_draining_or_touching_media(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _pending_fixture(root, repairable_manifest=True)
+            manifest = files["pending_manifest"]
+            drain_summary = resolved.state_root / "Progress" / "pending_drain_summary.json"
+            drain_summary.parent.mkdir(parents=True, exist_ok=True)
+            drain_summary.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_drain_summary.v1",
+                        "status": "completed",
+                        "items": [
+                            {
+                                "status": "succeeded",
+                                "local_file": str(root / "OtherPending" / "AlreadyDrained.mkv"),
+                                "server_out": str(root / "Outsource" / "AlreadyDrained.mkv"),
+                            }
+                        ],
+                    },
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
+            source_before = _file_state(files["source"])
+            output_before = _file_state(files["output"])
+            payload_before = _file_state(files["pending_payload"])
+            manifest_before = _file_state(manifest)
+            drain_summary_before = _file_state(drain_summary)
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            row_key = next(row["row_key"] for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                dry_run_request = Request(
+                    f"{server.url}/api/pending-publish/repair-manifest-dry-run",
+                    data=json.dumps({"scope": "selected", "row_key": row_key, "reason": "normalize pending manifest"}).encode("utf-8"),
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(dry_run_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    dry_run_payload = json.loads(response.read().decode("utf-8"))
+                apply_request = Request(
+                    f"{server.url}/api/pending-publish/repair-manifest",
+                    data=json.dumps(_apply_request(dry_run_payload["data"], reason="normalize pending manifest only")).encode("utf-8"),
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(apply_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    apply_payload = json.loads(response.read().decode("utf-8"))
+                pending_request = Request(
+                    f"{server.url}/api/pending-publish",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(pending_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    pending_payload = json.loads(response.read().decode("utf-8"))
+                commands_request = Request(
+                    f"{server.url}/api/commands?limit=10",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(commands_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    commands = json.loads(response.read().decode("utf-8"))
+            finally:
+                server.stop()
+
+            repaired = json.loads(manifest.read_text(encoding="utf-8"))
+            backup_path = Path(apply_payload["data"]["backup_paths"][0])
+            self.assertTrue(dry_run_payload["ok"])
+            self.assertTrue(dry_run_payload["data"]["safe_to_apply"])
+            self.assertTrue(dry_run_payload["data"]["suppress_command_journal"])
+            self.assertTrue(apply_payload["ok"])
+            self.assertTrue(apply_payload["data"]["applied"])
+            self.assertEqual(apply_payload["data"]["candidate_command"], "pending_publish.repair_manifest")
+            self.assertEqual(apply_payload["data"]["written_paths"], [str(manifest)])
+            self.assertEqual(backup_path.name, manifest.name)
+            self.assertTrue(backup_path.exists())
+            self.assertNotEqual(_file_state(manifest), manifest_before)
+            PendingPushManifest.from_mapping(repaired)
+            self.assertEqual(repaired["local_file"], str(files["pending_payload"]))
+            self.assertEqual(repaired["server_out"], str(files["output"]))
+            self.assertEqual(repaired["source_path"], str(files["source"]))
+            self.assertEqual(repaired["output_size"], files["pending_payload"].stat().st_size)
+            self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertEqual(_file_state(files["output"]), output_before)
+            self.assertEqual(_file_state(files["pending_payload"]), payload_before)
+            self.assertEqual(_file_state(drain_summary), drain_summary_before)
+            self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
+            self.assertEqual(len(commands["entries"]), 1)
+            self.assertEqual(commands["entries"][0]["command"], "pending_publish.repair_manifest")
+            self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
+            pending_row = pending_payload["rows"][0]
+            self.assertEqual(pending_row["state"], "parked")
+            self.assertEqual(pending_row["diagnostic_status"], "ready")
+            self.assertTrue(pending_row["ready_to_drain"])
+            self.assertEqual(pending_row["drain_recommendation"], "ready_to_drain")
+            self.assertTrue(pending_payload["drain_summary"]["exists"])
+            self.assertEqual(pending_payload["drain_summary"]["path"], str(drain_summary))
+
     def test_local_api_orphan_apply_is_journaled_without_draining_or_touching_media(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
