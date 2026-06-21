@@ -77,9 +77,8 @@ function Resolve-MediaRouteResolutionBitrateSelection {
     if ($TVRouteMaxVideoBitrateMbps -le 0) { $TVRouteMaxVideoBitrateMbps = 18.0 }
 
     if ($VideoHeight -le 0) {
-        $unknownHeightCapMbps = if ($IsTV) { [double]$TVRouteMaxVideoBitrateMbps } else { [double]$MovieRouteMaxVideoBitrateMbps }
         return [pscustomobject]([ordered]@{
-            CapMbps                  = [double]$unknownHeightCapMbps
+            CapMbps                  = [double]$Route1080pMaxVideoBitrateMbps
             Source                   = 'unknown_height_1080p_bucket'
             Bucket                   = '1080p'
             Height                   = [int]$VideoHeight
