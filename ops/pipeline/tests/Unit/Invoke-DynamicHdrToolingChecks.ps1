@@ -232,6 +232,69 @@ try {
     Assert-Equal $mp4Decision.action 'prefer_remux' 'Non-MKV Dynamic HDR preserve_or_remux decision should prefer remux.'
     Assert-Equal $mp4Decision.reason_code 'dynamic_hdr_output_container_unsupported' 'Non-MKV decision reason code mismatch.'
 
+    $script:DynamicHdrMkvmergeJson = ''
+    $script:DynamicHdrMkvmergeExitCode = 0
+    $script:DynamicHdrMkvmergeError = ''
+    $script:DynamicHdrMkvmergeReproPath = ''
+    $script:DynamicHdrMkvmergeInvocations = @()
+    function Invoke-MkvmergeCommand {
+        param(
+            [array] $ArgumentList,
+            [int] $TimeoutSeconds = 0,
+            [string] $Stage = '',
+            [switch] $SaveReproOnFailure
+        )
+
+        $script:DynamicHdrMkvmergeInvocations = @($script:DynamicHdrMkvmergeInvocations) + @([pscustomobject][ordered]@{
+            ArgumentList = @($ArgumentList)
+            TimeoutSeconds = $TimeoutSeconds
+            Stage = $Stage
+            SaveReproOnFailure = [bool]$SaveReproOnFailure
+        })
+        return @{
+            ExitCode = $script:DynamicHdrMkvmergeExitCode
+            Output = $script:DynamicHdrMkvmergeJson
+            Stdout = $script:DynamicHdrMkvmergeJson
+            Error = $script:DynamicHdrMkvmergeError
+            Stderr = $script:DynamicHdrMkvmergeError
+            ReproPath = $script:DynamicHdrMkvmergeReproPath
+        }
+    }
+
+    $script:DynamicHdrMkvmergeJson = '{"tracks":[{"id":0,"type":"video","properties":{"number":1,"codec_id":"V_MPEGH/ISO/HEVC","codec":"HEVC/H.265/MPEG-H","language":"und","track_name":"Main"}},{"id":1,"type":"audio","properties":{"number":2}}]}'
+    $singleTrack = Resolve-DynamicHdrMkvVideoTrackId -SourceFile 'source.mkv' -FfprobeVideoStreamIndex 0 -TimeoutSeconds 12
+    Assert-True ([bool]$singleTrack.ok) 'Single MKV video track should resolve successfully.'
+    Assert-Equal ([int]$singleTrack.track_id) 0 'Single MKV video track id mismatch.'
+    Assert-Equal ([int]$singleTrack.candidates[0].ffprobe_stream_index) 0 'MKV video track number should map to ffprobe stream index.'
+    Assert-Equal ((@($script:DynamicHdrMkvmergeInvocations[-1].ArgumentList) -join '|')) '-J|source.mkv' 'MKV video track resolver should identify the requested source file.'
+    Assert-Equal ([string]$script:DynamicHdrMkvmergeInvocations[-1].Stage) 'dynamic-hdr-mkv-video-identify' 'MKV video track resolver stage mismatch.'
+    Assert-True ([bool]$script:DynamicHdrMkvmergeInvocations[-1].SaveReproOnFailure) 'MKV video track resolver should request repro evidence on mkvmerge failure.'
+
+    $script:DynamicHdrMkvmergeJson = '{"tracks":[{"id":3,"type":"video","properties":{"number":1,"codec_id":"V_MPEGH/ISO/HEVC"}},{"id":4,"type":"video","properties":{"number":2,"codec_id":"V_MPEGH/ISO/HEVC"}}]}'
+    $matchedTrack = Resolve-DynamicHdrMkvVideoTrackId -SourceFile 'multi.mkv' -FfprobeVideoStreamIndex 1
+    Assert-True ([bool]$matchedTrack.ok) 'Resolver should use ffprobe stream index when multiple MKV video tracks exist.'
+    Assert-Equal ([int]$matchedTrack.track_id) 4 'Resolver chose the wrong MKV video track id for ffprobe stream index 1.'
+
+    $ambiguousTrack = Resolve-DynamicHdrMkvVideoTrackId -SourceFile 'multi.mkv'
+    Assert-True (-not [bool]$ambiguousTrack.ok) 'Multiple MKV video tracks without ffprobe index must fail closed.'
+    Assert-Equal $ambiguousTrack.error_code 'DYNAMIC_HDR_VIDEO_TRACK_UNRESOLVED' 'Ambiguous MKV video track error code mismatch.'
+
+    $unmatchedTrack = Resolve-DynamicHdrMkvVideoTrackId -SourceFile 'multi.mkv' -FfprobeVideoStreamIndex 9
+    Assert-True (-not [bool]$unmatchedTrack.ok) 'Missing ffprobe-to-mkvmerge video track match must fail closed.'
+    Assert-True ([string]$unmatchedTrack.reason -match 'ffprobe video stream 9') 'Unmatched MKV video track reason should name the ffprobe index.'
+
+    $script:DynamicHdrMkvmergeExitCode = 2
+    $script:DynamicHdrMkvmergeError = 'mkvmerge identify failed'
+    $script:DynamicHdrMkvmergeReproPath = 'repro-dynamic-hdr.cmd'
+    $failedTrack = Resolve-DynamicHdrMkvVideoTrackId -SourceFile 'bad.mkv'
+    Assert-True (-not [bool]$failedTrack.ok) 'mkvmerge identify failure must fail closed.'
+    Assert-Equal $failedTrack.error_code 'DYNAMIC_HDR_VIDEO_TRACK_UNRESOLVED' 'mkvmerge identify failure error code mismatch.'
+    Assert-Equal $failedTrack.error_text 'mkvmerge identify failed' 'mkvmerge identify failure should preserve error text.'
+    Assert-Equal $failedTrack.repro_path 'repro-dynamic-hdr.cmd' 'mkvmerge identify failure should preserve repro path evidence.'
+    $script:DynamicHdrMkvmergeExitCode = 0
+    $script:DynamicHdrMkvmergeError = ''
+    $script:DynamicHdrMkvmergeReproPath = ''
+
     $noMetadataExtractionPlan = New-DynamicHdrMetadataExtractionPlan `
         -ScratchPath 'source.mkv' `
         -WorkDir 'work' `
