@@ -23,9 +23,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1810,
-    "js_touched_ids": 561,
-    "ids_present_in_index": 529,
+    "html_ids": 1816,
+    "js_touched_ids": 562,
+    "ids_present_in_index": 530,
     "ids_missing_from_index": 32,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 32
@@ -474,6 +474,7 @@
     "settings-builder-quality-enable",
     "settings-builder-quality-fail-action",
     "settings-effective-policy-rows",
+    "settings-encoder-capability-rows",
     "settings-filter",
     "settings-handbrake-active-preset",
     "settings-launch-impact-rows",
@@ -1446,7 +1447,9 @@
     {
       "src": "/assets/settingsView.builders.video.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.video.js",
-      "dom_ids_touched": [],
+      "dom_ids_touched": [
+        "settings-encoder-capability-rows"
+      ],
       "missing_from_index": []
     },
     {

@@ -106,16 +106,18 @@ def _browser_telemetry_runner_source() -> str:
                 throw new Error("GPU Details overflow was not contained at " + width + "px");
               }
             }
-            function requireFunction(name) {
-              if (typeof window[name] !== "function") throw new Error("missing global function " + name);
+            function requireTelemetryFunction(name) {
+              if (typeof window.mediaPipelineTelemetryView?.[name] !== "function") {
+                throw new Error("missing telemetry namespace function " + name);
+              }
             }
+            if (typeof window.showPage !== "function") throw new Error("missing global function showPage");
             [
-              "showPage",
               "renderTelemetry",
               "telemetryVisibleGpuRows",
               "telemetryReadinessLines",
               "telemetryReadinessStatus",
-            ].forEach(requireFunction);
+            ].forEach(requireTelemetryFunction);
             if (typeof window.mediaPipelineTelemetryView.telemetryOperatingState !== "function") {
               throw new Error("missing telemetryOperatingState namespace export");
             }

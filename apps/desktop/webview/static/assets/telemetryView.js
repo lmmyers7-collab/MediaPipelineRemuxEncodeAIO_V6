@@ -1010,7 +1010,7 @@
 
   /**
    * Public namespace for the Telemetry page module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases.
+   * Prefer this namespace from new code; flat window.* exports are not required for telemetry callers.
    */
   const telemetryNamespace = {
     renderTelemetry,
@@ -1046,9 +1046,4 @@
   };
 
   window.mediaPipelineTelemetryView = telemetryNamespace;
-  window.renderTelemetry = renderTelemetry;
-  window.renderGpuRows = renderGpuRows;
-  window.telemetryVisibleGpuRows = telemetryVisibleGpuRows;
-  window.telemetryReadinessLines = telemetryReadinessLines;
-  window.telemetryReadinessStatus = telemetryReadinessStatus;
 })();

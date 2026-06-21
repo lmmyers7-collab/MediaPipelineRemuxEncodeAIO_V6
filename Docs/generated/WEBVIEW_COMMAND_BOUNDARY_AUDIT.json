@@ -5626,7 +5626,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2046,
+      "line": 2053,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5643,7 +5643,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 704,
+      "line": 710,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5660,7 +5660,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1704,
+      "line": 1711,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5677,7 +5677,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 756,
+      "line": 762,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5694,7 +5694,7 @@
       "normalized_route": "/api/settings/reload",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1972,
+      "line": 1979,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5711,7 +5711,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1889,
+      "line": 1896,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5728,7 +5728,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 828,
+      "line": 834,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5745,7 +5745,7 @@
       "normalized_route": "/api/settings/validate",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1254,
+      "line": 1261,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5762,7 +5762,7 @@
       "normalized_route": "/api/settings/wizard/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 988,
+      "line": 1012,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -5779,7 +5779,7 @@
       "normalized_route": "/api/settings/wizard/probe-hardware",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 917,
+      "line": 936,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -5796,7 +5796,7 @@
       "normalized_route": "/api/settings/wizard/save",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 1018,
+      "line": 1042,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -5813,7 +5813,7 @@
       "normalized_route": "/api/settings/wizard/validate-paths",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 882,
+      "line": 901,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -5830,7 +5830,7 @@
       "normalized_route": "/api/settings/wizard/validate-tools",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 898,
+      "line": 917,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
@@ -5847,7 +5847,7 @@
       "normalized_route": "/api/settings/wizard/validate-workers",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsWizard.js",
-      "line": 935,
+      "line": 959,
       "script_owner": "Settings Wizard",
       "allowed_owners": [
         "Settings",
