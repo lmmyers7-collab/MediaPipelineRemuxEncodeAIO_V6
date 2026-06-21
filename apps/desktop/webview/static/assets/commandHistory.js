@@ -1300,7 +1300,7 @@
     if (typeof renderPendingDrainDecisionChecklist === "function") renderPendingDrainDecisionChecklist(undefined, undefined, undefined, commandHistory);
     if (typeof renderPendingDrainGuard === "function") renderPendingDrainGuard(undefined, undefined, undefined, commandHistory);
     if (typeof renderMaintenanceDryRunHistory === "function") renderMaintenanceDryRunHistory(commandHistory);
-    if (typeof renderSettingsCommandHistory === "function") renderSettingsCommandHistory(commandHistory);
+    window.mediaPipelineSettingsCommandHistory?.renderSettingsCommandHistory?.(commandHistory);
     if (typeof renderQueueOpenHistory === "function") renderQueueOpenHistory(commandHistory);
     if (typeof renderQueueLaunchDecisionChecklist === "function") renderQueueLaunchDecisionChecklist(undefined, undefined, commandHistory);
     if (typeof renderCompletedOpenHistory === "function") renderCompletedOpenHistory(commandHistory);

@@ -1097,7 +1097,6 @@
       "isQueueLaunchCommand",
       "isQueueOpenCommand",
       "isRenameApplyCommand",
-      "isSettingsCommand",
       "launchBackendPreflightDetailLines",
       "launchBackendPreflightPayloadForTarget",
       "launchBackendPreflightRows",
@@ -1421,7 +1420,6 @@
       "renderScheduleTimingTrust",
       "renderSettings",
       "renderSettingsBdpgsOcrPathEvidence",
-      "renderSettingsCommandHistory",
       "renderSettingsMediaPolicyCrossCheck",
       "renderSettingsOperatorTrust",
       "renderSettingsOverview",
@@ -1550,7 +1548,6 @@
       "settingsBdpgsOcrPathEvidenceLines",
       "settingsBdpgsOcrPathEvidenceStatus",
       "settingsBuilderCoveredKeys",
-      "settingsCommandHistoryLine",
       "settingsLaunchImpactRows",
       "settingsLaunchImpactStatus",
       "settingsOperatorTrustStatus",
@@ -10718,11 +10715,7 @@
       "namespace_exports": [
         "mediaPipelineSettingsCommandHistory"
       ],
-      "flat_window_exports": [
-        "isSettingsCommand",
-        "renderSettingsCommandHistory",
-        "settingsCommandHistoryLine"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [],
       "event_types": []
@@ -12949,7 +12942,6 @@
         "configValue",
         "getLastSettings",
         "initSettingsViewEvents",
-        "isSettingsCommand",
         "markAudioSettingsBuilderDirty",
         "markFileSafetySettingsBuilderDirty",
         "markFinalLibraryPromotionSettingsBuilderDirty",
@@ -12971,7 +12963,6 @@
         "renderRuntimeSettingsBuilderGuidance",
         "renderSettings",
         "renderSettingsBdpgsOcrPathEvidence",
-        "renderSettingsCommandHistory",
         "renderSettingsMediaPolicyCrossCheck",
         "renderSettingsOverview",
         "renderSettingsRawActionPlan",
@@ -12987,7 +12978,6 @@
         "settingsBdpgsOcrPathEvidenceLines",
         "settingsBdpgsOcrPathEvidenceStatus",
         "settingsBuilderCoveredKeys",
-        "settingsCommandHistoryLine",
         "settingsLaunchImpactRows",
         "settingsLaunchImpactStatus",
         "settingsPatchEffectiveChangedEntries",

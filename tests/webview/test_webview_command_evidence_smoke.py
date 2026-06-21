@@ -437,6 +437,9 @@ def _node_runner_source() -> str:
             throw new Error(`missing exported function ${name}; related=${related.join(",")}`);
           }
         });
+        if (typeof context.mediaPipelineSettingsCommandHistory?.renderSettingsCommandHistory !== "function") {
+          throw new Error("missing settings command history namespace renderer");
+        }
 
         context.renderCommandHistoryPayload({ entries: payload.entries });
         const renderedHistory = context.getCommandHistory();
@@ -450,11 +453,11 @@ def _node_runner_source() -> str:
           "renderMaintenanceDryRunHistory",
           "renderPipelineControlHistory",
           "renderRenameApplyHistory",
-          "renderSettingsCommandHistory",
           "renderLaunchCommandHistory",
         ].forEach((name) => {
           if (typeof context[name] === "function") context[name](renderedHistory);
         });
+        context.mediaPipelineSettingsCommandHistory.renderSettingsCommandHistory(renderedHistory);
         context.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(renderedHistory);
         context.mediaPipelineReportsView?.renderReportOpenHistory?.(renderedHistory);
         context.renderBackendLifecycleHistory(renderedHistory);

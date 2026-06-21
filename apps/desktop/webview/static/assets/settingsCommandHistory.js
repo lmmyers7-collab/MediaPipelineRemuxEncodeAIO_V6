@@ -88,7 +88,8 @@
 
   /**
    * Public namespace for the settings command-history module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Settings command-history helpers are exposed here; callers should use this
+   * namespace because this module no longer publishes flat window.* exports.
    */
   window.mediaPipelineSettingsCommandHistory = {
     isSettingsCommand,
@@ -97,7 +98,4 @@
     settingsCommandHistoryLine,
     renderSettingsCommandHistory,
   };
-  window.isSettingsCommand = isSettingsCommand;
-  window.settingsCommandHistoryLine = settingsCommandHistoryLine;
-  window.renderSettingsCommandHistory = renderSettingsCommandHistory;
 })();

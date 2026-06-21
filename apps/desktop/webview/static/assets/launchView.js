@@ -274,7 +274,7 @@
       queueFilterScopeDetailLines: typeof window.queueFilterScopeDetailLines === "function" ? window.queueFilterScopeDetailLines : (typeof queueFilterScopeDetailLines === "function" ? queueFilterScopeDetailLines : null),
       scheduleDisplayValue: typeof scheduleDisplayValue === "function" ? scheduleDisplayValue : window.scheduleDisplayValue,
       setText: typeof setText === "function" ? setText : window.setText,
-      settingsCommandHistoryLine: typeof window.settingsCommandHistoryLine === "function" ? window.settingsCommandHistoryLine : (typeof settingsCommandHistoryLine === "function" ? settingsCommandHistoryLine : null),
+      settingsCommandHistoryLine: typeof window.mediaPipelineSettingsCommandHistory?.settingsCommandHistoryLine === "function" ? window.mediaPipelineSettingsCommandHistory.settingsCommandHistoryLine : null,
       settingsLaunchImpactRows: typeof window.settingsLaunchImpactRows === "function" ? window.settingsLaunchImpactRows : (typeof settingsLaunchImpactRows === "function" ? settingsLaunchImpactRows : null),
       settingsLaunchImpactStatus: typeof window.settingsLaunchImpactStatus === "function" ? window.settingsLaunchImpactStatus : (typeof settingsLaunchImpactStatus === "function" ? settingsLaunchImpactStatus : null),
       settingsOperatorTrustStatus: typeof window.settingsOperatorTrustStatus === "function" ? window.settingsOperatorTrustStatus : (typeof settingsOperatorTrustStatus === "function" ? settingsOperatorTrustStatus : null),
