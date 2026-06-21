@@ -454,12 +454,23 @@ Assert-Throws {
     New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc'; IsHDR = $true } | Out-Null
 } 'H.264/NVENC active descriptor path must fail closed for HDR sources until HDR preservation is proven.'
 
+$h264CpuFallbackPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc'; UseCpuFallback = $true; CpuMaxThreads = 8 }
+Assert-Equal ([string]$h264CpuFallbackPlan.SelectedEncoder) 'libx264' 'H.264/NVENC CPU fallback should use the H.264 CPU descriptor encoder.'
+Assert-Equal ([bool]$h264CpuFallbackPlan.DescriptorSelection.Resolved) $true 'H.264/NVENC CPU fallback descriptor selection should resolve.'
+Assert-Equal ([bool]$h264CpuFallbackPlan.DescriptorSelection.Active) $true 'H.264/NVENC CPU fallback descriptor selection should be active.'
+Assert-Equal ([string]$h264CpuFallbackPlan.DescriptorSelection.Role) 'cpu_fallback' 'H.264/NVENC CPU fallback descriptor role mismatch.'
+Assert-Equal ([string]$h264CpuFallbackPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'H.264/NVENC CPU fallback descriptor backend mismatch.'
+Assert-Equal (@($h264CpuFallbackPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'H.264/NVENC CPU fallback command topology mismatch.'
+
 $hevcHdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'hevc_nvenc' -IsHDR:$true
 Assert-Equal ([bool]$hevcHdrReadiness.ok) $true 'HEVC/NVENC HDR should be active for descriptor-owned primary flags.'
 Assert-Equal ([string]$hevcHdrReadiness.descriptor_encoder) 'hevc_nvenc' 'HEVC/NVENC readiness descriptor mismatch.'
 $h264SdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc'
 Assert-Equal ([bool]$h264SdrReadiness.ok) $true 'H.264/NVENC SDR should be active for descriptor-owned primary flags.'
 Assert-Equal ([string]$h264SdrReadiness.family) 'h264' 'H.264/NVENC readiness family mismatch.'
+$h264FallbackReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc' -UseCpuFallback:$true
+Assert-Equal ([bool]$h264FallbackReadiness.ok) $true 'H.264/NVENC CPU fallback should be active for descriptor-owned fallback flags.'
+Assert-Equal ([string]$h264FallbackReadiness.descriptor_encoder) 'libx264' 'H.264/NVENC CPU fallback readiness descriptor mismatch.'
 $h264HdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc' -IsHDR:$true
 Assert-Equal ([bool]$h264HdrReadiness.ok) $false 'H.264/NVENC HDR should fail closed before FFmpeg plan construction.'
 Assert-Equal ([string]$h264HdrReadiness.error_code) 'ENCODE_ENCODER_HDR_UNSUPPORTED' 'H.264/NVENC HDR readiness error code mismatch.'
@@ -565,7 +576,12 @@ Assert-True ($null -ne $h264CpuDescriptor) 'Dormant H.264/CPU descriptor must ex
 Assert-Equal ([string]$h264CpuDescriptor.EncoderName) 'libx264' 'H.264/CPU descriptor encoder mismatch.'
 Assert-Equal ([string]$h264CpuDescriptor.RateControlKind) 'x264_crf' 'H.264/CPU descriptor rate-control mismatch.'
 Assert-Equal ([bool]$h264CpuDescriptor.UsesVbv) $false 'H.264/CPU descriptor must use CRF without VBV.'
-Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libx264' -UseCpuFallback:$true)) 'H.264/CPU must keep the legacy CPU branch until activation work.'
+$h264FallbackFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'h264_nvenc' -UseCpuFallback:$true
+Assert-True ($null -ne $h264FallbackFlagsDescriptor) 'H.264/NVENC CPU fallback flags should now be descriptor-owned.'
+Assert-Equal ([string]$h264FallbackFlagsDescriptor.EncoderName) 'libx264' 'H.264/NVENC CPU fallback active flags descriptor mismatch.'
+$libx264FallbackFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libx264' -UseCpuFallback:$true
+Assert-True ($null -ne $libx264FallbackFlagsDescriptor) 'Literal libx264 CPU fallback flags should be descriptor-owned when called as a fallback.'
+Assert-Equal ([string]$libx264FallbackFlagsDescriptor.EncoderName) 'libx264' 'Literal libx264 CPU fallback descriptor mismatch.'
 Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'h264_amf') 'h264' 'Family resolver should map H.264 AMF.'
 Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'libx264') 'h264' 'Family resolver should map libx264.'
 

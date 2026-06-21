@@ -2,9 +2,10 @@
 # ops\pipeline\engine\decide\encoder_descriptors.ps1
 # ==============================================================================
 # Data-first encoder descriptors. The active resolver intentionally routes only
-# the existing HEVC/NVENC primary path and libx265 CPU fallback path through the
-# descriptor builder. Dormant descriptors may describe future supported pairs
-# before route selection is allowed to activate them.
+# the existing HEVC/NVENC path, libx265 CPU fallback, and H.264/NVENC primary
+# plus libx264 fallback paths through the descriptor builder. Dormant
+# descriptors may describe future supported pairs before route selection is
+# allowed to activate them.
 # ==============================================================================
 
 function Get-MediaEncoderDescriptor {
@@ -304,6 +305,9 @@ function Resolve-MediaEncoderDescriptorForFlags {
     if ($UseCpuFallback) {
         if ($codec -in @('hevc_nvenc', $libx265Name)) {
             return Get-MediaEncoderDescriptor -Family 'hevc' -Backend 'cpu'
+        }
+        if ($codec -in @('h264_nvenc', 'libx264')) {
+            return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'cpu'
         }
         return $null
     }

@@ -782,12 +782,15 @@ function Do-Encode {
         # unavailable (set by Invalidate-NvencAvailableProbe after an
         # earlier runtime NVENC failure), skip the primary AND safe-retry
         # attempts entirely. Saves ~10–60 s per file on a no-GPU machine.
+        $cpuFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec ([string]$VideoCodec) -IsHDR:$isHDR
+        $cpuFallbackEncoderName = if ([bool]$cpuFallbackTarget.Resolved) { [string]$cpuFallbackTarget.EncoderName } else { Get-MediaVideoCodecLibx265Name }
         $skipGpuDueToProbe = if ($dynamicHdrForceCpuEncode) { $true } else { -not (Test-NvencProbeReportsAvailable) }
         if ($dynamicHdrForceCpuEncode) {
+            $cpuFallbackEncoderName = Get-MediaVideoCodecLibx265Name
             Write-Log "ENCODE: Dynamic HDR preservation requires CPU/libx265; skipping GPU-first ladder" "WARN"
             Write-PipelineEvent -EventType 'encoder_fallback_started' -Stage 'encode_cpu' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
                 from_encoder = [string]$VideoCodec
-                to_encoder   = (Get-MediaVideoCodecLibx265Name)
+                to_encoder   = $cpuFallbackEncoderName
                 reason       = [string]$script:CurrentDynamicHdrEvidence.policy_reason
                 trigger      = 'dynamic_hdr_preserve_encode'
                 cpu_preset   = [string]$script:CpuEncodePreset
@@ -798,7 +801,7 @@ function Do-Encode {
             Write-Log "ENCODE: NVENC unavailable per cached probe ($probeReason); skipping GPU-first ladder and going straight to CPU" "WARN"
             Write-PipelineEvent -EventType 'encoder_fallback_started' -Stage 'encode_cpu' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
                 from_encoder = 'cached_unavailable'
-                to_encoder   = (Get-MediaVideoCodecLibx265Name)
+                to_encoder   = $cpuFallbackEncoderName
                 reason       = $probeReason
                 trigger      = 'nvenc_probe_unavailable'
                 cpu_preset   = [string]$script:CpuEncodePreset
@@ -993,14 +996,14 @@ function Do-Encode {
                 if ($dynamicHdrForceCpuEncode) {
                     Write-Log "ENCODE: Dynamic HDR preservation continuing with $(Get-MediaVideoCodecLibx265Name) (CRF $($script:FallbackCpuQuality), preset $script:CpuEncodePreset, timeout $($script:FFmpegCpuEncodeTimeoutSeconds)s, priority $script:CpuEncodeProcessPriority)" "WARN"
                 } else {
-                    Write-Log "ENCODE: compatibility retry also failed - falling back to $(Get-MediaVideoCodecLibx265Name) (CRF $($script:FallbackCpuQuality), preset $script:CpuEncodePreset, timeout $($script:FFmpegCpuEncodeTimeoutSeconds)s, priority $script:CpuEncodeProcessPriority)" "WARN"
+                    Write-Log "ENCODE: compatibility retry also failed - falling back to $cpuFallbackEncoderName (CRF $($script:FallbackCpuQuality), preset $script:CpuEncodePreset, timeout $($script:FFmpegCpuEncodeTimeoutSeconds)s, priority $script:CpuEncodeProcessPriority)" "WARN"
                 }
                 # Emit a structured event so the desktop diagnostics drawer
                 # and the Live tab can light up a CPU-fallback indicator
                 # instead of the operator only seeing a log line.
                 Write-PipelineEvent -EventType 'encoder_fallback_started' -Stage 'encode_cpu' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
                     from_encoder         = [string]$VideoCodec
-                    to_encoder           = (Get-MediaVideoCodecLibx265Name)
+                    to_encoder           = $cpuFallbackEncoderName
                     cpu_preset           = [string]$script:CpuEncodePreset
                     cpu_quality_crf      = [int]$script:FallbackCpuQuality
                     cpu_timeout_seconds  = [int]$script:FFmpegCpuEncodeTimeoutSeconds
@@ -1013,14 +1016,14 @@ function Do-Encode {
                 }
                 $tempOut    = Join-Path $script:processingDir "encode_temp_cpu_$([guid]::NewGuid().ToString('N')).$OutputContainer"
                 # F-new-1 — re-validate scratch space with the CPU-aware
-                # multiplier *before* the (potentially multi-hour) libx265
+                # multiplier *before* the (potentially multi-hour) CPU
                 # run. The original pre-flight at the top of Do-Encode used
                 # the default 0.7x NVENC ratio, which can green-light an
                 # encode that would actually fill the scratch volume at
-                # 95% with libx265 output.
+                # 95% with CPU encoder output.
                 if (-not (Test-EstimatedOutputSpace -SourcePath $localIn -Label "ENCODE-CPU" -IsCpuEncode)) {
-                    Write-Log "ENCODE-CPU: insufficient scratch space for CPU-fallback encode — aborting before libx265 starts" "ERROR"
-                    Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason 'Insufficient scratch space for CPU-fallback encode' -Stage 'encode' -ErrorCode 'ENCODE_CPU_INSUFFICIENT_SPACE' -SuggestedAction 'Free additional space on the scratch volume or lower CpuEncodePreset/FallbackCpuQuality before retrying. CPU encodes need 1:1 source-size headroom because libx265 output is typically larger than NVENC.' | Out-Null
+                    Write-Log "ENCODE-CPU: insufficient scratch space for CPU-fallback encode — aborting before $cpuFallbackEncoderName starts" "ERROR"
+                    Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason 'Insufficient scratch space for CPU-fallback encode' -Stage 'encode' -ErrorCode 'ENCODE_CPU_INSUFFICIENT_SPACE' -SuggestedAction 'Free additional space on the scratch volume or lower CpuEncodePreset/FallbackCpuQuality before retrying. CPU encodes need 1:1 source-size headroom because software encoder output can be larger than NVENC.' | Out-Null
                     $localIn = $null
                     return $false
                 }
@@ -1049,6 +1052,7 @@ function Do-Encode {
                     -DolbyVisionTargetProfile $dynamicHdrDolbyVisionTargetProfile `
                     -Hdr10PlusJsonPath $dynamicHdrHdr10PlusJsonPath
                 $ffArgs     = @($encodePlan.ArgumentList)
+                $cpuFallbackEncoderName = [string]$encodePlan.SelectedEncoder
                 # Differentiate the GUI status string. app/status/service.py renders
                 # `encode_cpu` with its own label, but the user-facing status
                 # text (currentStatus) is also surfaced verbatim in the live
@@ -1056,7 +1060,7 @@ function Do-Encode {
                 # operator immediately knows this is a multi-hour CPU run.
                 $cpuStatusText = if ($isTV) { "Encoding TV (CPU fallback)" } else { "Encoding Movie (CPU fallback)" }
                 # F-new-4 — serialize CPU encodes machine-wide. If another
-                # pipeline process on this box is already running libx265,
+                # pipeline process on this box is already running a CPU encoder,
                 # show the operator that we're queued behind it instead of
                 # silently double-saturating the cores.
                 $cpuMutexLock = Acquire-CpuEncodeMutex -TimeoutSeconds 0
@@ -1079,7 +1083,7 @@ function Do-Encode {
                 $script:pipelineStatus = $cpuStatusText
                 try {
                     # CPU encodes get their own (typically larger) timeout
-                    # so a slow libx265 run is not killed at the 6-hour
+                    # so a slow software encode is not killed at the 6-hour
                     # GPU ceiling.
                     $success    = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegCpuEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -CpuEncode -ProcessPriority $script:CpuEncodeProcessPriority -WorkingDirectory $dynamicHdrWorkingDirectory
                 } finally {
@@ -1128,7 +1132,7 @@ function Do-Encode {
                     # of inferring it from a later tool_completed.
                     Write-PipelineEvent -EventType 'encoder_fallback_completed' -Stage 'encode_cpu' -Route 'encode-cpu-fallback' -Status 'succeeded' -SourcePath $file.FullName -Data @{
                         from_encoder    = [string]$VideoCodec
-                        to_encoder      = (Get-MediaVideoCodecLibx265Name)
+                        to_encoder      = $cpuFallbackEncoderName
                         cpu_preset      = [string]$encodePlan.CpuPreset
                         cpu_quality_crf = [int]$script:FallbackCpuQuality
                         dynamic_hdr     = [bool]$dynamicHdrForceCpuEncode
@@ -1152,8 +1156,9 @@ function Do-Encode {
                 default { 'FFmpeg encode failed' }
             }
             $reason = if ($ffmpegErrorSummary) { "${reasonPrefix}: $ffmpegErrorSummary" } else { $reasonPrefix }
+            $failedCpuEncoder = if ($encodePlan -and $encodePlan.PSObject.Properties['SelectedEncoder']) { [string]$encodePlan.SelectedEncoder } else { $cpuFallbackEncoderName }
             $suggestedAction = if ($failedEncoderKind -eq 'cpu') {
-                "Inspect FFmpeg stderr log $($script:LastFFmpegErrorLog) and repro command $reproPath. The libx265 CPU fallback failed, so re-tuning NVENC will not help; check for source corruption, libx265 OOM (lower the preset or quality), or an x265 build issue."
+                "Inspect FFmpeg stderr log $($script:LastFFmpegErrorLog) and repro command $reproPath. The $failedCpuEncoder CPU fallback failed, so re-tuning NVENC will not help; check for source corruption, encoder OOM (lower the preset or quality), or a software encoder build issue."
             } else {
                 "Inspect FFmpeg stderr log $($script:LastFFmpegErrorLog) and repro command $reproPath. If NVENC was unstable, compare against the CPU fallback behavior."
             }
@@ -1173,7 +1178,7 @@ function Do-Encode {
                 }
                 Write-PipelineEvent -EventType 'encoder_fallback_completed' -Stage 'encode_cpu' -Route 'encode-cpu-fallback' -Status 'failed' -SourcePath $file.FullName -Data @{
                     from_encoder    = [string]$VideoCodec
-                    to_encoder      = (Get-MediaVideoCodecLibx265Name)
+                    to_encoder      = $failedCpuEncoder
                     cpu_preset      = if ($encodePlan -and $encodePlan.PSObject.Properties['CpuPreset']) { [string]$encodePlan.CpuPreset } else { '' }
                     cpu_quality_crf = [int]$script:FallbackCpuQuality
                     error_code      = [string]$errorCode
