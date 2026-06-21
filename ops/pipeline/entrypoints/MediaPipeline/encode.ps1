@@ -394,6 +394,12 @@ function Do-Encode {
     $script:LastRemuxFallbackRejection = $null
     $script:LastQualityVerification = $null
     $script:CurrentDynamicHdrEvidence = $null
+    $dynamicHdrForceCpuEncode = $false
+    $dynamicHdrWorkingDirectory = ''
+    $dynamicHdrTempFiles = @()
+    $dynamicHdrDolbyVisionRpuPath = ''
+    $dynamicHdrDolbyVisionTargetProfile = ''
+    $dynamicHdrHdr10PlusJsonPath = ''
 
     try {
         Set-ProgressStage -Stage 'copy_to_scratch' -Status $script:pipelineStatus -Route 'encode' -CopyState 'starting' -Percent $null -SaveNow
@@ -489,31 +495,120 @@ function Do-Encode {
                 $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'recommended_route' -NotePropertyValue ([string]$dynamicHdrEncodeDecision.recommended_route) -Force
 
                 if ([string]$dynamicHdrEncodeDecision.action -eq 'preserve_encode') {
-                    $notReadyReason = 'Dynamic HDR encode preservation was selected, but Do-Encode extraction/injection wiring is not enabled yet'
-                    $script:CurrentDynamicHdrEvidence.outcome = 'preserve_encode_not_ready'
-                    $script:CurrentDynamicHdrEvidence.policy_reason = $notReadyReason
-                    if ($dynamicHdrPolicy -eq 'preserve_or_review') {
-                        Write-Log "DYNAMIC HDR: $notReadyReason; routing source to review" "ERROR"
-                        Write-PipelineEvent -EventType 'dynamic_hdr_policy_review' -Stage 'encode_prepare' -Route 'encode' -Status 'blocked' -SourcePath $file.FullName -Data @{
+                    $preserveEncodeReady = $true
+                    $preserveFailureReason = ''
+                    $preserveFailureCode = ''
+                    $videoTrackId = -1
+                    $extension = [System.IO.Path]::GetExtension($localIn).TrimStart('.').ToLowerInvariant()
+                    if ($extension -eq 'mkv') {
+                        $primaryVideoStream = @($videoStreamPolicy.Inventory.RealVideoStreams)[0]
+                        $ffprobeVideoStreamIndex = if ($primaryVideoStream) { [int]$primaryVideoStream.Index } else { -1 }
+                        $trackResolution = Resolve-DynamicHdrMkvVideoTrackId -SourceFile $localIn -FfprobeVideoStreamIndex $ffprobeVideoStreamIndex
+                        $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'mkv_video_track_resolution' -NotePropertyValue $trackResolution -Force
+                        if ([bool]$trackResolution.ok) {
+                            $videoTrackId = [int]$trackResolution.track_id
+                        } else {
+                            $preserveEncodeReady = $false
+                            $preserveFailureReason = [string]$trackResolution.reason
+                            $preserveFailureCode = if ([string]::IsNullOrWhiteSpace([string]$trackResolution.error_code)) { 'DYNAMIC_HDR_VIDEO_TRACK_UNRESOLVED' } else { [string]$trackResolution.error_code }
+                        }
+                    }
+
+                    if ($preserveEncodeReady) {
+                        $extractionPlan = New-DynamicHdrMetadataExtractionPlan `
+                            -ScratchPath $localIn `
+                            -WorkDir $script:processingDir `
+                            -DoviPresent:([bool]$script:CurrentDynamicHdrEvidence.dovi_present) `
+                            -DoviProfile ([int]$script:CurrentDynamicHdrEvidence.dovi_profile) `
+                            -DoviBlCompatId ([int]$script:CurrentDynamicHdrEvidence.dovi_bl_compat_id) `
+                            -DoviElPresent:([bool]$script:CurrentDynamicHdrEvidence.dovi_el_present) `
+                            -Hdr10PlusPresent:([bool]$script:CurrentDynamicHdrEvidence.hdr10plus_present) `
+                            -DoviToolPath ([string]$script:DoviToolPath) `
+                            -Hdr10PlusToolPath ([string]$script:Hdr10PlusToolPath) `
+                            -MkvExtractPath ([string]$mkvextractPath) `
+                            -FfmpegPath ([string]$ffmpegPath) `
+                            -VideoTrackId $videoTrackId `
+                            -PlanId ([guid]::NewGuid().ToString('N'))
+                        $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'extraction_plan' -NotePropertyValue $extractionPlan -Force
+                        if (-not [bool]$extractionPlan.ok) {
+                            $preserveEncodeReady = $false
+                            $preserveFailureReason = [string]$extractionPlan.reason
+                            $preserveFailureCode = if ([string]::IsNullOrWhiteSpace([string]$extractionPlan.error_code)) { 'DYNAMIC_HDR_PLAN_MISSING' } else { [string]$extractionPlan.error_code }
+                        }
+                    }
+
+                    if ($preserveEncodeReady) {
+                        Write-PipelineEvent -EventType 'dynamic_hdr_preservation_prepare' -Stage 'encode_prepare' -Route 'encode-cpu-fallback' -Status 'started' -SourcePath $file.FullName -Data @{
+                            policy  = $dynamicHdrPolicy
+                            summary = [string]$script:CurrentDynamicHdrEvidence.summary
+                        } | Out-Null
+                        $extractionResult = Export-DynamicHdrMetadata -Plan $extractionPlan -TimeoutSeconds $script:FFmpegEncodeTimeoutSeconds -ProcessPriority $script:CpuEncodeProcessPriority
+                        $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'extraction_result' -NotePropertyValue $extractionResult -Force
+                        if (-not [bool]$extractionResult.ok) {
+                            $preserveEncodeReady = $false
+                            $preserveFailureReason = [string]$extractionResult.reason
+                            $preserveFailureCode = if ([string]::IsNullOrWhiteSpace([string]$extractionResult.error_code)) { 'DYNAMIC_HDR_EXTRACTION_RESULT_MISSING' } else { [string]$extractionResult.error_code }
+                        }
+                    }
+
+                    if ($preserveEncodeReady) {
+                        $x265Artifacts = Resolve-DynamicHdrX265ArtifactPaths -ExtractionResult $extractionResult -BaseDirectory $script:processingDir
+                        $script:CurrentDynamicHdrEvidence | Add-Member -NotePropertyName 'x265_artifacts' -NotePropertyValue $x265Artifacts -Force
+                        if (-not [bool]$x265Artifacts.ok) {
+                            $preserveEncodeReady = $false
+                            $preserveFailureReason = [string]$x265Artifacts.reason
+                            $preserveFailureCode = if ([string]::IsNullOrWhiteSpace([string]$x265Artifacts.error_code)) { 'DYNAMIC_HDR_X265_PATH_UNREPRESENTABLE' } else { [string]$x265Artifacts.error_code }
+                        }
+                    }
+
+                    if ($preserveEncodeReady) {
+                        $dynamicHdrForceCpuEncode = $true
+                        $dynamicHdrWorkingDirectory = $script:processingDir
+                        $dynamicHdrTempFiles = @((Get-DynamicHdrResultValue -Result $extractionResult -Name 'temp_files'))
+                        $dynamicHdrDolbyVisionRpuPath = [string](Get-DynamicHdrResultValue -Result $x265Artifacts -Name 'dolby_vision_rpu_path')
+                        $dynamicHdrDolbyVisionTargetProfile = [string](Get-DynamicHdrResultValue -Result $x265Artifacts -Name 'target_dovi_profile')
+                        $dynamicHdrHdr10PlusJsonPath = [string](Get-DynamicHdrResultValue -Result $x265Artifacts -Name 'hdr10plus_json_path')
+                        $script:CurrentDynamicHdrEvidence.outcome = 'will_preserve_encode'
+                        $script:CurrentDynamicHdrEvidence.policy_reason = 'dynamic HDR metadata extracted and ready for CPU/libx265 encode preservation'
+                        Write-Log "DYNAMIC HDR: preservation artifacts extracted; forcing CPU/libx265 encode for $($script:CurrentDynamicHdrEvidence.summary)"
+                        Write-PipelineEvent -EventType 'dynamic_hdr_preservation_prepare' -Stage 'encode_prepare' -Route 'encode-cpu-fallback' -Status 'succeeded' -SourcePath $file.FullName -Data @{
+                            policy                    = $dynamicHdrPolicy
+                            summary                   = [string]$script:CurrentDynamicHdrEvidence.summary
+                            dolby_vision_rpu_path     = $dynamicHdrDolbyVisionRpuPath
+                            dolby_vision_profile      = $dynamicHdrDolbyVisionTargetProfile
+                            hdr10plus_json_path       = $dynamicHdrHdr10PlusJsonPath
+                            working_directory         = $dynamicHdrWorkingDirectory
+                            rpu_frame_count           = [int](Get-DynamicHdrResultValue -Result $x265Artifacts -Name 'rpu_frame_count')
+                        } | Out-Null
+                    } else {
+                        $script:CurrentDynamicHdrEvidence.policy_reason = $preserveFailureReason
+                        $script:CurrentDynamicHdrEvidence.policy_reason_code = $preserveFailureCode
+                        Write-PipelineEvent -EventType 'dynamic_hdr_preservation_prepare' -Stage 'encode_prepare' -Route 'encode' -Status 'failed' -SourcePath $file.FullName -Data @{
                             policy      = $dynamicHdrPolicy
                             action      = 'preserve_encode'
-                            reason_code = 'dynamic_hdr_preserve_encode_not_ready'
+                            reason_code = $preserveFailureCode
+                            reason      = $preserveFailureReason
                             summary     = [string]$script:CurrentDynamicHdrEvidence.summary
                         } | Out-Null
-                        $failureProperties = [ordered]@{
-                            dynamic_hdr_policy      = $dynamicHdrPolicy
-                            dynamic_hdr_action      = 'preserve_encode'
-                            dynamic_hdr_reason_code = 'dynamic_hdr_preserve_encode_not_ready'
-                            dynamic_hdr_summary     = [string]$script:CurrentDynamicHdrEvidence.summary
-                            dynamic_hdr_reasons     = @($notReadyReason)
+                        if ($dynamicHdrPolicy -eq 'preserve_or_review') {
+                            $script:CurrentDynamicHdrEvidence.outcome = 'blocked_review'
+                            Write-Log "DYNAMIC HDR: encode preservation failed under preserve_or_review; routing source to review: $preserveFailureReason" "ERROR"
+                            $failureProperties = [ordered]@{
+                                dynamic_hdr_policy      = $dynamicHdrPolicy
+                                dynamic_hdr_action      = 'preserve_encode'
+                                dynamic_hdr_reason_code = $preserveFailureCode
+                                dynamic_hdr_summary     = [string]$script:CurrentDynamicHdrEvidence.summary
+                                dynamic_hdr_reasons     = @($preserveFailureReason)
+                            }
+                            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $preserveFailureReason -Stage 'dynamic-hdr-extraction' -ErrorCode $preserveFailureCode -SuggestedAction 'Inspect Dynamic HDR extraction tool output, mkvmerge track mapping, and source metadata. preserve_or_review blocks publish until Dolby Vision/HDR10+ extraction and x265 injection can be validated.' -AdditionalProperties $failureProperties
+                            $localIn = $null
+                            return $false
                         }
-                        $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $notReadyReason -Stage 'dynamic-hdr-policy' -ErrorCode 'DYNAMIC_HDR_PRESERVATION_NOT_READY' -SuggestedAction 'Keep DynamicHdrPolicy=warn or preserve_or_remux until Dynamic HDR extraction, x265 injection, output verification, and real-media validation are complete.' -AdditionalProperties $failureProperties
-                        $localIn = $null
-                        return $false
+                        $script:CurrentDynamicHdrEvidence.outcome = 'preserve_encode_failed_try_remux'
+                        $script:CurrentDynamicHdrEvidence.policy_action = 'prefer_remux'
+                        $script:CurrentDynamicHdrEvidence.recommended_route = 'remux'
+                        Write-Log "DYNAMIC HDR: encode preservation failed under preserve_or_remux; attempting remux fallback before any lossy encode: $preserveFailureReason" "WARN"
                     }
-                    $script:CurrentDynamicHdrEvidence.policy_action = 'prefer_remux'
-                    $script:CurrentDynamicHdrEvidence.policy_reason_code = 'dynamic_hdr_preserve_encode_not_ready'
-                    $script:CurrentDynamicHdrEvidence.recommended_route = 'remux'
                 }
 
                 if ([bool]$dynamicHdrEncodeDecision.should_hold_review) {
@@ -579,18 +674,20 @@ function Do-Encode {
                     } | Out-Null
                 }
 
-                Write-Log ("ENCODE: source carries dynamic HDR metadata ({0}) - it will be DROPPED by this encode (static HDR10 only)" -f $script:CurrentDynamicHdrEvidence.summary) "WARN"
-                Write-PipelineEvent -EventType 'dynamic_hdr_metadata_dropped' -Stage 'encode_prepare' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
-                    dovi_present      = [bool]$script:CurrentDynamicHdrEvidence.dovi_present
-                    dovi_profile      = [int]$script:CurrentDynamicHdrEvidence.dovi_profile
-                    hdr10plus_present = [bool]$script:CurrentDynamicHdrEvidence.hdr10plus_present
-                    summary           = [string]$script:CurrentDynamicHdrEvidence.summary
-                    outcome           = [string]$script:CurrentDynamicHdrEvidence.outcome
-                    probe_error       = [string]$script:CurrentDynamicHdrEvidence.probe_error
-                    policy            = $dynamicHdrPolicy
-                    policy_action     = [string]$script:CurrentDynamicHdrEvidence.policy_action
-                    policy_reason     = [string]$script:CurrentDynamicHdrEvidence.policy_reason
-                } | Out-Null
+                if (-not $dynamicHdrForceCpuEncode) {
+                    Write-Log ("ENCODE: source carries dynamic HDR metadata ({0}) - it will be DROPPED by this encode (static HDR10 only)" -f $script:CurrentDynamicHdrEvidence.summary) "WARN"
+                    Write-PipelineEvent -EventType 'dynamic_hdr_metadata_dropped' -Stage 'encode_prepare' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
+                        dovi_present      = [bool]$script:CurrentDynamicHdrEvidence.dovi_present
+                        dovi_profile      = [int]$script:CurrentDynamicHdrEvidence.dovi_profile
+                        hdr10plus_present = [bool]$script:CurrentDynamicHdrEvidence.hdr10plus_present
+                        summary           = [string]$script:CurrentDynamicHdrEvidence.summary
+                        outcome           = [string]$script:CurrentDynamicHdrEvidence.outcome
+                        probe_error       = [string]$script:CurrentDynamicHdrEvidence.probe_error
+                        policy            = $dynamicHdrPolicy
+                        policy_action     = [string]$script:CurrentDynamicHdrEvidence.policy_action
+                        policy_reason     = [string]$script:CurrentDynamicHdrEvidence.policy_reason
+                    } | Out-Null
+                }
             }
         } elseif ($isHDR) {
             Write-Log "ENCODE: DynamicHdrPolicy=off; skipping Dynamic HDR probes and preservation routing" "DEBUG"
@@ -669,8 +766,18 @@ function Do-Encode {
         # unavailable (set by Invalidate-NvencAvailableProbe after an
         # earlier runtime NVENC failure), skip the primary AND safe-retry
         # attempts entirely. Saves ~10–60 s per file on a no-GPU machine.
-        $skipGpuDueToProbe = -not (Test-NvencProbeReportsAvailable)
-        if ($skipGpuDueToProbe) {
+        $skipGpuDueToProbe = if ($dynamicHdrForceCpuEncode) { $true } else { -not (Test-NvencProbeReportsAvailable) }
+        if ($dynamicHdrForceCpuEncode) {
+            Write-Log "ENCODE: Dynamic HDR preservation requires CPU/libx265; skipping GPU-first ladder" "WARN"
+            Write-PipelineEvent -EventType 'encoder_fallback_started' -Stage 'encode_cpu' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
+                from_encoder = [string]$VideoCodec
+                to_encoder   = (Get-MediaVideoCodecLibx265Name)
+                reason       = [string]$script:CurrentDynamicHdrEvidence.policy_reason
+                trigger      = 'dynamic_hdr_preserve_encode'
+                cpu_preset   = [string]$script:CpuEncodePreset
+                is_hdr       = [bool]$isHDR
+            } | Out-Null
+        } elseif ($skipGpuDueToProbe) {
             $probeReason = if ($script:NvencAvailableProbe -and $script:NvencAvailableProbe.Reason) { [string]$script:NvencAvailableProbe.Reason } else { 'NVENC probe cache reports unavailable' }
             Write-Log "ENCODE: NVENC unavailable per cached probe ($probeReason); skipping GPU-first ladder and going straight to CPU" "WARN"
             Write-PipelineEvent -EventType 'encoder_fallback_started' -Stage 'encode_cpu' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
@@ -752,7 +859,7 @@ function Do-Encode {
             # synthesize the failure state so the existing fallback
             # branch fires and falls into the CPU path below.
             $success = $false
-            $script:LastFFmpegStderr = "NVENC probe cache reports unavailable; primary GPU attempt skipped"
+            $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; primary GPU attempt skipped' } else { 'NVENC probe cache reports unavailable; primary GPU attempt skipped' }
             $script:LastFFmpegExit = 1
         } else {
             $success = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -OutputPath $tempOut -WasteGuardContext $wasteGuardContext
@@ -823,7 +930,7 @@ function Do-Encode {
                 # safe-retry plan. Force the inner gate to fall straight
                 # into the CPU branch.
                 $success = $false
-                $script:LastFFmpegStderr = "NVENC probe cache reports unavailable; safe-retry skipped"
+                $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; safe-retry skipped' } else { 'NVENC probe cache reports unavailable; safe-retry skipped' }
                 $script:LastFFmpegExit = 1
             }
             if (-not $success -and [string]$script:LastFFmpegAbortCode -eq 'ENCODE_WASTE_GUARD_PROJECTED_OVERSIZE') {
@@ -867,7 +974,11 @@ function Do-Encode {
                     }
                     Invalidate-NvencAvailableProbe -Reason $invalidateReason -SourcePath $file.FullName
                 }
-                Write-Log "ENCODE: compatibility retry also failed - falling back to $(Get-MediaVideoCodecLibx265Name) (CRF $($script:FallbackCpuQuality), preset $script:CpuEncodePreset, timeout $($script:FFmpegCpuEncodeTimeoutSeconds)s, priority $script:CpuEncodeProcessPriority)" "WARN"
+                if ($dynamicHdrForceCpuEncode) {
+                    Write-Log "ENCODE: Dynamic HDR preservation continuing with $(Get-MediaVideoCodecLibx265Name) (CRF $($script:FallbackCpuQuality), preset $script:CpuEncodePreset, timeout $($script:FFmpegCpuEncodeTimeoutSeconds)s, priority $script:CpuEncodeProcessPriority)" "WARN"
+                } else {
+                    Write-Log "ENCODE: compatibility retry also failed - falling back to $(Get-MediaVideoCodecLibx265Name) (CRF $($script:FallbackCpuQuality), preset $script:CpuEncodePreset, timeout $($script:FFmpegCpuEncodeTimeoutSeconds)s, priority $script:CpuEncodeProcessPriority)" "WARN"
+                }
                 # Emit a structured event so the desktop diagnostics drawer
                 # and the Live tab can light up a CPU-fallback indicator
                 # instead of the operator only seeing a log line.
@@ -879,6 +990,7 @@ function Do-Encode {
                     cpu_timeout_seconds  = [int]$script:FFmpegCpuEncodeTimeoutSeconds
                     cpu_process_priority = [string]$script:CpuEncodeProcessPriority
                     is_hdr               = [bool]$isHDR
+                    dynamic_hdr          = [bool]$dynamicHdrForceCpuEncode
                 } | Out-Null
                 if (Test-Path -LiteralPath $tempOut) {
                     Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
@@ -914,9 +1026,12 @@ function Do-Encode {
                     -FallbackCpuQuality $script:FallbackCpuQuality `
                     -EncodeLadder $script:EncodeLadder `
                     -CpuPreset $script:CpuEncodePreset `
-                -CpuMaxThreads $script:CpuEncodeMaxThreads `
-                -Hdr10MasterDisplay $hdr10MasterDisplay `
-                -Hdr10MaxCll $hdr10MaxCll
+                    -CpuMaxThreads $script:CpuEncodeMaxThreads `
+                    -Hdr10MasterDisplay $hdr10MasterDisplay `
+                    -Hdr10MaxCll $hdr10MaxCll `
+                    -DolbyVisionRpuPath $dynamicHdrDolbyVisionRpuPath `
+                    -DolbyVisionTargetProfile $dynamicHdrDolbyVisionTargetProfile `
+                    -Hdr10PlusJsonPath $dynamicHdrHdr10PlusJsonPath
                 $ffArgs     = @($encodePlan.ArgumentList)
                 # Differentiate the GUI status string. app/status/service.py renders
                 # `encode_cpu` with its own label, but the user-facing status
@@ -950,7 +1065,7 @@ function Do-Encode {
                     # CPU encodes get their own (typically larger) timeout
                     # so a slow libx265 run is not killed at the 6-hour
                     # GPU ceiling.
-                    $success    = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegCpuEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -CpuEncode -ProcessPriority $script:CpuEncodeProcessPriority
+                    $success    = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegCpuEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -CpuEncode -ProcessPriority $script:CpuEncodeProcessPriority -WorkingDirectory $dynamicHdrWorkingDirectory
                 } finally {
                     if ($cpuMutexLock -and $cpuMutexLock.Acquired) { & $cpuMutexLock.Release }
                 }
@@ -967,7 +1082,11 @@ function Do-Encode {
                     # failed for this file".  Both still use the
                     # encode-cpu-fallback route, but the reason code lets
                     # diagnostics show why GPU was skipped.
-                    if ($skipGpuDueToProbe) {
+                    if ($dynamicHdrForceCpuEncode) {
+                        $script:CurrentRouteReasonCode = 'dynamic_hdr_preserve_cpu_encode'
+                        $script:CurrentRouteReason     = "Dynamic HDR preservation required CPU/libx265 encode: $($script:CurrentDynamicHdrEvidence.summary)"
+                        $script:CurrentDynamicHdrEvidence.outcome = 'preserved_encode'
+                    } elseif ($skipGpuDueToProbe) {
                         $script:CurrentRouteReasonCode = 'gpu_unavailable_cpu_only'
                         $script:CurrentRouteReason     = 'NVENC unavailable per cached probe; CPU encode without trying GPU'
                     } else {
@@ -996,6 +1115,7 @@ function Do-Encode {
                         to_encoder      = (Get-MediaVideoCodecLibx265Name)
                         cpu_preset      = [string]$encodePlan.CpuPreset
                         cpu_quality_crf = [int]$script:FallbackCpuQuality
+                        dynamic_hdr     = [bool]$dynamicHdrForceCpuEncode
                     } | Out-Null
                 }
             }
@@ -1032,12 +1152,16 @@ function Do-Encode {
             # Emit the matching encoder_fallback_completed event so the
             # diagnostics drawer can pair start with end (E5).
             if ($failedEncoderKind -eq 'cpu') {
+                if ($dynamicHdrForceCpuEncode -and $script:CurrentDynamicHdrEvidence) {
+                    $script:CurrentDynamicHdrEvidence.outcome = 'preserve_encode_failed'
+                }
                 Write-PipelineEvent -EventType 'encoder_fallback_completed' -Stage 'encode_cpu' -Route 'encode-cpu-fallback' -Status 'failed' -SourcePath $file.FullName -Data @{
                     from_encoder    = [string]$VideoCodec
                     to_encoder      = (Get-MediaVideoCodecLibx265Name)
                     cpu_preset      = if ($encodePlan -and $encodePlan.PSObject.Properties['CpuPreset']) { [string]$encodePlan.CpuPreset } else { '' }
                     cpu_quality_crf = [int]$script:FallbackCpuQuality
                     error_code      = [string]$errorCode
+                    dynamic_hdr     = [bool]$dynamicHdrForceCpuEncode
                 } | Out-Null
             }
             $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason $reason -Stage 'encode' -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
@@ -1199,6 +1323,13 @@ function Do-Encode {
     } finally {
         if ($subResult -and $subResult.TempFiles) {
             $subResult.TempFiles | ForEach-Object { Remove-Item -LiteralPath ([string]$_) -Force -ErrorAction SilentlyContinue }
+        }
+        if ($dynamicHdrTempFiles) {
+            $dynamicHdrTempFiles | ForEach-Object {
+                if (-not [string]::IsNullOrWhiteSpace([string]$_)) {
+                    Remove-Item -LiteralPath ([string]$_) -Force -ErrorAction SilentlyContinue
+                }
+            }
         }
         if ($tempOut -and (Test-Path -LiteralPath $tempOut -ErrorAction SilentlyContinue)) {
             Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue

@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0620-012",
+  "title": "Wire dynamic HDR extraction into CPU encode",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-20",
+  "summary": "Wired Dynamic HDR preserve_encode decisions into Do-Encode by resolving MKV video track IDs, extracting Dolby Vision/HDR10+ metadata, resolving x265-safe artifact paths, forcing CPU/libx265, and passing artifact parameters only to the CPU HDR encode plan.",
+  "reason": "Dynamic HDR preservation had planning, extraction helpers, artifact-path guards, and policy routing but still stopped before runtime extraction/injection. Do-Encode needed backend-owned fail-closed wiring before output verification and real-media validation could proceed.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "When Dynamic HDR policy selected preserve_encode, Do-Encode marked preservation as not ready and either blocked preserve_or_review sources or redirected preserve_or_remux sources to remux/drop behavior.",
+  "behavior_after": "When preserve_encode is selected, Do-Encode resolves MKV track identity, extracts Dynamic HDR metadata, resolves relative x265 artifact paths, skips GPU attempts, runs CPU/libx265 from the artifact working directory, passes Dolby Vision/HDR10+ x265 parameters to the CPU plan only, and records preserve/drop/block evidence. preserve_or_review still blocks on extraction/path failures; preserve_or_remux still attempts guarded remux fallback before any lossy encode.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1.md",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-012.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrDetectionChecks.ps1 now asserts Do-Encode calls the Dynamic HDR track resolver, extraction executor, x265 path resolver, CPU-only artifact parameters, CPU working directory, distinct route reason, and no drop warning for preservation-ready encodes."
+  ],
+  "manual_validation": [
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrDetectionChecks.ps1",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrToolingChecks.ps1",
+    ".\\ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+    ".\\ops\\pipeline\\tests\\Invoke-ReliabilityRegressionChecks.ps1"
+  ],
+  "rollback_plan": "Revert this packet to restore the previous fail-closed/not-ready Dynamic HDR preserve_encode behavior, remove the new static assertions, refresh generated summaries, and leave source media/runtime state untouched.",
+  "related_changes": [],
+  "notes": "Wire Dynamic HDR metadata extraction, x265 artifact resolution, and CPU/libx265 injection into Do-Encode.\nAdd static guard coverage for Dynamic HDR extraction/injection wiring and non-drop preservation evidence.\nUpdate Dynamic HDR status after Do-Encode extraction/injection wiring.\nAlign current-state Dynamic HDR status with Do-Encode extraction/injection wiring.\nRefresh current-state summary after Dynamic HDR extraction/injection status update.\nRefresh encode entrypoint summary after Dynamic HDR extraction/injection wiring.\nRefresh Dynamic HDR detection test summary after static wiring assertions."
+}
