@@ -653,9 +653,13 @@ Status 2026-06-21: the encode argument builders now thread
 `-DolbyVisionRpuPath`, `-DolbyVisionTargetProfile`, and `-Hdr10PlusJsonPath`
 through `New-EncodeAttemptPlan`/`New-EncodeVideoFlags` and descriptor-owned
 libx265 flag generation. The implementation is intentionally guarded to CPU
-libx265 HDR plans, Dolby Vision target profile `8.1`, and colon-free artifact
-paths. Extraction, policy routing, force-CPU activation, output verification,
-and real-media proof remain open.
+libx265 HDR plans, Dolby Vision target profile `8.1`, and relative,
+colon-free artifact paths. `Resolve-DynamicHdrX265ArtifactPaths` now converts
+successful extraction outputs into x265-safe relative paths, fails closed for
+missing artifacts, rooted paths, cross-drive/colon-bearing paths, or missing
+base directories, and the x265 parameter builder rejects rooted artifact paths
+directly. Extraction-to-encode invocation, policy routing, force-CPU activation,
+output verification, and real-media proof remain open.
 
 New parameters (default `''`/`$false`, threaded through `New-EncodeAttemptPlan`
 exactly like `Hdr10MasterDisplay` at encode_policy.ps1:372-391):

@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0620-008",
+  "title": "Resolve dynamic HDR x265 artifact paths",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-21",
+  "summary": "Adds Dynamic HDR x265 artifact-path resolution that converts successful extraction outputs into relative, colon-free paths for x265 parameters and fails closed for missing artifacts, rooted paths, cross-drive/colon-bearing paths, or missing base directories.",
+  "reason": "Dynamic HDR extraction outputs are scratch paths, while x265 parameter parsing splits on colons and expects safe relative artifact paths. The encode hook needs a tested path gate before it can safely inject RPU or HDR10+ metadata artifacts.",
+  "affected_areas": [
+    "docs",
+    "generated_docs",
+    "powershell",
+    "tests"
+  ],
+  "behavior_before": "Dynamic HDR extraction could produce RPU and HDR10+ artifacts, and encode flag builders accepted relative colon-free artifact paths, but there was no helper that converted extraction outputs into x265-safe paths or failed closed when that was impossible.",
+  "behavior_after": "Resolve-DynamicHdrX265ArtifactPaths returns dynamic_hdr_x265_artifact_paths.v1 with safe relative artifact paths, carried target profile/frame-count evidence, and registered error codes for missing extraction results, missing base directories, unrepresentable paths, or missing artifacts. Add-DynamicHdrX265ParameterPairs now also rejects rooted paths directly.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/dynamic_hdr.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1.md",
+    "docs/implementation/dynamic-hdr-preservation/PLAN.md",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/engine/process/dynamic_hdr.ps1",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-008.json"
+  ],
+  "tests_added": [
+    "Extended ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1 with x265 artifact path resolution success, missing-artifact, and cross-drive/unrepresentable path cases.",
+    "Extended ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 with rooted Dynamic HDR artifact path rejection."
+  ],
+  "manual_validation": [
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrToolingChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrDetectionChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-FailureCodeRegistryChecks.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_project_index --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "git diff --check"
+  ],
+  "rollback_plan": "Revert this packet plus Resolve-DynamicHdrX265ArtifactPaths, ConvertTo-DynamicHdrX265RelativePath, rooted-path x265 guard tightening, added outcome codes, tests, docs, and generated summaries. Earlier Dynamic HDR decision/extraction slices remain separate.",
+  "related_changes": [],
+  "notes": "Add Dynamic HDR x265 artifact path resolver.\nReject rooted Dynamic HDR x265 artifact paths at parameter generation.\nRegister Dynamic HDR x265 artifact path outcome codes.\nCover x265 artifact path resolution success and fail-closed cases.\nCover rooted Dynamic HDR x265 artifact path rejection.\nReflect x265 artifact-path resolver progress while keeping Do-Encode wiring open.\nUpdate active gap summary for Dynamic HDR x265 artifact path progress.\nRecord x265 artifact path resolver status and remaining runtime hook work.\nRefresh generated summary after Dynamic HDR x265 artifact path update.\nHigh-risk boundary note: this slice validates artifact path representation only. It does not call Export-DynamicHdrMetadata, does not invoke ffmpeg with preservation artifacts, does not change Do-Encode routing, and does not publish, drain, move, delete, or mutate media. Do-Encode wiring, extraction/injection execution, output verification, and representative real-media validation remain open."
+}

@@ -427,6 +427,43 @@ try {
     Assert-Equal $script:DynamicHdrCommandInvocations[2].Label 'Dolby Vision RPU summary' 'Dynamic HDR extraction should run RPU summary third.'
     Assert-Equal $script:DynamicHdrCommandInvocations[3].Label 'HDR10+ metadata extraction' 'Dynamic HDR extraction should run HDR10+ extraction last.'
 
+    $x265Paths = Resolve-DynamicHdrX265ArtifactPaths -ExtractionResult $executionResult -BaseDirectory $tempRoot
+    Assert-True ([bool]$x265Paths.ok) 'Dynamic HDR x265 artifact path resolution should succeed for same-root artifacts.'
+    Assert-True ([bool]$x265Paths.required) 'Dynamic HDR x265 artifact path resolution should be required when artifacts exist.'
+    Assert-True (-not [System.IO.Path]::IsPathRooted([string]$x265Paths.dolby_vision_rpu_path)) 'Dynamic HDR RPU x265 path should be relative.'
+    Assert-True (-not ([string]$x265Paths.dolby_vision_rpu_path).Contains(':')) 'Dynamic HDR RPU x265 path should be colon-free.'
+    Assert-True (-not [System.IO.Path]::IsPathRooted([string]$x265Paths.hdr10plus_json_path)) 'Dynamic HDR10+ x265 path should be relative.'
+    Assert-True (-not ([string]$x265Paths.hdr10plus_json_path).Contains(':')) 'Dynamic HDR10+ x265 path should be colon-free.'
+    Assert-Equal $x265Paths.rpu_frame_count 42 'Dynamic HDR x265 path result should carry RPU frame-count evidence.'
+
+    $missingArtifactExtraction = [pscustomobject][ordered]@{
+        ok                   = $true
+        reason               = ''
+        error_code           = ''
+        rpu_path             = (Join-Path $tempRoot 'missing.rpu.bin')
+        hdr10plus_json_path  = ''
+        target_dovi_profile  = '8.1'
+        rpu_frame_count      = 42
+    }
+    $missingArtifactPaths = Resolve-DynamicHdrX265ArtifactPaths -ExtractionResult $missingArtifactExtraction -BaseDirectory $tempRoot
+    Assert-True (-not [bool]$missingArtifactPaths.ok) 'Dynamic HDR x265 path resolution should fail closed when an artifact is missing.'
+    Assert-Equal $missingArtifactPaths.error_code 'DOVI_RPU_EXTRACT_FAILED' 'Missing RPU x265 path error code mismatch.'
+
+    $baseRoot = [System.IO.Path]::GetPathRoot($tempRoot)
+    $foreignDrive = if ([string]$baseRoot -like 'Z:*') { 'Y:' } else { 'Z:' }
+    $foreignExtraction = [pscustomobject][ordered]@{
+        ok                   = $true
+        reason               = ''
+        error_code           = ''
+        rpu_path             = "$foreignDrive\dynamic_hdr\rpu.bin"
+        hdr10plus_json_path  = ''
+        target_dovi_profile  = '8.1'
+        rpu_frame_count      = 42
+    }
+    $foreignPaths = Resolve-DynamicHdrX265ArtifactPaths -ExtractionResult $foreignExtraction -BaseDirectory $tempRoot
+    Assert-True (-not [bool]$foreignPaths.ok) 'Dynamic HDR x265 path resolution should fail closed for cross-drive artifact paths.'
+    Assert-Equal $foreignPaths.error_code 'DYNAMIC_HDR_X265_PATH_UNREPRESENTABLE' 'Cross-drive x265 path error code mismatch.'
+
     $script:DynamicHdrCommandInvocations = @()
     $script:DynamicHdrCommandFailures = @{ 'Dolby Vision RPU extraction' = 2 }
     $failureResult = Export-DynamicHdrMetadata -Plan $executionPlan

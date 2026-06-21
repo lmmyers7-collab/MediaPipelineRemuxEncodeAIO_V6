@@ -463,6 +463,10 @@ Assert-Throws {
     New-PlanFromCase -Overrides @{ UseCpuFallback = $true; IsHDR = $true; Hdr10PlusJsonPath = 'C:\scratch\hdr10plus.json' } | Out-Null
 } 'Dynamic HDR x265 params must reject colon-bearing Windows paths.'
 
+Assert-Throws {
+    New-PlanFromCase -Overrides @{ UseCpuFallback = $true; IsHDR = $true; Hdr10PlusJsonPath = '\\server\scratch\hdr10plus.json' } | Out-Null
+} 'Dynamic HDR x265 params must reject rooted artifact paths.'
+
 $metadataAttempts = @($snapshotCases | Select-Object -ExpandProperty Attempt -Unique)
 Assert-True ($metadataAttempts -contains 'primary') 'Snapshot set must cover primary attempt metadata.'
 Assert-True ($metadataAttempts -contains 'hardware_safe_retry') 'Snapshot set must cover hardware safe-retry attempt metadata.'

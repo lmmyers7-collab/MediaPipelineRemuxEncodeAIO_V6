@@ -739,7 +739,7 @@ function Add-DynamicHdrX265ParameterPairs {
     }
 
     foreach ($path in @($doviPath, $hdr10PlusPath)) {
-        if (-not [string]::IsNullOrWhiteSpace($path) -and $path.Contains(':')) {
+        if (-not [string]::IsNullOrWhiteSpace($path) -and ($path.Contains(':') -or [System.IO.Path]::IsPathRooted($path))) {
             throw 'Dynamic HDR x265 artifact paths must be relative and colon-free because x265 parameter parsing uses colon separators.'
         }
     }

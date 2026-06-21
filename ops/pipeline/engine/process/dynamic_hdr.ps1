@@ -892,6 +892,111 @@ function Resolve-DynamicHdrEncodePreservationDecision {
     return [pscustomobject]$base
 }
 
+function ConvertTo-DynamicHdrX265RelativePath {
+    param(
+        [string] $ArtifactPath,
+        [string] $BaseDirectory
+    )
+
+    if ([string]::IsNullOrWhiteSpace($ArtifactPath)) { return '' }
+    if ([string]::IsNullOrWhiteSpace($BaseDirectory)) { return '' }
+
+    $baseFull = [System.IO.Path]::GetFullPath($BaseDirectory)
+    $artifactFull = [System.IO.Path]::GetFullPath($ArtifactPath)
+    $relative = [System.IO.Path]::GetRelativePath($baseFull, $artifactFull)
+    if ([string]::IsNullOrWhiteSpace($relative)) { return '' }
+    return [string]$relative
+}
+
+function Resolve-DynamicHdrX265ArtifactPaths {
+    [CmdletBinding()]
+    param(
+        $ExtractionResult,
+        [string] $BaseDirectory = $(Get-Location).Path
+    )
+
+    $base = [ordered]@{
+        schema_version          = 'dynamic_hdr_x265_artifact_paths.v1'
+        ok                      = $false
+        required                = $false
+        reason                  = ''
+        error_code              = ''
+        base_directory          = [string]$BaseDirectory
+        rpu_source_path         = ''
+        hdr10plus_source_path   = ''
+        dolby_vision_rpu_path   = ''
+        hdr10plus_json_path     = ''
+        target_dovi_profile     = ''
+        rpu_frame_count         = 0
+    }
+
+    if ($null -eq $ExtractionResult) {
+        $base.reason = 'dynamic HDR extraction result is required before x265 artifact path resolution'
+        $base.error_code = 'DYNAMIC_HDR_EXTRACTION_RESULT_MISSING'
+        return [pscustomobject]$base
+    }
+
+    if (-not [bool](Get-DynamicHdrResultValue -Result $ExtractionResult -Name 'ok')) {
+        $base.reason = [string](Get-DynamicHdrResultValue -Result $ExtractionResult -Name 'reason')
+        $base.error_code = [string](Get-DynamicHdrResultValue -Result $ExtractionResult -Name 'error_code')
+        return [pscustomobject]$base
+    }
+
+    if ([string]::IsNullOrWhiteSpace($BaseDirectory)) {
+        $base.reason = 'base directory is required to convert dynamic HDR artifact paths for x265'
+        $base.error_code = 'DYNAMIC_HDR_X265_PATH_BASE_MISSING'
+        return [pscustomobject]$base
+    }
+
+    $base.target_dovi_profile = [string](Get-DynamicHdrResultValue -Result $ExtractionResult -Name 'target_dovi_profile')
+    $base.rpu_frame_count = [int](Get-DynamicHdrResultValue -Result $ExtractionResult -Name 'rpu_frame_count')
+    $base.rpu_source_path = [string](Get-DynamicHdrResultValue -Result $ExtractionResult -Name 'rpu_path')
+    $base.hdr10plus_source_path = [string](Get-DynamicHdrResultValue -Result $ExtractionResult -Name 'hdr10plus_json_path')
+
+    $artifactSpecs = @(
+        @{ Kind = 'dolby_vision_rpu'; Source = [string]$base.rpu_source_path; MissingCode = 'DOVI_RPU_EXTRACT_FAILED' },
+        @{ Kind = 'hdr10plus_json'; Source = [string]$base.hdr10plus_source_path; MissingCode = 'HDR10PLUS_EXTRACT_FAILED' }
+    )
+    $requiredCount = 0
+    foreach ($artifact in $artifactSpecs) {
+        if ([string]::IsNullOrWhiteSpace([string]$artifact.Source)) { continue }
+        $requiredCount++
+
+        try {
+            $relativePath = ConvertTo-DynamicHdrX265RelativePath -ArtifactPath ([string]$artifact.Source) -BaseDirectory $BaseDirectory
+        } catch {
+            $base.reason = "dynamic HDR artifact path '$($artifact.Source)' cannot be converted to a relative x265 path: $($_.Exception.Message)"
+            $base.error_code = 'DYNAMIC_HDR_X265_PATH_UNREPRESENTABLE'
+            return [pscustomobject]$base
+        }
+
+        if ([string]::IsNullOrWhiteSpace($relativePath) -or
+            [System.IO.Path]::IsPathRooted($relativePath) -or
+            $relativePath.Contains(':')) {
+            $base.reason = "dynamic HDR artifact path '$($artifact.Source)' is not representable as a relative, colon-free x265 parameter path from '$BaseDirectory'"
+            $base.error_code = 'DYNAMIC_HDR_X265_PATH_UNREPRESENTABLE'
+            return [pscustomobject]$base
+        }
+
+        if (-not (Test-DynamicHdrArtifactPresent -Path ([string]$artifact.Source))) {
+            $base.reason = "dynamic HDR artifact '$($artifact.Source)' is missing or empty before x265 path resolution"
+            $base.error_code = [string]$artifact.MissingCode
+            return [pscustomobject]$base
+        }
+
+        if ([string]$artifact.Kind -eq 'dolby_vision_rpu') {
+            $base.dolby_vision_rpu_path = $relativePath
+        } elseif ([string]$artifact.Kind -eq 'hdr10plus_json') {
+            $base.hdr10plus_json_path = $relativePath
+        }
+    }
+
+    $base.required = ($requiredCount -gt 0)
+    $base.ok = $true
+    $base.reason = if ($base.required) { 'dynamic HDR x265 artifact paths are ready' } else { 'no dynamic HDR x265 artifact paths are required' }
+    return [pscustomobject]$base
+}
+
 function Clear-DynamicHdrCapabilityProbe {
     $script:X265DynamicHdrCapabilityCache = $null
 }
