@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0621-015",
+  "title": "Validate pending repair drain posture",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Added temp-fixture validation that pending manifest repair apply preserves source/output/payload bytes, preserves durable drain-summary evidence, and leaves the repaired row parked and backend drain-ready.",
+  "reason": "The repair/reconcile workstream still needs representative validation. This narrows the gap by proving the existing pending manifest repair apply route does not bypass manifest-backed pending-publish flow or mutate drain evidence in the temp-fixture path.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "Repair apply tests verified manifest-only writes and source/output/payload preservation, but did not assert the repaired pending row's post-apply drain posture or durable drain-summary preservation.",
+  "behavior_after": "Repair apply tests now assert the repaired pending row rescans as parked and ready_to_drain while an existing pending_drain_summary.json remains byte-for-byte unchanged.",
+  "files_touched": [
+    "docs/generated/summaries/docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-015.json",
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "manual_validation": [
+    "git diff --check - passed",
+    "ops/scripts/smoke/Test-LocalApiRepairReconcileDryRunContractSmoke.ps1 - passed, 78 tests and 630 subtests",
+    "python -m unittest tests.python.desktop.test_application_facade_pending_publish -q - passed, 15 tests",
+    "python -m unittest tests.python.desktop.test_repair_reconcile_apply -q - passed, 8 tests",
+    "python -m unittest tests.python.desktop.test_repair_reconcile_dry_run -q - passed, 12 tests",
+    "refresh_summaries --check - passed, 1758 source files current",
+    "validate_changes --require-worktree-coverage - passed, 503 packets valid"
+  ],
+  "rollback_plan": "Remove the added post-repair drain-posture assertions and revert the pending-publish fixture inventory wording; no production repair or drain behavior changed.",
+  "related_changes": [],
+  "notes": "Added pending manifest repair apply validation for post-repair drain posture and durable drain-summary preservation.\nUpdated pending-publish fixture inventory with the new limited repair-apply validation evidence and remaining real-media/drain gap.\nRefreshed generated summary for repair reconcile apply tests.\nRefreshed generated summary for pending publish fixture inventory.\nThis is temp-fixture validation only; representative real-media source/payload/output plus full deferred publish/drain validation remains open before daily-driver use."
+}

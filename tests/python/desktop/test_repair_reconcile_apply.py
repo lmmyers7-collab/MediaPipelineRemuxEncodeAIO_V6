@@ -104,10 +104,30 @@ class RepairReconcileApplyTests(unittest.TestCase):
             root = Path(raw_root)
             resolved, files = _pending_fixture(root, repairable_manifest=True)
             manifest = files["pending_manifest"]
+            drain_summary = resolved.state_root / "Progress" / "pending_drain_summary.json"
+            drain_summary.parent.mkdir(parents=True, exist_ok=True)
+            drain_summary.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_drain_summary.v1",
+                        "status": "completed",
+                        "items": [
+                            {
+                                "status": "succeeded",
+                                "local_file": str(root / "OtherPending" / "AlreadyDrained.mkv"),
+                                "server_out": str(root / "Outsource" / "AlreadyDrained.mkv"),
+                            }
+                        ],
+                    },
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
             source_before = _file_state(files["source"])
             output_before = _file_state(files["output"])
             payload_before = _file_state(files["pending_payload"])
             manifest_before = _file_state(manifest)
+            drain_summary_before = _file_state(drain_summary)
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
             preview = facade.get_pending_publish_preview(resolved).to_mapping()
             row_key = next(row["row_key"] for row in preview["rows"] if row.get("diagnostic_status") == "invalid_manifest")
@@ -136,7 +156,16 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(_file_state(files["source"]), source_before)
             self.assertEqual(_file_state(files["output"]), output_before)
             self.assertEqual(_file_state(files["pending_payload"]), payload_before)
+            self.assertEqual(_file_state(drain_summary), drain_summary_before)
             self.assertTrue(result["data"]["source_payload_output_unchanged"])
+            repaired_preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            repaired_row = repaired_preview["rows"][0]
+            self.assertEqual(repaired_row["state"], "parked")
+            self.assertEqual(repaired_row["diagnostic_status"], "ready")
+            self.assertTrue(repaired_row["ready_to_drain"])
+            self.assertEqual(repaired_row["drain_recommendation"], "ready_to_drain")
+            self.assertTrue(repaired_preview["drain_summary"]["exists"])
+            self.assertEqual(repaired_preview["drain_summary"]["path"], str(drain_summary))
 
     def test_orphan_payload_reconcile_apply_is_manifest_only_and_blocks_incomplete_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
