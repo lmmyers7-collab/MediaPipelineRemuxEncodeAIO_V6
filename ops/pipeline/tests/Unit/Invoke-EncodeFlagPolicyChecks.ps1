@@ -443,6 +443,24 @@ Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.PrimaryEncoder) 'av1_nv
 Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.CpuFallbackEncoder) 'libaom-av1' 'Dormant AV1 descriptor fallback evidence mismatch.'
 Assert-True ([string]$av1LegacyPlan.DescriptorSelection.Reason -match 'descriptor flags are not active') 'Dormant AV1 descriptor selection should explain that activation is still disabled.'
 
+$av1CpuFallbackPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc'; UseCpuFallback = $true; CpuMaxThreads = 8 }
+Assert-Equal ([string]$av1CpuFallbackPlan.SelectedEncoder) 'libaom-av1' 'AV1/NVENC CPU fallback should use the AV1 CPU descriptor encoder.'
+Assert-Equal ([string]$av1CpuFallbackPlan.EncoderKind) 'cpu' 'AV1/NVENC CPU fallback should report CPU encoder kind.'
+Assert-Equal ([bool]$av1CpuFallbackPlan.DescriptorSelection.Resolved) $true 'AV1/NVENC CPU fallback descriptor selection should resolve.'
+Assert-Equal ([bool]$av1CpuFallbackPlan.DescriptorSelection.Active) $true 'AV1/NVENC CPU fallback descriptor selection should be active.'
+Assert-Equal ([string]$av1CpuFallbackPlan.DescriptorSelection.Role) 'cpu_fallback' 'AV1/NVENC CPU fallback descriptor role mismatch.'
+Assert-Equal ([string]$av1CpuFallbackPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'AV1/NVENC CPU fallback descriptor backend mismatch.'
+Assert-Equal (@($av1CpuFallbackPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'AV1/NVENC CPU fallback command topology mismatch.'
+
+$libaomPrimaryPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'libaom-av1'; CpuMaxThreads = 8 }
+Assert-Equal ([string]$libaomPrimaryPlan.SelectedEncoder) 'libaom-av1' 'libaom AV1 primary plan should expose the AV1 CPU descriptor encoder.'
+Assert-Equal ([string]$libaomPrimaryPlan.EncoderKind) 'cpu' 'libaom AV1 primary plan should report CPU encoder kind.'
+Assert-Equal ([bool]$libaomPrimaryPlan.DescriptorSelection.Resolved) $true 'libaom AV1 primary descriptor selection should resolve.'
+Assert-Equal ([bool]$libaomPrimaryPlan.DescriptorSelection.Active) $true 'libaom AV1 primary descriptor selection should be active.'
+Assert-Equal ([string]$libaomPrimaryPlan.DescriptorSelection.Role) 'primary' 'libaom AV1 primary descriptor role mismatch.'
+Assert-Equal ([string]$libaomPrimaryPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'libaom AV1 primary descriptor backend mismatch.'
+Assert-Equal (@($libaomPrimaryPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'libaom AV1 primary command topology mismatch.'
+
 $h264NvencActivePlan = New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc' }
 Assert-Equal ([string]$h264NvencActivePlan.SelectedEncoder) 'h264_nvenc' 'H.264/NVENC active primary plan should expose the descriptor encoder.'
 Assert-Equal ([bool]$h264NvencActivePlan.DescriptorSelection.Resolved) $true 'H.264/NVENC descriptor selection should resolve.'
@@ -488,6 +506,12 @@ Assert-Equal ([string]$h264HdrReadiness.error_code) 'ENCODE_ENCODER_HDR_UNSUPPOR
 $av1Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc'
 Assert-Equal ([bool]$av1Readiness.ok) $false 'AV1/NVENC should remain inactive until descriptor activation and validation.'
 Assert-Equal ([string]$av1Readiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'AV1/NVENC inactive readiness error code mismatch.'
+$libaomReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'libaom-av1'
+Assert-Equal ([bool]$libaomReadiness.ok) $true 'libaom AV1 primary should be active for descriptor-owned AV1 CPU flags.'
+Assert-Equal ([string]$libaomReadiness.descriptor_encoder) 'libaom-av1' 'libaom AV1 primary readiness descriptor mismatch.'
+$av1FallbackReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc' -UseCpuFallback:$true
+Assert-Equal ([bool]$av1FallbackReadiness.ok) $true 'AV1/NVENC CPU fallback should be active for descriptor-owned libaom flags.'
+Assert-Equal ([string]$av1FallbackReadiness.descriptor_encoder) 'libaom-av1' 'AV1/NVENC CPU fallback readiness descriptor mismatch.'
 $unknownReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'vp9_nvenc'
 Assert-Equal ([bool]$unknownReadiness.ok) $false 'Unknown encoder readiness must fail closed.'
 Assert-Equal ([string]$unknownReadiness.error_code) 'ENCODE_ENCODER_UNSUPPORTED' 'Unknown encoder readiness error code mismatch.'
@@ -644,11 +668,19 @@ Assert-Equal (@($av1NvencHdrFlags) -join '|') '-c:v|av1_nvenc|-preset|p7|-cq|22|
 Assert-True (-not (@($av1NvencHdrFlags) -contains '-profile:v')) 'AV1/NVENC HDR must omit HEVC-style main10 profile flags.'
 
 $av1CpuDescriptor = Get-MediaEncoderDescriptor -Family 'av1' -Backend 'cpu'
-Assert-True ($null -ne $av1CpuDescriptor) 'Dormant AV1/CPU descriptor must exist before activation work.'
+Assert-True ($null -ne $av1CpuDescriptor) 'AV1/CPU descriptor must exist for libaom activation.'
 Assert-Equal ([string]$av1CpuDescriptor.EncoderName) 'libaom-av1' 'AV1/CPU descriptor encoder mismatch.'
 Assert-Equal ([string]$av1CpuDescriptor.RateControlKind) 'aom_crf' 'AV1/CPU descriptor rate-control mismatch.'
 Assert-Equal ([bool]$av1CpuDescriptor.SupportsHdr10Metadata) $false 'libaom AV1 descriptor must not claim HDR10 metadata support.'
-Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libaom-av1' -UseCpuFallback:$true)) 'AV1/CPU must keep the legacy CPU branch until activation work.'
+$libaomActiveFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libaom-av1' -UseCpuFallback:$false
+Assert-True ($null -ne $libaomActiveFlagsDescriptor) 'libaom AV1 primary flags should now be descriptor-owned.'
+Assert-Equal ([string]$libaomActiveFlagsDescriptor.EncoderName) 'libaom-av1' 'libaom AV1 active primary flags descriptor mismatch.'
+$av1FallbackFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'av1_nvenc' -UseCpuFallback:$true
+Assert-True ($null -ne $av1FallbackFlagsDescriptor) 'AV1/NVENC CPU fallback flags should now be descriptor-owned.'
+Assert-Equal ([string]$av1FallbackFlagsDescriptor.EncoderName) 'libaom-av1' 'AV1/NVENC CPU fallback active flags descriptor mismatch.'
+$libaomFallbackFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'libaom-av1' -UseCpuFallback:$true
+Assert-True ($null -ne $libaomFallbackFlagsDescriptor) 'Literal libaom AV1 CPU fallback flags should be descriptor-owned when called as a fallback.'
+Assert-Equal ([string]$libaomFallbackFlagsDescriptor.EncoderName) 'libaom-av1' 'Literal libaom AV1 CPU fallback descriptor mismatch.'
 Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'av1_qsv') 'av1' 'Family resolver should map AV1 QSV.'
 Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'libaom-av1') 'av1' 'Family resolver should map libaom AV1.'
 Assert-Equal (Resolve-MediaEncoderFamilyForCodec -VideoCodec 'libsvtav1') 'av1' 'Family resolver should reserve the future SVT-AV1 family mapping.'

@@ -3,9 +3,9 @@
 # ==============================================================================
 # Data-first encoder descriptors. The active resolver intentionally routes only
 # the existing HEVC/NVENC path, libx265 CPU fallback, H.264/NVENC primary,
-# and libx264 primary/fallback paths through the descriptor builder. Dormant
-# descriptors may describe future supported pairs before route selection is
-# allowed to activate them.
+# libx264 primary/fallback, and libaom AV1 CPU primary/fallback paths through
+# the descriptor builder. Dormant descriptors may describe future supported
+# pairs before route selection is allowed to activate them.
 # ==============================================================================
 
 function Get-MediaEncoderDescriptor {
@@ -309,6 +309,9 @@ function Resolve-MediaEncoderDescriptorForFlags {
         if ($codec -in @('h264_nvenc', 'libx264')) {
             return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'cpu'
         }
+        if ($codec -in @('av1_nvenc', 'libaom-av1')) {
+            return Get-MediaEncoderDescriptor -Family 'av1' -Backend 'cpu'
+        }
         return $null
     }
 
@@ -320,6 +323,9 @@ function Resolve-MediaEncoderDescriptorForFlags {
     }
     if ($codec -eq 'libx264') {
         return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'cpu'
+    }
+    if ($codec -eq 'libaom-av1') {
+        return Get-MediaEncoderDescriptor -Family 'av1' -Backend 'cpu'
     }
     return $null
 }

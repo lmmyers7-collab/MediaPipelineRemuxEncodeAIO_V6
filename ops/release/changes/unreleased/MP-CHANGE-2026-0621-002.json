@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0621-002",
+  "title": "Activate libaom AV1 CPU descriptor flags",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Activate descriptor-owned AV1 CPU encode flags for libaom primary and AV1-to-libaom fallback attempts.",
+  "reason": "The AV1 CPU descriptor, runtime matrix row, and capability probe scaffolding already existed, but descriptor-owned libaom flags were still gated off as dormant.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "A configured primary VideoCodec of libaom-av1, or an AV1/NVENC CPU fallback plan, resolved descriptor evidence but did not activate descriptor-owned flags.",
+  "behavior_after": "libaom-av1 primary and AV1/NVENC-to-libaom CPU fallback plans use descriptor-owned AV1 CPU CRF flags with active readiness, CPU encoder-kind evidence, and command-topology coverage; AV1/NVENC hardware primary, QSV, and AMF remain dormant.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encode_policy.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1.md",
+    "ops/pipeline/engine/decide/encode_policy.ps1",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-002.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1"
+  ],
+  "manual_validation": [
+    "PowerShell parser check for modified scripts - passed",
+    "mediapipeline.tools.dev.refresh_summaries --check - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 - passed",
+    "ops/pipeline/tests/Invoke-ToolIntegrationChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1 - passed (3 CPU rows executed, 9 hardware rows list-only skipped by default)"
+  ],
+  "rollback_plan": "Revert the AV1 CPU mappings in Resolve-MediaEncoderDescriptorForFlags, the libaom CPU encoder-kind classification, targeted tests, active-doc wording, and refreshed generated summaries.",
+  "related_changes": [],
+  "notes": "Activate descriptor-owned flags for libaom AV1 CPU primary and fallback paths.\nClassify libaom/SVT AV1 software encoders as CPU in encode attempt evidence.\nCover AV1/libaom CPU primary and fallback readiness plus command topology.\nUpdate encoder breadth backlog for AV1/libaom CPU activation status.\nReflect AV1/libaom CPU activation in current project state.\nRefresh generated summary for current AV1/libaom activation status.\nRefresh generated summary for libaom CPU encoder-kind evidence.\nRefresh generated summary for AV1/libaom descriptor activation.\nRefresh generated summary for AV1/libaom policy coverage."
+}

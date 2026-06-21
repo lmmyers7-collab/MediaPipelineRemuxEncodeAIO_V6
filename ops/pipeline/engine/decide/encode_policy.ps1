@@ -413,6 +413,7 @@ function Get-EncodeEncoderKind {
     if ($normalized -match 'amf') { return 'amf' }
     if ($normalized -match 'qsv') { return 'qsv' }
     if ($normalized -match 'x26[45]|libx26[45]') { return 'cpu' }
+    if ($normalized -match 'libaom|aom|svtav1|libsvtav1') { return 'cpu' }
     if ([string]::IsNullOrWhiteSpace($normalized)) { return 'unknown' }
     return 'software_or_unknown'
 }
