@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-19
+last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 28d04fa3ec06b8e2d8b42e10c2489994e23ab543ad4501ee06644a77e334db90
+sha256: e9a009a7261c4f6819726231b0123a641039839194e61e26df2a54105a77918c
 ---
 # `apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js`
 

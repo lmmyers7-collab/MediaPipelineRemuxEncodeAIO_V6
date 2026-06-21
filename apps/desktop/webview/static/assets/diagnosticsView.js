@@ -10,6 +10,13 @@
   const setDiagnosticsTailBusy = window.setDiagnosticsTailBusy || diagnosticsTailView.setDiagnosticsTailBusy || function () {};
   const renderDiagnosticsTail = window.renderDiagnosticsTail || diagnosticsTailView.renderDiagnosticsTail || function () {};
   const requestDiagnosticsTail = window.requestDiagnosticsTail || diagnosticsTailView.requestDiagnosticsTail || async function () {};
+  const diagnosticsStateSummaryView = window.mediaPipelineDiagnosticsStateSummaryView || {};
+  const diagnosticsStateOperatorStatus = diagnosticsStateSummaryView.diagnosticsStateOperatorStatus || function (item) {
+    return item?.operator_status || item?.status || "";
+  };
+  const diagnosticsStateRecommendedFirstAction = diagnosticsStateSummaryView.diagnosticsStateRecommendedFirstAction || function () {
+    return "inspect this state artifact.";
+  };
   let lastDiagnosticsLogRows = [];
   let selectedDiagnosticsFirstResponseKey = "";
   let tdarrMatrixConsoleState = {
@@ -1352,7 +1359,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       rows,
       "state-artifacts",
       "State artifacts / read order",
-      stateIssues.some((item) => String(typeof window.diagnosticsStateOperatorStatus === "function" ? window.diagnosticsStateOperatorStatus(item) : item.operator_status || item.status || "").toLowerCase() === "blocked") ? "Blocked review" : stateIssues.length ? "Review" : "Ready",
+      stateIssues.some((item) => String(diagnosticsStateOperatorStatus(item)).toLowerCase() === "blocked") ? "Blocked review" : stateIssues.length ? "Review" : "Ready",
       `state artifact issues=${stateIssues.length}; read-order rows=${Array.isArray(payload.stateSummary?.triage) ? payload.stateSummary.triage.length : 0}`,
       stateIssues.length
         ? "Use State Artifact Summary and Backend Read Order before rerun, drain, cleanup, or shutdown decisions."
@@ -1551,7 +1558,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         `Backend read-order rows: ${Array.isArray(payload.stateSummary?.triage) ? payload.stateSummary.triage.length : 0}`,
       );
       stateIssues.slice(0, 6).forEach((item) => {
-        const status = typeof window.diagnosticsStateOperatorStatus === "function" ? window.diagnosticsStateOperatorStatus(item) : item.operator_status || item.status || "review";
+        const status = diagnosticsStateOperatorStatus(item) || "review";
         lines.push(`- ${item.label || item.target || "artifact"}: ${status}; ${item.operator_guidance || item.error || item.warning || "review required"}`);
       });
     } else if (row.key === "external-dependencies") {
@@ -1714,8 +1721,8 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     if (stateIssues.length) {
       lines.push("", "State artifact issue(s) to inspect first:");
       stateIssues.slice(0, 5).forEach((item) => {
-        const status = typeof window.diagnosticsStateOperatorStatus === "function" ? window.diagnosticsStateOperatorStatus(item) : item.operator_status || item.status || "review";
-        const action = typeof window.diagnosticsStateRecommendedFirstAction === "function" ? window.diagnosticsStateRecommendedFirstAction(item) : "inspect this state artifact.";
+        const status = diagnosticsStateOperatorStatus(item) || "review";
+        const action = diagnosticsStateRecommendedFirstAction(item);
         lines.push(`- ${item.label || item.target || "artifact"}: ${status}; ${item.operator_guidance || item.error || item.warning || "review required"}; first action: ${action}`);
       });
     }

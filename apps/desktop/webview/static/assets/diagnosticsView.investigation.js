@@ -20,10 +20,12 @@
 
   function diagnosticsStateIssueRows(stateSummary) {
     const rows = diagnosticsSafeRows(stateSummary);
+    const diagnosticsStateSummaryView = window.mediaPipelineDiagnosticsStateSummaryView || {};
+    const diagnosticsStateOperatorStatus = diagnosticsStateSummaryView.diagnosticsStateOperatorStatus || function (item) {
+      return String(item?.operator_status || item?.status || "");
+    };
     return rows.filter((item) => {
-      const status = typeof window.diagnosticsStateOperatorStatus === "function"
-        ? window.diagnosticsStateOperatorStatus(item)
-        : String(item?.operator_status || item?.status || "");
+      const status = diagnosticsStateOperatorStatus(item);
       const normalized = String(status || "").toLowerCase();
       const warnings = Array.isArray(item?.warnings) ? item.warnings.filter(Boolean) : [];
       const errors = Array.isArray(item?.errors) ? item.errors.filter(Boolean) : [];

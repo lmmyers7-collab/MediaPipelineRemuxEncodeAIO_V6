@@ -625,7 +625,8 @@
 
   /**
    * Public namespace for the diagnostics state-summary module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Diagnostics state-summary helpers are exposed here; callers should use this
+   * namespace because this module no longer publishes flat window.* exports.
    */
   window.mediaPipelineDiagnosticsStateSummaryView = {
     renderDiagnosticsStateSummary,
@@ -653,7 +654,4 @@
     diagnosticsStateActionPlanLines,
     formatArtifactSize,
   };
-  window.diagnosticsStateRecommendedFirstAction = diagnosticsStateRecommendedFirstAction;
-  window.diagnosticsStateOperatorStatus = diagnosticsStateOperatorStatus;
-  window.diagnosticsStateRowStatusState = diagnosticsStateRowStatusState;
 })();

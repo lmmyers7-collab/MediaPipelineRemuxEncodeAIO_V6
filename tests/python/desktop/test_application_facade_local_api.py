@@ -7002,6 +7002,18 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function diagnosticsStateRecommendedFirstAction", diagnostics_state_summary_view_js)
         self.assertIn("function diagnosticsStateSummaryRowKey", diagnostics_state_summary_view_js)
         self.assertIn("function diagnosticsStateOperatorStatus", diagnostics_state_summary_view_js)
+        self.assertNotIn(
+            "window.diagnosticsStateRecommendedFirstAction = diagnosticsStateRecommendedFirstAction",
+            diagnostics_state_summary_view_js,
+        )
+        self.assertNotIn(
+            "window.diagnosticsStateOperatorStatus = diagnosticsStateOperatorStatus",
+            diagnostics_state_summary_view_js,
+        )
+        self.assertNotIn(
+            "window.diagnosticsStateRowStatusState = diagnosticsStateRowStatusState",
+            diagnostics_state_summary_view_js,
+        )
         self.assertIn("function diagnosticsStateSettingsToolPathLines", diagnostics_state_summary_view_js)
         self.assertIn("function diagnosticsStateSummaryActionsForItem", diagnostics_state_summary_view_js)
         self.assertIn("function diagnosticsStateArtifactRiskLines", diagnostics_state_summary_view_js)

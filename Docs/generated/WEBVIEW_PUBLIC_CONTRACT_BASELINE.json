@@ -1039,9 +1039,6 @@
       "diagnosticsSeverityForLine",
       "diagnosticsSourceLines",
       "diagnosticsStateIssueRows",
-      "diagnosticsStateOperatorStatus",
-      "diagnosticsStateRecommendedFirstAction",
-      "diagnosticsStateRowStatusState",
       "diagnosticsTextLines",
       "enhanceDataTables",
       "externalDependencyEvidenceText",
@@ -2254,7 +2251,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3665
+    "top_level_declaration_count": 3668
   },
   "scripts": [
     {
@@ -16479,11 +16476,7 @@
       "namespace_exports": [
         "mediaPipelineDiagnosticsStateSummaryView"
       ],
-      "flat_window_exports": [
-        "diagnosticsStateOperatorStatus",
-        "diagnosticsStateRecommendedFirstAction",
-        "diagnosticsStateRowStatusState"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [
         "diagnostics-state-summary-actions",
@@ -16624,763 +16617,778 @@
           "kind": "const"
         },
         {
-          "name": "lastDiagnosticsLogRows",
+          "name": "diagnosticsStateSummaryView",
           "line": 13,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsStateOperatorStatus",
+          "line": 14,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsStateRecommendedFirstAction",
+          "line": 17,
+          "kind": "const"
+        },
+        {
+          "name": "lastDiagnosticsLogRows",
+          "line": 20,
           "kind": "let"
         },
         {
           "name": "selectedDiagnosticsFirstResponseKey",
-          "line": 14,
+          "line": 21,
           "kind": "let"
         },
         {
           "name": "tdarrMatrixConsoleState",
-          "line": 15,
+          "line": 22,
           "kind": "let"
         },
         {
           "name": "setDiagnosticsPanelStatus",
-          "line": 29,
+          "line": 36,
           "kind": "function"
         },
         {
           "name": "setDiagnosticsOpenStatus",
-          "line": 37,
+          "line": 44,
           "kind": "function"
         },
         {
           "name": "setDiagnosticsOpenBusy",
-          "line": 42,
-          "kind": "function"
-        },
-        {
-          "name": "rejectDiagnosticsOpenWhileBusy",
           "line": 49,
           "kind": "function"
         },
         {
+          "name": "rejectDiagnosticsOpenWhileBusy",
+          "line": 56,
+          "kind": "function"
+        },
+        {
           "name": "setTdarrMatrixAuditStatus",
-          "line": 62,
+          "line": 69,
           "kind": "function"
         },
         {
           "name": "setTdarrMatrixAuditDetail",
-          "line": 66,
+          "line": 73,
           "kind": "function"
         },
         {
           "name": "setTdarrMatrixAuditBusy",
-          "line": 71,
+          "line": 78,
           "kind": "function"
         },
         {
           "name": "stopTdarrMatrixBackgroundPoll",
-          "line": 77,
+          "line": 84,
           "kind": "function"
         },
         {
           "name": "scheduleTdarrMatrixBackgroundPoll",
-          "line": 83,
+          "line": 90,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixAuditActionLabel",
-          "line": 101,
+          "line": 108,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixHasLatestEvidence",
-          "line": 115,
+          "line": 122,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixHasProofEvidence",
-          "line": 125,
+          "line": 132,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixDeleteConfirmReady",
-          "line": 133,
+          "line": 140,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixActionGate",
-          "line": 137,
+          "line": 144,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixActionSeverity",
-          "line": 165,
-          "kind": "function"
-        },
-        {
-          "name": "updateTdarrMatrixActionGates",
           "line": 172,
           "kind": "function"
         },
         {
+          "name": "updateTdarrMatrixActionGates",
+          "line": 179,
+          "kind": "function"
+        },
+        {
           "name": "tdarrMatrixAuditDetailLines",
-          "line": 195,
+          "line": 202,
           "kind": "function"
         },
         {
           "name": "appendTdarrMatrixAuditFindingCell",
-          "line": 215,
+          "line": 222,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixSetSelectOptions",
-          "line": 223,
+          "line": 230,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixSetRunOptions",
-          "line": 240,
+          "line": 247,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixAuditFindingRoute",
-          "line": 270,
+          "line": 277,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixAuditFindingMessage",
-          "line": 274,
+          "line": 281,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixRowsFromResult",
-          "line": 278,
-          "kind": "function"
-        },
-        {
-          "name": "tdarrMatrixFindingSearchText",
           "line": 285,
           "kind": "function"
         },
         {
+          "name": "tdarrMatrixFindingSearchText",
+          "line": 292,
+          "kind": "function"
+        },
+        {
           "name": "tdarrMatrixFilteredFindings",
-          "line": 300,
+          "line": 307,
           "kind": "function"
         },
         {
           "name": "updateTdarrMatrixRerunButtons",
-          "line": 312,
+          "line": 319,
           "kind": "function"
         },
         {
           "name": "renderTdarrMatrixEvidenceActions",
-          "line": 325,
+          "line": 332,
           "kind": "function"
         },
         {
           "name": "renderTdarrMatrixSelectedFinding",
-          "line": 361,
+          "line": 368,
           "kind": "function"
         },
         {
           "name": "renderTdarrMatrixAuditFindings",
-          "line": 366,
+          "line": 373,
           "kind": "function"
         },
         {
           "name": "renderTdarrMatrixBucketCoverage",
-          "line": 453,
+          "line": 460,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixProofRowsForActivePack",
-          "line": 488,
+          "line": 495,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixProofRowSearchText",
-          "line": 494,
+          "line": 501,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixFilteredProofRows",
-          "line": 512,
+          "line": 519,
           "kind": "function"
         },
         {
           "name": "renderTdarrMatrixProofPackRows",
-          "line": 522,
+          "line": 529,
           "kind": "function"
         },
         {
           "name": "tdarrMatrixCompareExamples",
-          "line": 584,
+          "line": 591,
           "kind": "function"
         },
         {
           "name": "renderTdarrMatrixRunComparison",
-          "line": 595,
+          "line": 602,
           "kind": "function"
         },
         {
           "name": "renderTdarrMatrixConsole",
-          "line": 618,
+          "line": 625,
           "kind": "function"
         },
         {
           "name": "rejectTdarrMatrixAuditWhileBusy",
-          "line": 673,
+          "line": 680,
           "kind": "function"
         },
         {
           "name": "diagnosticsTextLines",
-          "line": 687,
+          "line": 694,
           "kind": "function"
         },
         {
           "name": "diagnosticsSeverityForLine",
-          "line": 693,
+          "line": 700,
           "kind": "function"
         },
         {
           "name": "diagnosticsMalformedStateLines",
-          "line": 707,
+          "line": 714,
           "kind": "function"
         },
         {
           "name": "boundedDiagnosticsText",
-          "line": 711,
+          "line": 718,
           "kind": "function"
         },
         {
           "name": "diagnosticsRealMediaBoundaryLines",
-          "line": 717,
+          "line": 724,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionLabel",
-          "line": 726,
+          "line": 733,
           "kind": "function"
         },
         {
           "name": "diagnosticsOrderedActions",
-          "line": 735,
+          "line": 742,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionGroups",
-          "line": 743,
+          "line": 750,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionGroupText",
-          "line": 751,
+          "line": 758,
           "kind": "function"
         },
         {
           "name": "diagnosticsActionPlanLines",
-          "line": 755,
+          "line": 762,
           "kind": "function"
         },
         {
           "name": "appendDiagnosticsActionGroup",
-          "line": 769,
+          "line": 776,
           "kind": "function"
         },
         {
           "name": "diagnosticsArtifactsForLine",
-          "line": 795,
-          "kind": "function"
-        },
-        {
-          "name": "initDiagnosticsViewEvents",
           "line": 802,
           "kind": "function"
         },
         {
+          "name": "initDiagnosticsViewEvents",
+          "line": 809,
+          "kind": "function"
+        },
+        {
           "name": "diagnosticsArtifactTargets",
-          "line": 848,
+          "line": 855,
           "kind": "const"
         },
         {
           "name": "diagnosticsActiveJobsModule",
-          "line": 923,
+          "line": 930,
           "kind": "const"
         },
         {
           "name": "diagnosticsActiveJobs",
-          "line": 925,
+          "line": 932,
           "kind": "const"
         },
         {
           "name": "activeJobRowKey",
-          "line": 939,
-          "kind": "const"
-        },
-        {
-          "name": "getSelectedActiveJobRow",
-          "line": 940,
-          "kind": "const"
-        },
-        {
-          "name": "selectActiveJobRow",
-          "line": 941,
-          "kind": "const"
-        },
-        {
-          "name": "activeJobDiagnosticsActions",
-          "line": 942,
-          "kind": "const"
-        },
-        {
-          "name": "activeJobRowPosture",
-          "line": 943,
-          "kind": "const"
-        },
-        {
-          "name": "activeJobRowsStatusText",
-          "line": 944,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsActiveJobRealMediaTraceLines",
-          "line": 945,
-          "kind": "const"
-        },
-        {
-          "name": "renderActiveJobDiagnosticsActions",
           "line": 946,
           "kind": "const"
         },
         {
-          "name": "renderActiveJobRows",
+          "name": "getSelectedActiveJobRow",
           "line": 947,
           "kind": "const"
         },
         {
-          "name": "renderActiveJobDetail",
+          "name": "selectActiveJobRow",
           "line": 948,
           "kind": "const"
         },
         {
-          "name": "diagnosticsLogModule",
+          "name": "activeJobDiagnosticsActions",
+          "line": 949,
+          "kind": "const"
+        },
+        {
+          "name": "activeJobRowPosture",
           "line": 950,
           "kind": "const"
         },
         {
-          "name": "diagnosticsLog",
+          "name": "activeJobRowsStatusText",
+          "line": 951,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsActiveJobRealMediaTraceLines",
           "line": 952,
           "kind": "const"
         },
         {
+          "name": "renderActiveJobDiagnosticsActions",
+          "line": 953,
+          "kind": "const"
+        },
+        {
+          "name": "renderActiveJobRows",
+          "line": 954,
+          "kind": "const"
+        },
+        {
+          "name": "renderActiveJobDetail",
+          "line": 955,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsLogModule",
+          "line": 957,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsLog",
+          "line": 959,
+          "kind": "const"
+        },
+        {
           "name": "diagnosticsLineTimestamp",
-          "line": 971,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsLogRows",
-          "line": 972,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsLogRowKey",
-          "line": 973,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsLogRowActions",
-          "line": 974,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsLogRowNextStep",
-          "line": 975,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsLogRealMediaTraceLines",
-          "line": 976,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsLogGuidanceLines",
-          "line": 977,
-          "kind": "const"
-        },
-        {
-          "name": "renderDiagnosticsLogActions",
           "line": 978,
           "kind": "const"
         },
         {
-          "name": "filteredDiagnosticsLogRows",
+          "name": "diagnosticsLogRows",
           "line": 979,
           "kind": "const"
         },
         {
-          "name": "getLastDiagnosticsLogRows",
+          "name": "diagnosticsLogRowKey",
           "line": 980,
           "kind": "const"
         },
         {
-          "name": "selectDiagnosticsLogRow",
+          "name": "diagnosticsLogRowActions",
           "line": 981,
           "kind": "const"
         },
         {
-          "name": "getSelectedDiagnosticsLogRow",
+          "name": "diagnosticsLogRowNextStep",
           "line": 982,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsLogRows",
+          "name": "diagnosticsLogRealMediaTraceLines",
           "line": 983,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsLogDetail",
+          "name": "diagnosticsLogGuidanceLines",
           "line": 984,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsLogTable",
+          "name": "renderDiagnosticsLogActions",
           "line": 985,
           "kind": "const"
         },
         {
-          "name": "diagnosticsInvestigationModule",
+          "name": "filteredDiagnosticsLogRows",
+          "line": 986,
+          "kind": "const"
+        },
+        {
+          "name": "getLastDiagnosticsLogRows",
           "line": 987,
           "kind": "const"
         },
         {
-          "name": "diagnosticsInvestigation",
+          "name": "selectDiagnosticsLogRow",
+          "line": 988,
+          "kind": "const"
+        },
+        {
+          "name": "getSelectedDiagnosticsLogRow",
           "line": 989,
           "kind": "const"
         },
         {
+          "name": "renderDiagnosticsLogRows",
+          "line": 990,
+          "kind": "const"
+        },
+        {
+          "name": "renderDiagnosticsLogDetail",
+          "line": 991,
+          "kind": "const"
+        },
+        {
+          "name": "renderDiagnosticsLogTable",
+          "line": 992,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsInvestigationModule",
+          "line": 994,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsInvestigation",
+          "line": 996,
+          "kind": "const"
+        },
+        {
           "name": "diagnosticsStateIssueRows",
-          "line": 1006,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsPageReviewRows",
-          "line": 1007,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsCrossPageConflictRows",
-          "line": 1008,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsConflictSignalLabel",
-          "line": 1009,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsCommandIssueRows",
-          "line": 1010,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsInvestigationAddAction",
-          "line": 1011,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsInvestigationActions",
-          "line": 1012,
-          "kind": "const"
-        },
-        {
-          "name": "diagnosticsInvestigationStatus",
           "line": 1013,
           "kind": "const"
         },
         {
-          "name": "diagnosticsListText",
+          "name": "diagnosticsPageReviewRows",
           "line": 1014,
           "kind": "const"
         },
         {
-          "name": "diagnosticsRowLabel",
+          "name": "diagnosticsCrossPageConflictRows",
           "line": 1015,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerDefaultAction",
+          "name": "diagnosticsConflictSignalLabel",
           "line": 1016,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerRowSeverity",
+          "name": "diagnosticsCommandIssueRows",
           "line": 1017,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffRowKey",
+          "name": "diagnosticsInvestigationAddAction",
           "line": 1018,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCompletedFinalTrustStepForRow",
+          "name": "diagnosticsInvestigationActions",
           "line": 1019,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCompletedFinalTrustLines",
+          "name": "diagnosticsInvestigationStatus",
           "line": 1020,
           "kind": "const"
         },
         {
-          "name": "diagnosticsCompletedPolicyReconciliationLines",
+          "name": "diagnosticsListText",
           "line": 1021,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffRows",
+          "name": "diagnosticsRowLabel",
           "line": 1022,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffStatus",
+          "name": "diagnosticsOwnerDefaultAction",
           "line": 1023,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffSummaryLines",
+          "name": "diagnosticsOwnerRowSeverity",
           "line": 1024,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerHandoffActions",
+          "name": "diagnosticsOwnerHandoffRowKey",
           "line": 1025,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerPageId",
+          "name": "diagnosticsCompletedFinalTrustStepForRow",
           "line": 1026,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerSelectFunction",
+          "name": "diagnosticsCompletedFinalTrustLines",
           "line": 1027,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOwnerNavigationLabel",
+          "name": "diagnosticsCompletedPolicyReconciliationLines",
           "line": 1028,
           "kind": "const"
         },
         {
-          "name": "setDiagnosticsOwnerHandoffNavStatus",
+          "name": "diagnosticsOwnerHandoffRows",
           "line": 1029,
           "kind": "const"
         },
         {
-          "name": "navigateDiagnosticsOwnerHandoffRow",
+          "name": "diagnosticsOwnerHandoffStatus",
           "line": 1030,
           "kind": "const"
         },
         {
-          "name": "getSelectedDiagnosticsOwnerHandoffRow",
+          "name": "diagnosticsOwnerHandoffSummaryLines",
           "line": 1031,
           "kind": "const"
         },
         {
-          "name": "selectDiagnosticsOwnerHandoffRow",
+          "name": "diagnosticsOwnerHandoffActions",
           "line": 1032,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoffActions",
+          "name": "diagnosticsOwnerPageId",
           "line": 1033,
           "kind": "const"
         },
         {
-          "name": "diagnosticsSampleValidationComparisonLines",
+          "name": "diagnosticsOwnerSelectFunction",
           "line": 1034,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoffDetail",
+          "name": "diagnosticsOwnerNavigationLabel",
           "line": 1035,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoffTable",
+          "name": "setDiagnosticsOwnerHandoffNavStatus",
           "line": 1036,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOwnerHandoff",
+          "name": "navigateDiagnosticsOwnerHandoffRow",
           "line": 1037,
           "kind": "const"
         },
         {
-          "name": "isDiagnosticsOpenCommand",
+          "name": "getSelectedDiagnosticsOwnerHandoffRow",
           "line": 1038,
           "kind": "const"
         },
         {
-          "name": "diagnosticsOpenHistoryLine",
+          "name": "selectDiagnosticsOwnerHandoffRow",
           "line": 1039,
           "kind": "const"
         },
         {
-          "name": "renderDiagnosticsOpenHistory",
+          "name": "renderDiagnosticsOwnerHandoffActions",
           "line": 1040,
           "kind": "const"
         },
         {
-          "name": "diagnosticsSourceLines",
+          "name": "diagnosticsSampleValidationComparisonLines",
           "line": 1041,
+          "kind": "const"
+        },
+        {
+          "name": "renderDiagnosticsOwnerHandoffDetail",
+          "line": 1042,
+          "kind": "const"
+        },
+        {
+          "name": "renderDiagnosticsOwnerHandoffTable",
+          "line": 1043,
+          "kind": "const"
+        },
+        {
+          "name": "renderDiagnosticsOwnerHandoff",
+          "line": 1044,
+          "kind": "const"
+        },
+        {
+          "name": "isDiagnosticsOpenCommand",
+          "line": 1045,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsOpenHistoryLine",
+          "line": 1046,
+          "kind": "const"
+        },
+        {
+          "name": "renderDiagnosticsOpenHistory",
+          "line": 1047,
+          "kind": "const"
+        },
+        {
+          "name": "diagnosticsSourceLines",
+          "line": 1048,
           "kind": "function"
         },
         {
           "name": "diagnosticsArtifactMatches",
-          "line": 1059,
+          "line": 1066,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsDrilldownActions",
-          "line": 1082,
+          "line": 1089,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsDrilldown",
-          "line": 1109,
+          "line": 1116,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsTriage",
-          "line": 1133,
+          "line": 1140,
           "kind": "function"
         },
         {
           "name": "diagnosticsFormatCounts",
-          "line": 1201,
+          "line": 1208,
           "kind": "function"
         },
         {
           "name": "diagnosticsSafeRows",
-          "line": 1210,
+          "line": 1217,
           "kind": "function"
         },
         {
           "name": "diagnosticsFirstResponseAdd",
-          "line": 1214,
+          "line": 1221,
           "kind": "function"
         },
         {
           "name": "diagnosticsFirstResponsePostureStatus",
-          "line": 1218,
+          "line": 1225,
           "kind": "function"
         },
         {
           "name": "diagnosticsSamplePolicyReconciliation",
-          "line": 1227,
+          "line": 1234,
           "kind": "function"
         },
         {
           "name": "diagnosticsFirstResponseRows",
-          "line": 1276,
+          "line": 1283,
           "kind": "function"
         },
         {
           "name": "diagnosticsFirstResponseStatus",
-          "line": 1443,
+          "line": 1450,
           "kind": "function"
         },
         {
           "name": "diagnosticsFirstResponseSummaryLines",
-          "line": 1451,
+          "line": 1458,
           "kind": "function"
         },
         {
           "name": "selectedDiagnosticsFirstResponseRow",
-          "line": 1476,
+          "line": 1483,
           "kind": "function"
         },
         {
           "name": "diagnosticsFirstResponseDetailLines",
-          "line": 1481,
+          "line": 1488,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsFirstResponse",
-          "line": 1628,
+          "line": 1635,
           "kind": "function"
         },
         {
           "name": "diagnosticsInvestigationTrailLines",
-          "line": 1674,
+          "line": 1681,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsInvestigationActions",
-          "line": 1757,
+          "line": 1764,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsInvestigationTrail",
-          "line": 1766,
-          "kind": "function"
-        },
-        {
-          "name": "diagnosticsPayloadFirstString",
           "line": 1773,
           "kind": "function"
         },
         {
+          "name": "diagnosticsPayloadFirstString",
+          "line": 1780,
+          "kind": "function"
+        },
+        {
           "name": "diagnosticsPayloadFlag",
-          "line": 1783,
+          "line": 1790,
           "kind": "function"
         },
         {
           "name": "diagnosticsLogPanelStatus",
-          "line": 1787,
+          "line": 1794,
           "kind": "function"
         },
         {
           "name": "renderDiagnostics",
-          "line": 1831,
+          "line": 1838,
           "kind": "function"
         },
         {
           "name": "diagnosticsFailureMessage",
-          "line": 1866,
+          "line": 1873,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsRefreshFailures",
-          "line": 1872,
+          "line": 1879,
           "kind": "function"
         },
         {
           "name": "requestTdarrMatrixConsole",
-          "line": 1914,
+          "line": 1921,
           "kind": "function"
         },
         {
           "name": "requestTdarrMatrixRunComparison",
-          "line": 1941,
+          "line": 1948,
           "kind": "function"
         },
         {
           "name": "requestTdarrMatrixEvidenceOpen",
-          "line": 1957,
+          "line": 1964,
           "kind": "function"
         },
         {
           "name": "requestTdarrMatrixRerun",
-          "line": 1986,
+          "line": 1993,
           "kind": "function"
         },
         {
           "name": "requestTdarrMatrixAudit",
-          "line": 2019,
+          "line": 2026,
           "kind": "function"
         },
         {
           "name": "requestDiagnosticsOpen",
-          "line": 2108,
+          "line": 2115,
           "kind": "function"
         }
       ],

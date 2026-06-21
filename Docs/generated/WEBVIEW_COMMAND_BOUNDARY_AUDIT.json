@@ -4774,7 +4774,7 @@
       "normalized_route": "/api/diagnostics/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2136,
+      "line": 2143,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4789,7 +4789,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix-audit",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2079,
+      "line": 2086,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4804,7 +4804,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 1967,
+      "line": 1974,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4819,7 +4819,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/rerun",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 1994,
+      "line": 2001,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
