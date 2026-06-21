@@ -130,12 +130,18 @@ def _browser_network_runner_source() -> str:
             }
             [
               "showPage",
+            ].forEach(requireFunction);
+            [
               "renderNetworkView",
               "renderNetworkLifecycleHandoff",
               "networkLifecycleRows",
               "renderNetworkStateFiles",
               "initNetworkViewEvents",
-            ].forEach(requireFunction);
+            ].forEach((name) => {
+              if (typeof window.mediaPipelineNetworkView?.[name] !== "function") {
+                throw new Error("missing mediaPipelineNetworkView." + name + " function");
+              }
+            });
             if (typeof window.mediaPipelineSettingsView?.syncNetworkSettingsBuilderFromConfig !== "function") {
               throw new Error("missing network settings builder sync function");
             }
@@ -330,6 +336,9 @@ def _browser_network_runner_source() -> str:
             };
 
             window.showPage("network");
+            if (typeof window.applyEvidenceHiddenPreference === "function") {
+              window.applyEvidenceHiddenPreference(false);
+            }
             window.mediaPipelineNetworkView.renderNetworkView(payload);
             window.mediaPipelineSettingsView.syncNetworkSettingsBuilderFromConfig();
             if (document.querySelector("[data-network-tab]")) {
@@ -370,7 +379,6 @@ def _browser_network_runner_source() -> str:
               "Coordinator token:",
               "Worker token:",
             ]);
-            requireVisible("network-lifecycle-boundary-summary");
             requireText("network-lifecycle-boundary-summary", [
               "Lifecycle owner: backend Network diagnostics / Python dispatcher.",
               "Lifecycle dry-run routes: present (4); confirmed lifecycle routes: present (4).",

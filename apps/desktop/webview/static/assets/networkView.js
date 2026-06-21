@@ -3563,6 +3563,4 @@
     saveNetworkSettingsPatch,
     renderNetworkView,
   };
-  window.renderNetworkOpenHistory = renderNetworkOpenHistory;
-  window.initNetworkViewEvents = initNetworkViewEvents;
 })();

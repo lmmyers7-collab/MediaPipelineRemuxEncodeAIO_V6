@@ -1312,7 +1312,7 @@
     if (typeof renderRenameApplyHistory === "function") renderRenameApplyHistory(commandHistory);
     if (typeof renderPipelineControlHistory === "function") renderPipelineControlHistory(commandHistory);
     if (typeof renderReportOpenHistory === "function") renderReportOpenHistory(commandHistory);
-    if (typeof renderNetworkOpenHistory === "function") renderNetworkOpenHistory(commandHistory);
+    window.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(commandHistory);
     const tbody = byId("command-rows");
     if (!tbody) return;
     if (!commandHistory.length) {

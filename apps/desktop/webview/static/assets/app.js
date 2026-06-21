@@ -1660,7 +1660,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (typeof initReportsViewEvents === "function") initReportsViewEvents();
   if (typeof initScheduleViewEvents === "function") initScheduleViewEvents();
   initDiagnosticsViewEvents();
-  initNetworkViewEvents();
+  window.mediaPipelineNetworkView?.initNetworkViewEvents?.();
   initContractViewEvents();
   if (typeof initMaintenanceViewEvents === "function") initMaintenanceViewEvents();
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();

@@ -294,6 +294,7 @@ def _node_runner_source() -> str:
           return node;
         }
 
+        const documentBody = makeElement("body");
         const context = {
           console: {
             log() {},
@@ -311,6 +312,7 @@ def _node_runner_source() -> str:
         context.window = context;
         context.globalThis = context;
         context.document = {
+          body: documentBody,
           getElementById(id) {
             if (!elements.has(id)) elements.set(id, makeElement(id));
             return elements.get(id);
@@ -446,7 +448,6 @@ def _node_runner_source() -> str:
           "renderPendingRecoveryPlanHistory",
           "renderDiagnosticsOpenHistory",
           "renderReportOpenHistory",
-          "renderNetworkOpenHistory",
           "renderMaintenanceDryRunHistory",
           "renderPipelineControlHistory",
           "renderRenameApplyHistory",
@@ -455,6 +456,7 @@ def _node_runner_source() -> str:
         ].forEach((name) => {
           if (typeof context[name] === "function") context[name](renderedHistory);
         });
+        context.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(renderedHistory);
         context.renderBackendLifecycleHistory(renderedHistory);
         const sampleValidationActions = context.commandHistoryDiagnosticsActions({
           command: "diagnostics.open",
