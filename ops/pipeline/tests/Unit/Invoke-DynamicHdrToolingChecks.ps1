@@ -241,6 +241,138 @@ try {
         -PlanId 'missing-tool'
     Assert-True (-not [bool]$missingToolPlan.ok) 'Missing HDR10+ tool should fail closed.'
     Assert-Equal $missingToolPlan.error_code 'DYNAMIC_HDR_TOOL_MISSING' 'Missing HDR10+ tool error code mismatch.'
+
+    $script:DynamicHdrCommandInvocations = @()
+    $script:DynamicHdrCommandFailures = @{}
+    $script:DynamicHdrSuppressArtifact = ''
+
+    function Get-TestOutputPathFromArgs {
+        param([array] $ArgumentList)
+
+        $argsList = @($ArgumentList)
+        for ($idx = 0; $idx -lt $argsList.Count; $idx++) {
+            if ([string]$argsList[$idx] -eq '-o' -and ($idx + 1) -lt $argsList.Count) {
+                return [string]$argsList[$idx + 1]
+            }
+        }
+        if ($argsList.Count -gt 0 -and [string]$argsList[0] -eq 'tracks') {
+            $trackSpec = [string]$argsList[2]
+            $separator = $trackSpec.IndexOf(':')
+            if ($separator -ge 0) { return $trackSpec.Substring($separator + 1) }
+        }
+        if ($argsList -contains '-f' -and $argsList -contains 'hevc' -and $argsList.Count -gt 0) {
+            return [string]$argsList[$argsList.Count - 1]
+        }
+        return ''
+    }
+
+    function Invoke-NativeProcess {
+        param(
+            [string] $FilePath,
+            [array] $ArgumentList,
+            [int] $TimeoutSeconds = 0,
+            [string] $Label = '',
+            [int] $MaxStdoutChars = 0,
+            [int] $MaxStderrChars = 0,
+            [string] $ProcessPriority = 'inherit'
+        )
+
+        $script:DynamicHdrCommandInvocations = @($script:DynamicHdrCommandInvocations) + @([pscustomobject][ordered]@{
+            FilePath        = $FilePath
+            ArgumentList    = @($ArgumentList)
+            Label           = $Label
+            TimeoutSeconds  = $TimeoutSeconds
+            ProcessPriority = $ProcessPriority
+        })
+
+        if ($script:DynamicHdrCommandFailures.ContainsKey($Label)) {
+            return [pscustomobject][ordered]@{
+                ExitCode = [int]$script:DynamicHdrCommandFailures[$Label]
+                TimedOut = $false
+                Stopped  = $false
+                Aborted  = $false
+                Stdout   = ''
+                Stderr   = 'simulated failure'
+            }
+        }
+
+        if ($Label -eq 'Dolby Vision RPU summary') {
+            return [pscustomobject][ordered]@{
+                ExitCode = 0
+                TimedOut = $false
+                Stopped  = $false
+                Aborted  = $false
+                Stdout   = 'RPU frames: 42'
+                Stderr   = ''
+            }
+        }
+
+        $outputPath = Get-TestOutputPathFromArgs -ArgumentList $ArgumentList
+        if (-not [string]::IsNullOrWhiteSpace($outputPath)) {
+            $suppress = -not [string]::IsNullOrWhiteSpace($script:DynamicHdrSuppressArtifact) -and $Label -match [regex]::Escape($script:DynamicHdrSuppressArtifact)
+            if (-not $suppress) {
+                Set-Content -LiteralPath $outputPath -Value "artifact for $Label" -Encoding ASCII
+            }
+        }
+
+        return [pscustomobject][ordered]@{
+            ExitCode = 0
+            TimedOut = $false
+            Stopped  = $false
+            Aborted  = $false
+            Stdout   = ''
+            Stderr   = ''
+        }
+    }
+
+    $executionWorkDir = Join-Path $tempRoot 'execution'
+    New-Item -ItemType Directory -Force -Path $executionWorkDir | Out-Null
+    $executionPlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'source.mkv' `
+        -WorkDir $executionWorkDir `
+        -DoviPresent:$true `
+        -DoviProfile 7 `
+        -DoviElPresent:$true `
+        -Hdr10PlusPresent:$true `
+        -DoviToolPath 'tools\dovi_tool.exe' `
+        -Hdr10PlusToolPath 'tools\hdr10plus_tool.exe' `
+        -MkvExtractPath 'tools\mkvextract.exe' `
+        -VideoTrackId 4 `
+        -PlanId 'execute-ok'
+    $executionResult = Export-DynamicHdrMetadata -Plan $executionPlan -TimeoutSeconds 12 -ProcessPriority 'belownormal'
+    Assert-True ([bool]$executionResult.ok) 'Dynamic HDR extraction execution should succeed when every command and artifact succeeds.'
+    Assert-Equal $executionResult.rpu_frame_count 42 'Dynamic HDR extraction should parse the RPU frame count from summary output.'
+    Assert-True (Test-Path -LiteralPath $executionResult.hevc_path -PathType Leaf) 'Dynamic HDR extraction should create the HEVC artifact.'
+    Assert-True (Test-Path -LiteralPath $executionResult.rpu_path -PathType Leaf) 'Dynamic HDR extraction should create the RPU artifact.'
+    Assert-True (Test-Path -LiteralPath $executionResult.hdr10plus_json_path -PathType Leaf) 'Dynamic HDR extraction should create the HDR10+ artifact.'
+    Assert-True (Test-Path -LiteralPath $executionResult.rpu_summary_path -PathType Leaf) 'Dynamic HDR extraction should persist the RPU summary evidence.'
+    Assert-Equal @($executionResult.command_results).Count 4 'Dynamic HDR extraction should record all command results.'
+    Assert-Equal @($script:DynamicHdrCommandInvocations).Count 4 'Dynamic HDR extraction should run the planned commands only once each.'
+    Assert-Equal $script:DynamicHdrCommandInvocations[0].Label 'dynamic HDR HEVC extraction' 'Dynamic HDR extraction should run HEVC extraction first.'
+    Assert-Equal $script:DynamicHdrCommandInvocations[1].Label 'Dolby Vision RPU extraction' 'Dynamic HDR extraction should run RPU extraction second.'
+    Assert-Equal $script:DynamicHdrCommandInvocations[2].Label 'Dolby Vision RPU summary' 'Dynamic HDR extraction should run RPU summary third.'
+    Assert-Equal $script:DynamicHdrCommandInvocations[3].Label 'HDR10+ metadata extraction' 'Dynamic HDR extraction should run HDR10+ extraction last.'
+
+    $script:DynamicHdrCommandInvocations = @()
+    $script:DynamicHdrCommandFailures = @{ 'Dolby Vision RPU extraction' = 2 }
+    $failureResult = Export-DynamicHdrMetadata -Plan $executionPlan
+    Assert-True (-not [bool]$failureResult.ok) 'Dynamic HDR extraction should fail closed when RPU extraction fails.'
+    Assert-Equal $failureResult.error_code 'DOVI_RPU_EXTRACT_FAILED' 'Dynamic HDR RPU extraction failure code mismatch.'
+    Assert-Equal @($failureResult.command_results).Count 2 'Dynamic HDR extraction should stop after the failing RPU command.'
+
+    $script:DynamicHdrCommandInvocations = @()
+    $script:DynamicHdrCommandFailures = @{}
+    $script:DynamicHdrSuppressArtifact = 'HDR10+ metadata extraction'
+    $emptyArtifactPlan = New-DynamicHdrMetadataExtractionPlan `
+        -ScratchPath 'clip.mp4' `
+        -WorkDir $executionWorkDir `
+        -Hdr10PlusPresent:$true `
+        -Hdr10PlusToolPath 'tools\hdr10plus_tool.exe' `
+        -FfmpegPath 'tools\ffmpeg.exe' `
+        -PlanId 'empty-hdr10plus'
+    $emptyArtifactResult = Export-DynamicHdrMetadata -Plan $emptyArtifactPlan
+    Assert-True (-not [bool]$emptyArtifactResult.ok) 'Dynamic HDR extraction should fail closed when HDR10+ extraction creates no artifact.'
+    Assert-Equal $emptyArtifactResult.error_code 'HDR10PLUS_EXTRACT_FAILED' 'Dynamic HDR empty HDR10+ artifact failure code mismatch.'
 } finally {
     $env:PATH = $oldPath
     if (Test-Path -LiteralPath $tempRoot) {

@@ -73,10 +73,20 @@ function Get-MediaPipelineKnownOutcomeCodes {
         'ENCODE_QUALITY_VERIFICATION_FAILED',
         'ENCODE_SIZE_GUARD_EXCEEDED',
         'ENCODE_UNEXPECTED_EXCEPTION',
+        'DOVI_RPU_EXTRACT_FAILED',
+        'DYNAMIC_HDR_HEVC_EXTRACT_FAILED',
+        'DYNAMIC_HDR_NATIVE_RUNNER_MISSING',
+        'DYNAMIC_HDR_PLAN_MISSING',
+        'DYNAMIC_HDR_SCRATCH_PATH_MISSING',
+        'DYNAMIC_HDR_TOOL_MISSING',
+        'DYNAMIC_HDR_UNPRESERVABLE',
+        'DYNAMIC_HDR_VIDEO_TRACK_UNRESOLVED',
+        'DYNAMIC_HDR_WORKDIR_MISSING',
         'FILE_PATH_EMPTY',
         'FILE_OVERRIDE_INVALID',
         'FILE_ZERO_BYTES',
         'HDR_DETECTION_UNKNOWN',
+        'HDR10PLUS_EXTRACT_FAILED',
         'INTEGRITY_DISABLED',
         'MEDIA_DURATION_MISSING',
         'MEDIA_INTEGRITY_FAILED',
@@ -195,7 +205,7 @@ function Get-MediaPipelineOutcomeCodeFamily {
     $codeText = if ($Code) { ([string]$Code).Trim().ToUpperInvariant() } else { '' }
     if ($codeText -match '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$') { return 'non_failure_outcome' }
     if ($codeText -match '^ENCODE_CPU_') { return 'encode_cpu' }
-    if ($codeText -match '^ENCODE_|^ENCODER_|^HDR_') { return 'encode' }
+    if ($codeText -match '^ENCODE_|^ENCODER_|^HDR_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_') { return 'encode' }
     if ($codeText -match '^REMUX_|^MKVMERGE_') { return 'remux' }
     if ($codeText -match '^SUBTITLE_') { return 'subtitle' }
     if ($codeText -match '^AUDIO_|^SOURCE_MEDIA_AUDIO_') { return 'audio' }
@@ -231,7 +241,7 @@ function Get-MediaPipelineCodeStage {
         '^SUBTITLE_ASS_'   { return 'subtitle-ass' }
         '^SUBTITLE_'       { return 'subtitle' }
         '^ENCODE_CPU_'     { return 'encode-cpu' }
-        '^ENCODE_|^ENCODER_|^HDR_' { return 'encode' }
+        '^ENCODE_|^ENCODER_|^HDR_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'encode' }
         '^REMUX_|^MKVMERGE_' { return 'remux' }
         '^SOURCE_MEDIA_AUDIO_|^AUDIO_' { return 'audio' }
         '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_' { return 'source-intake' }
@@ -262,7 +272,7 @@ function Get-MediaPipelineCodeHandledBy {
         '^OUTPUT_|^PUBLISH_|^PENDING_|^SIDECAR_' { return 'PublishCompletion.ps1 / PendingPush.ps1' }
         '^SOURCE_|^MEDIA_|^FILE_|^SCRATCH_' { return 'MediaProbe.ps1 / ScratchCopy.ps1 / FailureState.ps1' }
         '^REMUX_|^MKVMERGE_' { return 'PipelineProcessing.ps1 / Native.ps1' }
-        '^ENCODE_|^ENCODER_|^HDR_' { return 'PipelineProcessing.ps1 / FfmpegProgress.ps1' }
+        '^ENCODE_|^ENCODER_|^HDR_|^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'PipelineProcessing.ps1 / DynamicHdr.ps1 / FfmpegProgress.ps1' }
         '^PROGRESS_|^STOP_|^NATIVE_' { return 'PipelineProcessing.ps1 / Native.ps1' }
         '^OK$|^ALREADY_PROCESSED$|^INTEGRITY_DISABLED$' { return 'PipelineProcessing.ps1' }
         default {
@@ -328,6 +338,7 @@ function Get-MediaPipelineCodeWhenFires {
         'PUBLISH|PENDING|SIDECAR' { return 'Publishing, deferred publish parking, drain, manifest, or sidecar work failed.' }
         'TRUNCATED|CONTAINER_INVALID|DECODE_FAILED|STREAM_UNSUPPORTED|PROBE_FAILED|PROBE_TIMEOUT' { return 'The source media could not be probed, decoded, or validated as healthy media.' }
         'DURATION_MISMATCH|OUTPUT_MISSING|SIZE_GUARD|QUALITY_BELOW_FLOOR|QUALITY_REVIEW' { return 'Post-processing verification rejected the generated output.' }
+        '^DYNAMIC_HDR_|^DOVI_|^HDR10PLUS_' { return 'Dynamic HDR metadata extraction, planning, or verification failed before preserve-mode output could be accepted.' }
         '^REMUX_|^MKVMERGE_' { return 'Remux or mkvmerge processing failed before an output could be accepted.' }
         '^ENCODE_' { return 'Encode processing failed before an output could be accepted.' }
         default {

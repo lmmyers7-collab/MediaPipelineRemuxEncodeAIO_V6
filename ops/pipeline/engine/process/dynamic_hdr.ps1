@@ -399,6 +399,186 @@ function New-DynamicHdrMetadataExtractionPlan {
     return [pscustomobject]$base
 }
 
+function Test-DynamicHdrArtifactPresent {
+    param([string] $Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path)) { return $false }
+    $item = Get-Item -LiteralPath $Path -ErrorAction SilentlyContinue
+    return ($null -ne $item -and -not $item.PSIsContainer -and [int64]$item.Length -gt 0)
+}
+
+function ConvertFrom-DynamicHdrRpuSummaryFrameCount {
+    param([string] $Text)
+
+    $summary = if ($Text) { [string]$Text } else { '' }
+    if ([string]::IsNullOrWhiteSpace($summary)) { return 0 }
+    foreach ($pattern in @(
+        '(?im)\bRPU\s+frames?\s*[:=]\s*(\d+)',
+        '(?im)\bframes?\s*[:=]\s*(\d+)',
+        '(?im)\b(\d+)\s+RPU\s+frames?\b'
+    )) {
+        $match = [regex]::Match($summary, $pattern)
+        if ($match.Success) { return [int]$match.Groups[1].Value }
+    }
+    return 0
+}
+
+function Invoke-DynamicHdrExtractionCommand {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $CommandSpec,
+        [Parameter(Mandatory)] [string] $Name,
+        [int] $TimeoutSeconds = 0,
+        [string] $ProcessPriority = 'belownormal'
+    )
+
+    $toolPath = [string](Get-DynamicHdrResultValue -Result $CommandSpec -Name 'tool_path')
+    $arguments = @((Get-DynamicHdrResultValue -Result $CommandSpec -Name 'arguments'))
+    $label = [string](Get-DynamicHdrResultValue -Result $CommandSpec -Name 'label')
+    if ([string]::IsNullOrWhiteSpace($label)) { $label = $Name }
+
+    if (Get-Command Invoke-ExternalToolCommand -ErrorAction SilentlyContinue) {
+        return Invoke-ExternalToolCommand `
+            -ToolName $Name `
+            -FilePath $toolPath `
+            -ArgumentList $arguments `
+            -Stage "dynamic-hdr-$Name" `
+            -TimeoutSeconds $TimeoutSeconds `
+            -ProcessPriority $ProcessPriority
+    }
+
+    return Invoke-NativeProcess `
+        -FilePath $toolPath `
+        -ArgumentList $arguments `
+        -TimeoutSeconds $TimeoutSeconds `
+        -Label $label `
+        -MaxStdoutChars 8192 `
+        -MaxStderrChars 8192 `
+        -ProcessPriority $ProcessPriority
+}
+
+function Export-DynamicHdrMetadata {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)] $Plan,
+        [int] $TimeoutSeconds = 0,
+        [string] $ProcessPriority = 'belownormal'
+    )
+
+    $planId = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'plan_id')
+    $base = [ordered]@{
+        schema_version       = 'dynamic_hdr_metadata_extraction_result.v1'
+        ok                   = $false
+        required             = [bool](Get-DynamicHdrResultValue -Result $Plan -Name 'required')
+        reason               = ''
+        error_code           = ''
+        plan_id              = $planId
+        hevc_path            = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'hevc_path')
+        rpu_path             = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'rpu_path')
+        hdr10plus_json_path  = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'hdr10plus_json_path')
+        rpu_summary_path     = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'rpu_summary_path')
+        rpu_frame_count      = 0
+        target_dovi_profile  = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'target_dovi_profile')
+        dovi_conversion_mode = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'dovi_conversion_mode')
+        caveats              = @((Get-DynamicHdrResultValue -Result $Plan -Name 'caveats'))
+        temp_files           = @((Get-DynamicHdrResultValue -Result $Plan -Name 'temp_files'))
+        command_results      = @()
+    }
+
+    if ($null -eq $Plan) {
+        $base.reason = 'dynamic HDR extraction plan is required'
+        $base.error_code = 'DYNAMIC_HDR_PLAN_MISSING'
+        return [pscustomobject]$base
+    }
+
+    if (-not [bool](Get-DynamicHdrResultValue -Result $Plan -Name 'ok')) {
+        $base.reason = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'reason')
+        $base.error_code = [string](Get-DynamicHdrResultValue -Result $Plan -Name 'error_code')
+        return [pscustomobject]$base
+    }
+
+    if (-not [bool]$base.required) {
+        $base.ok = $true
+        $base.reason = 'no dynamic HDR metadata detected'
+        return [pscustomobject]$base
+    }
+
+    if (-not (Get-Command Invoke-NativeProcess -ErrorAction SilentlyContinue) -and
+        -not (Get-Command Invoke-ExternalToolCommand -ErrorAction SilentlyContinue)) {
+        $base.reason = 'native process runner is not loaded'
+        $base.error_code = 'DYNAMIC_HDR_NATIVE_RUNNER_MISSING'
+        return [pscustomobject]$base
+    }
+
+    $commands = Get-DynamicHdrResultValue -Result $Plan -Name 'commands'
+    foreach ($step in @(
+        @{ Name = 'extract_hevc';       ErrorCode = 'DYNAMIC_HDR_HEVC_EXTRACT_FAILED'; ArtifactPath = [string]$base.hevc_path },
+        @{ Name = 'extract_dovi_rpu';   ErrorCode = 'DOVI_RPU_EXTRACT_FAILED';         ArtifactPath = [string]$base.rpu_path },
+        @{ Name = 'summarize_dovi_rpu'; ErrorCode = 'DOVI_RPU_EXTRACT_FAILED';         ArtifactPath = '' },
+        @{ Name = 'extract_hdr10plus';  ErrorCode = 'HDR10PLUS_EXTRACT_FAILED';        ArtifactPath = [string]$base.hdr10plus_json_path }
+    )) {
+        $commandSpec = Get-DynamicHdrResultValue -Result $commands -Name $step.Name
+        if ($null -eq $commandSpec) { continue }
+
+        $nativeResult = Invoke-DynamicHdrExtractionCommand `
+            -CommandSpec $commandSpec `
+            -Name $step.Name `
+            -TimeoutSeconds $TimeoutSeconds `
+            -ProcessPriority $ProcessPriority
+        $exitCode = [int](Get-DynamicHdrResultValue -Result $nativeResult -Name 'ExitCode')
+        $timedOut = [bool](Get-DynamicHdrResultValue -Result $nativeResult -Name 'TimedOut')
+        $stopped = [bool](Get-DynamicHdrResultValue -Result $nativeResult -Name 'Stopped')
+        $aborted = [bool](Get-DynamicHdrResultValue -Result $nativeResult -Name 'Aborted')
+        $stdout = [string](Get-DynamicHdrResultValue -Result $nativeResult -Name 'Stdout')
+        $stderr = [string](Get-DynamicHdrResultValue -Result $nativeResult -Name 'Stderr')
+
+        $base.command_results = @($base.command_results) + @([pscustomobject][ordered]@{
+            name      = [string]$step.Name
+            label     = [string](Get-DynamicHdrResultValue -Result $commandSpec -Name 'label')
+            tool_path = [string](Get-DynamicHdrResultValue -Result $commandSpec -Name 'tool_path')
+            exit_code = $exitCode
+            timed_out = $timedOut
+            stopped   = $stopped
+            aborted   = $aborted
+            stdout    = $stdout
+            stderr    = $stderr
+        })
+
+        if ($exitCode -ne 0 -or $timedOut -or $stopped -or $aborted) {
+            $base.reason = "dynamic HDR command '$($step.Name)' failed"
+            $base.error_code = [string]$step.ErrorCode
+            return [pscustomobject]$base
+        }
+
+        if ($step.Name -eq 'summarize_dovi_rpu') {
+            $summaryText = (@($stdout, $stderr) | Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }) -join "`n"
+            if ([string]::IsNullOrWhiteSpace($summaryText)) {
+                $base.reason = 'Dolby Vision RPU summary command produced no frame-count evidence'
+                $base.error_code = [string]$step.ErrorCode
+                return [pscustomobject]$base
+            }
+            if (-not [string]::IsNullOrWhiteSpace([string]$base.rpu_summary_path)) {
+                Set-Content -LiteralPath $base.rpu_summary_path -Value $summaryText -Encoding UTF8
+            }
+            $base.rpu_frame_count = ConvertFrom-DynamicHdrRpuSummaryFrameCount -Text $summaryText
+            if ([int]$base.rpu_frame_count -le 0) {
+                $base.reason = 'Dolby Vision RPU summary did not include a positive frame count'
+                $base.error_code = [string]$step.ErrorCode
+                return [pscustomobject]$base
+            }
+        } elseif (-not [string]::IsNullOrWhiteSpace([string]$step.ArtifactPath) -and
+            -not (Test-DynamicHdrArtifactPresent -Path ([string]$step.ArtifactPath))) {
+            $base.reason = "dynamic HDR command '$($step.Name)' did not create a non-empty artifact"
+            $base.error_code = [string]$step.ErrorCode
+            return [pscustomobject]$base
+        }
+    }
+
+    $base.ok = $true
+    $base.reason = 'dynamic HDR metadata extraction completed'
+    return [pscustomobject]$base
+}
+
 function New-DynamicHdrPreservationPlan {
     [CmdletBinding()]
     param(

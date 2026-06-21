@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0620-006",
+  "title": "Execute dynamic HDR metadata extraction plan",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-21",
+  "summary": "Adds an inert Dynamic HDR metadata extraction executor that consumes the existing command plan, runs planned commands through the shared native runner, records per-command results, validates non-empty HEVC/RPU/HDR10+ artifacts, persists RPU summary evidence, and parses RPU frame counts.",
+  "reason": "Dynamic HDR encode preservation needs a tested fail-closed extraction execution layer before Do-Encode policy routing and x265 injection can safely call it.",
+  "affected_areas": [
+    "docs",
+    "generated_docs",
+    "powershell",
+    "tests"
+  ],
+  "behavior_before": "Dynamic HDR extraction had a pure command planner, but no helper executed the planned commands, checked output artifacts, captured command results, or parsed RPU frame-count evidence.",
+  "behavior_after": "Export-DynamicHdrMetadata executes a successful extraction plan without changing pipeline routing. It stops on the first failed command, timeout/stop/abort, missing non-empty artifact, missing RPU summary, or missing positive frame count, and returns registered Dynamic HDR extraction outcome codes for future policy fallback.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/process/dynamic_hdr.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1.md",
+    "docs/implementation/dynamic-hdr-preservation/PLAN.md",
+    "ops/pipeline/engine/process/dynamic_hdr.ps1",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-006.json"
+  ],
+  "tests_added": [
+    "Extended ops/pipeline/tests/Unit/Invoke-DynamicHdrToolingChecks.ps1 with fake-native-runner coverage for extraction execution order, command result capture, artifact checks, RPU frame-count parsing, command failure, and empty HDR10+ artifact failure.",
+    "Registered Dynamic HDR extraction outcome codes so Invoke-FailureCodeRegistryChecks.ps1 covers future emissions."
+  ],
+  "manual_validation": [
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrToolingChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-DynamicHdrDetectionChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-FailureCodeRegistryChecks.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_project_index --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references",
+    "git diff --check"
+  ],
+  "rollback_plan": "Revert this packet plus Export-DynamicHdrMetadata, helper functions, tooling-test executor cases, Dynamic HDR extraction outcome-code registration, docs, and generated summaries. The previous command planner remains a separate committed slice.",
+  "related_changes": [],
+  "notes": "Add inert Dynamic HDR metadata extraction executor over planned commands.\nCover extraction execution order, artifact checks, frame-count parsing, and fail-closed failures.\nReflect extraction executor progress while keeping encode wiring and validation open.\nUpdate active gap summary for extraction executor progress.\nRecord execution helper status and remaining Dynamic HDR work.\nRefresh summary after active-state documentation update.\nRefresh Dynamic HDR process summary after extraction executor addition.\nRefresh Dynamic HDR tooling test summary after executor coverage additions.\nRegister Dynamic HDR extraction outcome codes and encode-surface metadata.\nRefresh failure-code summary after Dynamic HDR outcome-code registration.\nHigh-risk boundary note: this slice executes only when future code explicitly calls Export-DynamicHdrMetadata. It is not wired into Do-Encode, does not alter route selection, does not publish or drain, and does not mutate source/output media. Encode injection wiring, policy fallback, output verification, and representative real-media validation remain open."
+}
