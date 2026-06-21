@@ -49,6 +49,7 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `implementation/release-foundation/PHASE_5_PACKAGE_OPEN_CLOSE_VALIDATION.md`: package/open/close validation plan.
 - `implementation/release-foundation/PHASE_6_REAL_MEDIA_PILOT.md`: repeatable real-media pilot plan.
 - `implementation/release-foundation/PHASE_7_FINALIZATION.md`: change-control and release metadata finalization plan.
+- `implementation/dynamic-hdr-preservation/PLAN.md`: Dynamic HDR preservation implementation plan and validation matrix for Dolby Vision/HDR10+ detection, policy, extraction, x265 wiring, and real-media proof.
 
 ## Removed Compatibility Redirects
 

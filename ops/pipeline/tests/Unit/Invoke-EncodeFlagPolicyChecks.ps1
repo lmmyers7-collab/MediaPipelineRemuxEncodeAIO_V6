@@ -77,6 +77,9 @@ function New-PlanFromCase {
         CpuMaxThreads        = 0
         Hdr10MasterDisplay   = ''
         Hdr10MaxCll          = ''
+        DolbyVisionRpuPath   = ''
+        DolbyVisionTargetProfile = ''
+        Hdr10PlusJsonPath    = ''
     }
     foreach ($key in $Overrides.Keys) {
         $base[$key] = $Overrides[$key]
@@ -336,6 +339,19 @@ $snapshotCases = @(
         EncodeLadder = 'plex_compat'
     },
     [pscustomobject]@{
+        Name = 'cpu hdr dynamic hdr artifacts mkv'
+        Params = @{ UseCpuFallback = $true; IsHDR = $true; Hdr10MasterDisplay = $hdr10MasterDisplay; Hdr10MaxCll = $hdr10MaxCll; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1'; Hdr10PlusJsonPath = 'dynamic_hdr\hdr10plus.json' }
+        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400:dolby-vision-rpu=dynamic_hdr\rpu.bin:dolby-vision-profile=8.1:vbv-maxrate=50000:vbv-bufsize=50000:dhdr10-info=dynamic_hdr\hdr10plus.json|-profile:v|main10|-pix_fmt|p010le|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Attempt = 'cpu_fallback'
+        Route = 'encode-cpu-fallback'
+        Label = 'ENCODE-CPU'
+        ProgressStage = 'encode_cpu'
+        EncoderKind = 'cpu'
+        SelectedEncoder = 'libx265'
+        CpuPreset = 'medium'
+        EncodeLadder = 'movie_balanced'
+    },
+    [pscustomobject]@{
         Name = 'primary complex segment ordering mkv'
         Params = @{
             ExtraInputs = @('-i','subs.srt')
@@ -426,6 +442,26 @@ Assert-Equal ([bool]$av1LegacyPlan.DescriptorSelection.Active) $false 'Dormant A
 Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.PrimaryEncoder) 'av1_nvenc' 'Dormant AV1 descriptor primary evidence mismatch.'
 Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.CpuFallbackEncoder) 'libaom-av1' 'Dormant AV1 descriptor fallback evidence mismatch.'
 Assert-True ([string]$av1LegacyPlan.DescriptorSelection.Reason -match 'descriptor flags are not active') 'Dormant AV1 descriptor selection should explain that activation is still disabled.'
+
+Assert-Throws {
+    New-PlanFromCase -Overrides @{ IsHDR = $true; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1' } | Out-Null
+} 'Dynamic HDR x265 params must not be accepted by the primary NVENC path.'
+
+Assert-Throws {
+    New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc'; IsHDR = $true; Hdr10PlusJsonPath = 'dynamic_hdr\hdr10plus.json' } | Out-Null
+} 'Dynamic HDR x265 params must not be accepted by dormant primary descriptor evidence paths.'
+
+Assert-Throws {
+    New-PlanFromCase -Overrides @{ UseCpuFallback = $true; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1' } | Out-Null
+} 'Dynamic HDR x265 params must not be accepted by an SDR CPU plan.'
+
+Assert-Throws {
+    New-PlanFromCase -Overrides @{ UseCpuFallback = $true; IsHDR = $true; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '5' } | Out-Null
+} 'Dynamic HDR Dolby Vision x265 params must reject unsupported target profiles.'
+
+Assert-Throws {
+    New-PlanFromCase -Overrides @{ UseCpuFallback = $true; IsHDR = $true; Hdr10PlusJsonPath = 'C:\scratch\hdr10plus.json' } | Out-Null
+} 'Dynamic HDR x265 params must reject colon-bearing Windows paths.'
 
 $metadataAttempts = @($snapshotCases | Select-Object -ExpandProperty Attempt -Unique)
 Assert-True ($metadataAttempts -contains 'primary') 'Snapshot set must cover primary attempt metadata.'

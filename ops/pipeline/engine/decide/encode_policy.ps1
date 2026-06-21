@@ -151,8 +151,19 @@ function New-EncodeVideoFlags {
         # has no master-display / MaxCLL data to emit even with hdr10=1.
         # Empty strings = no metadata found / SDR source / probe failed.
         [string] $Hdr10MasterDisplay = '',
-        [string] $Hdr10MaxCll = ''
+        [string] $Hdr10MaxCll = '',
+        [string] $DolbyVisionRpuPath = '',
+        [string] $DolbyVisionTargetProfile = '',
+        [string] $Hdr10PlusJsonPath = ''
     )
+
+    $dynamicHdrX265Requested = Test-DynamicHdrX265ParameterRequested -DolbyVisionRpuPath $DolbyVisionRpuPath -Hdr10PlusJsonPath $Hdr10PlusJsonPath
+    if ($dynamicHdrX265Requested -and -not $UseCpuFallback) {
+        throw 'Dynamic HDR x265 parameters are supported only on CPU libx265 encode plans.'
+    }
+    if ($dynamicHdrX265Requested -and -not $IsHDR) {
+        throw 'Dynamic HDR x265 parameters require an HDR encode plan.'
+    }
 
     $descriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback
     if ($null -ne $descriptor) {
@@ -170,7 +181,10 @@ function New-EncodeVideoFlags {
             -CpuPreset $CpuPreset `
             -CpuMaxThreads $CpuMaxThreads `
             -Hdr10MasterDisplay $Hdr10MasterDisplay `
-            -Hdr10MaxCll $Hdr10MaxCll)
+            -Hdr10MaxCll $Hdr10MaxCll `
+            -DolbyVisionRpuPath $DolbyVisionRpuPath `
+            -DolbyVisionTargetProfile $DolbyVisionTargetProfile `
+            -Hdr10PlusJsonPath $Hdr10PlusJsonPath)
     }
 
     $ladderProfile = Get-MediaEncodeLadderProfile -Ladder $EncodeLadder -IsTV:$IsTV
@@ -243,6 +257,11 @@ function New-EncodeVideoFlags {
             if (-not [string]::IsNullOrWhiteSpace($Hdr10MaxCll)) {
                 $x265ParamPairs.Add("max-cll=$Hdr10MaxCll")
             }
+            Add-DynamicHdrX265ParameterPairs `
+                -ParamPairs $x265ParamPairs `
+                -DolbyVisionRpuPath $DolbyVisionRpuPath `
+                -DolbyVisionTargetProfile $DolbyVisionTargetProfile `
+                -Hdr10PlusJsonPath $Hdr10PlusJsonPath
         }
         $flags = @(
             '-c:v', (Get-MediaVideoCodecLibx265Name),
@@ -508,7 +527,14 @@ function New-EncodeAttemptPlan {
         # mastering metadata from libav side-data on its own). Empty
         # strings are no-ops.
         [string] $Hdr10MasterDisplay = '',
-        [string] $Hdr10MaxCll = ''
+        [string] $Hdr10MaxCll = '',
+        # Dynamic HDR preservation artifacts are supplied only after a
+        # backend-owned extraction step. They are no-ops when blank and are
+        # guarded by New-EncodeVideoFlags so NVENC and non-HDR paths cannot
+        # accidentally receive x265-only parameters.
+        [string] $DolbyVisionRpuPath = '',
+        [string] $DolbyVisionTargetProfile = '',
+        [string] $Hdr10PlusJsonPath = ''
     )
 
     $ladderProfile = Get-MediaEncodeLadderProfile -Ladder $EncodeLadder -IsTV:$IsTV
@@ -526,7 +552,10 @@ function New-EncodeAttemptPlan {
         -CpuPreset $CpuPreset `
         -CpuMaxThreads $CpuMaxThreads `
         -Hdr10MasterDisplay $Hdr10MasterDisplay `
-        -Hdr10MaxCll $Hdr10MaxCll
+        -Hdr10MaxCll $Hdr10MaxCll `
+        -DolbyVisionRpuPath $DolbyVisionRpuPath `
+        -DolbyVisionTargetProfile $DolbyVisionTargetProfile `
+        -Hdr10PlusJsonPath $Hdr10PlusJsonPath
 
     $argumentList = New-EncodeFfmpegArgumentList `
         -InputPath $InputPath `

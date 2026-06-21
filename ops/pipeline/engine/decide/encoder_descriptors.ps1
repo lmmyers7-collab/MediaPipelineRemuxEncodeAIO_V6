@@ -714,6 +714,52 @@ function Test-MediaEncoderDescriptorAvailable {
     return $result
 }
 
+function Test-DynamicHdrX265ParameterRequested {
+    param(
+        [string] $DolbyVisionRpuPath = '',
+        [string] $Hdr10PlusJsonPath = ''
+    )
+
+    return (-not [string]::IsNullOrWhiteSpace($DolbyVisionRpuPath)) -or
+        (-not [string]::IsNullOrWhiteSpace($Hdr10PlusJsonPath))
+}
+
+function Add-DynamicHdrX265ParameterPairs {
+    param(
+        [Parameter(Mandatory)] [System.Collections.Generic.List[string]] $ParamPairs,
+        [string] $DolbyVisionRpuPath = '',
+        [string] $DolbyVisionTargetProfile = '',
+        [string] $Hdr10PlusJsonPath = ''
+    )
+
+    $doviPath = if ($DolbyVisionRpuPath) { $DolbyVisionRpuPath.Trim() } else { '' }
+    $hdr10PlusPath = if ($Hdr10PlusJsonPath) { $Hdr10PlusJsonPath.Trim() } else { '' }
+    if ([string]::IsNullOrWhiteSpace($doviPath) -and [string]::IsNullOrWhiteSpace($hdr10PlusPath)) {
+        return
+    }
+
+    foreach ($path in @($doviPath, $hdr10PlusPath)) {
+        if (-not [string]::IsNullOrWhiteSpace($path) -and $path.Contains(':')) {
+            throw 'Dynamic HDR x265 artifact paths must be relative and colon-free because x265 parameter parsing uses colon separators.'
+        }
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($doviPath)) {
+        $targetProfile = if ($DolbyVisionTargetProfile) { $DolbyVisionTargetProfile.Trim() } else { '' }
+        if ($targetProfile -ne '8.1') {
+            throw "Dynamic HDR Dolby Vision x265 parameters currently support only target profile '8.1'."
+        }
+        $ParamPairs.Add("dolby-vision-rpu=$doviPath")
+        $ParamPairs.Add('dolby-vision-profile=8.1')
+        $ParamPairs.Add('vbv-maxrate=50000')
+        $ParamPairs.Add('vbv-bufsize=50000')
+    }
+
+    if (-not [string]::IsNullOrWhiteSpace($hdr10PlusPath)) {
+        $ParamPairs.Add("dhdr10-info=$hdr10PlusPath")
+    }
+}
+
 function New-EncoderVideoFlags {
     param(
         [Parameter(Mandatory)] $Descriptor,
@@ -729,11 +775,18 @@ function New-EncoderVideoFlags {
         [string] $CpuPreset = 'medium',
         [int] $CpuMaxThreads = 0,
         [string] $Hdr10MasterDisplay = '',
-        [string] $Hdr10MaxCll = ''
+        [string] $Hdr10MaxCll = '',
+        [string] $DolbyVisionRpuPath = '',
+        [string] $DolbyVisionTargetProfile = '',
+        [string] $Hdr10PlusJsonPath = ''
     )
 
     if ($IsHDR -and -not [bool]$Descriptor.SupportsHdr10Metadata) {
         throw "Encoder descriptor '$($Descriptor.Family)/$($Descriptor.Backend)' does not support HDR10 metadata preservation."
+    }
+    $dynamicHdrX265Requested = Test-DynamicHdrX265ParameterRequested -DolbyVisionRpuPath $DolbyVisionRpuPath -Hdr10PlusJsonPath $Hdr10PlusJsonPath
+    if ($dynamicHdrX265Requested -and -not $IsHDR) {
+        throw 'Dynamic HDR x265 parameters require an HDR encode plan.'
     }
 
     $ladderProfile = Get-MediaEncodeLadderProfile -Ladder $EncodeLadder -IsTV:$IsTV
@@ -750,6 +803,9 @@ function New-EncoderVideoFlags {
     }
 
     $isCpuDescriptor = ([string]$Descriptor.Backend -eq 'cpu')
+    if ($dynamicHdrX265Requested -and (-not $isCpuDescriptor -or [string]$Descriptor.RateControlKind -ne 'x265_crf')) {
+        throw 'Dynamic HDR x265 parameters are supported only on CPU libx265 encode descriptors.'
+    }
     $presetMap = $Descriptor.PresetMap
     $mappedVideoPreset = if ($presetMap -and $presetMap.ContainsKey($VideoPreset)) {
         [string]$presetMap[$VideoPreset]
@@ -792,6 +848,11 @@ function New-EncoderVideoFlags {
                 if (-not [string]::IsNullOrWhiteSpace($Hdr10MaxCll)) {
                     $x265ParamPairs.Add("max-cll=$Hdr10MaxCll")
                 }
+                Add-DynamicHdrX265ParameterPairs `
+                    -ParamPairs $x265ParamPairs `
+                    -DolbyVisionRpuPath $DolbyVisionRpuPath `
+                    -DolbyVisionTargetProfile $DolbyVisionTargetProfile `
+                    -Hdr10PlusJsonPath $Hdr10PlusJsonPath
             }
             $flags += @('-x265-params', ($x265ParamPairs -join ':'))
         } elseif ([string]$Descriptor.RateControlKind -eq 'aom_crf') {

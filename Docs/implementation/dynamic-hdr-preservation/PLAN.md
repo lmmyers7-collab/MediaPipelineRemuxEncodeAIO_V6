@@ -627,6 +627,14 @@ preservation encodes are CPU encodes PLUS one stream-copy of the video track.
 
 ### 6.3 x265 parameter injection (`New-EncodeVideoFlags`, encode_policy.ps1)
 
+Status 2026-06-21: the encode argument builders now thread
+`-DolbyVisionRpuPath`, `-DolbyVisionTargetProfile`, and `-Hdr10PlusJsonPath`
+through `New-EncodeAttemptPlan`/`New-EncodeVideoFlags` and descriptor-owned
+libx265 flag generation. The implementation is intentionally guarded to CPU
+libx265 HDR plans, Dolby Vision target profile `8.1`, and colon-free artifact
+paths. Extraction, policy routing, force-CPU activation, output verification,
+and real-media proof remain open.
+
 New parameters (default `''`/`$false`, threaded through `New-EncodeAttemptPlan`
 exactly like `Hdr10MasterDisplay` at encode_policy.ps1:372-391):
 `-DolbyVisionRpuPath`, `-DolbyVisionTargetProfile` (string, only `'8.1'`
@@ -696,6 +704,9 @@ When `$preservePlan.Action -eq 'encode_preserve'`:
 
 ### 6.5 Phase 3 tests and validation
 
+- `ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1` now covers the
+  x265 parameter-wiring snapshot plus guards for NVENC, SDR, unsupported target
+  profile, and colon-bearing Windows paths.
 - NEW `ops/pipeline/tests/Unit/Invoke-DynamicHdrEncodePolicyChecks.ps1`:
   `Resolve-DynamicHdrEncodePlan` truth table (every §2.1 row x every policy
   value x tool-present/absent x container mkv/mp4 — enumerate, this is ~40 cheap
