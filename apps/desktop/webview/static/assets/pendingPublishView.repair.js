@@ -14,10 +14,15 @@
 
     const COMMAND = "pending_publish.repair_manifest";
     const DRY_RUN_COMMAND = "pending_publish.repair_manifest_dry_run";
+    const ORPHAN_COMMAND = "pending_publish.reconcile_orphan_payloads";
+    const ORPHAN_DRY_RUN_COMMAND = "pending_publish.reconcile_orphan_payloads_dry_run";
     let eventsInitialized = false;
     let inFlight = false;
     let lastDryRunResult = null;
     let lastDryRunRowKey = "";
+    let orphanInFlight = false;
+    let lastOrphanDryRunResult = null;
+    let lastOrphanDryRunRowKey = "";
 
     function selectedRowKey(row = getSelectedPendingRow()) {
       const direct = String(row?.row_key || "").trim();
@@ -33,18 +38,26 @@
       return Array.isArray(data?.selected_row_keys) ? data.selected_row_keys.map((item) => String(item || "").trim()).filter(Boolean) : [];
     }
 
-    function pendingRepairDryRunIsSafeForSelection(row = getSelectedPendingRow()) {
+    function dryRunIsSafeForSelection(result, resultRowKey, command, row = getSelectedPendingRow()) {
       const rowKey = selectedRowKey(row);
-      const data = repairResultData(lastDryRunResult);
+      const data = repairResultData(result);
       const selectedKeys = repairSelectedKeys(data);
       return Boolean(
         rowKey
-        && lastDryRunRowKey === rowKey
-        && data.candidate_command === COMMAND
+        && resultRowKey === rowKey
+        && data.candidate_command === command
         && data.safe_to_apply === true
         && data.dry_run_fingerprint
         && (!selectedKeys.length || selectedKeys.includes(rowKey))
       );
+    }
+
+    function pendingRepairDryRunIsSafeForSelection(row = getSelectedPendingRow()) {
+      return dryRunIsSafeForSelection(lastDryRunResult, lastDryRunRowKey, COMMAND, row);
+    }
+
+    function pendingOrphanDryRunIsSafeForSelection(row = getSelectedPendingRow()) {
+      return dryRunIsSafeForSelection(lastOrphanDryRunResult, lastOrphanDryRunRowKey, ORPHAN_COMMAND, row);
     }
 
     function setPendingRepairManifestBusy(isBusy) {
@@ -52,11 +65,20 @@
       renderPendingRepairManifestControls();
     }
 
+    function setPendingRepairOrphanBusy(isBusy) {
+      orphanInFlight = Boolean(isBusy);
+      renderPendingRepairOrphanControls();
+    }
+
     function clearStaleDryRunIfSelectionChanged(row = getSelectedPendingRow()) {
       const rowKey = selectedRowKey(row);
       if (lastDryRunResult && lastDryRunRowKey !== rowKey) {
         lastDryRunResult = null;
         lastDryRunRowKey = "";
+      }
+      if (lastOrphanDryRunResult && lastOrphanDryRunRowKey !== rowKey) {
+        lastOrphanDryRunResult = null;
+        lastOrphanDryRunRowKey = "";
       }
     }
 
@@ -82,6 +104,27 @@
         "Step 2: apply only when the current dry-run reports safe_to_apply=true and supplies a matching dry_run_fingerprint.",
         repairMutationGuardrailLine(),
         "No repair result is loaded for this selection yet.",
+      ];
+    }
+
+    function orphanDefaultLines(row) {
+      const rowKey = selectedRowKey(row);
+      if (!rowKey) {
+        return [
+          "No pending publish row selected.",
+          "Select one orphan payload row, then run the backend orphan-payload reconcile dry-run.",
+          "Apply remains disabled until the backend returns a complete manifest proposal and matching safe dry-run fingerprint.",
+          repairMutationGuardrailLine(),
+        ];
+      }
+      return [
+        "Selected-row orphan payload reconcile:",
+        `Row key: ${rowKey}`,
+        "Step 1: run the backend dry-run for this selected orphan payload row.",
+        "Step 2: apply only when the current dry-run reports safe_to_apply=true and supplies a matching dry_run_fingerprint.",
+        "Backend dry-runs may report blocked when pending_push_manifest.v1 source or destination evidence is missing.",
+        repairMutationGuardrailLine(),
+        "No orphan reconcile result is loaded for this selection yet.",
       ];
     }
 
@@ -149,6 +192,18 @@
       return "Review dry-run";
     }
 
+    function pendingRepairOrphanStatus(result = lastOrphanDryRunResult) {
+      if (orphanInFlight) return "Reconcile request running";
+      const row = getSelectedPendingRow();
+      if (!selectedRowKey(row)) return "No row selected";
+      const data = repairResultData(result || {});
+      if (!result) return "Dry-run required";
+      if (data.applied === true) return "Applied";
+      if (data.blocked === true || result?.ok === false) return "Blocked";
+      if (pendingOrphanDryRunIsSafeForSelection(row)) return "Dry-run safe";
+      return "Review dry-run";
+    }
+
     function renderPendingRepairManifestControls(result = lastDryRunResult) {
       const row = getSelectedPendingRow();
       clearStaleDryRunIfSelectionChanged(row);
@@ -175,9 +230,40 @@
       );
     }
 
+    function renderPendingRepairOrphanControls(result = lastOrphanDryRunResult) {
+      const row = getSelectedPendingRow();
+      clearStaleDryRunIfSelectionChanged(row);
+      const rowKey = selectedRowKey(row);
+      const dryRunButton = byId("pending-reconcile-orphan-dry-run-button");
+      const applyButton = byId("pending-reconcile-orphan-apply-button");
+      const safeToApply = pendingOrphanDryRunIsSafeForSelection(row);
+      if (dryRunButton) {
+        dryRunButton.disabled = orphanInFlight || !rowKey;
+        dryRunButton.title = rowKey
+          ? "Run backend orphan-payload reconcile dry-run for the selected row."
+          : "Select an orphan payload row before running reconcile dry-run.";
+      }
+      if (applyButton) {
+        applyButton.disabled = orphanInFlight || !safeToApply;
+        applyButton.title = safeToApply
+          ? "Apply backend-validated orphan payload manifest reconcile for the selected row."
+          : "Run a safe backend orphan-payload reconcile dry-run for the selected row before applying.";
+      }
+      setText("pending-reconcile-orphan-status", pendingRepairOrphanStatus(result));
+      setText(
+        "pending-reconcile-orphan-detail",
+        result ? pendingRepairManifestResultLines(result).join("\n") : orphanDefaultLines(row).join("\n"),
+      );
+    }
+
     function isPendingRepairManifestCommand(entry) {
       const command = String(entry?.command || entry?.raw?.command || "").toLowerCase();
       return command === DRY_RUN_COMMAND || command === COMMAND;
+    }
+
+    function isPendingRepairOrphanCommand(entry) {
+      const command = String(entry?.command || entry?.raw?.command || "").toLowerCase();
+      return command === ORPHAN_DRY_RUN_COMMAND || command === ORPHAN_COMMAND;
     }
 
     function pendingRepairManifestHistoryLine(entry) {
@@ -223,6 +309,34 @@
       );
     }
 
+    function renderPendingRepairOrphanHistory(entries = getCommandHistory()) {
+      if (typeof renderCompactCommandHistoryBlock === "function") {
+        renderCompactCommandHistoryBlock({
+          history: entries,
+          filter: isPendingRepairOrphanCommand,
+          limit: 5,
+          targetId: "pending-reconcile-orphan-history",
+          itemLabel: "orphan payload reconcile",
+          emptyHistoryText: "No orphan payload reconcile history loaded. Run a dry-run before applying backend manifest-only reconcile.",
+          emptyMatchText: "No orphan payload reconcile commands found in command history.",
+          lineFor: pendingRepairManifestHistoryLine,
+          footer: "Dry-runs are unjournaled backend evidence; applies are backend-owned confirmed mutation routes.",
+        });
+        return;
+      }
+      const history = Array.isArray(entries) ? entries.filter(isPendingRepairOrphanCommand).slice(0, 5) : [];
+      setText(
+        "pending-reconcile-orphan-history",
+        history.length
+          ? [
+            `Last ${history.length} orphan payload reconcile command${history.length === 1 ? "" : "s"}:`,
+            ...history.map(pendingRepairManifestHistoryLine),
+            "Dry-runs are unjournaled backend evidence; applies are backend-owned confirmed mutation routes.",
+          ].join("\n")
+          : "No orphan payload reconcile history loaded. Run a dry-run before applying backend manifest-only reconcile.",
+      );
+    }
+
     function pendingRepairManifestDryRunRequest() {
       const row = getSelectedPendingRow();
       const rowKey = selectedRowKey(row);
@@ -243,6 +357,31 @@
       return {
         ...base,
         reason: "WebView selected-row pending manifest repair apply",
+        dry_run_fingerprint: fingerprint,
+        confirm_apply: true,
+      };
+    }
+
+    function pendingRepairOrphanDryRunRequest() {
+      const row = getSelectedPendingRow();
+      const rowKey = selectedRowKey(row);
+      if (!rowKey) return null;
+      return {
+        scope: "selected",
+        row_key: rowKey,
+        limit: 1,
+        reason: "WebView selected-row orphan payload reconcile dry-run",
+      };
+    }
+
+    function pendingRepairOrphanApplyRequest() {
+      const data = repairResultData(lastOrphanDryRunResult || {});
+      const fingerprint = String(data.dry_run_fingerprint || "").trim();
+      const base = pendingRepairOrphanDryRunRequest();
+      if (!base || !fingerprint) return null;
+      return {
+        ...base,
+        reason: "WebView selected-row orphan payload reconcile apply",
         dry_run_fingerprint: fingerprint,
         confirm_apply: true,
       };
@@ -342,30 +481,139 @@
       }
     }
 
+    async function requestPendingRepairOrphanDryRun() {
+      const request = pendingRepairOrphanDryRunRequest();
+      if (!request) {
+        const result = {
+          command: ORPHAN_DRY_RUN_COMMAND,
+          ok: false,
+          severity: "warning",
+          message: "Select an orphan payload row before running orphan reconcile dry-run.",
+          data: { scope: "selected", dry_run_only: true, safe_to_apply: false },
+        };
+        appendCommandResult(result);
+        renderPendingRepairOrphanControls(result);
+        return;
+      }
+      setPendingRepairOrphanBusy(true);
+      setText("pending-reconcile-orphan-status", "Running dry-run");
+      try {
+        const result = typeof window.apiPost === "function"
+          ? await window.apiPost("/api/pending-publish/reconcile-orphan-payloads-dry-run", request)
+          : await apiPost("/api/pending-publish/reconcile-orphan-payloads-dry-run", request);
+        lastOrphanDryRunResult = result;
+        lastOrphanDryRunRowKey = request.row_key;
+        appendCommandResult(result);
+        renderPendingRepairOrphanControls(result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const result = {
+          command: ORPHAN_DRY_RUN_COMMAND,
+          ok: false,
+          severity: "error",
+          message,
+          data: { scope: "selected", selected_row_keys: [request.row_key], safe_to_apply: false },
+        };
+        lastOrphanDryRunResult = result;
+        lastOrphanDryRunRowKey = request.row_key;
+        appendCommandResult(result);
+        renderPendingRepairOrphanControls(result);
+      } finally {
+        setPendingRepairOrphanBusy(false);
+        renderPendingRepairOrphanHistory(getCommandHistory());
+      }
+    }
+
+    async function requestPendingRepairOrphanApply() {
+      if (!pendingOrphanDryRunIsSafeForSelection()) {
+        const result = {
+          command: ORPHAN_COMMAND,
+          ok: false,
+          severity: "warning",
+          message: "Run a safe selected-row orphan payload reconcile dry-run before applying.",
+          data: { scope: "selected", safe_to_apply: false, confirm_apply: false },
+        };
+        appendCommandResult(result);
+        renderPendingRepairOrphanControls(result);
+        return;
+      }
+      const request = pendingRepairOrphanApplyRequest();
+      if (!request) return;
+      if (typeof window.confirm === "function") {
+        const confirmed = window.confirm("Apply backend-validated orphan payload reconcile for the selected row? This writes only a backend-proposed pending manifest and does not drain, publish, move, delete, or touch media files.");
+        if (!confirmed) {
+          setText("pending-reconcile-orphan-status", "Apply cancelled");
+          return;
+        }
+      }
+      setPendingRepairOrphanBusy(true);
+      setText("pending-reconcile-orphan-status", "Applying");
+      try {
+        const result = typeof window.apiPost === "function"
+          ? await window.apiPost("/api/pending-publish/reconcile-orphan-payloads", request)
+          : await apiPost("/api/pending-publish/reconcile-orphan-payloads", request);
+        lastOrphanDryRunResult = result;
+        lastOrphanDryRunRowKey = request.row_key;
+        appendCommandResult(result);
+        renderPendingRepairOrphanControls(result);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const result = {
+          command: ORPHAN_COMMAND,
+          ok: false,
+          severity: "error",
+          message,
+          data: { scope: "selected", selected_row_keys: [request.row_key], dry_run_fingerprint: request.dry_run_fingerprint, safe_to_apply: false },
+        };
+        lastOrphanDryRunResult = result;
+        lastOrphanDryRunRowKey = request.row_key;
+        appendCommandResult(result);
+        renderPendingRepairOrphanControls(result);
+      } finally {
+        setPendingRepairOrphanBusy(false);
+        renderPendingRepairOrphanHistory(getCommandHistory());
+      }
+    }
+
     function initPendingRepairManifestEvents() {
       if (eventsInitialized) return;
       const dryRunButton = byId("pending-repair-manifest-dry-run-button");
       if (dryRunButton) dryRunButton.addEventListener("click", requestPendingRepairManifestDryRun);
       const applyButton = byId("pending-repair-manifest-apply-button");
       if (applyButton) applyButton.addEventListener("click", requestPendingRepairManifestApply);
+      const orphanDryRunButton = byId("pending-reconcile-orphan-dry-run-button");
+      if (orphanDryRunButton) orphanDryRunButton.addEventListener("click", requestPendingRepairOrphanDryRun);
+      const orphanApplyButton = byId("pending-reconcile-orphan-apply-button");
+      if (orphanApplyButton) orphanApplyButton.addEventListener("click", requestPendingRepairOrphanApply);
       eventsInitialized = true;
       renderPendingRepairManifestControls();
+      renderPendingRepairOrphanControls();
       renderPendingRepairManifestHistory(getCommandHistory());
+      renderPendingRepairOrphanHistory(getCommandHistory());
     }
 
     return {
       initPendingRepairManifestEvents,
       isPendingRepairManifestCommand,
+      isPendingRepairOrphanCommand,
+      pendingOrphanDryRunIsSafeForSelection,
       pendingRepairDryRunIsSafeForSelection,
       pendingRepairManifestApplyRequest,
       pendingRepairManifestDryRunRequest,
       pendingRepairManifestHistoryLine,
       pendingRepairManifestResultLines,
+      pendingRepairOrphanApplyRequest,
+      pendingRepairOrphanDryRunRequest,
       renderPendingRepairManifestControls,
       renderPendingRepairManifestHistory,
+      renderPendingRepairOrphanControls,
+      renderPendingRepairOrphanHistory,
       requestPendingRepairManifestApply,
       requestPendingRepairManifestDryRun,
+      requestPendingRepairOrphanApply,
+      requestPendingRepairOrphanDryRun,
       setPendingRepairManifestBusy,
+      setPendingRepairOrphanBusy,
     };
   }
 

@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-16
+Date: 2026-06-20
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1742. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1810. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -190,6 +190,17 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `pending-backend-scope-legend` | `<p>` | Read-only drain scope boundary legend |
 | `pending-drain-button` | `<button>` | Publish Parked Outputs (guarded) |
 | `pending-drain-detail` | `<div>` | Drain request detail |
+| `pending-repair-manifest-status` | `<strong>` | Pending manifest repair dry-run/apply status |
+| `pending-repair-manifest-dry-run-button` | `<button>` | Trigger selected-row pending manifest repair dry-run |
+| `pending-repair-manifest-apply-button` | `<button>` | Trigger fingerprint-gated pending manifest repair apply |
+| `pending-reconcile-orphan-dry-run-button` | `<button>` | Trigger selected-row orphan payload reconcile dry-run |
+| `pending-reconcile-orphan-apply-button` | `<button>` | Trigger fingerprint-gated orphan payload reconcile apply |
+| `pending-reconcile-orphan-status` | `<span>` | Orphan payload reconcile dry-run/apply status |
+| `pending-repair-manifest-detail` | `<pre>` | Pending manifest repair evidence detail |
+| `pending-repair-manifest-history` | `<pre>` | Pending manifest repair command history |
+| `pending-reconcile-orphan-detail` | `<pre>` | Orphan payload reconcile evidence detail |
+| `pending-reconcile-orphan-history` | `<pre>` | Orphan payload reconcile command history |
+| `pending-repair-manifest-legend` | `<p>` | Pending repair/reconcile backend-owned mutation boundary |
 
 ---
 
@@ -627,7 +638,7 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1742
+Count: 1810
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -653,20 +664,6 @@ api-contract-scope
 api-contract-status
 api-contract-table-legend
 app-version
-audit-export-detail
-audit-export-rerun-csv-button
-audit-ignore-selected-button
-audit-launch-detail
-audit-launch-log-detail
-audit-launch-log-rows
-audit-launch-log-status
-audit-launch-log-summary
-audit-launch-log-table-legend
-audit-launch-preflight
-audit-launch-progress-bars
-audit-launch-progress-status
-audit-launch-progress-summary
-audit-launch-status
 audit-preview-detail
 audit-preview-diagnostics-actions
 audit-preview-filter
@@ -677,23 +674,6 @@ audit-preview-summary
 audit-preview-table-legend
 audit-review-board
 audit-review-status
-audit-score-fallback-issue
-audit-score-high-issue
-audit-score-medium-issue
-audit-score-policy-detail
-audit-score-policy-reset-button
-audit-score-policy-save-button
-audit-score-policy-status
-audit-score-policy-summary
-audit-score-redownload-bonus
-audit-score-redownload-bucket
-audit-score-rerun-bonus
-audit-score-rerun-bucket
-audit-score-review-bucket
-audit-start-button
-audit-start-include-sidecars
-audit-start-library-root
-audit-start-show-console
 backend-lifecycle-history
 backend-lifecycle-status
 backend-lifecycle-summary
@@ -710,11 +690,19 @@ command-rows
 command-status
 command-summary
 command-table-legend
+completed-active-output-context
+completed-active-output-paths
+completed-active-output-placement
+completed-active-output-title
+completed-active-output-trust
+completed-active-output-visibility
 completed-breakdown
 completed-breakdown-status
+completed-breakdown-strip
 completed-clear-filters-button
 completed-consistency
 completed-consistency-status
+completed-consistency-strip
 completed-copy-evidence-button
 completed-copy-evidence-status
 completed-count
@@ -744,6 +732,7 @@ completed-history-summary-heading
 completed-history-table-legend
 completed-integrity
 completed-integrity-status
+completed-integrity-strip
 completed-inventory-progress-bars
 completed-investigation-filter
 completed-library-filter
@@ -772,9 +761,19 @@ completed-real-media-proof-legend
 completed-real-media-proof-rows
 completed-real-media-proof-status
 completed-real-media-proof-summary
+completed-reconcile-manifest-apply-button
+completed-reconcile-manifest-dry-run-button
 completed-reconciliation-hint
 completed-refresh-current-output-button
 completed-remux-count
+completed-repair-detail
+completed-repair-history
+completed-repair-legend
+completed-repair-manifest-status
+completed-repair-overall-status
+completed-repair-sidecar-apply-button
+completed-repair-sidecar-dry-run-button
+completed-repair-sidecar-status
 completed-route-agreement-detail
 completed-route-agreement-legend
 completed-route-agreement-rows
@@ -783,8 +782,11 @@ completed-route-agreement-summary
 completed-rows
 completed-runtime
 completed-runtime-status
+completed-runtime-strip
+completed-selected-promotion-status
 completed-selected-status
 completed-selected-summary
+completed-show-selected-button
 completed-size-evidence-detail
 completed-size-evidence-legend
 completed-size-evidence-rows
@@ -800,8 +802,10 @@ completed-trust-decision-status
 completed-trust-decision-summary
 completed-validation
 completed-validation-status
+completed-validation-strip
 completed-workflow
 completed-workflow-status
+completed-workflow-strip
 control-history
 control-latest
 control-readiness
@@ -814,6 +818,7 @@ cpu-value
 cross-page-conflict-legend
 cross-page-conflict-rows
 cross-page-conflict-status
+cross-page-context-board
 cross-page-context-status
 cross-page-context-summary
 cross-page-real-media-detail
@@ -870,6 +875,7 @@ diagnostics-first-response-summary
 diagnostics-investigation-actions
 diagnostics-investigation-status
 diagnostics-investigation-trail
+diagnostics-launch-log-status
 diagnostics-live-run-status
 diagnostics-live-run-strip
 diagnostics-log-actions
@@ -889,6 +895,7 @@ diagnostics-owner-handoff-legend
 diagnostics-owner-handoff-nav-status
 diagnostics-owner-handoff-rows
 diagnostics-owner-handoff-status
+diagnostics-pipeline-log-status
 diagnostics-progress-bars
 diagnostics-progress-detail
 diagnostics-progress-rows
@@ -940,6 +947,7 @@ failure-summary
 failure-table-legend
 final-library-pause-button
 final-library-promote-button
+final-library-promotion-command-status
 final-library-promotion-rows
 final-library-promotion-status
 final-library-promotion-summary
@@ -967,6 +975,8 @@ fo-inherited-settings-status
 fo-overlay
 fo-processing-route-help
 fo-processing-route-section
+fo-remux-pilot-promote
+fo-remux-pilot-proof
 fo-route-encode-advisory
 fo-route-override-controls
 fo-route-override-disclosure-status
@@ -1021,6 +1031,7 @@ fo-video-encode-preset-inherited
 gpu-chart
 gpu-chart-meta
 gpu-detail-status
+gpu-empty-state
 gpu-note
 gpu-rows
 gpu-value
@@ -1034,18 +1045,22 @@ home-failed-count
 home-failed-label
 home-live-run-status
 home-live-run-strip
+home-next-queue-detail
 home-next-queue-list
 home-next-queue-status
 home-output-storage-detail
 home-output-storage-status
 home-pending-count
+home-promotion-entry-message
 home-queue-snapshot
 home-queue-snapshot-status
 home-readiness-status
 home-readiness-summary
+home-recent-completed-detail
 home-recent-completed-status
 home-recent-completed-tbody
 home-refresh-button
+home-run-state-handoff
 home-runtime-open-status
 home-scratch-storage-detail
 home-scratch-storage-status
@@ -1069,6 +1084,7 @@ launch-evidence-section
 launch-evidence-toggle
 launch-history
 launch-history-status
+launch-latest-command-evidence
 launch-live-run-status
 launch-live-run-strip
 launch-logs
@@ -1083,6 +1099,8 @@ launch-policy-boundary-rows
 launch-policy-boundary-status
 launch-policy-boundary-summary
 launch-readiness
+launch-readiness-action-status
+launch-readiness-actions
 launch-readiness-status
 launch-real-media-proof-detail
 launch-real-media-proof-legend
@@ -1132,9 +1150,11 @@ library-route-compare-rows
 library-route-compare-title
 library-route-decision-rows
 library-route-decision-title
+library-route-map-context
 library-route-map-graph
 library-route-map-profile-select
 library-route-map-status
+library-route-map-warning-summary
 library-route-navigation-rows
 library-route-navigation-title
 library-route-node-rows
@@ -1290,6 +1310,7 @@ network-readiness-status
 network-readiness-summary
 network-role
 network-role-coordinator-setup-button
+network-role-dashboards
 network-role-setup-bind-address
 network-role-setup-close-button
 network-role-setup-coordinator-fields
@@ -1438,6 +1459,11 @@ pending-post-drain-trust-status
 pending-post-drain-trust-summary
 pending-publish-readiness
 pending-publish-readiness-status
+pending-reconcile-orphan-apply-button
+pending-reconcile-orphan-detail
+pending-reconcile-orphan-dry-run-button
+pending-reconcile-orphan-history
+pending-reconcile-orphan-status
 pending-recovery-plan-all-button
 pending-recovery-plan-detail
 pending-recovery-plan-history
@@ -1446,6 +1472,12 @@ pending-recovery-plan-row-detail
 pending-recovery-plan-rows
 pending-recovery-plan-selected-button
 pending-recovery-plan-status
+pending-repair-manifest-apply-button
+pending-repair-manifest-detail
+pending-repair-manifest-dry-run-button
+pending-repair-manifest-history
+pending-repair-manifest-legend
+pending-repair-manifest-status
 pending-review-board
 pending-review-legend
 pending-review-rows
@@ -1550,6 +1582,7 @@ queue-launch-decision-status
 queue-launch-decision-summary
 queue-loading-screen
 queue-loading-status
+queue-manual-discard-order-btn
 queue-manual-move-bottom-btn
 queue-manual-move-down-btn
 queue-manual-move-top-btn
@@ -1558,6 +1591,8 @@ queue-manual-order-status
 queue-manual-save-order-btn
 queue-open-history
 queue-open-status
+queue-page-next-btn
+queue-page-prev-btn
 queue-priority-clear-all-btn
 queue-priority-hold-btn
 queue-priority-low-btn
@@ -1588,6 +1623,8 @@ queue-strategy-select
 queue-strategy-status
 queue-summary
 queue-table-legend
+queue-table-page-status
+queue-table-pagination
 queue-validation
 queue-validation-status
 queue-workflow
@@ -1685,10 +1722,12 @@ rename-result-dialog
 rename-result-errors
 rename-result-failed
 rename-result-open-log-button
+rename-result-protected
 rename-result-skipped
 rename-result-success
 rename-result-summary
 rename-result-title
+rename-result-unchanged
 rename-review-board
 rename-review-board-status
 rename-rows
@@ -1800,6 +1839,8 @@ sample-validation-cutover-rows
 sample-validation-cutover-status
 sample-validation-cutover-summary
 sample-validation-decision
+sample-validation-decision-strip
+sample-validation-decision-strip-summary
 sample-validation-detail
 sample-validation-execution-detail
 sample-validation-execution-legend
@@ -1833,6 +1874,8 @@ sample-validation-sample-set-rows
 sample-validation-sample-set-status
 sample-validation-sample-set-summary
 sample-validation-status
+sample-validation-strip-clear-checks-button
+sample-validation-strip-preview-button
 sample-validation-summary
 sample-validation-use-sample-set-category-button
 sample-validation-worksheet-detail
@@ -1843,16 +1886,21 @@ sample-validation-worksheet-summary
 schedule-allowed-state
 schedule-coverage-detail
 schedule-coverage-rows
+schedule-coverage-scope
 schedule-coverage-status
+schedule-current-scope
 schedule-day-detail
 schedule-day-legend
 schedule-day-rows
+schedule-day-scope
 schedule-day-status
 schedule-editor-allow-all-button
 schedule-editor-clear-button
+schedule-editor-draft-summary
 schedule-editor-enabled
 schedule-editor-impact
 schedule-editor-load-current-button
+schedule-editor-panel
 schedule-editor-preview-button
 schedule-editor-result
 schedule-editor-rows
@@ -1861,13 +1909,18 @@ schedule-editor-save-state
 schedule-editor-status
 schedule-enabled-state
 schedule-guidance
+schedule-guidance-scope
 schedule-guidance-status
 schedule-next-start
 schedule-status
 schedule-summary
 schedule-timing
+schedule-timing-scope
 schedule-timing-status
+schedule-watch-folder-event-rows
 schedule-watch-folder-recent
+schedule-watch-folder-root-rows
+schedule-watch-folder-scope
 schedule-watch-folder-status
 schedule-watch-folder-summary
 schedule-window-end
@@ -2018,12 +2071,16 @@ settings-library-add-button
 settings-library-build-patch-button
 settings-library-defaults-button
 settings-library-delete-button
+settings-library-editor-state
 settings-library-editor-status
+settings-library-patch-state
 settings-library-preview-button
 settings-library-profile-list
 settings-library-profile-nav
 settings-library-reset-button
+settings-library-route-map-scope
 settings-library-save-button
+settings-library-state-strip
 settings-library-warning-summary
 settings-library-watch-auto-run
 settings-library-watch-panel
@@ -2089,7 +2146,6 @@ settings-policy-delta-legend
 settings-policy-delta-rows
 settings-policy-delta-status
 settings-policy-delta-summary
-settings-preview-patch-button
 settings-profiles
 settings-quality-apply-button
 settings-quality-builder-status
@@ -2117,7 +2173,6 @@ settings-reload-button
 settings-rename-cleaning-filter-status
 settings-rename-cleaning-filter-summary
 settings-rename-cleaning-filters-reset-button
-settings-rename-cleaning-filters-save-button
 settings-rename-filter-audio-channels
 settings-rename-filter-editions
 settings-rename-filter-file-size
@@ -2139,9 +2194,18 @@ settings-rename-log-case-status-select
 settings-rename-log-case-submit-button
 settings-rename-preview-button
 settings-rename-preview-input
+settings-rename-preview-mode
 settings-rename-preview-output
+settings-rename-preview-source-folder
 settings-rename-preview-status
 settings-rename-remove-terms
+settings-rename-tv-filter-audio-channels
+settings-rename-tv-filter-languages-subs-dubs
+settings-rename-tv-filter-release-flags
+settings-rename-tv-filter-release-groups
+settings-rename-tv-filter-services-containers
+settings-rename-tv-filter-video-source
+settings-rename-tv-remove-terms
 settings-route-boundary-1080p-end-input
 settings-route-boundary-4k-start-input
 settings-route-card-range-1080p
@@ -2179,7 +2243,6 @@ settings-safety-lock-status
 settings-safety-lock-summary
 settings-save-header
 settings-save-header-patch-status
-settings-save-header-preview-button
 settings-save-header-reload-button
 settings-save-header-reload-status
 settings-save-header-save-button
@@ -2187,9 +2250,19 @@ settings-save-patch-button
 settings-save-progress-bars
 settings-save-readiness
 settings-save-readiness-status
+settings-save-review-cancel-button
+settings-save-review-confirm-button
 settings-save-review-detail
+settings-save-review-dialog
+settings-save-review-dialog-changed
+settings-save-review-dialog-detail
+settings-save-review-dialog-resets
+settings-save-review-dialog-rows
+settings-save-review-dialog-submitted
 settings-save-review-legend
 settings-save-review-rows
+settings-save-review-summary
+settings-save-review-title
 settings-status
 settings-subtitle-apply-button
 settings-subtitle-ass-signs-forced
@@ -2321,19 +2394,25 @@ tdarr-matrix-compare-left
 tdarr-matrix-compare-refresh
 tdarr-matrix-compare-right
 tdarr-matrix-console-summary
+tdarr-matrix-delete-confirm
 tdarr-matrix-proof-pack-rows
 tdarr-matrix-proof-pack-status
 tdarr-matrix-run-compare-rows
 tdarr-matrix-run-compare-status
+telemetry-expected-encoder
 telemetry-kpi-cpu-value
 telemetry-kpi-encoder-value
 telemetry-kpi-gpu-status
 telemetry-kpi-ram-value
+telemetry-live-state
 telemetry-operator-next-step
 telemetry-operator-state
 telemetry-operator-state-label
 telemetry-readiness-status
 telemetry-readiness-summary
+telemetry-refresh-cadence
+telemetry-sample-age
+telemetry-source
 theme-toggle
 topbar-event-ticker
 wizard-ack-AllowNoAudio
@@ -2374,4 +2453,5 @@ wizard-video-preset
 wizard-video-quality
 wizard-video-strategy
 ```
+
 <!-- END GENERATED DOM ID MANIFEST -->

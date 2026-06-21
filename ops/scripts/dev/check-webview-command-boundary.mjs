@@ -21,6 +21,8 @@ const highRiskEffects = new Set([
   "app-state-write",
   "audit-state-write",
   "backend-lifecycle",
+  "completed-manifest-write",
+  "completed-sidecar-json-write",
   "config-write",
   "control-flag-write",
   "control-state-write",
@@ -32,6 +34,8 @@ const highRiskEffects = new Set([
   "metrics-state-write",
   "process-dry-run",
   "process-launch",
+  "pending-manifest-write",
+  "pending-orphan-manifest-write",
   "queue-state-write",
   "report-file-write",
   "secret-transfer",
@@ -52,6 +56,7 @@ const routeOwnerRules = [
   { route: /^\/api\/schedule\//, owners: ["Schedule"] },
   { route: /^\/api\/sample-validation\//, owners: ["Home", "Cross Page"] },
   { route: /^\/api\/diagnostics\//, owners: ["Diagnostics"] },
+  { route: /^\/api\/maintenance\/archive-state-journals$/, owners: ["Launch", "Maintenance"] },
   { route: /^\/api\/maintenance\//, owners: ["Maintenance"] },
   { route: /^\/api\/maintenance$/, owners: ["Maintenance"] },
   { route: /^\/api\/metrics\//, owners: ["Metrics"] },
@@ -77,8 +82,18 @@ const confirmationRules = [
   { route: "/api/rename/apply", confirmation: "confirm_apply", pattern: /confirm_apply\s*=\s*true|confirm_apply\s*:\s*true/ },
   { route: "/api/rename/filter-cases", confirmation: "confirm_append", pattern: /confirm_append\s*:\s*true/ },
   { route: "/api/queue/file-overrides/series-apply", confirmation: "confirm_apply", pattern: /confirm_apply\s*:\s*true/ },
-  { route: "/api/network/coordinator/join-blob", confirmation: "confirm_create", pattern: /confirm_create\s*:\s*true/ },
-  { route: "/api/network/worker/join-cluster", confirmation: "confirm_import", pattern: /confirm_import\s*:\s*true/ },
+  {
+    route: "/api/network/coordinator/join-blob",
+    confirmation: "confirm_create",
+    pattern: /confirm_create\s*:\s*true/,
+    evidenceFiles: ["apps/desktop/webview/static/assets/networkView.js"],
+  },
+  {
+    route: "/api/network/worker/join-cluster",
+    confirmation: "confirm_import",
+    pattern: /confirm_import\s*:\s*true/,
+    evidenceFiles: ["apps/desktop/webview/static/assets/networkView.js"],
+  },
 ];
 
 const selectorRouteRules = [
@@ -163,6 +178,14 @@ const routeHintRules = [
   { pattern: /final-library-pause|pause promotion/i, route: "/api/final-library-promotion/pause" },
   { pattern: /final-library-resume|resume promotion/i, route: "/api/final-library-promotion/resume" },
   { pattern: /pending-recovery-plan/i, route: "/api/pending-publish/recovery-plan" },
+  { pattern: /completed-reconcile-manifest-dry-run-button/i, route: "/api/completed/reconcile-manifest-dry-run" },
+  { pattern: /completed-reconcile-manifest-apply-button/i, route: "/api/completed/reconcile-manifest" },
+  { pattern: /completed-repair-sidecar-dry-run-button/i, route: "/api/completed/repair-sidecar-metadata-dry-run" },
+  { pattern: /completed-repair-sidecar-apply-button/i, route: "/api/completed/repair-sidecar-metadata" },
+  { pattern: /pending-repair-manifest-dry-run-button/i, route: "/api/pending-publish/repair-manifest-dry-run" },
+  { pattern: /pending-repair-manifest-apply-button/i, route: "/api/pending-publish/repair-manifest" },
+  { pattern: /pending-reconcile-orphan-dry-run-button/i, route: "/api/pending-publish/reconcile-orphan-payloads-dry-run" },
+  { pattern: /pending-reconcile-orphan-apply-button/i, route: "/api/pending-publish/reconcile-orphan-payloads" },
   { pattern: /data-open-diagnostics=|diagnostics-open|open diagnostics/i, route: "/api/diagnostics/open" },
   { pattern: /tdarr-matrix-audit-action/i, route: "/api/diagnostics/tdarr-matrix-audit" },
   { pattern: /tdarr-matrix-audit-rerun/i, route: "/api/diagnostics/tdarr-matrix/rerun" },
@@ -198,6 +221,7 @@ const routeHintRules = [
   { pattern: /metrics-backfill|backfill enabled/i, route: "/api/metrics/backfill" },
   { pattern: /metrics-source|metric.*source/i, route: "/api/metrics/sources" },
   { pattern: /failure.*clear|clear failures|clear markers/i, route: "/api/failures/clear" },
+  { pattern: /fo-remux-pilot-promote/i, route: "/api/queue/file-overrides/remux-pilot-promote" },
   { pattern: /audit.*score|score-policy/i, route: "/api/audit/score-policy" },
   { pattern: /audit.*ignore|ignore/i, route: "/api/audit/ignore" },
   { pattern: /export.*csv|export-rerun/i, route: "/api/audit/export-rerun-csv" },
@@ -579,11 +603,15 @@ function buildReport() {
   }
 
   for (const rule of confirmationRules) {
-    const files = scripts
-      .filter((script) => script.api_calls.some((call) => ["apiPost", "apiPostLocal"].includes(call.function) && call.route === rule.route))
+    const literalRouteFiles = scripts
+      .filter((script) => script.api_calls.some((call) => ["apiPost", "apiPostLocal"].includes(call.function) && call.route === rule.route));
+    const evidenceFiles = literalRouteFiles.length
+      ? literalRouteFiles
+      : scripts.filter((script) => (rule.evidenceFiles || []).includes(script.path));
+    const files = evidenceFiles
       .map((script) => ({
         file: script.path,
-        has_confirmation: rule.pattern.test(routeSnippet(script.source, rule.route)),
+        has_confirmation: rule.pattern.test(literalRouteFiles.length ? routeSnippet(script.source, rule.route) : script.source),
       }));
     if (!files.length || files.some((file) => !file.has_confirmation)) {
       violations.push({

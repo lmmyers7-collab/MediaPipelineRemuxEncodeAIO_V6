@@ -9,28 +9,24 @@
     {
       "route": "/api/audit/export-rerun-csv",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js",
         "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
       "route": "/api/audit/ignore",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js",
         "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
       "route": "/api/audit/score-policy",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js",
         "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
     {
       "route": "/api/audit/start",
       "files": [
-        "apps/desktop/webview/static/assets/launchView.js",
         "apps/desktop/webview/static/assets/reportsView.js"
       ]
     },
@@ -50,6 +46,30 @@
       "route": "/api/completed/open",
       "files": [
         "apps/desktop/webview/static/assets/completed/openActions.js"
+      ]
+    },
+    {
+      "route": "/api/completed/reconcile-manifest",
+      "files": [
+        "apps/desktop/webview/static/assets/completedView.repair.js"
+      ]
+    },
+    {
+      "route": "/api/completed/reconcile-manifest-dry-run",
+      "files": [
+        "apps/desktop/webview/static/assets/completedView.repair.js"
+      ]
+    },
+    {
+      "route": "/api/completed/repair-sidecar-metadata",
+      "files": [
+        "apps/desktop/webview/static/assets/completedView.repair.js"
+      ]
+    },
+    {
+      "route": "/api/completed/repair-sidecar-metadata-dry-run",
+      "files": [
+        "apps/desktop/webview/static/assets/completedView.repair.js"
       ]
     },
     {
@@ -113,9 +133,9 @@
       ]
     },
     {
-      "route": "/api/maintenance/change-ledger",
+      "route": "/api/maintenance/archive-state-journals",
       "files": [
-        "apps/desktop/webview/static/assets/maintenanceView.js"
+        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {
@@ -155,33 +175,39 @@
       ]
     },
     {
-      "route": "/api/network/coordinator/join-blob",
-      "files": [
-        "apps/desktop/webview/static/assets/networkView.js"
-      ]
-    },
-    {
-      "route": "/api/network/worker/join-cluster",
-      "files": [
-        "apps/desktop/webview/static/assets/networkView.js"
-      ]
-    },
-    {
-      "route": "/api/network/worker/test-connection",
-      "files": [
-        "apps/desktop/webview/static/assets/networkView.js"
-      ]
-    },
-    {
       "route": "/api/pending-publish/open",
       "files": [
         "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js"
       ]
     },
     {
+      "route": "/api/pending-publish/reconcile-orphan-payloads",
+      "files": [
+        "apps/desktop/webview/static/assets/pendingPublishView.repair.js"
+      ]
+    },
+    {
+      "route": "/api/pending-publish/reconcile-orphan-payloads-dry-run",
+      "files": [
+        "apps/desktop/webview/static/assets/pendingPublishView.repair.js"
+      ]
+    },
+    {
       "route": "/api/pending-publish/recovery-plan",
       "files": [
         "apps/desktop/webview/static/assets/pendingPublishView.recovery.js"
+      ]
+    },
+    {
+      "route": "/api/pending-publish/repair-manifest",
+      "files": [
+        "apps/desktop/webview/static/assets/pendingPublishView.repair.js"
+      ]
+    },
+    {
+      "route": "/api/pending-publish/repair-manifest-dry-run",
+      "files": [
+        "apps/desktop/webview/static/assets/pendingPublishView.repair.js"
       ]
     },
     {
@@ -212,6 +238,12 @@
       "route": "/api/queue/file-overrides",
       "files": [
         "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js"
+      ]
+    },
+    {
+      "route": "/api/queue/file-overrides/remux-pilot-promote",
+      "files": [
+        "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js"
       ]
     },
     {

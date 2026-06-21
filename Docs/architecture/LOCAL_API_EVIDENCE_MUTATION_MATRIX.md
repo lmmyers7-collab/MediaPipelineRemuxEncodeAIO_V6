@@ -339,7 +339,7 @@ Current limits:
 
 - Completed manifest reconcile updates existing selected manifest rows only; it does not add or remove rows.
 - Completed sidecar repair updates only backend-derived metadata fields and preserves unknown JSON fields.
-- Pending manifest repair can write only backend-validated manifest-normalization candidates; orphan-payload reconcile remains blocked unless backend evidence supplies complete proposed manifest fields.
+- Pending manifest repair and orphan-payload reconcile WebView controls can request only backend-owned dry-run/fingerprint-gated routes. Pending manifest repair can write only backend-validated manifest-normalization candidates; orphan-payload reconcile remains blocked unless backend evidence supplies complete proposed manifest fields.
 - No repair/reconcile route drains, moves, deletes, publishes, reruns processing, or mutates source/scratch/output media bytes.
 
 The detailed contract remains in `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`.

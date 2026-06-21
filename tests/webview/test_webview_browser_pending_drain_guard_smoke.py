@@ -143,8 +143,11 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "pendingDrainGuardState",
               "renderPendingDrainOverview",
               "renderPendingRepairManifestControls",
+              "renderPendingRepairOrphanControls",
               "requestPendingRepairManifestDryRun",
               "requestPendingRepairManifestApply",
+              "requestPendingRepairOrphanDryRun",
+              "requestPendingRepairOrphanApply",
               "getCommandHistory"
             ].forEach(requireFunction);
 
@@ -215,6 +218,68 @@ def _browser_pending_drain_guard_runner_source() -> str:
                   },
                 };
               }
+              if (path === "/api/pending-publish/reconcile-orphan-payloads-dry-run") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Orphan payload reconcile dry-run safe.",
+                  command: "pending_publish.reconcile_orphan_payloads_dry_run",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_dry_run.v1",
+                    candidate_command: "pending_publish.reconcile_orphan_payloads",
+                    dry_run_only: true,
+                    effect: "none",
+                    scope: body.scope,
+                    selected_row_keys: [body.row_key],
+                    precondition_results: [{ name: "selected orphan row", ok: true }],
+                    diff_summary: {
+                      schema_version: "desktop_repair_reconcile_diff_summary.v1",
+                      candidate_count: 1,
+                      would_write_count: 1,
+                      would_move_count: 0,
+                      would_delete_count: 0,
+                    },
+                    would_write_paths: ["backend-proposed-pending-manifest"],
+                    would_move_paths: [],
+                    would_delete_paths: [],
+                    would_not_touch: {
+                      source_media: "hash unchanged",
+                      payload_files: "hash unchanged",
+                      output_media: "hash unchanged",
+                    },
+                    proposal_schema_version: "pending_push_manifest.v1",
+                    safe_to_apply: true,
+                    mutation_route_available: true,
+                    apply_route_available: true,
+                    dry_run_fingerprint: "browser-orphan-dry-run-fingerprint",
+                    operator_confirmation_scope: "selected orphan row only",
+                    suppress_command_journal: true,
+                  },
+                };
+              }
+              if (path === "/api/pending-publish/reconcile-orphan-payloads") {
+                return {
+                  ok: true,
+                  severity: "info",
+                  message: "Orphan payload reconcile applied.",
+                  command: "pending_publish.reconcile_orphan_payloads",
+                  data: {
+                    schema_version: "desktop_repair_reconcile_apply.v1",
+                    candidate_command: "pending_publish.reconcile_orphan_payloads",
+                    effect: "pending-orphan-manifest-write",
+                    selected_row_keys: [body.row_key],
+                    applied: true,
+                    blocked: false,
+                    written_paths: ["backend-proposed-pending-manifest"],
+                    backup_paths: [],
+                    transaction_id: "browser-smoke-orphan",
+                    rollback_status: "not_needed",
+                    dry_run_fingerprint: body.dry_run_fingerprint,
+                    expected_dry_run_fingerprint: body.dry_run_fingerprint,
+                    source_payload_output_unchanged: true,
+                  },
+                };
+              }
               return { ok: true, message: "unexpected mocked post", data: { path, body } };
             };
 
@@ -276,7 +341,47 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "Source/payload/output unchanged evidence",
               "Mutation guardrail",
             ]);
-            if (confirmCalls !== 1) throw new Error("pending repair apply should ask for one confirmation; confirm calls=" + confirmCalls);
+            await waitFor(
+              () => !byId("pending-reconcile-orphan-dry-run-button").disabled && byId("pending-reconcile-orphan-apply-button").disabled,
+              "orphan reconcile dry-run ready and apply disabled",
+            );
+            byId("pending-reconcile-orphan-dry-run-button").click();
+            await waitFor(
+              () => text("pending-reconcile-orphan-status") === "Dry-run safe"
+                && !byId("pending-reconcile-orphan-apply-button").disabled,
+              "orphan reconcile dry-run completed",
+            );
+            const orphanDryRunPost = posts.find((entry) => entry.path === "/api/pending-publish/reconcile-orphan-payloads-dry-run");
+            if (!orphanDryRunPost) throw new Error("missing orphan reconcile dry-run post: " + JSON.stringify(posts));
+            const orphanDryRunKeys = Object.keys(orphanDryRunPost.body).sort();
+            if (JSON.stringify(orphanDryRunKeys) !== JSON.stringify(["limit", "reason", "row_key", "scope"])) {
+              throw new Error("orphan reconcile dry-run sent unexpected keys: " + JSON.stringify(orphanDryRunPost.body));
+            }
+            for (const forbiddenKey of ["manifest_path", "local_file", "server_out", "source_path", "payload_path", "patch", "sidecar_json"]) {
+              if (Object.prototype.hasOwnProperty.call(orphanDryRunPost.body, forbiddenKey)) {
+                throw new Error("orphan reconcile dry-run sent forbidden key " + forbiddenKey + ": " + JSON.stringify(orphanDryRunPost.body));
+              }
+            }
+            byId("pending-reconcile-orphan-apply-button").click();
+            await waitFor(
+              () => text("pending-reconcile-orphan-status") === "Applied",
+              "orphan reconcile apply completed",
+            );
+            const orphanApplyPost = posts.find((entry) => entry.path === "/api/pending-publish/reconcile-orphan-payloads");
+            if (!orphanApplyPost) throw new Error("missing orphan reconcile apply post: " + JSON.stringify(posts));
+            if (orphanApplyPost.body.confirm_apply !== true) throw new Error("orphan reconcile apply omitted confirm_apply=true");
+            if (orphanApplyPost.body.dry_run_fingerprint !== "browser-orphan-dry-run-fingerprint") {
+              throw new Error("orphan reconcile apply used wrong fingerprint: " + JSON.stringify(orphanApplyPost.body));
+            }
+            const orphanApplyKeys = Object.keys(orphanApplyPost.body).sort();
+            if (JSON.stringify(orphanApplyKeys) !== JSON.stringify(["confirm_apply", "dry_run_fingerprint", "limit", "reason", "row_key", "scope"])) {
+              throw new Error("orphan reconcile apply sent unexpected keys: " + JSON.stringify(orphanApplyPost.body));
+            }
+            requireText("pending-reconcile-orphan-detail", [
+              "Source/payload/output unchanged evidence",
+              "Mutation guardrail",
+            ]);
+            if (confirmCalls !== 2) throw new Error("pending repair and orphan apply should ask for two confirmations; confirm calls=" + confirmCalls);
             posts.length = 0;
             confirmCalls = 0;
             requireText("pending-drain-decision-chips", [

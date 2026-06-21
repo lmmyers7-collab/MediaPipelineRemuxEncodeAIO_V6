@@ -84,6 +84,15 @@
   let requestPendingRepairManifestApply = async function () {};
   let requestPendingRepairManifestDryRun = async function () {};
   let setPendingRepairManifestBusy = function () {};
+  let isPendingRepairOrphanCommand = function (entry) { return String(entry?.command || entry?.raw?.command || "").toLowerCase() === "pending_publish.reconcile_orphan_payloads"; };
+  let pendingOrphanDryRunIsSafeForSelection = function () { return false; };
+  let pendingRepairOrphanApplyRequest = function () { return null; };
+  let pendingRepairOrphanDryRunRequest = function () { return null; };
+  let renderPendingRepairOrphanControls = pendingRecoveryFallbackRender;
+  let renderPendingRepairOrphanHistory = pendingRecoveryFallbackRender;
+  let requestPendingRepairOrphanApply = async function () {};
+  let requestPendingRepairOrphanDryRun = async function () {};
+  let setPendingRepairOrphanBusy = function () {};
 
   const pendingDrainFallbackRows = function () { return []; };
   const pendingDrainFallbackLines = function () { return []; };
@@ -240,6 +249,7 @@
     renderPendingDetail(getSelectedPendingRow());
     renderPendingRows();
     renderPendingRepairManifestControls();
+    renderPendingRepairOrphanControls();
     if (
       typeof window.renderCompletedPendingProof === "function"
       && typeof window.getLastCompletedPayload === "function"
@@ -512,6 +522,7 @@
     renderPendingDrainDecisionChecklist(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingRows();
     renderPendingRepairManifestControls();
+    renderPendingRepairOrphanControls();
     restorePendingSelectionScroll(scrollSnapshot);
   }
 
@@ -858,6 +869,7 @@
       renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingRepairManifestControls();
+      renderPendingRepairOrphanControls();
       return;
     }
     tbody.replaceChildren();
@@ -897,6 +909,7 @@
     renderPendingDrainOverview(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingRepairManifestControls();
+    renderPendingRepairOrphanControls();
   }
 
   function resetPendingFilters() {
@@ -1128,6 +1141,15 @@
   requestPendingRepairManifestApply = typeof pendingRepair.requestPendingRepairManifestApply === "function" ? pendingRepair.requestPendingRepairManifestApply : requestPendingRepairManifestApply;
   requestPendingRepairManifestDryRun = typeof pendingRepair.requestPendingRepairManifestDryRun === "function" ? pendingRepair.requestPendingRepairManifestDryRun : requestPendingRepairManifestDryRun;
   setPendingRepairManifestBusy = typeof pendingRepair.setPendingRepairManifestBusy === "function" ? pendingRepair.setPendingRepairManifestBusy : setPendingRepairManifestBusy;
+  isPendingRepairOrphanCommand = typeof pendingRepair.isPendingRepairOrphanCommand === "function" ? pendingRepair.isPendingRepairOrphanCommand : isPendingRepairOrphanCommand;
+  pendingOrphanDryRunIsSafeForSelection = typeof pendingRepair.pendingOrphanDryRunIsSafeForSelection === "function" ? pendingRepair.pendingOrphanDryRunIsSafeForSelection : pendingOrphanDryRunIsSafeForSelection;
+  pendingRepairOrphanApplyRequest = typeof pendingRepair.pendingRepairOrphanApplyRequest === "function" ? pendingRepair.pendingRepairOrphanApplyRequest : pendingRepairOrphanApplyRequest;
+  pendingRepairOrphanDryRunRequest = typeof pendingRepair.pendingRepairOrphanDryRunRequest === "function" ? pendingRepair.pendingRepairOrphanDryRunRequest : pendingRepairOrphanDryRunRequest;
+  renderPendingRepairOrphanControls = typeof pendingRepair.renderPendingRepairOrphanControls === "function" ? pendingRepair.renderPendingRepairOrphanControls : renderPendingRepairOrphanControls;
+  renderPendingRepairOrphanHistory = typeof pendingRepair.renderPendingRepairOrphanHistory === "function" ? pendingRepair.renderPendingRepairOrphanHistory : renderPendingRepairOrphanHistory;
+  requestPendingRepairOrphanApply = typeof pendingRepair.requestPendingRepairOrphanApply === "function" ? pendingRepair.requestPendingRepairOrphanApply : requestPendingRepairOrphanApply;
+  requestPendingRepairOrphanDryRun = typeof pendingRepair.requestPendingRepairOrphanDryRun === "function" ? pendingRepair.requestPendingRepairOrphanDryRun : requestPendingRepairOrphanDryRun;
+  setPendingRepairOrphanBusy = typeof pendingRepair.setPendingRepairOrphanBusy === "function" ? pendingRepair.setPendingRepairOrphanBusy : setPendingRepairOrphanBusy;
 
   const pendingConfidenceState = {
     get selectedPendingDrainDecisionKey() {
@@ -1380,6 +1402,15 @@
     requestPendingRepairManifestApply,
     requestPendingRepairManifestDryRun,
     setPendingRepairManifestBusy,
+    isPendingRepairOrphanCommand,
+    pendingOrphanDryRunIsSafeForSelection,
+    pendingRepairOrphanApplyRequest,
+    pendingRepairOrphanDryRunRequest,
+    renderPendingRepairOrphanControls,
+    renderPendingRepairOrphanHistory,
+    requestPendingRepairOrphanApply,
+    requestPendingRepairOrphanDryRun,
+    setPendingRepairOrphanBusy,
   };
   window.renderPendingPublish = renderPendingPublish;
   window.renderPendingFileInventory = renderPendingFileInventory;
@@ -1476,4 +1507,7 @@
   window.renderPendingRepairManifestControls = renderPendingRepairManifestControls;
   window.requestPendingRepairManifestDryRun = requestPendingRepairManifestDryRun;
   window.requestPendingRepairManifestApply = requestPendingRepairManifestApply;
+  window.renderPendingRepairOrphanControls = renderPendingRepairOrphanControls;
+  window.requestPendingRepairOrphanDryRun = requestPendingRepairOrphanDryRun;
+  window.requestPendingRepairOrphanApply = requestPendingRepairOrphanApply;
 })();

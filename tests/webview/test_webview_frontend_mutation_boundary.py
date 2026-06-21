@@ -62,6 +62,8 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pending-publish/recovery-plan": {"pendingPublishView.recovery.js"},
     "/api/pending-publish/repair-manifest-dry-run": {"pendingPublishView.repair.js"},
     "/api/pending-publish/repair-manifest": {"pendingPublishView.repair.js"},
+    "/api/pending-publish/reconcile-orphan-payloads-dry-run": {"pendingPublishView.repair.js"},
+    "/api/pending-publish/reconcile-orphan-payloads": {"pendingPublishView.repair.js"},
     "/api/queue/open": {"queue/openActions.js"},
     "/api/queue/scan": {"queueView.js"},
     "/api/queue/priority": {"queueView.js"},
@@ -646,6 +648,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
                 "/api/completed/repair-sidecar-metadata": {"completedView.repair.js"},
                 "/api/pending-publish/repair-manifest-dry-run": {"pendingPublishView.repair.js"},
                 "/api/pending-publish/repair-manifest": {"pendingPublishView.repair.js"},
+                "/api/pending-publish/reconcile-orphan-payloads-dry-run": {"pendingPublishView.repair.js"},
+                "/api/pending-publish/reconcile-orphan-payloads": {"pendingPublishView.repair.js"},
             },
         )
 
@@ -653,6 +657,10 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         for snippet in [
             "/api/pending-publish/repair-manifest-dry-run",
             "/api/pending-publish/repair-manifest",
+            "/api/pending-publish/reconcile-orphan-payloads-dry-run",
+            "/api/pending-publish/reconcile-orphan-payloads",
+            "pending_publish.reconcile_orphan_payloads",
+            "pendingRepairOrphanApplyRequest",
             "scope: \"selected\"",
             "row_key: rowKey",
             "limit: 1",
@@ -672,7 +680,6 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "payload_path:",
             "sidecar_json:",
             "patch:",
-            "/api/pending-publish/reconcile-orphan-payloads",
             "/api/completed/reconcile-manifest",
             "/api/completed/repair-sidecar-metadata",
         ]:

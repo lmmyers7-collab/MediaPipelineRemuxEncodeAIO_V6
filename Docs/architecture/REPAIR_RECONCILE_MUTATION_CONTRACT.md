@@ -1,8 +1,8 @@
 # Repair/Reconcile Mutation Contract
 
-Date: 2026-06-19
+Date: 2026-06-20
 
-This is the source-of-truth contract for Completed and Pending Publish repair/reconcile commands. The current workspace has backend dry-run routes plus confirmed apply routes for selected Completed/Pending repairs. Startup reconciliation remains dry-run only. The WebView now exposes selected-row Pending Publish manifest repair plus Completed manifest reconciliation and sidecar metadata repair dry-run/apply controls with backend-owned fingerprint gating; orphan-payload reconciliation controls remain open and backend dry-runs explicitly list missing `pending_push_manifest.v1` evidence.
+This is the source-of-truth contract for Completed and Pending Publish repair/reconcile commands. The current workspace has backend dry-run routes plus confirmed apply routes for selected Completed/Pending repairs. Startup reconciliation remains dry-run only. The WebView now exposes selected-row Pending Publish manifest repair, Pending Publish orphan-payload reconciliation, Completed manifest reconciliation, and Completed sidecar metadata repair dry-run/apply controls with backend-owned fingerprint gating. Orphan-payload apply remains blocked unless backend dry-run evidence supplies a complete backend-derived `pending_push_manifest.v1` proposal.
 
 The WebView may display these boundaries from `/api/contract`, but it must not infer or perform repair, reconcile, manifest rewrite, payload move/delete, output acceptance, drain, publish, rerun, or source-file actions.
 
@@ -25,7 +25,7 @@ The WebView may display these boundaries from `/api/contract`, but it must not i
   - `POST /api/pending-publish/reconcile-orphan-payloads`
 - Completed apply routes back up and atomically rewrite selected manifest/sidecar state. Pending manifest repair can back up and atomically rewrite selected backend-validated manifest-normalization candidates; orphan-payload reconcile still blocks unless backend dry-run evidence supplies a complete backend-derived `pending_push_manifest.v1` proposal.
 - `GET /api/publish-reconciliation` remains read-only evidence. It correlates Completed, Pending Publish, and durable drain-summary proof; it does not repair or publish.
-- Pending Publish WebView selected-row manifest repair controls and Completed selected-row manifest/sidecar repair controls post only `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, and `confirm_apply=true`; they do not send client paths, patches, sidecar JSON, raw manifests, drain/publish requests, move/delete requests, or source-media actions.
+- Pending Publish WebView selected-row manifest repair and orphan-payload reconcile controls plus Completed selected-row manifest/sidecar repair controls post only `scope`, `row_key`, `limit`, `reason`, `dry_run_fingerprint`, and `confirm_apply=true`; they do not send client paths, patches, sidecar JSON, raw manifests, drain/publish requests, move/delete requests, or source-media actions.
 
 ---
 
@@ -92,4 +92,4 @@ Current static gates:
 - `tests/python/desktop/test_application_facade_local_api.py` verifies the live Local API contract exposes the same dry-run and confirmed apply fields.
 - `ops/scripts/smoke/Test-LocalApiRepairReconcileDryRunContractSmoke.ps1` provides a browser-free smoke wrapper for the dry-run contract boundary.
 
-Future orphan-payload WebView controls must first require complete backend-derived `pending_push_manifest.v1` evidence, then add browser no-mutation tests and source/payload/output hash checks before those controls are considered daily-driver safe. The selected-row Pending Publish manifest repair control is covered by static mutation-boundary tests plus the Pending Publish browser smoke's no-media-mutation snapshot and source/payload/output unchanged evidence assertion. The Completed selected-row manifest reconciliation and sidecar metadata repair controls are covered by static mutation-boundary tests plus the Completed/Pending proof browser smoke's no-media-mutation snapshot and bounded request-body assertions.
+The selected-row Pending Publish manifest repair and orphan-payload reconcile controls are covered by static mutation-boundary tests plus the Pending Publish browser smoke's bounded request-body assertions and no-media-mutation snapshot. Orphan-payload apply is still daily-driver unsafe until backend dry-runs can supply complete `pending_push_manifest.v1` proposal evidence and representative source/payload/output hash plus deferred publish/drain validation has been run. The Completed selected-row manifest reconciliation and sidecar metadata repair controls are covered by static mutation-boundary tests plus the Completed/Pending proof browser smoke's no-media-mutation snapshot and bounded request-body assertions.

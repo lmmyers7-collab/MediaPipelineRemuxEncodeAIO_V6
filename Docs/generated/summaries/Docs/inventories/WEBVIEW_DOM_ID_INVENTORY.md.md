@@ -3,9 +3,9 @@ file: docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-19
+last_modified: 2026-06-20
 last_reviewed: 2026-05-31
-sha256: acb8a6974d9ad0ea3532c360b274d0d8e52615fef5a637c975e34f3c7a351fc9
+sha256: 8b494611ae7311e639635037ac81e39c7ee69369f246f66ffd43f025270c1276
 ---
 # `docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md`
 

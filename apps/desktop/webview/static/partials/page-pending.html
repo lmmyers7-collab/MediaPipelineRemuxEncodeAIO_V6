@@ -299,12 +299,19 @@
             <button type="button" id="pending-repair-manifest-dry-run-button" class="secondary-button">Dry Run Selected</button>
             <button type="button" id="pending-repair-manifest-apply-button" class="danger-button" disabled>Apply Repair</button>
           </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="pending-reconcile-orphan-dry-run-button" class="secondary-button">Dry Run Orphan</button>
+            <button type="button" id="pending-reconcile-orphan-apply-button" class="danger-button" disabled>Apply Orphan Reconcile</button>
+            <span id="pending-reconcile-orphan-status" class="inline-action-status" data-state="unknown" role="status" aria-live="polite">Dry-run required</span>
+          </div>
           <details class="pending-compact-detail">
             <summary>Pending manifest repair detail</summary>
             <pre id="pending-repair-manifest-detail" class="prose-block">Select one pending row, then run the backend dry-run. Apply remains disabled until the backend reports safe_to_apply=true and supplies a matching dry_run_fingerprint.</pre>
             <pre id="pending-repair-manifest-history" class="prose-block">No pending manifest repair history loaded.</pre>
+            <pre id="pending-reconcile-orphan-detail" class="prose-block">Select one orphan payload row, then run the backend dry-run. Apply remains disabled unless backend evidence supplies a complete pending_push_manifest.v1 proposal and matching dry_run_fingerprint.</pre>
+            <pre id="pending-reconcile-orphan-history" class="prose-block">No orphan payload reconcile history loaded.</pre>
           </details>
-          <p id="pending-repair-manifest-legend" class="note table-legend">Pending manifest repair is backend-owned: dry-run first, fingerprint-gated apply, no drain, no publish, no payload move/delete, and no source-media mutation.</p>
+          <p id="pending-repair-manifest-legend" class="note table-legend">Pending manifest repair and orphan-payload reconcile are backend-owned: dry-run first, fingerprint-gated apply, no drain, no publish, no payload move/delete, and no source-media mutation.</p>
         </section>
         <section class="panel" data-advanced data-layout-editor-exclude data-panel-type="evidence">
           <div class="panel-heading">
