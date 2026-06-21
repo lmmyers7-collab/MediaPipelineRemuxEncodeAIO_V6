@@ -551,13 +551,4 @@
     renderLaunchCommandReview,
     renderLaunchCommandHistory,
   };
-  window.isLaunchCommand = isLaunchCommand;
-  window.launchHistoryLine = launchHistoryLine;
-  window.launchCommandCorrelationRows = launchCommandCorrelationRows;
-  window.launchCommandCorrelationStatus = launchCommandCorrelationStatus;
-  window.launchCommandDiagnosticsActions = launchCommandDiagnosticsActions;
-  window.launchCommandReviewRows = launchCommandReviewRows;
-  window.launchCommandReviewStatus = launchCommandReviewStatus;
-  window.launchCommandReviewSummaryLines = launchCommandReviewSummaryLines;
-  window.renderLaunchCommandHistory = renderLaunchCommandHistory;
 })();

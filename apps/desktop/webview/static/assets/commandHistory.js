@@ -1293,7 +1293,12 @@
     renderCommandSummary();
     renderCommandDetail(getSelectedCommandEntry());
     renderDiagnosticsCommandDrilldown(commandHistory);
-    if (typeof renderLaunchCommandHistory === "function") renderLaunchCommandHistory(commandHistory);
+    const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
+    if (typeof launchHistoryView.renderLaunchCommandHistory === "function") {
+      launchHistoryView.renderLaunchCommandHistory(commandHistory);
+    } else if (typeof renderLaunchCommandHistory === "function") {
+      renderLaunchCommandHistory(commandHistory);
+    }
     if (typeof renderLaunchSettingsIntentChecklist === "function") renderLaunchSettingsIntentChecklist();
     if (typeof renderPendingDrainHistory === "function") renderPendingDrainHistory(commandHistory);
     if (typeof renderPendingRecoveryPlanHistory === "function") renderPendingRecoveryPlanHistory(commandHistory);

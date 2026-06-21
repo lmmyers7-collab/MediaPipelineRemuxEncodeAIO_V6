@@ -4,9 +4,15 @@
   const launchReadinessLines = window.launchReadinessLines || launchReadinessView.launchReadinessLines || function () { return []; };
   const renderLaunchReadiness = window.renderLaunchReadiness || launchReadinessView.renderLaunchReadiness || function () {};
   const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
-  const isLaunchCommand = window.isLaunchCommand || launchHistoryView.isLaunchCommand || function () { return false; };
-  const launchHistoryLine = window.launchHistoryLine || launchHistoryView.launchHistoryLine || function () { return ""; };
-  const renderLaunchCommandHistory = window.renderLaunchCommandHistory || launchHistoryView.renderLaunchCommandHistory || function () {};
+  const isLaunchCommand = launchHistoryView.isLaunchCommand || window.isLaunchCommand || function () { return false; };
+  const launchHistoryLine = launchHistoryView.launchHistoryLine || window.launchHistoryLine || function () { return ""; };
+  const launchCommandCorrelationRows = launchHistoryView.launchCommandCorrelationRows || window.launchCommandCorrelationRows || null;
+  const launchCommandCorrelationStatus = launchHistoryView.launchCommandCorrelationStatus || window.launchCommandCorrelationStatus || null;
+  const launchCommandDiagnosticsActions = launchHistoryView.launchCommandDiagnosticsActions || window.launchCommandDiagnosticsActions || null;
+  const launchCommandReviewRows = launchHistoryView.launchCommandReviewRows || window.launchCommandReviewRows || null;
+  const launchCommandReviewStatus = launchHistoryView.launchCommandReviewStatus || window.launchCommandReviewStatus || null;
+  const launchCommandReviewSummaryLines = launchHistoryView.launchCommandReviewSummaryLines || window.launchCommandReviewSummaryLines || null;
+  const renderLaunchCommandHistory = launchHistoryView.renderLaunchCommandHistory || window.renderLaunchCommandHistory || function () {};
   const domHelpers = window.mediaPipelineDom || {};
   const jsonDetailText = domHelpers.jsonDetailText || function (options = {}) {
     const label = options.label || "JSON detail";
@@ -95,9 +101,9 @@
       commandResultDisplayMessage: typeof commandResultDisplayMessage === "function" ? commandResultDisplayMessage : window.commandResultDisplayMessage,
       jsonDetailText,
       latestCommandEntry,
-      launchCommandCorrelationRows: typeof launchCommandCorrelationRows === "function" ? launchCommandCorrelationRows : window.launchCommandCorrelationRows,
-      launchCommandCorrelationStatus: typeof launchCommandCorrelationStatus === "function" ? launchCommandCorrelationStatus : window.launchCommandCorrelationStatus,
-      launchCommandDiagnosticsActions: typeof launchCommandDiagnosticsActions === "function" ? launchCommandDiagnosticsActions : window.launchCommandDiagnosticsActions,
+      launchCommandCorrelationRows: typeof launchCommandCorrelationRows === "function" ? launchCommandCorrelationRows : null,
+      launchCommandCorrelationStatus: typeof launchCommandCorrelationStatus === "function" ? launchCommandCorrelationStatus : null,
+      launchCommandDiagnosticsActions: typeof launchCommandDiagnosticsActions === "function" ? launchCommandDiagnosticsActions : null,
       launchPipelineIsActive,
       pipelineControllerStageSummary,
       pipelineControllerState,
@@ -428,9 +434,9 @@
       launchBackendPreflightRows: (...args) => launchBackendPreflightRows(...args),
       launchBackendPreflightStatusState: (...args) => launchBackendPreflightStatusState(...args),
       launchBackendPreflightSummaryLines: (...args) => launchBackendPreflightSummaryLines(...args),
-      launchCommandReviewRows: typeof window.launchCommandReviewRows === "function" ? window.launchCommandReviewRows : (typeof launchCommandReviewRows === "function" ? launchCommandReviewRows : null),
-      launchCommandReviewStatus: typeof window.launchCommandReviewStatus === "function" ? window.launchCommandReviewStatus : (typeof launchCommandReviewStatus === "function" ? launchCommandReviewStatus : null),
-      launchCommandReviewSummaryLines: typeof window.launchCommandReviewSummaryLines === "function" ? window.launchCommandReviewSummaryLines : (typeof launchCommandReviewSummaryLines === "function" ? launchCommandReviewSummaryLines : null),
+      launchCommandReviewRows: typeof launchCommandReviewRows === "function" ? launchCommandReviewRows : null,
+      launchCommandReviewStatus: typeof launchCommandReviewStatus === "function" ? launchCommandReviewStatus : null,
+      launchCommandReviewSummaryLines: typeof launchCommandReviewSummaryLines === "function" ? launchCommandReviewSummaryLines : null,
       launchPolicyBoundaryRows: (...args) => launchPolicyBoundaryRows(...args),
       launchPolicyBoundaryStatus: (...args) => launchPolicyBoundaryStatus(...args),
       launchPolicyBoundarySummaryLines: (...args) => launchPolicyBoundarySummaryLines(...args),
