@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from uuid import uuid4
 
+from mediapipeline.core.config.encoding_capabilities import EncodingCapabilityFacts
 from mediapipeline.core.config.identity import (
     MIN_OPERATOR_CONFIG_KEY_COUNT,
     REQUIRED_OPERATOR_ROOT_KEYS,
@@ -69,6 +70,30 @@ if TYPE_CHECKING:
 WIZARD_REFRESH_HINT = "settings"
 WIZARD_SCHEMA_VERSION = "desktop_settings_wizard.v1"
 WIZARD_STATUS_SCHEMA_VERSION = "desktop_settings_wizard_status.v1"
+
+_CPU_FALLBACK_ENCODERS = {"libx264", "libx265", "libsvtav1", "libaom-av1", "mpeg4"}
+_ENCODER_BACKENDS_BY_NAME = {
+    "libx264": "x264",
+    "libx265": "x265",
+    "libaom-av1": "libaom",
+    "libsvtav1": "svtav1",
+    "mpeg4": "mpeg4",
+}
+_ENCODER_CODECS_BY_NAME = {
+    "h264_nvenc": "h264",
+    "h264_qsv": "h264",
+    "h264_amf": "h264",
+    "libx264": "h264",
+    "hevc_nvenc": "hevc",
+    "hevc_qsv": "hevc",
+    "hevc_amf": "hevc",
+    "libx265": "hevc",
+    "av1_nvenc": "av1",
+    "av1_qsv": "av1",
+    "av1_amf": "av1",
+    "libaom-av1": "av1",
+    "libsvtav1": "av1",
+}
 
 
 def settings_wizard_status(resolved: ResolvedPaths, service: object) -> dict[str, Any]:
@@ -479,11 +504,9 @@ def probe_ffmpeg_hardware(resolved: ResolvedPaths, request: dict[str, Any]) -> d
                 errors.append(f"FFmpeg encoder probe exited with code {getattr(result, 'returncode', 1)}.")
             detected_encoders = _parse_ffmpeg_encoder_names(output)
     nvenc_encoders = [name for name in detected_encoders if name.endswith("_nvenc")]
-    cpu_fallback_encoders = [
-        name
-        for name in detected_encoders
-        if name in {"libx264", "libx265", "libsvtav1", "libaom-av1", "mpeg4"}
-    ]
+    cpu_fallback_encoders = [name for name in detected_encoders if name in _CPU_FALLBACK_ENCODERS]
+    capability_facts = _encoding_capability_facts_from_encoder_names(detected_encoders)
+    backend_rows = _encoder_backend_rows(detected_encoders)
     if not errors and not nvenc_encoders:
         warnings.append("No NVENC encoder was listed by configured FFmpeg.")
     if not errors and not cpu_fallback_encoders:
@@ -495,6 +518,9 @@ def probe_ffmpeg_hardware(resolved: ResolvedPaths, request: dict[str, Any]) -> d
         "detected_encoders": detected_encoders,
         "nvenc_encoders": nvenc_encoders,
         "cpu_fallback_encoders": cpu_fallback_encoders,
+        "capability_facts_scope": "video_encoder_names_only",
+        "capability_facts": capability_facts.model_dump(),
+        "encoder_backend_rows": backend_rows,
         "warnings": warnings,
         "errors": errors,
     }
@@ -1029,6 +1055,51 @@ def _parse_ffmpeg_encoder_names(output: str) -> list[str]:
         seen.add(name)
         names.append(name)
     return names
+
+
+def _encoding_capability_facts_from_encoder_names(encoder_names: list[str]) -> EncodingCapabilityFacts:
+    codecs: set[str] = set()
+    backends: set[str] = {"copy"}
+    for name in encoder_names:
+        codec = _ENCODER_CODECS_BY_NAME.get(name)
+        if codec:
+            codecs.add(codec)
+            if codec == "hevc":
+                codecs.add("h265")
+        backend = _encoder_backend_for_name(name)
+        if backend:
+            backends.add(backend)
+    return EncodingCapabilityFacts(
+        supported_video_codecs=sorted(codecs),
+        supported_encoder_backends=sorted(backends),
+    )
+
+
+def _encoder_backend_for_name(name: str) -> str:
+    if name.endswith("_nvenc"):
+        return "nvenc"
+    if name.endswith("_qsv"):
+        return "qsv"
+    if name.endswith("_amf"):
+        return "amf"
+    return _ENCODER_BACKENDS_BY_NAME.get(name, "")
+
+
+def _encoder_backend_rows(encoder_names: list[str]) -> list[dict[str, Any]]:
+    by_backend: dict[str, list[str]] = {}
+    for name in encoder_names:
+        backend = _encoder_backend_for_name(name)
+        if not backend:
+            continue
+        by_backend.setdefault(backend, []).append(name)
+    return [
+        {
+            "backend": backend,
+            "available": bool(by_backend.get(backend)),
+            "encoders": by_backend.get(backend, []),
+        }
+        for backend in ("nvenc", "qsv", "amf", "x264", "x265", "libaom", "svtav1", "mpeg4")
+    ]
 
 
 def _language_list(value: Any) -> list[str]:

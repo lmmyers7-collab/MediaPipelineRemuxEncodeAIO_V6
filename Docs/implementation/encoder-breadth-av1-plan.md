@@ -9,7 +9,9 @@ active resolver. Descriptor-owned list/runtime capability-probe scaffolding exis
 for the dormant catalog, the legacy NVENC startup probe now bridges through the
 descriptor-backed cache, and backend probe invalidation has generic descriptor-cache
 support. A read-only `-DumpEncoderCapabilitiesPath` diagnostic can write resolved
-primary/fallback descriptor capability evidence, but hardware descriptors are not
+primary/fallback descriptor capability evidence, and the Settings wizard hardware
+probe now threads configured-FFmpeg encoder listings into video-only
+`EncodingCapabilityFacts` plus UI backend annotations. Hardware descriptors are not
 wired into active encoder selection. A synthetic SDR runtime/topology matrix executes
 CPU descriptor rows and reports hardware rows as opt-in skips by default. A pure
 descriptor selection resolver now returns primary/fallback descriptors plus trace
@@ -490,9 +492,11 @@ changing any default encode behavior.
   `-DumpEncoderCapabilitiesPath <path>` write JSON capability evidence for the
   resolved primary/fallback descriptors into `encoder_capabilities.json` under the
   runtime progress state when requested. The dump follows the existing
-  `-DumpEffectiveConfigPath` lockless diagnostic pattern. Remaining work: thread this
-  report into Python capability facts and UI annotations without removing settings
-  choices.
+  `-DumpEffectiveConfigPath` lockless diagnostic pattern. The Settings wizard
+  hardware probe now exposes video-only `EncodingCapabilityFacts` and backend
+  availability annotations from the configured FFmpeg encoder list without removing
+  settings choices. Remaining work: thread descriptor dump evidence into broader
+  Local API/preflight/settings capability surfaces.
 
 ### 6.2 `EncoderBackend` key (settings schema — section 7 area, operator gate)
 
@@ -534,11 +538,14 @@ will catch most omissions:
 - `Do-Encode` consumes the resolution ONLY to pick `$VideoCodec`-equivalent values it
   already passes; with `auto` + `hevc_nvenc` the emitted commands must equal Phase 0
   snapshots (assert via smoke + log diff).
-- Python: thread capability facts from the report into
+- Python/UI: the Settings wizard hardware probe now emits video-only
+  `EncodingCapabilityFacts` and backend rows from the configured FFmpeg encoder list.
+  Remaining work is to thread descriptor dump evidence into
   `validate_encoding_capabilities` callers (grep callers of
-  `EncodingCapabilityFacts`); UI choice filtering = annotate unavailable encoders in
-  `choice_help` ("not detected on this machine") — never remove choices (settings
-  round-trip safety; a config written on machine A must still load on machine B).
+  `EncodingCapabilityFacts`) and broader choice annotations. UI choice filtering =
+  annotate unavailable encoders in `choice_help` ("not detected on this machine") —
+  never remove choices (settings round-trip safety; a config written on machine A
+  must still load on machine B).
 
 ### 6.4 Validation
 

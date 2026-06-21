@@ -860,6 +860,25 @@
     });
   }
 
+  function wizardListText(values, fallback = "none") {
+    return (Array.isArray(values) ? values : []).filter(Boolean).join(", ") || fallback;
+  }
+
+  function wizardCapabilityFactsText(data) {
+    const facts = data?.capability_facts || {};
+    const codecs = wizardListText(facts.supported_video_codecs);
+    const backends = wizardListText(facts.supported_encoder_backends);
+    const scope = data?.capability_facts_scope || "unknown";
+    return `video codecs=${codecs}; encoder backends=${backends}; scope=${scope}`;
+  }
+
+  function wizardEncoderBackendText(data, selectedBackends) {
+    const wanted = new Set(selectedBackends || []);
+    const rows = (Array.isArray(data?.encoder_backend_rows) ? data.encoder_backend_rows : [])
+      .filter((row) => wanted.has(row.backend) && row.available);
+    return rows.map((row) => `${row.backend}: ${wizardListText(row.encoders)}`).join("; ") || "none";
+  }
+
   function focusWizardTarget(target) {
     let node = null;
     const text = String(target || "");
@@ -920,8 +939,13 @@
       const data = wizardResultData(result);
       state.hardwareProbe = data;
       state.hardwareProbeSignature = signature;
+      const hardwareBackends = wizardEncoderBackendText(data, ["nvenc", "qsv", "amf"]);
+      const cpuBackends = wizardEncoderBackendText(data, ["x264", "x265", "libaom", "svtav1", "mpeg4"]);
       renderResultList("settings-wizard-hardware-result", [
         { label: "Detected encoders", status: data.ok ? "Ready" : "Blocked", detail: (data.detected_encoders || []).join(", ") || "none", state: data.ok ? "ready" : "blocked" },
+        { label: "Capability facts", status: data.ok ? "Ready" : "Blocked", detail: wizardCapabilityFactsText(data), state: data.ok ? "ready" : "blocked" },
+        { label: "Hardware backends", status: hardwareBackends === "none" ? "Warning" : "Ready", detail: hardwareBackends, state: hardwareBackends === "none" ? "warning" : "ready" },
+        { label: "CPU fallbacks", status: cpuBackends === "none" ? "Warning" : "Ready", detail: cpuBackends, state: cpuBackends === "none" ? "warning" : "ready" },
         ...(data.warnings || []).map((item) => ({ label: "Warning", status: "Warning", detail: item, state: "warning" })),
         ...(data.errors || []).map((item) => ({ label: "Error", status: "Blocked", detail: item, state: "blocked" })),
       ]);

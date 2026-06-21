@@ -317,7 +317,11 @@ class SettingsWizardPolicyTests(unittest.TestCase):
                 [
                     " V..... h264_nvenc           NVIDIA NVENC H.264 encoder (codec h264)",
                     " V..... hevc_nvenc           NVIDIA NVENC hevc encoder (codec hevc)",
+                    " V..... av1_nvenc            NVIDIA NVENC av1 encoder (codec av1)",
+                    " V..... hevc_qsv             Intel Quick Sync Video HEVC encoder (codec hevc)",
+                    " V..... hevc_amf             AMD AMF HEVC encoder (codec hevc)",
                     " V..... libx265              libx265 H.265 / HEVC (codec hevc)",
+                    " V..... libaom-av1           libaom AV1 (codec av1)",
                 ]
             )
             with patch(
@@ -328,9 +332,23 @@ class SettingsWizardPolicyTests(unittest.TestCase):
                 result = probe_ffmpeg_hardware(_resolved(root), {"wizard": {"tools": {"ffmpeg_path": str(ffmpeg)}}})
 
         self.assertTrue(result["ok"], "\n".join(result["errors"]))
-        self.assertEqual(result["detected_encoders"], ["h264_nvenc", "hevc_nvenc", "libx265"])
-        self.assertEqual(result["nvenc_encoders"], ["h264_nvenc", "hevc_nvenc"])
-        self.assertEqual(result["cpu_fallback_encoders"], ["libx265"])
+        self.assertEqual(
+            result["detected_encoders"],
+            ["h264_nvenc", "hevc_nvenc", "av1_nvenc", "hevc_qsv", "hevc_amf", "libx265", "libaom-av1"],
+        )
+        self.assertEqual(result["nvenc_encoders"], ["h264_nvenc", "hevc_nvenc", "av1_nvenc"])
+        self.assertEqual(result["cpu_fallback_encoders"], ["libx265", "libaom-av1"])
+        self.assertEqual(result["capability_facts_scope"], "video_encoder_names_only")
+        self.assertEqual(result["capability_facts"]["supported_video_codecs"], ["av1", "h264", "h265", "hevc"])
+        self.assertEqual(
+            result["capability_facts"]["supported_encoder_backends"],
+            ["amf", "copy", "libaom", "nvenc", "qsv", "x265"],
+        )
+        backend_rows = {row["backend"]: row for row in result["encoder_backend_rows"]}
+        self.assertEqual(backend_rows["nvenc"]["encoders"], ["h264_nvenc", "hevc_nvenc", "av1_nvenc"])
+        self.assertEqual(backend_rows["qsv"]["encoders"], ["hevc_qsv"])
+        self.assertEqual(backend_rows["amf"]["encoders"], ["hevc_amf"])
+        self.assertEqual(backend_rows["libaom"]["encoders"], ["libaom-av1"])
         warning_text = "\n".join(result["warnings"])
         self.assertIn("normal queue evidence", warning_text)
         self.assertIn("does not run a real encode", warning_text)

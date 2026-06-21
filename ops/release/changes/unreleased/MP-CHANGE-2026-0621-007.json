@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0621-007",
+  "title": "Thread encoder capability facts into wizard",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "medium",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Thread read-only FFmpeg encoder-list capability facts into the Settings wizard hardware probe and WebView result rendering.",
+  "reason": "Phase 6 needs Python/UI capability evidence before broader hardware encoder activation, while keeping settings choices portable and dormant encoder families disabled.",
+  "affected_areas": [
+    "config",
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Settings wizard hardware probe returned detected encoder names plus NVENC and CPU fallback lists, but it did not expose descriptor-aligned video capability facts or backend availability rows for the WebView to annotate.",
+  "behavior_after": "The Settings wizard hardware probe now derives video-only EncodingCapabilityFacts and backend availability rows from the configured FFmpeg encoder list, and the WebView renders capability facts, hardware backend, and CPU fallback annotations without filtering or removing settings choices.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsWizard.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsWizard.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_wizard.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_settings_wizard_policy.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-007.json",
+    "src/mediapipeline/core/config/settings_wizard.py",
+    "tests/python/desktop/test_settings_wizard_policy.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/core/config/settings_wizard.py - passed",
+    "node --check apps/desktop/webview/static/assets/settingsWizard.js - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_settings_wizard_policy tests.webview.test_webview_handbrake_settings_ui tests.webview.test_webview_frontend_mutation_boundary tests.python.core.contract.test_preset_policy_contract -q - passed, 92 tests",
+    "npm run webview:check - passed",
+    "mediapipeline.tools.dev.refresh_summaries --check - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "git diff --check - passed"
+  ],
+  "rollback_plan": "Remove the Settings wizard capability-fact helper and backend rows, remove the WebView hardware-probe annotation rows, revert the focused test assertions and docs wording, then refresh generated summaries.",
+  "related_changes": [],
+  "notes": "Add video-only encoder capability facts and backend rows to the read-only settings wizard hardware probe.\nCover descriptor-aligned encoder capability facts and backend rows from ffmpeg encoder listings.\nPin the Settings wizard hardware probe capability annotation rendering hooks.\nUpdate Phase 6 plan status for Settings wizard capability fact threading and remaining broader capability work.\nReflect Settings wizard video-only encoder capability facts while keeping broader encoder activation work open.\nUpdate current state with guided-setup encoder capability facts and remaining Phase 6 gaps.\nRender encoder capability facts, hardware backend rows, and CPU fallback rows in the guided setup hardware probe result.\nRefresh summary for current encoder capability fact status.\nRefresh summary for Settings wizard capability annotation rendering.\nRefresh summary for settings wizard encoder capability facts.\nRefresh summary for settings wizard capability facts tests.\nRefresh summary for Settings wizard static rendering tests."
+}
