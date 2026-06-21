@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/renameLabels.js
 pipeline_stage: rename
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-05-28
+last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 588655f1739aa8dfe22865fe621aaf0856a9d436925c15e0ace44a5ebf3a4182
+sha256: 802faa1d9135ee65d83cdb04c600cd27378ae579a51d2aec1d4b773d2c18068f
 ---
 # `apps/desktop/webview/static/assets/renameLabels.js`
 

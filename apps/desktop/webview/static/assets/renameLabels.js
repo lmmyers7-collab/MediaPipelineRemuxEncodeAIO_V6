@@ -59,7 +59,8 @@
 
   /**
    * Public namespace for shared rename labels.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Rename label helpers are exposed here; callers should use this namespace
+   * because this module no longer publishes flat window.* exports.
    */
   window.mediaPipelineRenameLabels = {
     renameStatusExplanation,
@@ -67,8 +68,4 @@
     renameConfidenceExplanation,
     renameConfidenceLabel,
   };
-  window.renameStatusExplanation = renameStatusExplanation;
-  window.renamePreviewSourceLabel = renamePreviewSourceLabel;
-  window.renameConfidenceExplanation = renameConfidenceExplanation;
-  window.renameConfidenceLabel = renameConfidenceLabel;
 })();

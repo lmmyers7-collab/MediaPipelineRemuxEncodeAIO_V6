@@ -1303,10 +1303,6 @@
       "rejectPendingOpenWhileBusy",
       "rejectPendingRecoveryPlanWhileBusy",
       "renameApplyHistoryLine",
-      "renameConfidenceExplanation",
-      "renameConfidenceLabel",
-      "renamePreviewSourceLabel",
-      "renameStatusExplanation",
       "renderActiveJobDetail",
       "renderActiveJobDiagnosticsActions",
       "renderActiveJobRows",
@@ -9520,12 +9516,7 @@
       "namespace_exports": [
         "mediaPipelineRenameLabels"
       ],
-      "flat_window_exports": [
-        "renameConfidenceExplanation",
-        "renameConfidenceLabel",
-        "renamePreviewSourceLabel",
-        "renameStatusExplanation"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [],
       "event_types": []
@@ -10483,10 +10474,6 @@
         "naturalSortRenamePaths",
         "refreshRenamePreview",
         "renameApplyHistoryLine",
-        "renameConfidenceExplanation",
-        "renameConfidenceLabel",
-        "renamePreviewSourceLabel",
-        "renameStatusExplanation",
         "renderRenameApplyHistory",
         "renderRenameBulkEditor",
         "renderRenameFileSourceSummary",

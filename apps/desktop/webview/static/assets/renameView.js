@@ -1,9 +1,9 @@
 (function () {
   const renameLabels = window.mediaPipelineRenameLabels || {};
-  const renameStatusExplanation = window.renameStatusExplanation || renameLabels.renameStatusExplanation || function () { return "Unknown: refresh preview before applying."; };
-  const renamePreviewSourceLabel = window.renamePreviewSourceLabel || renameLabels.renamePreviewSourceLabel || function (value) { return value ? String(value) : "Not reported"; };
-  const renameConfidenceExplanation = window.renameConfidenceExplanation || renameLabels.renameConfidenceExplanation || function () { return "Confidence not reported by backend."; };
-  const renameConfidenceLabel = window.renameConfidenceLabel || renameLabels.renameConfidenceLabel || function () { return ""; };
+  const renameStatusExplanation = renameLabels.renameStatusExplanation || function () { return "Unknown: refresh preview before applying."; };
+  const renamePreviewSourceLabel = renameLabels.renamePreviewSourceLabel || function (value) { return value ? String(value) : "Not reported"; };
+  const renameConfidenceExplanation = renameLabels.renameConfidenceExplanation || function () { return "Confidence not reported by backend."; };
+  const renameConfidenceLabel = renameLabels.renameConfidenceLabel || function () { return ""; };
   const renameHistoryView = window.mediaPipelineRenameHistoryView || {};
   const isRenameApplyCommand = window.isRenameApplyCommand || renameHistoryView.isRenameApplyCommand || function () { return false; };
   const renameApplyHistoryLine = window.renameApplyHistoryLine || renameHistoryView.renameApplyHistoryLine || function () { return ""; };
@@ -2261,10 +2261,6 @@
   window.clearRenamePaths = clearRenamePaths;
   window.applyRenameSelectedOverride = applyRenameSelectedOverride;
   window.clearRenameSelectedOverride = clearRenameSelectedOverride;
-  window.renameStatusExplanation = renameStatusExplanation;
-  window.renamePreviewSourceLabel = renamePreviewSourceLabel;
-  window.renameConfidenceExplanation = renameConfidenceExplanation;
-  window.renameConfidenceLabel = renameConfidenceLabel;
   window.isRenameApplyCommand = isRenameApplyCommand;
   window.renameApplyHistoryLine = renameApplyHistoryLine;
   window.renderRenameApplyHistory = renderRenameApplyHistory;
