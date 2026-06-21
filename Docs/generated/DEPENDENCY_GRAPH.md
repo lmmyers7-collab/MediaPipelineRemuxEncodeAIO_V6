@@ -92,13 +92,13 @@ graph LR
   network -->|6| config
   network -->|6| kernel
   orchestration -->|6| api
+  process -->|6| config
   publish -->|6| api
   tests -->|6| final_library
   tests -->|6| folder_policy
   tests -->|6| storage
   application -->|5| api
   orchestration -->|5| config
-  process -->|5| config
   rename -->|5| api
   scripts -->|5| diagnostics
   tests -->|5| application
@@ -249,13 +249,13 @@ graph LR
 | network | config | 6 |
 | network | kernel | 6 |
 | orchestration | api | 6 |
+| process | config | 6 |
 | publish | api | 6 |
 | tests | final_library | 6 |
 | tests | folder_policy | 6 |
 | tests | storage | 6 |
 | application | api | 5 |
 | orchestration | config | 5 |
-| process | config | 5 |
 | rename | api | 5 |
 | scripts | diagnostics | 5 |
 | tests | application | 5 |

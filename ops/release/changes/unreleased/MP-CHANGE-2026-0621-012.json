@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0621-012",
+  "title": "Thread encoder capability evidence into launch preflight",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Expose existing encoder capability report evidence in pipeline Launch preflight as a backend-authored, non-blocking, read-only check row.",
+  "reason": "Phase 6 encoder breadth still needed launch preflight capability threading after the backend settings workspace and Settings WebView exposed descriptor capability evidence.",
+  "affected_areas": [
+    "backend",
+    "docs",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "Pipeline launch preflight reported launch guards, schedule, path health, autonomy, active work, and runtime-prep boundaries, but did not surface the existing descriptor capability diagnostic report.",
+  "behavior_after": "Pipeline launch preflight includes an encoder_capability_report check that summarizes the existing bounded descriptor dump evidence without generating diagnostics, running FFmpeg, filtering choices, changing saved settings, or blocking starts unless another existing launch guard blocks.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/SESSION.md",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/inventories/API_ROUTE_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md.md",
+    "docs/generated/summaries/docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/preflight_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+    "docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-012.json",
+    "src/mediapipeline/core/processes/preflight_facade.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_process_launch.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_process_launch.py::ApplicationFacadeProcessLaunchTests::test_launch_preflight_surfaces_existing_encoder_capability_report_evidence",
+    "tests/python/desktop/test_application_facade_process_launch.py::ApplicationFacadeProcessLaunchTests::test_launch_preflight_surfaces_missing_encoder_capability_report_without_blocking_start"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/core/processes/preflight_facade.py tests/python/desktop/test_application_facade_process_launch.py tests/python/desktop/test_application_facade_local_api.py -> passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token -q -> 1 test OK",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token -q -> 33 tests OK",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_health_is_public_and_snapshot_requires_token tests.python.desktop.test_api_route_inventory -q -> 36 tests OK",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_launch_preflight_surfaces_missing_encoder_capability_report_without_blocking_start tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_launch_preflight_surfaces_existing_encoder_capability_report_evidence tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_launch_preflight_is_read_only_and_matches_launch_guards -q -> 3 tests OK",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> 500 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed -> refreshed changed summaries",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check -> current summaries verified",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index -> regenerated PROJECT_INDEX.md and DEPENDENCY_GRAPH.md after dependency drift hook",
+    "git diff --check -> passed"
+  ],
+  "rollback_plan": "Revert this packet to remove the Launch preflight encoder capability report row, process-launch/Local API assertions, active docs/inventory updates, and regenerated summaries. No media, queue, publish, settings-state, or diagnostic artifact recovery is required because the change is read-only evidence.",
+  "related_changes": [],
+  "notes": "Add read-only launch preflight row from existing encoder capability report evidence.\nCover missing and existing encoder capability report evidence in pipeline launch preflight.\nAssert Local API launch preflight exposes encoder capability evidence row.\nDocument scope and exclusions for launch preflight capability evidence slice.\nUpdate encoder breadth remaining-work status after launch preflight threading.\nUpdate current-state summary with launch preflight capability evidence.\nMark launch preflight evidence threading complete and leave remaining Phase 6 gaps.\nDocument encoder capability evidence in GET /api/launch/preflight.\nDocument Launch ownership of read-only encoder capability evidence.\nAdd launch preflight as a consumer of encoder capability report artifact.\nDocument new process-launch preflight capability evidence test coverage.\nRefresh generated summary for changed source, test, or inventory content.\nRegenerate dependency graph after preflight facade imports settings policy."
+}

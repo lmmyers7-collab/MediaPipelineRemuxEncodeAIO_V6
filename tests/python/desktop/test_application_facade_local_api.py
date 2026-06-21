@@ -1259,6 +1259,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(launch_preflight["operator_readiness"]["evidence_authority"], "backend")
         self.assertEqual(launch_preflight["operator_readiness"]["source_route"], "/api/launch/preflight")
         self.assertTrue(any(row["key"] == "active_work" for row in launch_preflight["checks"]))
+        self.assertTrue(any(row["key"] == "encoder_capability_report" for row in launch_preflight["checks"]))
         self.assertEqual(close_readiness["state"], "processing")
         self.assertEqual(telemetry_status, 200)
         self.assertTrue(telemetry["gpu_present"])

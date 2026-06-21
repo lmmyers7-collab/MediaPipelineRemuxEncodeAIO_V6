@@ -28,7 +28,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/diagnostics/tdarr-matrix/compare` | Yes | `desktop_tdarr_matrix_compare.v1` | Diagnostics | Query params: `left_run_id`, `right_run_id`, `left`, `right`; compares existing reports without opening files or launching work |
 | `GET /api/backend/close-readiness` | Yes | `desktop_close_readiness.v1` | Tauri shell (close flow) | Backend has authority over whether it is safe to close; shell must not decide unilaterally |
 | `GET /api/ui-preferences` | Yes | `desktop_ui_preferences.v1` | Chrome WebView, Tauri shell | Shared UI preference state for layout/theme/tab parity; no settings, queue, or media mutation |
-| `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored pre-launch checks from read-only start-intent query fields, including pipeline single-file intent and extra-argument posture; no locks reserved, no processes started |
+| `GET /api/launch/preflight` | Yes | `desktop_launch_preflight.v1` | Launch | Backend-authored pre-launch checks from read-only start-intent query fields, including pipeline single-file intent, extra-argument posture, and read-only encoder capability report evidence; no locks reserved, no processes started |
 | `GET /api/commands` | Yes | `desktop_command_history.v1` | Diagnostics, Home | Recent command journal entries; query param: `limit` |
 
 ### Inventory Group

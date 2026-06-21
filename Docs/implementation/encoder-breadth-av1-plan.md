@@ -26,8 +26,9 @@ evidence, including family-consistent CPU fallback candidates. Encode attempt pl
 now expose descriptor-selection evidence for current HEVC/libx265 parity paths and
 explicitly mark dormant AV1 selection as not yet active, but new families are not
 wired into the active `Do-Encode` ladder.
-Fallback wiring, launch preflight capability threading, full hardware/HDR runtime
-matrix coverage, and new encoder enablement remain incomplete.
+Fallback wiring, full hardware/HDR runtime matrix coverage, and new encoder
+enablement remain incomplete. Launch preflight now surfaces the existing
+descriptor capability report as non-blocking read-only evidence.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -505,8 +506,8 @@ changing any default encode behavior.
   settings choices. The Settings workspace now exposes existing descriptor dump
   evidence as a bounded read-only `encoder_capability_report`, and Settings Media
   Output renders that evidence as read-only encoder/backend availability
-  annotations without removing choices; remaining work is to thread that evidence
-  into launch preflight.
+  annotations without removing choices. Launch preflight now surfaces the same
+  existing descriptor dump as non-blocking read-only encoder capability evidence.
 
 ### 6.2 `EncoderBackend` key (settings schema — section 7 area, operator gate)
 
@@ -552,11 +553,12 @@ will catch most omissions:
   `EncodingCapabilityFacts` and backend rows from the configured FFmpeg encoder list.
   The WebView video detail builder now exposes `EncoderBackend` as a saveable
   select without filtering choices, `/api/settings/workspace` exposes existing
-  descriptor dump evidence read-only, and Settings Media Output renders that
-  evidence as backend-authored encoder/backend availability annotations. Remaining
-  work is to thread descriptor dump evidence into `validate_encoding_capabilities`
-  callers (grep callers of `EncodingCapabilityFacts`) and launch preflight. UI
-  choice filtering =
+  descriptor dump evidence read-only, Settings Media Output renders that
+  evidence as backend-authored encoder/backend availability annotations, and
+  `/api/launch/preflight` surfaces that evidence as a non-blocking read-only
+  preflight row. Remaining work is to thread descriptor dump evidence into
+  `validate_encoding_capabilities` callers (grep callers of
+  `EncodingCapabilityFacts`). UI choice filtering =
   annotate unavailable encoders in `choice_help` ("not detected on this machine") —
   never remove choices (settings round-trip safety; a config written on machine A
   must still load on machine B).

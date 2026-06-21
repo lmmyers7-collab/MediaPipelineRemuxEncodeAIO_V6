@@ -5,6 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
+from mediapipeline.core.config.settings_policy import settings_encoder_capability_report
 from mediapipeline.desktop.application.dto_base import JsonMap, json_safe
 from mediapipeline.desktop.models import ResolvedPaths
 
@@ -244,6 +245,62 @@ def _single_file_scope_preflight_check(resolved: ResolvedPaths, single_file: str
             else f"Choose one existing supported media file under {SOURCE_ROOT_SCOPE_TEXT}."
         ),
         detail=[json_safe(validation)],
+    )
+
+
+def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[str, Any]:
+    report = settings_encoder_capability_report(resolved)
+    state = str(report.get("operator_status_state") or "unknown").casefold()
+    if state == "ready":
+        status = "ready"
+        action = "Launch still uses saved settings; start route will re-check launch guards without changing encoder choices."
+    elif state in {"missing", "warning"}:
+        status = "review"
+        action = "Review or refresh backend-owned encoder capability diagnostic evidence before relying on hardware encoder choices."
+    else:
+        status = "unknown"
+        action = "Refresh the backend Settings workspace or rerun the backend-owned encoder capability diagnostic."
+    available = [str(item) for item in report.get("available_encoders", []) if str(item)]
+    unavailable = [str(item) for item in report.get("unavailable_encoders", []) if str(item)]
+    evidence = (
+        f"status={report.get('operator_status') or 'Unknown'}; "
+        f"source_path={report.get('source_path') or '(unavailable)'}; "
+        f"exists={'yes' if report.get('exists') else 'no'}; "
+        f"VideoCodec={report.get('video_codec') or '(unknown)'}; "
+        f"EncoderBackend={report.get('encoder_backend') or '(unknown)'}; "
+        f"available_count={len(available)}; "
+        f"unavailable_count={len(unavailable)}; "
+        f"read_only={'yes' if report.get('read_only') else 'no'}"
+    )
+    return _preflight_check(
+        "encoder_capability_report",
+        "Encoder capability evidence",
+        status,
+        evidence,
+        action,
+        detail=[
+            json_safe(
+                {
+                    "schema_version": report.get("schema_version") or "",
+                    "read_only": bool(report.get("read_only")),
+                    "source": report.get("source") or "",
+                    "source_path": report.get("source_path") or "",
+                    "exists": bool(report.get("exists")),
+                    "operator_status": report.get("operator_status") or "",
+                    "operator_status_state": report.get("operator_status_state") or "",
+                    "report_schema": report.get("report_schema") or "",
+                    "generated_at": report.get("generated_at") or "",
+                    "video_codec": report.get("video_codec") or "",
+                    "encoder_backend": report.get("encoder_backend") or "",
+                    "selection": report.get("selection") or {},
+                    "available_encoders": available,
+                    "unavailable_encoders": unavailable,
+                    "backend_counts": report.get("backend_counts") or {},
+                    "summary_lines": list(report.get("summary_lines") or []),
+                    "errors": list(report.get("errors") or []),
+                }
+            )
+        ],
     )
 
 
@@ -556,6 +613,7 @@ class ProcessFacadeMixin:
         path_health_check = self._configured_path_health_preflight_check(resolved, path_health=path_health)
         if path_health_check is not None:
             checks.append(path_health_check)
+        checks.append(_encoder_capability_report_preflight_check(resolved))
         checks.append(self._autonomy_health_preflight_check(resolved, path_health=path_health))
         checks.extend(
             [

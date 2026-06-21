@@ -6,6 +6,27 @@ Operator-approved scope (chat, 2026-06-02): execute ADR-0013 Wave 1 step 1,
 Wave 2 (steps 2-3), Wave 3 (steps 4-5), Wave 4 (step 6), then Wave 5
 (steps 7-8) on follow-up approval ("just continue").
 
+## Encoder capability Launch preflight evidence 2026-06-21
+
+Scope: continue the encoder breadth/AV1 remediation stream by threading the
+existing backend-authored descriptor capability report into pipeline Launch
+preflight as non-blocking read-only evidence. Packet
+`ops/release/changes/unreleased/MP-CHANGE-2026-0621-012.json`.
+
+In scope:
+- Reuse the bounded settings capability report reader for Launch preflight.
+- Add a backend-authored `encoder_capability_report` preflight row for pipeline
+  starts.
+- Treat missing or warning evidence as review-only; start blocking remains owned
+  by existing launch guards.
+- Update route/artifact/test/status docs and targeted Python tests.
+
+Out of scope: generating the capability diagnostic, running FFmpeg from
+preflight, changing saved settings, filtering choices, enabling dormant hardware
+descriptors, changing encoder selection/fallback behavior, queue/network
+behavior, source/scratch/output movement, pending publish, and real-media
+validation.
+
 ## Encoder capability Settings WebView annotations 2026-06-21
 
 Scope: continue the encoder breadth/AV1 remediation stream by rendering the
