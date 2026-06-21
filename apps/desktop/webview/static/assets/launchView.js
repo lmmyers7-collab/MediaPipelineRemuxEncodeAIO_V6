@@ -11,6 +11,8 @@
   const renderScheduleTimingTrust = typeof scheduleView.renderScheduleTimingTrust === "function" ? scheduleView.renderScheduleTimingTrust : null;
   const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
   const scheduleWatcherSummary = typeof scheduleView.scheduleWatcherSummary === "function" ? scheduleView.scheduleWatcherSummary : null;
+  const settingsOverview = window.mediaPipelineSettingsOverview || {};
+  const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
   const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
   const isLaunchCommand = launchHistoryView.isLaunchCommand || window.isLaunchCommand || function () { return false; };
   const launchHistoryLine = launchHistoryView.launchHistoryLine || window.launchHistoryLine || function () { return ""; };
@@ -291,7 +293,7 @@
       settingsCommandHistoryLine: typeof window.mediaPipelineSettingsCommandHistory?.settingsCommandHistoryLine === "function" ? window.mediaPipelineSettingsCommandHistory.settingsCommandHistoryLine : null,
       settingsLaunchImpactRows: typeof window.settingsLaunchImpactRows === "function" ? window.settingsLaunchImpactRows : (typeof settingsLaunchImpactRows === "function" ? settingsLaunchImpactRows : null),
       settingsLaunchImpactStatus: typeof window.settingsLaunchImpactStatus === "function" ? window.settingsLaunchImpactStatus : (typeof settingsLaunchImpactStatus === "function" ? settingsLaunchImpactStatus : null),
-      settingsOperatorTrustStatus: typeof window.settingsOperatorTrustStatus === "function" ? window.settingsOperatorTrustStatus : (typeof settingsOperatorTrustStatus === "function" ? settingsOperatorTrustStatus : null),
+      settingsOperatorTrustStatus,
       settingsPatchEffectiveChangedEntries: typeof window.settingsPatchEffectiveChangedEntries === "function" ? window.settingsPatchEffectiveChangedEntries : (typeof settingsPatchEffectiveChangedEntries === "function" ? settingsPatchEffectiveChangedEntries : null),
       settingsPatchIsTouched: typeof window.settingsPatchIsTouched === "function" ? window.settingsPatchIsTouched : (typeof settingsPatchIsTouched === "function" ? settingsPatchIsTouched : null),
       settingsPolicyDeltaRows: typeof window.settingsPolicyDeltaRows === "function" ? window.settingsPolicyDeltaRows : (typeof settingsPolicyDeltaRows === "function" ? settingsPolicyDeltaRows : null),

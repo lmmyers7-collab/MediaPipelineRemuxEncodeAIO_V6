@@ -1,9 +1,9 @@
 (function () {
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
-  const configValue = window.configValue || settingsOverview.configValue || function () { return "(not set)"; };
-  const buildSettingsOverviewRows = window.buildSettingsOverviewRows || settingsOverview.buildSettingsOverviewRows || function () { return []; };
-  const renderSettingsOverview = window.renderSettingsOverview || settingsOverview.renderSettingsOverview || function () {};
-  const renderSettingsOperatorTrust = window.renderSettingsOperatorTrust || settingsOverview.renderSettingsOperatorTrust || function () {};
+  const configValue = settingsOverview.configValue || function () { return "(not set)"; };
+  const buildSettingsOverviewRows = settingsOverview.buildSettingsOverviewRows || function () { return []; };
+  const renderSettingsOverview = settingsOverview.renderSettingsOverview || function () {};
+  const renderSettingsOperatorTrust = settingsOverview.renderSettingsOperatorTrust || function () {};
   const settingsCommandHistory = window.mediaPipelineSettingsCommandHistory || {};
   const isSettingsCommand = settingsCommandHistory.isSettingsCommand || function () { return false; };
   const settingsCommandHistoryLine = settingsCommandHistory.settingsCommandHistoryLine || function () { return ""; };

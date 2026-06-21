@@ -1,5 +1,7 @@
 (function () {
   const domHelpers = window.mediaPipelineDom || {};
+  const settingsOverview = window.mediaPipelineSettingsOverview || {};
+  const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
   const scheduleView = window.mediaPipelineScheduleView || {};
   const scheduleCurrentLaunchSelection = typeof scheduleView.scheduleCurrentLaunchSelection === "function" ? scheduleView.scheduleCurrentLaunchSelection : null;
   const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;

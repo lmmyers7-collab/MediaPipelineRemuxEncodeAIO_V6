@@ -6518,6 +6518,14 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Publish behavior:", settings_overview_js)
         self.assertIn("Remux/encode routing:", settings_overview_js)
         self.assertIn("Subtitle routing:", settings_overview_js)
+        for flat_settings_overview_export in (
+            "window.configValue =",
+            "window.buildSettingsOverviewRows =",
+            "window.renderSettingsOverview =",
+            "window.settingsOperatorTrustStatus =",
+            "window.renderSettingsOperatorTrust =",
+        ):
+            self.assertNotIn(flat_settings_overview_export, settings_overview_js)
         self.assertIn("Audio routing:", settings_overview_js)
         self.assertIn("Mutation guardrail: settings trust is read-only", settings_overview_js)
         self.assertIn("window.mediaPipelineSettingsCommandHistory", settings_command_history_js)

@@ -352,7 +352,7 @@
 
   /**
    * Public namespace for the settings overview module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Settings overview consumers should use this namespace; no flat window.* exports remain for this module.
    */
   window.mediaPipelineSettingsOverview = {
     configValue,
@@ -365,9 +365,4 @@
     settingsMediaPolicyReadinessLine,
     renderSettingsOperatorTrust,
   };
-  window.configValue = configValue;
-  window.buildSettingsOverviewRows = buildSettingsOverviewRows;
-  window.renderSettingsOverview = renderSettingsOverview;
-  window.settingsOperatorTrustStatus = settingsOperatorTrustStatus;
-  window.renderSettingsOperatorTrust = renderSettingsOperatorTrust;
 })();

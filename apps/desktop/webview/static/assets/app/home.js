@@ -1,5 +1,8 @@
-/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, renderProgressBarsInto, settingsOperatorTrustStatus, settingsRawActionPlanRows, settingsRawActionPlanStatus, shortenPath */
+/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, renderProgressBarsInto, settingsRawActionPlanRows, settingsRawActionPlanStatus, shortenPath */
 (function () {
+  const settingsOverview = window.mediaPipelineSettingsOverview || {};
+  const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
+
   function homeReadinessNextStep({ snapshot, closeReadiness, failures }) {
     const items = Array.isArray(failures) ? failures : [];
     const requiredFailure = items.find((item) => item.required);
