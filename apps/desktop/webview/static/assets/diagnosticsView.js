@@ -1369,7 +1369,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     const dependencyContext = {
       settings: payload.settings || {},
       stateSummary: payload.stateSummary || {},
-      maintenance: payload.maintenance || (typeof window.getLastMaintenance === "function" ? window.getLastMaintenance() : {}),
+      maintenance: payload.maintenance || window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
     };
     const dependencyStatus = typeof window.externalDependencyOverallStatus === "function"
       ? window.externalDependencyOverallStatus(dependencyContext)
@@ -1570,7 +1570,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         lines.push(...window.externalDependencySummaryLines({
           settings: payload.settings || {},
           stateSummary: payload.stateSummary || {},
-          maintenance: payload.maintenance || (typeof window.getLastMaintenance === "function" ? window.getLastMaintenance() : {}),
+          maintenance: payload.maintenance || window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
         }).slice(0, 10));
       } else {
         lines.push("External dependency digest helper is not loaded; open Settings and Maintenance for current evidence.");

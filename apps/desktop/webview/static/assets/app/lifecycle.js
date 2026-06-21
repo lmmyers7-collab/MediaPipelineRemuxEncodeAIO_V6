@@ -1,4 +1,4 @@
-/* global THEME_STORAGE_KEY, _layoutRenderDrawer, backendShutdownInFlight, commandHistoryCompactEvidenceLine, getCommandHistory, hasMaintenanceLoaded, homeProgressPercent, lastCloseReadiness, lastSnapshot, lastStartupProgress, lastTauriBackendLifecycleEvent, refreshAll, refreshMaintenance, scheduleDisplayValue */
+/* global THEME_STORAGE_KEY, _layoutRenderDrawer, backendShutdownInFlight, commandHistoryCompactEvidenceLine, getCommandHistory, homeProgressPercent, lastCloseReadiness, lastSnapshot, lastStartupProgress, lastTauriBackendLifecycleEvent, refreshAll, scheduleDisplayValue */
 (function () {
   const TOPBAR_PENDING_LAUNCH_TTL_MS = 120000;
   const TOPBAR_IDLE_PENDING_GRACE_MS = 45000;
@@ -612,8 +612,9 @@
     if (current && current !== normalized) resetWorkspaceScroll();
     updatePagePanelEmptyStates();
     if (document.body.classList.contains("layout-editor-open")) _layoutRenderDrawer();
-    if (normalized === "maintenance" && typeof hasMaintenanceLoaded === "function" && !hasMaintenanceLoaded()) {
-      refreshMaintenance();
+    const maintenanceView = window.mediaPipelineMaintenanceView || {};
+    if (normalized === "maintenance" && typeof maintenanceView.hasMaintenanceLoaded === "function" && !maintenanceView.hasMaintenanceLoaded()) {
+      maintenanceView.refreshMaintenance?.();
     }
   }
 

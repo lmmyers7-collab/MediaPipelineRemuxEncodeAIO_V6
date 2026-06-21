@@ -875,7 +875,7 @@ async function refreshAllNow(options = {}) {
   const dependencyContext = {
     settings: values.settings || getLastSettings(),
     stateSummary: values["diagnostics state summary"] || {},
-    maintenance: typeof getLastMaintenance === "function" ? getLastMaintenance() : {},
+    maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
   };
   renderExternalDependencyDigest(dependencyContext);
   if (typeof renderLaunchReadiness === "function") {
@@ -932,7 +932,7 @@ async function refreshAllNow(options = {}) {
       pending: pendingPublishPayload,
       settings: values.settings || getLastSettings(),
       sampleValidation: values["sample validation"] || {},
-      maintenance: typeof getLastMaintenance === "function" ? getLastMaintenance() : {},
+      maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
       failures,
     };
     const renderDiagnosticsFirstResponseFn = window.mediaPipelineDiagnosticsView?.renderDiagnosticsFirstResponse;
@@ -964,7 +964,7 @@ async function refreshAllNow(options = {}) {
     schedule: values.schedule || lastSchedule,
     settings: values.settings || getLastSettings(),
     stateSummary: values["diagnostics state summary"] || {},
-    maintenance: typeof getLastMaintenance === "function" ? getLastMaintenance() : {},
+    maintenance: window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {},
     queue: values.queue || {},
     completed: values.completed || {},
     pending: pendingPublishPayload,
@@ -1661,7 +1661,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   initDiagnosticsViewEvents();
   window.mediaPipelineNetworkView?.initNetworkViewEvents?.();
   window.mediaPipelineContractView?.initContractViewEvents?.();
-  if (typeof initMaintenanceViewEvents === "function") initMaintenanceViewEvents();
+  const maintenanceView = window.mediaPipelineMaintenanceView || {};
+  maintenanceView.initMaintenanceViewEvents?.();
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");
   if (pipelineStartButton) pipelineStartButton.addEventListener("click", startPipelineFromForm);
@@ -1676,17 +1677,17 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pendingRecoveryPlanAllButton = byId("pending-recovery-plan-all-button");
   if (pendingRecoveryPlanAllButton) pendingRecoveryPlanAllButton.addEventListener("click", () => requestPendingRecoveryPlan("all"));
   const maintenanceRefreshButton = byId("maintenance-refresh-button");
-  if (maintenanceRefreshButton) maintenanceRefreshButton.addEventListener("click", refreshMaintenance);
+  if (maintenanceRefreshButton) maintenanceRefreshButton.addEventListener("click", () => maintenanceView.refreshMaintenance?.());
   const releaseDryRunButton = byId("release-dry-run-button");
-  if (releaseDryRunButton) releaseDryRunButton.addEventListener("click", runReleaseDryRun);
+  if (releaseDryRunButton) releaseDryRunButton.addEventListener("click", () => maintenanceView.runReleaseDryRun?.());
   const releaseBuildButton = byId("release-build-button");
-  if (releaseBuildButton) releaseBuildButton.addEventListener("click", () => window.mediaPipelineMaintenanceView?.runReleaseBuild?.());
+  if (releaseBuildButton) releaseBuildButton.addEventListener("click", () => maintenanceView.runReleaseBuild?.());
   const backfillDryRunButton = byId("backfill-dry-run-button");
-  if (backfillDryRunButton) backfillDryRunButton.addEventListener("click", runBackfillDryRun);
+  if (backfillDryRunButton) backfillDryRunButton.addEventListener("click", () => maintenanceView.runBackfillDryRun?.());
   const dependencyAtlasButton = byId("dependency-atlas-button");
-  if (dependencyAtlasButton) dependencyAtlasButton.addEventListener("click", () => window.mediaPipelineMaintenanceView?.runDependencyAtlas?.());
+  if (dependencyAtlasButton) dependencyAtlasButton.addEventListener("click", () => maintenanceView.runDependencyAtlas?.());
   const dependencyAtlasOpenFolderButton = byId("dependency-atlas-open-folder-button");
-  if (dependencyAtlasOpenFolderButton) dependencyAtlasOpenFolderButton.addEventListener("click", () => window.mediaPipelineMaintenanceView?.openDependencyAtlasFolder?.());
+  if (dependencyAtlasOpenFolderButton) dependencyAtlasOpenFolderButton.addEventListener("click", () => maintenanceView.openDependencyAtlasFolder?.());
   const queueFilter = byId("queue-filter");
   if (queueFilter) queueFilter.addEventListener("input", () => window.mediaPipelineQueueView?.renderQueueRows?.());
   const queueStatusFilter = byId("queue-status-filter");

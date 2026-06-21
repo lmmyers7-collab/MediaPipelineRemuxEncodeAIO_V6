@@ -10,9 +10,9 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 
 - **74 JS files** total in `assets/`
 - **34 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
-- **58 files** also export flat functions directly onto `window`
+- **57 files** also export flat functions directly onto `window`
 - **40 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.repair.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `pendingPublishView.repair.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
-- **Flat export total:** 781
+- **Flat export total:** 774
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
 - **All 32 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
 
@@ -56,7 +56,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `launchView.risk.js` | - | 1 | Generated from current `window.* =` assignments |
 | `launchView.scope.js` | - | 1 | Generated from current `window.* =` assignments |
 | `librariesRouteMap.js` | mediaPipelineLibraryRouteMap | 0 | Generated from current `window.* =` assignments |
-| `maintenanceView.js` | mediaPipelineMaintenanceView | 7 | Generated from current `window.* =` assignments |
+| `maintenanceView.js` | mediaPipelineMaintenanceView | 0 | Generated from current `window.* =` assignments |
 | `metricsView.js` | mediaPipelineMetricsView | 0 | Generated from current `window.* =` assignments |
 | `networkView.js` | mediaPipelineNetworkView | 0 | Generated from current `window.* =` assignments |
 | `pendingPublishView.confidence.js` | - | 1 | Generated from current `window.* =` assignments |
@@ -235,7 +235,7 @@ Risk: Low — documentation only.
 
 Generated from `apps/desktop/webview/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
-Flat export total: 781
+Flat export total: 774
 
 <!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->
 ### apiClient.js
@@ -987,15 +987,8 @@ Flat exports (0):
 
 Namespace objects: mediaPipelineMaintenanceView
 
-Flat exports (7):
+Flat exports (0):
 ```text
-hasMaintenanceLoaded
-getLastMaintenance
-refreshMaintenance
-initMaintenanceViewEvents
-runReleaseDryRun
-runReleaseBuild
-runBackfillDryRun
 ```
 
 ### metricsView.js

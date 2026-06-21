@@ -1,4 +1,4 @@
-/* global commandHistoryIssueLevel, getCommandHistory, getLastMaintenance, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, renderProgressBarsInto, settingsOperatorTrustStatus, settingsRawActionPlanRows, settingsRawActionPlanStatus, shortenPath */
+/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, renderProgressBarsInto, settingsOperatorTrustStatus, settingsRawActionPlanRows, settingsRawActionPlanStatus, shortenPath */
 (function () {
   function homeReadinessNextStep({ snapshot, closeReadiness, failures }) {
     const items = Array.isArray(failures) ? failures : [];
@@ -1079,7 +1079,7 @@
     const payload = context || {};
     const settings = payload.settings || {};
     const stateSummary = payload.stateSummary || payload.diagnosticsStateSummary || {};
-    const maintenance = payload.maintenance || (typeof getLastMaintenance === "function" ? getLastMaintenance() : {});
+    const maintenance = payload.maintenance || window.mediaPipelineMaintenanceView?.getLastMaintenance?.() || {};
     const rows = [];
     const bdpgs = settings?.tool_path_evidence?.bdpgs_ocr;
     if (bdpgs && typeof bdpgs === "object") {

@@ -1753,11 +1753,4 @@
     runDependencyAtlas,
     openDependencyAtlasFolder,
   };
-  window.hasMaintenanceLoaded = hasMaintenanceLoaded;
-  window.getLastMaintenance = getLastMaintenance;
-  window.refreshMaintenance = refreshMaintenance;
-  window.initMaintenanceViewEvents = initMaintenanceViewEvents;
-  window.runReleaseDryRun = runReleaseDryRun;
-  window.runReleaseBuild = runReleaseBuild;
-  window.runBackfillDryRun = runBackfillDryRun;
 })();

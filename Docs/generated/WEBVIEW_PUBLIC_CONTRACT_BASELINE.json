@@ -1056,7 +1056,6 @@
       "getLastLaunchBackendPreflightPayloads",
       "getLastLaunchBackendPreflightRefreshInfo",
       "getLastLaunchReadinessPayload",
-      "getLastMaintenance",
       "getLastPendingPublishPayload",
       "getLastQueuePayload",
       "getLastQueueRows",
@@ -1071,10 +1070,8 @@
       "getSelectedQueuePriorityRowKeys",
       "getSelectedQueuePriorityRows",
       "getSelectedQueueRow",
-      "hasMaintenanceLoaded",
       "initDiagnosticsViewEvents",
       "initLaunchViewEvents",
-      "initMaintenanceViewEvents",
       "initSampleValidationViewEvents",
       "initScheduleViewEvents",
       "initSettingsViewEvents",
@@ -1288,7 +1285,6 @@
       "refreshAll",
       "refreshAllNow",
       "refreshLaunchBackendPreflight",
-      "refreshMaintenance",
       "rejectPendingOpenWhileBusy",
       "rejectPendingRecoveryPlanWhileBusy",
       "renderActiveJobDetail",
@@ -1432,9 +1428,6 @@
       "resetCompletedFilters",
       "resetCompletedHistoryFilters",
       "resetQueueFilters",
-      "runBackfillDryRun",
-      "runReleaseBuild",
-      "runReleaseDryRun",
       "sampleValidationAcceptanceGateDetailLines",
       "sampleValidationAcceptanceGateStatus",
       "sampleValidationAcceptanceGateSummaryLines",
@@ -19562,15 +19555,7 @@
       "namespace_exports": [
         "mediaPipelineMaintenanceView"
       ],
-      "flat_window_exports": [
-        "getLastMaintenance",
-        "hasMaintenanceLoaded",
-        "initMaintenanceViewEvents",
-        "refreshMaintenance",
-        "runBackfillDryRun",
-        "runReleaseBuild",
-        "runReleaseDryRun"
-      ],
+      "flat_window_exports": [],
       "api_routes": [
         "/api/maintenance",
         "/api/maintenance/completed-backfill-dry-run",
@@ -21730,167 +21715,167 @@
         },
         {
           "name": "applyDefaultActionTooltips",
-          "line": 620,
+          "line": 621,
           "kind": "function"
         },
         {
           "name": "initSettingsTabNav",
-          "line": 673,
+          "line": 674,
           "kind": "function"
         },
         {
           "name": "initDiagnosticsTabNav",
-          "line": 706,
+          "line": 707,
           "kind": "function"
         },
         {
           "name": "activateCompletedTab",
-          "line": 738,
+          "line": 739,
           "kind": "function"
         },
         {
           "name": "showCompletedOutputTab",
-          "line": 761,
+          "line": 762,
           "kind": "function"
         },
         {
           "name": "initCompletedTabNav",
-          "line": 766,
+          "line": 767,
           "kind": "function"
         },
         {
           "name": "initNavigation",
-          "line": 782,
+          "line": 783,
           "kind": "function"
         },
         {
           "name": "sparkKind",
-          "line": 800,
+          "line": 801,
           "kind": "function"
         },
         {
           "name": "renderSparkline",
-          "line": 809,
+          "line": 810,
           "kind": "function"
         },
         {
           "name": "initLaunchEvidenceToggle",
-          "line": 824,
+          "line": 825,
           "kind": "function"
         },
         {
           "name": "initCollapsibleSummaries",
-          "line": 848,
+          "line": 849,
           "kind": "function"
         },
         {
           "name": "initThemeToggle",
-          "line": 886,
+          "line": 887,
           "kind": "function"
         },
         {
           "name": "applyThemePreference",
-          "line": 901,
+          "line": 902,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycle",
-          "line": 909,
+          "line": 910,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandEntries",
-          "line": 935,
+          "line": 936,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandLine",
-          "line": 942,
+          "line": 943,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleHistory",
-          "line": 967,
+          "line": 968,
           "kind": "function"
         },
         {
           "name": "KEYBOARD_PAGE_KEYS",
-          "line": 980,
+          "line": 981,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_PRIMARY_FILTER_IDS",
-          "line": 992,
+          "line": 993,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_DETAIL_IDS",
-          "line": 1002,
+          "line": 1003,
           "kind": "const"
         },
         {
           "name": "activeKeyboardPage",
-          "line": 1012,
+          "line": 1013,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPanel",
-          "line": 1016,
+          "line": 1017,
           "kind": "function"
         },
         {
           "name": "shortcutTypingTarget",
-          "line": 1020,
+          "line": 1021,
           "kind": "function"
         },
         {
           "name": "shortcutElementVisible",
-          "line": 1025,
+          "line": 1026,
           "kind": "function"
         },
         {
           "name": "focusActivePageSearch",
-          "line": 1032,
+          "line": 1033,
           "kind": "function"
         },
         {
           "name": "dispatchShortcutInputChange",
-          "line": 1043,
+          "line": 1044,
           "kind": "function"
         },
         {
           "name": "clearActivePageFilters",
-          "line": 1048,
+          "line": 1049,
           "kind": "function"
         },
         {
           "name": "activePageSelectableRows",
-          "line": 1086,
+          "line": 1087,
           "kind": "function"
         },
         {
           "name": "moveActivePageSelection",
-          "line": 1092,
+          "line": 1093,
           "kind": "function"
         },
         {
           "name": "focusActivePageDetail",
-          "line": 1106,
+          "line": 1107,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutRegistry",
-          "line": 1122,
+          "line": 1123,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutHelpText",
-          "line": 1143,
+          "line": 1144,
           "kind": "function"
         },
         {
           "name": "initKeyboardShortcuts",
-          "line": 1154,
+          "line": 1155,
           "kind": "function"
         }
       ],

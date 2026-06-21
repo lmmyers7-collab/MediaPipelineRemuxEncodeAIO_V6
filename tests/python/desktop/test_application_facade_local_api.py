@@ -7319,6 +7319,17 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function collectReleaseBuildRequest", maintenance_view_js)
         self.assertIn("function runReleaseDryRun", maintenance_view_js)
         self.assertIn("function runReleaseBuild", maintenance_view_js)
+        removed_maintenance_flat_exports = [
+            "hasMaintenanceLoaded",
+            "getLastMaintenance",
+            "refreshMaintenance",
+            "initMaintenanceViewEvents",
+            "runReleaseDryRun",
+            "runReleaseBuild",
+            "runBackfillDryRun",
+        ]
+        for export_name in removed_maintenance_flat_exports:
+            self.assertNotIn(f"window.{export_name} =", maintenance_view_js)
         self.assertIn("function renderReleaseBuildResult", maintenance_view_js)
         self.assertIn("function renderReleasePackageProgress", maintenance_view_js)
         self.assertIn("function renderReleasePackageInFlightProgress", maintenance_view_js)
@@ -7512,7 +7523,11 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("window.mediaPipelineReportsView?.initReportsViewEvents?.();", js)
         self.assertNotIn('if (typeof initReportsViewEvents === "function") initReportsViewEvents();', js)
         self.assertIn('if (typeof initScheduleViewEvents === "function") initScheduleViewEvents();', js)
-        self.assertIn('if (typeof initMaintenanceViewEvents === "function") initMaintenanceViewEvents();', js)
+        self.assertIn("const maintenanceView = window.mediaPipelineMaintenanceView || {}", js)
+        self.assertIn("maintenanceView.initMaintenanceViewEvents?.();", js)
+        self.assertIn("maintenanceView.runReleaseDryRun?.()", js)
+        self.assertIn("maintenanceView.runBackfillDryRun?.()", js)
+        self.assertNotIn('if (typeof initMaintenanceViewEvents === "function") initMaintenanceViewEvents();', js)
         self.assertIn("function collectPipelineStartRequest", launch_view_js)
         self.assertIn('byId("pipeline-start-single-file")', launch_view_js)
         self.assertIn("request.single_file = singleFile", launch_view_js)
@@ -8050,7 +8065,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings())", js)
         self.assertIn("source=markers", js)
         self.assertIn("priority_only=true", js)
-        self.assertIn("hasMaintenanceLoaded", js)
+        self.assertIn("window.mediaPipelineMaintenanceView?.getLastMaintenance?.()", js)
         self.assertIn("getLastMaintenance", maintenance_view_js)
         self.assertIn("startPipelineFromForm", js)
         self.assertNotIn("startAuditFromForm", js)
