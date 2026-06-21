@@ -104,10 +104,13 @@ Current static/unit gates:
 - `tests/webview/test_webview_network_read_only_boundary.py` verifies Network controls call only documented backend lifecycle routes and keep future controls disabled.
 - Route inventories and ownership maps list every Network lifecycle route.
 
-Remaining implementation gates before real distributed processing is complete:
+Dispositioned 2026-06-15 review evidence:
 
-- Keep the real coordinator lifecycle provider and worker polling provider wired through the Local API facade, and keep provider-unavailable failure coverage for nonstandard harnesses or broken mixin construction.
-- Reconcile the 2026-06-15 network coordinator/worker findings register into fixed, open, superseded, or deferred status with source/test evidence.
-- Close remaining distributed-processing hardening gaps around claim ownership, source identity normalization, durable done/release acceptance, late terminal evidence, worker-result propagation, secret redaction, join-blob journaling, and concurrent claim coverage.
-- Add or preserve duplicate-start/stop tests, provider active-state tests, command-journal success/failure tests, process cleanup/orphan tests, and source/scratch/output/pending-publish hash checks.
-- Add integration coverage proving coordinator-only does not process local files, worker-only claims only coordinator-assigned files, coordinator-local work starts only through Network lifecycle, and done-report/final-acceptance evidence is coordinator-owned.
+- `Docs/reviews/network-coordinator-worker-mode-2026-06-15/DISPOSITION_LEDGER.md` reconciles all 35 network coordinator/worker findings as fixed, with no open, superseded, or deferred findings.
+- The ledger maps the fixed findings to the 2026-06-15 implementation packets and current focused tests for cooperative stop behavior, two-phase worker startup, valid done/release ownership, Windows/UNC source identity normalization, durable done/release acceptance, late terminal evidence, PowerShell worker-result propagation, configured-token validation, cluster-log redaction, join-blob journal redaction, and concurrent claim coverage.
+- Provider-backed lifecycle routing is the active contract. Provider-unavailable and precondition-blocked cases remain fail-closed tests, not evidence that lifecycle providers are absent.
+
+Recurring validation gates for future Network changes:
+
+- Preserve duplicate-start/stop tests, provider active-state tests, command-journal success/failure tests, process cleanup/orphan tests, and source/scratch/output/pending-publish hash checks when touching lifecycle, worker, coordinator, claim, done/release, auth, or join flows.
+- Preserve integration coverage proving coordinator-only does not process local files, worker-only claims only coordinator-assigned files, coordinator-local work starts only through Network lifecycle, and done-report/final-acceptance evidence is coordinator-owned.

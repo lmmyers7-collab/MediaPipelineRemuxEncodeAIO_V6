@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0620-001",
+  "title": "Align network lifecycle contract with disposition ledger",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-20",
+  "summary": "Align the active Network lifecycle command contract with the completed 2026-06-15 network review disposition ledger.",
+  "reason": "The active contract still listed review reconciliation and distributed-processing hardening as remaining implementation gates even though the disposition ledger and open-work checklist mark all network review findings fixed with source/test evidence.",
+  "affected_areas": [
+    "docs",
+    "generated"
+  ],
+  "behavior_before": "The Network lifecycle contract reopened fixed 2026-06-15 review items as remaining implementation gates, which conflicted with the active disposition ledger and open-work checklist.",
+  "behavior_after": "The contract points to the disposition ledger for the fixed review findings, clarifies that provider-unavailable paths are fail-closed tests rather than absent providers, and keeps future Network validation gates as recurring expectations.",
+  "files_touched": [
+    "docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/architecture/NETWORK_LIFECYCLE_COMMAND_CONTRACT.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0620-001.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-001.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed; 473 packets valid",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_project_index --check - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - passed; 1758 source files current",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_network_lifecycle_fixes tests.python.desktop.test_network_security tests.python.desktop.test_network_coordinator_http tests.python.desktop.test_api_command_contracts -q - passed; 105 tests",
+    "git diff --check - passed with CRLF conversion warning for touched Markdown file only",
+    "rg stale network lifecycle phrases across active docs - passed; remaining provider-unavailable hits are intentional fail-closed contract wording"
+  ],
+  "rollback_plan": "Restore the previous NETWORK_LIFECYCLE_COMMAND_CONTRACT.md validation-gates text and rerun active doc reference checks plus the focused network evidence tests.",
+  "related_changes": [],
+  "notes": "Align network lifecycle validation gates with the fixed 2026-06-15 disposition ledger.\nRegenerate summary for the updated Network lifecycle contract.\nAdd generated summary for the Network lifecycle docs packet.\nRefresh generated project index after the contract and packet summaries changed."
+}
