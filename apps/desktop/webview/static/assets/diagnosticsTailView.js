@@ -406,11 +406,4 @@
     diagnosticsTailEvidence,
     diagnosticsTailEvidenceLines,
   };
-  window.selectedDiagnosticsTailTarget = selectedDiagnosticsTailTarget;
-  window.selectedDiagnosticsTailMaxBytes = selectedDiagnosticsTailMaxBytes;
-  window.setDiagnosticsTailTarget = setDiagnosticsTailTarget;
-  window.setDiagnosticsTailStatus = setDiagnosticsTailStatus;
-  window.setDiagnosticsTailBusy = setDiagnosticsTailBusy;
-  window.renderDiagnosticsTail = renderDiagnosticsTail;
-  window.requestDiagnosticsTail = requestDiagnosticsTail;
 })();

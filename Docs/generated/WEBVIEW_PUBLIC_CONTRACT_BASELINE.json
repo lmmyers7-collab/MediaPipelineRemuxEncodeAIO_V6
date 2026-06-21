@@ -16175,15 +16175,7 @@
       "namespace_exports": [
         "mediaPipelineDiagnosticsTailView"
       ],
-      "flat_window_exports": [
-        "renderDiagnosticsTail",
-        "requestDiagnosticsTail",
-        "selectedDiagnosticsTailMaxBytes",
-        "selectedDiagnosticsTailTarget",
-        "setDiagnosticsTailBusy",
-        "setDiagnosticsTailStatus",
-        "setDiagnosticsTailTarget"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [
         "diagnostics-tail-max-bytes",

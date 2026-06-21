@@ -3,13 +3,13 @@
   let tdarrMatrixAuditInFlight = false;
   let tdarrMatrixBackgroundPollTimer = 0;
   const diagnosticsTailView = window.mediaPipelineDiagnosticsTailView || {};
-  const selectedDiagnosticsTailTarget = window.selectedDiagnosticsTailTarget || diagnosticsTailView.selectedDiagnosticsTailTarget || function () { return ""; };
-  const selectedDiagnosticsTailMaxBytes = window.selectedDiagnosticsTailMaxBytes || diagnosticsTailView.selectedDiagnosticsTailMaxBytes || function () { return "65536"; };
-  const setDiagnosticsTailTarget = window.setDiagnosticsTailTarget || diagnosticsTailView.setDiagnosticsTailTarget || function () {};
-  const setDiagnosticsTailStatus = window.setDiagnosticsTailStatus || diagnosticsTailView.setDiagnosticsTailStatus || function () {};
-  const setDiagnosticsTailBusy = window.setDiagnosticsTailBusy || diagnosticsTailView.setDiagnosticsTailBusy || function () {};
-  const renderDiagnosticsTail = window.renderDiagnosticsTail || diagnosticsTailView.renderDiagnosticsTail || function () {};
-  const requestDiagnosticsTail = window.requestDiagnosticsTail || diagnosticsTailView.requestDiagnosticsTail || async function () {};
+  const selectedDiagnosticsTailTarget = diagnosticsTailView.selectedDiagnosticsTailTarget || window.selectedDiagnosticsTailTarget || function () { return ""; };
+  const selectedDiagnosticsTailMaxBytes = diagnosticsTailView.selectedDiagnosticsTailMaxBytes || window.selectedDiagnosticsTailMaxBytes || function () { return "65536"; };
+  const setDiagnosticsTailTarget = diagnosticsTailView.setDiagnosticsTailTarget || window.setDiagnosticsTailTarget || function () {};
+  const setDiagnosticsTailStatus = diagnosticsTailView.setDiagnosticsTailStatus || window.setDiagnosticsTailStatus || function () {};
+  const setDiagnosticsTailBusy = diagnosticsTailView.setDiagnosticsTailBusy || window.setDiagnosticsTailBusy || function () {};
+  const renderDiagnosticsTail = diagnosticsTailView.renderDiagnosticsTail || window.renderDiagnosticsTail || function () {};
+  const requestDiagnosticsTail = diagnosticsTailView.requestDiagnosticsTail || window.requestDiagnosticsTail || async function () {};
   const diagnosticsStateSummaryView = window.mediaPipelineDiagnosticsStateSummaryView || {};
   const diagnosticsStateOperatorStatus = diagnosticsStateSummaryView.diagnosticsStateOperatorStatus || function (item) {
     return item?.operator_status || item?.status || "";

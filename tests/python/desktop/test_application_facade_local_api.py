@@ -7013,6 +7013,18 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function requestDiagnosticsTail", diagnostics_tail_view_js)
         self.assertIn("function renderDiagnosticsTail", diagnostics_tail_view_js)
         self.assertIn("function setDiagnosticsTailTarget", diagnostics_tail_view_js)
+        removed_tail_flat_exports = [
+            "selectedDiagnosticsTailTarget",
+            "selectedDiagnosticsTailMaxBytes",
+            "setDiagnosticsTailTarget",
+            "setDiagnosticsTailStatus",
+            "setDiagnosticsTailBusy",
+            "renderDiagnosticsTail",
+            "requestDiagnosticsTail",
+        ]
+        for export_name in removed_tail_flat_exports:
+            self.assertNotIn(f"window.{export_name} =", diagnostics_tail_view_js)
+        self.assertIn("diagnosticsTailView.requestDiagnosticsTail || window.requestDiagnosticsTail", diagnostics_view_js)
         self.assertIn("function diagnosticsTailEvidence", diagnostics_tail_view_js)
         self.assertIn("function diagnosticsTailEvidenceLines", diagnostics_tail_view_js)
         self.assertIn('Object.assign({ evidence_authority: "backend" }, evidence)', diagnostics_tail_view_js)
