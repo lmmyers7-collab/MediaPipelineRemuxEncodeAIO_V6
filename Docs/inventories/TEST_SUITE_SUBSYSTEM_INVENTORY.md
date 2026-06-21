@@ -368,7 +368,7 @@ Tests for settings validation, patch preview, save, and facade policies.
 
 | Test file | What it covers |
 |---|---|
-| `test_facade_settings_policy.py` | Facade: settings workspace policy |
+| `test_facade_settings_policy.py` | Facade: settings workspace policy, including read-only encoder capability report evidence from `State\Progress\encoder_capabilities.json` |
 | `test_facade_settings_patch_policy.py` | Facade: settings patch/save policy |
 | `test_application_facade_settings_workspace.py` | Application-facade Settings workspace redaction, metadata, media-policy readiness, tool-path evidence, and Validate command-result envelope |
 | `test_application_facade_settings_patch.py` | Application-facade Settings Preview Patch/Save Patch command behavior, redacted diff fallback logging, risk summaries, save-lock guarding, backup/secret preservation, and no-op same-value handling |

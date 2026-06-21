@@ -11,11 +11,12 @@ from mediapipeline.core.config.library_profiles import (
 )
 from mediapipeline.core.config.identity import config_identity_block_reasons
 from mediapipeline.core.config.settings_policy import (
+    settings_encoder_capability_report,
+    settings_tool_path_evidence,
     settings_validation_exception_result,
     settings_validation_missing_values_result,
     settings_validation_result,
     settings_validation_unavailable_result,
-    settings_tool_path_evidence,
     settings_workspace_paths,
 )
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_health_warning_lines
@@ -102,6 +103,7 @@ class SettingsFacadeMixin:
                 warnings=warnings,
             ),
             tool_path_evidence=tool_path_evidence,
+            encoder_capability_report=settings_encoder_capability_report(resolved),
             path_health=path_health,
             errors=errors,
             warnings=warnings,

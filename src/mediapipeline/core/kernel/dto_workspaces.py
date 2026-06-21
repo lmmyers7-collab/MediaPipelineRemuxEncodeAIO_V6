@@ -74,6 +74,7 @@ class SettingsWorkspaceDto:
     media_policy_readiness: JsonMap = field(default_factory=dict)
     policy_impact: JsonMap = field(default_factory=dict)
     tool_path_evidence: JsonMap = field(default_factory=dict)
+    encoder_capability_report: JsonMap = field(default_factory=dict)
     path_health: JsonMap = field(default_factory=dict)
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)

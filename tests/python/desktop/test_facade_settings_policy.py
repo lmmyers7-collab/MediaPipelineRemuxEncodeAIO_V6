@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.core.config.settings_policy import (
     settings_bdpgs_ocr_path_evidence,
     settings_config_path_value,
+    settings_encoder_capability_report,
     settings_tool_path_evidence,
     settings_validation_exception_result,
     settings_validation_missing_values_result,
@@ -60,6 +62,89 @@ class SettingsFacadePolicyTests(unittest.TestCase):
         self.assertEqual(settings_config_path_value({"Outsource": "C:/Out"}, "Outsource"), Path("C:/Out"))
         self.assertIsNone(settings_config_path_value({"Outsource": " "}, "Outsource"))
         self.assertIsNone(settings_config_path_value({}, "Outsource"))
+
+    def test_encoder_capability_report_missing_is_read_only_workspace_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            evidence = settings_encoder_capability_report(_resolved(root))
+
+        self.assertEqual(evidence["schema_version"], "settings_encoder_capability_report.v1")
+        self.assertTrue(evidence["read_only"])
+        self.assertFalse(evidence["exists"])
+        self.assertEqual(evidence["operator_status"], "Not generated")
+        self.assertEqual(evidence["operator_status_state"], "missing")
+        self.assertTrue(evidence["source_path"].endswith(str(Path("State") / "Progress" / "encoder_capabilities.json")))
+
+    def test_encoder_capability_report_summarizes_existing_descriptor_dump(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v1",
+                        "generated_at": "2026-06-21T12:00:00Z",
+                        "video_codec": "hevc_nvenc",
+                        "encoder_backend": "auto",
+                        "selection": {"resolved": True, "reason": "auto", "family": "hevc"},
+                        "encoders": [
+                            {
+                                "encoder_name": "hevc_nvenc",
+                                "probe_encoder_name": "hevc_nvenc",
+                                "family": "hevc",
+                                "backend": "nvenc",
+                                "roles": ["primary"],
+                                "available": True,
+                                "probed": True,
+                                "runtime_probe_skipped": False,
+                                "encoder_list_match": True,
+                                "runtime_ok": True,
+                                "backend_invalidated": False,
+                                "reason": "available",
+                                "probed_at": "2026-06-21T12:00:01Z",
+                            },
+                            {
+                                "encoder_name": "libx265",
+                                "family": "hevc",
+                                "backend": "cpu",
+                                "roles": ["cpu_fallback"],
+                                "available": False,
+                                "reason": "missing",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            evidence = settings_encoder_capability_report(_resolved(root))
+
+        self.assertEqual(evidence["report_schema"], "mediapipeline.encoder_capabilities.v1")
+        self.assertEqual(evidence["operator_status"], "Review")
+        self.assertEqual(evidence["operator_status_state"], "warning")
+        self.assertEqual(evidence["video_codec"], "hevc_nvenc")
+        self.assertEqual(evidence["encoder_backend"], "auto")
+        self.assertEqual(evidence["selection"]["family"], "hevc")
+        self.assertEqual(evidence["available_encoders"], ["hevc_nvenc"])
+        self.assertEqual(evidence["unavailable_encoders"], ["libx265"])
+        self.assertEqual(evidence["backend_counts"]["nvenc"], {"available": 1, "unavailable": 0, "total": 1})
+        self.assertEqual(evidence["backend_counts"]["cpu"], {"available": 0, "unavailable": 1, "total": 1})
+
+    def test_encoder_capability_report_malformed_json_is_non_blocking_review_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text("{not-json", encoding="utf-8")
+
+            evidence = settings_encoder_capability_report(_resolved(root))
+
+        self.assertTrue(evidence["exists"])
+        self.assertEqual(evidence["operator_status"], "Unreadable")
+        self.assertEqual(evidence["operator_status_state"], "warning")
+        self.assertIn("could not be parsed", "\n".join(evidence["summary_lines"]))
+        self.assertTrue(evidence["errors"])
 
     def test_settings_validation_result_shapes_pass_warning_and_error_states(self) -> None:
         passed = settings_validation_result({"A": 1}, [], [])

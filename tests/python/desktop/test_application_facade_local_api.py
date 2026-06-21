@@ -1267,6 +1267,11 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(settings_status, 200)
         self.assertEqual(settings["schema_version"], "desktop_settings_workspace.v1")
         self.assertTrue(any(field["key"] == "RoutingProfile" for field in settings["field_definitions"]))
+        self.assertEqual(
+            settings["encoder_capability_report"]["schema_version"],
+            "settings_encoder_capability_report.v1",
+        )
+        self.assertTrue(settings["encoder_capability_report"]["read_only"])
         self.assertEqual(settings["profile_summary"]["schema_version"], "desktop_settings_profile_summary.v1")
         self.assertEqual(settings["policy_impact"]["schema_version"], "settings_policy_impact.v1")
         self.assertEqual(settings["policy_impact"]["launch_risk_handoff"]["schema_version"], "settings_launch_risk_handoff.v1")

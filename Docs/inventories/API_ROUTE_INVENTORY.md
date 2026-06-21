@@ -75,7 +75,7 @@ Network lifecycle start/stop now has backend-owned dry-run and confirmed command
 | `GET /api/maintenance/productization` | `none` | `desktop_productization_status.v1` | Maintenance | Yes | `test_productization_support.py` |
 | `GET /api/schedule` | `none` | `desktop_schedule_workspace.v1` | Schedule | Yes | `test_facade_schedule_policy.py`, `test_application_facade_schedule.py` |
 | `GET /api/watch-folders/status` | `none` | `desktop_watch_folders.v1` | Schedule | Yes | `test_watch_folder_routes.py` |
-| `GET /api/settings/workspace` | `none` | `desktop_settings_workspace.v1` | Settings | Yes | `test_facade_settings_policy.py`, `test_application_facade_settings_workspace.py` |
+| `GET /api/settings/workspace` | `none` | `desktop_settings_workspace.v1` | Settings | Yes | `test_facade_settings_policy.py`, `test_application_facade_settings_workspace.py`, `test_application_facade_local_api.py` |
 | `GET /api/settings/preset-library` | `none` | `preset_library.v1` | Settings | Yes | `test_preset_library.py`, `test_api_command_contracts.py` |
 | `GET /api/libraries/route-map` | `none` | `library_route_map.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
 | `GET /api/libraries/route-map/trace` | `none` | `library_route_trace.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |

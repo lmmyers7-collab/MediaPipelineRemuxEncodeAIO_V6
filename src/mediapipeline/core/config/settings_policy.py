@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from pathlib import Path
+import json
 import shutil
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from mediapipeline.core.kernel.config_keys import (
@@ -34,6 +35,9 @@ VOBSUB_TESSERACT_BUNDLED_CANDIDATES = (
     Path("Tools") / "Tesseract-OCR" / "tesseract.exe",
     Path("Tools") / "Tesseract" / "tesseract.exe",
 )
+ENCODER_CAPABILITY_REPORT_SCHEMA = "settings_encoder_capability_report.v1"
+ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA = "mediapipeline.encoder_capabilities.v1"
+ENCODER_CAPABILITY_REPORT_MAX_BYTES = 1024 * 1024
 
 
 def _command_result(**fields: Any) -> "CommandResult":
@@ -70,6 +74,215 @@ def settings_workspace_paths(resolved: ResolvedPaths, config: dict[str, Any]) ->
         "completed_manifest": settings_path_text(resolved.completed_manifest_path),
     }
     return {key: value for key, value in paths.items() if value}
+
+
+def settings_encoder_capability_report(resolved: ResolvedPaths) -> dict[str, Any]:
+    """Return read-only evidence from a previously generated encoder capability report."""
+
+    path = _settings_encoder_capability_report_path(resolved)
+    base = _settings_encoder_capability_report_base(path)
+    if path is None:
+        base.update(
+            {
+                "operator_status": "Unavailable",
+                "operator_status_state": "unknown",
+                "summary_lines": ["Encoder capability report path is unavailable."],
+            }
+        )
+        return base
+    if not path.is_file():
+        base.update(
+            {
+                "operator_status": "Not generated",
+                "operator_status_state": "missing",
+                "summary_lines": [
+                    "No encoder capability report has been generated yet.",
+                    "Run the backend-owned encoder capability diagnostic to refresh this evidence.",
+                ],
+            }
+        )
+        return base
+    try:
+        size_bytes = path.stat().st_size
+    except OSError as exc:
+        base.update(
+            {
+                "exists": True,
+                "operator_status": "Unreadable",
+                "operator_status_state": "warning",
+                "errors": [f"Encoder capability report stat failed: {exc}"],
+                "summary_lines": ["Encoder capability report exists but could not be inspected."],
+            }
+        )
+        return base
+    if size_bytes > ENCODER_CAPABILITY_REPORT_MAX_BYTES:
+        base.update(
+            {
+                "exists": True,
+                "size_bytes": size_bytes,
+                "operator_status": "Too large",
+                "operator_status_state": "warning",
+                "errors": [f"Encoder capability report exceeds {ENCODER_CAPABILITY_REPORT_MAX_BYTES} bytes."],
+                "summary_lines": ["Encoder capability report exists but is too large for settings workspace display."],
+            }
+        )
+        return base
+    try:
+        raw = path.read_text(encoding="utf-8")
+        report = json.loads(raw) if raw.strip() else {}
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        base.update(
+            {
+                "exists": True,
+                "size_bytes": size_bytes,
+                "operator_status": "Unreadable",
+                "operator_status_state": "warning",
+                "errors": [f"Encoder capability report read failed: {exc}"],
+                "summary_lines": ["Encoder capability report exists but could not be parsed."],
+            }
+        )
+        return base
+    if not isinstance(report, dict):
+        base.update(
+            {
+                "exists": True,
+                "size_bytes": size_bytes,
+                "operator_status": "Unreadable",
+                "operator_status_state": "warning",
+                "errors": ["Encoder capability report root must be a JSON object."],
+                "summary_lines": ["Encoder capability report exists but has an unexpected shape."],
+            }
+        )
+        return base
+    return _settings_encoder_capability_report_from_payload(base, report, size_bytes)
+
+
+def _settings_encoder_capability_report_path(resolved: ResolvedPaths) -> Path | None:
+    if resolved.progress_file:
+        return Path(resolved.progress_file).with_name("encoder_capabilities.json")
+    if resolved.state_root:
+        return Path(resolved.state_root) / "Progress" / "encoder_capabilities.json"
+    if resolved.local_base:
+        return Path(resolved.local_base) / "State" / "Progress" / "encoder_capabilities.json"
+    return None
+
+
+def _settings_encoder_capability_report_base(path: Path | None) -> dict[str, Any]:
+    return {
+        "schema_version": ENCODER_CAPABILITY_REPORT_SCHEMA,
+        "read_only": True,
+        "source": "-DumpEncoderCapabilitiesPath",
+        "source_path": settings_path_text(path),
+        "exists": False,
+        "size_bytes": 0,
+        "operator_status": "Not generated",
+        "operator_status_state": "missing",
+        "report_schema": "",
+        "generated_at": "",
+        "video_codec": "",
+        "encoder_backend": "",
+        "selection": {},
+        "encoders": [],
+        "available_encoders": [],
+        "unavailable_encoders": [],
+        "backend_counts": {},
+        "summary_lines": [],
+        "errors": [],
+    }
+
+
+def _settings_encoder_capability_report_from_payload(
+    base: dict[str, Any],
+    report: dict[str, Any],
+    size_bytes: int,
+) -> dict[str, Any]:
+    rows = [
+        _settings_encoder_capability_row(row)
+        for row in report.get("encoders", [])
+        if isinstance(row, dict)
+    ]
+    available = [row["encoder_name"] for row in rows if row["available"]]
+    unavailable = [row["encoder_name"] for row in rows if not row["available"]]
+    report_schema = str(report.get("schema") or report.get("schema_version") or "")
+    errors: list[str] = []
+    if report_schema != ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA:
+        errors.append(f"Unexpected encoder capability report schema: {report_schema or '(missing)'}")
+    if not rows:
+        errors.append("Encoder capability report did not include encoder rows.")
+    state = "ready" if not errors and not unavailable else "warning"
+    status = "Ready" if state == "ready" else "Review"
+    video_codec = str(report.get("video_codec") or "")
+    encoder_backend = str(report.get("encoder_backend") or "")
+    summary = [
+        f"Report generated for VideoCodec={video_codec or '(unknown)'}, EncoderBackend={encoder_backend or '(unknown)'}.",
+        f"Available encoders: {', '.join(available) if available else 'none'}.",
+    ]
+    if unavailable:
+        summary.append(f"Unavailable encoders: {', '.join(unavailable)}.")
+    if errors:
+        summary.extend(errors)
+    base.update(
+        {
+            "exists": True,
+            "size_bytes": size_bytes,
+            "operator_status": status,
+            "operator_status_state": state,
+            "report_schema": report_schema,
+            "generated_at": str(report.get("generated_at") or ""),
+            "video_codec": video_codec,
+            "encoder_backend": encoder_backend,
+            "selection": _settings_encoder_capability_selection(report.get("selection")),
+            "encoders": rows,
+            "available_encoders": available,
+            "unavailable_encoders": unavailable,
+            "backend_counts": _settings_encoder_backend_counts(rows),
+            "summary_lines": summary,
+            "errors": errors,
+        }
+    )
+    return base
+
+
+def _settings_encoder_capability_selection(value: Any) -> dict[str, Any]:
+    if not isinstance(value, dict):
+        return {}
+    return {
+        "resolved": bool(value.get("resolved")),
+        "reason": str(value.get("reason") or ""),
+        "family": str(value.get("family") or ""),
+    }
+
+
+def _settings_encoder_capability_row(value: dict[str, Any]) -> dict[str, Any]:
+    roles = value.get("roles")
+    return {
+        "encoder_name": str(value.get("encoder_name") or ""),
+        "probe_encoder_name": str(value.get("probe_encoder_name") or ""),
+        "family": str(value.get("family") or ""),
+        "backend": str(value.get("backend") or ""),
+        "roles": [str(role) for role in roles if str(role).strip()] if isinstance(roles, list) else [],
+        "available": bool(value.get("available")),
+        "probed": bool(value.get("probed")),
+        "runtime_probe_skipped": bool(value.get("runtime_probe_skipped")),
+        "encoder_list_match": bool(value.get("encoder_list_match")),
+        "runtime_ok": bool(value.get("runtime_ok")),
+        "backend_invalidated": bool(value.get("backend_invalidated")),
+        "reason": str(value.get("reason") or ""),
+        "probed_at": str(value.get("probed_at") or ""),
+    }
+
+
+def _settings_encoder_backend_counts(rows: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
+    counts: dict[str, dict[str, int]] = {}
+    for row in rows:
+        backend = str(row.get("backend") or "unknown")
+        bucket = counts.setdefault(backend, {"available": 0, "unavailable": 0, "total": 0})
+        bucket["total"] += 1
+        if row.get("available"):
+            bucket["available"] += 1
+        else:
+            bucket["unavailable"] += 1
+    return counts
 
 
 def settings_bool(config: dict[str, Any], key: str, default: bool = False) -> bool:
@@ -483,6 +696,7 @@ __all__ = [
     "settings_path_text",
     "settings_config_path_value",
     "settings_workspace_paths",
+    "settings_encoder_capability_report",
     "settings_bool",
     "settings_pipeline_bases",
     "settings_pipeline_base",

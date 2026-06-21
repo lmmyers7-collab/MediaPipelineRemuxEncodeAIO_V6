@@ -14,8 +14,10 @@ probe now threads configured-FFmpeg encoder listings into video-only
 `EncodingCapabilityFacts` plus UI backend annotations. A dormant global
 `EncoderBackend` config key now round-trips through the PowerShell/Python schema
 surfaces and the WebView video detail settings builder with default `auto`, but
-it feeds only saved settings and the capability diagnostic; normal encode
-selection still follows `VideoCodec`. Hardware descriptors are not wired into
+it feeds only saved settings and the capability diagnostic. The Settings workspace
+now exposes a bounded read-only summary of an existing `encoder_capabilities.json`
+diagnostic artifact when present; normal encode selection still follows
+`VideoCodec`. Hardware descriptors are not wired into
 active encoder selection. A synthetic SDR runtime/topology matrix executes
 CPU descriptor rows and reports hardware rows as opt-in skips by default. A pure
 descriptor selection resolver now returns primary/fallback descriptors plus trace
@@ -499,8 +501,9 @@ changing any default encode behavior.
   `-DumpEffectiveConfigPath` lockless diagnostic pattern. The Settings wizard
   hardware probe now exposes video-only `EncodingCapabilityFacts` and backend
   availability annotations from the configured FFmpeg encoder list without removing
-  settings choices. Remaining work: thread descriptor dump evidence into broader
-  Local API/preflight/settings capability surfaces.
+  settings choices. The Settings workspace now exposes existing descriptor dump
+  evidence as a bounded read-only `encoder_capability_report`; remaining work is to
+  thread that evidence into preflight and WebView choice annotations.
 
 ### 6.2 `EncoderBackend` key (settings schema — section 7 area, operator gate)
 
@@ -545,9 +548,10 @@ will catch most omissions:
 - Python/UI: the Settings wizard hardware probe now emits video-only
   `EncodingCapabilityFacts` and backend rows from the configured FFmpeg encoder list.
   The WebView video detail builder now exposes `EncoderBackend` as a saveable
-  select without filtering choices. Remaining work is to thread descriptor dump evidence into
-  `validate_encoding_capabilities` callers (grep callers of
-  `EncodingCapabilityFacts`) and broader choice annotations. UI choice filtering =
+  select without filtering choices, and `/api/settings/workspace` exposes existing
+  descriptor dump evidence read-only. Remaining work is to thread descriptor dump
+  evidence into `validate_encoding_capabilities` callers (grep callers of
+  `EncodingCapabilityFacts`), launch preflight, and broader choice annotations. UI choice filtering =
   annotate unavailable encoders in `choice_help` ("not detected on this machine") —
   never remove choices (settings round-trip safety; a config written on machine A
   must still load on machine B).

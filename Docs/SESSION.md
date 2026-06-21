@@ -6,6 +6,25 @@ Operator-approved scope (chat, 2026-06-02): execute ADR-0013 Wave 1 step 1,
 Wave 2 (steps 2-3), Wave 3 (steps 4-5), Wave 4 (step 6), then Wave 5
 (steps 7-8) on follow-up approval ("just continue").
 
+## Encoder breadth settings workspace capability evidence 2026-06-21
+
+Scope: continue the encoder breadth/AV1 remediation stream by threading existing
+descriptor capability diagnostic evidence into the read-only Settings workspace.
+Packet `ops/release/changes/unreleased/MP-CHANGE-2026-0621-010.json`.
+
+In scope:
+- Read `State\Progress\encoder_capabilities.json` when the backend-owned
+  diagnostic artifact already exists.
+- Expose a bounded, summarized, read-only `encoder_capability_report` object from
+  `/api/settings/workspace`.
+- Treat missing or malformed reports as non-blocking Settings workspace evidence.
+- Update route/artifact/test/status docs and targeted Python tests.
+
+Out of scope: running FFmpeg from the settings route, generating the diagnostic
+artifact, changing encoder selection, activating hardware descriptors, filtering
+WebView choices, launch/preflight behavior, queue/network behavior, source/scratch
+output movement, pending publish, and real-media validation.
+
 ## Encoder breadth Phase 6 settings exposure 2026-06-21
 
 Scope: continue the encoder breadth/AV1 remediation stream by exposing the

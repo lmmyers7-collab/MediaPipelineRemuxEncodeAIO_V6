@@ -29,7 +29,7 @@ The SQLite mirror is additive diagnostic evidence only. Do not use it as the sou
 | Queue snapshot | `State\Progress\queue_snapshot.json` | Pipeline (PS) | `-EmitQueuePlan` flag | Desktop app, local API, WebView Queue | No — pipeline reads at startup and refresh | `queue_snapshot` |
 | Progress JSON | `State\Progress\pipeline_progress.json` | Pipeline (PS) | Running pipeline | Desktop app, local API | No during active run | (via `state`) |
 | Pipeline events log | `State\Progress\pipeline_events.jsonl` | Pipeline (PS) | Runtime events | Desktop app, WebView Diagnostics | No during active run; bounded-tail read is safe | (via `state`) |
-| Encoder capability report | `State\Progress\encoder_capabilities.json` | Pipeline (PS) | `-DumpEncoderCapabilitiesPath` diagnostic | Operator diagnostics, future capability-aware settings/UI work | Yes when no diagnostic dump is running; regenerated on demand | N/A |
+| Encoder capability report | `State\Progress\encoder_capabilities.json` | Pipeline (PS) | `-DumpEncoderCapabilitiesPath` diagnostic | Operator diagnostics and `/api/settings/workspace` read-only `encoder_capability_report` evidence | Yes when no diagnostic dump is running; regenerated on demand | N/A |
 | Run log (stdout) | `State\Progress\last_stdout.log` | Pipeline (PS) | Pipeline stdout | Desktop app, Diagnostics | No during active run | `last_stdout_log` |
 | Run log (stderr) | `State\Progress\last_stderr.log` | Pipeline (PS) | Pipeline stderr / FFmpeg output | Desktop app, Diagnostics | No during active run | `last_stderr_log` |
 | Run logs folder | `RunLogs\` (DesktopApp or LocalBase) | Pipeline (PS) | Per-run log files | Desktop app log-open, Diagnostics | After reviewing; old logs are safe | `run_logs` |
