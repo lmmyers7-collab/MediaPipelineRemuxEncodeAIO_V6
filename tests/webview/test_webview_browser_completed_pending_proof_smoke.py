@@ -53,6 +53,12 @@ def _browser_completed_pending_proof_runner_source() -> str:
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
+            function requireNamespaceFunction(namespaceName, name) {
+              const namespace = window[namespaceName];
+              if (!namespace || typeof namespace[name] !== "function") {
+                throw new Error("missing namespace function " + namespaceName + "." + name);
+              }
+            }
             function requireText(id, fragments) {
               const actual = text(id);
               for (const fragment of fragments) {
@@ -139,12 +145,14 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedTrustDecision",
               "markPublishReconciliationStale",
               "renderCompletedEvidenceCopyState",
-              "renderCompletedRepairControls",
-              "requestCompletedRepairDryRun",
-              "requestCompletedRepairApply",
               "pendingSampleValidationComparisonLines",
               "copyCompletedEvidencePacket"
             ].forEach(requireFunction);
+            [
+              "renderCompletedRepairControls",
+              "requestCompletedRepairDryRun",
+              "requestCompletedRepairApply"
+            ].forEach((name) => requireNamespaceFunction("mediaPipelineCompletedView", name));
 
             window.confirm = () => {
               confirmCalls += 1;

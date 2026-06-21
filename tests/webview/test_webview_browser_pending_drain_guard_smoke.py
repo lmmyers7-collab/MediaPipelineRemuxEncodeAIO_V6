@@ -53,6 +53,12 @@ def _browser_pending_drain_guard_runner_source() -> str:
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
+            function requireNamespaceFunction(namespaceName, name) {
+              const namespace = window[namespaceName];
+              if (!namespace || typeof namespace[name] !== "function") {
+                throw new Error("missing namespace function " + namespaceName + "." + name);
+              }
+            }
             function requireText(id, fragments) {
               const actual = text(id);
               for (const fragment of fragments) {
@@ -142,14 +148,16 @@ def _browser_pending_drain_guard_runner_source() -> str:
               "startPendingPublishDrain",
               "pendingDrainGuardState",
               "renderPendingDrainOverview",
+              "getCommandHistory"
+            ].forEach(requireFunction);
+            [
               "renderPendingRepairManifestControls",
               "renderPendingRepairOrphanControls",
               "requestPendingRepairManifestDryRun",
               "requestPendingRepairManifestApply",
               "requestPendingRepairOrphanDryRun",
-              "requestPendingRepairOrphanApply",
-              "getCommandHistory"
-            ].forEach(requireFunction);
+              "requestPendingRepairOrphanApply"
+            ].forEach((name) => requireNamespaceFunction("mediaPipelinePendingPublishView", name));
 
             window.confirm = () => {
               confirmCalls += 1;

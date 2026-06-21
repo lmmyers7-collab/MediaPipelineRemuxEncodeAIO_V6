@@ -1504,10 +1504,4 @@
   window.renderPendingRecoveryPlanHistory = renderPendingRecoveryPlanHistory;
   window.isPendingRecoveryPlanCommand = isPendingRecoveryPlanCommand;
   window.pendingRecoveryPlanHistoryLine = pendingRecoveryPlanHistoryLine;
-  window.renderPendingRepairManifestControls = renderPendingRepairManifestControls;
-  window.requestPendingRepairManifestDryRun = requestPendingRepairManifestDryRun;
-  window.requestPendingRepairManifestApply = requestPendingRepairManifestApply;
-  window.renderPendingRepairOrphanControls = renderPendingRepairOrphanControls;
-  window.requestPendingRepairOrphanDryRun = requestPendingRepairOrphanDryRun;
-  window.requestPendingRepairOrphanApply = requestPendingRepairOrphanApply;
 })();

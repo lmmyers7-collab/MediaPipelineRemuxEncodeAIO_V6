@@ -1517,7 +1517,4 @@
   window.renderCompletedOpenHistory = renderCompletedOpenHistory;
   window.renderCompletedEvidenceCopyState = renderCompletedEvidenceCopyState;
   window.copyCompletedEvidencePacket = copyCompletedEvidencePacket;
-  window.renderCompletedRepairControls = renderCompletedRepairControls;
-  window.requestCompletedRepairDryRun = requestCompletedRepairDryRun;
-  window.requestCompletedRepairApply = requestCompletedRepairApply;
 })();

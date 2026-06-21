@@ -12,7 +12,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 - **34 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
 - **66 files** also export flat functions directly onto `window`
 - **40 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.repair.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `pendingPublishView.repair.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
-- **Flat export total:** 848
+- **Flat export total:** 839
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
 - **All 32 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
 
@@ -26,7 +26,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `commandHistory.js` | mediaPipelineCommandHistory | 14 | Generated from current `window.* =` assignments |
 | `completedView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
 | `completedView.evidence.js` | - | 1 | Generated from current `window.* =` assignments |
-| `completedView.js` | mediaPipelineCompletedView | 136 | Generated from current `window.* =` assignments |
+| `completedView.js` | mediaPipelineCompletedView | 133 | Generated from current `window.* =` assignments |
 | `completedView.proof.js` | - | 1 | Generated from current `window.* =` assignments |
 | `completedView.repair.js` | - | 1 | Generated from current `window.* =` assignments |
 | `completedView.review.js` | - | 1 | Generated from current `window.* =` assignments |
@@ -62,7 +62,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `pendingPublishView.confidence.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.drain.js` | - | 1 | Generated from current `window.* =` assignments |
-| `pendingPublishView.js` | mediaPipelinePendingPublishView | 98 | Generated from current `window.* =` assignments |
+| `pendingPublishView.js` | mediaPipelinePendingPublishView | 92 | Generated from current `window.* =` assignments |
 | `pendingPublishView.recovery.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.repair.js` | - | 1 | Generated from current `window.* =` assignments |
 | `progressView.js` | mediaPipelineProgressView | 8 | Generated from current `window.* =` assignments |
@@ -235,7 +235,7 @@ Risk: Low — documentation only.
 
 Generated from `apps/desktop/webview/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
-Flat export total: 848
+Flat export total: 839
 
 <!-- BEGIN GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->
 ### apiClient.js
@@ -312,7 +312,7 @@ __completedViewEvidenceModule
 
 Namespace objects: mediaPipelineCompletedView
 
-Flat exports (136):
+Flat exports (133):
 ```text
 renderCompleted
 resetCompletedFilters
@@ -447,9 +447,6 @@ requestCompletedOpen
 renderCompletedOpenHistory
 renderCompletedEvidenceCopyState
 copyCompletedEvidencePacket
-renderCompletedRepairControls
-requestCompletedRepairDryRun
-requestCompletedRepairApply
 ```
 
 ### completedView.proof.js
@@ -1059,7 +1056,7 @@ __pendingPublishDrainModule
 
 Namespace objects: mediaPipelinePendingPublishView
 
-Flat exports (98):
+Flat exports (92):
 ```text
 renderPendingPublish
 renderPendingFileInventory
@@ -1153,12 +1150,6 @@ renderPendingRecoveryPlanRowDetail
 renderPendingRecoveryPlanHistory
 isPendingRecoveryPlanCommand
 pendingRecoveryPlanHistoryLine
-renderPendingRepairManifestControls
-requestPendingRepairManifestDryRun
-requestPendingRepairManifestApply
-renderPendingRepairOrphanControls
-requestPendingRepairOrphanDryRun
-requestPendingRepairOrphanApply
 ```
 
 ### pendingPublishView.recovery.js
