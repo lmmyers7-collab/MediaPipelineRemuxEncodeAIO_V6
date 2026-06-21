@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-21
 last_reviewed: 2026-06-19
-sha256: 201da5eaa6c2f3d159fff08a9f9b15b027e9334a94815274a70dd1968bc56ea6
+sha256: 902e51b9ce3ae1465041c3452e1abac55a7c6dc244d0c6649ee37a3833116107
 ---
 # `tests/python/desktop/test_repair_reconcile_apply.py`
 
