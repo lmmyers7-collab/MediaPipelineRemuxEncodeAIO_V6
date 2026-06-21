@@ -2243,22 +2243,4 @@
     syncRenameBadCaseButton();
   }
 
-  window.refreshRenamePreview = refreshRenamePreview;
-  window.renderRenameBulkEditor = renderRenameBulkEditor;
-  window.stageRenameBulkEdit = stageRenameBulkEdit;
-  window.usePipelineNamesForRenameScope = usePipelineNamesForRenameScope;
-  window.setRenameBulkForce = setRenameBulkForce;
-  window.clearRenameBulkOverrides = clearRenameBulkOverrides;
-  window.syncRenameCommandButtons = syncRenameCommandButtons;
-  window.checkApplicableRenameRows = checkApplicableRenameRows;
-  window.clearCheckedRenameRows = clearCheckedRenameRows;
-  window.moveCheckedRenamePaths = moveCheckedRenamePaths;
-  window.naturalSortRenamePaths = naturalSortRenamePaths;
-  window.renderRenameFileSourceSummary = renderRenameFileSourceSummary;
-  window.useSelectedQueueRowForRename = useSelectedQueueRowForRename;
-  window.useLoadedQueueRowsForRename = useLoadedQueueRowsForRename;
-  window.addRenamePathFromInput = addRenamePathFromInput;
-  window.clearRenamePaths = clearRenamePaths;
-  window.applyRenameSelectedOverride = applyRenameSelectedOverride;
-  window.clearRenameSelectedOverride = clearRenameSelectedOverride;
 })();

@@ -185,15 +185,15 @@ def _rename_readiness_runner_source() -> str:
           { source_path: "", display_name: "Missing source path" },
         ];
         setValue("rename-add-path-input", "C:/Manual/Typed Rename Source.mkv");
-        context.addRenamePathFromInput();
+        context.mediaPipelineRenameView.addRenamePathFromInput();
         requireContains("manual path add", context.document.getElementById("rename-paths").value, ["C:/Manual/Typed Rename Source.mkv"]);
         requireContains("manual path summary", text("rename-file-source-summary"), ["Manual path added 1 path", "Source paths staged: 1", "Origins: manual=1"]);
-        context.clearRenamePaths();
+        context.mediaPipelineRenameView.clearRenamePaths();
         requireContains("clear path summary", text("rename-file-source-summary"), ["Cleared staged rename paths.", "No source paths staged."]);
-        context.useSelectedQueueRowForRename();
+        context.mediaPipelineRenameView.useSelectedQueueRowForRename();
         requireContains("selected queue import paths", context.document.getElementById("rename-paths").value, ["C:/Queue/Selected Rename Source.mkv"]);
         requireContains("selected queue import summary", text("rename-file-source-summary"), ["Selected Rename Source.mkv added 1 path", "Source paths staged: 1", "Origins: queue=1"]);
-        context.useLoadedQueueRowsForRename();
+        context.mediaPipelineRenameView.useLoadedQueueRowsForRename();
         requireContains("loaded queue import paths", context.document.getElementById("rename-paths").value, ["C:/Queue/Selected Rename Source.mkv", "C:/Queue/Second Rename Source.mkv"]);
         requireContains("loaded queue import summary", text("rename-file-source-summary"), ["Loaded Queue rows added 1 path", "Source paths staged: 2", "Origins: queue=2", "Loaded Queue rows: 3"]);
 
@@ -256,13 +256,13 @@ def _rename_readiness_runner_source() -> str:
         requireContains("no checked readiness", text("rename-apply-readiness-status"), ["Blocked"]);
         requireContains("unchecked apply button", text("rename-apply-button"), ["Check rows before apply"]);
         requireContains("unchecked apply hint", text("rename-apply-status-hint"), ["No rows checked", "Check Applicable"]);
-        context.checkApplicableRenameRows();
+        context.mediaPipelineRenameView.checkApplicableRenameRows();
         requireContains("ready status", text("rename-apply-readiness-status"), ["Ready"]);
         requireContains("ready cells", readinessCellText(), ["Apply scope", "checked rows", "Mutation boundary", "/api/rename/apply"]);
         requireContains("checked apply button", text("rename-apply-button"), ["Apply 1 checked rename"]);
         requireContains("checked apply hint", text("rename-apply-status-hint"), ["Checked 1 ready/match row", "skipped 0"]);
         setValue("rename-show", "Serial Experiments Lain Changed");
-        context.syncRenameCommandButtons();
+        context.mediaPipelineRenameView.syncRenameCommandButtons();
         requireContains("stale apply button", text("rename-apply-button"), ["Preview out of date"]);
         requireContains("stale apply hint", text("rename-apply-status-hint"), ["Preview out of date", "Run Preview again"]);
         if (!context.document.getElementById("rename-apply-button").disabled) {
@@ -308,7 +308,7 @@ def _rename_readiness_runner_source() -> str:
         context.renderRenamePreview({ rows: largeRows, counts: { total: 260, ready: 260 }, confidence_counts: { high: 260 }, preview_source_counts: { auto_tv_heuristic: 260 }, change_kind_counts: { rename: 260 } });
         requireContains("large preview status", text("rename-status"), ["260 ready", "250 shown / 260 preview rows"]);
         requireContains("large preview legend", text("rename-table-legend"), ["Display cap: 250 shown / 260 preview rows rendered", "not visible in the table"]);
-        context.checkApplicableRenameRows();
+        context.mediaPipelineRenameView.checkApplicableRenameRows();
         requireContains("large checked count", text("rename-selected-count"), ["260 checked"]);
         requireContains("checked apply button", text("rename-apply-button"), ["Apply 260 checked renames"]);
         requireContains("large selection audit", text("rename-selection-audit"), ["Rows in scope: 260", "Rendered rows: 250 of 260", "checked scope may include rows not currently rendered"]);
@@ -322,7 +322,7 @@ def _rename_readiness_runner_source() -> str:
         const duplicateB = { ...first, source: "C:/TV/S02/E02.mkv", source_name: "E02.mkv" };
         setValue("rename-paths", "C:/TV/S02/E01.mkv\nC:/TV/S02/E02.mkv");
         context.renderRenamePreview({ rows: [duplicateA, duplicateB], counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
-        context.checkApplicableRenameRows();
+        context.mediaPipelineRenameView.checkApplicableRenameRows();
         context.renderRenameApplyReadiness();
         requireContains("duplicate checked count", text("rename-selected-count"), ["0 checked"]);
         requireContains("duplicate status", text("rename-apply-readiness-status"), ["Blocked"]);

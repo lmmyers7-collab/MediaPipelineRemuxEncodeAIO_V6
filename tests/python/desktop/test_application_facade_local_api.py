@@ -6436,6 +6436,28 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function setRenamePreviewBusy", rename_view_js)
         self.assertIn("function setRenameApplyBusy", rename_view_js)
         self.assertIn("function syncRenameCommandButtons", rename_view_js)
+        removed_rename_flat_exports = [
+            "refreshRenamePreview",
+            "renderRenameBulkEditor",
+            "stageRenameBulkEdit",
+            "usePipelineNamesForRenameScope",
+            "setRenameBulkForce",
+            "clearRenameBulkOverrides",
+            "syncRenameCommandButtons",
+            "checkApplicableRenameRows",
+            "clearCheckedRenameRows",
+            "moveCheckedRenamePaths",
+            "naturalSortRenamePaths",
+            "renderRenameFileSourceSummary",
+            "useSelectedQueueRowForRename",
+            "useLoadedQueueRowsForRename",
+            "addRenamePathFromInput",
+            "clearRenamePaths",
+            "applyRenameSelectedOverride",
+            "clearRenameSelectedOverride",
+        ]
+        for export_name in removed_rename_flat_exports:
+            self.assertNotIn(f"window.{export_name} =", rename_view_js)
         self.assertIn('"rename-preview-button"', rename_view_js)
         self.assertIn('"rename-preview-top-button"', rename_view_js)
         self.assertIn("if (renamePreviewInFlight || renameApplyInFlight)", rename_view_js)
@@ -6444,15 +6466,16 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("requestId !== activeRenamePreviewRequestId", rename_view_js)
         self.assertIn("/api/rename/apply", rename_view_js)
         self.assertIn("confirm_apply", rename_view_js)
-        self.assertIn("checkApplicableRenameRows", js)
-        self.assertIn("clearCheckedRenameRows", js)
-        self.assertIn("moveCheckedRenamePaths(-1)", js)
-        self.assertIn("moveCheckedRenamePaths(1)", js)
-        self.assertIn("naturalSortRenamePaths", js)
+        self.assertIn("const renameView = window.mediaPipelineRenameView || {}", js)
+        self.assertIn("renameView.checkApplicableRenameRows?.()", js)
+        self.assertIn("renameView.clearCheckedRenameRows?.()", js)
+        self.assertIn("renameView.moveCheckedRenamePaths?.(-1)", js)
+        self.assertIn("renameView.moveCheckedRenamePaths?.(1)", js)
+        self.assertIn("renameView.naturalSortRenamePaths?.()", js)
         self.assertIn("initRenameCleaningFilterEditorEvents", js)
-        self.assertIn("stageRenameBulkEdit", js)
-        self.assertIn("setRenameBulkForce(true)", js)
-        self.assertIn("clearRenameBulkOverrides", js)
+        self.assertIn("renameView.stageRenameBulkEdit?.()", js)
+        self.assertIn("renameView.setRenameBulkForce?.(true)", js)
+        self.assertIn("renameView.clearRenameBulkOverrides?.()", js)
         self.assertIn("String(item?.source || \"\").toLowerCase()", rename_view_js)
         self.assertNotIn("toLocaleLowerCase", rename_view_js)
         self.assertIn("function queueWorkflowStatus", queue_view_js)
