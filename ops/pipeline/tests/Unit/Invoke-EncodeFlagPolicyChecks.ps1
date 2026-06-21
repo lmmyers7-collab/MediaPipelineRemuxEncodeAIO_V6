@@ -454,6 +454,30 @@ Assert-Throws {
     New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc'; IsHDR = $true } | Out-Null
 } 'H.264/NVENC active descriptor path must fail closed for HDR sources until HDR preservation is proven.'
 
+$hevcHdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'hevc_nvenc' -IsHDR:$true
+Assert-Equal ([bool]$hevcHdrReadiness.ok) $true 'HEVC/NVENC HDR should be active for descriptor-owned primary flags.'
+Assert-Equal ([string]$hevcHdrReadiness.descriptor_encoder) 'hevc_nvenc' 'HEVC/NVENC readiness descriptor mismatch.'
+$h264SdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc'
+Assert-Equal ([bool]$h264SdrReadiness.ok) $true 'H.264/NVENC SDR should be active for descriptor-owned primary flags.'
+Assert-Equal ([string]$h264SdrReadiness.family) 'h264' 'H.264/NVENC readiness family mismatch.'
+$h264HdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc' -IsHDR:$true
+Assert-Equal ([bool]$h264HdrReadiness.ok) $false 'H.264/NVENC HDR should fail closed before FFmpeg plan construction.'
+Assert-Equal ([string]$h264HdrReadiness.error_code) 'ENCODE_ENCODER_HDR_UNSUPPORTED' 'H.264/NVENC HDR readiness error code mismatch.'
+$av1Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc'
+Assert-Equal ([bool]$av1Readiness.ok) $false 'AV1/NVENC should remain inactive until descriptor activation and validation.'
+Assert-Equal ([string]$av1Readiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'AV1/NVENC inactive readiness error code mismatch.'
+$libx264Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'libx264'
+Assert-Equal ([bool]$libx264Readiness.ok) $false 'libx264 primary encode should remain inactive until CPU-primary policy is implemented.'
+Assert-Equal ([string]$libx264Readiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'libx264 inactive readiness error code mismatch.'
+$unknownReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'vp9_nvenc'
+Assert-Equal ([bool]$unknownReadiness.ok) $false 'Unknown encoder readiness must fail closed.'
+Assert-Equal ([string]$unknownReadiness.error_code) 'ENCODE_ENCODER_UNSUPPORTED' 'Unknown encoder readiness error code mismatch.'
+
+$encodeEntryText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+Assert-True ($encodeEntryText -match 'Resolve-MediaEncoderActivationReadiness') 'Do-Encode must check encoder activation before FFmpeg plan construction.'
+Assert-True ($encodeEntryText -match "encoder_activation_policy") 'Do-Encode must emit encoder activation policy evidence.'
+Assert-True ($encodeEntryText -match 'Register-SourceFailure[\s\S]+-Stage ''encode-policy''[\s\S]+-ErrorCode \$readinessErrorCode') 'Do-Encode must register inactive encoder selections as encode-policy failures.'
+
 Assert-Throws {
     New-PlanFromCase -Overrides @{ IsHDR = $true; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1' } | Out-Null
 } 'Dynamic HDR x265 params must not be accepted by the primary NVENC path.'

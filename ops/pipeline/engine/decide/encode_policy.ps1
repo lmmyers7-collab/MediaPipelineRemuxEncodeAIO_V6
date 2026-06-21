@@ -500,6 +500,93 @@ function New-EncodeAttemptDescriptorSelectionEvidence {
     return [pscustomobject]$evidence
 }
 
+function Resolve-MediaEncoderActivationReadiness {
+    param(
+        [string] $VideoCodec = '',
+        [bool] $UseCpuFallback = $false,
+        [bool] $IsHDR = $false
+    )
+
+    $role = if ($UseCpuFallback) { 'cpu_fallback' } else { 'primary' }
+    $result = [ordered]@{
+        ok                    = $false
+        schema_version        = 'encoder_activation_readiness.v1'
+        video_codec           = [string]$VideoCodec
+        role                  = $role
+        is_hdr                = [bool]$IsHDR
+        family                = ''
+        primary_encoder       = ''
+        cpu_fallback_encoder  = ''
+        descriptor_backend    = ''
+        descriptor_encoder    = ''
+        active                = $false
+        reason                = ''
+        error_code            = ''
+        resolution_trace      = @()
+    }
+
+    if (-not (Get-Command -Name Resolve-MediaEncoderSelection -ErrorAction SilentlyContinue)) {
+        $result.reason = 'encoder descriptor selection resolver is unavailable'
+        $result.error_code = 'ENCODE_ENCODER_UNSUPPORTED'
+        return [pscustomobject]$result
+    }
+
+    $selection = Resolve-MediaEncoderSelection -VideoCodec $VideoCodec -IsHDR:$IsHDR
+    $result.family = [string]$selection.Family
+    $result.resolution_trace = @($selection.ResolutionTrace)
+    if ($selection.PrimaryDescriptor) {
+        $result.primary_encoder = [string]$selection.PrimaryDescriptor.EncoderName
+    }
+    if ($selection.CpuFallbackDescriptor) {
+        $result.cpu_fallback_encoder = [string]$selection.CpuFallbackDescriptor.EncoderName
+    }
+    if (-not [bool]$selection.Resolved) {
+        $result.reason = if ([string]::IsNullOrWhiteSpace([string]$selection.Reason)) {
+            "encoder '$VideoCodec' is not supported by the descriptor resolver"
+        } else {
+            [string]$selection.Reason
+        }
+        $result.error_code = if ($IsHDR -and $result.reason -match 'HDR10|metadata preservation|does not support') {
+            'ENCODE_ENCODER_HDR_UNSUPPORTED'
+        } else {
+            'ENCODE_ENCODER_UNSUPPORTED'
+        }
+        return [pscustomobject]$result
+    }
+
+    $attemptDescriptor = if ($UseCpuFallback) { $selection.CpuFallbackDescriptor } else { $selection.PrimaryDescriptor }
+    if ($null -eq $attemptDescriptor) {
+        $result.reason = "encoder descriptor selection did not provide a $role descriptor for '$VideoCodec'"
+        $result.error_code = 'ENCODE_ENCODER_UNSUPPORTED'
+        return [pscustomobject]$result
+    }
+    $result.descriptor_backend = [string]$attemptDescriptor.Backend
+    $result.descriptor_encoder = [string]$attemptDescriptor.EncoderName
+
+    $activeFlagsDescriptor = $null
+    if (Get-Command -Name Resolve-MediaEncoderDescriptorForFlags -ErrorAction SilentlyContinue) {
+        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback
+    }
+    if ($null -eq $activeFlagsDescriptor) {
+        $result.reason = "encoder '$VideoCodec' is cataloged as $($attemptDescriptor.Family)/$($attemptDescriptor.Backend), but descriptor-owned flags are not active for $role encode attempts"
+        $result.error_code = 'ENCODE_ENCODER_NOT_ACTIVE'
+        return [pscustomobject]$result
+    }
+
+    $attemptEncoder = ([string]$attemptDescriptor.EncoderName).Trim().ToLowerInvariant()
+    $activeEncoder = ([string]$activeFlagsDescriptor.EncoderName).Trim().ToLowerInvariant()
+    if ($attemptEncoder -ne $activeEncoder) {
+        $result.reason = "active descriptor encoder '$($activeFlagsDescriptor.EncoderName)' does not match selected $role descriptor '$($attemptDescriptor.EncoderName)'"
+        $result.error_code = 'ENCODE_ENCODER_UNSUPPORTED'
+        return [pscustomobject]$result
+    }
+
+    $result.active = $true
+    $result.ok = $true
+    $result.reason = "encoder '$VideoCodec' is active for $role descriptor-owned flags"
+    return [pscustomobject]$result
+}
+
 function New-EncodeAttemptPlan {
     param(
         [bool] $UseCpuFallback = $false,

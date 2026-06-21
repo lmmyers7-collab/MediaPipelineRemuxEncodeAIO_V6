@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: shared
 last_modified: 2026-06-20
 last_reviewed: 2026-06-04
-sha256: 73d8b43e3355aab397d24782d9ca93c4a835b1b8ac04be0904875deb2bdc629e
+sha256: 63af1925651662bd8a7e754635a1565d0940098e677f4b84ae761958f1606801
 ---
 # `ops/pipeline/engine/shared/failure_codes.ps1`
 

@@ -467,6 +467,22 @@ function Do-Encode {
                 Write-Log "ENCODE: HDR source but no HDR10 mastering metadata in side_data ($($hdr10Meta.Reason)); CPU-encoded HDR output will lack master-display/MaxCLL SEI" "WARN"
             }
         }
+
+        $encoderReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec ([string]$VideoCodec) -IsHDR:$isHDR
+        if (-not [bool]$encoderReadiness.ok) {
+            $readinessErrorCode = if ([string]::IsNullOrWhiteSpace([string]$encoderReadiness.error_code)) { 'ENCODE_ENCODER_UNSUPPORTED' } else { [string]$encoderReadiness.error_code }
+            Write-PipelineEvent -EventType 'encoder_activation_policy' -Stage 'encode_prepare' -Route 'encode' -Status 'blocked' -SourcePath $file.FullName -Data $encoderReadiness | Out-Null
+            $failureProperties = [ordered]@{
+                encoder_activation = $encoderReadiness
+                video_codec        = [string]$VideoCodec
+                is_hdr             = [bool]$isHDR
+            }
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason ([string]$encoderReadiness.reason) -Stage 'encode-policy' -ErrorCode $readinessErrorCode -SuggestedAction 'Choose an active descriptor-backed encoder such as hevc_nvenc or h264_nvenc for SDR sources, or wait until this encoder family has descriptor-owned flags, fallback policy, command topology tests, and real-media validation.' -AdditionalProperties $failureProperties
+            Write-Log "ENCODE POLICY: $($encoderReadiness.reason)" "ERROR"
+            $localIn = $null
+            return $false
+        }
+
         $dynamicHdrPolicy = Resolve-DynamicHdrPolicy -Policy ([string]$script:DynamicHdrPolicy)
         $dynamicHdrEncodeDecision = $null
         if ($isHDR -and $dynamicHdrPolicy -ne 'off') {
