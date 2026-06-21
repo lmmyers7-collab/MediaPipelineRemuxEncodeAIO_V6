@@ -21,6 +21,7 @@
       -ValidateOnly                     dependency + startup checks then exit
       -ShowConfig                       print the resolved effective config
       -DumpEffectiveConfigPath <path>   write the resolved-config JSON oracle and exit
+      -DumpEncoderCapabilitiesPath <path> write encoder capability JSON and exit
 
 .NOTES
     Platform: Windows, PowerShell 7+ (auto-relaunches if started under 5.x).
@@ -68,7 +69,12 @@ param(
     # JSON dump of them to this path, and exit before the scan loop. Read-only
     # (no singleton lock, no media work). Used as a parity oracle for config
     # refactors and as operator "what did this run resolve" diagnostics.
-    [string]$DumpEffectiveConfigPath = ""
+    [string]$DumpEffectiveConfigPath = "",
+
+    # Diagnostic: resolve config, probe the selected encoder descriptors, write
+    # a JSON capability report, and exit before the scan loop. Read-only and
+    # lockless like -DumpEffectiveConfigPath.
+    [string]$DumpEncoderCapabilitiesPath = ""
 )
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
@@ -291,7 +297,8 @@ $workerSlotLocked = $false
 # references a defined variable; the real log mutex is assigned later in the
 # LOGGING section.
 $logLock = $null
-if (-not $ValidateOnly -and -not $WorkerChild -and -not $DumpEffectiveConfigPath) {
+$locklessDiagnostic = [bool]($DumpEffectiveConfigPath -or $DumpEncoderCapabilitiesPath)
+if (-not $ValidateOnly -and -not $WorkerChild -and -not $locklessDiagnostic) {
     $instanceMutex = [System.Threading.Mutex]::new($false, $instanceMutexName)
     try {
         $instanceLocked = $instanceMutex.WaitOne(0)
@@ -473,10 +480,9 @@ foreach ($slice in @('tx3g_sidecars.ps1', 'remux.ps1', 'encode.ps1')) {
 # ==============================================================================
 # MAIN LOOP
 # ==============================================================================
-# -DumpEffectiveConfigPath is a read-only diagnostic that holds no instance
-# lock and may run beside a live pipeline, so it must not sweep temp or
-# stale-partial files.
-if (-not $ValidateOnly -and -not $DumpEffectiveConfigPath) {
+# Diagnostic dump modes are read-only, hold no instance lock, and may run
+# beside a live pipeline, so they must not sweep temp or stale-partial files.
+if (-not $ValidateOnly -and -not $locklessDiagnostic) {
     Clear-OldTempFiles
     # FIX#6: sweep any stale .mp-partial files from crashed prior runs so we
     # don't confuse them with in-flight copies.
@@ -489,10 +495,10 @@ if (-not $ValidateOnly -and -not $DumpEffectiveConfigPath) {
 
 # Clear stale operator pause/stop flags from a previous run -- controller runs
 # only. Worker children share these flag paths with the controller, and the
-# lockless -DumpEffectiveConfigPath mode may run beside a live pipeline; in
+# lockless diagnostic dump modes may run beside a live pipeline; in
 # both cases deleting here would silently cancel a pause/stop the operator
 # just requested.
-if (-not $ValidateOnly -and -not $WorkerChild -and -not $DumpEffectiveConfigPath) {
+if (-not $ValidateOnly -and -not $WorkerChild -and -not $locklessDiagnostic) {
     foreach ($flag in @($PauseFlag, $StopFlag)) {
         if (Test-Path -LiteralPath $flag) { Remove-Item -LiteralPath $flag -Force -ErrorAction SilentlyContinue }
     }
@@ -553,6 +559,25 @@ if ($DumpEffectiveConfigPath) {
         exit 0
     } catch {
         Write-Log "Failed to dump effective config to $DumpEffectiveConfigPath : $_" "ERROR"
+        & $Script:ExitCleanup
+        exit 1
+    }
+}
+if ($DumpEncoderCapabilitiesPath) {
+    try {
+        $capabilityReport = New-MediaEncoderCapabilityReport `
+            -VideoCodec ([string]$VideoCodec) `
+            -EncoderBackend 'auto' `
+            -FfmpegPath $ffmpegPath `
+            -TimeoutSeconds 15
+        Write-MediaEncoderCapabilityReport -Report $capabilityReport -Path $DumpEncoderCapabilitiesPath | Out-Null
+        Write-Log "Encoder capability report dumped to $DumpEncoderCapabilitiesPath"
+        # No progress-stage write here: this mode holds no instance lock, so
+        # it must not touch the shared progress file a live run may own.
+        & $Script:ExitCleanup
+        exit 0
+    } catch {
+        Write-Log "Failed to dump encoder capability report to $DumpEncoderCapabilitiesPath : $_" "ERROR"
         & $Script:ExitCleanup
         exit 1
     }

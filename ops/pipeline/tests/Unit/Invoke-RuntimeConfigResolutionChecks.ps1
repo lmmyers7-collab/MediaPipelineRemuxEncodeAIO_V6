@@ -6,8 +6,8 @@ param()
 # ------------------------------------------------------------------------------
 # Regression coverage for config resolution after it was extracted into
 # Initialize-MediaPipelineRuntimeConfig (ops\pipeline\engine\config\runtime_config.ps1).
-# Drives MediaPipeline.ps1 -DumpEffectiveConfigPath against fixture configs and
-# asserts the resolved values + the reserved-key guard. Locks in:
+# Drives MediaPipeline.ps1 diagnostic dump modes against fixture configs and
+# asserts the resolved values, encoder capability report, and reserved-key guard. Locks in:
 #   - HIGH-1  reserved PowerShell variable names are not published as config vars
 #   - cross-key defaults (FFmpegCpuEncodeTimeoutSeconds = 2x; OutsourceMinFreeSpaceGB = MinFreeSpaceGB)
 #   - legacy partial configs inherit BDPGS OCR tool/tessdata defaults
@@ -102,6 +102,15 @@ function Invoke-DumpRun {
     return @{ ExitCode = $LASTEXITCODE; Output = ($output -join [Environment]::NewLine) }
 }
 
+function Invoke-EncoderCapabilityDumpRun {
+    param([string]$ConfigPath, [string]$DumpPath, [string[]]$ExtraArgs = @())
+    $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX = [guid]::NewGuid().ToString('N')
+    $argList = @('-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', $scriptPath,
+                 '-ConfigPath', $ConfigPath, '-DumpEncoderCapabilitiesPath', $DumpPath) + $ExtraArgs
+    $output = & $bundledPwshPath @argList 2>&1 | ForEach-Object { [string]$_ }
+    return @{ ExitCode = $LASTEXITCODE; Output = ($output -join [Environment]::NewLine) }
+}
+
 $failures = 0
 $workRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-cfgres-" + [guid]::NewGuid().ToString('N'))
 $prevMutexSuffix = $env:MEDIA_PIPELINE_TEST_MUTEX_SUFFIX
@@ -174,6 +183,34 @@ try {
             Assert-True (-not ($runC.Output -match 'Could not load progress file')) 'partial progress incorrectly reported as unreadable'
             Write-Host "PASS [C] partial progress file recovery"
         } catch { Write-Host "FAIL [C] $_"; $failures++ }
+    }
+
+    # ---- Scenario D: lockless encoder capability diagnostic dump --------------
+    $dFixture = New-FixtureConfig -WorkRoot (Join-Path $workRoot 'D')
+    $cfgD = $dFixture.Config
+    $cfgD['VideoCodec'] = 'libaom-av1'
+    $cfgPathD = Join-Path $workRoot 'configD.psd1'
+    $capDumpD = Join-Path (Join-Path $dFixture.LocalBase 'State\Progress') 'encoder_capabilities.json'
+    Write-FixtureConfig -Config $cfgD -Path $cfgPathD
+    $runD = Invoke-EncoderCapabilityDumpRun -ConfigPath $cfgPathD -DumpPath $capDumpD
+
+    if ($runD.ExitCode -ne 0) { Write-Host "FAIL [D] capability dump run exit $($runD.ExitCode)`n$($runD.Output)"; $failures++ }
+    elseif (-not (Test-Path -LiteralPath $capDumpD)) { Write-Host "FAIL [D] capability dump not written"; $failures++ }
+    else {
+        $cap = Get-Content -LiteralPath $capDumpD -Raw | ConvertFrom-Json
+        try {
+            Assert-True ([string]$cap.schema -eq 'mediapipeline.encoder_capabilities.v1') "unexpected capability schema '$($cap.schema)'"
+            Assert-True ([string]$cap.video_codec -eq 'libaom-av1') "capability dump video codec drifted to '$($cap.video_codec)'"
+            Assert-True ([int]@($cap.encoders).Count -eq 1) "CPU-only capability dump should include one unique encoder, got $(@($cap.encoders).Count)"
+            $libaom = $cap.by_encoder.'libaom-av1'
+            Assert-True ($null -ne $libaom) 'capability dump missing libaom-av1 by_encoder entry'
+            Assert-True ([bool]$libaom.available) "libaom-av1 should be available in bundled ffmpeg: $($libaom.reason)"
+            Assert-True (@($libaom.roles) -contains 'primary') 'libaom-av1 capability roles should include primary'
+            Assert-True (@($libaom.roles) -contains 'cpu_fallback') 'libaom-av1 capability roles should include cpu_fallback'
+            Assert-True ([string]$libaom.backend -eq 'cpu') "libaom-av1 capability backend drifted to '$($libaom.backend)'"
+            Assert-True ($runD.Output -match 'Encoder capability report dumped') 'capability dump success log was not emitted'
+            Write-Host "PASS [D] encoder capability diagnostic dump"
+        } catch { Write-Host "FAIL [D] $_"; $failures++ }
     }
 } finally {
     if ($null -eq $prevMutexSuffix) { Remove-Item Env:\MEDIA_PIPELINE_TEST_MUTEX_SUFFIX -ErrorAction SilentlyContinue }

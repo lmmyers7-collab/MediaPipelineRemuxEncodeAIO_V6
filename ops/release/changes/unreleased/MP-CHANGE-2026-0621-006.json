@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0621-006",
+  "title": "Add encoder capability dump diagnostic",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "high",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Add a read-only encoder capability report diagnostic for the resolved primary and CPU-fallback descriptors, exposed through a lockless MediaPipeline.ps1 dump switch.",
+  "reason": "Phase 6 needs descriptor-backed capability evidence available before hardware-family activation and later Python/UI capability annotations.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "Descriptor capability probes existed only as in-memory helper results and the entrypoint had no read-only dump mode for resolved encoder capability evidence.",
+  "behavior_after": "New-MediaEncoderCapabilityReport builds JSON-ready capability evidence for resolved primary/fallback descriptors, Write-MediaEncoderCapabilityReport writes it to the requested path, and MediaPipeline.ps1 -DumpEncoderCapabilitiesPath emits the report without taking the singleton lock or rewriting shared worker state.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "docs/inventories/RUNTIME_ARTIFACT_INVENTORY.md",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-006.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1"
+  ],
+  "manual_validation": [
+    "PowerShell parser check for encoder_descriptors.ps1, MediaPipeline.ps1, startup_filesystem.ps1, and Invoke-RuntimeConfigResolutionChecks.ps1 - passed",
+    "mediapipeline.tools.dev.refresh_summaries --check - passed",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 - passed",
+    "ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1 - passed (3 CPU rows executed, 9 hardware rows list-only skipped by default)",
+    "ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 - passed",
+    "ops/pipeline/tests/Invoke-ToolIntegrationChecks.ps1 - passed"
+  ],
+  "rollback_plan": "Remove New-MediaEncoderCapabilityReport and Write-MediaEncoderCapabilityReport, remove -DumpEncoderCapabilitiesPath and lockless-diagnostic guard changes, remove the runtime config diagnostic test scenario, revert docs/inventory wording, and refresh generated summaries.",
+  "related_changes": [],
+  "notes": "Add encoder capability report builder and JSON writer for resolved descriptors.\nAdd lockless DumpEncoderCapabilitiesPath diagnostic mode.\nTreat encoder capability dumps as lockless diagnostics that must not rewrite shared worker state.\nCover DumpEncoderCapabilitiesPath with a CPU-only libaom capability report fixture.\nDocument encoder_capabilities.json runtime diagnostic artifact.\nUpdate encoder breadth backlog for DumpEncoderCapabilitiesPath diagnostic support.\nReflect read-only encoder capability report support in current state.\nUpdate Phase 6 capability-report status and remaining Python/UI threading work.\nRefresh generated summary for current encoder capability dump status.\nRefresh generated summary for encoder capability runtime artifact inventory entry.\nRefresh generated summary for encoder capability report helpers.\nRefresh generated summary for DumpEncoderCapabilitiesPath entrypoint mode.\nRefresh generated summary for lockless diagnostic startup filesystem guard.\nRefresh generated summary for encoder capability dump diagnostic coverage.\nRepresentative hardware runtime and real-media validation were not run; dormant hardware encoder activation remains gated."
+}

@@ -8,14 +8,15 @@ with fail-closed unsupported-HDR guards where needed but are not selected by the
 active resolver. Descriptor-owned list/runtime capability-probe scaffolding exists
 for the dormant catalog, the legacy NVENC startup probe now bridges through the
 descriptor-backed cache, and backend probe invalidation has generic descriptor-cache
-support, but hardware descriptors are not wired into active encoder selection. A
-synthetic SDR runtime/topology matrix executes CPU descriptor rows and reports
-hardware rows as opt-in skips by default. A pure descriptor selection resolver now
-returns primary/fallback descriptors plus trace evidence, including family-consistent
-CPU fallback candidates. Encode attempt plans now expose descriptor-selection
-evidence for current HEVC/libx265 parity paths and explicitly mark dormant AV1
-selection as not yet active, but new families are not wired into the active
-`Do-Encode` ladder.
+support. A read-only `-DumpEncoderCapabilitiesPath` diagnostic can write resolved
+primary/fallback descriptor capability evidence, but hardware descriptors are not
+wired into active encoder selection. A synthetic SDR runtime/topology matrix executes
+CPU descriptor rows and reports hardware rows as opt-in skips by default. A pure
+descriptor selection resolver now returns primary/fallback descriptors plus trace
+evidence, including family-consistent CPU fallback candidates. Encode attempt plans
+now expose descriptor-selection evidence for current HEVC/libx265 parity paths and
+explicitly mark dormant AV1 selection as not yet active, but new families are not
+wired into the active `Do-Encode` ladder.
 Config-key changes, fallback wiring, full hardware/HDR runtime matrix coverage, and
 new encoder enablement remain incomplete.
 Implementing agent: Codex
@@ -485,15 +486,13 @@ changing any default encode behavior.
   NVENC cache semantics required by `Do-Encode`; keep their names.
 - `Invalidate-EncoderBackendProbe -Backend ... -Reason ...` exists and emits the same
   `gpu_unavailable` pipeline event shape with an additive `backend` field in `Data`.
-- Capability report: after probing, write a JSON report (encoder name -> available/
-  reason/probedAt) into the same runtime-state directory `Save-Progress` uses (find
-  it in `ops/pipeline/engine/status/progress_state.ps1`; it lives under `LocalBase/`,
-  which is gitignored). Name: `encoder_capabilities.json`. Add a read-only
-  entrypoint switch `-DumpEncoderCapabilitiesPath <path>` to `MediaPipeline.ps1`
-  mirroring the existing `-DumpEffectiveConfigPath` switch (no singleton lock —
-  copy that switch's pattern exactly; it was added 2026-06-03, see docs/SESSION.md
-  handoff for context). Probe lazily: only the backends the resolved config can
-  actually select, and only when encode work is possible (do not slow `-ValidateOnly`).
+- Capability report: `New-MediaEncoderCapabilityReport` and
+  `-DumpEncoderCapabilitiesPath <path>` write JSON capability evidence for the
+  resolved primary/fallback descriptors into `encoder_capabilities.json` under the
+  runtime progress state when requested. The dump follows the existing
+  `-DumpEffectiveConfigPath` lockless diagnostic pattern. Remaining work: thread this
+  report into Python capability facts and UI annotations without removing settings
+  choices.
 
 ### 6.2 `EncoderBackend` key (settings schema — section 7 area, operator gate)
 

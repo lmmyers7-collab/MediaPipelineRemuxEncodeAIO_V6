@@ -824,6 +824,119 @@ function Test-MediaEncoderDescriptorAvailable {
     return $result
 }
 
+function New-MediaEncoderCapabilityReport {
+    param(
+        [string] $VideoCodec = 'hevc_nvenc',
+        [string] $EncoderBackend = 'auto',
+        [string] $FfmpegPath = $(Get-Variable -Name ffmpegPath -Scope Script -ValueOnly -ErrorAction SilentlyContinue),
+        [int] $TimeoutSeconds = 15,
+        [switch] $Force,
+        [switch] $SkipHardwareRuntimeProbe
+    )
+
+    $selection = Resolve-MediaEncoderSelection -VideoCodec $VideoCodec -EncoderBackend $EncoderBackend
+    $descriptorMap = [ordered]@{}
+    foreach ($candidate in @(
+        [pscustomobject]@{ Role = 'primary';      Descriptor = $selection.PrimaryDescriptor },
+        [pscustomobject]@{ Role = 'cpu_fallback'; Descriptor = $selection.CpuFallbackDescriptor }
+    )) {
+        if ($null -eq $candidate.Descriptor) { continue }
+        $descriptor = $candidate.Descriptor
+        $key = @(
+            ([string]$descriptor.Family).Trim().ToLowerInvariant(),
+            ([string]$descriptor.Backend).Trim().ToLowerInvariant(),
+            ([string]$descriptor.EncoderName).Trim().ToLowerInvariant()
+        ) -join '|'
+        if (-not $descriptorMap.Contains($key)) {
+            $descriptorMap[$key] = [ordered]@{
+                Descriptor = $descriptor
+                Roles      = @()
+            }
+        }
+        if (@($descriptorMap[$key]['Roles']) -notcontains [string]$candidate.Role) {
+            $descriptorMap[$key]['Roles'] = @($descriptorMap[$key]['Roles']) + [string]$candidate.Role
+        }
+    }
+
+    $rows = @()
+    $byEncoder = [ordered]@{}
+    foreach ($key in @($descriptorMap.Keys)) {
+        $entry = $descriptorMap[$key]
+        $descriptor = $entry['Descriptor']
+        $backend = ([string]$descriptor.Backend).Trim().ToLowerInvariant()
+        $probeArgs = @{
+            Descriptor     = $descriptor
+            FfmpegPath     = $FfmpegPath
+            TimeoutSeconds = $TimeoutSeconds
+        }
+        if ($Force) { $probeArgs['Force'] = $true }
+        if ($SkipHardwareRuntimeProbe -and @('nvenc', 'qsv', 'amf') -contains $backend) {
+            $probeArgs['SkipRuntimeProbe'] = $true
+        }
+
+        $probe = Test-MediaEncoderDescriptorAvailable @probeArgs
+        $backendInvalidated = if ($probe.PSObject.Properties['BackendInvalidated']) { [bool]$probe.BackendInvalidated } else { $false }
+        $row = [ordered]@{
+            encoder_name          = [string]$descriptor.EncoderName
+            probe_encoder_name    = [string]$descriptor.ProbeEncoderName
+            family                = [string]$descriptor.Family
+            backend               = [string]$descriptor.Backend
+            roles                 = @($entry['Roles'])
+            available             = [bool]$probe.Available
+            probed                = [bool]$probe.Probed
+            runtime_probe_skipped = if ($probe.PSObject.Properties['RuntimeProbeSkipped']) { [bool]$probe.RuntimeProbeSkipped } else { $false }
+            encoder_list_match    = [bool]$probe.EncoderListMatch
+            runtime_ok            = [bool]$probe.RuntimeOk
+            backend_invalidated   = $backendInvalidated
+            reason                = [string]$probe.Reason
+            probed_at             = if ($probe.PSObject.Properties['ProbedAt']) { [string]$probe.ProbedAt } else { '' }
+        }
+        $rows += [pscustomobject]$row
+        $byEncoder[[string]$descriptor.EncoderName] = [ordered]@{
+            available             = [bool]$row.available
+            reason                = [string]$row.reason
+            probed_at             = [string]$row.probed_at
+            roles                 = @($row.roles)
+            family                = [string]$row.family
+            backend               = [string]$row.backend
+            runtime_probe_skipped = [bool]$row.runtime_probe_skipped
+            backend_invalidated   = [bool]$row.backend_invalidated
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        schema          = 'mediapipeline.encoder_capabilities.v1'
+        generated_at    = (Get-Date).ToString('o')
+        video_codec     = [string]$VideoCodec
+        encoder_backend = [string]$EncoderBackend
+        ffmpeg_path     = [string]$FfmpegPath
+        selection       = [ordered]@{
+            resolved = [bool]$selection.Resolved
+            reason   = [string]$selection.Reason
+            family   = [string]$selection.Family
+        }
+        encoders        = @($rows)
+        by_encoder      = $byEncoder
+    }
+}
+
+function Write-MediaEncoderCapabilityReport {
+    param(
+        [Parameter(Mandatory)] $Report,
+        [Parameter(Mandatory)] [string] $Path
+    )
+
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        throw 'Encoder capability report path is required.'
+    }
+    $parent = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parent) -and -not (Test-Path -LiteralPath $parent -PathType Container)) {
+        [System.IO.Directory]::CreateDirectory($parent) | Out-Null
+    }
+    ($Report | ConvertTo-Json -Depth 12) | Set-Content -LiteralPath $Path -Encoding UTF8 -Force
+    return $Path
+}
+
 function Test-DynamicHdrX265ParameterRequested {
     param(
         [string] $DolbyVisionRpuPath = '',

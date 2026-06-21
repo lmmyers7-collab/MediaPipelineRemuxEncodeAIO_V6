@@ -3,9 +3,9 @@ file: ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-10
+last_modified: 2026-06-21
 last_reviewed: 2026-06-10
-sha256: e1810f19211afe419bfdcdccb240bc9e44d861c774cdb5ad543e408d289f41ad
+sha256: 4b5bf1319b0f9921ded465a69c9f029325cec9e59a2360b65d4d45966d69c078
 ---
 # `ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1`
 

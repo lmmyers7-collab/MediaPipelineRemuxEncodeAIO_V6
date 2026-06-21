@@ -3,9 +3,9 @@ file: ops/pipeline/entrypoints/MediaPipeline.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-17
+last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 0c7c655934b59a154de25b2f8fb6820bb4fd8cf1be9a0af6dcf752f03fe2b96a
+sha256: a09567ee3ab259b09d556e3c9e2fa7b60b59f04a9c3621a418c4f99e305e4719
 ---
 # `ops/pipeline/entrypoints/MediaPipeline.ps1`
 
