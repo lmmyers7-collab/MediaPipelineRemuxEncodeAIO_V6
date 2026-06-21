@@ -74,6 +74,30 @@ def _backup_path(backup_root: Path, path: Path) -> Path:
     return backup_root / path.name
 
 
+def _path_identity(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return str(Path(text)).casefold()
+
+
+def _pending_orphan_expected_manifest_path(payload_path: Path) -> Path:
+    return payload_path.with_name(f"{payload_path.name}.manifest.json")
+
+
+def _pending_manifest_sidecar_paths(sidecar_files: Any) -> list[Path]:
+    if not isinstance(sidecar_files, list):
+        return []
+    paths: list[Path] = []
+    for sidecar in sidecar_files:
+        if not isinstance(sidecar, Mapping):
+            continue
+        raw = str(sidecar.get("local_file") or sidecar.get("parked_file") or "").strip()
+        if raw:
+            paths.append(Path(raw))
+    return paths
+
+
 def _copy_backup(path: Path, backup_root: Path) -> Path:
     if not path.exists() or not path.is_file():
         raise FileNotFoundError(f"Cannot back up missing file: {path}")
@@ -293,6 +317,35 @@ def _apply_pending_manifest_repair(
     return written, backups
 
 
+def _apply_pending_orphan_manifest_reconcile(rows: list[Mapping[str, Any]]) -> tuple[list[Path], list[Path]]:
+    written: list[Path] = []
+    for row in rows:
+        if str(row.get("status") or "").casefold() != "candidate":
+            raise ValueError(f"Selected orphan payload row is not a manifest candidate: {row.get('row_key')}")
+        path_text = str(row.get("manifest_path") or "").strip()
+        proposed = row.get("proposed_manifest")
+        if not path_text or not isinstance(proposed, Mapping):
+            raise ValueError(f"Selected orphan payload row lacks backend proposed manifest fields: {row.get('row_key')}")
+        path = Path(path_text)
+        validated = PendingPushManifest.from_mapping(proposed)
+        payload_path = Path(validated.local_file)
+        expected_manifest = _pending_orphan_expected_manifest_path(payload_path)
+        if _path_identity(path) != _path_identity(expected_manifest):
+            raise ValueError("Orphan payload manifest path does not match the payload-adjacent pending manifest path.")
+        if path.exists():
+            raise ValueError(f"Orphan payload manifest already exists: {path}")
+        if not payload_path.exists() or not payload_path.is_file():
+            raise ValueError(f"Orphan payload manifest proposal points at a missing payload: {payload_path}")
+        if int(validated.output_size) != int(payload_path.stat().st_size):
+            raise ValueError("Orphan payload manifest proposal output_size no longer matches the pending payload.")
+        missing_sidecars = [str(sidecar) for sidecar in _pending_manifest_sidecar_paths(validated.sidecar_files) if not sidecar.exists()]
+        if missing_sidecars:
+            raise ValueError(f"Orphan payload manifest proposal references missing pending sidecar payloads: {', '.join(missing_sidecars)}")
+        _atomic_write_text(path, _json_dumps(dict(proposed)))
+        written.append(path)
+    return written, []
+
+
 def apply_repair_reconcile_from_dry_run(
     *,
     resolved: Any,
@@ -360,7 +413,7 @@ def apply_repair_reconcile_from_dry_run(
         elif candidate_command == PENDING_PUBLISH_REPAIR_MANIFEST_COMMAND:
             written, backups = _apply_pending_manifest_repair(rows, backup_root=backup_root)
         elif candidate_command == PENDING_PUBLISH_RECONCILE_ORPHAN_PAYLOADS_COMMAND:
-            raise ValueError("Orphan payload reconcile is manifest-only and blocked until backend evidence supplies destination and source fields.")
+            written, backups = _apply_pending_orphan_manifest_reconcile(rows)
         else:
             raise ValueError(f"Unsupported repair/reconcile apply command: {candidate_command}")
     except Exception as exc:

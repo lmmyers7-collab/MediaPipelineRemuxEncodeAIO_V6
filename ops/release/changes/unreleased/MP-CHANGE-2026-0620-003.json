@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0620-003",
+  "title": "Add backend orphan manifest proposal evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "high",
+  "date_started": "2026-06-20",
+  "date_completed": "2026-06-21",
+  "summary": "Adds the backend-owned positive path for Pending Publish orphan-payload reconciliation: a dry-run can now produce a candidate only when the selected backend row already carries a complete validated pending_push_manifest.v1 proposal, and confirmed apply creates only the missing payload-adjacent manifest.",
+  "reason": "The orphan-payload route existed but always blocked, even if future backend evidence supplied a complete manifest proposal. The apply route needed a constrained manifest-only path that keeps source/destination inference out of the WebView and request body while preserving the ordinary-orphan block.",
+  "affected_areas": [
+    "backend",
+    "docs",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "Pending orphan-payload dry-runs always returned blocked rows and confirmed apply always rejected, even when a backend row could carry complete pending manifest evidence.",
+  "behavior_after": "Pending orphan-payload dry-runs still block ordinary orphan rows, but rows with complete backend_manifest_proposal/orphan_manifest_proposal/proposed_manifest evidence become manifest-write candidates. Confirmed apply reruns the dry-run, requires strict confirm_apply plus matching fingerprint, validates the proposal again, and writes only the missing payload-adjacent .manifest.json.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md.md",
+    "docs/generated/summaries/docs/inventories/COMMAND_OWNERSHIP_MATRIX.md.md",
+    "docs/generated/summaries/docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/apply.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/repair_reconcile/dry_run.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_dry_run.py.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0620-003.json",
+    "src/mediapipeline/core/repair_reconcile/apply.py",
+    "src/mediapipeline/core/repair_reconcile/dry_run.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py",
+    "tests/python/desktop/test_repair_reconcile_dry_run.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_repair_reconcile_dry_run.py",
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_repair_reconcile_apply -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_command_contracts -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_pending_drain_guard_smoke -q - passed",
+    "node ops\\scripts\\dev\\check-webview-route-ownership.mjs --check - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_project_index --check - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    "git diff --check - passed"
+  ],
+  "rollback_plan": "Revert the orphan manifest proposal candidate/apply helpers in src/mediapipeline/core/repair_reconcile/dry_run.py and apply.py, remove the positive orphan proposal tests, restore docs/inventories to the prior always-blocked orphan apply wording, and refresh generated summaries.",
+  "related_changes": [],
+  "notes": "Allow orphan-payload dry-run candidates only from complete backend manifest proposals.\nCreate missing orphan pending manifest only from validated backend proposal evidence.\nCover backend-proposed orphan manifest dry-run candidate without mutation.\nCover manifest-only orphan apply and preserve incomplete-evidence block.\nUpdate current repair/reconcile state for backend-proposal orphan apply path.\nUpdate open repair/reconcile checklist for ordinary orphan rows and real-media validation.\nAlign mutation contract with manifest-only orphan proposal apply behavior.\nAlign route ownership wording for orphan manifest write effect.\nAlign command ownership wording for orphan manifest write effect.\nRefresh generated summary after current-state wording update.\nRefresh generated summary after repair/reconcile contract update.\nRefresh generated summary after command ownership update.\nRefresh generated summary after route ownership update.\nRefresh generated summary after repair/reconcile apply update.\nRefresh generated summary after repair/reconcile dry-run update.\nRefresh generated summary after apply tests update.\nRefresh generated summary after dry-run tests update.\nHigh-risk boundary: this change creates a manifest only from backend dry-run proposal evidence. It never accepts paths or manifest fields from the WebView/apply request, never moves/deletes/drains/publishes payloads, and does not touch source/output/payload bytes. Representative source/payload/output hash validation and deferred publish/drain real-media validation were not run in this slice and remain required before daily-driver use."
+}

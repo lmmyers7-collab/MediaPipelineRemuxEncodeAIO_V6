@@ -3,9 +3,9 @@ file: tests/python/desktop/test_repair_reconcile_dry_run.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-19
+last_modified: 2026-06-20
 last_reviewed: 2026-06-17
-sha256: 874f4cda0a4110149499e7358d3ac66493553683c627f82d1f39896dc025226a
+sha256: 5f6d9c558c5933d990e925d82181747a40f184c66d4f52756fe429bddb3c5c41
 ---
 # `tests/python/desktop/test_repair_reconcile_dry_run.py`
 

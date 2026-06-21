@@ -8,6 +8,7 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.request import Request, urlopen
 
 from mediapipeline.tools.paths import find_repo_root
@@ -395,6 +396,46 @@ class RepairReconcileDryRunTests(unittest.TestCase):
                 for row in orphan_result["data"]["precondition_results"]
             )
         )
+
+    def test_pending_orphan_reconcile_dry_run_accepts_complete_backend_proposal_without_mutation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _pending_fixture(root, orphan_payload=True)
+            manifest_path = Path(str(files["pending_payload"]) + ".manifest.json")
+            before = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            row = preview["rows"][0]
+            row["backend_manifest_proposal"] = _pending_manifest_payload(files["pending_payload"], files["output"], files["source"])
+            facade.get_pending_publish_preview = lambda _resolved: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
+
+            result = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.reconcile_orphan_payloads",
+                request={"scope": "selected", "row_key": row["row_key"], "reason": "recover manifest"},
+            ).to_mapping()
+            after = {name: _file_state(path) for name, path in files.items() if path.is_file()}
+
+        data = result["data"]
+        _assert_dry_run_shape(self, data, "pending_publish.reconcile_orphan_payloads")
+        self.assertEqual(before, after)
+        self.assertFalse(manifest_path.exists())
+        self.assertTrue(data["safe_to_apply"])
+        self.assertFalse(data["would_move_paths"])
+        self.assertFalse(data["would_delete_paths"])
+        self.assertEqual(
+            data["would_write_paths"],
+            [{"path": str(manifest_path), "reason": "orphan payload reconcile will create backend-validated pending manifest"}],
+        )
+        candidate = data["diff_summary"]["rows"][0]
+        self.assertEqual(candidate["status"], "candidate")
+        self.assertTrue(candidate["proposed_manifest_available"])
+        self.assertEqual(candidate["proposal_source"], "backend_manifest_proposal")
+        PendingPushManifest.from_mapping(candidate["proposed_manifest"])
+        self.assertEqual(candidate["manifest_path"], str(manifest_path))
+        self.assertEqual(candidate["local_file"], str(files["pending_payload"]))
+        self.assertEqual(candidate["source_path"], str(files["source"]))
+        self.assertEqual(candidate["output_path"], str(files["output"]))
 
     def test_pending_manifest_repair_dry_run_builds_valid_backend_proposal_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

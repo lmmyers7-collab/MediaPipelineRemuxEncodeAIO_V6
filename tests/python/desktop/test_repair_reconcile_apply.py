@@ -5,6 +5,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -17,7 +18,7 @@ from mediapipeline.core.validation.boundary import ValidationFailure, validate_a
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService
-from tests.python.desktop.test_repair_reconcile_dry_run import _completed_fixture, _file_state, _pending_fixture
+from tests.python.desktop.test_repair_reconcile_dry_run import _completed_fixture, _file_state, _pending_fixture, _pending_manifest_payload
 
 
 def _apply_request(dry_run_data: dict[str, object], *, reason: str = "operator confirmed test") -> dict[str, object]:
@@ -168,6 +169,46 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertFalse(result["data"]["written_paths"])
             self.assertFalse((files["pending_payload"].with_suffix(files["pending_payload"].suffix + ".manifest.json")).exists())
             self.assertEqual(_file_state(files["pending_payload"]), before)
+
+    def test_orphan_payload_reconcile_apply_writes_only_backend_proposed_manifest(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved, files = _pending_fixture(root, orphan_payload=True)
+            manifest = Path(str(files["pending_payload"]) + ".manifest.json")
+            source_before = _file_state(files["source"])
+            output_before = _file_state(files["output"])
+            payload_before = _file_state(files["pending_payload"])
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            row = preview["rows"][0]
+            row["backend_manifest_proposal"] = _pending_manifest_payload(files["pending_payload"], files["output"], files["source"])
+            facade.get_pending_publish_preview = lambda _resolved: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
+            dry_run = facade.plan_repair_reconcile_dry_run(
+                resolved,
+                candidate_command="pending_publish.reconcile_orphan_payloads",
+                request={"scope": "selected", "row_key": row["row_key"], "reason": "recover manifest"},
+            ).to_mapping()["data"]
+
+            result = facade.apply_repair_reconcile(
+                resolved,
+                candidate_command="pending_publish.reconcile_orphan_payloads",
+                request=_apply_request(dry_run, reason="manifest only"),
+            ).to_mapping()
+
+            written = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertTrue(dry_run["safe_to_apply"])
+            self.assertTrue(result["ok"])
+            self.assertTrue(result["data"]["applied"])
+            self.assertEqual(result["data"]["written_paths"], [str(manifest)])
+            self.assertEqual(result["data"]["backup_paths"], [])
+            PendingPushManifest.from_mapping(written)
+            self.assertEqual(written["local_file"], str(files["pending_payload"]))
+            self.assertEqual(written["server_out"], str(files["output"]))
+            self.assertEqual(written["source_path"], str(files["source"]))
+            self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertEqual(_file_state(files["output"]), output_before)
+            self.assertEqual(_file_state(files["pending_payload"]), payload_before)
+            self.assertTrue(result["data"]["source_payload_output_unchanged"])
 
     def test_confirmed_apply_payload_is_strict_and_rejects_frontend_paths(self) -> None:
         payload = {

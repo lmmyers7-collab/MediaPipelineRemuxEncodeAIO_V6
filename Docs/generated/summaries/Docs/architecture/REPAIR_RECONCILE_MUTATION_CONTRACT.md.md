@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-20
 last_reviewed: 2026-06-02
-sha256: 25818083b7eece28ada6cc535bfd791f8f775d4c68bf1ab4b4f8f800973c7fcb
+sha256: 599b8dc80e74f86a28a03c13fd078b5c61ba432029cfdfa19d7ce444d33134e5
 ---
 # `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`
 

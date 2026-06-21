@@ -1065,6 +1065,191 @@ def _pending_orphan_missing_manifest_evidence(row: Mapping[str, Any]) -> list[st
     return missing
 
 
+def _path_identity(value: object) -> str:
+    text = str(value or "").strip()
+    if not text:
+        return ""
+    return str(Path(text)).casefold()
+
+
+def _pending_orphan_expected_manifest_path(payload_path: Path) -> Path:
+    return payload_path.with_name(f"{payload_path.name}.manifest.json")
+
+
+def _pending_orphan_backend_proposal(row: Mapping[str, Any]) -> tuple[dict[str, Any] | None, str]:
+    for key in ("backend_manifest_proposal", "orphan_manifest_proposal", "proposed_manifest"):
+        value = row.get(key)
+        if isinstance(value, Mapping):
+            return dict(value), key
+    return None, ""
+
+
+def _pending_orphan_payload_candidate_row(
+    *,
+    row: Mapping[str, Any],
+    key: str,
+    diagnostic_status: str,
+) -> dict[str, Any] | None:
+    proposed, proposal_source = _pending_orphan_backend_proposal(row)
+    if proposed is None:
+        return None
+
+    local_file = str(row.get("local_file") or "").strip()
+    if not local_file:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "local_file": "",
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "missing_required_manifest_fields": _pending_orphan_missing_manifest_evidence(proposed),
+            "error": "Backend orphan manifest proposal cannot be matched because the orphan row has no local_file payload.",
+            "safe_next_action": "Refresh Pending Publish evidence before confirmed apply.",
+        }
+
+    payload_path = Path(local_file)
+    expected_manifest_path = _pending_orphan_expected_manifest_path(payload_path)
+    manifest_path_text = str(row.get("manifest_path") or expected_manifest_path).strip()
+    if _path_identity(manifest_path_text) != _path_identity(expected_manifest_path):
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": manifest_path_text,
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "error": "Backend orphan manifest proposal targets a manifest path that is not the payload-adjacent pending manifest path.",
+            "safe_next_action": "Refresh backend pending-publish evidence; do not apply mismatched orphan manifest proposals.",
+        }
+    if expected_manifest_path.exists():
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "error": "Backend orphan manifest proposal would overwrite an existing pending manifest.",
+            "safe_next_action": "Refresh Pending Publish; use pending manifest repair for existing manifests.",
+        }
+
+    try:
+        validated = PendingPushManifest.from_mapping(proposed)
+    except ContractError as exc:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "missing_required_manifest_fields": _pending_orphan_missing_manifest_evidence(proposed),
+            "error": f"Backend orphan manifest proposal fails pending manifest contract: {exc}",
+            "safe_next_action": "Repair backend manifest evidence before confirmed apply.",
+        }
+
+    if _path_identity(validated.local_file) != _path_identity(local_file):
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "error": "Backend orphan manifest proposal local_file does not match the selected orphan payload.",
+            "safe_next_action": "Refresh backend pending-publish evidence; do not reconcile mismatched payload proposals.",
+        }
+    if not payload_path.exists() or not payload_path.is_file():
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "error": "Backend orphan manifest proposal points at a missing pending payload.",
+            "safe_next_action": "Restore the pending payload before confirmed orphan manifest reconcile.",
+        }
+    try:
+        payload_size = payload_path.stat().st_size
+    except OSError as exc:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "error": f"Pending payload size could not be verified: {exc}",
+            "safe_next_action": "Refresh Pending Publish after payload access is stable.",
+        }
+    if int(validated.output_size) != int(payload_size):
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "error": "Backend orphan manifest proposal output_size does not match the selected pending payload.",
+            "safe_next_action": "Refresh backend manifest evidence before confirmed apply.",
+        }
+
+    missing_sidecars = [str(path) for path in _pending_manifest_sidecar_paths(validated.sidecar_files) if not path.exists()]
+    if missing_sidecars:
+        return {
+            "row_key": key,
+            "status": "blocked",
+            "action": "pending_orphan_payload_reconcile",
+            "manifest_path": str(expected_manifest_path),
+            "local_file": local_file,
+            "diagnostic_status": diagnostic_status,
+            "proposed_manifest_available": True,
+            "proposal_source": proposal_source,
+            "missing_sidecar_paths": missing_sidecars,
+            "error": "Backend orphan manifest proposal references missing pending sidecar payloads.",
+            "safe_next_action": "Restore missing sidecar payloads before confirmed orphan manifest reconcile.",
+        }
+
+    return {
+        "row_key": key,
+        "status": "candidate",
+        "action": "pending_orphan_payload_reconcile",
+        "manifest_path": str(expected_manifest_path),
+        "diagnostic_status": diagnostic_status,
+        "local_file": validated.local_file,
+        "source_path": validated.source_path,
+        "output_path": validated.server_out,
+        "proposed_manifest_available": True,
+        "proposal_source": proposal_source,
+        "proposed": {
+            "local_file": validated.local_file,
+            "source_path": validated.source_path,
+            "output_path": validated.server_out,
+            "manifest_state": validated.manifest_state,
+            "schema_version": PENDING_PUSH_MANIFEST_SCHEMA_VERSION,
+        },
+        "proposed_manifest": proposed,
+        "safe_next_action": "Review the backend-derived orphan manifest proposal, then submit the matching dry-run fingerprint to confirmed apply.",
+    }
+
+
 def _pending_manifest_repair_candidate_row(
     *,
     row: Mapping[str, Any],
@@ -1348,6 +1533,7 @@ def pending_orphan_payload_reconcile_dry_run(
         request=request,
     )
     diff_rows: list[dict[str, Any]] = []
+    would_write: list[dict[str, str]] = []
     for row in selected_rows:
         key = _row_key(row)
         status = str(row.get("diagnostic_status") or "").strip().casefold()
@@ -1382,6 +1568,26 @@ def pending_orphan_payload_reconcile_dry_run(
                     "safe_next_action": "No orphan payload reconcile candidate detected.",
                 }
             )
+            continue
+        candidate = _pending_orphan_payload_candidate_row(row=row, key=key, diagnostic_status=status)
+        if candidate is not None:
+            diff_rows.append(candidate)
+            if str(candidate.get("status") or "").casefold() == "candidate":
+                would_write.append(
+                    {
+                        "path": str(candidate.get("manifest_path") or ""),
+                        "reason": "orphan payload reconcile will create backend-validated pending manifest",
+                    }
+                )
+            else:
+                preconditions.append(
+                    _precondition(
+                        f"pending_payload_manifest_evidence:{key}",
+                        "blocked",
+                        str(candidate.get("error") or "backend orphan manifest proposal is incomplete"),
+                        "Repair backend manifest evidence before confirmed apply; do not infer source/destination in the frontend.",
+                    )
+                )
             continue
         missing_manifest_fields = _pending_orphan_missing_manifest_evidence(row)
         diff_rows.append(
@@ -1421,6 +1627,7 @@ def pending_orphan_payload_reconcile_dry_run(
             "No backend-derived orphan manifest candidates were safe to apply unless a complete pending_push_manifest.v1 proposal is present.",
             "No pending payload, manifest, sidecar, output, source, or scratch file was moved, deleted, drained, or written.",
         ],
+        would_write_paths=would_write,
         would_move_paths=[],
         would_delete_paths=[],
     )
