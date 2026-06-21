@@ -1659,7 +1659,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (typeof initScheduleViewEvents === "function") initScheduleViewEvents();
   initDiagnosticsViewEvents();
   window.mediaPipelineNetworkView?.initNetworkViewEvents?.();
-  initContractViewEvents();
+  window.mediaPipelineContractView?.initContractViewEvents?.();
   if (typeof initMaintenanceViewEvents === "function") initMaintenanceViewEvents();
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 478ea25fe433005363540e5e0ac40793517ea6dbc012354f1df2be2e9ee0a61a
+sha256: 908dd3331a667f56adafb076b2039a357be2b7c7386c0425603a57d8b0159af7
 ---
 # `apps/desktop/webview/static/assets/app.js`
 

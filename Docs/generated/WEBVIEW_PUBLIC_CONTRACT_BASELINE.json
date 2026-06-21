@@ -1082,7 +1082,6 @@
       "getSelectedQueuePriorityRows",
       "getSelectedQueueRow",
       "hasMaintenanceLoaded",
-      "initContractViewEvents",
       "initDiagnosticsViewEvents",
       "initLaunchViewEvents",
       "initMaintenanceViewEvents",
@@ -21546,9 +21545,7 @@
       "namespace_exports": [
         "mediaPipelineContractView"
       ],
-      "flat_window_exports": [
-        "initContractViewEvents"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [
         "api-contract-filter",

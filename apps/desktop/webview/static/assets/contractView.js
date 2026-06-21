@@ -587,5 +587,4 @@
     renderContract,
     initContractViewEvents,
   };
-  window.initContractViewEvents = initContractViewEvents;
 })();
