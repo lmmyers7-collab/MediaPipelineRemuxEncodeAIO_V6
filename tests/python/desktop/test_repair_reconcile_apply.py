@@ -204,10 +204,31 @@ class RepairReconcileApplyTests(unittest.TestCase):
             root = Path(raw_root)
             resolved, files = _pending_fixture(root, orphan_payload=True)
             manifest = Path(str(files["pending_payload"]) + ".manifest.json")
+            drain_summary = resolved.state_root / "Progress" / "pending_drain_summary.json"
+            drain_summary.parent.mkdir(parents=True, exist_ok=True)
+            drain_summary.write_text(
+                json.dumps(
+                    {
+                        "schema_version": "pending_drain_summary.v1",
+                        "status": "completed",
+                        "items": [
+                            {
+                                "status": "succeeded",
+                                "local_file": str(root / "OtherPending" / "AlreadyDrained.mkv"),
+                                "server_out": str(root / "Outsource" / "AlreadyDrained.mkv"),
+                            }
+                        ],
+                    },
+                    sort_keys=True,
+                ),
+                encoding="utf-8",
+            )
             source_before = _file_state(files["source"])
             output_before = _file_state(files["output"])
             payload_before = _file_state(files["pending_payload"])
+            drain_summary_before = _file_state(drain_summary)
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            original_get_pending_publish_preview = facade.get_pending_publish_preview
             preview = facade.get_pending_publish_preview(resolved).to_mapping()
             row = preview["rows"][0]
             row["backend_manifest_proposal"] = _pending_manifest_payload(files["pending_payload"], files["output"], files["source"])
@@ -223,6 +244,7 @@ class RepairReconcileApplyTests(unittest.TestCase):
                 candidate_command="pending_publish.reconcile_orphan_payloads",
                 request=_apply_request(dry_run, reason="manifest only"),
             ).to_mapping()
+            facade.get_pending_publish_preview = original_get_pending_publish_preview  # type: ignore[method-assign]
 
             written = json.loads(manifest.read_text(encoding="utf-8"))
             self.assertTrue(dry_run["safe_to_apply"])
@@ -237,7 +259,16 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(_file_state(files["source"]), source_before)
             self.assertEqual(_file_state(files["output"]), output_before)
             self.assertEqual(_file_state(files["pending_payload"]), payload_before)
+            self.assertEqual(_file_state(drain_summary), drain_summary_before)
             self.assertTrue(result["data"]["source_payload_output_unchanged"])
+            repaired_preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            repaired_row = repaired_preview["rows"][0]
+            self.assertEqual(repaired_row["state"], "parked")
+            self.assertEqual(repaired_row["diagnostic_status"], "ready")
+            self.assertTrue(repaired_row["ready_to_drain"])
+            self.assertEqual(repaired_row["drain_recommendation"], "ready_to_drain")
+            self.assertTrue(repaired_preview["drain_summary"]["exists"])
+            self.assertEqual(repaired_preview["drain_summary"]["path"], str(drain_summary))
 
     def test_confirmed_apply_payload_is_strict_and_rejects_frontend_paths(self) -> None:
         payload = {

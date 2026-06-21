@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0621-016",
+  "title": "Validate orphan repair drain posture",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-06-21",
+  "date_completed": "2026-06-21",
+  "summary": "Expanded orphan pending-payload reconcile apply validation to prove backend-created manifests preserve source/output/payload bytes, leave existing drain-summary evidence untouched, and rescan as parked / ready_to_drain in the pending-publish preview.",
+  "reason": "Repair/reconcile operator-surface validation still needs representative source/payload/output and deferred publish/drain evidence. This slice closes one temp-fixture gap for the orphan reconcile apply path without changing mutation behavior.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "The pending manifest repair apply test proved repaired rows remained parked and ready_to_drain after apply, but orphan pending-payload reconcile apply only proved manifest-only writes and byte preservation.",
+  "behavior_after": "The orphan pending-payload reconcile apply test now also preserves an existing durable drain summary and restores the real pending-publish scan to prove the reconciled row returns as parked and ready_to_drain.",
+  "files_touched": [
+    "docs/generated/summaries/docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0621-016.json",
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "tests_added": [
+    "Extended tests.python.desktop.test_repair_reconcile_apply.RepairReconcileApplyTests.test_orphan_payload_reconcile_apply_writes_only_backend_proposed_manifest"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_apply -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_pending_publish -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_pending_publish_service -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_pending_publish_manifest -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_pending_publish_manifest_rows -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_service_pending_publish_paths -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_command_contracts -q",
+    ".\\ops\\scripts\\smoke\\Test-LocalApiRepairReconcileDryRunContractSmoke.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    "git diff --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Revert the test assertion expansion, pending-publish inventory wording, regenerated summaries, and this change packet. No runtime behavior or migration rollback is required.",
+  "related_changes": [],
+  "notes": "Extended orphan pending payload reconcile apply coverage to preserve drain-summary evidence and rescan as parked/ready_to_drain.\nDocumented orphan reconcile temp-fixture drain-posture coverage while retaining real-media drain caveat.\nRefreshed generated summary for the expanded repair/reconcile apply test.\nRefreshed generated summary for the pending-publish fixture inventory."
+}

@@ -41,7 +41,7 @@ Pending publish is a backend-owned media safety path. Future work should keep me
 |---|---|---|
 | `test_pending_publish_service.py` | 180+ | 5 core scenarios: missing payload health row; parked media-plus-sidecar row evidence; unknown state detection (`invalid_contract`); legacy manifest tolerance; duplicate manifest target detection |
 | `test_repair_reconcile_dry_run.py` | 200+ | Pending Publish repair/reconcile dry-run route builders: required response schema, strict no-mutation evidence, selected-row missing behavior, invalid manifest, duplicate target, orphan payload, active-work precondition, and command-journal suppression |
-| `test_repair_reconcile_apply.py` | 240+ | Confirmed repair/reconcile apply routes: strict fingerprint and `confirm_apply=true` gating, manifest/sidecar-only writes, source/payload/output hash preservation, command journaling, frontend-path rejection, and repaired pending manifests remaining parked/drain-ready without writing durable drain-summary evidence |
+| `test_repair_reconcile_apply.py` | 320+ | Confirmed repair/reconcile apply routes: strict fingerprint and `confirm_apply=true` gating, manifest/sidecar/orphan-manifest-only writes, source/payload/output hash preservation, command journaling, frontend-path rejection, and repaired/reconciled pending manifests remaining parked/drain-ready without writing durable drain-summary evidence |
 
 ### Facade / Policy Layer
 
@@ -141,7 +141,7 @@ Service-layer tests hardcode rows directly in test methods:
 | Real deferred-publish drain command moves generated media out of pending state | `ops/pipeline/tests/Invoke-EndToEndSmokeChecks.ps1` | Covered by generated-media smoke |
 | Recovery plan is dry-run only (no files moved) | Route contract (`effect: "none"`) + `src/mediapipeline/core/api/commands_files.py` (`recovery_plan_dry_run` command name) | Contract-level only |
 | Pending Publish repair/reconcile dry-runs are no-mutation evidence only | `test_repair_reconcile_dry_run.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py`, `test_application_facade_local_api.py`, `test_webview_frontend_mutation_boundary.py` | Covered for strict request fields, required dry-run schema, blocked preconditions, command-journal suppression, no WebView callers, and fixture hash/mtime preservation |
-| Pending Publish repair apply keeps repaired payloads in backend drain posture | `test_repair_reconcile_apply.py` | Covered for temp-fixture manifest repair: apply rewrites only the backend-validated pending manifest, preserves source/output/payload bytes, preserves an existing durable drain summary, and rescans the repaired row as `parked` / `ready_to_drain` |
+| Pending Publish repair/reconcile apply keeps repaired payloads in backend drain posture | `test_repair_reconcile_apply.py` | Covered for temp-fixture manifest repair and orphan-payload reconcile: apply rewrites or creates only the backend-validated pending manifest, preserves source/output/payload bytes, preserves an existing durable drain summary, and rescans the repaired/reconciled row as `parked` / `ready_to_drain` |
 | Open targets are allowlisted | `test_facade_diagnostics_open_policy.py` | Covered |
 
 ---

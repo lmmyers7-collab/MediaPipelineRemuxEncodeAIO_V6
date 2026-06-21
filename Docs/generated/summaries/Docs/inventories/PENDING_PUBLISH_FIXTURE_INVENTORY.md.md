@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 82cf5e2a38e02958ad8d96d2b6496fb0838cd902c52136aa906dd95a995c7c60
+sha256: d229245cb159bc757b0564f2eaf0391485f6d8989a9fb5fb5810b20941480246
 ---
 # `docs/inventories/PENDING_PUBLISH_FIXTURE_INVENTORY.md`
 
