@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: decide
 last_modified: 2026-06-20
 last_reviewed: 2026-06-19
-sha256: 59aef98c23dbfa3e6ea94fa43d00e3f24129b301d45374056cf5fada898f8c85
+sha256: 0c2d91b7062827c7c86efafdac1046090aa83d67b2b085aea6e8b6adc6e4e2bd
 ---
 # `ops/pipeline/engine/decide/encoder_descriptors.ps1`
 

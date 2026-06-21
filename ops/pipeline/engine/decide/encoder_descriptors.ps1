@@ -311,6 +311,9 @@ function Resolve-MediaEncoderDescriptorForFlags {
     if ($codec -eq 'hevc_nvenc') {
         return Get-MediaEncoderDescriptor -Family 'hevc' -Backend 'nvenc'
     }
+    if ($codec -eq 'h264_nvenc') {
+        return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'nvenc'
+    }
     return $null
 }
 

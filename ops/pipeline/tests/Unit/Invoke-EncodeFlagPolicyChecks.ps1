@@ -443,6 +443,17 @@ Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.PrimaryEncoder) 'av1_nv
 Assert-Equal ([string]$av1LegacyPlan.DescriptorSelection.CpuFallbackEncoder) 'libaom-av1' 'Dormant AV1 descriptor fallback evidence mismatch.'
 Assert-True ([string]$av1LegacyPlan.DescriptorSelection.Reason -match 'descriptor flags are not active') 'Dormant AV1 descriptor selection should explain that activation is still disabled.'
 
+$h264NvencActivePlan = New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc' }
+Assert-Equal ([string]$h264NvencActivePlan.SelectedEncoder) 'h264_nvenc' 'H.264/NVENC active primary plan should expose the descriptor encoder.'
+Assert-Equal ([bool]$h264NvencActivePlan.DescriptorSelection.Resolved) $true 'H.264/NVENC descriptor selection should resolve.'
+Assert-Equal ([bool]$h264NvencActivePlan.DescriptorSelection.Active) $true 'H.264/NVENC primary descriptor selection should be active.'
+Assert-Equal ([string]$h264NvencActivePlan.DescriptorSelection.Family) 'h264' 'H.264/NVENC descriptor family mismatch.'
+Assert-Equal ([string]$h264NvencActivePlan.DescriptorSelection.DescriptorBackend) 'nvenc' 'H.264/NVENC descriptor backend mismatch.'
+Assert-Equal (@($h264NvencActivePlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|h264_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|high|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'H.264/NVENC active primary command topology mismatch.'
+Assert-Throws {
+    New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc'; IsHDR = $true } | Out-Null
+} 'H.264/NVENC active descriptor path must fail closed for HDR sources until HDR preservation is proven.'
+
 Assert-Throws {
     New-PlanFromCase -Overrides @{ IsHDR = $true; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1' } | Out-Null
 } 'Dynamic HDR x265 params must not be accepted by the primary NVENC path.'
@@ -513,7 +524,9 @@ Assert-True ($null -ne $h264NvencDescriptor) 'Dormant H.264/NVENC descriptor mus
 Assert-Equal ([string]$h264NvencDescriptor.EncoderName) 'h264_nvenc' 'H.264/NVENC descriptor encoder mismatch.'
 Assert-Equal ([string]$h264NvencDescriptor.RateControlKind) 'nvenc_cq' 'H.264/NVENC descriptor rate-control mismatch.'
 Assert-Equal ([bool]$h264NvencDescriptor.SupportsHdr10Metadata) $false 'H.264/NVENC descriptor must not claim HDR10 metadata support.'
-Assert-True ($null -eq (Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'h264_nvenc' -UseCpuFallback:$false)) 'H.264/NVENC must keep the legacy branch until activation work.'
+$h264ActiveFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec 'h264_nvenc' -UseCpuFallback:$false
+Assert-True ($null -ne $h264ActiveFlagsDescriptor) 'H.264/NVENC primary flags should now be descriptor-owned.'
+Assert-Equal ([string]$h264ActiveFlagsDescriptor.EncoderName) 'h264_nvenc' 'H.264/NVENC active flags descriptor mismatch.'
 
 $h264NvencFlags = @(New-EncoderVideoFlags `
     -Descriptor $h264NvencDescriptor `
