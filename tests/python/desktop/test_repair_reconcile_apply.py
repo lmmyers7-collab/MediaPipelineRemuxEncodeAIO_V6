@@ -361,28 +361,38 @@ class RepairReconcileApplyTests(unittest.TestCase):
         with self.assertRaises(ValidationFailure):
             validate_api_payload("/api/completed/repair-sidecar-metadata", {**payload, "confirm_apply": "true"})
 
-    def test_local_api_confirmed_apply_is_journaled(self) -> None:
+    def test_local_api_completed_sidecar_apply_is_journaled_without_touching_media(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
-            resolved, _files = _completed_fixture(root)
+            resolved, files = _completed_fixture(root)
+            sidecar = files["sidecar"]
+            payload = json.loads(sidecar.read_text(encoding="utf-8"))
+            payload["operator_note"] = "preserve me through local api"
+            sidecar.write_text(json.dumps(payload, sort_keys=True), encoding="utf-8")
+            source_before = _file_state(files["source"])
+            output_before = _file_state(files["output"])
+            sidecar_before = _file_state(sidecar)
             facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
             row_key = facade.get_completed_preview(resolved).to_mapping()["rows"][0]["row_key"]
-            dry_run = facade.plan_repair_reconcile_dry_run(
-                resolved,
-                candidate_command="completed.repair_sidecar_metadata",
-                request={"scope": "selected", "row_key": row_key},
-            ).to_mapping()["data"]
             server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
             try:
                 server.start()
+                dry_run_request = Request(
+                    f"{server.url}/api/completed/repair-sidecar-metadata-dry-run",
+                    data=json.dumps({"scope": "selected", "row_key": row_key, "reason": "repair sidecar metadata"}).encode("utf-8"),
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(dry_run_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    dry_run_payload = json.loads(response.read().decode("utf-8"))
                 request = Request(
                     f"{server.url}/api/completed/repair-sidecar-metadata",
-                    data=json.dumps(_apply_request(dry_run)).encode("utf-8"),
+                    data=json.dumps(_apply_request(dry_run_payload["data"], reason="sidecar metadata only")).encode("utf-8"),
                     headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
                     method="POST",
                 )
                 with urlopen(request, timeout=5) as response:  # noqa: S310 - localhost test server
-                    payload = json.loads(response.read().decode("utf-8"))
+                    apply_payload = json.loads(response.read().decode("utf-8"))
                 commands_request = Request(
                     f"{server.url}/api/commands?limit=10",
                     headers={"Authorization": "Bearer test-token"},
@@ -392,10 +402,30 @@ class RepairReconcileApplyTests(unittest.TestCase):
             finally:
                 server.stop()
 
-        self.assertTrue(payload["ok"])
-        self.assertTrue(payload["data"]["applied"])
-        self.assertEqual(len(commands["entries"]), 1)
-        self.assertEqual(commands["entries"][0]["command"], "completed.repair_sidecar_metadata")
+            repaired = json.loads(sidecar.read_text(encoding="utf-8"))
+            backup_path = Path(apply_payload["data"]["backup_paths"][0])
+            self.assertTrue(dry_run_payload["ok"])
+            self.assertTrue(dry_run_payload["data"]["safe_to_apply"])
+            self.assertTrue(dry_run_payload["data"]["suppress_command_journal"])
+            self.assertTrue(apply_payload["ok"])
+            self.assertTrue(apply_payload["data"]["applied"])
+            self.assertEqual(apply_payload["data"]["candidate_command"], "completed.repair_sidecar_metadata")
+            self.assertEqual(apply_payload["data"]["selected_row_keys"], [row_key])
+            self.assertEqual(apply_payload["data"]["written_paths"], [str(sidecar)])
+            self.assertEqual(backup_path.name, sidecar.name)
+            self.assertTrue(backup_path.exists())
+            self.assertEqual(json.loads(backup_path.read_text(encoding="utf-8")), payload)
+            self.assertNotEqual(_file_state(sidecar), sidecar_before)
+            self.assertEqual(repaired["source_path"], str(files["source"]))
+            self.assertEqual(repaired["output_path"], str(files["output"]))
+            self.assertEqual(repaired["output_file"], files["output"].name)
+            self.assertEqual(repaired["operator_note"], "preserve me through local api")
+            self.assertEqual(_file_state(files["source"]), source_before)
+            self.assertEqual(_file_state(files["output"]), output_before)
+            self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
+            self.assertEqual(len(commands["entries"]), 1)
+            self.assertEqual(commands["entries"][0]["command"], "completed.repair_sidecar_metadata")
+            self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
 
     def test_local_api_completed_manifest_apply_is_journaled_without_touching_media(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
