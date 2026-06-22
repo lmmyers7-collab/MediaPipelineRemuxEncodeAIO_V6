@@ -1351,12 +1351,6 @@
   window.startRerunFromForm = startRerunFromForm;
   window.launchSettingsWorkspace = launchSettingsWorkspace;
   window.launchSettingsTrustStatus = launchSettingsTrustStatus;
-  window.launchSettingsDecision = launchSettingsDecision;
-  window.launchSettingsDecisionLines = launchSettingsDecisionLines;
-  window.launchSettingsRiskLines = launchSettingsRiskLines;
-  window.launchRealMediaReadinessLines = launchRealMediaReadinessLines;
-  window.renderLaunchSettingsRiskHandoff = renderLaunchSettingsRiskHandoff;
-  window.renderLaunchPolicyBoundary = renderLaunchPolicyBoundary;
   window.launchSettingsIntentRows = launchSettingsIntentRows;
   window.launchSettingsIntentStatus = launchSettingsIntentStatus;
   window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
