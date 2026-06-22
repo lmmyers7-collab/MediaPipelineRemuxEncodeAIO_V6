@@ -114,13 +114,9 @@ function renderSnapshot(snapshot) {
   setText("queue-count", `${queueIndex} / ${queueTotal}`);
   setText("processed-count", String(counts.processed || 0));
   renderDashboardIssueMetric(snapshot, dashboardCount(counts.failed));
-  if (typeof renderProgressBars === "function") {
-    renderProgressBars(Array.isArray(snapshot.progress_bars) ? snapshot.progress_bars : [], snapshot);
-  }
-  renderProgressDetails(snapshot.progress || {});
-  if (typeof renderProgressEvidence === "function") {
-    renderProgressEvidence({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, diagnostics: null });
-  }
+  window.mediaPipelineProgressView?.renderProgressBars?.(Array.isArray(snapshot.progress_bars) ? snapshot.progress_bars : [], snapshot);
+  window.mediaPipelineProgressView?.renderProgressDetails?.(snapshot.progress || {});
+  window.mediaPipelineProgressView?.renderProgressEvidence?.({ snapshot: lastSnapshot, closeReadiness: lastCloseReadiness, diagnostics: null });
   window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(lastSnapshot);
   window.mediaPipelineProgressView?.renderLiveRunStrip?.({
     snapshot: lastSnapshot,
@@ -893,13 +889,11 @@ async function refreshAllNow(options = {}) {
     diagnostics: values.diagnostics || null,
     closeReadiness: values["close readiness"] || lastCloseReadiness,
   });
-  if (typeof renderProgressEvidence === "function") {
-    renderProgressEvidence({
-      snapshot: values.snapshot || lastSnapshot,
-      closeReadiness: values["close readiness"] || lastCloseReadiness,
-      diagnostics: values.diagnostics || null,
-    });
-  }
+  window.mediaPipelineProgressView?.renderProgressEvidence?.({
+    snapshot: values.snapshot || lastSnapshot,
+    closeReadiness: values["close readiness"] || lastCloseReadiness,
+    diagnostics: values.diagnostics || null,
+  });
   window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(values.snapshot || lastSnapshot, values.diagnostics || null);
   if (typeof renderCrossPageContext === "function") {
     const crossPageContext = {

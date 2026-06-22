@@ -1164,8 +1164,8 @@ const settingsBackendResult = typeof settingsBackendResultModule.createSettingsB
     makeRowSelectable,
     parseSettingsPatchJson,
     renderProgressBarsInto: function () {
-      if (typeof window.renderProgressBarsInto === "function") {
-        window.renderProgressBarsInto.apply(window, arguments);
+      if (typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function") {
+        window.mediaPipelineProgressView.renderProgressBarsInto.apply(window.mediaPipelineProgressView, arguments);
       }
     },
     setSelectedSettingsBackendResultKey: (value) => { selectedSettingsBackendResultKey = value || ""; },

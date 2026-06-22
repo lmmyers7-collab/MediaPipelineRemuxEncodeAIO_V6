@@ -1,6 +1,8 @@
 (function () {
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
   const configValue = typeof settingsOverview.configValue === "function" ? settingsOverview.configValue : null;
+  const progressView = window.mediaPipelineProgressView || {};
+  const renderProgressBarsInto = typeof progressView.renderProgressBarsInto === "function" ? progressView.renderProgressBarsInto : null;
   const fallbackNetworkKeys = [
     ["Mode", "NetworkRole", "Network Role", "How this workstation participates in network processing."],
     ["Coordinator", "CoordinatorPort", "Listen Port", "TCP port for the coordinator HTTP API."],

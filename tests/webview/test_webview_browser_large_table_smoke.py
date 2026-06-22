@@ -826,14 +826,14 @@ def _browser_large_table_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
+                expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
+              expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) {

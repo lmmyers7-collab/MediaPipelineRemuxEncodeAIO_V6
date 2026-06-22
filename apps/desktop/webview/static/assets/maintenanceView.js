@@ -1,5 +1,7 @@
 (function () {
   const commandHistoryView = window.mediaPipelineCommandHistory || {};
+  const progressView = window.mediaPipelineProgressView || {};
+  const renderProgressBarsInto = typeof progressView.renderProgressBarsInto === "function" ? progressView.renderProgressBarsInto : null;
   let lastMaintenance = null;
   let lastChangeLedger = null;
   let selectedMaintenanceRowKey = "";

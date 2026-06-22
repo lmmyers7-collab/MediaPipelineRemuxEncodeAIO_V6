@@ -1,4 +1,4 @@
-/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, renderProgressBarsInto, settingsRawActionPlanRows, settingsRawActionPlanStatus, shortenPath */
+/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, settingsRawActionPlanRows, settingsRawActionPlanStatus, shortenPath */
 (function () {
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;

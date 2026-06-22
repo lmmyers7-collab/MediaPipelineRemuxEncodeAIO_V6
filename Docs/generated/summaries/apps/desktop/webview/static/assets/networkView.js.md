@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: a457ab4ecadf4066b55d98a3a61241ac461202811d725183c03159707389f124
+sha256: 9197158b75691a852b8d990bf678c2c6a753f9f7acdb0cecc1562c7a35ad1d00
 ---
 # `apps/desktop/webview/static/assets/networkView.js`
 

@@ -5691,7 +5691,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function selectQueueRow", queue_view_js)
         self.assertIn("function renderQueueProgress", queue_view_js)
         self.assertIn("function queueProgressBars", queue_view_js)
-        self.assertIn("const progressRenderer = window.renderProgressBarsInto", queue_view_js)
+        self.assertIn("const progressRenderer = window.mediaPipelineProgressView?.renderProgressBarsInto", queue_view_js)
         self.assertIn("progressRenderer(\"queue-progress-bars\"", queue_view_js)
         self.assertIn("queue-progress-bars", html)
         self.assertIn("queue-progress-summary", html)
@@ -7418,6 +7418,13 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("role\", \"progressbar", progress_view_js)
         self.assertIn("function renderProgressDetails", progress_view_js)
         self.assertIn("function renderProgressEvidence", progress_view_js)
+        for flat_progress_export in (
+            "window.renderProgressBarsInto =",
+            "window.renderProgressBars =",
+            "window.renderProgressDetails =",
+            "window.renderProgressEvidence =",
+        ):
+            self.assertNotIn(flat_progress_export, progress_view_js)
         self.assertIn("function progressEvidenceRows", progress_view_js)
         self.assertIn("function progressFfmpegPayload", progress_view_js)
         self.assertIn("desktop_ffmpeg_progress.v1", progress_view_js)
@@ -7892,8 +7899,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertNotIn("renderLaunchAuditProgress(lastSnapshot)", js)
         self.assertIn("const pendingPublishPayload = values[\"pending publish\"] || (pendingPublishFailure ? {", js)
         self.assertIn("if (values[\"pending publish\"] || pendingPublishFailure) renderPendingPublish(pendingPublishPayload, values.snapshot || lastSnapshot)", js)
-        self.assertIn("renderProgressBars(Array.isArray(snapshot.progress_bars)", js)
-        self.assertIn("renderProgressDetails(snapshot.progress || {})", js)
+        self.assertIn("window.mediaPipelineProgressView?.renderProgressBars?.(Array.isArray(snapshot.progress_bars)", js)
+        self.assertIn("window.mediaPipelineProgressView?.renderProgressDetails?.(snapshot.progress || {})", js)
         self.assertIn("window.mediaPipelineProgressView?.renderDiagnosticsProgress?.(lastSnapshot)", js)
         self.assertIn("renderDiagnosticsStateSummaryFn(values[\"diagnostics state summary\"])", js)
         self.assertIn("const recentEvents = Array.isArray(snapshot.recent_events)", js)

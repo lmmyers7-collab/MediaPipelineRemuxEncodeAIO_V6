@@ -1508,8 +1508,8 @@
     appendCells,
     byId,
     renderProgressBarsInto: function () {
-      if (typeof window.renderProgressBarsInto === "function") {
-        window.renderProgressBarsInto.apply(window, arguments);
+      if (typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function") {
+        window.mediaPipelineProgressView.renderProgressBarsInto.apply(window.mediaPipelineProgressView, arguments);
       }
     },
     setText,

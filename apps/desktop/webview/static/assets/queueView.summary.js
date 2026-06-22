@@ -267,7 +267,7 @@
       const bars = queueProgressBars(queue);
       setText("queue-progress-status", queueProgressStatus(queue, bars));
       setText("queue-progress-summary", queueProgressSummaryLines(queue, bars).join("\n"));
-      const progressRenderer = window.renderProgressBarsInto;
+      const progressRenderer = window.mediaPipelineProgressView?.renderProgressBarsInto;
       if (typeof progressRenderer === "function") {
         progressRenderer("queue-progress-bars", bars, queueProgressPayload(queue), "No queue source scan progress loaded.");
       }

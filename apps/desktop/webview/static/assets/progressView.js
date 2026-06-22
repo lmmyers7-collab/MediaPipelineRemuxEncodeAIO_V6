@@ -1790,7 +1790,7 @@
 
   /**
    * Public namespace for the shared progress module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Progress consumers should use this namespace; no flat window.* exports remain for this module.
    */
   window.mediaPipelineProgressView = {
     formatProgressUpdatedAt,
@@ -1831,8 +1831,4 @@
     activeWorkControlLine,
     latestEventLine,
   };
-  window.renderProgressBarsInto = renderProgressBarsInto;
-  window.renderProgressBars = renderProgressBars;
-  window.renderProgressDetails = renderProgressDetails;
-  window.renderProgressEvidence = renderProgressEvidence;
 })();

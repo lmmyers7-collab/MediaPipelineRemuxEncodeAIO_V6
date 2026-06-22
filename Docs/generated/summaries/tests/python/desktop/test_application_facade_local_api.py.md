@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 5aa8048debdec7513fd425a73a5563d760e92a9aa091fd1f6234ebaa506d1814
+sha256: 793b97a196b7b2f2cd07d613edc484ed28dac6edc03517a8eb7c6d1b78ba9078
 ---
 # `tests/python/desktop/test_application_facade_local_api.py`
 

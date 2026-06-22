@@ -1350,10 +1350,6 @@
       "renderPendingRecoveryPlanRows",
       "renderPendingReviewDigest",
       "renderPipelineControlHistory",
-      "renderProgressBars",
-      "renderProgressBarsInto",
-      "renderProgressDetails",
-      "renderProgressEvidence",
       "renderPublishReconciliation",
       "renderQualityDetailSettingsBuilderGuidance",
       "renderQueue",
@@ -2191,7 +2187,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3701
+    "top_level_declaration_count": 3705
   },
   "scripts": [
     {
@@ -3136,12 +3132,7 @@
       "namespace_exports": [
         "mediaPipelineProgressView"
       ],
-      "flat_window_exports": [
-        "renderProgressBars",
-        "renderProgressBarsInto",
-        "renderProgressDetails",
-        "renderProgressEvidence"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [
         "diagnostics-progress-rows",
@@ -14658,1038 +14649,1048 @@
           "kind": "const"
         },
         {
-          "name": "fallbackNetworkKeys",
+          "name": "progressView",
           "line": 4,
           "kind": "const"
         },
         {
+          "name": "renderProgressBarsInto",
+          "line": 5,
+          "kind": "const"
+        },
+        {
+          "name": "fallbackNetworkKeys",
+          "line": 6,
+          "kind": "const"
+        },
+        {
           "name": "lastNetworkWorkerRows",
-          "line": 17,
-          "kind": "let"
-        },
-        {
-          "name": "selectedNetworkWorkerKey",
-          "line": 18,
-          "kind": "let"
-        },
-        {
-          "name": "selectedNetworkLifecycleKey",
           "line": 19,
           "kind": "let"
         },
         {
-          "name": "selectedNetworkEvidenceKey",
+          "name": "selectedNetworkWorkerKey",
           "line": 20,
           "kind": "let"
         },
         {
-          "name": "selectedNetworkStateFileKey",
+          "name": "selectedNetworkLifecycleKey",
           "line": 21,
           "kind": "let"
         },
         {
-          "name": "networkWorkerStatusFilter",
+          "name": "selectedNetworkEvidenceKey",
           "line": 22,
           "kind": "let"
         },
         {
-          "name": "networkWorkerSearchText",
+          "name": "selectedNetworkStateFileKey",
           "line": 23,
           "kind": "let"
         },
         {
-          "name": "networkViewEventsInitialized",
+          "name": "networkWorkerStatusFilter",
           "line": 24,
           "kind": "let"
         },
         {
-          "name": "lastNetworkLifecyclePayload",
+          "name": "networkWorkerSearchText",
           "line": 25,
           "kind": "let"
         },
         {
-          "name": "networkLifecycleDryRunEvidence",
+          "name": "networkViewEventsInitialized",
           "line": 26,
+          "kind": "let"
+        },
+        {
+          "name": "lastNetworkLifecyclePayload",
+          "line": 27,
+          "kind": "let"
+        },
+        {
+          "name": "networkLifecycleDryRunEvidence",
+          "line": 28,
           "kind": "const"
         },
         {
           "name": "settingsConfig",
-          "line": 28,
+          "line": 30,
           "kind": "function"
         },
         {
           "name": "rawConfigValue",
-          "line": 34,
+          "line": 36,
           "kind": "function"
         },
         {
           "name": "isNetworkSecretSettingKey",
-          "line": 41,
+          "line": 43,
           "kind": "function"
         },
         {
           "name": "isNetworkUrlSettingKey",
-          "line": 46,
+          "line": 48,
           "kind": "function"
         },
         {
           "name": "redactedNetworkUrl",
-          "line": 50,
+          "line": 52,
           "kind": "function"
         },
         {
           "name": "displayConfigValue",
-          "line": 66,
+          "line": 68,
           "kind": "function"
         },
         {
           "name": "networkSettingDefinitions",
-          "line": 77,
+          "line": 79,
           "kind": "function"
         },
         {
           "name": "networkRows",
-          "line": 92,
+          "line": 94,
           "kind": "function"
         },
         {
           "name": "networkCoordinatorConnectivity",
-          "line": 105,
+          "line": 107,
           "kind": "function"
         },
         {
           "name": "networkCoordinatorConnectivityLines",
-          "line": 112,
+          "line": 114,
           "kind": "function"
         },
         {
           "name": "networkCoordinatorBindEndpoint",
-          "line": 119,
+          "line": 121,
           "kind": "function"
         },
         {
           "name": "coordinatorTarget",
-          "line": 127,
+          "line": 129,
           "kind": "function"
         },
         {
           "name": "visibleNetworkMode",
-          "line": 143,
+          "line": 145,
           "kind": "function"
         },
         {
           "name": "visibleNetworkModeLabel",
-          "line": 150,
+          "line": 152,
           "kind": "function"
         },
         {
           "name": "networkLifecycleStatePayload",
-          "line": 159,
+          "line": 161,
           "kind": "function"
         },
         {
           "name": "networkLifecycleStateFor",
-          "line": 166,
+          "line": 168,
           "kind": "function"
         },
         {
           "name": "networkRuntimeStatus",
-          "line": 176,
+          "line": 178,
           "kind": "function"
         },
         {
           "name": "networkTokenPostureLines",
-          "line": 193,
+          "line": 195,
           "kind": "function"
         },
         {
           "name": "networkDiagnosticLayers",
-          "line": 203,
+          "line": 205,
           "kind": "function"
         },
         {
           "name": "networkDiagnosticLayerLines",
-          "line": 208,
+          "line": 210,
           "kind": "function"
         },
         {
           "name": "networkDiagnosticLayerPosture",
-          "line": 223,
+          "line": 225,
           "kind": "function"
         },
         {
           "name": "networkWorkerDriftPayload",
-          "line": 234,
+          "line": 236,
           "kind": "function"
         },
         {
           "name": "networkWorkerDriftFieldText",
-          "line": 239,
+          "line": 241,
           "kind": "function"
         },
         {
           "name": "networkWorkerDriftStatusText",
-          "line": 248,
+          "line": 250,
           "kind": "function"
         },
         {
           "name": "networkWorkerDriftSummaryLines",
-          "line": 257,
+          "line": 259,
           "kind": "function"
         },
         {
           "name": "networkWorkerPolicyDivergencePayload",
-          "line": 264,
+          "line": 266,
           "kind": "function"
         },
         {
           "name": "networkWorkerPolicyDivergenceText",
-          "line": 269,
+          "line": 271,
           "kind": "function"
         },
         {
           "name": "networkWorkerPolicyDivergenceStatusText",
-          "line": 279,
+          "line": 281,
           "kind": "function"
         },
         {
           "name": "networkWorkerPolicyDivergenceActive",
-          "line": 287,
+          "line": 289,
           "kind": "function"
         },
         {
           "name": "networkWorkerPolicyDivergenceSummaryLines",
-          "line": 292,
+          "line": 294,
           "kind": "function"
         },
         {
           "name": "renderNetworkStatusBanner",
-          "line": 300,
+          "line": 302,
           "kind": "function"
         },
         {
           "name": "obviousWorkerCoordinatorUrlIssue",
-          "line": 341,
+          "line": 343,
           "kind": "function"
         },
         {
           "name": "networkGuidance",
-          "line": 377,
+          "line": 379,
           "kind": "function"
         },
         {
           "name": "networkModeModelLines",
-          "line": 402,
+          "line": 404,
           "kind": "function"
         },
         {
           "name": "renderNetworkSummaryRows",
-          "line": 413,
+          "line": 415,
           "kind": "function"
         },
         {
           "name": "networkRolePanelIds",
-          "line": 452,
+          "line": 454,
           "kind": "function"
         },
         {
           "name": "syncNetworkRoleDashboards",
-          "line": 460,
+          "line": 462,
           "kind": "function"
         },
         {
           "name": "networkDisplayValue",
-          "line": 476,
+          "line": 478,
           "kind": "function"
         },
         {
           "name": "networkNumber",
-          "line": 488,
+          "line": 490,
           "kind": "function"
         },
         {
           "name": "networkNormalizePathKey",
-          "line": 493,
+          "line": 495,
           "kind": "function"
         },
         {
           "name": "networkBasename",
-          "line": 501,
+          "line": 503,
           "kind": "function"
         },
         {
           "name": "networkAddSourceKey",
-          "line": 507,
+          "line": 509,
           "kind": "function"
         },
         {
           "name": "networkSourceKeysFromRow",
-          "line": 515,
+          "line": 517,
           "kind": "function"
         },
         {
           "name": "networkSourcePathKeysFromRow",
-          "line": 535,
+          "line": 537,
           "kind": "function"
         },
         {
           "name": "networkQueueRows",
-          "line": 553,
+          "line": 555,
           "kind": "function"
         },
         {
           "name": "networkQueueMatchMaps",
-          "line": 560,
+          "line": 562,
           "kind": "function"
         },
         {
           "name": "networkMatchedQueueRow",
-          "line": 571,
+          "line": 573,
           "kind": "function"
         },
         {
           "name": "networkQueueFileLabel",
-          "line": 580,
+          "line": 582,
           "kind": "function"
         },
         {
           "name": "networkRouteName",
-          "line": 587,
+          "line": 589,
           "kind": "function"
         },
         {
           "name": "networkRouteLabel",
-          "line": 592,
+          "line": 594,
           "kind": "function"
         },
         {
           "name": "networkRouteTone",
-          "line": 598,
+          "line": 600,
           "kind": "function"
         },
         {
           "name": "networkRouteEvidence",
-          "line": 606,
+          "line": 608,
           "kind": "function"
         },
         {
           "name": "networkPriorityText",
-          "line": 610,
+          "line": 612,
           "kind": "function"
         },
         {
           "name": "networkSizeText",
-          "line": 618,
+          "line": 620,
           "kind": "function"
         },
         {
           "name": "networkQueueOrder",
-          "line": 626,
+          "line": 628,
           "kind": "function"
         },
         {
           "name": "networkQueueStatus",
-          "line": 632,
+          "line": 634,
           "kind": "function"
         },
         {
           "name": "networkWorkerHasClaimEvidence",
-          "line": 638,
+          "line": 640,
           "kind": "function"
         },
         {
           "name": "networkWorkerLooksCompleteOrIdle",
-          "line": 643,
+          "line": 645,
           "kind": "function"
         },
         {
           "name": "networkClaimIsActive",
-          "line": 655,
+          "line": 657,
           "kind": "function"
         },
         {
           "name": "networkClaimedKeySet",
-          "line": 666,
+          "line": 668,
           "kind": "function"
         },
         {
           "name": "networkQueueRowClaimed",
-          "line": 679,
+          "line": 681,
           "kind": "function"
         },
         {
           "name": "networkReviewTile",
-          "line": 686,
+          "line": 688,
           "kind": "function"
         },
         {
           "name": "networkCoordinatorOverviewModel",
-          "line": 690,
+          "line": 692,
           "kind": "function"
         },
         {
           "name": "networkLifecycleRouteSummary",
-          "line": 755,
+          "line": 757,
           "kind": "function"
         },
         {
           "name": "networkWorkerCurrentFile",
-          "line": 764,
+          "line": 766,
           "kind": "function"
         },
         {
           "name": "networkWorkerOverviewModel",
-          "line": 768,
+          "line": 770,
           "kind": "function"
         },
         {
           "name": "renderOverviewTiles",
-          "line": 836,
+          "line": 838,
           "kind": "function"
         },
         {
           "name": "networkTileTone",
-          "line": 858,
+          "line": 860,
           "kind": "function"
         },
         {
           "name": "networkStatusChip",
-          "line": 867,
+          "line": 869,
           "kind": "function"
         },
         {
           "name": "networkRouteChip",
-          "line": 875,
+          "line": 877,
           "kind": "function"
         },
         {
           "name": "networkAppendCell",
-          "line": 883,
+          "line": 885,
           "kind": "function"
         },
         {
           "name": "renderCoordinatorActiveRows",
-          "line": 895,
+          "line": 897,
           "kind": "function"
         },
         {
           "name": "renderCoordinatorQueueRows",
-          "line": 925,
+          "line": 927,
           "kind": "function"
         },
         {
           "name": "renderWorkerClaimRows",
-          "line": 946,
+          "line": 948,
           "kind": "function"
         },
         {
           "name": "renderNetworkRoleDashboards",
-          "line": 959,
+          "line": 961,
           "kind": "function"
         },
         {
           "name": "contractSummary",
-          "line": 976,
+          "line": 978,
           "kind": "function"
         },
         {
           "name": "configFlagText",
-          "line": 988,
+          "line": 990,
           "kind": "function"
         },
         {
           "name": "configuredStatus",
-          "line": 998,
+          "line": 1000,
           "kind": "function"
         },
         {
           "name": "networkPathMapStatus",
-          "line": 1005,
+          "line": 1007,
           "kind": "function"
         },
         {
           "name": "routeExists",
-          "line": 1016,
+          "line": 1018,
           "kind": "function"
         },
         {
           "name": "networkLifecycleContracts",
-          "line": 1025,
+          "line": 1027,
           "kind": "function"
         },
         {
           "name": "networkLifecycleContractSummary",
-          "line": 1029,
+          "line": 1031,
           "kind": "function"
         },
         {
           "name": "networkLifecycleMutationRouteCount",
-          "line": 1042,
+          "line": 1044,
           "kind": "function"
         },
         {
           "name": "networkLifecycleDryRunRouteCount",
-          "line": 1051,
+          "line": 1053,
           "kind": "function"
         },
         {
           "name": "networkSetupMutationRouteRows",
-          "line": 1060,
+          "line": 1062,
           "kind": "function"
         },
         {
           "name": "networkSetupMutationRouteSummary",
-          "line": 1074,
+          "line": 1076,
           "kind": "function"
         },
         {
           "name": "networkLifecycleRouteRow",
-          "line": 1082,
+          "line": 1084,
           "kind": "function"
         },
         {
           "name": "networkLifecycleBoundaryStatus",
-          "line": 1093,
+          "line": 1095,
           "kind": "function"
         },
         {
           "name": "networkLifecycleBoundaryLines",
-          "line": 1100,
+          "line": 1102,
           "kind": "function"
         },
         {
           "name": "networkRouteSummaryStatus",
-          "line": 1122,
+          "line": 1124,
           "kind": "function"
         },
         {
           "name": "networkRouteSummaryLines",
-          "line": 1131,
+          "line": 1133,
           "kind": "function"
         },
         {
           "name": "networkLifecycleRoutePath",
-          "line": 1152,
+          "line": 1154,
           "kind": "function"
         },
         {
           "name": "networkLifecycleRouteAvailable",
-          "line": 1157,
+          "line": 1159,
           "kind": "function"
         },
         {
           "name": "networkLifecycleDryRunKey",
-          "line": 1162,
+          "line": 1164,
           "kind": "function"
         },
         {
           "name": "closeReadinessIsSafe",
-          "line": 1166,
+          "line": 1168,
           "kind": "function"
         },
         {
           "name": "networkLifecycleFingerprint",
-          "line": 1170,
+          "line": 1172,
           "kind": "function"
         },
         {
           "name": "networkLifecycleDryRunRecord",
-          "line": 1188,
+          "line": 1190,
           "kind": "function"
         },
         {
           "name": "pruneNetworkLifecycleDryRunEvidence",
-          "line": 1192,
+          "line": 1194,
           "kind": "function"
         },
         {
           "name": "networkLifecycleDryRunAllowsConfirmed",
-          "line": 1202,
+          "line": 1204,
           "kind": "function"
         },
         {
           "name": "networkLifecycleDryRunRequirementLine",
-          "line": 1209,
+          "line": 1211,
           "kind": "function"
         },
         {
           "name": "rememberNetworkLifecycleDryRun",
-          "line": 1222,
+          "line": 1224,
           "kind": "function"
         },
         {
           "name": "networkWorkerTestConnectionRoute",
-          "line": 1236,
+          "line": 1238,
           "kind": "function"
         },
         {
           "name": "networkCommandRouteByDataSchema",
-          "line": 1247,
+          "line": 1249,
           "kind": "function"
         },
         {
           "name": "networkCoordinatorJoinBlobRoute",
-          "line": 1257,
+          "line": 1259,
           "kind": "function"
         },
         {
           "name": "networkWorkerJoinClusterRoute",
-          "line": 1261,
+          "line": 1263,
           "kind": "function"
         },
         {
           "name": "networkWorkerDiscoverCoordinatorsRoute",
-          "line": 1265,
+          "line": 1267,
           "kind": "function"
         },
         {
           "name": "networkLifecycleRelevantRole",
-          "line": 1269,
+          "line": 1271,
           "kind": "function"
         },
         {
           "name": "networkLifecycleControlLines",
-          "line": 1276,
+          "line": 1278,
           "kind": "function"
         },
         {
           "name": "setNetworkSetupRouteStatus",
-          "line": 1315,
+          "line": 1317,
           "kind": "function"
         },
         {
           "name": "renderNetworkJoinControls",
-          "line": 1329,
+          "line": 1331,
           "kind": "function"
         },
         {
           "name": "renderNetworkLifecycleControls",
-          "line": 1373,
+          "line": 1375,
           "kind": "function"
         },
         {
           "name": "networkLifecycleCommandResultLines",
-          "line": 1444,
+          "line": 1446,
           "kind": "function"
         },
         {
           "name": "networkTestConnectionResultLines",
-          "line": 1544,
+          "line": 1546,
           "kind": "function"
         },
         {
           "name": "networkCoordinatorDiscoveryResultLines",
-          "line": 1593,
+          "line": 1595,
           "kind": "function"
         },
         {
           "name": "renderNetworkCoordinatorDiscoveryList",
-          "line": 1629,
+          "line": 1631,
           "kind": "function"
         },
         {
           "name": "stageDiscoveredCoordinatorUrl",
-          "line": 1662,
+          "line": 1664,
           "kind": "function"
         },
         {
           "name": "networkJoinBlobResultLines",
-          "line": 1694,
+          "line": 1696,
           "kind": "function"
         },
         {
           "name": "networkJoinImportResultLines",
-          "line": 1722,
+          "line": 1724,
           "kind": "function"
         },
         {
           "name": "createNetworkJoinBlob",
-          "line": 1761,
+          "line": 1763,
           "kind": "function"
         },
         {
           "name": "copyNetworkJoinBlob",
-          "line": 1817,
+          "line": 1819,
           "kind": "function"
         },
         {
           "name": "importNetworkJoinBlob",
-          "line": 1835,
+          "line": 1837,
           "kind": "function"
         },
         {
           "name": "discoverNetworkCoordinators",
-          "line": 1887,
+          "line": 1889,
           "kind": "function"
         },
         {
           "name": "networkLifecycleConfirmationLines",
-          "line": 1916,
+          "line": 1918,
           "kind": "function"
         },
         {
           "name": "confirmNetworkLifecycleCommand",
-          "line": 1946,
+          "line": 1948,
           "kind": "function"
         },
         {
           "name": "confirmNetworkSetupCommand",
-          "line": 1981,
+          "line": 1983,
           "kind": "function"
         },
         {
           "name": "postNetworkRoute",
-          "line": 2013,
+          "line": 2015,
           "kind": "function"
         },
         {
           "name": "postNetworkLifecycleRoute",
-          "line": 2018,
+          "line": 2020,
           "kind": "function"
         },
         {
           "name": "runNetworkLifecycleCommand",
-          "line": 2023,
+          "line": 2025,
           "kind": "function"
         },
         {
           "name": "runNetworkWorkerTestConnection",
-          "line": 2084,
+          "line": 2086,
           "kind": "function"
         },
         {
           "name": "networkOpenTargets",
-          "line": 2129,
+          "line": 2131,
           "kind": "function"
         },
         {
           "name": "networkOpenCommandTarget",
-          "line": 2133,
+          "line": 2135,
           "kind": "function"
         },
         {
           "name": "networkSettingsPatchStatusText",
-          "line": 2144,
+          "line": 2146,
           "kind": "function"
         },
         {
           "name": "renderNetworkSettingsPatchHandoff",
-          "line": 2151,
+          "line": 2153,
           "kind": "function"
         },
         {
           "name": "previewNetworkSettingsPatch",
-          "line": 2174,
+          "line": 2176,
           "kind": "function"
         },
         {
           "name": "saveNetworkSettingsPatch",
-          "line": 2187,
+          "line": 2189,
           "kind": "function"
         },
         {
           "name": "isNetworkOpenCommand",
-          "line": 2200,
+          "line": 2202,
           "kind": "function"
         },
         {
           "name": "networkOpenHistoryLine",
-          "line": 2205,
+          "line": 2207,
           "kind": "function"
         },
         {
           "name": "renderNetworkOpenHistory",
-          "line": 2227,
+          "line": 2229,
           "kind": "function"
         },
         {
           "name": "closeReadinessLine",
-          "line": 2245,
+          "line": 2247,
           "kind": "function"
         },
         {
           "name": "networkReadinessStatus",
-          "line": 2252,
+          "line": 2254,
           "kind": "function"
         },
         {
           "name": "snapshotStateLine",
-          "line": 2261,
+          "line": 2263,
           "kind": "function"
         },
         {
           "name": "networkReadinessLines",
-          "line": 2270,
+          "line": 2272,
           "kind": "function"
         },
         {
           "name": "renderNetworkReadiness",
-          "line": 2313,
+          "line": 2315,
           "kind": "function"
         },
         {
           "name": "networkLifecycleStatusState",
-          "line": 2337,
+          "line": 2339,
           "kind": "function"
         },
         {
           "name": "networkLifecycleGate",
-          "line": 2344,
+          "line": 2346,
           "kind": "function"
         },
         {
           "name": "networkLifecycleRows",
-          "line": 2348,
+          "line": 2350,
           "kind": "function"
         },
         {
           "name": "networkLifecycleStatus",
-          "line": 2477,
+          "line": 2479,
           "kind": "function"
         },
         {
           "name": "networkLifecycleSummaryLines",
-          "line": 2484,
+          "line": 2486,
           "kind": "function"
         },
         {
           "name": "getSelectedNetworkLifecycleRow",
-          "line": 2507,
+          "line": 2509,
           "kind": "function"
         },
         {
           "name": "networkLifecycleDetailLines",
-          "line": 2512,
+          "line": 2514,
           "kind": "function"
         },
         {
           "name": "renderNetworkLifecycleHandoff",
-          "line": 2533,
+          "line": 2535,
           "kind": "function"
         },
         {
           "name": "networkEvidenceCount",
-          "line": 2575,
+          "line": 2577,
           "kind": "function"
         },
         {
           "name": "networkEvidencePostureStatus",
-          "line": 2580,
+          "line": 2582,
           "kind": "function"
         },
         {
           "name": "networkEvidenceStatus",
-          "line": 2587,
+          "line": 2589,
           "kind": "function"
         },
         {
           "name": "networkEvidenceWorkerCounts",
-          "line": 2594,
+          "line": 2596,
           "kind": "function"
         },
         {
           "name": "networkEvidenceRow",
-          "line": 2602,
+          "line": 2604,
           "kind": "function"
         },
         {
           "name": "networkEvidenceRows",
-          "line": 2606,
+          "line": 2608,
           "kind": "function"
         },
         {
           "name": "networkEvidenceSummaryLines",
-          "line": 2763,
+          "line": 2765,
           "kind": "function"
         },
         {
           "name": "getSelectedNetworkEvidenceRow",
-          "line": 2785,
+          "line": 2787,
           "kind": "function"
         },
         {
           "name": "renderNetworkEvidenceDetail",
-          "line": 2790,
+          "line": 2792,
           "kind": "function"
         },
         {
           "name": "renderNetworkEvidenceChecklist",
-          "line": 2806,
+          "line": 2808,
           "kind": "function"
         },
         {
           "name": "networkStateFileRows",
-          "line": 2847,
+          "line": 2849,
           "kind": "function"
         },
         {
           "name": "networkStateFileStatus",
-          "line": 2851,
+          "line": 2853,
           "kind": "function"
         },
         {
           "name": "networkStateFileStatusText",
-          "line": 2859,
+          "line": 2861,
           "kind": "function"
         },
         {
           "name": "networkStateFileKey",
-          "line": 2866,
+          "line": 2868,
           "kind": "function"
         },
         {
           "name": "networkStateFileAgeText",
-          "line": 2870,
+          "line": 2872,
           "kind": "function"
         },
         {
           "name": "networkStateFileCompactLines",
-          "line": 2882,
+          "line": 2884,
           "kind": "function"
         },
         {
           "name": "networkStateFileSummaryLines",
-          "line": 2891,
+          "line": 2893,
           "kind": "function"
         },
         {
           "name": "getSelectedNetworkStateFileRow",
-          "line": 2917,
+          "line": 2919,
           "kind": "function"
         },
         {
           "name": "networkStateFileDetailLines",
-          "line": 2922,
+          "line": 2924,
           "kind": "function"
         },
         {
           "name": "renderNetworkStateFileDetail",
-          "line": 2950,
+          "line": 2952,
           "kind": "function"
         },
         {
           "name": "renderNetworkStateFiles",
-          "line": 2954,
+          "line": 2956,
           "kind": "function"
         },
         {
           "name": "renderNetworkSettingsRows",
-          "line": 2996,
+          "line": 2998,
           "kind": "function"
         },
         {
           "name": "workerDisplayValue",
-          "line": 3014,
+          "line": 3016,
           "kind": "function"
         },
         {
           "name": "networkWorkerRowKey",
-          "line": 3026,
+          "line": 3028,
           "kind": "function"
         },
         {
           "name": "getSelectedNetworkWorkerRow",
-          "line": 3039,
+          "line": 3041,
           "kind": "function"
         },
         {
           "name": "networkWorkerStatusState",
-          "line": 3044,
+          "line": 3046,
           "kind": "function"
         },
         {
           "name": "networkWorkerFilterText",
-          "line": 3069,
+          "line": 3071,
           "kind": "function"
         },
         {
           "name": "networkWorkerMatchesStatusFilter",
-          "line": 3078,
+          "line": 3080,
           "kind": "function"
         },
         {
           "name": "filteredNetworkWorkerRows",
-          "line": 3089,
+          "line": 3091,
           "kind": "function"
         },
         {
           "name": "networkWorkerFilterLabel",
-          "line": 3097,
+          "line": 3099,
           "kind": "function"
         },
         {
           "name": "networkWorkerRowsNeedingReview",
-          "line": 3104,
+          "line": 3106,
           "kind": "function"
         },
         {
           "name": "renderNetworkWorkerFilterSummary",
-          "line": 3111,
+          "line": 3113,
           "kind": "function"
         },
         {
           "name": "networkWorkerDetailLines",
-          "line": 3136,
+          "line": 3138,
           "kind": "function"
         },
         {
           "name": "workerLibraryCapabilityText",
-          "line": 3212,
+          "line": 3214,
           "kind": "function"
         },
         {
           "name": "renderNetworkWorkerDetail",
-          "line": 3221,
+          "line": 3223,
           "kind": "function"
         },
         {
           "name": "selectNetworkWorkerRow",
-          "line": 3225,
+          "line": 3227,
           "kind": "function"
         },
         {
           "name": "workerHeartbeatText",
-          "line": 3231,
+          "line": 3233,
           "kind": "function"
         },
         {
           "name": "workerProgressText",
-          "line": 3241,
+          "line": 3243,
           "kind": "function"
         },
         {
           "name": "networkWorkerProgressStatus",
-          "line": 3246,
+          "line": 3248,
           "kind": "function"
         },
         {
           "name": "networkWorkerProgressSummaryLines",
-          "line": 3252,
+          "line": 3254,
           "kind": "function"
         },
         {
           "name": "renderNetworkWorkerProgress",
-          "line": 3276,
+          "line": 3278,
           "kind": "function"
         },
         {
           "name": "renderNetworkWorkerRows",
-          "line": 3290,
+          "line": 3292,
           "kind": "function"
         },
         {
           "name": "initNetworkViewEvents",
-          "line": 3348,
+          "line": 3350,
           "kind": "function"
         },
         {
           "name": "renderNetworkWorkers",
-          "line": 3399,
+          "line": 3401,
           "kind": "function"
         },
         {
           "name": "renderNetworkView",
-          "line": 3446,
+          "line": 3448,
           "kind": "function"
         }
       ],
@@ -18952,568 +18953,578 @@
           "kind": "const"
         },
         {
-          "name": "lastMaintenance",
+          "name": "progressView",
           "line": 3,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "lastChangeLedger",
+          "name": "renderProgressBarsInto",
           "line": 4,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "selectedMaintenanceRowKey",
+          "name": "lastMaintenance",
           "line": 5,
           "kind": "let"
         },
         {
-          "name": "selectedChangeLedgerRowKey",
+          "name": "lastChangeLedger",
           "line": 6,
           "kind": "let"
         },
         {
-          "name": "maintenanceRefreshInFlight",
+          "name": "selectedMaintenanceRowKey",
           "line": 7,
           "kind": "let"
         },
         {
-          "name": "maintenanceRefreshQueued",
+          "name": "selectedChangeLedgerRowKey",
           "line": 8,
           "kind": "let"
         },
         {
-          "name": "changeLedgerRefreshInFlight",
+          "name": "maintenanceRefreshInFlight",
           "line": 9,
           "kind": "let"
         },
         {
-          "name": "maintenanceProgressPollTimer",
+          "name": "maintenanceRefreshQueued",
           "line": 10,
           "kind": "let"
         },
         {
-          "name": "lastReleasePreviewSignature",
+          "name": "changeLedgerRefreshInFlight",
           "line": 11,
           "kind": "let"
         },
         {
-          "name": "lastReleasePreviewOk",
+          "name": "maintenanceProgressPollTimer",
           "line": 12,
           "kind": "let"
         },
         {
-          "name": "lastReleasePreviewMessage",
+          "name": "lastReleasePreviewSignature",
           "line": 13,
           "kind": "let"
         },
         {
-          "name": "CHANGE_LEDGER_ROW_LIMIT",
+          "name": "lastReleasePreviewOk",
           "line": 14,
-          "kind": "const"
+          "kind": "let"
         },
         {
-          "name": "CHANGE_LEDGER_REFRESH_TIMEOUT_MS",
+          "name": "lastReleasePreviewMessage",
           "line": 15,
-          "kind": "const"
+          "kind": "let"
         },
         {
-          "name": "maintenanceDryRunButtonIds",
+          "name": "CHANGE_LEDGER_ROW_LIMIT",
           "line": 16,
           "kind": "const"
         },
         {
+          "name": "CHANGE_LEDGER_REFRESH_TIMEOUT_MS",
+          "line": 17,
+          "kind": "const"
+        },
+        {
+          "name": "maintenanceDryRunButtonIds",
+          "line": 18,
+          "kind": "const"
+        },
+        {
           "name": "maintenanceDryRunInFlight",
-          "line": 22,
+          "line": 24,
           "kind": "let"
         },
         {
           "name": "dependencyAtlasOpenInFlight",
-          "line": 23,
+          "line": 25,
           "kind": "let"
         },
         {
           "name": "maintenanceStatusState",
-          "line": 25,
+          "line": 27,
           "kind": "function"
         },
         {
           "name": "setMaintenanceStatusText",
-          "line": 45,
+          "line": 47,
           "kind": "function"
         },
         {
           "name": "maintenanceTableRowStatus",
-          "line": 56,
+          "line": 58,
           "kind": "function"
         },
         {
           "name": "releasePackageChipStatus",
-          "line": 67,
+          "line": 69,
           "kind": "function"
         },
         {
           "name": "setMaintenanceDryRunBusy",
-          "line": 80,
+          "line": 82,
           "kind": "function"
         },
         {
           "name": "rejectMaintenanceDryRunWhileBusy",
-          "line": 88,
+          "line": 90,
           "kind": "function"
         },
         {
           "name": "setDependencyAtlasOpenBusy",
-          "line": 104,
+          "line": 106,
           "kind": "function"
         },
         {
           "name": "hasMaintenanceLoaded",
-          "line": 110,
+          "line": 112,
           "kind": "function"
         },
         {
           "name": "getLastMaintenance",
-          "line": 114,
+          "line": 116,
           "kind": "function"
         },
         {
           "name": "getLastChangeLedger",
-          "line": 118,
+          "line": 120,
           "kind": "function"
         },
         {
           "name": "changeLedgerRows",
-          "line": 122,
+          "line": 124,
           "kind": "function"
         },
         {
           "name": "changeLedgerRowKey",
-          "line": 126,
+          "line": 128,
           "kind": "function"
         },
         {
           "name": "getSelectedChangeLedgerRow",
-          "line": 130,
+          "line": 132,
           "kind": "function"
         },
         {
           "name": "maintenanceRowKey",
-          "line": 135,
+          "line": 137,
           "kind": "function"
         },
         {
           "name": "getSelectedMaintenanceRow",
-          "line": 139,
+          "line": 141,
           "kind": "function"
         },
         {
           "name": "selectMaintenanceRow",
-          "line": 144,
+          "line": 146,
           "kind": "function"
         },
         {
           "name": "renderMaintenance",
-          "line": 150,
+          "line": 152,
           "kind": "function"
         },
         {
           "name": "changeLedgerCounts",
-          "line": 168,
+          "line": 170,
           "kind": "function"
         },
         {
           "name": "changeLedgerSummaryLines",
-          "line": 172,
+          "line": 174,
           "kind": "function"
         },
         {
           "name": "changeLedgerCoverage",
-          "line": 199,
+          "line": 201,
           "kind": "function"
         },
         {
           "name": "changeLedgerUnrecordedPaths",
-          "line": 203,
+          "line": 205,
           "kind": "function"
         },
         {
           "name": "renderChangeLedgerSummary",
-          "line": 212,
+          "line": 214,
           "kind": "function"
         },
         {
           "name": "changeLedgerHygieneStatus",
-          "line": 226,
+          "line": 228,
           "kind": "function"
         },
         {
           "name": "changeLedgerHygieneLines",
-          "line": 232,
+          "line": 234,
           "kind": "function"
         },
         {
           "name": "renderChangeLedgerHygiene",
-          "line": 270,
+          "line": 272,
           "kind": "function"
         },
         {
           "name": "changeLedgerFilterValue",
-          "line": 276,
+          "line": 278,
           "kind": "function"
         },
         {
           "name": "changeLedgerSearchText",
-          "line": 280,
+          "line": 282,
           "kind": "function"
         },
         {
           "name": "filteredChangeLedgerRows",
-          "line": 295,
+          "line": 297,
           "kind": "function"
         },
         {
           "name": "changeLedgerTableStatus",
-          "line": 309,
+          "line": 311,
           "kind": "function"
         },
         {
           "name": "selectChangeLedgerRow",
-          "line": 317,
+          "line": 319,
           "kind": "function"
         },
         {
           "name": "renderChangeLedgerRows",
-          "line": 323,
+          "line": 325,
           "kind": "function"
         },
         {
           "name": "changeLedgerDetailLines",
-          "line": 362,
+          "line": 364,
           "kind": "function"
         },
         {
           "name": "renderChangeLedgerDetail",
-          "line": 418,
+          "line": 420,
           "kind": "function"
         },
         {
           "name": "renderChangeLedger",
-          "line": 423,
+          "line": 425,
           "kind": "function"
         },
         {
           "name": "maintenanceProgressStatus",
-          "line": 435,
+          "line": 437,
           "kind": "function"
         },
         {
           "name": "maintenanceProgressStepLines",
-          "line": 441,
+          "line": 443,
           "kind": "function"
         },
         {
           "name": "maintenanceHealthErrorProgress",
-          "line": 465,
+          "line": 467,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceHealthProgress",
-          "line": 502,
+          "line": 504,
           "kind": "function"
         },
         {
           "name": "stopMaintenanceProgressPolling",
-          "line": 514,
+          "line": 516,
           "kind": "function"
         },
         {
           "name": "pollMaintenanceProgress",
-          "line": 521,
+          "line": 523,
           "kind": "function"
         },
         {
           "name": "startMaintenanceProgressPolling",
-          "line": 538,
+          "line": 540,
           "kind": "function"
         },
         {
           "name": "maintenanceDiagnosticsActionsForRow",
-          "line": 544,
+          "line": 546,
           "kind": "function"
         },
         {
           "name": "requestMaintenanceDiagnosticsAction",
-          "line": 555,
+          "line": 557,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceDiagnosticsActions",
-          "line": 578,
+          "line": 580,
           "kind": "function"
         },
         {
           "name": "maintenanceDetailLines",
-          "line": 606,
+          "line": 608,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceDetail",
-          "line": 651,
+          "line": 653,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceRows",
-          "line": 657,
+          "line": 659,
           "kind": "function"
         },
         {
           "name": "maintenanceRequiredMissingRows",
-          "line": 687,
+          "line": 689,
           "kind": "function"
         },
         {
           "name": "maintenanceOptionalWarningRows",
-          "line": 691,
+          "line": 693,
           "kind": "function"
         },
         {
           "name": "maintenanceActiveRows",
-          "line": 695,
+          "line": 697,
           "kind": "function"
         },
         {
           "name": "maintenanceReadinessStatus",
-          "line": 699,
+          "line": 701,
           "kind": "function"
         },
         {
           "name": "maintenanceRealMediaBoundaryLines",
-          "line": 710,
+          "line": 712,
           "kind": "function"
         },
         {
           "name": "maintenanceToolchainStatus",
-          "line": 719,
+          "line": 721,
           "kind": "function"
         },
         {
           "name": "maintenanceToolchainLines",
-          "line": 725,
+          "line": 727,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceToolchain",
-          "line": 750,
+          "line": 752,
           "kind": "function"
         },
         {
           "name": "maintenanceReadinessLines",
-          "line": 755,
+          "line": 757,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceReadiness",
-          "line": 806,
+          "line": 808,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceReadinessError",
-          "line": 812,
+          "line": 814,
           "kind": "function"
         },
         {
           "name": "isMaintenanceDryRunCommand",
-          "line": 825,
+          "line": 827,
           "kind": "function"
         },
         {
           "name": "maintenanceDryRunLabel",
-          "line": 830,
+          "line": 832,
           "kind": "function"
         },
         {
           "name": "maintenanceDryRunDetailLine",
-          "line": 838,
+          "line": 840,
           "kind": "function"
         },
         {
           "name": "formatMaintenanceDryRunHistoryLine",
-          "line": 858,
+          "line": 860,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceDryRunHistory",
-          "line": 872,
+          "line": 874,
           "kind": "function"
         },
         {
           "name": "maintenanceLatestDryRun",
-          "line": 907,
+          "line": 909,
           "kind": "function"
         },
         {
           "name": "maintenanceDryRunConfidenceStatus",
-          "line": 912,
+          "line": 914,
           "kind": "function"
         },
         {
           "name": "maintenanceReleaseOptionReviewLines",
-          "line": 926,
+          "line": 928,
           "kind": "function"
         },
         {
           "name": "maintenanceDryRunConfidenceLines",
-          "line": 961,
+          "line": 963,
           "kind": "function"
         },
         {
           "name": "renderMaintenanceDryRunConfidence",
-          "line": 1001,
+          "line": 1003,
           "kind": "function"
         },
         {
           "name": "refreshChangeLedger",
-          "line": 1007,
+          "line": 1009,
           "kind": "function"
         },
         {
           "name": "refreshMaintenance",
-          "line": 1032,
+          "line": 1034,
           "kind": "function"
         },
         {
           "name": "releaseRequestSignature",
-          "line": 1075,
+          "line": 1077,
           "kind": "function"
         },
         {
           "name": "recordReleasePreviewResult",
-          "line": 1098,
+          "line": 1100,
           "kind": "function"
         },
         {
           "name": "releasePreviewMatchesCreate",
-          "line": 1104,
+          "line": 1106,
           "kind": "function"
         },
         {
           "name": "releaseBuildConfirmMessage",
-          "line": 1108,
+          "line": 1110,
           "kind": "function"
         },
         {
           "name": "collectReleaseDryRunRequest",
-          "line": 1130,
+          "line": 1132,
           "kind": "function"
         },
         {
           "name": "collectReleaseBuildRequest",
-          "line": 1146,
+          "line": 1148,
           "kind": "function"
         },
         {
           "name": "releasePackageKindForCommand",
-          "line": 1155,
+          "line": 1157,
           "kind": "function"
         },
         {
           "name": "setReleasePackageStatus",
-          "line": 1162,
+          "line": 1164,
           "kind": "function"
         },
         {
           "name": "releasePackageResultHint",
-          "line": 1176,
+          "line": 1178,
           "kind": "function"
         },
         {
           "name": "releasePackageResultStatus",
-          "line": 1186,
+          "line": 1188,
           "kind": "function"
         },
         {
           "name": "renderReleasePackageInFlightProgress",
-          "line": 1207,
+          "line": 1209,
           "kind": "function"
         },
         {
           "name": "initMaintenanceViewEvents",
-          "line": 1229,
+          "line": 1231,
           "kind": "function"
         },
         {
           "name": "renderReleaseDryRunResult",
-          "line": 1264,
+          "line": 1266,
           "kind": "function"
         },
         {
           "name": "releasePackageProgressBars",
-          "line": 1313,
+          "line": 1315,
           "kind": "function"
         },
         {
           "name": "renderReleasePackageProgress",
-          "line": 1321,
+          "line": 1323,
           "kind": "function"
         },
         {
           "name": "runReleaseDryRun",
-          "line": 1328,
+          "line": 1330,
           "kind": "function"
         },
         {
           "name": "renderReleaseBuildResult",
-          "line": 1374,
+          "line": 1376,
           "kind": "function"
         },
         {
           "name": "runReleaseBuild",
-          "line": 1417,
+          "line": 1419,
           "kind": "function"
         },
         {
           "name": "renderBackfillDryRunResult",
-          "line": 1460,
+          "line": 1462,
           "kind": "function"
         },
         {
           "name": "backfillProgressBars",
-          "line": 1499,
+          "line": 1501,
           "kind": "function"
         },
         {
           "name": "renderBackfillProgress",
-          "line": 1507,
+          "line": 1509,
           "kind": "function"
         },
         {
           "name": "runBackfillDryRun",
-          "line": 1514,
+          "line": 1516,
           "kind": "function"
         },
         {
           "name": "dependencyAtlasProgressBars",
-          "line": 1542,
+          "line": 1544,
           "kind": "function"
         },
         {
           "name": "renderDependencyAtlasProgress",
-          "line": 1550,
+          "line": 1552,
           "kind": "function"
         },
         {
           "name": "renderDependencyAtlasResult",
-          "line": 1557,
+          "line": 1559,
           "kind": "function"
         },
         {
           "name": "runDependencyAtlas",
-          "line": 1605,
+          "line": 1607,
           "kind": "function"
         },
         {
           "name": "openDependencyAtlasFolder",
-          "line": 1636,
+          "line": 1638,
           "kind": "function"
         }
       ],
@@ -23609,642 +23620,642 @@
         },
         {
           "name": "dashboardText",
-          "line": 139,
+          "line": 135,
           "kind": "function"
         },
         {
           "name": "dashboardCount",
-          "line": 143,
+          "line": 139,
           "kind": "function"
         },
         {
           "name": "dashboardBoolean",
-          "line": 148,
+          "line": 144,
           "kind": "function"
         },
         {
           "name": "dashboardEventData",
-          "line": 156,
+          "line": 152,
           "kind": "function"
         },
         {
           "name": "dashboardEventIsStopRequested",
-          "line": 160,
+          "line": 156,
           "kind": "function"
         },
         {
           "name": "dashboardEventIsFailure",
-          "line": 168,
+          "line": 164,
           "kind": "function"
         },
         {
           "name": "dashboardProgressHasStopRequested",
-          "line": 177,
+          "line": 173,
           "kind": "function"
         },
         {
           "name": "dashboardLatestStopRequestedOutcome",
-          "line": 193,
+          "line": 189,
           "kind": "function"
         },
         {
           "name": "renderDashboardIssueMetric",
-          "line": 203,
+          "line": 199,
           "kind": "function"
         },
         {
           "name": "dashboardHasOwn",
-          "line": 227,
+          "line": 223,
           "kind": "function"
         },
         {
           "name": "dashboardPipelineStateAllowsEmptyScan",
-          "line": 231,
+          "line": 227,
           "kind": "function"
         },
         {
           "name": "dashboardQueueScanStatus",
-          "line": 236,
+          "line": 232,
           "kind": "function"
         },
         {
           "name": "dashboardQueueProgress",
-          "line": 241,
+          "line": 237,
           "kind": "function"
         },
         {
           "name": "dashboardQueueScanRunning",
-          "line": 246,
+          "line": 242,
           "kind": "function"
         },
         {
           "name": "dashboardQueueStale",
-          "line": 251,
+          "line": 247,
           "kind": "function"
         },
         {
           "name": "dashboardQueueBlockingWarnings",
-          "line": 258,
+          "line": 254,
           "kind": "function"
         },
         {
           "name": "dashboardQueueRunnableCount",
-          "line": 263,
+          "line": 259,
           "kind": "function"
         },
         {
           "name": "dashboardQueueHasFreshEmptyProof",
-          "line": 269,
+          "line": 265,
           "kind": "function"
         },
         {
           "name": "renderHomePipelineQueueOutcome",
-          "line": 285,
+          "line": 281,
           "kind": "function"
         },
         {
           "name": "renderCloseReadiness",
-          "line": 294,
+          "line": 290,
           "kind": "function"
         },
         {
           "name": "handleTauriBackendLifecycleEvent",
-          "line": 334,
+          "line": 330,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycle",
-          "line": 340,
+          "line": 336,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandEntries",
-          "line": 344,
+          "line": 340,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandLine",
-          "line": 348,
+          "line": 344,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleHistory",
-          "line": 357,
+          "line": 353,
           "kind": "function"
         },
         {
           "name": "_backendLifecycleSliceCompatibility",
-          "line": 361,
+          "line": 357,
           "kind": "const"
         },
         {
           "name": "backendShutdownStatusMessage",
-          "line": 368,
+          "line": 364,
           "kind": "function"
         },
         {
           "name": "appendBackendShutdownResult",
-          "line": 376,
+          "line": 372,
           "kind": "function"
         },
         {
           "name": "rejectBackendShutdown",
-          "line": 382,
+          "line": 378,
           "kind": "function"
         },
         {
           "name": "requestBackendShutdown",
-          "line": 396,
+          "line": 392,
           "kind": "function"
         },
         {
           "name": "closeReadinessRequiresWarning",
-          "line": 437,
+          "line": 433,
           "kind": "function"
         },
         {
           "name": "closeReadinessWarningMessage",
-          "line": 441,
+          "line": 437,
           "kind": "function"
         },
         {
           "name": "rowOpenActionGroup",
-          "line": 445,
+          "line": 441,
           "kind": "function"
         },
         {
           "name": "initBackendRowOpenActions",
-          "line": 449,
+          "line": 445,
           "kind": "function"
         },
         {
           "name": "refreshTimeLabel",
-          "line": 453,
+          "line": 449,
           "kind": "function"
         },
         {
           "name": "renderRefreshInProgress",
-          "line": 457,
+          "line": 453,
           "kind": "function"
         },
         {
           "name": "renderRefreshHealth",
-          "line": 461,
+          "line": 457,
           "kind": "function"
         },
         {
           "name": "attachRefreshMetadata",
-          "line": 465,
+          "line": 461,
           "kind": "function"
         },
         {
           "name": "initPageRefreshButtons",
-          "line": 469,
+          "line": 465,
           "kind": "function"
         },
         {
           "name": "refreshFailure",
-          "line": 473,
+          "line": 469,
           "kind": "function"
         },
         {
           "name": "renderHomeReadiness",
-          "line": 477,
+          "line": 473,
           "kind": "function"
         },
         {
           "name": "dailyDriverRows",
-          "line": 481,
+          "line": 477,
           "kind": "function"
         },
         {
           "name": "dailyDriverStatusClass",
-          "line": 485,
+          "line": 481,
           "kind": "function"
         },
         {
           "name": "dailyDriverSummaryLines",
-          "line": 489,
+          "line": 485,
           "kind": "function"
         },
         {
           "name": "dependencyStatusLabel",
-          "line": 493,
+          "line": 489,
           "kind": "function"
         },
         {
           "name": "homeProgressPercent",
-          "line": 497,
+          "line": 493,
           "kind": "function"
         },
         {
           "name": "renderHomePendingCount",
-          "line": 502,
+          "line": 498,
           "kind": "function"
         },
         {
           "name": "renderHomeNetworkRole",
-          "line": 506,
+          "line": 502,
           "kind": "function"
         },
         {
           "name": "renderHomeStorageHealth",
-          "line": 510,
+          "line": 506,
           "kind": "function"
         },
         {
           "name": "renderHomeQueueSnapshot",
-          "line": 514,
+          "line": 510,
           "kind": "function"
         },
         {
           "name": "renderHomeRecentCompleted",
-          "line": 518,
+          "line": 514,
           "kind": "function"
         },
         {
           "name": "renderHomePromotionEntry",
-          "line": 522,
+          "line": 518,
           "kind": "function"
         },
         {
           "name": "externalDependencyRows",
-          "line": 526,
+          "line": 522,
           "kind": "function"
         },
         {
           "name": "externalDependencyOverallStatus",
-          "line": 530,
+          "line": 526,
           "kind": "function"
         },
         {
           "name": "externalDependencySummaryLines",
-          "line": 534,
+          "line": 530,
           "kind": "function"
         },
         {
           "name": "externalDependencyEvidenceText",
-          "line": 538,
+          "line": 534,
           "kind": "function"
         },
         {
           "name": "renderExternalDependencyDigest",
-          "line": 542,
+          "line": 538,
           "kind": "function"
         },
         {
           "name": "renderHomeNextQueue",
-          "line": 565,
+          "line": 561,
           "kind": "function"
         },
         {
           "name": "renderDailyDriverReadiness",
-          "line": 569,
+          "line": 565,
           "kind": "function"
         },
         {
           "name": "recordLocalUiDiagnostic",
-          "line": 579,
+          "line": 575,
           "kind": "function"
         },
         {
           "name": "renderTelemetrySafely",
-          "line": 593,
+          "line": 589,
           "kind": "function"
         },
         {
           "name": "renderControlReadiness",
-          "line": 627,
+          "line": 623,
           "kind": "function"
         },
         {
           "name": "updatePagePanelEmptyStates",
-          "line": 631,
+          "line": 627,
           "kind": "function"
         },
         {
           "name": "showPage",
-          "line": 635,
+          "line": 631,
           "kind": "function"
         },
         {
           "name": "applyDefaultActionTooltips",
-          "line": 640,
+          "line": 636,
           "kind": "function"
         },
         {
           "name": "normalizeRefreshOptions",
-          "line": 646,
+          "line": 642,
           "kind": "function"
         },
         {
           "name": "mergeRefreshOptions",
-          "line": 653,
+          "line": 649,
           "kind": "function"
         },
         {
           "name": "refreshGet",
-          "line": 662,
+          "line": 658,
           "kind": "function"
         },
         {
           "name": "refreshAll",
-          "line": 673,
+          "line": 669,
           "kind": "function"
         },
         {
           "name": "refreshCurrentOutputStatus",
-          "line": 703,
+          "line": 699,
           "kind": "function"
         },
         {
           "name": "refreshAllNow",
-          "line": 707,
+          "line": 703,
           "kind": "function"
         },
         {
           "name": "initSettingsTabNav",
-          "line": 1009,
+          "line": 1003,
           "kind": "function"
         },
         {
           "name": "initDiagnosticsTabNav",
-          "line": 1013,
+          "line": 1007,
           "kind": "function"
         },
         {
           "name": "initCompletedTabNav",
-          "line": 1017,
+          "line": 1011,
           "kind": "function"
         },
         {
           "name": "initNavigation",
-          "line": 1021,
+          "line": 1015,
           "kind": "function"
         },
         {
           "name": "renderSparkline",
-          "line": 1025,
+          "line": 1019,
           "kind": "function"
         },
         {
           "name": "initLaunchEvidenceToggle",
-          "line": 1029,
+          "line": 1023,
           "kind": "function"
         },
         {
           "name": "initCollapsibleSummaries",
-          "line": 1033,
+          "line": 1027,
           "kind": "function"
         },
         {
           "name": "initThemeToggle",
-          "line": 1037,
+          "line": 1031,
           "kind": "function"
         },
         {
           "name": "applyThemePreference",
-          "line": 1041,
+          "line": 1035,
           "kind": "function"
         },
         {
           "name": "UI_PREFERENCES_ROUTE",
-          "line": 1045,
+          "line": 1039,
           "kind": "const"
         },
         {
           "name": "UI_PREFERENCE_KEY_RE",
-          "line": 1046,
+          "line": 1040,
           "kind": "const"
         },
         {
           "name": "ADVANCED_MODE_STORAGE_KEY",
-          "line": 1047,
+          "line": 1041,
           "kind": "const"
         },
         {
           "name": "EVIDENCE_HIDDEN_STORAGE_KEY",
-          "line": 1048,
+          "line": 1042,
           "kind": "const"
         },
         {
           "name": "THEME_STORAGE_KEY",
-          "line": 1049,
+          "line": 1043,
           "kind": "const"
         },
         {
           "name": "uiPreferenceSyncInstalled",
-          "line": 1051,
+          "line": 1045,
           "kind": "let"
         },
         {
           "name": "uiPreferenceSyncTimer",
-          "line": 1052,
+          "line": 1046,
           "kind": "let"
         },
         {
           "name": "uiPreferenceRemoteRefreshTimer",
-          "line": 1053,
+          "line": 1047,
           "kind": "let"
         },
         {
           "name": "uiPreferenceSyncInFlight",
-          "line": 1054,
+          "line": 1048,
           "kind": "let"
         },
         {
           "name": "uiPreferenceSyncPending",
-          "line": 1055,
+          "line": 1049,
           "kind": "let"
         },
         {
           "name": "uiPreferenceApplyingRemote",
-          "line": 1056,
+          "line": 1050,
           "kind": "let"
         },
         {
           "name": "uiPreferenceLocalDirty",
-          "line": 1057,
+          "line": 1051,
           "kind": "let"
         },
         {
           "name": "uiPreferenceLastSerialized",
-          "line": 1058,
+          "line": 1052,
           "kind": "let"
         },
         {
           "name": "isSharedUiPreferenceKey",
-          "line": 1060,
+          "line": 1054,
           "kind": "function"
         },
         {
           "name": "collectSharedUiPreferences",
-          "line": 1064,
+          "line": 1058,
           "kind": "function"
         },
         {
           "name": "currentUiPreferenceSurface",
-          "line": 1077,
+          "line": 1071,
           "kind": "function"
         },
         {
           "name": "readBooleanUiPreference",
-          "line": 1082,
+          "line": 1076,
           "kind": "function"
         },
         {
           "name": "sharedUiPreferencePayload",
-          "line": 1086,
+          "line": 1080,
           "kind": "function"
         },
         {
           "name": "persistSharedUiPreferencesNow",
-          "line": 1093,
+          "line": 1087,
           "kind": "function"
         },
         {
           "name": "applySharedUiPreferenceStorage",
-          "line": 1129,
+          "line": 1123,
           "kind": "function"
         },
         {
           "name": "hasPendingSharedUiPreferenceWrite",
-          "line": 1150,
+          "line": 1144,
           "kind": "function"
         },
         {
           "name": "scheduleSharedUiPreferenceSync",
-          "line": 1154,
+          "line": 1148,
           "kind": "function"
         },
         {
           "name": "restoreSharedUiPreferences",
-          "line": 1164,
+          "line": 1158,
           "kind": "function"
         },
         {
           "name": "startSharedUiPreferenceRemoteRefresh",
-          "line": 1208,
+          "line": 1202,
           "kind": "function"
         },
         {
           "name": "installSharedUiPreferenceStorageSync",
-          "line": 1221,
+          "line": 1215,
           "kind": "function"
         },
         {
           "name": "initAdvancedToggle",
-          "line": 1242,
+          "line": 1236,
           "kind": "function"
         },
         {
           "name": "initEvidenceToggle",
-          "line": 1255,
+          "line": 1249,
           "kind": "function"
         },
         {
           "name": "syncDiagnosticAdvancedCallouts",
-          "line": 1266,
+          "line": 1260,
           "kind": "function"
         },
         {
           "name": "applyAdvancedModePreference",
-          "line": 1273,
+          "line": 1267,
           "kind": "function"
         },
         {
           "name": "applyEvidenceHiddenPreference",
-          "line": 1285,
+          "line": 1279,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPage",
-          "line": 1338,
+          "line": 1332,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPanel",
-          "line": 1342,
+          "line": 1336,
           "kind": "function"
         },
         {
           "name": "shortcutTypingTarget",
-          "line": 1346,
+          "line": 1340,
           "kind": "function"
         },
         {
           "name": "shortcutElementVisible",
-          "line": 1350,
+          "line": 1344,
           "kind": "function"
         },
         {
           "name": "focusActivePageSearch",
-          "line": 1354,
+          "line": 1348,
           "kind": "function"
         },
         {
           "name": "dispatchShortcutInputChange",
-          "line": 1358,
+          "line": 1352,
           "kind": "function"
         },
         {
           "name": "clearActivePageFilters",
-          "line": 1362,
+          "line": 1356,
           "kind": "function"
         },
         {
           "name": "activePageSelectableRows",
-          "line": 1366,
+          "line": 1360,
           "kind": "function"
         },
         {
           "name": "moveActivePageSelection",
-          "line": 1370,
+          "line": 1364,
           "kind": "function"
         },
         {
           "name": "focusActivePageDetail",
-          "line": 1374,
+          "line": 1368,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutRegistry",
-          "line": 1378,
+          "line": 1372,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutHelpText",
-          "line": 1382,
+          "line": 1376,
           "kind": "function"
         },
         {
           "name": "initKeyboardShortcuts",
-          "line": 1386,
+          "line": 1380,
           "kind": "function"
         },
         {
           "name": "_layoutRenderDrawer",
-          "line": 1511,
+          "line": 1505,
           "kind": "function"
         },
         {
           "name": "_movePanelByStep",
-          "line": 1515,
+          "line": 1509,
           "kind": "function"
         },
         {
           "name": "applyStoredLayoutPreferences",
-          "line": 1519,
+          "line": 1513,
           "kind": "function"
         },
         {
           "name": "applySharedUiPreferenceRuntimeState",
-          "line": 1523,
+          "line": 1517,
           "kind": "function"
         },
         {
           "name": "initLayoutManager",
-          "line": 1537,
+          "line": 1531,
           "kind": "function"
         }
       ],

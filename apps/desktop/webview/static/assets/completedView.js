@@ -240,7 +240,7 @@
   delete window.__completedViewStatusBoardsModule;
   const completedStatusBoards = typeof completedStatusBoardsModule.createCompletedStatusBoardsModule === "function"
     ? completedStatusBoardsModule.createCompletedStatusBoardsModule({
-      renderProgressBarsInto: window.renderProgressBarsInto,
+      renderProgressBarsInto: window.mediaPipelineProgressView?.renderProgressBarsInto,
       state: completedEvidenceState,
     })
     : {};
