@@ -295,7 +295,7 @@
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
       commandHistoryCommandText: window.mediaPipelineCommandHistory?.commandHistoryCommandText,
       commandHistoryIssueLevel: window.mediaPipelineCommandHistory?.commandHistoryIssueLevel,
-      commandHistoryOwnerPage: window.commandHistoryOwnerPage,
+      commandHistoryOwnerPage: window.mediaPipelineCommandHistory?.commandHistoryOwnerPage,
       commandHistorySuggestedAction: window.mediaPipelineCommandHistory?.commandHistorySuggestedAction,
       completedEvidenceState,
       completedFilterFields: COMPLETED_FILTER_FIELDS,

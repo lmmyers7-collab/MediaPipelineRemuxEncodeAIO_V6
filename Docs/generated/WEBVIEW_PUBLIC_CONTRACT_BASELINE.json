@@ -875,7 +875,6 @@
       "collectSubtitleSettingsBuilderPatch",
       "collectVideoDetailSettingsBuilderPatch",
       "commandHistoryCompactEvidenceLine",
-      "commandHistoryOwnerPage",
       "completedAcceptanceDetailLines",
       "completedAcceptancePostureStatus",
       "completedAcceptanceRows",
@@ -3822,7 +3821,6 @@
       "flat_window_exports": [
         "appendCommandResult",
         "commandHistoryCompactEvidenceLine",
-        "commandHistoryOwnerPage",
         "getCommandHistory"
       ],
       "api_routes": [],

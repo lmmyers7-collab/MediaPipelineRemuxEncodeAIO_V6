@@ -1462,5 +1462,4 @@
   window.appendCommandResult = appendCommandResult;
   window.getCommandHistory = getCommandHistory;
   window.commandHistoryCompactEvidenceLine = commandHistoryCompactEvidenceLine;
-  window.commandHistoryOwnerPage = commandHistoryOwnerPage;
 })();

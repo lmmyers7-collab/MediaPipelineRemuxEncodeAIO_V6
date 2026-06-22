@@ -300,8 +300,8 @@ def _browser_schedule_runner_source() -> str:
               confirmCount,
               confirmMessage,
               commandHistory: history.map((entry) => entry.command || entry.raw?.command || ""),
-              schedulePreviewOwner: typeof window.commandHistoryOwnerPage === "function" ? window.commandHistoryOwnerPage(preview) : "",
-              scheduleSaveOwner: typeof window.commandHistoryOwnerPage === "function" ? window.commandHistoryOwnerPage(save) : "",
+              schedulePreviewOwner: typeof window.mediaPipelineCommandHistory?.commandHistoryOwnerPage === "function" ? window.mediaPipelineCommandHistory.commandHistoryOwnerPage(preview) : "",
+              scheduleSaveOwner: typeof window.mediaPipelineCommandHistory?.commandHistoryOwnerPage === "function" ? window.mediaPipelineCommandHistory.commandHistoryOwnerPage(save) : "",
             };
           })()
           `;

@@ -1605,7 +1605,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
         `Warning/error command rows: ${commandIssues.length}`,
       );
       commandIssues.slice(0, 6).forEach((entry) => {
-        const owner = typeof window.commandHistoryOwnerPage === "function" ? window.commandHistoryOwnerPage(entry) : "Diagnostics";
+        const owner = typeof commandHistoryView.commandHistoryOwnerPage === "function" ? commandHistoryView.commandHistoryOwnerPage(entry) : "Diagnostics";
         const issue = typeof commandHistoryView.commandHistoryIssueLevel === "function" ? commandHistoryView.commandHistoryIssueLevel(entry) : entry.severity || "review";
         lines.push(`- ${owner}: ${entry.command || "command"}; issue=${issue}; ${entry.message || ""}`);
       });
@@ -1737,7 +1737,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     if (commandIssues.length) {
       lines.push("", "Recent command issue(s):");
       commandIssues.slice(0, 5).forEach((entry) => {
-        const owner = typeof window.commandHistoryOwnerPage === "function" ? window.commandHistoryOwnerPage(entry) : "Diagnostics";
+        const owner = typeof commandHistoryView.commandHistoryOwnerPage === "function" ? commandHistoryView.commandHistoryOwnerPage(entry) : "Diagnostics";
         const action = typeof commandHistoryView.commandHistorySuggestedAction === "function" ? commandHistoryView.commandHistorySuggestedAction(entry) : "inspect command details and diagnostics.";
         lines.push(`- ${entry.command || entry.raw?.command || "command"} (${owner}): ${entry.message || entry.result || "issue"}; next: ${action}`);
       });
