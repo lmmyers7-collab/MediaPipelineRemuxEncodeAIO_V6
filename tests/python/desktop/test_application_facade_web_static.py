@@ -1607,6 +1607,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('datasetPrefix: "diagnosticsCommandDrilldown"', command_history_js)
         self.assertIn("renderDiagnosticsCommandDrilldown(commandHistory)", command_history_js)
         _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "renderDiagnosticsCommandDrilldown")
+        _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "renderCommandDiagnosticsEvidence")
+        self.assertNotIn("window.renderCommandDiagnosticsEvidence = renderCommandDiagnosticsEvidence", command_history_js)
         self.assertIn("function mergeCommandHistory", command_history_js)
         self.assertIn("local: true", command_history_js)
         self.assertIn("raw: payload", command_history_js)

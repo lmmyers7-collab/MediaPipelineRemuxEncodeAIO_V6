@@ -1200,7 +1200,6 @@
       "renderActiveJobDiagnosticsActions",
       "renderActiveJobRows",
       "renderAudioSettingsBuilderGuidance",
-      "renderCommandDiagnosticsEvidence",
       "renderCompleted",
       "renderCompletedActiveOutputContext",
       "renderCompletedBreakdown",
@@ -3842,7 +3841,6 @@
         "commandHistorySuggestedAction",
         "getCommandHistory",
         "getSelectedCommandEntry",
-        "renderCommandDiagnosticsEvidence",
         "selectCommandEntry"
       ],
       "api_routes": [],

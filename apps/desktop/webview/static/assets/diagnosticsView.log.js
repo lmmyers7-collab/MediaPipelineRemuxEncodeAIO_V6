@@ -292,8 +292,12 @@
 
   function renderDiagnosticsLogRows(diagnostics) {
     renderDiagnosticsLogTable(diagnosticsLogRows(diagnostics || {}));
-    if (typeof renderCommandDiagnosticsEvidence === "function") {
-      renderCommandDiagnosticsEvidence(typeof getSelectedCommandEntry === "function" ? getSelectedCommandEntry() : null);
+    const commandHistoryView = window.mediaPipelineCommandHistory || {};
+    if (typeof commandHistoryView.renderCommandDiagnosticsEvidence === "function") {
+      const selectedCommand = typeof commandHistoryView.getSelectedCommandEntry === "function"
+        ? commandHistoryView.getSelectedCommandEntry()
+        : null;
+      commandHistoryView.renderCommandDiagnosticsEvidence(selectedCommand);
     }
   }
 

@@ -1472,5 +1472,4 @@
   window.commandHistorySuggestedAction = commandHistorySuggestedAction;
   window.commandHistoryIssueEntries = commandHistoryIssueEntries;
   window.commandHistoryDiagnosticsActions = commandHistoryDiagnosticsActions;
-  window.renderCommandDiagnosticsEvidence = renderCommandDiagnosticsEvidence;
 })();
