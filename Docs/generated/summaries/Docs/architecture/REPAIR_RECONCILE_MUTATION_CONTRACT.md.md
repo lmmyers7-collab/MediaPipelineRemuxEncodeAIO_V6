@@ -3,9 +3,9 @@ file: docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-21
+last_modified: 2026-06-22
 last_reviewed: 2026-06-02
-sha256: b147725969553be583bea77e2262dcc1a3081f78a1de785acbd45f3f928cd425
+sha256: a95e8a0b40a3a3132246ade2bc11510df27c9d219422c0b0394c33db326eb725
 ---
 # `docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md`
 

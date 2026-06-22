@@ -3,9 +3,9 @@ file: tests/python/desktop/test_application_facade_web_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-21
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 1224def3470059fe0619ddf2488614f2d6ed153e528ee973ee4a0eb8fd446e24
+sha256: 6f29f6d3a75b9e27ed0eba94ecc9c82e72e0569ac3317d47116751fdae0d80a7
 ---
 # `tests/python/desktop/test_application_facade_web_static.py`
 

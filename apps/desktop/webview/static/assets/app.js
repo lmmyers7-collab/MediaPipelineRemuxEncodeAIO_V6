@@ -823,7 +823,7 @@ async function refreshAllNow(options = {}) {
   renderHomePendingCount(pendingPublishPayload);
   if (values.schedule) {
     lastSchedule = values.schedule;
-    renderSchedule(values.schedule);
+    window.mediaPipelineScheduleView?.renderSchedule?.(values.schedule);
   }
   const watchFoldersFailure = failures.find((item) => item.name === "watch folders");
   if (values["watch folders"] || watchFoldersFailure) {

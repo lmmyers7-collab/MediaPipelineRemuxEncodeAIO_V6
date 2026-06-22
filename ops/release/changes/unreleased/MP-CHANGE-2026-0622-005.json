@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0622-005",
+  "title": "Validate repair reconcile pending drain bridge",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "medium",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Added representative generated-runtime validation for the repair/reconcile orphan-payload apply path. The new Local API test repairs a backend-authorized pending manifest, proves the apply route writes only manifest state and records only the repair command, then invokes the real MediaPipeline.ps1 -DrainPendingPushes entrypoint to prove the repaired manifest drains into the final output while leaving source media unchanged.",
+  "reason": "The repair/reconcile operator surface had route, WebView, and temp-fixture apply coverage, but the deferred publish/drain handoff still needed evidence that a repaired orphan-payload manifest remains compatible with the backend-owned pending drain flow.",
+  "affected_areas": [
+    "architecture",
+    "docs",
+    "generated",
+    "testing",
+    "tests"
+  ],
+  "behavior_before": "Pending orphan-payload reconcile apply was covered as repair-only Local API mutation, but docs still listed operator/runtime deferred publish/drain validation as open.",
+  "behavior_after": "Pending orphan-payload reconcile apply is covered through the real drain entrypoint in a temp fixture: apply creates only the backend-authorized manifest, source/output/payload are unchanged before drain, the command journal records no drain, DrainPendingPushes publishes the output bytes, removes the parked payload/manifest, writes a successful drain summary, and leaves the source unchanged.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/architecture/REPAIR_RECONCILE_MUTATION_CONTRACT.md.md",
+    "docs/generated/summaries/docs/testing/TEST_COVERAGE_MATRIX.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_repair_reconcile_apply.py.md",
+    "docs/testing/TEST_COVERAGE_MATRIX.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-005.json",
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_repair_reconcile_apply.py"
+  ],
+  "manual_validation": [
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_repair_reconcile_apply -q - passed (25 tests)",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - passed (1763 current summaries)",
+    ".\\\\ops\\\\pipeline\\\\runtime\\\\PowerShell-7.6.0-win-x64\\\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\\\ops\\\\pipeline\\\\tests\\\\Unit\\\\Invoke-PendingPublishSafetyChecks.ps1 - passed",
+    ".\\\\ops\\\\scripts\\\\smoke\\\\Test-LocalApiRepairReconcileDryRunContractSmoke.ps1 - passed (78 tests, 630 subtests)"
+  ],
+  "rollback_plan": "Revert the added test, generated summary updates, and documentation status changes. The production repair/apply and drain behavior is not modified by this packet.",
+  "related_changes": [],
+  "notes": "Add Local API orphan repair to pending-drain bridge validation.\nDocument repair reconcile pending-drain bridge validation evidence.\nRefresh generated summaries for changed repair validation sources.\nValidation proves repair apply remains backend-owned and bridge-drainable through the real pending publish drain entrypoint.\nCompleted after targeted Local API, PowerShell pending-publish, and generated-summary validation."
+}

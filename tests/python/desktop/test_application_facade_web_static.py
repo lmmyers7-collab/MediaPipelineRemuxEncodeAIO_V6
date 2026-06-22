@@ -1063,6 +1063,14 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn(".pipeline-state-value {", components_css)
         self.assertIn("overflow-wrap: anywhere;", components_css)
 
+    def test_app_refresh_uses_schedule_namespace_export(self) -> None:
+        desktop_root = find_repo_root(Path(__file__))
+        static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
+        app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
+
+        self.assertIn("window.mediaPipelineScheduleView?.renderSchedule?.(values.schedule);", app_js)
+        self.assertNotIn("renderSchedule(values.schedule);", app_js)
+
     def test_completed_open_inventory_documents_contract_targets(self) -> None:
         repo_root = find_repo_root(Path(__file__))
         route = next(

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import json
+import os
+import subprocess
 import sys
 import tempfile
 import unittest
+import uuid
 from pathlib import Path
 from types import SimpleNamespace
 from urllib.error import HTTPError
@@ -11,7 +14,18 @@ from urllib.request import Request, urlopen
 
 from mediapipeline.tools.paths import find_repo_root
 
-sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
+PROJECT_ROOT = find_repo_root(Path(__file__))
+PIPELINE_PWSH = PROJECT_ROOT / "ops" / "pipeline" / "runtime" / "PowerShell-7.6.0-win-x64" / "pwsh.exe"
+PIPELINE_ENTRYPOINT = PROJECT_ROOT / "ops" / "pipeline" / "entrypoints" / "MediaPipeline.ps1"
+PIPELINE_REQUIRED_TOOLS = [
+    PIPELINE_PWSH,
+    PIPELINE_ENTRYPOINT,
+    PROJECT_ROOT / "ops" / "pipeline" / "tools" / "ffmpeg" / "bin" / "ffmpeg.exe",
+    PROJECT_ROOT / "ops" / "pipeline" / "tools" / "ffmpeg" / "bin" / "ffprobe.exe",
+    PROJECT_ROOT / "ops" / "pipeline" / "tools" / "MKVToolNix" / "mkvmerge.exe",
+]
+
+sys.path.insert(0, str(PROJECT_ROOT / "src"))
 
 from mediapipeline.core.completed.policy import completed_record_key
 from mediapipeline.core.kernel.contracts.pending_publish import PendingPushManifest
@@ -19,7 +33,7 @@ from mediapipeline.core.validation.boundary import ValidationFailure, validate_a
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import CompletedJobRecord
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService
+from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
 from tests.python.desktop.test_repair_reconcile_dry_run import _completed_fixture, _file_state, _pending_fixture, _pending_manifest_payload
 
 
@@ -32,6 +46,89 @@ def _apply_request(dry_run_data: dict[str, object], *, reason: str = "operator c
         "dry_run_fingerprint": dry_run_data["dry_run_fingerprint"],
         "confirm_apply": True,
     }
+
+
+def _psd1_literal(value: object) -> str:
+    if isinstance(value, bool):
+        return "$true" if value else "$false"
+    if isinstance(value, int | float):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        return "@(" + ", ".join(_psd1_literal(item) for item in value) + ")"
+    if isinstance(value, dict):
+        parts = [f"{key} = {_psd1_literal(item)}" for key, item in value.items()]
+        return "@{ " + "; ".join(parts) + " }"
+    escaped = str(value).replace("'", "''")
+    return f"'{escaped}'"
+
+
+def _write_drain_config(
+    path: Path,
+    *,
+    source_movies: Path,
+    source_tv: Path,
+    outsource: Path,
+    local_base: Path,
+) -> None:
+    config: dict[str, object] = {
+        "ConfigSchemaVersion": 1,
+        "SourceMovies": str(source_movies),
+        "SourceTV": str(source_tv),
+        "Outsource": str(outsource),
+        "LocalBase": str(local_base),
+        "MinFreeSpaceGB": 1,
+        "OutsourceMinFreeSpaceGB": 1,
+        "DeferredPublish": True,
+        "VideoCodec": "hevc_nvenc",
+        "VideoPreset": "p7",
+        "VideoQuality": 24,
+        "OutputContainer": "mkv",
+        "CompatibleAudioCodecs": ["aac", "ac3", "eac3"],
+        "SubKeepLanguages": ["eng"],
+        "SubSDHTitleKeywords": ["sdh"],
+        "SubSupplementalKeywords": ["sign", "song"],
+        "DropAssAfterConversion": False,
+        "RemuxSafeVideoCodecs": ["mpeg4", "h264", "hevc", "avc1"],
+        "ValidExtensions": [".mkv", ".mp4"],
+        "FileStabilityWait": 0,
+        "EnableIntegrityCheck": False,
+        "CreateTVSubfolder": True,
+        "RobocopyFlags": ["/R:1", "/W:1", "/NP", "/NDL", "/NFL"],
+        "DebugMode": False,
+        "SkipStabilityCheck": True,
+    }
+    lines = ["@{"]
+    for key in sorted(config):
+        lines.append(f"    {key} = {_psd1_literal(config[key])}")
+    lines.append("}")
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def _run_pending_drain(config_path: Path) -> subprocess.CompletedProcess[str]:
+    missing = [str(path) for path in PIPELINE_REQUIRED_TOOLS if not path.exists()]
+    if missing:
+        raise unittest.SkipTest("Missing bundled pipeline runtime/tool(s): " + ", ".join(missing))
+    env = os.environ.copy()
+    env["MEDIA_PIPELINE_TEST_MUTEX_SUFFIX"] = uuid.uuid4().hex
+    return subprocess.run(
+        [
+            str(PIPELINE_PWSH),
+            "-NoProfile",
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            str(PIPELINE_ENTRYPOINT),
+            "-ConfigPath",
+            str(config_path),
+            "-DrainPendingPushes",
+        ],
+        cwd=str(PROJECT_ROOT),
+        env=env,
+        capture_output=True,
+        text=True,
+        timeout=90,
+        check=False,
+    )
 
 
 class RepairReconcileApplyTests(unittest.TestCase):
@@ -717,6 +814,117 @@ class RepairReconcileApplyTests(unittest.TestCase):
             self.assertEqual(pending_row["drain_recommendation"], "ready_to_drain")
             self.assertTrue(pending_payload["drain_summary"]["exists"])
             self.assertEqual(pending_payload["drain_summary"]["path"], str(drain_summary))
+
+    def test_local_api_orphan_apply_then_pipeline_drain_publishes_payload(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            local_base = root / "LocalBase"
+            state_root = local_base / "State"
+            pending_root = state_root / "PendingServerPush"
+            source_movies = root / "Source" / "Movies"
+            source_tv = root / "Source" / "TV"
+            outsource = root / "Outsource"
+            config_path = root / "drain_config.psd1"
+            pending_root.mkdir(parents=True, exist_ok=True)
+            source_movies.mkdir(parents=True, exist_ok=True)
+            source_tv.mkdir(parents=True, exist_ok=True)
+            outsource.mkdir(parents=True, exist_ok=True)
+            _write_drain_config(
+                config_path,
+                source_movies=source_movies,
+                source_tv=source_tv,
+                outsource=outsource,
+                local_base=local_base,
+            )
+
+            source = source_movies / "Movie.mkv"
+            output = outsource / "Movie.mkv"
+            payload = pending_root / "Movie.mkv"
+            manifest = Path(str(payload) + ".manifest.json")
+            source.write_bytes(b"source-bytes")
+            payload.write_bytes(b"pending-payload")
+            source_before = _file_state(source)
+            output_before = _file_state(output)
+            payload_before = _file_state(payload)
+
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.local_base = local_base
+            resolved.state_root = state_root
+            resolved.source_movies = source_movies
+            resolved.source_tv = source_tv
+            resolved.pending_push_path = pending_root
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root), app_version="v6-test")
+            original_get_pending_publish_preview = facade.get_pending_publish_preview
+            preview = facade.get_pending_publish_preview(resolved).to_mapping()
+            row = preview["rows"][0]
+            row["backend_manifest_proposal"] = _pending_manifest_payload(payload, output, source)
+            facade.get_pending_publish_preview = lambda _resolved: SimpleNamespace(to_mapping=lambda: preview)  # type: ignore[method-assign]
+            server = LocalApiServer(facade, token="test-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                dry_run_request = Request(
+                    f"{server.url}/api/pending-publish/reconcile-orphan-payloads-dry-run",
+                    data=json.dumps({"scope": "selected", "row_key": row["row_key"]}).encode("utf-8"),
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(dry_run_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    dry_run_payload = json.loads(response.read().decode("utf-8"))
+                apply_request = Request(
+                    f"{server.url}/api/pending-publish/reconcile-orphan-payloads",
+                    data=json.dumps(_apply_request(dry_run_payload["data"], reason="recover drainable pending manifest only")).encode("utf-8"),
+                    headers={"Authorization": "Bearer test-token", "Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urlopen(apply_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    apply_payload = json.loads(response.read().decode("utf-8"))
+                commands_request = Request(
+                    f"{server.url}/api/commands?limit=10",
+                    headers={"Authorization": "Bearer test-token"},
+                )
+                with urlopen(commands_request, timeout=5) as response:  # noqa: S310 - localhost test server
+                    commands = json.loads(response.read().decode("utf-8"))
+            finally:
+                facade.get_pending_publish_preview = original_get_pending_publish_preview  # type: ignore[method-assign]
+                server.stop()
+
+            repaired = json.loads(manifest.read_text(encoding="utf-8"))
+            self.assertTrue(dry_run_payload["ok"])
+            self.assertTrue(dry_run_payload["data"]["safe_to_apply"])
+            self.assertTrue(apply_payload["ok"])
+            self.assertTrue(apply_payload["data"]["applied"])
+            self.assertEqual(apply_payload["data"]["candidate_command"], "pending_publish.reconcile_orphan_payloads")
+            self.assertEqual(apply_payload["data"]["written_paths"], [str(manifest)])
+            self.assertEqual(apply_payload["data"]["backup_paths"], [])
+            PendingPushManifest.from_mapping(repaired)
+            self.assertEqual(_file_state(source), source_before)
+            self.assertEqual(_file_state(output), output_before)
+            self.assertEqual(_file_state(payload), payload_before)
+            self.assertTrue(apply_payload["data"]["source_payload_output_unchanged"])
+            self.assertEqual(len(commands["entries"]), 1)
+            self.assertEqual(commands["entries"][0]["command"], "pending_publish.reconcile_orphan_payloads")
+            self.assertFalse(any("drain" in str(entry.get("command", "")).lower() for entry in commands["entries"]))
+
+            drain = _run_pending_drain(config_path)
+            self.assertEqual(
+                drain.returncode,
+                0,
+                "pipeline drain failed\nSTDOUT:\n" + drain.stdout + "\nSTDERR:\n" + drain.stderr,
+            )
+            self.assertEqual(_file_state(source), source_before)
+            self.assertTrue(output.exists())
+            self.assertEqual(output.read_bytes(), b"pending-payload")
+            self.assertFalse(payload.exists())
+            self.assertFalse(manifest.exists())
+            summary_path = state_root / "Progress" / "pending_drain_summary.json"
+            summary = json.loads(summary_path.read_text(encoding="utf-8-sig"))
+            self.assertEqual(summary["schema_version"], "pending_drain_summary.v1")
+            self.assertEqual(summary["attempted_count"], 1)
+            self.assertEqual(summary["recovered_count"], 1)
+            self.assertEqual(summary["succeeded_count"], 1)
+            self.assertEqual(summary["error_count"], 0)
+            self.assertEqual(summary["remaining_count"], 0)
 
     def test_local_api_validation_rejects_unknown_apply_payload_fields(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
