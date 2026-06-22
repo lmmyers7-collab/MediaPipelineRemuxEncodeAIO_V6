@@ -23,9 +23,9 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1816,
-    "js_touched_ids": 562,
-    "ids_present_in_index": 530,
+    "html_ids": 1817,
+    "js_touched_ids": 563,
+    "ids_present_in_index": 531,
     "ids_missing_from_index": 32,
     "likely_dynamic_missing_ids": 0,
     "review_missing_ids": 32
@@ -421,6 +421,7 @@
     "report-open-history-disclosure",
     "report-warning-rows",
     "rerun-dry-run-button",
+    "rerun-plan-only-button",
     "rerun-start-button",
     "rerun-start-csv-path",
     "rerun-start-show-console",
@@ -2252,6 +2253,7 @@
         "rename-use-loaded-queue-button",
         "rename-use-selected-queue-button",
         "rerun-dry-run-button",
+        "rerun-plan-only-button",
         "rerun-start-button",
         "state-pill"
       ],

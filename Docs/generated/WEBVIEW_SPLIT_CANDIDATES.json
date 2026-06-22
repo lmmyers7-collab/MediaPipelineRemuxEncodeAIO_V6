@@ -31,9 +31,9 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.refresh.js",
           "topic": "app-refresh",
           "line_range": {
-            "start": 664,
-            "end": 984,
-            "line_count": 321
+            "start": 658,
+            "end": 974,
+            "line_count": 317
           },
           "functions_to_move": [
             "refreshGet",
@@ -75,7 +75,7 @@
             "renderHomeReadiness",
             "renderHomeRecentCompleted",
             "renderHomeStorageHealth",
-            "renderRefreshHealth"
+            "renderLaunchReadinessPanel"
           ],
           "globals_to_preserve": [
             "externalDependencyEvidenceText",
@@ -126,6 +126,7 @@
               "renderHomeReadiness",
               "renderHomeRecentCompleted",
               "renderHomeStorageHealth",
+              "renderLaunchReadinessPanel",
               "renderRefreshHealth",
               "renderRefreshInProgress",
               "renderSnapshot",
@@ -148,6 +149,7 @@
               "window.mediaPipelineDom",
               "window.mediaPipelineLaunchView",
               "window.mediaPipelineLibraryRouteMap",
+              "window.mediaPipelineMaintenanceView",
               "window.mediaPipelineMetricsView",
               "window.mediaPipelineNetworkView",
               "window.mediaPipelineProgressView",
@@ -193,7 +195,6 @@
               "renderFailurePreview",
               "renderFinalLibraryPromotion",
               "renderHomeActiveWork",
-              "renderLaunchReadiness",
               "renderLaunchRealMediaProofHandoff",
               "renderLiveRunStrip",
               "renderMetrics",
@@ -230,8 +231,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 1013,
-            "end": 1302,
+            "start": 1003,
+            "end": 1292,
             "line_count": 290
           },
           "functions_to_move": [
@@ -364,11 +365,12 @@
           "topic": "app-core",
           "line_range": {
             "start": 89,
-            "end": 340,
-            "line_count": 252
+            "end": 334,
+            "line_count": 246
           },
           "functions_to_move": [
             "renderTauriBackendLifecycleAlert",
+            "renderLaunchReadinessPanel",
             "renderSnapshot",
             "dashboardText",
             "dashboardCount",
@@ -452,6 +454,7 @@
             "api_dependencies": [],
             "window_dependencies": [
               "window.mediaPipelineAppTauriLifecycle",
+              "window.mediaPipelineLaunchReadinessView",
               "window.mediaPipelineProgressView",
               "window.mediaPipelineReportsView"
             ],
@@ -506,8 +509,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/app.core.js",
           "topic": "app-core",
           "line_range": {
-            "start": 544,
-            "end": 662,
+            "start": 538,
+            "end": 656,
             "line_count": 119
           },
           "functions_to_move": [
@@ -688,8 +691,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1491,
-            "end": 2097,
+            "start": 1494,
+            "end": 2100,
             "line_count": 607
           },
           "functions_to_move": [
@@ -978,8 +981,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1257,
-            "end": 1433,
+            "start": 1260,
+            "end": 1436,
             "line_count": 177
           },
           "functions_to_move": [
@@ -1217,8 +1220,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.policyImpact.js",
           "topic": "settings-final-library",
           "line_range": {
-            "start": 701,
-            "end": 867,
+            "start": 704,
+            "end": 870,
             "line_count": 167
           },
           "functions_to_move": [
@@ -1417,8 +1420,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 394,
-            "end": 545,
+            "start": 397,
+            "end": 548,
             "line_count": 152
           },
           "functions_to_move": [
@@ -1679,8 +1682,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 61,
-            "end": 186,
+            "start": 64,
+            "end": 189,
             "line_count": 126
           },
           "functions_to_move": [

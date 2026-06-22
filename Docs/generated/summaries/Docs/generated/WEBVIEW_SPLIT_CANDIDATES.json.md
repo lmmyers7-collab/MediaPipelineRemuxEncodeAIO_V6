@@ -3,9 +3,9 @@ file: docs/generated/WEBVIEW_SPLIT_CANDIDATES.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-21
+last_modified: 2026-06-22
 last_reviewed: 2026-06-02
-sha256: 02ea23bb8dda81192d6f0cb916d7b4ab834f73eb26c1ebb64dbac132ecc2a9d1
+sha256: cd8444b2a26251487faafd8a4f5efab42d1c39d7554f4af16dd0a0127870b6a4
 ---
 # `docs/generated/WEBVIEW_SPLIT_CANDIDATES.json`
 

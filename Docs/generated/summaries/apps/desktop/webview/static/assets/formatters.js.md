@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/formatters.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-21
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 8eb3233f460b3b60e3f9b8dcf22b9a3cc34a36dbaec1faa893cdd3f0c8e71f7c
+sha256: 0bec28c6b3103dee9292997dde51d45a3739a7510c5ac660cdba2e36870ead39
 ---
 # `apps/desktop/webview/static/assets/formatters.js`
 

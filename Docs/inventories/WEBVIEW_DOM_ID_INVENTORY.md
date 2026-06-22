@@ -4,7 +4,7 @@ Date: 2026-06-20
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1816. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1817. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -282,6 +282,7 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `audit-launch-status` | `<span>` | Audit launch status |
 | `audit-launch-preflight` | `<div>` | Audit preflight result |
 | `rerun-start-button` | `<button>` | Trigger `/api/rerun/start` |
+| `rerun-plan-only-button` | `<button>` | Trigger no-write `/api/rerun/start` plan-only request |
 | `rerun-launch-detail` | `<div>` | Rerun launch detail |
 | `rerun-launch-status` (inferred) | `<span>` | Rerun launch status |
 | `pending-drain-detail` | `<div>` | Pending drain launch detail |
@@ -638,7 +639,7 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1816
+Count: 1817
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1801,6 +1802,7 @@ rerun-dry-run-button
 rerun-launch-detail
 rerun-launch-preflight
 rerun-launch-status
+rerun-plan-only-button
 rerun-start-button
 rerun-start-csv-path
 rerun-start-show-console

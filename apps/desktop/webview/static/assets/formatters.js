@@ -100,5 +100,4 @@
   window.formatConfigValue = formatConfigValue;
   window.parseSettingsListText = parseSettingsListText;
   window.formatSettingsListValue = formatSettingsListValue;
-  window.settingsValuesEqual = settingsValuesEqual;
 })();

@@ -9,9 +9,12 @@
   const settingsCommandHistoryLine = settingsCommandHistory.settingsCommandHistoryLine || function () { return ""; };
   const renderSettingsCommandHistory = settingsCommandHistory.renderSettingsCommandHistory || function () {};
   const domHelpers = window.mediaPipelineDom || {};
-  const settingsValuesEqual = window.settingsValuesEqual || function (left, right) {
-    return JSON.stringify(left) === JSON.stringify(right);
-  };
+  const formatters = window.mediaPipelineFormatters || {};
+  const settingsValuesEqual = typeof formatters.settingsValuesEqual === "function"
+    ? formatters.settingsValuesEqual
+    : function (left, right) {
+      return JSON.stringify(left) === JSON.stringify(right);
+    };
   const jsonDetailText = domHelpers.jsonDetailText || function (options = {}) {
     const label = options.label || "JSON detail";
     try {

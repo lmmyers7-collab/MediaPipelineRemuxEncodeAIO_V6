@@ -7,7 +7,7 @@
   "violations": [],
   "summary": {
     "scripts": 138,
-    "controls": 440,
+    "controls": 441,
     "route_usages": 86,
     "dynamic_api_posts": 1,
     "route_contracts": 140,
@@ -15,7 +15,7 @@
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
       "backend-contract-dynamic-route": 8,
-      "backend-owned-route": 139,
+      "backend-owned-route": 141,
       "disabled-future-network-control": 5,
       "local-copy": 2,
       "local-display-state": 74,
@@ -26,7 +26,7 @@
       "local-network-staging": 1,
       "local-or-read-only": 48,
       "local-queue-order-staging": 1,
-      "local-read-navigation": 35,
+      "local-read-navigation": 34,
       "local-rename-staging": 4,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
@@ -1699,8 +1699,17 @@
       "tag": "button",
       "id": "rerun-dry-run-button",
       "text": "Preview CSV Rerun",
-      "classification": "local-read-navigation",
-      "route": "",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/start",
+      "data_attrs": {}
+    },
+    {
+      "page": "launch",
+      "tag": "button",
+      "id": "rerun-plan-only-button",
+      "text": "Plan CSV Rerun",
+      "classification": "backend-owned-route",
+      "route": "/api/rerun/start",
       "data_attrs": {}
     },
     {
@@ -4608,7 +4617,7 @@
       "normalized_route": "/api/backend/shutdown",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 420,
+      "line": 414,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell",
@@ -4909,7 +4918,7 @@
       "normalized_route": "/api/maintenance",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1045,
+      "line": 1047,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4924,7 +4933,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1093,
+      "line": 1109,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -4940,7 +4949,7 @@
       "normalized_route": "/api/maintenance/completed-backfill-dry-run",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1520,
+      "line": 1522,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4955,7 +4964,7 @@
       "normalized_route": "/api/maintenance/dependency-atlas",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1611,
+      "line": 1613,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4970,7 +4979,7 @@
       "normalized_route": "/api/maintenance/dependency-atlas/open-folder",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1643,
+      "line": 1645,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4985,7 +4994,7 @@
       "normalized_route": "/api/maintenance/progress",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 523,
+      "line": 525,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5000,7 +5009,7 @@
       "normalized_route": "/api/maintenance/release-build",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1437,
+      "line": 1439,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5015,7 +5024,7 @@
       "normalized_route": "/api/maintenance/release-dry-run",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1347,
+      "line": 1349,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5180,7 +5189,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 823,
+      "line": 839,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5196,7 +5205,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 785,
+      "line": 801,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5212,7 +5221,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1023,
+      "line": 1039,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5228,7 +5237,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 925,
+      "line": 941,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5394,7 +5403,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1934,
+      "line": 1936,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5409,7 +5418,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1959,
+      "line": 1961,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5424,7 +5433,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2024,
+      "line": 2026,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5439,7 +5448,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2221,
+      "line": 2223,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5454,7 +5463,7 @@
       "normalized_route": "/api/queue/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1474,
+      "line": 1476,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5469,7 +5478,7 @@
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2655,
+      "line": 2657,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5548,7 +5557,7 @@
       "normalized_route": "/api/rerun/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1177,
+      "line": 1200,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5626,7 +5635,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2053,
+      "line": 2056,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5643,7 +5652,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 710,
+      "line": 713,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5660,7 +5669,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1711,
+      "line": 1714,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5677,7 +5686,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 762,
+      "line": 765,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5694,7 +5703,7 @@
       "normalized_route": "/api/settings/reload",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1979,
+      "line": 1982,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5711,7 +5720,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1896,
+      "line": 1899,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5728,7 +5737,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 834,
+      "line": 837,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5745,7 +5754,7 @@
       "normalized_route": "/api/settings/validate",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1261,
+      "line": 1264,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5864,7 +5873,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1116,
+      "line": 1106,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"
@@ -5878,7 +5887,7 @@
   "dynamic_api_posts": [
     {
       "file": "apps/desktop/webview/static/assets/networkView.js",
-      "line": 2012,
+      "line": 2016,
       "allowed": true,
       "reason": "contract-driven Network lifecycle dispatch"
     }
@@ -7325,6 +7334,7 @@
         "csv_path",
         "dry_run",
         "original_mode",
+        "plan_only",
         "return_mode",
         "show_console",
         "stage_mode"

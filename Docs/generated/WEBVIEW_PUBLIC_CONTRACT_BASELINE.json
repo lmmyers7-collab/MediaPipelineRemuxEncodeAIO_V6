@@ -1506,7 +1506,6 @@
       "settingsSafetyLockRows",
       "settingsSafetyLockStatus",
       "settingsSafetyLockSummaryLines",
-      "settingsValuesEqual",
       "settingsVobSubOcrPathEvidence",
       "settingsVobSubOcrPathEvidenceLines",
       "settingsVobSubOcrPathEvidenceStatus",
@@ -2012,6 +2011,7 @@
       "report-open-history-disclosure",
       "report-warning-rows",
       "rerun-dry-run-button",
+      "rerun-plan-only-button",
       "rerun-start-button",
       "rerun-start-csv-path",
       "rerun-start-show-console",
@@ -2184,7 +2184,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3714
+    "top_level_declaration_count": 3715
   },
   "scripts": [
     {
@@ -2535,8 +2535,7 @@
         "formatConfigValue",
         "formatProgressValue",
         "formatSettingsListValue",
-        "parseSettingsListText",
-        "settingsValuesEqual"
+        "parseSettingsListText"
       ],
       "api_routes": [],
       "dom_ids_touched": [],
@@ -11256,1563 +11255,1568 @@
           "kind": "const"
         },
         {
-          "name": "settingsValuesEqual",
+          "name": "formatters",
           "line": 12,
           "kind": "const"
         },
         {
+          "name": "settingsValuesEqual",
+          "line": 13,
+          "kind": "const"
+        },
+        {
           "name": "jsonDetailText",
-          "line": 15,
+          "line": 18,
           "kind": "const"
         },
         {
           "name": "settingsBuilderCoveredKeys",
-          "line": 24,
+          "line": 27,
           "kind": "function"
         },
         {
           "name": "lastSettingsValues",
-          "line": 40,
-          "kind": "let"
-        },
-        {
-          "name": "lastSettingsFieldDefinitions",
-          "line": 41,
-          "kind": "let"
-        },
-        {
-          "name": "lastSettingsFieldMap",
-          "line": 42,
-          "kind": "let"
-        },
-        {
-          "name": "settingsBuilderInitialized",
           "line": 43,
           "kind": "let"
         },
         {
-          "name": "settingsBuilderDirty",
+          "name": "lastSettingsFieldDefinitions",
           "line": 44,
           "kind": "let"
         },
         {
-          "name": "fileSafetySettingsBuilderState",
+          "name": "lastSettingsFieldMap",
           "line": 45,
-          "kind": "const"
+          "kind": "let"
         },
         {
-          "name": "networkSettingsBuilderState",
+          "name": "settingsBuilderInitialized",
           "line": 46,
-          "kind": "const"
+          "kind": "let"
         },
         {
-          "name": "queueSettingsBuilderState",
+          "name": "settingsBuilderDirty",
           "line": 47,
-          "kind": "const"
+          "kind": "let"
         },
         {
-          "name": "videoDetailSettingsBuilderState",
+          "name": "fileSafetySettingsBuilderState",
           "line": 48,
           "kind": "const"
         },
         {
-          "name": "qualityDetailSettingsBuilderState",
+          "name": "networkSettingsBuilderState",
           "line": 49,
           "kind": "const"
         },
         {
-          "name": "runtimeSettingsBuilderState",
+          "name": "queueSettingsBuilderState",
           "line": 50,
           "kind": "const"
         },
         {
-          "name": "pendingPublishSettingsBuilderState",
+          "name": "videoDetailSettingsBuilderState",
           "line": 51,
           "kind": "const"
         },
         {
-          "name": "finalLibraryPromotionSettingsBuilderState",
+          "name": "qualityDetailSettingsBuilderState",
           "line": 52,
           "kind": "const"
         },
         {
-          "name": "subtitleSettingsBuilderState",
+          "name": "runtimeSettingsBuilderState",
           "line": 53,
           "kind": "const"
         },
         {
-          "name": "audioSettingsBuilderState",
+          "name": "pendingPublishSettingsBuilderState",
           "line": 54,
           "kind": "const"
         },
         {
-          "name": "lastSettings",
+          "name": "finalLibraryPromotionSettingsBuilderState",
           "line": 55,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "settingsPatchPreviewRequestId",
+          "name": "subtitleSettingsBuilderState",
           "line": 56,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "selectedSettingsSaveReviewKey",
+          "name": "audioSettingsBuilderState",
           "line": 57,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "selectedSettingsBackendResultKey",
+          "name": "lastSettings",
           "line": 58,
           "kind": "let"
         },
         {
-          "name": "selectedSettingsEffectivePolicyKey",
+          "name": "settingsPatchPreviewRequestId",
           "line": 59,
           "kind": "let"
         },
         {
-          "name": "settingsPatchTouched",
+          "name": "selectedSettingsSaveReviewKey",
           "line": 60,
           "kind": "let"
         },
         {
-          "name": "lastSettingsPatchPreviewEvidence",
+          "name": "selectedSettingsBackendResultKey",
           "line": 61,
           "kind": "let"
         },
         {
-          "name": "lastSettingsPatchSaveEvidence",
+          "name": "selectedSettingsEffectivePolicyKey",
           "line": 62,
           "kind": "let"
         },
         {
-          "name": "lastSettingsReloadEvidence",
+          "name": "settingsPatchTouched",
           "line": 63,
           "kind": "let"
         },
         {
-          "name": "settingsCommandButtonIds",
+          "name": "lastSettingsPatchPreviewEvidence",
+          "line": 64,
+          "kind": "let"
+        },
+        {
+          "name": "lastSettingsPatchSaveEvidence",
           "line": 65,
+          "kind": "let"
+        },
+        {
+          "name": "lastSettingsReloadEvidence",
+          "line": 66,
+          "kind": "let"
+        },
+        {
+          "name": "settingsCommandButtonIds",
+          "line": 68,
           "kind": "const"
         },
         {
           "name": "settingsCommandInFlight",
-          "line": 78,
+          "line": 81,
           "kind": "let"
         },
         {
           "name": "settingsRenameLogCaseInFlight",
-          "line": 79,
+          "line": 82,
           "kind": "let"
         },
         {
           "name": "settingsRenameLogCaseEventsBound",
-          "line": 80,
+          "line": 83,
           "kind": "let"
         },
         {
           "name": "settingsRuntimeActiveStates",
-          "line": 82,
+          "line": 85,
           "kind": "const"
         },
         {
           "name": "settingsRuntimeInactiveStages",
-          "line": 83,
+          "line": 86,
           "kind": "const"
         },
         {
           "name": "settingsRuntimeState",
-          "line": 85,
+          "line": 88,
           "kind": "function"
         },
         {
           "name": "settingsRuntimeRestartWarningNeeded",
-          "line": 97,
+          "line": 100,
           "kind": "function"
         },
         {
           "name": "settingsRuntimeRestartConfirmationLine",
-          "line": 101,
+          "line": 104,
           "kind": "function"
         },
         {
           "name": "settingsRuntimeRestartNoticeLines",
-          "line": 109,
+          "line": 112,
           "kind": "function"
         },
         {
           "name": "maybeShowSettingsRuntimeRestartNotice",
-          "line": 130,
+          "line": 133,
           "kind": "function"
         },
         {
           "name": "setSettingsCommandBusy",
-          "line": 138,
+          "line": 141,
           "kind": "function"
         },
         {
           "name": "rejectSettingsCommandWhileBusy",
-          "line": 147,
+          "line": 150,
           "kind": "function"
         },
         {
           "name": "settingsResultStatusLabel",
-          "line": 161,
+          "line": 164,
           "kind": "function"
         },
         {
           "name": "settingsMetadata",
-          "line": 169,
-          "kind": "const"
-        },
-        {
-          "name": "settingsBuilderFields",
-          "line": 170,
-          "kind": "const"
-        },
-        {
-          "name": "fileSafetySettingsBuilderFields",
-          "line": 171,
-          "kind": "const"
-        },
-        {
-          "name": "networkSettingsBuilderFields",
           "line": 172,
           "kind": "const"
         },
         {
-          "name": "queueSettingsBuilderFields",
+          "name": "settingsBuilderFields",
           "line": 173,
           "kind": "const"
         },
         {
-          "name": "videoDetailSettingsBuilderFields",
+          "name": "fileSafetySettingsBuilderFields",
           "line": 174,
           "kind": "const"
         },
         {
-          "name": "qualityDetailSettingsBuilderFields",
+          "name": "networkSettingsBuilderFields",
           "line": 175,
           "kind": "const"
         },
         {
-          "name": "runtimeSettingsBuilderFields",
+          "name": "queueSettingsBuilderFields",
           "line": 176,
           "kind": "const"
         },
         {
-          "name": "pendingPublishSettingsBuilderFields",
+          "name": "videoDetailSettingsBuilderFields",
           "line": 177,
           "kind": "const"
         },
         {
-          "name": "finalLibraryPromotionSettingsBuilderFields",
+          "name": "qualityDetailSettingsBuilderFields",
           "line": 178,
           "kind": "const"
         },
         {
-          "name": "subtitleSettingsBuilderFields",
+          "name": "runtimeSettingsBuilderFields",
           "line": 179,
           "kind": "const"
         },
         {
-          "name": "audioSettingsBuilderFields",
+          "name": "pendingPublishSettingsBuilderFields",
           "line": 180,
           "kind": "const"
         },
         {
-          "name": "settingsSafetyLockDefinitions",
+          "name": "finalLibraryPromotionSettingsBuilderFields",
           "line": 181,
           "kind": "const"
         },
         {
-          "name": "settingsImpactGroups",
+          "name": "subtitleSettingsBuilderFields",
           "line": 182,
           "kind": "const"
         },
         {
-          "name": "settingsSpecificImpactHints",
+          "name": "audioSettingsBuilderFields",
           "line": 183,
           "kind": "const"
         },
         {
-          "name": "settingsChoiceLabels",
+          "name": "settingsSafetyLockDefinitions",
           "line": 184,
           "kind": "const"
         },
         {
-          "name": "settingsFriendlyPersistedKeyAliases",
+          "name": "settingsImpactGroups",
           "line": 185,
           "kind": "const"
         },
         {
-          "name": "settingsAdvancedFallbackKeys",
+          "name": "settingsSpecificImpactHints",
           "line": 186,
           "kind": "const"
         },
         {
-          "name": "settingsPatchComplexBackendKeys",
+          "name": "settingsChoiceLabels",
           "line": 187,
           "kind": "const"
         },
         {
-          "name": "settingsAdvancedToggleEventsBound",
+          "name": "settingsFriendlyPersistedKeyAliases",
           "line": 188,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "settingsMetadataFieldsModule",
+          "name": "settingsAdvancedFallbackKeys",
+          "line": 189,
+          "kind": "const"
+        },
+        {
+          "name": "settingsPatchComplexBackendKeys",
           "line": 190,
           "kind": "const"
         },
         {
+          "name": "settingsAdvancedToggleEventsBound",
+          "line": 191,
+          "kind": "let"
+        },
+        {
+          "name": "settingsMetadataFieldsModule",
+          "line": 193,
+          "kind": "const"
+        },
+        {
           "name": "settingsMetadataFields",
-          "line": 192,
+          "line": 195,
           "kind": "const"
         },
         {
           "name": "settingsFieldDefinition",
-          "line": 199,
-          "kind": "const"
-        },
-        {
-          "name": "settingsFieldDefaultValue",
           "line": 202,
           "kind": "const"
         },
         {
+          "name": "settingsFieldDefaultValue",
+          "line": 205,
+          "kind": "const"
+        },
+        {
           "name": "formatSettingsChoiceLabel",
-          "line": 203,
+          "line": 206,
           "kind": "const"
         },
         {
           "name": "settingsFieldAllowedValues",
-          "line": 204,
+          "line": 207,
           "kind": "const"
         },
         {
           "name": "settingsHasBackendFieldDefinitions",
-          "line": 209,
-          "kind": "const"
-        },
-        {
-          "name": "settingsFieldLabel",
           "line": 212,
           "kind": "const"
         },
         {
-          "name": "settingsPersistedKeyDisplayList",
-          "line": 213,
+          "name": "settingsFieldLabel",
+          "line": 215,
           "kind": "const"
         },
         {
-          "name": "settingsFieldHelpText",
+          "name": "settingsPersistedKeyDisplayList",
           "line": 216,
           "kind": "const"
         },
         {
-          "name": "settingsFieldIsAdvanced",
+          "name": "settingsFieldHelpText",
           "line": 219,
           "kind": "const"
         },
         {
+          "name": "settingsFieldIsAdvanced",
+          "line": 222,
+          "kind": "const"
+        },
+        {
           "name": "settingsMetadataValue",
-          "line": 220,
+          "line": 223,
           "kind": "const"
         },
         {
           "name": "settingsBuilderConfigValue",
-          "line": 222,
+          "line": 225,
           "kind": "function"
         },
         {
           "name": "settingsPatchLocalValidationHints",
-          "line": 228,
+          "line": 231,
           "kind": "function"
         },
         {
           "name": "settingsPatchLocalValidationHintLines",
-          "line": 232,
+          "line": 235,
           "kind": "function"
         },
         {
           "name": "settingsBuilderControlsModule",
-          "line": 236,
+          "line": 239,
           "kind": "const"
         },
         {
           "name": "settingsBuilderControls",
-          "line": 238,
+          "line": 241,
           "kind": "const"
         },
         {
           "name": "renderSettingsAdvancedControls",
-          "line": 262,
-          "kind": "const"
-        },
-        {
-          "name": "handleSettingsAdvancedToggleClick",
-          "line": 263,
-          "kind": "const"
-        },
-        {
-          "name": "applySettingsFieldMetadataToControls",
-          "line": 264,
-          "kind": "const"
-        },
-        {
-          "name": "refreshSettingsSelectChoices",
           "line": 265,
           "kind": "const"
         },
         {
-          "name": "refreshSettingsBuilderChoices",
+          "name": "handleSettingsAdvancedToggleClick",
           "line": 266,
           "kind": "const"
         },
         {
-          "name": "audioSettingsBuilderModule",
+          "name": "applySettingsFieldMetadataToControls",
+          "line": 267,
+          "kind": "const"
+        },
+        {
+          "name": "refreshSettingsSelectChoices",
           "line": 268,
           "kind": "const"
         },
         {
+          "name": "refreshSettingsBuilderChoices",
+          "line": 269,
+          "kind": "const"
+        },
+        {
+          "name": "audioSettingsBuilderModule",
+          "line": 271,
+          "kind": "const"
+        },
+        {
           "name": "audioSettingsBuilder",
-          "line": 270,
+          "line": 273,
           "kind": "const"
         },
         {
           "name": "refreshAudioSettingsBuilderChoices",
-          "line": 291,
-          "kind": "const"
-        },
-        {
-          "name": "syncAudioSettingsBuilderFromConfig",
           "line": 294,
           "kind": "const"
         },
         {
-          "name": "markAudioSettingsBuilderDirty",
-          "line": 295,
-          "kind": "const"
-        },
-        {
-          "name": "collectAudioSettingsBuilderPatch",
-          "line": 296,
-          "kind": "const"
-        },
-        {
-          "name": "applyAudioSettingsBuilderToPatch",
+          "name": "syncAudioSettingsBuilderFromConfig",
           "line": 297,
           "kind": "const"
         },
         {
-          "name": "renderAudioSettingsBuilderGuidance",
+          "name": "markAudioSettingsBuilderDirty",
           "line": 298,
           "kind": "const"
         },
         {
-          "name": "videoDetailSettingsBuilderModule",
+          "name": "collectAudioSettingsBuilderPatch",
+          "line": 299,
+          "kind": "const"
+        },
+        {
+          "name": "applyAudioSettingsBuilderToPatch",
           "line": 300,
           "kind": "const"
         },
         {
+          "name": "renderAudioSettingsBuilderGuidance",
+          "line": 301,
+          "kind": "const"
+        },
+        {
+          "name": "videoDetailSettingsBuilderModule",
+          "line": 303,
+          "kind": "const"
+        },
+        {
           "name": "videoDetailSettingsBuilder",
-          "line": 302,
+          "line": 305,
           "kind": "const"
         },
         {
           "name": "syncVideoDetailSettingsBuilderFromConfig",
-          "line": 324,
-          "kind": "const"
-        },
-        {
-          "name": "markVideoDetailSettingsBuilderDirty",
-          "line": 325,
-          "kind": "const"
-        },
-        {
-          "name": "collectVideoDetailSettingsBuilderPatch",
-          "line": 326,
-          "kind": "const"
-        },
-        {
-          "name": "applyVideoDetailSettingsBuilderToPatch",
           "line": 327,
           "kind": "const"
         },
         {
-          "name": "renderVideoDetailSettingsBuilderGuidance",
+          "name": "markVideoDetailSettingsBuilderDirty",
           "line": 328,
           "kind": "const"
         },
         {
-          "name": "settingsEncoderCapabilityReport",
+          "name": "collectVideoDetailSettingsBuilderPatch",
           "line": 329,
           "kind": "const"
         },
         {
-          "name": "settingsEncoderCapabilityStatus",
+          "name": "applyVideoDetailSettingsBuilderToPatch",
           "line": 330,
           "kind": "const"
         },
         {
-          "name": "settingsEncoderCapabilitySummaryLines",
+          "name": "renderVideoDetailSettingsBuilderGuidance",
           "line": 331,
           "kind": "const"
         },
         {
-          "name": "renderSettingsEncoderCapabilityReport",
+          "name": "settingsEncoderCapabilityReport",
           "line": 332,
           "kind": "const"
         },
         {
-          "name": "qualityDetailSettingsBuilderModule",
+          "name": "settingsEncoderCapabilityStatus",
+          "line": 333,
+          "kind": "const"
+        },
+        {
+          "name": "settingsEncoderCapabilitySummaryLines",
           "line": 334,
           "kind": "const"
         },
         {
+          "name": "renderSettingsEncoderCapabilityReport",
+          "line": 335,
+          "kind": "const"
+        },
+        {
+          "name": "qualityDetailSettingsBuilderModule",
+          "line": 337,
+          "kind": "const"
+        },
+        {
           "name": "qualityDetailSettingsBuilder",
-          "line": 336,
+          "line": 339,
           "kind": "const"
         },
         {
           "name": "syncQualityDetailSettingsBuilderFromConfig",
-          "line": 355,
-          "kind": "const"
-        },
-        {
-          "name": "markQualityDetailSettingsBuilderDirty",
-          "line": 356,
-          "kind": "const"
-        },
-        {
-          "name": "collectQualityDetailSettingsBuilderPatch",
-          "line": 357,
-          "kind": "const"
-        },
-        {
-          "name": "applyQualityDetailSettingsBuilderToPatch",
           "line": 358,
           "kind": "const"
         },
         {
-          "name": "renderQualityDetailSettingsBuilderGuidance",
+          "name": "markQualityDetailSettingsBuilderDirty",
           "line": 359,
           "kind": "const"
         },
         {
-          "name": "subtitleSettingsBuilderModule",
+          "name": "collectQualityDetailSettingsBuilderPatch",
+          "line": 360,
+          "kind": "const"
+        },
+        {
+          "name": "applyQualityDetailSettingsBuilderToPatch",
           "line": 361,
           "kind": "const"
         },
         {
+          "name": "renderQualityDetailSettingsBuilderGuidance",
+          "line": 362,
+          "kind": "const"
+        },
+        {
+          "name": "subtitleSettingsBuilderModule",
+          "line": 364,
+          "kind": "const"
+        },
+        {
           "name": "subtitleSettingsBuilder",
-          "line": 363,
+          "line": 366,
           "kind": "const"
         },
         {
           "name": "syncSubtitleSettingsBuilderFromConfig",
-          "line": 382,
-          "kind": "const"
-        },
-        {
-          "name": "markSubtitleSettingsBuilderDirty",
-          "line": 383,
-          "kind": "const"
-        },
-        {
-          "name": "collectSubtitleSettingsBuilderPatch",
-          "line": 384,
-          "kind": "const"
-        },
-        {
-          "name": "applySubtitleSettingsBuilderToPatch",
           "line": 385,
           "kind": "const"
         },
         {
-          "name": "settingsBdpgsOcrPathEvidence",
+          "name": "markSubtitleSettingsBuilderDirty",
           "line": 386,
           "kind": "const"
         },
         {
-          "name": "settingsBdpgsOcrPathEvidenceStatus",
+          "name": "collectSubtitleSettingsBuilderPatch",
           "line": 387,
           "kind": "const"
         },
         {
-          "name": "settingsBdpgsOcrPathEvidenceLines",
+          "name": "applySubtitleSettingsBuilderToPatch",
           "line": 388,
           "kind": "const"
         },
         {
-          "name": "renderSettingsBdpgsOcrPathEvidence",
+          "name": "settingsBdpgsOcrPathEvidence",
           "line": 389,
           "kind": "const"
         },
         {
-          "name": "settingsVobSubOcrPathEvidence",
+          "name": "settingsBdpgsOcrPathEvidenceStatus",
           "line": 390,
           "kind": "const"
         },
         {
-          "name": "settingsVobSubOcrPathEvidenceStatus",
+          "name": "settingsBdpgsOcrPathEvidenceLines",
           "line": 391,
           "kind": "const"
         },
         {
-          "name": "settingsVobSubOcrPathEvidenceLines",
+          "name": "renderSettingsBdpgsOcrPathEvidence",
           "line": 392,
           "kind": "const"
         },
         {
-          "name": "renderSettingsVobSubOcrPathEvidence",
+          "name": "settingsVobSubOcrPathEvidence",
           "line": 393,
           "kind": "const"
         },
         {
-          "name": "renderSubtitleSettingsBuilderGuidance",
+          "name": "settingsVobSubOcrPathEvidenceStatus",
           "line": 394,
           "kind": "const"
         },
         {
-          "name": "queueSettingsBuilderModule",
+          "name": "settingsVobSubOcrPathEvidenceLines",
+          "line": 395,
+          "kind": "const"
+        },
+        {
+          "name": "renderSettingsVobSubOcrPathEvidence",
           "line": 396,
           "kind": "const"
         },
         {
+          "name": "renderSubtitleSettingsBuilderGuidance",
+          "line": 397,
+          "kind": "const"
+        },
+        {
+          "name": "queueSettingsBuilderModule",
+          "line": 399,
+          "kind": "const"
+        },
+        {
           "name": "queueSettingsBuilder",
-          "line": 398,
+          "line": 401,
           "kind": "const"
         },
         {
           "name": "syncQueueSettingsBuilderFromConfig",
-          "line": 414,
-          "kind": "const"
-        },
-        {
-          "name": "markQueueSettingsBuilderDirty",
-          "line": 415,
-          "kind": "const"
-        },
-        {
-          "name": "collectQueueSettingsBuilderPatch",
-          "line": 416,
-          "kind": "const"
-        },
-        {
-          "name": "applyQueueSettingsBuilderToPatch",
           "line": 417,
           "kind": "const"
         },
         {
-          "name": "renderQueueSettingsBuilderGuidance",
+          "name": "markQueueSettingsBuilderDirty",
           "line": 418,
           "kind": "const"
         },
         {
-          "name": "runtimeSettingsBuilderModule",
+          "name": "collectQueueSettingsBuilderPatch",
+          "line": 419,
+          "kind": "const"
+        },
+        {
+          "name": "applyQueueSettingsBuilderToPatch",
           "line": 420,
           "kind": "const"
         },
         {
+          "name": "renderQueueSettingsBuilderGuidance",
+          "line": 421,
+          "kind": "const"
+        },
+        {
+          "name": "runtimeSettingsBuilderModule",
+          "line": 423,
+          "kind": "const"
+        },
+        {
           "name": "runtimeSettingsBuilder",
-          "line": 422,
+          "line": 425,
           "kind": "const"
         },
         {
           "name": "syncRuntimeSettingsBuilderFromConfig",
-          "line": 438,
-          "kind": "const"
-        },
-        {
-          "name": "markRuntimeSettingsBuilderDirty",
-          "line": 439,
-          "kind": "const"
-        },
-        {
-          "name": "collectRuntimeSettingsBuilderPatch",
-          "line": 440,
-          "kind": "const"
-        },
-        {
-          "name": "applyRuntimeSettingsBuilderToPatch",
           "line": 441,
           "kind": "const"
         },
         {
-          "name": "renderRuntimeSettingsBuilderGuidance",
+          "name": "markRuntimeSettingsBuilderDirty",
           "line": 442,
           "kind": "const"
         },
         {
-          "name": "fileSafetySettingsBuilderModule",
+          "name": "collectRuntimeSettingsBuilderPatch",
+          "line": 443,
+          "kind": "const"
+        },
+        {
+          "name": "applyRuntimeSettingsBuilderToPatch",
           "line": 444,
           "kind": "const"
         },
         {
+          "name": "renderRuntimeSettingsBuilderGuidance",
+          "line": 445,
+          "kind": "const"
+        },
+        {
+          "name": "fileSafetySettingsBuilderModule",
+          "line": 447,
+          "kind": "const"
+        },
+        {
           "name": "fileSafetySettingsBuilder",
-          "line": 446,
+          "line": 449,
           "kind": "const"
         },
         {
           "name": "syncFileSafetySettingsBuilderFromConfig",
-          "line": 464,
-          "kind": "const"
-        },
-        {
-          "name": "markFileSafetySettingsBuilderDirty",
-          "line": 465,
-          "kind": "const"
-        },
-        {
-          "name": "collectFileSafetySettingsBuilderPatch",
-          "line": 466,
-          "kind": "const"
-        },
-        {
-          "name": "applyFileSafetySettingsBuilderToPatch",
           "line": 467,
           "kind": "const"
         },
         {
-          "name": "renderFileSafetySettingsBuilderGuidance",
+          "name": "markFileSafetySettingsBuilderDirty",
           "line": 468,
           "kind": "const"
         },
         {
-          "name": "pendingPublishSettingsBuilderModule",
+          "name": "collectFileSafetySettingsBuilderPatch",
+          "line": 469,
+          "kind": "const"
+        },
+        {
+          "name": "applyFileSafetySettingsBuilderToPatch",
           "line": 470,
           "kind": "const"
         },
         {
+          "name": "renderFileSafetySettingsBuilderGuidance",
+          "line": 471,
+          "kind": "const"
+        },
+        {
+          "name": "pendingPublishSettingsBuilderModule",
+          "line": 473,
+          "kind": "const"
+        },
+        {
           "name": "pendingPublishSettingsBuilder",
-          "line": 472,
+          "line": 475,
           "kind": "const"
         },
         {
           "name": "syncPendingPublishSettingsBuilderFromConfig",
-          "line": 490,
-          "kind": "const"
-        },
-        {
-          "name": "markPendingPublishSettingsBuilderDirty",
-          "line": 491,
-          "kind": "const"
-        },
-        {
-          "name": "collectPendingPublishSettingsBuilderPatch",
-          "line": 492,
-          "kind": "const"
-        },
-        {
-          "name": "applyPendingPublishSettingsBuilderToPatch",
           "line": 493,
           "kind": "const"
         },
         {
-          "name": "renderPendingPublishSettingsBuilderGuidance",
+          "name": "markPendingPublishSettingsBuilderDirty",
           "line": 494,
           "kind": "const"
         },
         {
-          "name": "networkSettingsBuilderModule",
+          "name": "collectPendingPublishSettingsBuilderPatch",
+          "line": 495,
+          "kind": "const"
+        },
+        {
+          "name": "applyPendingPublishSettingsBuilderToPatch",
           "line": 496,
           "kind": "const"
         },
         {
+          "name": "renderPendingPublishSettingsBuilderGuidance",
+          "line": 497,
+          "kind": "const"
+        },
+        {
+          "name": "networkSettingsBuilderModule",
+          "line": 499,
+          "kind": "const"
+        },
+        {
           "name": "networkSettingsBuilder",
-          "line": 498,
+          "line": 501,
           "kind": "const"
         },
         {
           "name": "syncNetworkSettingsBuilderFromConfig",
-          "line": 515,
-          "kind": "const"
-        },
-        {
-          "name": "markNetworkSettingsBuilderDirty",
-          "line": 516,
-          "kind": "const"
-        },
-        {
-          "name": "collectNetworkSettingsBuilderPatch",
-          "line": 517,
-          "kind": "const"
-        },
-        {
-          "name": "applyNetworkSettingsBuilderToPatch",
           "line": 518,
           "kind": "const"
         },
         {
-          "name": "renderNetworkSettingsBuilderGuidance",
+          "name": "markNetworkSettingsBuilderDirty",
           "line": 519,
           "kind": "const"
         },
         {
-          "name": "settingsRawTriageModule",
+          "name": "collectNetworkSettingsBuilderPatch",
+          "line": 520,
+          "kind": "const"
+        },
+        {
+          "name": "applyNetworkSettingsBuilderToPatch",
           "line": 521,
           "kind": "const"
         },
         {
+          "name": "renderNetworkSettingsBuilderGuidance",
+          "line": 522,
+          "kind": "const"
+        },
+        {
+          "name": "settingsRawTriageModule",
+          "line": 524,
+          "kind": "const"
+        },
+        {
           "name": "settingsRawTriage",
-          "line": 523,
+          "line": 526,
           "kind": "const"
         },
         {
           "name": "setSettingsRows",
-          "line": 545,
-          "kind": "const"
-        },
-        {
-          "name": "renderSettingsRows",
-          "line": 546,
-          "kind": "const"
-        },
-        {
-          "name": "settingsRawTriageRows",
-          "line": 547,
-          "kind": "const"
-        },
-        {
-          "name": "settingsRawTriageStatus",
           "line": 548,
           "kind": "const"
         },
         {
-          "name": "settingsRawTriageSummaryLines",
+          "name": "renderSettingsRows",
           "line": 549,
           "kind": "const"
         },
         {
-          "name": "settingsRawTriageDetailLines",
+          "name": "settingsRawTriageRows",
           "line": 550,
           "kind": "const"
         },
         {
-          "name": "renderSettingsRawTriage",
+          "name": "settingsRawTriageStatus",
           "line": 551,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanRows",
+          "name": "settingsRawTriageSummaryLines",
           "line": 552,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanStatus",
+          "name": "settingsRawTriageDetailLines",
           "line": 553,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanSummaryLines",
+          "name": "renderSettingsRawTriage",
           "line": 554,
           "kind": "const"
         },
         {
-          "name": "settingsRawActionPlanDetailLines",
+          "name": "settingsRawActionPlanRows",
           "line": 555,
           "kind": "const"
         },
         {
-          "name": "renderSettingsRawActionPlan",
+          "name": "settingsRawActionPlanStatus",
           "line": 556,
           "kind": "const"
         },
         {
-          "name": "boundedSettingsValueText",
+          "name": "settingsRawActionPlanSummaryLines",
           "line": 557,
           "kind": "const"
         },
         {
+          "name": "settingsRawActionPlanDetailLines",
+          "line": 558,
+          "kind": "const"
+        },
+        {
+          "name": "renderSettingsRawActionPlan",
+          "line": 559,
+          "kind": "const"
+        },
+        {
+          "name": "boundedSettingsValueText",
+          "line": 560,
+          "kind": "const"
+        },
+        {
           "name": "settingsSafetyLocksModule",
-          "line": 563,
+          "line": 566,
           "kind": "const"
         },
         {
           "name": "settingsSafetyLocks",
-          "line": 565,
+          "line": 568,
           "kind": "const"
         },
         {
           "name": "settingsSafetyLockRows",
-          "line": 577,
-          "kind": "const"
-        },
-        {
-          "name": "settingsSafetyLockStatus",
-          "line": 578,
-          "kind": "const"
-        },
-        {
-          "name": "settingsSafetyLockSummaryLines",
-          "line": 579,
-          "kind": "const"
-        },
-        {
-          "name": "renderSettingsSafetyLocks",
           "line": 580,
           "kind": "const"
         },
         {
-          "name": "setSettingsBuilderControl",
+          "name": "settingsSafetyLockStatus",
           "line": 581,
+          "kind": "const"
+        },
+        {
+          "name": "settingsSafetyLockSummaryLines",
+          "line": 582,
+          "kind": "const"
+        },
+        {
+          "name": "renderSettingsSafetyLocks",
+          "line": 583,
+          "kind": "const"
+        },
+        {
+          "name": "setSettingsBuilderControl",
+          "line": 584,
           "kind": "function"
         },
         {
           "name": "syncSettingsBuilderFromConfig",
-          "line": 586,
+          "line": 589,
           "kind": "function"
         },
         {
           "name": "markSettingsBuilderDirty",
-          "line": 591,
+          "line": 594,
           "kind": "function"
         },
         {
           "name": "settingsBuilderInputValue",
-          "line": 596,
+          "line": 599,
           "kind": "function"
         },
         {
           "name": "readSettingsBuilderNumber",
-          "line": 601,
+          "line": 604,
           "kind": "function"
         },
         {
           "name": "readSettingsBuilderFloat",
-          "line": 607,
+          "line": 610,
           "kind": "function"
         },
         {
           "name": "settingsRawConfigValue",
-          "line": 613,
+          "line": 616,
           "kind": "function"
         },
         {
           "name": "parseSettingsPatchJson",
-          "line": 618,
+          "line": 621,
           "kind": "function"
         },
         {
           "name": "markSettingsPatchTouched",
-          "line": 623,
+          "line": 626,
           "kind": "function"
         },
         {
           "name": "settingsPatchIsTouched",
-          "line": 628,
+          "line": 631,
           "kind": "function"
         },
         {
           "name": "settingsPatchEffectiveChangedEntries",
-          "line": 633,
+          "line": 636,
           "kind": "function"
         },
         {
           "name": "settingsPatchHasUnsavedChanges",
-          "line": 638,
+          "line": 641,
           "kind": "function"
         },
         {
           "name": "writeSettingsPatchJson",
-          "line": 643,
+          "line": 646,
           "kind": "function"
         },
         {
           "name": "settingsPatchReview",
-          "line": 648,
+          "line": 651,
           "kind": "let"
         },
         {
           "name": "settingsPatchReviewFunction",
-          "line": 650,
+          "line": 653,
           "kind": "function"
         },
         {
           "name": "setFinalLibraryPromotionStatus",
-          "line": 655,
+          "line": 658,
           "kind": "function"
         },
         {
           "name": "finalLibraryPromotionBrowseDetailLines",
-          "line": 665,
+          "line": 668,
           "kind": "function"
         },
         {
           "name": "addFinalLibraryPromotionRule",
-          "line": 670,
+          "line": 673,
           "kind": "function"
         },
         {
           "name": "syncFinalLibraryPromotionSettingsBuilderFromConfig",
-          "line": 675,
+          "line": 678,
           "kind": "function"
         },
         {
           "name": "markFinalLibraryPromotionSettingsBuilderDirty",
-          "line": 680,
+          "line": 683,
           "kind": "function"
         },
         {
           "name": "collectFinalLibraryPromotionSettingsPatch",
-          "line": 685,
+          "line": 688,
           "kind": "function"
         },
         {
           "name": "renderFinalLibraryPromotionSettingsGuidance",
-          "line": 691,
+          "line": 694,
           "kind": "function"
         },
         {
           "name": "finalLibraryPromotionSettingsResultLines",
-          "line": 696,
+          "line": 699,
           "kind": "function"
         },
         {
           "name": "browseFinalLibraryPromotionRulePath",
-          "line": 701,
+          "line": 704,
           "kind": "function"
         },
         {
           "name": "previewFinalLibraryPromotionSettings",
-          "line": 743,
+          "line": 746,
           "kind": "function"
         },
         {
           "name": "saveFinalLibraryPromotionSettings",
-          "line": 788,
+          "line": 791,
           "kind": "function"
         },
         {
           "name": "collectSettingsBuilderPatch",
-          "line": 869,
+          "line": 872,
           "kind": "function"
         },
         {
           "name": "applySettingsBuilderToPatch",
-          "line": 874,
+          "line": 877,
           "kind": "function"
         },
         {
           "name": "settingsPolicyImpact",
-          "line": 879,
+          "line": 882,
           "kind": "let"
         },
         {
           "name": "settingsPolicyImpactFunction",
-          "line": 880,
+          "line": 883,
           "kind": "function"
         },
         {
           "name": "settingsPolicyImpactCall",
-          "line": 884,
+          "line": 887,
           "kind": "function"
         },
         {
           "name": "settingsPolicyImpactDo",
-          "line": 889,
+          "line": 892,
           "kind": "function"
         },
         {
           "name": "settingsMediaPolicyRows",
-          "line": 894,
-          "kind": "function"
-        },
-        {
-          "name": "settingsMediaPolicyStatus",
-          "line": 895,
-          "kind": "function"
-        },
-        {
-          "name": "settingsActiveMediaPolicyRows",
-          "line": 896,
-          "kind": "function"
-        },
-        {
-          "name": "settingsActiveMediaPolicyStatus",
           "line": 897,
           "kind": "function"
         },
         {
-          "name": "settingsActiveMediaPolicySummaryLines",
+          "name": "settingsMediaPolicyStatus",
           "line": 898,
           "kind": "function"
         },
         {
-          "name": "renderSettingsActiveMediaPolicyHandoff",
+          "name": "settingsActiveMediaPolicyRows",
           "line": 899,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicyRows",
+          "name": "settingsActiveMediaPolicyStatus",
           "line": 900,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicyTrustStatus",
+          "name": "settingsActiveMediaPolicySummaryLines",
           "line": 901,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicySummaryLines",
+          "name": "renderSettingsActiveMediaPolicyHandoff",
           "line": 902,
           "kind": "function"
         },
         {
-          "name": "settingsEffectivePolicyDetailLines",
+          "name": "settingsEffectivePolicyRows",
           "line": 903,
           "kind": "function"
         },
         {
-          "name": "renderSettingsEffectivePolicyTrustFromEntries",
+          "name": "settingsEffectivePolicyTrustStatus",
           "line": 904,
           "kind": "function"
         },
         {
-          "name": "renderSettingsEffectivePolicyTrustForError",
+          "name": "settingsEffectivePolicySummaryLines",
           "line": 905,
           "kind": "function"
         },
         {
-          "name": "settingsMediaPolicySummaryLines",
+          "name": "settingsEffectivePolicyDetailLines",
           "line": 906,
           "kind": "function"
         },
         {
-          "name": "renderSettingsMediaPolicyCrossCheck",
+          "name": "renderSettingsEffectivePolicyTrustFromEntries",
           "line": 907,
           "kind": "function"
         },
         {
-          "name": "settingsBackendPolicyImpact",
+          "name": "renderSettingsEffectivePolicyTrustForError",
           "line": 908,
           "kind": "function"
         },
         {
-          "name": "settingsBackendMediaPolicyReadiness",
+          "name": "settingsMediaPolicySummaryLines",
           "line": 909,
           "kind": "function"
         },
         {
-          "name": "settingsBackendMediaPolicyStatus",
+          "name": "renderSettingsMediaPolicyCrossCheck",
           "line": 910,
           "kind": "function"
         },
         {
-          "name": "settingsBackendMediaPolicySummaryLines",
+          "name": "settingsBackendPolicyImpact",
           "line": 911,
           "kind": "function"
         },
         {
-          "name": "renderSettingsBackendMediaPolicyReadiness",
+          "name": "settingsBackendMediaPolicyReadiness",
           "line": 912,
           "kind": "function"
         },
         {
-          "name": "settingsImpactGroupForKey",
+          "name": "settingsBackendMediaPolicyStatus",
           "line": 913,
           "kind": "function"
         },
         {
-          "name": "settingsPatchImpactEntries",
+          "name": "settingsBackendMediaPolicySummaryLines",
           "line": 914,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchImpactSummaryFromEntries",
+          "name": "renderSettingsBackendMediaPolicyReadiness",
           "line": 915,
           "kind": "function"
         },
         {
-          "name": "settingsBoolValue",
+          "name": "settingsImpactGroupForKey",
           "line": 916,
           "kind": "function"
         },
         {
-          "name": "settingsPatchCandidateValue",
+          "name": "settingsPatchImpactEntries",
           "line": 917,
           "kind": "function"
         },
         {
-          "name": "settingsStableJsonValue",
+          "name": "renderSettingsPatchImpactSummaryFromEntries",
           "line": 918,
           "kind": "function"
         },
         {
-          "name": "settingsPatchSignature",
+          "name": "settingsBoolValue",
           "line": 919,
           "kind": "function"
         },
         {
-          "name": "settingsPatchRequestExtras",
+          "name": "settingsPatchCandidateValue",
           "line": 920,
           "kind": "function"
         },
         {
+          "name": "settingsStableJsonValue",
+          "line": 921,
+          "kind": "function"
+        },
+        {
+          "name": "settingsPatchSignature",
+          "line": 922,
+          "kind": "function"
+        },
+        {
+          "name": "settingsPatchRequestExtras",
+          "line": 923,
+          "kind": "function"
+        },
+        {
           "name": "settingsPatchRequestSignature",
-          "line": 933,
+          "line": 936,
           "kind": "function"
         },
         {
           "name": "settingsCurrentPatchSignature",
-          "line": 939,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPatchListValue",
-          "line": 940,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPolicyDeltaStatus",
-          "line": 941,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPolicyDeltaRows",
           "line": 942,
           "kind": "function"
         },
         {
-          "name": "settingsPolicyDeltaSummaryLines",
+          "name": "settingsPatchListValue",
           "line": 943,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPolicyDeltaFromEntries",
+          "name": "settingsPolicyDeltaStatus",
           "line": 944,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPolicyDeltaForError",
+          "name": "settingsPolicyDeltaRows",
           "line": 945,
           "kind": "function"
         },
         {
-          "name": "settingsPatchReviewModule",
+          "name": "settingsPolicyDeltaSummaryLines",
+          "line": 946,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPolicyDeltaFromEntries",
           "line": 947,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPolicyDeltaForError",
+          "line": 948,
+          "kind": "function"
+        },
+        {
+          "name": "settingsPatchReviewModule",
+          "line": 950,
           "kind": "const"
         },
         {
           "name": "settingsPatchReviewCall",
-          "line": 1090,
+          "line": 1093,
           "kind": "function"
         },
         {
           "name": "settingsPatchSaveReadinessIssues",
-          "line": 1095,
-          "kind": "function"
-        },
-        {
-          "name": "settingsPatchSaveReadinessStatus",
-          "line": 1096,
-          "kind": "function"
-        },
-        {
-          "name": "settingsSaveReviewRows",
-          "line": 1097,
-          "kind": "function"
-        },
-        {
-          "name": "settingsSaveReviewStatus",
           "line": 1098,
           "kind": "function"
         },
         {
-          "name": "settingsSaveReviewDetailLines",
+          "name": "settingsPatchSaveReadinessStatus",
           "line": 1099,
           "kind": "function"
         },
         {
-          "name": "renderSettingsSaveReviewFromEntries",
+          "name": "settingsSaveReviewRows",
           "line": 1100,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchSaveReadinessFromEntries",
+          "name": "settingsSaveReviewStatus",
           "line": 1101,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchImpactSummaryForError",
+          "name": "settingsSaveReviewDetailLines",
+          "line": 1102,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsSaveReviewFromEntries",
           "line": 1103,
           "kind": "function"
         },
         {
+          "name": "renderSettingsPatchSaveReadinessFromEntries",
+          "line": 1104,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPatchImpactSummaryForError",
+          "line": 1106,
+          "kind": "function"
+        },
+        {
           "name": "settingsPolicyImpactModule",
-          "line": 1110,
+          "line": 1113,
           "kind": "const"
         },
         {
           "name": "settingsLaunchImpactRows",
-          "line": 1146,
-          "kind": "function"
-        },
-        {
-          "name": "settingsLaunchImpactStatus",
-          "line": 1147,
-          "kind": "function"
-        },
-        {
-          "name": "settingsLaunchImpactSummaryLines",
-          "line": 1148,
-          "kind": "function"
-        },
-        {
-          "name": "renderSettingsLaunchImpactHandoffFromEntries",
           "line": 1149,
           "kind": "function"
         },
         {
-          "name": "renderSettingsLaunchImpactHandoffForError",
+          "name": "settingsLaunchImpactStatus",
           "line": 1150,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultModule",
+          "name": "settingsLaunchImpactSummaryLines",
           "line": 1151,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsLaunchImpactHandoffFromEntries",
+          "line": 1152,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsLaunchImpactHandoffForError",
+          "line": 1153,
+          "kind": "function"
+        },
+        {
+          "name": "settingsBackendResultModule",
+          "line": 1154,
           "kind": "const"
         },
         {
           "name": "settingsBackendResult",
-          "line": 1153,
+          "line": 1156,
           "kind": "const"
         },
         {
           "name": "settingsBackendResultCall",
-          "line": 1194,
+          "line": 1197,
           "kind": "function"
         },
         {
           "name": "settingsCommandProgressBars",
-          "line": 1199,
-          "kind": "function"
-        },
-        {
-          "name": "renderSettingsSaveProgress",
-          "line": 1200,
-          "kind": "function"
-        },
-        {
-          "name": "settingsProgressDetailLines",
-          "line": 1201,
-          "kind": "function"
-        },
-        {
-          "name": "settingsBackendResultRowKey",
           "line": 1202,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultRows",
+          "name": "renderSettingsSaveProgress",
           "line": 1203,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultDetailLines",
+          "name": "settingsProgressDetailLines",
           "line": 1204,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultStatus",
+          "name": "settingsBackendResultRowKey",
           "line": 1205,
           "kind": "function"
         },
         {
-          "name": "settingsBackendResultSummaryLines",
+          "name": "settingsBackendResultRows",
           "line": 1206,
           "kind": "function"
         },
         {
-          "name": "renderSettingsBackendResultFromEntries",
+          "name": "settingsBackendResultDetailLines",
           "line": 1207,
           "kind": "function"
         },
         {
-          "name": "renderSettingsBackendResultForError",
+          "name": "settingsBackendResultStatus",
           "line": 1208,
           "kind": "function"
         },
         {
-          "name": "renderSettingsPatchSummary",
+          "name": "settingsBackendResultSummaryLines",
           "line": 1209,
           "kind": "function"
         },
         {
+          "name": "renderSettingsBackendResultFromEntries",
+          "line": 1210,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsBackendResultForError",
+          "line": 1211,
+          "kind": "function"
+        },
+        {
+          "name": "renderSettingsPatchSummary",
+          "line": 1212,
+          "kind": "function"
+        },
+        {
           "name": "syncSaveHeaderStatus",
-          "line": 1215,
+          "line": 1218,
           "kind": "function"
         },
         {
           "name": "renderSettingsBuilderGuidance",
-          "line": 1228,
+          "line": 1231,
           "kind": "function"
         },
         {
           "name": "settingsProfileSummaryLines",
-          "line": 1233,
+          "line": 1236,
           "kind": "function"
         },
         {
           "name": "renderSettings",
-          "line": 1238,
+          "line": 1241,
           "kind": "function"
         },
         {
           "name": "validateCurrentSettings",
-          "line": 1257,
+          "line": 1260,
           "kind": "function"
         },
         {
           "name": "appendSettingsRiskSummaryLines",
-          "line": 1278,
+          "line": 1281,
           "kind": "function"
         },
         {
           "name": "settingsBuilderFlushFailureMessage",
-          "line": 1297,
+          "line": 1300,
           "kind": "function"
         },
         {
           "name": "recordSettingsBuilderFlushFailure",
-          "line": 1302,
+          "line": 1305,
           "kind": "function"
         },
         {
           "name": "flushDirtySettingsBuilders",
-          "line": 1319,
+          "line": 1322,
           "kind": "function"
         },
         {
           "name": "resetSettingsBuilderSyncState",
-          "line": 1366,
+          "line": 1369,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFiltersFromSettingsSave",
-          "line": 1389,
+          "line": 1392,
           "kind": "function"
         },
         {
           "name": "mergeRenameCleaningFiltersForSave",
-          "line": 1396,
+          "line": 1399,
           "kind": "function"
         },
         {
           "name": "settingsSaveReviewValueText",
-          "line": 1435,
+          "line": 1438,
           "kind": "function"
         },
         {
           "name": "settingsSaveReviewLabel",
-          "line": 1448,
+          "line": 1451,
           "kind": "function"
         },
         {
           "name": "appendSettingsSaveReviewCell",
-          "line": 1453,
+          "line": 1456,
           "kind": "function"
         },
         {
           "name": "renderSettingsSaveReviewDialogRows",
-          "line": 1459,
+          "line": 1462,
           "kind": "function"
         },
         {
           "name": "openSettingsSaveReviewDialog",
-          "line": 1491,
+          "line": 1494,
           "kind": "function"
         },
         {
           "name": "settingsRenameLogCaseInput",
-          "line": 1553,
+          "line": 1556,
           "kind": "function"
         },
         {
           "name": "settingsRenameLogCaseValue",
-          "line": 1557,
+          "line": 1560,
           "kind": "function"
         },
         {
           "name": "settingsRenameLogCaseInteger",
-          "line": 1561,
+          "line": 1564,
           "kind": "function"
         },
         {
           "name": "settingsRenameLogCasePayload",
-          "line": 1572,
+          "line": 1575,
           "kind": "function"
         },
         {
           "name": "settingsRenameLogCaseRequiredIssues",
-          "line": 1592,
+          "line": 1595,
           "kind": "function"
         },
         {
           "name": "syncSettingsRenameLogCaseButton",
-          "line": 1601,
+          "line": 1604,
           "kind": "function"
         },
         {
           "name": "setSettingsRenameLogCaseBusy",
-          "line": 1606,
+          "line": 1609,
           "kind": "function"
         },
         {
           "name": "submitSettingsRenameLogCase",
-          "line": 1611,
+          "line": 1614,
           "kind": "function"
         },
         {
           "name": "initSettingsRenameLogCaseEvents",
-          "line": 1649,
+          "line": 1652,
           "kind": "function"
         },
         {
           "name": "previewSettingsPatch",
-          "line": 1661,
+          "line": 1664,
           "kind": "function"
         },
         {
           "name": "saveSettingsPatch",
-          "line": 1781,
+          "line": 1784,
           "kind": "function"
         },
         {
           "name": "reloadSettingsFromDisk",
-          "line": 1974,
+          "line": 1977,
           "kind": "function"
         },
         {
           "name": "getLastSettings",
-          "line": 2017,
+          "line": 2020,
           "kind": "function"
         },
         {
           "name": "settingsBrowsePathDetailLines",
-          "line": 2021,
+          "line": 2024,
           "kind": "function"
         },
         {
           "name": "browseSettingsPath",
-          "line": 2036,
+          "line": 2039,
           "kind": "function"
         },
         {
           "name": "initSettingsViewEvents",
-          "line": 2089,
+          "line": 2092,
           "kind": "function"
         },
         {
           "name": "saveBtn",
-          "line": 2162,
+          "line": 2165,
           "kind": "const"
         },
         {
           "name": "reloadBtn",
-          "line": 2164,
+          "line": 2167,
           "kind": "const"
         }
       ],
@@ -21841,162 +21845,162 @@
         },
         {
           "name": "initSettingsTabNav",
-          "line": 676,
+          "line": 677,
           "kind": "function"
         },
         {
           "name": "initDiagnosticsTabNav",
-          "line": 709,
+          "line": 710,
           "kind": "function"
         },
         {
           "name": "activateCompletedTab",
-          "line": 741,
+          "line": 742,
           "kind": "function"
         },
         {
           "name": "showCompletedOutputTab",
-          "line": 764,
+          "line": 765,
           "kind": "function"
         },
         {
           "name": "initCompletedTabNav",
-          "line": 769,
+          "line": 770,
           "kind": "function"
         },
         {
           "name": "initNavigation",
-          "line": 785,
+          "line": 786,
           "kind": "function"
         },
         {
           "name": "sparkKind",
-          "line": 803,
+          "line": 804,
           "kind": "function"
         },
         {
           "name": "renderSparkline",
-          "line": 812,
+          "line": 813,
           "kind": "function"
         },
         {
           "name": "initLaunchEvidenceToggle",
-          "line": 827,
+          "line": 828,
           "kind": "function"
         },
         {
           "name": "initCollapsibleSummaries",
-          "line": 851,
+          "line": 852,
           "kind": "function"
         },
         {
           "name": "initThemeToggle",
-          "line": 889,
+          "line": 890,
           "kind": "function"
         },
         {
           "name": "applyThemePreference",
-          "line": 904,
+          "line": 905,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycle",
-          "line": 912,
+          "line": 913,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandEntries",
-          "line": 938,
+          "line": 939,
           "kind": "function"
         },
         {
           "name": "backendLifecycleCommandLine",
-          "line": 945,
+          "line": 946,
           "kind": "function"
         },
         {
           "name": "renderBackendLifecycleHistory",
-          "line": 970,
+          "line": 971,
           "kind": "function"
         },
         {
           "name": "KEYBOARD_PAGE_KEYS",
-          "line": 983,
+          "line": 984,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_PRIMARY_FILTER_IDS",
-          "line": 995,
+          "line": 996,
           "kind": "const"
         },
         {
           "name": "KEYBOARD_DETAIL_IDS",
-          "line": 1005,
+          "line": 1006,
           "kind": "const"
         },
         {
           "name": "activeKeyboardPage",
-          "line": 1015,
+          "line": 1016,
           "kind": "function"
         },
         {
           "name": "activeKeyboardPanel",
-          "line": 1019,
+          "line": 1020,
           "kind": "function"
         },
         {
           "name": "shortcutTypingTarget",
-          "line": 1023,
+          "line": 1024,
           "kind": "function"
         },
         {
           "name": "shortcutElementVisible",
-          "line": 1028,
+          "line": 1029,
           "kind": "function"
         },
         {
           "name": "focusActivePageSearch",
-          "line": 1035,
+          "line": 1036,
           "kind": "function"
         },
         {
           "name": "dispatchShortcutInputChange",
-          "line": 1046,
+          "line": 1047,
           "kind": "function"
         },
         {
           "name": "clearActivePageFilters",
-          "line": 1051,
+          "line": 1052,
           "kind": "function"
         },
         {
           "name": "activePageSelectableRows",
-          "line": 1089,
+          "line": 1090,
           "kind": "function"
         },
         {
           "name": "moveActivePageSelection",
-          "line": 1095,
+          "line": 1096,
           "kind": "function"
         },
         {
           "name": "focusActivePageDetail",
-          "line": 1109,
+          "line": 1110,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutRegistry",
-          "line": 1125,
+          "line": 1126,
           "kind": "function"
         },
         {
           "name": "keyboardShortcutHelpText",
-          "line": 1146,
+          "line": 1147,
           "kind": "function"
         },
         {
           "name": "initKeyboardShortcuts",
-          "line": 1157,
+          "line": 1158,
           "kind": "function"
         }
       ],
@@ -24386,6 +24390,7 @@
         "rename-use-loaded-queue-button",
         "rename-use-selected-queue-button",
         "rerun-dry-run-button",
+        "rerun-plan-only-button",
         "rerun-start-button",
         "state-pill"
       ],
