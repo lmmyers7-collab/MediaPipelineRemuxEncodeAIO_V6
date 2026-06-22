@@ -1043,8 +1043,6 @@
       "filterRowsByStatus",
       "filteredDiagnosticsLogRows",
       "formatConfigValue",
-      "formatMemoryMb",
-      "formatPercent",
       "formatProgressValue",
       "formatSettingsListValue",
       "formatStatusCounts",
@@ -2187,7 +2185,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3705
+    "top_level_declaration_count": 3708
   },
   "scripts": [
     {
@@ -2536,8 +2534,6 @@
       ],
       "flat_window_exports": [
         "formatConfigValue",
-        "formatMemoryMb",
-        "formatPercent",
         "formatProgressValue",
         "formatSettingsListValue",
         "parseSettingsListText",
@@ -19572,353 +19568,368 @@
       "path": "apps/desktop/webview/static/assets/telemetryView.js",
       "top_level_declarations": [
         {
-          "name": "telemetryHistory",
+          "name": "formatters",
           "line": 2,
           "kind": "const"
         },
         {
-          "name": "DEFAULT_TELEMETRY_REFRESH_SECONDS",
-          "line": 8,
+          "name": "formatPercent",
+          "line": 3,
           "kind": "const"
         },
         {
-          "name": "GPU_TELEMETRY_PROBE_SECONDS",
+          "name": "formatMemoryMb",
           "line": 9,
           "kind": "const"
         },
         {
+          "name": "telemetryHistory",
+          "line": 17,
+          "kind": "const"
+        },
+        {
+          "name": "DEFAULT_TELEMETRY_REFRESH_SECONDS",
+          "line": 23,
+          "kind": "const"
+        },
+        {
+          "name": "GPU_TELEMETRY_PROBE_SECONDS",
+          "line": 24,
+          "kind": "const"
+        },
+        {
           "name": "TELEMETRY_HISTORY_SECONDS",
-          "line": 10,
+          "line": 25,
           "kind": "const"
         },
         {
           "name": "TELEMETRY_STALE_SECONDS",
-          "line": 11,
+          "line": 26,
           "kind": "const"
         },
         {
           "name": "TELEMETRY_FUTURE_SKEW_SECONDS",
-          "line": 12,
+          "line": 27,
           "kind": "const"
         },
         {
           "name": "TELEMETRY_SOURCE_WARNING_TOKENS",
-          "line": 13,
+          "line": 28,
           "kind": "const"
         },
         {
           "name": "lastTelemetryContext",
-          "line": 15,
+          "line": 30,
           "kind": "let"
         },
         {
           "name": "lastTelemetryChartStates",
-          "line": 16,
+          "line": 31,
           "kind": "let"
         },
         {
           "name": "telemetryHasNumber",
-          "line": 22,
+          "line": 37,
           "kind": "function"
         },
         {
           "name": "telemetryPercentNumber",
-          "line": 28,
+          "line": 43,
           "kind": "function"
         },
         {
           "name": "telemetryRefreshSeconds",
-          "line": 33,
+          "line": 48,
           "kind": "function"
         },
         {
           "name": "telemetryHistoryLimit",
-          "line": 41,
+          "line": 56,
           "kind": "function"
         },
         {
           "name": "pushTelemetryHistory",
-          "line": 45,
+          "line": 60,
           "kind": "function"
         },
         {
           "name": "telemetryHistorySnapshot",
-          "line": 53,
+          "line": 68,
           "kind": "function"
         },
         {
           "name": "telemetryCssToken",
-          "line": 61,
+          "line": 76,
           "kind": "function"
         },
         {
           "name": "telemetryCanvasColors",
-          "line": 70,
+          "line": 85,
           "kind": "function"
         },
         {
           "name": "chartColorForState",
-          "line": 88,
+          "line": 103,
           "kind": "function"
         },
         {
           "name": "prepareTelemetryCanvas",
-          "line": 98,
+          "line": 113,
           "kind": "function"
         },
         {
           "name": "drawTelemetryChart",
-          "line": 114,
+          "line": 129,
           "kind": "function"
         },
         {
           "name": "formatGpuEncoderPercent",
-          "line": 193,
+          "line": 208,
           "kind": "function"
         },
         {
           "name": "formatTelemetryNumber",
-          "line": 197,
+          "line": 212,
           "kind": "function"
         },
         {
           "name": "formatNotReported",
-          "line": 203,
+          "line": 218,
           "kind": "function"
         },
         {
           "name": "parseTelemetrySampleTime",
-          "line": 209,
+          "line": 224,
           "kind": "function"
         },
         {
           "name": "telemetrySampleDeltaSeconds",
-          "line": 216,
+          "line": 231,
           "kind": "function"
         },
         {
           "name": "telemetrySampleAgeSeconds",
-          "line": 222,
+          "line": 237,
           "kind": "function"
         },
         {
           "name": "formatTelemetryAge",
-          "line": 226,
+          "line": 241,
           "kind": "function"
         },
         {
           "name": "telemetrySampleTiming",
-          "line": 238,
+          "line": 253,
           "kind": "function"
         },
         {
           "name": "telemetrySourceSignal",
-          "line": 272,
+          "line": 287,
           "kind": "function"
         },
         {
           "name": "telemetrySourceText",
-          "line": 318,
+          "line": 333,
           "kind": "function"
         },
         {
           "name": "telemetrySourceState",
-          "line": 322,
+          "line": 337,
           "kind": "function"
         },
         {
           "name": "telemetryGpuUsagePayload",
-          "line": 326,
+          "line": 341,
           "kind": "function"
         },
         {
           "name": "telemetryGpuUsageSummaryLine",
-          "line": 342,
+          "line": 357,
           "kind": "function"
         },
         {
           "name": "normalizedGpuUsageRow",
-          "line": 348,
+          "line": 363,
           "kind": "function"
         },
         {
           "name": "telemetryGpuUsageRows",
-          "line": 367,
+          "line": 382,
           "kind": "function"
         },
         {
           "name": "telemetryGpuUsageDetailLines",
-          "line": 402,
+          "line": 417,
           "kind": "function"
         },
         {
           "name": "cpuUtilityNoteText",
-          "line": 421,
+          "line": 436,
           "kind": "function"
         },
         {
           "name": "telemetryGpuPresent",
-          "line": 428,
+          "line": 443,
           "kind": "function"
         },
         {
           "name": "telemetryHasUsefulValues",
-          "line": 442,
+          "line": 457,
           "kind": "function"
         },
         {
           "name": "telemetrySnapshotTextValues",
-          "line": 455,
+          "line": 470,
           "kind": "function"
         },
         {
           "name": "telemetryActiveWork",
-          "line": 483,
+          "line": 498,
           "kind": "function"
         },
         {
           "name": "telemetryExpectedEncoderMode",
-          "line": 495,
+          "line": 510,
           "kind": "function"
         },
         {
           "name": "telemetryExpectedEncoderLabel",
-          "line": 505,
+          "line": 520,
           "kind": "function"
         },
         {
           "name": "telemetryRenderContext",
-          "line": 513,
+          "line": 528,
           "kind": "function"
         },
         {
           "name": "telemetryOperatingState",
-          "line": 530,
+          "line": 545,
           "kind": "function"
         },
         {
           "name": "telemetryReadinessStatus",
-          "line": 662,
+          "line": 677,
           "kind": "function"
         },
         {
           "name": "telemetryChartMetaText",
-          "line": 666,
+          "line": 681,
           "kind": "function"
         },
         {
           "name": "telemetryReadinessLines",
-          "line": 672,
+          "line": 687,
           "kind": "function"
         },
         {
           "name": "setTelemetryTextState",
-          "line": 714,
+          "line": 729,
           "kind": "function"
         },
         {
           "name": "setTelemetryDatasetState",
-          "line": 720,
-          "kind": "function"
-        },
-        {
-          "name": "setTelemetryKpiState",
-          "line": 725,
-          "kind": "function"
-        },
-        {
-          "name": "setTelemetryChartPanelState",
-          "line": 730,
-          "kind": "function"
-        },
-        {
-          "name": "setTelemetryTrustFactState",
           "line": 735,
           "kind": "function"
         },
         {
+          "name": "setTelemetryKpiState",
+          "line": 740,
+          "kind": "function"
+        },
+        {
+          "name": "setTelemetryChartPanelState",
+          "line": 745,
+          "kind": "function"
+        },
+        {
+          "name": "setTelemetryTrustFactState",
+          "line": 750,
+          "kind": "function"
+        },
+        {
           "name": "telemetryUsageState",
-          "line": 741,
+          "line": 756,
           "kind": "function"
         },
         {
           "name": "formatTelemetryPercentValue",
-          "line": 771,
+          "line": 786,
           "kind": "function"
         },
         {
           "name": "telemetryKpiGpuStatus",
-          "line": 778,
+          "line": 793,
           "kind": "function"
         },
         {
           "name": "renderTelemetryTrustStrip",
-          "line": 790,
+          "line": 805,
           "kind": "function"
         },
         {
           "name": "renderTelemetryReadiness",
-          "line": 806,
+          "line": 821,
           "kind": "function"
         },
         {
           "name": "renderTelemetryKpis",
-          "line": 815,
+          "line": 830,
           "kind": "function"
         },
         {
           "name": "renderTelemetryChartMetadata",
-          "line": 848,
+          "line": 863,
           "kind": "function"
         },
         {
           "name": "telemetryGpuNote",
-          "line": 855,
+          "line": 870,
           "kind": "function"
         },
         {
           "name": "renderTelemetry",
-          "line": 879,
+          "line": 894,
           "kind": "function"
         },
         {
           "name": "redrawTelemetryCharts",
-          "line": 914,
+          "line": 929,
           "kind": "function"
         },
         {
           "name": "formatGpuMemoryCell",
-          "line": 930,
+          "line": 945,
           "kind": "function"
         },
         {
           "name": "formatTemperatureCell",
-          "line": 939,
+          "line": 954,
           "kind": "function"
         },
         {
           "name": "formatSessionsCell",
-          "line": 944,
+          "line": 959,
           "kind": "function"
         },
         {
           "name": "formatGpuStatus",
-          "line": 949,
+          "line": 964,
           "kind": "function"
         },
         {
           "name": "renderGpuRows",
-          "line": 962,
+          "line": 977,
           "kind": "function"
         },
         {
           "name": "telemetryVisibleGpuRows",
-          "line": 1007,
+          "line": 1022,
           "kind": "function"
         },
         {
           "name": "telemetryNamespace",
-          "line": 1015,
+          "line": 1030,
           "kind": "const"
         }
       ],

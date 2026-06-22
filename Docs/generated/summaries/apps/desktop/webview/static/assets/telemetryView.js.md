@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-21
 last_reviewed: 2026-06-04
-sha256: 64daee94b78d22285a31319f302563645e7e7bcb9b626e8ba2caf7e4eca827be
+sha256: 04acfcb503bfa7e18eb21c94ac780e665ded3bc26ef28d6610126c522e180d1d
 ---
 # `apps/desktop/webview/static/assets/telemetryView.js`
 

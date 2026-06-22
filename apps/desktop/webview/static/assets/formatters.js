@@ -96,8 +96,6 @@
     settingsValuesEqual,
     shortenPath,
   };
-  window.formatPercent = formatPercent;
-  window.formatMemoryMb = formatMemoryMb;
   window.formatProgressValue = formatProgressValue;
   window.formatConfigValue = formatConfigValue;
   window.parseSettingsListText = parseSettingsListText;

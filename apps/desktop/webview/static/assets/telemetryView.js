@@ -1,4 +1,19 @@
 (function () {
+  const formatters = window.mediaPipelineFormatters || {};
+  const formatPercent = typeof formatters.formatPercent === "function"
+    ? formatters.formatPercent
+    : function (value) {
+      if (value === null || value === undefined || Number.isNaN(Number(value))) return "Unavailable";
+      return `${Math.round(Number(value))}%`;
+    };
+  const formatMemoryMb = typeof formatters.formatMemoryMb === "function"
+    ? formatters.formatMemoryMb
+    : function (usedMb, totalMb) {
+      const used = Number(usedMb);
+      const total = Number(totalMb);
+      if (!Number.isFinite(used) || !Number.isFinite(total) || total <= 0) return "";
+      return `${(used / 1024).toFixed(1)} / ${(total / 1024).toFixed(1)} GB`;
+    };
   const telemetryHistory = {
     cpu: [],
     gpu: [],
