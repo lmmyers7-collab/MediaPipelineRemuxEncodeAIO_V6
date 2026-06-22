@@ -1358,16 +1358,10 @@
   window.launchCompactGateRows = launchCompactGateRows;
   window.renderLaunchCompactGate = renderLaunchCompactGate;
   window.launchWorksheetEvidence = launchWorksheetEvidence;
-  window.launchWorksheetRunRows = launchWorksheetRunRows;
-  window.launchWorksheetRunsMatchingSample = launchWorksheetRunsMatchingSample;
-  window.launchPolicyAlignmentPayload = launchPolicyAlignmentPayload;
-  window.launchPolicyAlignmentRows = launchPolicyAlignmentRows;
   window.launchQueueIntentCategoryMatch = launchQueueIntentCategoryMatch;
   window.launchPolicyAlignmentQueueIntentEvidence = launchPolicyAlignmentQueueIntentEvidence;
   window.launchSampleSetCoverageLine = launchSampleSetCoverageLine;
   window.launchSampleValidationRecordEvidence = launchSampleValidationRecordEvidence;
-  window.launchSampleValidationRecordRows = launchSampleValidationRecordRows;
-  window.launchSampleValidationRecordsMatchingSample = launchSampleValidationRecordsMatchingSample;
   window.launchSampleExecutionRows = launchSampleExecutionRows;
   window.launchPilotRunReadinessRows = launchPilotRunReadinessRows;
   window.pipelineLaunchPreflightLines = pipelineLaunchPreflightLines;

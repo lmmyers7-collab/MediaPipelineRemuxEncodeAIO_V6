@@ -743,8 +743,8 @@ class WebViewRealMediaSmoke(unittest.TestCase):
             "function renderSettingsBackendMediaPolicyReadiness",
             "Backend media-policy readiness:",
             "function settingsPolicyDeltaRows",
-            "Staged media-policy delta:",
-            "this table cannot stage settings, save config, launch work, run FFmpeg, publish files, or touch source media",
+            "Save-candidate media-policy delta:",
+            "Mutation guardrail: this delta is read-only and cannot save settings, launch work, mutate queues, publish, rename, or touch media",
         ):
             self.assertIn(fragment, settings_policy_impact_js)
 
