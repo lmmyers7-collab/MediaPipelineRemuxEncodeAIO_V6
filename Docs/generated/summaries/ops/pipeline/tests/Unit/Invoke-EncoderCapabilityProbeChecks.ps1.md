@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-21
+last_modified: 2026-06-22
 last_reviewed: 2026-06-19
-sha256: eebfa6bee767decc81aee2e9434d3406425c9186349f30ee2122540008af832f
+sha256: 8a6b002dc92e335d9e50f065dbe1999b629c4b352bae84d3af45e8658e444da1
 ---
 # `ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1`
 

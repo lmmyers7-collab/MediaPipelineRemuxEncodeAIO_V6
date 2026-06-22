@@ -95,6 +95,16 @@ class SettingsFacadePolicyTests(unittest.TestCase):
                                 "family": "hevc",
                                 "backend": "nvenc",
                                 "roles": ["primary"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "primary",
+                                        "active": True,
+                                        "descriptor_encoder": "hevc_nvenc",
+                                        "active_descriptor_encoder": "hevc_nvenc",
+                                        "reason": "descriptor-owned flags are active for primary attempt",
+                                    }
+                                ],
                                 "available": True,
                                 "probed": True,
                                 "runtime_probe_skipped": False,
@@ -109,6 +119,16 @@ class SettingsFacadePolicyTests(unittest.TestCase):
                                 "family": "hevc",
                                 "backend": "cpu",
                                 "roles": ["cpu_fallback"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "cpu_fallback",
+                                        "active": True,
+                                        "descriptor_encoder": "libx265",
+                                        "active_descriptor_encoder": "libx265",
+                                        "reason": "descriptor-owned flags are active for cpu_fallback attempt",
+                                    }
+                                ],
                                 "available": False,
                                 "reason": "missing",
                             },
@@ -128,6 +148,8 @@ class SettingsFacadePolicyTests(unittest.TestCase):
         self.assertEqual(evidence["selection"]["family"], "hevc")
         self.assertEqual(evidence["available_encoders"], ["hevc_nvenc"])
         self.assertEqual(evidence["unavailable_encoders"], ["libx265"])
+        self.assertEqual(evidence["active_encoders"], ["hevc_nvenc"])
+        self.assertEqual(evidence["available_inactive_encoders"], [])
         self.assertEqual(evidence["backend_counts"]["nvenc"], {"available": 1, "unavailable": 0, "total": 1})
         self.assertEqual(evidence["backend_counts"]["cpu"], {"available": 0, "unavailable": 1, "total": 1})
         self.assertEqual(
@@ -137,6 +159,88 @@ class SettingsFacadePolicyTests(unittest.TestCase):
         self.assertEqual(
             evidence["encoding_capability_facts"]["supported_encoder_backends"],
             ["copy", "nvenc"],
+        )
+
+    def test_encoder_capability_report_excludes_available_but_inactive_descriptor_rows_from_facts(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v1",
+                        "generated_at": "2026-06-22T12:00:00Z",
+                        "video_codec": "av1_nvenc",
+                        "encoder_backend": "auto",
+                        "selection": {"resolved": True, "reason": "resolved primary descriptor 'av1/nvenc'", "family": "av1"},
+                        "encoders": [
+                            {
+                                "encoder_name": "av1_nvenc",
+                                "probe_encoder_name": "av1_nvenc",
+                                "family": "av1",
+                                "backend": "nvenc",
+                                "roles": ["primary"],
+                                "descriptor_flags_active": False,
+                                "activation": [
+                                    {
+                                        "role": "primary",
+                                        "active": False,
+                                        "descriptor_encoder": "av1_nvenc",
+                                        "active_descriptor_encoder": "",
+                                        "reason": "descriptor flags are not active for primary attempt",
+                                    }
+                                ],
+                                "available": True,
+                                "probed": True,
+                                "encoder_list_match": True,
+                                "runtime_ok": True,
+                                "reason": "encoder 'av1_nvenc' probe succeeded",
+                            },
+                            {
+                                "encoder_name": "libaom-av1",
+                                "probe_encoder_name": "libaom-av1",
+                                "family": "av1",
+                                "backend": "cpu",
+                                "roles": ["cpu_fallback"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "cpu_fallback",
+                                        "active": True,
+                                        "descriptor_encoder": "libaom-av1",
+                                        "active_descriptor_encoder": "libaom-av1",
+                                        "reason": "descriptor-owned flags are active for cpu_fallback attempt",
+                                    }
+                                ],
+                                "available": True,
+                                "probed": True,
+                                "encoder_list_match": True,
+                                "runtime_ok": True,
+                                "reason": "encoder 'libaom-av1' probe succeeded",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            evidence = settings_encoder_capability_report(_resolved(root))
+
+        self.assertEqual(evidence["operator_status"], "Review")
+        self.assertEqual(evidence["operator_status_state"], "warning")
+        self.assertEqual(evidence["available_encoders"], ["av1_nvenc", "libaom-av1"])
+        self.assertEqual(evidence["active_encoders"], ["libaom-av1"])
+        self.assertEqual(evidence["available_inactive_encoders"], ["av1_nvenc"])
+        self.assertEqual(evidence["activation_unknown_encoders"], [])
+        self.assertIn("Available but not active", "\n".join(evidence["summary_lines"]))
+        self.assertEqual(
+            evidence["encoding_capability_facts"]["supported_video_codecs"],
+            ["av1"],
+        )
+        self.assertEqual(
+            evidence["encoding_capability_facts"]["supported_encoder_backends"],
+            ["copy", "cpu", "libaom"],
         )
 
     def test_encoder_capability_report_malformed_json_is_non_blocking_review_evidence(self) -> None:

@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0622-010",
+  "title": "Thread encoder activation readiness into capability evidence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Threaded descriptor activation readiness into the read-only encoder capability report and Launch/Settings evidence. Available encoders that are not active for descriptor-owned attempts now remain review-only evidence and are excluded from derived Python EncodingCapabilityFacts, preserving dormant AV1/NVENC hardware fail-closed behavior.",
+  "reason": "Advance encoder breadth/AV1 readiness without activating new hardware families or changing FFmpeg command generation: operator surfaces should distinguish executable descriptor activation from raw FFmpeg availability.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "pipeline",
+    "python",
+    "tests"
+  ],
+  "behavior_before": "The encoder capability report exposed selected primary/fallback rows and raw availability, and Python derived EncodingCapabilityFacts from available rows without knowing whether descriptor-owned flags were active for that attempt.",
+  "behavior_after": "Capability report rows include per-role descriptor activation evidence. Settings workspace and Launch preflight expose active, available-inactive, and activation-unknown encoder counts; Python capability facts are derived only from available rows that are active for descriptor-owned attempts when activation evidence is present.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/preflight_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_settings_policy.py.md",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-010.json",
+    "src/mediapipeline/core/config/settings_policy.py",
+    "src/mediapipeline/core/processes/preflight_facade.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_facade_settings_policy.py"
+  ],
+  "tests_added": [
+    "Added PowerShell coverage proving AV1/NVENC capability rows remain inactive while AV1/libaom CPU fallback rows are active in the descriptor capability report.",
+    "Added Settings policy coverage proving available-but-inactive encoder rows are review evidence and excluded from derived EncodingCapabilityFacts.",
+    "Added Launch preflight coverage proving active/inactive encoder counts are surfaced as read-only evidence."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_facade_settings_policy -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_process_launch -q",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncoderCapabilityProbeChecks.ps1",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncoderRuntimeMatrixChecks.ps1",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-MediaRouteSelectionChecks.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.core.contract.test_preset_policy_contract -q",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Invoke-ReliabilityRegressionChecks.ps1",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Remove activation fields from New-MediaEncoderCapabilityReport rows, restore Settings/Launch evidence to raw availability-only summaries, remove the targeted tests, refresh generated summaries, and rerun the same Python and PowerShell encoder evidence checks.",
+  "related_changes": [],
+  "notes": "Added read-only descriptor activation evidence to encoder capability report rows.\nThreaded activation-aware encoder capability facts and active/inactive report summaries.\nCarried encoder active/inactive counts into Launch preflight read-only detail.\nCovered AV1/NVENC dormant primary and AV1 CPU fallback activation evidence in capability reports.\nCovered activation-aware Settings capability facts and inactive available encoder summaries.\nCovered Launch preflight active/inactive encoder capability evidence.\nUpdated current encoder breadth status with activation-aware capability evidence.\nUpdated open encoder breadth workstream status with activation-aware capability evidence.\nRefreshed generated summary."
+}

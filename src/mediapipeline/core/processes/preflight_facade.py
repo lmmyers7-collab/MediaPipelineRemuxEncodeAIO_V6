@@ -264,6 +264,9 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
         action = "Refresh the backend Settings workspace or rerun the backend-owned encoder capability diagnostic."
     available = [str(item) for item in report.get("available_encoders", []) if str(item)]
     unavailable = [str(item) for item in report.get("unavailable_encoders", []) if str(item)]
+    active = [str(item) for item in report.get("active_encoders", []) if str(item)]
+    inactive_available = [str(item) for item in report.get("available_inactive_encoders", []) if str(item)]
+    activation_unknown = [str(item) for item in report.get("activation_unknown_encoders", []) if str(item)]
     evidence = (
         f"status={report.get('operator_status') or 'Unknown'}; "
         f"source_path={report.get('source_path') or '(unavailable)'}; "
@@ -272,6 +275,9 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
         f"EncoderBackend={report.get('encoder_backend') or '(unknown)'}; "
         f"available_count={len(available)}; "
         f"unavailable_count={len(unavailable)}; "
+        f"active_count={len(active)}; "
+        f"inactive_available_count={len(inactive_available)}; "
+        f"activation_unknown_count={len(activation_unknown)}; "
         f"read_only={'yes' if report.get('read_only') else 'no'}"
     )
     return _preflight_check(
@@ -297,6 +303,9 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
                     "selection": report.get("selection") or {},
                     "available_encoders": available,
                     "unavailable_encoders": unavailable,
+                    "active_encoders": active,
+                    "available_inactive_encoders": inactive_available,
+                    "activation_unknown_encoders": activation_unknown,
                     "backend_counts": report.get("backend_counts") or {},
                     "encoding_capability_facts": report.get("encoding_capability_facts") or {},
                     "summary_lines": list(report.get("summary_lines") or []),

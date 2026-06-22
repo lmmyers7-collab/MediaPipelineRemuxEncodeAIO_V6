@@ -87,6 +87,27 @@ Assert-Equal ([bool]$hardwareListOnly.EncoderListMatch) $true 'Bundled ffmpeg sh
 Assert-Equal ([bool]$hardwareListOnly.Available) $false 'Hardware list-only probe must stay fail-closed until runtime probing succeeds.'
 Assert-Equal ([bool]$hardwareListOnly.RuntimeProbeSkipped) $true 'Hardware list-only probe must not claim runtime validation.'
 
+$av1Report = New-MediaEncoderCapabilityReport `
+    -VideoCodec 'av1_nvenc' `
+    -EncoderBackend 'auto' `
+    -FfmpegPath $ffmpegPath `
+    -SkipHardwareRuntimeProbe `
+    -Force
+$av1ReportRows = @{}
+foreach ($row in @($av1Report.encoders)) {
+    $av1ReportRows[[string]$row.encoder_name] = $row
+}
+Assert-True ($av1ReportRows.ContainsKey('av1_nvenc')) 'AV1/NVENC capability report row should be present.'
+Assert-True ($av1ReportRows.ContainsKey('libaom-av1')) 'AV1 CPU fallback capability report row should be present.'
+Assert-Equal ([bool]$av1ReportRows['av1_nvenc'].descriptor_flags_active) $false 'Dormant AV1/NVENC primary must not report active descriptor-owned flags.'
+Assert-Equal ([bool]$av1ReportRows['libaom-av1'].descriptor_flags_active) $true 'AV1 CPU fallback must report active descriptor-owned flags.'
+$av1PrimaryActivation = @($av1ReportRows['av1_nvenc'].activation | Where-Object { [string]$_.role -eq 'primary' } | Select-Object -First 1)
+$av1FallbackActivation = @($av1ReportRows['libaom-av1'].activation | Where-Object { [string]$_.role -eq 'cpu_fallback' } | Select-Object -First 1)
+Assert-True ($av1PrimaryActivation.Count -eq 1) 'AV1/NVENC report should include primary activation evidence.'
+Assert-True ($av1FallbackActivation.Count -eq 1) 'AV1 CPU fallback report should include fallback activation evidence.'
+Assert-Equal ([bool]$av1PrimaryActivation[0].active) $false 'AV1/NVENC primary activation evidence must remain inactive.'
+Assert-Equal ([bool]$av1FallbackActivation[0].active) $true 'AV1 CPU fallback activation evidence must be active.'
+
 $script:ProbeInvalidationEvents = @()
 $script:ProbeInvalidationLogs = @()
 function Write-PipelineEvent {

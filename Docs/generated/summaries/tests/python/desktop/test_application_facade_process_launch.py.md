@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: f40a5a2bb47855f263111ca9142f6f43becf211d32257aca4167f23ea774497f
+sha256: 9d5e51c636e2e84af42ae124386ea55c51cea7611510d9aa9d132defe58eaca9
 ---
 # `tests/python/desktop/test_application_facade_process_launch.py`
 

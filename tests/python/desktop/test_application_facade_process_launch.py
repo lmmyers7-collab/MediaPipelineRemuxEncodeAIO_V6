@@ -1376,6 +1376,16 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                                 "family": "h264",
                                 "backend": "nvenc",
                                 "roles": ["primary"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "primary",
+                                        "active": True,
+                                        "descriptor_encoder": "h264_nvenc",
+                                        "active_descriptor_encoder": "h264_nvenc",
+                                        "reason": "descriptor-owned flags are active for primary attempt",
+                                    }
+                                ],
                                 "available": True,
                                 "probed": True,
                                 "runtime_probe_skipped": False,
@@ -1404,8 +1414,12 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(report["status"], "ready")
         self.assertIn("VideoCodec=h264_nvenc", report["evidence"])
         self.assertIn("available_count=1", report["evidence"])
+        self.assertIn("active_count=1", report["evidence"])
+        self.assertIn("inactive_available_count=0", report["evidence"])
         self.assertEqual(report["detail"][0]["operator_status_state"], "ready")
         self.assertEqual(report["detail"][0]["available_encoders"], ["h264_nvenc"])
+        self.assertEqual(report["detail"][0]["active_encoders"], ["h264_nvenc"])
+        self.assertEqual(report["detail"][0]["available_inactive_encoders"], [])
         self.assertEqual(report["detail"][0]["backend_counts"]["nvenc"], {"available": 1, "unavailable": 0, "total": 1})
         self.assertEqual(
             report["detail"][0]["encoding_capability_facts"]["supported_video_codecs"],
@@ -1414,6 +1428,93 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(
             report["detail"][0]["encoding_capability_facts"]["supported_encoder_backends"],
             ["copy", "nvenc"],
+        )
+
+    def test_launch_preflight_surfaces_available_but_inactive_encoder_capability_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v1",
+                        "generated_at": "2026-06-22T12:30:00Z",
+                        "video_codec": "av1_nvenc",
+                        "encoder_backend": "auto",
+                        "selection": {"resolved": True, "reason": "resolved primary descriptor 'av1/nvenc'", "family": "av1"},
+                        "encoders": [
+                            {
+                                "encoder_name": "av1_nvenc",
+                                "probe_encoder_name": "av1_nvenc",
+                                "family": "av1",
+                                "backend": "nvenc",
+                                "roles": ["primary"],
+                                "descriptor_flags_active": False,
+                                "activation": [
+                                    {
+                                        "role": "primary",
+                                        "active": False,
+                                        "descriptor_encoder": "av1_nvenc",
+                                        "active_descriptor_encoder": "",
+                                        "reason": "descriptor flags are not active for primary attempt",
+                                    }
+                                ],
+                                "available": True,
+                                "probed": True,
+                                "encoder_list_match": True,
+                                "runtime_ok": True,
+                                "reason": "encoder 'av1_nvenc' probe succeeded",
+                            },
+                            {
+                                "encoder_name": "libaom-av1",
+                                "probe_encoder_name": "libaom-av1",
+                                "family": "av1",
+                                "backend": "cpu",
+                                "roles": ["cpu_fallback"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "cpu_fallback",
+                                        "active": True,
+                                        "descriptor_encoder": "libaom-av1",
+                                        "active_descriptor_encoder": "libaom-av1",
+                                        "reason": "descriptor-owned flags are active for cpu_fallback attempt",
+                                    }
+                                ],
+                                "available": True,
+                                "probed": True,
+                                "encoder_list_match": True,
+                                "runtime_ok": True,
+                                "reason": "encoder 'libaom-av1' probe succeeded",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.config_data = {"NetworkRole": "standalone"}
+
+            preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        rows = {row["key"]: row for row in preflight["checks"]}
+        report = rows["encoder_capability_report"]
+        self.assertTrue(preflight["can_request_start"])
+        self.assertEqual(report["status"], "review")
+        self.assertIn("available_count=2", report["evidence"])
+        self.assertIn("active_count=1", report["evidence"])
+        self.assertIn("inactive_available_count=1", report["evidence"])
+        self.assertEqual(report["detail"][0]["operator_status_state"], "warning")
+        self.assertEqual(report["detail"][0]["available_encoders"], ["av1_nvenc", "libaom-av1"])
+        self.assertEqual(report["detail"][0]["active_encoders"], ["libaom-av1"])
+        self.assertEqual(report["detail"][0]["available_inactive_encoders"], ["av1_nvenc"])
+        self.assertEqual(
+            report["detail"][0]["encoding_capability_facts"]["supported_encoder_backends"],
+            ["copy", "cpu", "libaom"],
         )
 
     def test_audit_preflight_skips_unc_library_root_exists_check(self) -> None:

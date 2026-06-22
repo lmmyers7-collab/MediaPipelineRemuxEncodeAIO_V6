@@ -582,6 +582,65 @@ function Resolve-MediaEncoderSelection {
     return $result
 }
 
+function Get-MediaEncoderDescriptorActivationEvidence {
+    param(
+        [Parameter(Mandatory)] $Descriptor,
+        [AllowEmptyCollection()] [array] $Roles = @(),
+        [string] $VideoCodec = ''
+    )
+
+    $activationRows = @()
+    $activeForAttempts = $false
+    foreach ($rawRole in @($Roles)) {
+        $role = if ($rawRole) { ([string]$rawRole).Trim().ToLowerInvariant() } else { '' }
+        if ([string]::IsNullOrWhiteSpace($role)) { continue }
+        $useCpuFallback = $role -eq 'cpu_fallback'
+        if ($role -notin @('primary', 'cpu_fallback')) {
+            $activationRows += [pscustomobject][ordered]@{
+                role                      = $role
+                active                    = $false
+                descriptor_encoder        = [string]$Descriptor.EncoderName
+                active_descriptor_encoder = ''
+                reason                    = "unknown descriptor role '$role'"
+            }
+            continue
+        }
+
+        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$useCpuFallback
+        if ($null -eq $activeFlagsDescriptor) {
+            $activationRows += [pscustomobject][ordered]@{
+                role                      = $role
+                active                    = $false
+                descriptor_encoder        = [string]$Descriptor.EncoderName
+                active_descriptor_encoder = ''
+                reason                    = "descriptor flags are not active for $role attempt"
+            }
+            continue
+        }
+
+        $descriptorEncoder = ([string]$Descriptor.EncoderName).Trim().ToLowerInvariant()
+        $activeEncoder = ([string]$activeFlagsDescriptor.EncoderName).Trim().ToLowerInvariant()
+        $isActive = $descriptorEncoder -eq $activeEncoder
+        if ($isActive) { $activeForAttempts = $true }
+        $activationRows += [pscustomobject][ordered]@{
+            role                      = $role
+            active                    = [bool]$isActive
+            descriptor_encoder        = [string]$Descriptor.EncoderName
+            active_descriptor_encoder = [string]$activeFlagsDescriptor.EncoderName
+            reason                    = if ($isActive) {
+                "descriptor-owned flags are active for $role attempt"
+            } else {
+                "active descriptor encoder '$($activeFlagsDescriptor.EncoderName)' does not match '$($Descriptor.EncoderName)' for $role attempt"
+            }
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        ActiveForAttempts = [bool]$activeForAttempts
+        Activation        = @($activationRows)
+    }
+}
+
 function Get-MediaEncoderDescriptorProbeCacheKey {
     param(
         [Parameter(Mandatory)] $Descriptor,
@@ -875,6 +934,10 @@ function New-MediaEncoderCapabilityReport {
         }
 
         $probe = Test-MediaEncoderDescriptorAvailable @probeArgs
+        $activationEvidence = Get-MediaEncoderDescriptorActivationEvidence `
+            -Descriptor $descriptor `
+            -Roles @($entry['Roles']) `
+            -VideoCodec $VideoCodec
         $backendInvalidated = if ($probe.PSObject.Properties['BackendInvalidated']) { [bool]$probe.BackendInvalidated } else { $false }
         $row = [ordered]@{
             encoder_name          = [string]$descriptor.EncoderName
@@ -882,6 +945,8 @@ function New-MediaEncoderCapabilityReport {
             family                = [string]$descriptor.Family
             backend               = [string]$descriptor.Backend
             roles                 = @($entry['Roles'])
+            descriptor_flags_active = [bool]$activationEvidence.ActiveForAttempts
+            activation            = @($activationEvidence.Activation)
             available             = [bool]$probe.Available
             probed                = [bool]$probe.Probed
             runtime_probe_skipped = if ($probe.PSObject.Properties['RuntimeProbeSkipped']) { [bool]$probe.RuntimeProbeSkipped } else { $false }
@@ -899,6 +964,8 @@ function New-MediaEncoderCapabilityReport {
             roles                 = @($row.roles)
             family                = [string]$row.family
             backend               = [string]$row.backend
+            descriptor_flags_active = [bool]$row.descriptor_flags_active
+            activation            = @($row.activation)
             runtime_probe_skipped = [bool]$row.runtime_probe_skipped
             backend_invalidated   = [bool]$row.backend_invalidated
         }

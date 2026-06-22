@@ -186,6 +186,9 @@ def _settings_encoder_capability_report_base(path: Path | None) -> dict[str, Any
         "encoders": [],
         "available_encoders": [],
         "unavailable_encoders": [],
+        "active_encoders": [],
+        "available_inactive_encoders": [],
+        "activation_unknown_encoders": [],
         "backend_counts": {},
         "encoding_capability_facts": {},
         "summary_lines": [],
@@ -205,23 +208,51 @@ def _settings_encoder_capability_report_from_payload(
     ]
     available = [row["encoder_name"] for row in rows if row["available"]]
     unavailable = [row["encoder_name"] for row in rows if not row["available"]]
-    capability_facts = encoding_capability_facts_from_encoder_rows(rows).model_dump()
+    active = [
+        row["encoder_name"]
+        for row in rows
+        if row["available"] and row["descriptor_flags_active"]
+    ]
+    inactive_available = [
+        row["encoder_name"]
+        for row in rows
+        if row["available"] and row["activation_known"] and not row["descriptor_flags_active"]
+    ]
+    activation_unknown = [
+        row["encoder_name"]
+        for row in rows
+        if row["available"] and not row["activation_known"]
+    ]
+    activation_known = any(row["activation_known"] for row in rows)
+    capability_rows = [row for row in rows if row["available"] and row["descriptor_flags_active"]] if activation_known else rows
+    capability_facts = encoding_capability_facts_from_encoder_rows(capability_rows).model_dump()
     report_schema = str(report.get("schema") or report.get("schema_version") or "")
     errors: list[str] = []
     if report_schema != ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA:
         errors.append(f"Unexpected encoder capability report schema: {report_schema or '(missing)'}")
     if not rows:
         errors.append("Encoder capability report did not include encoder rows.")
-    state = "ready" if not errors and not unavailable else "warning"
+    if activation_unknown:
+        errors.append(
+            "Encoder capability report did not include descriptor activation readiness for: "
+            f"{', '.join(activation_unknown)}"
+        )
+    state = "ready" if not errors and not unavailable and not inactive_available else "warning"
     status = "Ready" if state == "ready" else "Review"
     video_codec = str(report.get("video_codec") or "")
     encoder_backend = str(report.get("encoder_backend") or "")
     summary = [
         f"Report generated for VideoCodec={video_codec or '(unknown)'}, EncoderBackend={encoder_backend or '(unknown)'}.",
         f"Available encoders: {', '.join(available) if available else 'none'}.",
+        f"Active descriptor-owned encoders: {', '.join(active) if active else 'none'}.",
     ]
     if unavailable:
         summary.append(f"Unavailable encoders: {', '.join(unavailable)}.")
+    if inactive_available:
+        summary.append(
+            "Available but not active for descriptor-owned attempts: "
+            f"{', '.join(inactive_available)}."
+        )
     if errors:
         summary.extend(errors)
     base.update(
@@ -238,6 +269,9 @@ def _settings_encoder_capability_report_from_payload(
             "encoders": rows,
             "available_encoders": available,
             "unavailable_encoders": unavailable,
+            "active_encoders": active,
+            "available_inactive_encoders": inactive_available,
+            "activation_unknown_encoders": activation_unknown,
             "backend_counts": _settings_encoder_backend_counts(rows),
             "encoding_capability_facts": capability_facts,
             "summary_lines": summary,
@@ -259,12 +293,23 @@ def _settings_encoder_capability_selection(value: Any) -> dict[str, Any]:
 
 def _settings_encoder_capability_row(value: dict[str, Any]) -> dict[str, Any]:
     roles = value.get("roles")
+    activation_rows = _settings_encoder_capability_row_activation(value.get("activation"))
+    activation_known = "descriptor_flags_active" in value or bool(activation_rows)
+    if "descriptor_flags_active" in value:
+        descriptor_flags_active = bool(value.get("descriptor_flags_active"))
+    elif activation_rows:
+        descriptor_flags_active = any(row["active"] for row in activation_rows)
+    else:
+        descriptor_flags_active = bool(value.get("available"))
     return {
         "encoder_name": str(value.get("encoder_name") or ""),
         "probe_encoder_name": str(value.get("probe_encoder_name") or ""),
         "family": str(value.get("family") or ""),
         "backend": str(value.get("backend") or ""),
         "roles": [str(role) for role in roles if str(role).strip()] if isinstance(roles, list) else [],
+        "descriptor_flags_active": descriptor_flags_active,
+        "activation_known": activation_known,
+        "activation": activation_rows,
         "available": bool(value.get("available")),
         "probed": bool(value.get("probed")),
         "runtime_probe_skipped": bool(value.get("runtime_probe_skipped")),
@@ -274,6 +319,25 @@ def _settings_encoder_capability_row(value: dict[str, Any]) -> dict[str, Any]:
         "reason": str(value.get("reason") or ""),
         "probed_at": str(value.get("probed_at") or ""),
     }
+
+
+def _settings_encoder_capability_row_activation(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    rows: list[dict[str, Any]] = []
+    for item in value:
+        if not isinstance(item, dict):
+            continue
+        rows.append(
+            {
+                "role": str(item.get("role") or ""),
+                "active": bool(item.get("active")),
+                "descriptor_encoder": str(item.get("descriptor_encoder") or ""),
+                "active_descriptor_encoder": str(item.get("active_descriptor_encoder") or ""),
+                "reason": str(item.get("reason") or ""),
+            }
+        )
+    return rows
 
 
 def _settings_encoder_backend_counts(rows: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
