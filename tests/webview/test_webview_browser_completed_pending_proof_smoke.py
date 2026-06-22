@@ -141,7 +141,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedSampleValidationComparisonLines",
               "completedPolicyAlignmentOutputEvidence",
               "completedPolicyOutputCategorySignal",
-              "renderCompletedTrustDecision",
               "markPublishReconciliationStale",
               "renderCompletedEvidenceCopyState",
               "pendingSampleValidationComparisonLines",
@@ -153,6 +152,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedFormatCounts",
               "completedFreshnessLine",
               "completedManifestIsAged",
+              "renderCompletedTrustDecision",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -172,6 +172,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedManifestIsAged =")) {
               throw new Error("served completedView.js still contains completedManifestIsAged flat assignment");
+            }
+            if (completedViewSource.includes("window.renderCompletedTrustDecision =")) {
+              throw new Error("served completedView.js still contains renderCompletedTrustDecision flat assignment");
             }
 
             window.confirm = () => {
