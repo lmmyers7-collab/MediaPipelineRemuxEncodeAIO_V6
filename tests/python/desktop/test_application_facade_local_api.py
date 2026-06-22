@@ -5391,6 +5391,8 @@ class LocalApiServerTests(unittest.TestCase):
         _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "renderCompactCommandHistoryBlock")
         _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "commandHistoryDiagnosticLine")
         self.assertIn("function commandHistorySuggestedAction", command_history_js)
+        _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "commandHistoryIssueEntries")
+        self.assertNotIn("window.commandHistoryIssueEntries = commandHistoryIssueEntries", command_history_js)
         self.assertIn('command === "backend.shutdown"', command_history_js)
         self.assertIn("Backend shutdown was requested.", command_history_js)
         self.assertIn("function commandHistoryIssueDigestLines", command_history_js)

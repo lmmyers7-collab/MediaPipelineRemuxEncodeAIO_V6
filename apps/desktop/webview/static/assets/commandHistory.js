@@ -1470,6 +1470,5 @@
   window.commandHistoryIssueLevel = commandHistoryIssueLevel;
   window.commandHistoryRefreshTarget = commandHistoryRefreshTarget;
   window.commandHistorySuggestedAction = commandHistorySuggestedAction;
-  window.commandHistoryIssueEntries = commandHistoryIssueEntries;
   window.commandHistoryDiagnosticsActions = commandHistoryDiagnosticsActions;
 })();

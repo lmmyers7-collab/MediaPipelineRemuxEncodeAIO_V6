@@ -65,7 +65,10 @@
 
   function diagnosticsCommandIssueRows(commandPayload) {
     const entries = Array.isArray(commandPayload?.entries) ? commandPayload.entries : (typeof getCommandHistory === "function" ? getCommandHistory() : []);
-    if (typeof window.commandHistoryIssueEntries === "function") return window.commandHistoryIssueEntries(entries);
+    const commandHistoryView = window.mediaPipelineCommandHistory || {};
+    if (typeof commandHistoryView.commandHistoryIssueEntries === "function") {
+      return commandHistoryView.commandHistoryIssueEntries(entries);
+    }
     return entries.filter((entry) => entry && entry.ok === false);
   }
 

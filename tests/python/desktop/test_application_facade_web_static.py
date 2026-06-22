@@ -2523,6 +2523,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         pending_view_js = _read_pending_publish_asset_bundle(assets_root)
         reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
         command_history_js = _read_command_history_asset_bundle(assets_root)
+        diagnostics_view_investigation_js = (assets_root / "diagnosticsView.investigation.js").read_text(encoding="utf-8")
 
         for node_id in [
             "command-diagnostics-actions",
@@ -2560,6 +2561,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("appendDiagnosticsBridgeButton(container, actions, sourceLabel)", reports_view_js)
 
         self.assertIn("function commandHistoryDiagnosticsActions", command_history_js)
+        self.assertIn("commandHistoryIssueEntries,", command_history_js)
+        self.assertIn("commandHistoryView.commandHistoryIssueEntries(entries)", diagnostics_view_investigation_js)
+        self.assertNotIn("window.commandHistoryIssueEntries = commandHistoryIssueEntries", command_history_js)
         self.assertIn("function commandHistoryDiagnosticsTargetAllowed", command_history_js)
         self.assertIn("commandHistoryDiagnosticsTargetAllowed(requestedTarget)", command_history_js)
         self.assertIn('diagnosticsBridgeHandoffLines("Command result selected row"', command_history_js)
