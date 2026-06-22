@@ -370,7 +370,7 @@
         ? commandHistoryView.commandHistoryRefreshTarget(entry)
         : "snapshot");
       return {
-        key: typeof commandHistoryRowKey === "function" ? commandHistoryRowKey(entry) : `${entry?.command || "launch"}:${entry?.at || index}`,
+        key: typeof commandHistoryView.commandHistoryRowKey === "function" ? commandHistoryView.commandHistoryRowKey(entry) : `${entry?.command || "launch"}:${entry?.at || index}`,
         entry,
         flow: launchHistoryLabel(String(entry?.command || "")),
         issue,

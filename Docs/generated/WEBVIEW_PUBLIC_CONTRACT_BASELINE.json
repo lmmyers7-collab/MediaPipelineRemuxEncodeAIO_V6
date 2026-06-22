@@ -877,7 +877,6 @@
       "commandHistoryCompactEvidenceLine",
       "commandHistoryIssueLevel",
       "commandHistoryOwnerPage",
-      "commandHistoryRowKey",
       "completedAcceptanceDetailLines",
       "completedAcceptancePostureStatus",
       "completedAcceptanceRows",
@@ -3827,7 +3826,6 @@
         "commandHistoryCompactEvidenceLine",
         "commandHistoryIssueLevel",
         "commandHistoryOwnerPage",
-        "commandHistoryRowKey",
         "getCommandHistory",
         "selectCommandEntry"
       ],
