@@ -251,6 +251,7 @@ function Do-Remux {
         # field downstream.
         $videoArgs = [System.Collections.Generic.List[string]]::new()
         $videoArgs.AddRange([string[]]@(
+            "-fflags", "+genpts",
             "-i", $localIn,
             "-map", "0:V", "-c:v", "copy"
         ))

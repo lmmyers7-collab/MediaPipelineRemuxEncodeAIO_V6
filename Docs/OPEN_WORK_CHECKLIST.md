@@ -117,7 +117,7 @@ future code change touches the matching validation gate.
 
 ### Recurring Validation Gates
 
-- [ ] **Real-media rerun gate** — Re-run representative real-media validation after Dynamic HDR, encoder breadth/AV1, media policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior changes.
+- [ ] **Real-media rerun gate** — Re-run representative real-media validation after Dynamic HDR, encoder breadth/AV1, media policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior changes. Latest media-policy rerun: MP-CHANGE-2026-0622-001 on 2026-06-22, Tdarr proof-pack run `run-20260622-codex-proof-all-final`, 92 cases executed, 76 published outputs ffprobe-verified, 92/92 source hashes unchanged, remaining warnings terminal/non-retryable expected-invalid fixtures.
 - [ ] **Package/open/close rerun gate** — Re-run package/open/close validation after launcher, package, Tauri, Local API bootstrap, or release-layout changes.
 
 ---

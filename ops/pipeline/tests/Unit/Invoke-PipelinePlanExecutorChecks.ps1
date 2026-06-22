@@ -85,7 +85,7 @@ function New-ExpectedLegacyRemuxAvArgs {
     )
     $videoAction = Get-PipelinePlanSingleStreamAction -Plan $Plan -StreamType 'video'
     $expected = [System.Collections.Generic.List[string]]::new()
-    $expected.AddRange([string[]]@('-i', $InputPath, '-map', '0:V', '-c:v', 'copy'))
+    $expected.AddRange([string[]]@('-fflags', '+genpts', '-i', $InputPath, '-map', '0:V', '-c:v', 'copy'))
     if (([string]$videoAction.inputCodec).Trim().ToLowerInvariant() -in (Get-MediaVideoCodecHevcNames)) {
         $expected.AddRange([string[]]@('-bsf:v', 'hevc_mp4toannexb'))
     }

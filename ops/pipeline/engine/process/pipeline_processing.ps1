@@ -1,10 +1,10 @@
-# ============================================================================== 
+# ==============================================================================
 # ops\pipeline\engine\process\pipeline_processing.ps1
-# ============================================================================== 
+# ==============================================================================
 # Job-level processing orchestration extracted from MediaPipeline.ps1.
 # Dot-sourced by the main script; preserves script-scope configuration and the
 # legacy Process-File wrapper in the main script.
-# ============================================================================== 
+# ==============================================================================
 
 . (Join-Path $PSScriptRoot 'pipeline_processing\preflight.ps1')
 
@@ -634,8 +634,27 @@ function Invoke-MediaPipelineProcessFile {
         } elseif (-not $script:StopRequested) {
             Set-ProgressStage -Stage 'failed' -Status 'Failed' -Route $routeName -Percent $null -SaveNow
             $publishResult = $script:LastPublishResult
-            $failureReason = if ($publishResult -and $publishResult.Reason) { [string]$publishResult.Reason } else { 'Processing failed' }
-            $result = New-MediaPipelineProcessFileResult -File $file -Status 'failed' -Success:$false -QueueTerminal:$false -Retryable:$true -Reason $failureReason -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -PublishState ([string]$publishResult.PublishState) -PublishMode ([string]$publishResult.PublishMode) -OutputPath ([string]$publishResult.OutputPath) -OutputSizeBytes ([long]$publishResult.OutputSizeBytes) -SizeGuardEvidence $sizeGuardEvidence -VerificationEvidence $verificationEvidence -PublishEvidence $publishEvidence
+            $routeFailureState = Get-SourceFailureState $file
+            $failureReason = if ($publishResult -and $publishResult.Reason) {
+                [string]$publishResult.Reason
+            } elseif ($routeFailureState -and $routeFailureState.PSObject.Properties['reason'] -and -not [string]::IsNullOrWhiteSpace([string]$routeFailureState.reason)) {
+                [string]$routeFailureState.reason
+            } else {
+                'Processing failed'
+            }
+            $failureErrorCode = if ($routeFailureState -and $routeFailureState.PSObject.Properties['error_code']) {
+                Normalize-FailureCode -Code ([string]$routeFailureState.error_code)
+            } else {
+                ''
+            }
+            $failureRetryable = $true
+            if ($routeFailureState -and $routeFailureState.PSObject.Properties['retryable']) {
+                $failureRetryable = [bool]$routeFailureState.retryable
+            } elseif (-not [string]::IsNullOrWhiteSpace($failureErrorCode) -and (Get-Command -Name Get-MediaPipelineCodeRetryable -ErrorAction SilentlyContinue)) {
+                $failureRetryable = Get-MediaPipelineCodeRetryable -Code $failureErrorCode -Family ''
+            }
+            $failureQueueTerminal = -not [bool]$failureRetryable
+            $result = New-MediaPipelineProcessFileResult -File $file -Status 'failed' -Success:$false -QueueTerminal:([bool]$failureQueueTerminal) -Retryable:([bool]$failureRetryable) -Reason $failureReason -ErrorCode $failureErrorCode -Route $routeName -RouteReasonCode ([string]$script:CurrentRouteReasonCode) -RouteReason ([string]$script:CurrentRouteReason) -PublishState ([string]$publishResult.PublishState) -PublishMode ([string]$publishResult.PublishMode) -OutputPath ([string]$publishResult.OutputPath) -OutputSizeBytes ([long]$publishResult.OutputSizeBytes) -SizeGuardEvidence $sizeGuardEvidence -VerificationEvidence $verificationEvidence -PublishEvidence $publishEvidence
             Write-MediaPipelineProcessCompletedEvent -Result $result -Stage 'failed' -MediaType $queueLabel.ToLowerInvariant()
             return $result
         }

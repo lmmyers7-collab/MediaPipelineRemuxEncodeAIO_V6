@@ -3,9 +3,9 @@ file: ops/pipeline/engine/process/pipeline_processing.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-12
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 44dc7984cf688b22636b9b9b3afbfcf8108f3319ee3cec6edf3169d347b3128f
+sha256: b57042494195dbcd667b14c9d410ca39df0e240ddf6a108c2097234f94d78bac
 ---
 # `ops/pipeline/engine/process/pipeline_processing.ps1`
 

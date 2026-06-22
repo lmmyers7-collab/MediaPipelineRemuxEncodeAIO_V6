@@ -86,6 +86,7 @@ Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FailureStateIdentity
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-FFmpegProgressChecks.ps1' -Label 'FFmpeg/mkvmerge progress checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-LoggingJsonLineChecks.ps1' -Label 'logging JSONL lock checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MediaVerificationSafetyChecks.ps1' -Label 'media verification safety checks'
+Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-TdarrContainerStressChecks.ps1' -Label 'Tdarr container stress checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-MediaRouteSelectionChecks.ps1' -Label 'media route selection checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-NamingSupportChecks.ps1' -Label 'naming support checks'
 Invoke-RequiredReliabilityScript -RelativePath 'Unit\Invoke-LocalWorkerClaimLifecycleChecks.ps1' -Label 'local worker claim lifecycle checks'

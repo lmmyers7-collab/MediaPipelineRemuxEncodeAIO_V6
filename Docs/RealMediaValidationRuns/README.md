@@ -32,6 +32,21 @@ release packaging can exclude run-specific files from this folder.
 See `post-module-move-evidence-2026-05-29.md` for the non-sensitive local
 evidence summary.
 
+## Tdarr proof-pack media-policy status
+
+- Status: completed local proof-pack rerun for MP-CHANGE-2026-0622-001 on
+  2026-06-22.
+- Evidence run: `run-20260622-codex-proof-all-final`.
+- Covered scope: Tdarr-generated sample matrix remux/encode routing,
+  source-video probe behavior, REMUX-AV timestamp synthesis, invalid-container
+  failure classification, output probing, and source-hash preservation.
+- Result: 92/92 selected cases executed; 76 outputs published and ffprobe
+  verified with video streams; 92/92 source hashes unchanged.
+- Remaining warnings are fail-closed expected/invalid fixtures: audio-only or
+  manifest-mismatched video-missing cases report `SOURCE_MEDIA_VIDEO_MISSING`,
+  and the corrupt AVI/rawvideo fixture reports `SOURCE_MEDIA_CONTAINER_INVALID`.
+  These warnings are terminal and non-retryable.
+
 ## Revalidation rule
 
 Rerun representative real-media validation whenever FFmpeg command generation,

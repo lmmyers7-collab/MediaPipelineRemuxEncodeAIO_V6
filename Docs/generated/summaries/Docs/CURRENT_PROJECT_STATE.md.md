@@ -3,9 +3,9 @@ file: docs/CURRENT_PROJECT_STATE.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-21
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 85c45a65e5cd89d5e213c6b921efde38cfda29a667a5a62d225d360a45dfe3c4
+sha256: 0cab4ff216bc2fb316cca7d80c155e5ace74244a6fd85dc459506644416ed879
 ---
 # `docs/CURRENT_PROJECT_STATE.md`
 

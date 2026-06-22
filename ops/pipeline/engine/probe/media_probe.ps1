@@ -942,11 +942,11 @@ function Get-SourceMediaRouteProfile {
                     $packetStream = @($packetJson.streams)[0]
                     [int]$readPackets = 0
                     if ($packetStream -and $packetStream.PSObject.Properties['nb_read_packets']) {
-                        [void][int]::TryParse([string]$packetStream.nb_read_packets, [ref]$readPackets)
+                        $packetCountKnown = [int]::TryParse([string]$packetStream.nb_read_packets, [ref]$readPackets)
+                        if ($packetCountKnown) {
+                            $videoHasPackets = ($readPackets -ge 1)
+                        }
                     }
-                    # Only flag empty when we positively determine zero packets;
-                    # ambiguous probes leave the source eligible (no false rejects).
-                    $videoHasPackets = ($readPackets -ge 1)
                 } catch {
                     $videoHasPackets = $true
                 }

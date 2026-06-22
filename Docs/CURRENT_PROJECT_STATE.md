@@ -54,7 +54,7 @@ Run from the repository root:
 .\ops\scripts\operator\New-RealMediaValidationWorksheet.ps1
 ```
 
-Default-launcher promotion is complete by operator confirmation on 2026-05-30. Representative real-media validation is operator-attested complete as of 2026-05-28, but rerun it after high-risk media behavior changes.
+Default-launcher promotion is complete by operator confirmation on 2026-05-30. Representative real-media validation is operator-attested complete as of 2026-05-28, but rerun it after high-risk media behavior changes. The latest media-policy rerun is MP-CHANGE-2026-0622-001: Tdarr proof-pack run `run-20260622-codex-proof-all-final` executed 92 cases, published and ffprobe-verified 76 outputs, left 92/92 source hashes unchanged, and left only terminal/non-retryable expected-invalid warnings.
 
 ## Current Architecture
 

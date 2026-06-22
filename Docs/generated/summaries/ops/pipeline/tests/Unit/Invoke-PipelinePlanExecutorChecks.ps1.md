@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-15
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 0fc9643667919f8262053b82635a5790ad82e9a73887020483e8160fd496fea7
+sha256: 8b7f19c669127cd1dfe36077a6d3822216d344b446d26cc8bf33b95a1be0eb83
 ---
 # `ops/pipeline/tests/Unit/Invoke-PipelinePlanExecutorChecks.ps1`
 

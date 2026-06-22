@@ -1162,14 +1162,17 @@ function Do-Encode {
             } else {
                 "Inspect FFmpeg stderr log $($script:LastFFmpegErrorLog) and repro command $reproPath. If NVENC was unstable, compare against the CPU fallback behavior."
             }
-            # D2 fix — CPU failures are recorded as 'transient' just like
-            # NVENC failures. Register-SourceFailure already escalates to
-            # 'operator_required' after $TransientFailureRetryLimit repeated
-            # same-(stage,error_code) failures (see ops\pipeline\engine\failures\failure_state.ps1
-            # ~line 670). That gives a CPU job N retry chances for
-            # genuinely transient errors (antivirus locks, transient OOM,
-            # disk full near end), then escalates exactly once instead of
-            # the previous "first failure is permanent" behavior.
+            $failureRetryable = if (Get-Command -Name Get-MediaPipelineCodeRetryable -ErrorAction SilentlyContinue) {
+                Get-MediaPipelineCodeRetryable -Code $errorCode -Family ''
+            } else {
+                $true
+            }
+            $failureClassification = if ([bool]$failureRetryable) { 'transient' } else { 'permanent' }
+            # D2 fix — retryable CPU failures are recorded as 'transient'
+            # just like NVENC failures. Permanent source-media failures stay
+            # permanent so corrupt/invalid containers do not churn retry slots.
+            # Register-SourceFailure still escalates retryable same-(stage,
+            # error_code) failures after TransientFailureRetryLimit attempts.
             # Emit the matching encoder_fallback_completed event so the
             # diagnostics drawer can pair start with end (E5).
             if ($failedEncoderKind -eq 'cpu') {
@@ -1185,9 +1188,14 @@ function Do-Encode {
                     dynamic_hdr     = [bool]$dynamicHdrForceCpuEncode
                 } | Out-Null
             }
-            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason $reason -Stage 'encode' -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification $failureClassification -Reason $reason -Stage 'encode' -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
             $localIn = $null
-            Write-Log "ENCODE failed - recorded as transient and scheduled for retry: $safeName" "ERROR"
+            $failureDisposition = if ($failureClassification -eq 'transient') {
+                'recorded as transient and scheduled for retry'
+            } else {
+                'recorded as non-retryable source failure'
+            }
+            Write-Log "ENCODE failed - $failureDisposition`: $safeName" "ERROR"
             return $false
         }
 
