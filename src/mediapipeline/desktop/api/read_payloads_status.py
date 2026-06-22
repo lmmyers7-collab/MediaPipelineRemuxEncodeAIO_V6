@@ -117,6 +117,7 @@ class LocalApiStatusReadPayloadMixin:
                 {
                     "csv_path": query_value(query, "csv_path", ""),
                     "dry_run": query_bool(query, "dry_run", False),
+                    "plan_only": query_bool(query, "plan_only", False),
                     "stage_mode": query_value(query, "stage_mode", "copy"),
                     "original_mode": query_value(query, "original_mode", "keep"),
                     "return_mode": query_value(query, "return_mode", "park"),

@@ -112,8 +112,8 @@ future code change touches the matching validation gate.
 
 ### Deferred With Reason
 
-- [ ] **FR-016 multi-video stream policy/evidence** — Deferred until the operator/product policy decides whether multi-video inputs preserve all video streams, encode primary-only with explicit evidence, or block/review. Any behavior change needs FFmpeg command topology tests and representative multi-video real-media validation.
-- [ ] **FR-042 rerun `-DryRun` semantics** — Deferred until the operator contract decides whether evidence-writing dry-run behavior is intentional or a distinct no-write `-PlanOnly` mode is needed. Any change needs temp-LocalBase rerun tests or equivalent smoke coverage.
+- [ ] **FR-016 multi-video stream policy/evidence** — Policy decision: preserve all real video streams. Implementation remains open and needs FFmpeg command topology tests plus representative multi-video real-media validation before unblocking multi-video inputs.
+- [x] **FR-042 rerun `-DryRun` semantics** — Resolved on 2026-06-22: `-DryRun` remains evidence-writing, and CSV rerun now has a distinct no-write `-PlanOnly` mode. Validation includes temp-LocalBase PlanOnly no-write coverage plus backend launch-plan/route/WebView preflight/request tests.
 
 ### Recurring Validation Gates
 

@@ -48,6 +48,7 @@
   const launchCommandButtonIds = [
     "pipeline-start-button",
     "pending-drain-button",
+    "rerun-plan-only-button",
     "rerun-dry-run-button",
     "rerun-start-button",
   ];
@@ -131,12 +132,18 @@
       const decisionGate = launchStartDecisionGate(request);
       return decisionGate.blocked ? decisionGate : targetGate;
     }
-    if (id === "rerun-start-button" || id === "rerun-dry-run-button") {
-      const request = collectRerunStartRequest({ dry_run: id === "rerun-dry-run-button" });
+    if (id === "rerun-start-button" || id === "rerun-dry-run-button" || id === "rerun-plan-only-button") {
+      const request = collectRerunStartRequest({
+        dry_run: id === "rerun-dry-run-button",
+        plan_only: id === "rerun-plan-only-button",
+      });
+      const label = id === "rerun-plan-only-button"
+        ? "Plan CSV Rerun"
+        : id === "rerun-dry-run-button" ? "Preview CSV Rerun" : "Start CSV Rerun";
       const targetGate = launchTargetGate("rerun", request, {
         allowMissing: false,
-        matchKeys: ["csv_path", "dry_run", "stage_mode", "original_mode", "return_mode"],
-        label: id === "rerun-dry-run-button" ? "Preview CSV Rerun" : "Start CSV Rerun",
+        matchKeys: ["csv_path", "dry_run", "plan_only", "stage_mode", "original_mode", "return_mode"],
+        label,
       });
       if (targetGate.blocked) return targetGate;
       return targetGate;

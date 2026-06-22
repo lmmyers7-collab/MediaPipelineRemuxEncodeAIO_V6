@@ -617,7 +617,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Source: GET /api/launch/preflight",
               "Status scope: active targets only",
               "active requests=1",
-              "skipped inactive=2",
+              "skipped inactive=3",
               "Inactive targets skipped: CSV Rerun Start: CSV path is not staged.",
             ]);
             requireTableText("launch-backend-preflight-rows", [

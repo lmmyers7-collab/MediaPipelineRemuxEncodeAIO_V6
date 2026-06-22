@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/rerun_facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-04
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: a7b8e406688bbd4a569414e95e6148e918fc9c588164b7aa4bbd8154cb4644e7
+sha256: 9993eb521e603b75367cb2d31da100225f32f97ef14cbb3ead993f2c125223cb
 ---
 # `src/mediapipeline/core/processes/rerun_facade.py`
 

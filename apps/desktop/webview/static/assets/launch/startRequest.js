@@ -34,10 +34,12 @@
   }
 
   function collectRerunStartRequest(options = {}) {
-    const dryRun = typeof options === "boolean" ? options : Boolean(options.dry_run);
+    const planOnly = typeof options === "object" && Boolean(options.plan_only);
+    const dryRun = planOnly ? false : typeof options === "boolean" ? options : Boolean(options.dry_run);
     return {
       csv_path: byId("rerun-start-csv-path")?.value || "",
       dry_run: dryRun,
+      plan_only: planOnly,
       stage_mode: "copy",
       original_mode: "keep",
       return_mode: "park",

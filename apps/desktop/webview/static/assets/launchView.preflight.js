@@ -458,6 +458,7 @@
       { key: "pipeline", target: "pipeline", label: "Pipeline", request: collectPipelineStartRequest() },
       { key: "rerun-live", target: "rerun", label: "CSV Rerun Start", request: collectRerunStartRequest({ dry_run: false }) },
       { key: "rerun-preview", target: "rerun", label: "CSV Rerun Preview", request: collectRerunStartRequest({ dry_run: true }) },
+      { key: "rerun-plan-only", target: "rerun", label: "CSV Rerun Plan Only", request: collectRerunStartRequest({ plan_only: true }) },
     ].map((item) => {
       const activity = launchBackendPreflightRequestActivity(item);
       return {
@@ -891,10 +892,13 @@
       `Stage mode: ${request.stage_mode}`,
       `Original mode: ${request.original_mode}`,
       `Return mode: ${request.return_mode}`,
-      `Dry run: ${request.dry_run ? "yes - preview only" : "no - live rerun start"}`,
+      `Plan only: ${request.plan_only ? "yes - no manifest or media writes" : "no"}`,
+      `Dry run: ${request.dry_run ? "yes - evidence-writing preview" : request.plan_only ? "no - plan-only request" : "no - live rerun start"}`,
     ];
     if (!csv) lines.push("Input warning: CSV path is required before CSV rerun can start.");
-    lines.push(request.dry_run
+    lines.push(request.plan_only
+      ? "Safety policy: plan-only stops before writing manifests, temp config, staging files, parked outputs, or source media."
+      : request.dry_run
       ? "Safety policy: dry-run preview should produce backend evidence without staging, moving, publishing, or touching media."
       : "Safety policy: live rerun copies to scratch, keeps originals, and parks returned outputs."
     );
@@ -912,7 +916,7 @@
   function renderAllLaunchPreflights(options = {}) {
     const pipelineRequest = collectPipelineStartRequest();
     renderLaunchPreflight("pipeline-launch-preflight", pipelineLaunchPreflightLines(pipelineRequest));
-    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest()));
+    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest({ plan_only: true })));
     renderLaunchSettingsRiskHandoff(pipelineRequest);
     renderLaunchPolicyBoundary();
     renderLaunchSettingsIntentChecklist(pipelineRequest);

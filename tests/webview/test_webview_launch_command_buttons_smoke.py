@@ -55,7 +55,7 @@ def _run_launch_command_buttons_smoke() -> dict[str, object]:
             _frontend_preflight_key: "rerun-live",
             _frontend_target_label: "CSV Rerun Start",
             status: "ready",
-            request: {{ csv_path: "C:/rerun.csv", dry_run: false, stage_mode: "copy", original_mode: "keep", return_mode: "queue" }},
+            request: {{ csv_path: "C:/rerun.csv", dry_run: false, plan_only: false, stage_mode: "copy", original_mode: "keep", return_mode: "queue" }},
             checks: [{{ key: "rerun-live-ready", label: "CSV live ready", status: "ready", action: "No action." }}],
           }},
           {{
@@ -63,8 +63,16 @@ def _run_launch_command_buttons_smoke() -> dict[str, object]:
             _frontend_preflight_key: "rerun-preview",
             _frontend_target_label: "CSV Rerun Preview",
             status: "ready",
-            request: {{ csv_path: "C:/rerun.csv", dry_run: true, stage_mode: "copy", original_mode: "keep", return_mode: "queue" }},
+            request: {{ csv_path: "C:/rerun.csv", dry_run: true, plan_only: false, stage_mode: "copy", original_mode: "keep", return_mode: "queue" }},
             checks: [{{ key: "rerun-preview-ready", label: "CSV preview ready", status: "ready", action: "No action." }}],
+          }},
+          {{
+            target: "rerun",
+            _frontend_preflight_key: "rerun-plan-only",
+            _frontend_target_label: "CSV Rerun Plan Only",
+            status: "ready",
+            request: {{ csv_path: "C:/rerun.csv", dry_run: false, plan_only: true, stage_mode: "copy", original_mode: "keep", return_mode: "queue" }},
+            checks: [{{ key: "rerun-plan-only-ready", label: "CSV plan-only ready", status: "ready", action: "No action." }}],
           }},
         ];
         function valuesMatch(left, right) {{
@@ -76,7 +84,7 @@ def _run_launch_command_buttons_smoke() -> dict[str, object]:
             return {{ mode: "continuous", sleep_seconds: 30, schedule_override: "", single_file: "", pipeline_only_blocker: true }};
           }},
           collectRerunStartRequest(options = {{}}) {{
-            const request = {{ csv_path: "C:/rerun.csv", dry_run: Boolean(options.dry_run), stage_mode: "copy", original_mode: "keep", return_mode: "queue" }};
+            const request = {{ csv_path: "C:/rerun.csv", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), stage_mode: "copy", original_mode: "keep", return_mode: "queue" }};
             rerunRequests.push(request);
             return request;
           }},
@@ -116,10 +124,12 @@ def _run_launch_command_buttons_smoke() -> dict[str, object]:
         }});
 
         const pipelineGate = launchModule.launchButtonGate("pipeline-start-button");
+        const rerunPlanOnlyGate = launchModule.launchButtonGate("rerun-plan-only-button");
         const rerunDryRunGate = launchModule.launchButtonGate("rerun-dry-run-button");
         const rerunGate = launchModule.launchButtonGate("rerun-start-button");
         process.stdout.write(JSON.stringify({{
           pipelineGate,
+          rerunPlanOnlyGate,
           rerunDryRunGate,
           rerunGate,
           decisionRequestCount: decisionRequests.length,
@@ -179,9 +189,10 @@ def _run_launch_start_request_smoke() -> dict[str, object]:
           byId(id) {{ return fields[id] || null; }},
         }});
         const pipelineRequest = startRequestModule.collectPipelineStartRequest();
+        const rerunPlanOnly = startRequestModule.collectRerunStartRequest({{ plan_only: true }});
         const rerunDryRun = startRequestModule.collectRerunStartRequest({{ dry_run: true }});
         const rerunLive = startRequestModule.collectRerunStartRequest({{ dry_run: false }});
-        process.stdout.write(JSON.stringify({{ pipelineRequest, rerunDryRun, rerunLive }}));
+        process.stdout.write(JSON.stringify({{ pipelineRequest, rerunPlanOnly, rerunDryRun, rerunLive }}));
         """
     )
     with tempfile.TemporaryDirectory() as raw_tmp:
@@ -280,7 +291,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
           byId(id) {{ return elements[id] || null; }},
           clearRows() {{}},
           collectPipelineStartRequest() {{ return {{ mode: "once", sleep_seconds: 30, schedule_override: "" }}; }},
-          collectRerunStartRequest(options = {{}}) {{ return {{ csv_path: "C:/rerun.csv", dry_run: Boolean(options.dry_run), stage_mode: "copy", original_mode: "keep", return_mode: "park" }}; }},
+          collectRerunStartRequest(options = {{}}) {{ return {{ csv_path: "C:/rerun.csv", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), stage_mode: "copy", original_mode: "keep", return_mode: "park" }}; }},
           launchPreflightRequestMatches(payload, request, keys) {{
             return keys.every((key) => String(payload.request?.[key] ?? "") === String(request?.[key] ?? ""));
           }},
@@ -321,7 +332,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             byId(id) {{ return emptyCsvElements[id] || null; }},
             clearRows() {{}},
             collectPipelineStartRequest() {{ return {{ mode: "once", sleep_seconds: 30, schedule_override: "" }}; }},
-            collectRerunStartRequest(options = {{}}) {{ return {{ csv_path: "", dry_run: Boolean(options.dry_run), stage_mode: "copy", original_mode: "keep", return_mode: "park" }}; }},
+            collectRerunStartRequest(options = {{}}) {{ return {{ csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), stage_mode: "copy", original_mode: "keep", return_mode: "park" }}; }},
             launchPreflightRequestMatches(payload, request, keys) {{
               return keys.every((key) => String(payload.request?.[key] ?? "") === String(request?.[key] ?? ""));
             }},
@@ -598,12 +609,15 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         result = _run_launch_command_buttons_smoke()
 
         self.assertTrue(result["pipelineGate"]["blocked"])
+        self.assertFalse(result["rerunPlanOnlyGate"]["blocked"])
         self.assertFalse(result["rerunDryRunGate"]["blocked"])
         self.assertFalse(result["rerunGate"]["blocked"])
         self.assertEqual(result["decisionRequestCount"], 1)
         self.assertTrue(result["decisionRequests"][0]["pipeline_only_blocker"])
+        self.assertTrue(any(item["plan_only"] for item in result["rerunRequests"]))
         self.assertTrue(any(item["dry_run"] for item in result["rerunRequests"]))
         self.assertTrue(any(not item["dry_run"] for item in result["rerunRequests"]))
+        self.assertIn("Plan CSV Rerun", result["rerunPlanOnlyGate"]["reason"])
         self.assertIn("Preview CSV Rerun", result["rerunDryRunGate"]["reason"])
         self.assertIn("Start CSV Rerun", result["rerunGate"]["reason"])
 
@@ -618,8 +632,12 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertNotIn("queue_filter", pipeline_request)
         self.assertNotIn("selected_row", pipeline_request)
         self.assertNotIn("selected_path", pipeline_request)
+        self.assertTrue(result["rerunPlanOnly"]["plan_only"])
+        self.assertFalse(result["rerunPlanOnly"]["dry_run"])
         self.assertTrue(result["rerunDryRun"]["dry_run"])
+        self.assertFalse(result["rerunDryRun"]["plan_only"])
         self.assertFalse(result["rerunLive"]["dry_run"])
+        self.assertFalse(result["rerunLive"]["plan_only"])
         self.assertEqual(result["rerunDryRun"]["stage_mode"], "copy")
         self.assertEqual(result["rerunDryRun"]["original_mode"], "keep")
         self.assertEqual(result["rerunDryRun"]["return_mode"], "park")
@@ -628,14 +646,16 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         result = _run_launch_preflight_smoke()
 
         self.assertEqual(result["renderFetchCount"], 0)
-        self.assertEqual(len(result["fetchUrls"]), 3)
+        self.assertEqual(len(result["fetchUrls"]), 4)
+        self.assertTrue(any("plan_only=true" in item for item in result["fetchUrls"]))
         self.assertTrue(any("dry_run=true" in item for item in result["fetchUrls"]))
         self.assertTrue(any("dry_run=false" in item for item in result["fetchUrls"]))
+        self.assertIn("CSV Rerun Plan Only", result["labels"])
         self.assertIn("CSV Rerun Preview", result["labels"])
         self.assertIn("CSV Rerun Start", result["labels"])
         self.assertEqual(result["statusText"], "Ready")
         self.assertEqual(result["statusState"], "ready")
-        self.assertEqual(result["refreshInfo"]["candidate_request_count"], 3)
+        self.assertEqual(result["refreshInfo"]["candidate_request_count"], 4)
         self.assertEqual(result["refreshInfo"]["skipped_request_count"], 0)
         self.assertIn("Status scope: active targets only", result["stagedSummary"])
         self.assertIn("Launch backend preflight by active target", result["stagedSummary"])
@@ -644,17 +664,17 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertFalse(any("target=rerun" in item for item in result["emptyCsvFetchUrls"]))
         self.assertEqual(result["emptyCsvLabels"], ["Pipeline"])
         self.assertEqual(result["emptyCsvStatusText"], "Ready")
-        self.assertEqual(result["emptyCsvRefreshInfo"]["candidate_request_count"], 3)
-        self.assertEqual(result["emptyCsvRefreshInfo"]["skipped_request_count"], 2)
+        self.assertEqual(result["emptyCsvRefreshInfo"]["candidate_request_count"], 4)
+        self.assertEqual(result["emptyCsvRefreshInfo"]["skipped_request_count"], 3)
         self.assertEqual(
             [item["key"] for item in result["emptyCsvRefreshInfo"]["skipped_targets"]],
-            ["rerun-live", "rerun-preview"],
+            ["rerun-live", "rerun-preview", "rerun-plan-only"],
         )
         self.assertIn("Pipeline backend preflight", result["emptyCsvSummary"])
         self.assertIn("Inactive targets skipped: CSV Rerun Start: CSV path is not staged.", result["emptyCsvSummary"])
         self.assertEqual(
             {item["key"]: item["active"] for item in result["emptyCsvCandidates"]},
-            {"pipeline": True, "rerun-live": False, "rerun-preview": False},
+            {"pipeline": True, "rerun-live": False, "rerun-preview": False, "rerun-plan-only": False},
         )
         self.assertEqual(result["poisonStatus"], "Ready")
         self.assertEqual(result["poisonRows"], ["Pipeline:ready"])

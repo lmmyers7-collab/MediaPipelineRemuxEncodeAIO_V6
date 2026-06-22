@@ -624,6 +624,7 @@
     const tooltips = [
       ["#pipeline-start-button", "Start is disabled while active work is reported. Backend start routes re-check queue, schedule, settings, and process locks at submission time."],
       ["#home-refresh-button", "Refreshes dashboard state from backend snapshots without starting or mutating media work."],
+      ["#rerun-plan-only-button", "Plans backend CSV rerun rows without writing manifests, staging files, parking outputs, or touching media."],
       ["#rerun-dry-run-button", "Previews backend CSV rerun as a dry run. Review dry-run evidence before starting a live copy / keep / park rerun."],
       ["#rerun-start-button", "Starts backend CSV rerun with copy / keep / park policy. Review the CSV path and preflight before starting."],
       ["#pending-drain-button", "Requests backend pending-publish drain. Drain safety remains backend-owned and requires parked payload evidence."],

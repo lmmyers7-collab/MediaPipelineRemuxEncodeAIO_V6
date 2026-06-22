@@ -98,7 +98,7 @@
   const {
     launchPreflightRequestMatches = function () { return false; },
     collectPipelineStartRequest = function () { return { mode: "validate", sleep_seconds: 30, show_config: false, show_console: false, schedule_override: "" }; },
-    collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), stage_mode: "copy", original_mode: "keep", return_mode: "park", show_console: false }; },
+    collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), stage_mode: "copy", original_mode: "keep", return_mode: "park", show_console: false }; },
   } = launchStartRequest;
 
   const launchStatusRenderModule = window.__launchStatusRenderModule || {};
@@ -1135,9 +1135,10 @@
 
   async function startRerunFromForm(options = {}) {
     if (rejectLaunchCommandWhileBusy("rerun.start", "rerun-launch-status", "rerun-launch-detail")) return;
-    const dryRun = typeof options === "boolean" ? options : Boolean(options.dry_run);
-    const request = collectRerunStartRequest({ dry_run: dryRun });
-    const actionLabel = request.dry_run ? "CSV rerun dry run" : "CSV rerun";
+    const planOnly = typeof options === "object" && Boolean(options.plan_only);
+    const dryRun = planOnly ? false : typeof options === "boolean" ? options : Boolean(options.dry_run);
+    const request = collectRerunStartRequest({ dry_run: dryRun, plan_only: planOnly });
+    const actionLabel = request.plan_only ? "CSV rerun plan-only check" : request.dry_run ? "CSV rerun dry run" : "CSV rerun";
     renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(request));
     if (!request.csv_path.trim()) {
       const missing = {
@@ -1151,17 +1152,21 @@
       setText("rerun-launch-detail", missing.message);
       return;
     }
-    const rerunButtonId = request.dry_run ? "rerun-dry-run-button" : "rerun-start-button";
+    const rerunButtonId = request.plan_only ? "rerun-plan-only-button" : request.dry_run ? "rerun-dry-run-button" : "rerun-start-button";
     const rerunBtn = byId(rerunButtonId);
     const rerunBtnText = rerunBtn ? rerunBtn.textContent : "";
-    setLaunchCommandButtonState(rerunButtonId, "confirming", request.dry_run ? "Confirming Preview..." : "Confirming Start...");
+    setLaunchCommandButtonState(rerunButtonId, "confirming", request.plan_only ? "Confirming Plan..." : request.dry_run ? "Confirming Preview..." : "Confirming Start...");
     setText("rerun-launch-status", "Confirming");
-    setText("rerun-launch-detail", request.dry_run
+    setText("rerun-launch-detail", request.plan_only
+      ? "Confirm CSV rerun plan-only check. Plan-only should not write manifests, temp config, staging files, parked outputs, or media."
+      : request.dry_run
       ? "Confirm CSV rerun preview. Dry-run should produce backend evidence without staging, moving, publishing, or touching media."
       : "Confirm live CSV rerun with copy / keep / park policy."
     );
     await nextLaunchCommandFrame();
-    if (!window.confirm(request.dry_run
+    if (!window.confirm(request.plan_only
+      ? "Plan CSV rerun without writing manifests, temp config, staging files, parked outputs, or touching media?"
+      : request.dry_run
       ? "Preview CSV rerun as a dry run? This should produce backend evidence without staging, moving, publishing, or touching media."
       : "Start live CSV rerun with copy / keep / park policy?"
     )) {
@@ -1170,22 +1175,24 @@
         ok: false,
         severity: "info",
         message: `${actionLabel} canceled.`,
-        data: { dry_run: Boolean(request.dry_run) },
+        data: { dry_run: Boolean(request.dry_run), plan_only: Boolean(request.plan_only) },
       };
       appendCommandResult(canceled);
       setText("rerun-launch-status", "Canceled");
       setText("rerun-launch-detail", canceled.message);
-      if (rerunBtn) rerunBtn.textContent = rerunBtnText || (request.dry_run ? "Preview CSV Rerun" : "Start CSV Rerun");
+      if (rerunBtn) rerunBtn.textContent = rerunBtnText || (request.plan_only ? "Plan CSV Rerun" : request.dry_run ? "Preview CSV Rerun" : "Start CSV Rerun");
       updateLaunchCommandButtonStates();
       return;
     }
-    if (rerunBtn) rerunBtn.textContent = request.dry_run ? "Previewing..." : "Starting...";
+    if (rerunBtn) rerunBtn.textContent = request.plan_only ? "Planning..." : request.dry_run ? "Previewing..." : "Starting...";
     setLaunchCommandBusy(true);
-    setText("rerun-launch-status", request.dry_run ? "Previewing..." : "Starting...");
+    setText("rerun-launch-status", request.plan_only ? "Planning..." : request.dry_run ? "Previewing..." : "Starting...");
     renderJsonDetail("rerun-launch-detail", {
       label: "Submitted request",
       value: request,
-      intro: request.dry_run
+      intro: request.plan_only
+        ? "CSV rerun plan-only request confirmed by the operator and about to be submitted."
+        : request.dry_run
         ? "CSV rerun dry-run request confirmed by the operator and about to be submitted."
         : "Live CSV rerun request confirmed by the operator and about to be submitted.",
     });
@@ -1212,7 +1219,7 @@
       }, request);
     } finally {
       setLaunchCommandBusy(false);
-      if (rerunBtn) rerunBtn.textContent = rerunBtnText || (request.dry_run ? "Preview CSV Rerun" : "Start CSV Rerun");
+      if (rerunBtn) rerunBtn.textContent = rerunBtnText || (request.plan_only ? "Plan CSV Rerun" : request.dry_run ? "Preview CSV Rerun" : "Start CSV Rerun");
     }
   }
 

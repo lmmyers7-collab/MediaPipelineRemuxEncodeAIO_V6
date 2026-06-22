@@ -145,6 +145,33 @@ class ProcessLaunchRunnerTests(unittest.TestCase):
         self.assertEqual(service.spawn_call["metadata"]["default_stage_mode"], "copy")
         self.assertEqual(service.spawn_call["metadata"]["default_return_mode"], "park")
 
+    def test_rerun_runner_can_launch_no_write_plan_only(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            service = CapturingLaunchRunnerService(root)
+            resolved = self._resolved(root)
+            csv_path = root / "rerun.csv"
+            csv_path.write_text("source_path\nmovie.mkv\n", encoding="utf-8")
+
+            result = start_rerun_csv_for_service(
+                service,
+                resolved,
+                csv_path,
+                dry_run=False,
+                plan_only=True,
+                stage_mode="copy",
+                original_mode="keep",
+                return_mode="park",
+                show_console=False,
+            )
+
+        self.assertIs(result, service.spawn_call)
+        assert service.spawn_call is not None
+        self.assertEqual(service.spawn_call["mode"], "plan_only")
+        self.assertIn("-PlanOnly", service.spawn_call["args"])
+        self.assertNotIn("-DryRun", service.spawn_call["args"])
+        self.assertTrue(service.spawn_call["metadata"]["plan_only"])
+
 
 if __name__ == "__main__":
     unittest.main()

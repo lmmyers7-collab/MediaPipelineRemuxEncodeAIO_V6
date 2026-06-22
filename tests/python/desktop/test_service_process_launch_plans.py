@@ -148,6 +148,30 @@ class ProcessLaunchPlanTests(unittest.TestCase):
         self.assertEqual(plan.metadata["default_original_mode"], "keep")
         self.assertEqual(plan.metadata["default_return_mode"], "park")
 
+    def test_rerun_plan_sets_plan_only_mode_without_dry_run_flag(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            csv_path = root / "rerun.csv"
+            csv_path.write_text("source_path\nmovie.mkv\n", encoding="utf-8")
+
+            plan = build_rerun_csv_launch_plan(
+                resolved,
+                csv_path,
+                dry_run=False,
+                plan_only=True,
+                stage_mode="copy",
+                original_mode="keep",
+                return_mode="park",
+            )
+
+        self.assertEqual(plan.job_kind, "rerun_csv")
+        self.assertEqual(plan.mode, "plan_only")
+        self.assertIn("-PlanOnly", plan.args)
+        self.assertNotIn("-DryRun", plan.args)
+        self.assertTrue(plan.metadata["plan_only"])
+        self.assertFalse(plan.metadata["dry_run"])
+
     def test_process_service_start_pipeline_uses_launch_plan_and_existing_spawn_boundary(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

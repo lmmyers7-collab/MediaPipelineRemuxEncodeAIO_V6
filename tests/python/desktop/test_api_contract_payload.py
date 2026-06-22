@@ -531,7 +531,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(rerun_route["effect"], "process-launch")
         self.assertEqual(
             rerun_route["safe_defaults"],
-            {"dry_run": False, "stage_mode": "copy", "original_mode": "keep", "return_mode": "park"},
+            {"dry_run": False, "plan_only": False, "stage_mode": "copy", "original_mode": "keep", "return_mode": "park"},
         )
         self.assertIn("conservative media-safe defaults", rerun_route["purpose"])
 

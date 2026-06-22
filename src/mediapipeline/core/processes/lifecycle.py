@@ -124,12 +124,14 @@ class ProcessLifecycleServiceMixin:
         original_mode: str,
         return_mode: str,
         show_console: bool,
+        plan_only: bool = False,
     ) -> subprocess.Popen[Any]:
         return start_rerun_csv_for_service(
             self,
             resolved,
             csv_path,
             dry_run=dry_run,
+            plan_only=plan_only,
             stage_mode=stage_mode,
             original_mode=original_mode,
             return_mode=return_mode,

@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/lifecycle.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-15
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 9cc8fab33d47231a3c1cf3c8870ae3ab91221c577af5f4235df8b64a65bc2629
+sha256: 7158a42947d74cfe7b032961928d8b7513d67023e0f460d96584fc8947a5ab38
 ---
 # `src/mediapipeline/core/processes/lifecycle.py`
 

@@ -6,6 +6,7 @@ param(
     [ValidateSet('keep')] [string]$DefaultOriginalMode = 'keep',
     [ValidateSet('park')] [string]$DefaultReturnMode = 'park',
     [switch]$DryRun,
+    [switch]$PlanOnly,
     [switch]$ShowConfig
 )
 
@@ -28,6 +29,9 @@ function DebugLog {
 }
 
 Write-RerunLog "CSV rerun safety policy: copy-only staging, keep originals, and park outputs. Source-mutating row policies are rejected during planning." "INFO"
+if ($DryRun -and $PlanOnly) {
+    throw 'CSV rerun accepts either -DryRun or -PlanOnly, not both.'
+}
 
 $script:PipelineRoot = Split-Path -Parent $PSScriptRoot
 
@@ -719,10 +723,6 @@ if (-not (Test-Path -LiteralPath $ffprobePath)) { $ffprobePath = '' }
 $rows = @(Import-Csv -LiteralPath $CsvPath)
 if ($rows.Count -eq 0) { throw "CSV contains no rows: $CsvPath" }
 
-New-Item -ItemType Directory -Path (Join-Path $stageRoot 'Movies') -Force | Out-Null
-New-Item -ItemType Directory -Path (Join-Path $stageRoot 'TV') -Force | Out-Null
-New-Item -ItemType Directory -Path $parkRoot -Force | Out-Null
-
 $plans = @(Resolve-RerunPlans -Rows $rows -Config $config -StageRoot $stageRoot -OutputRoot $outputRoot -FfprobePath $ffprobePath)
 $manifest = [ordered]@{
     batch_id = $batchId
@@ -730,6 +730,7 @@ $manifest = [ordered]@{
     csv_path = (Resolve-RerunPath $CsvPath)
     config_path = (Resolve-RerunPath $ConfigPath)
     dry_run = [bool]$DryRun
+    plan_only = [bool]$PlanOnly
     default_stage_mode = $DefaultStageMode
     default_original_mode = $DefaultOriginalMode
     default_return_mode = $DefaultReturnMode
@@ -740,13 +741,24 @@ $manifest = [ordered]@{
     status = 'planned'
     rows = @($plans)
 }
-Write-RerunManifest -Path $manifestPath -Payload $manifest
 
 Write-RerunLog "Rerun CSV rows listed: $($rows.Count); enabled/planned: $($plans.Count)"
 foreach ($plan in $plans) {
     Write-RerunLog ("PLAN [{0}] {1} -> {2}" -f $plan.status, $plan.source_path, $plan.planned_output_path)
     if ($plan.reason) { Write-RerunLog ("  reason: {0}" -f $plan.reason) "WARN" }
 }
+
+if ($PlanOnly) {
+    $manifest.status = 'plan_only_complete'
+    $manifest.rows = @($plans)
+    Write-RerunLog "PLAN ONLY complete. No manifest, temp config, stage, park, output, or source paths were written."
+    exit 0
+}
+
+New-Item -ItemType Directory -Path (Join-Path $stageRoot 'Movies') -Force | Out-Null
+New-Item -ItemType Directory -Path (Join-Path $stageRoot 'TV') -Force | Out-Null
+New-Item -ItemType Directory -Path $parkRoot -Force | Out-Null
+Write-RerunManifest -Path $manifestPath -Payload $manifest
 
 if ($DryRun) {
     $manifest.status = 'dry_run_complete'

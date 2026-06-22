@@ -1656,6 +1656,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");
   if (pipelineStartButton) pipelineStartButton.addEventListener("click", startPipelineFromForm);
+  const rerunPlanOnlyButton = byId("rerun-plan-only-button");
+  if (rerunPlanOnlyButton) rerunPlanOnlyButton.addEventListener("click", () => startRerunFromForm({ plan_only: true }));
   const rerunDryRunButton = byId("rerun-dry-run-button");
   if (rerunDryRunButton) rerunDryRunButton.addEventListener("click", () => startRerunFromForm({ dry_run: true }));
   const rerunStartButton = byId("rerun-start-button");

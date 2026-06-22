@@ -1043,6 +1043,10 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 resolved,
                 {"csv_path": str(csv_path), "original_mode": "delete"},
             ).to_mapping()
+            conflicting_plan = facade.start_rerun_csv_process(
+                resolved,
+                {"csv_path": str(csv_path), "dry_run": True, "plan_only": True},
+            ).to_mapping()
             missing = facade.start_rerun_csv_process(resolved, {}).to_mapping()
 
         self.assertTrue(result["ok"])
@@ -1050,9 +1054,12 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(result["command"], "rerun.start")
         self.assertEqual(result["data"]["pid"], 24682)
         self.assertFalse(result["data"]["dry_run"])
+        self.assertFalse(result["data"]["plan_only"])
         self.assertEqual(service.started_rerun["return_mode"], "park")
         self.assertFalse(rejected["ok"])
         self.assertIn("copy/keep/park", rejected["message"])
+        self.assertFalse(conflicting_plan["ok"])
+        self.assertIn("either dry_run or plan_only", conflicting_plan["message"])
         self.assertFalse(missing["ok"])
         self.assertIn("csv_path", missing["message"])
 

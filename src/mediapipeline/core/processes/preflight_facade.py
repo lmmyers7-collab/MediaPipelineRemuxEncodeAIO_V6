@@ -30,8 +30,10 @@ from mediapipeline.core.processes.rerun_policy import (
     CSV_RERUN_MODE_ERROR,
     CSV_RERUN_PATH_ERROR,
     rerun_csv_path_from_request,
+    rerun_dry_run_from_request,
     rerun_modes_are_supported,
     rerun_modes_from_request,
+    rerun_plan_only_from_request,
 )
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_evidence
 from mediapipeline.core.processes.schedule_policy import continuous_schedule_stop_watcher_preflight_check
@@ -688,12 +690,15 @@ class ProcessFacadeMixin:
         _ = resolved
         csv_path = rerun_csv_path_from_request(request)
         stage_mode, original_mode, return_mode = rerun_modes_from_request(request)
+        dry_run = rerun_dry_run_from_request(request)
+        plan_only = rerun_plan_only_from_request(request)
         evidence, details = path_evidence(csv_path)
         modes_supported = rerun_modes_are_supported(stage_mode, original_mode, return_mode)
         normalized = {
             "target": "rerun",
             "csv_path": str(csv_path or ""),
-            "dry_run": bool(request.get("dry_run", False)),
+            "dry_run": dry_run,
+            "plan_only": plan_only,
             "stage_mode": stage_mode,
             "original_mode": original_mode,
             "return_mode": return_mode,
@@ -712,7 +717,7 @@ class ProcessFacadeMixin:
                 "safe_modes",
                 "CSV rerun safety modes",
                 "ready" if modes_supported else "blocked",
-                f"stage={stage_mode}; original={original_mode}; return={return_mode}; dry_run={bool(request.get('dry_run', False))}",
+                f"stage={stage_mode}; original={original_mode}; return={return_mode}; dry_run={dry_run}; plan_only={plan_only}",
                 "WebView rerun start is intentionally limited to copy / keep / park.",
                 detail=[] if modes_supported else [CSV_RERUN_MODE_ERROR],
             ),

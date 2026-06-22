@@ -10,9 +10,13 @@ from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.core.processes.rerun_policy import (
     rerun_csv_path_missing_result,
     rerun_csv_path_from_request,
+    rerun_dry_run_from_request,
     rerun_mode_error_result,
     rerun_modes_are_supported,
     rerun_modes_from_request,
+    rerun_plan_flags_are_supported,
+    rerun_plan_mode_error_result,
+    rerun_plan_only_from_request,
     rerun_start_active_work_result,
     rerun_start_config_blocked_result,
     rerun_start_exception_result,
@@ -37,6 +41,10 @@ class RerunLaunchFacadeMixin:
         stage_mode, original_mode, return_mode = rerun_modes_from_request(request)
         if not rerun_modes_are_supported(stage_mode, original_mode, return_mode):
             return rerun_mode_error_result()
+        dry_run = rerun_dry_run_from_request(request)
+        plan_only = rerun_plan_only_from_request(request)
+        if not rerun_plan_flags_are_supported(dry_run, plan_only):
+            return rerun_plan_mode_error_result()
         launch_lock, lock_message = self._acquire_process_launch_lock("CSV rerun start")
         if lock_message:
             return rerun_start_active_work_result(lock_message)
@@ -50,7 +58,8 @@ class RerunLaunchFacadeMixin:
             proc = starter(
                 resolved=resolved,
                 csv_path=csv_path,
-                dry_run=bool(request.get("dry_run", False)),
+                dry_run=dry_run,
+                plan_only=plan_only,
                 stage_mode=stage_mode,
                 original_mode=original_mode,
                 return_mode=return_mode,
@@ -67,7 +76,8 @@ class RerunLaunchFacadeMixin:
             self._release_process_launch_lock(launch_lock)
         return rerun_start_success_result(
             csv_path=csv_path,
-            dry_run=bool(request.get("dry_run", False)),
+            dry_run=dry_run,
+            plan_only=plan_only,
             stage_mode=stage_mode,
             original_mode=original_mode,
             return_mode=return_mode,

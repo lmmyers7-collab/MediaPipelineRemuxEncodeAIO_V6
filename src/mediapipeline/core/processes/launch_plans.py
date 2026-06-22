@@ -140,6 +140,7 @@ def build_rerun_csv_launch_plan(
     stage_mode: str,
     original_mode: str,
     return_mode: str,
+    plan_only: bool = False,
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
         raise RuntimeError("PowerShell host could not be resolved.")
@@ -147,6 +148,8 @@ def build_rerun_csv_launch_plan(
         raise FileNotFoundError(f"Rerun script not found: {resolved.rerun_script_path}")
     if not csv_path.exists():
         raise FileNotFoundError(f"Rerun CSV not found: {csv_path}")
+    if dry_run and plan_only:
+        raise ValueError("CSV rerun launch accepts either dry_run or plan_only, not both.")
 
     args = [
         resolved.powershell_host,
@@ -166,15 +169,20 @@ def build_rerun_csv_launch_plan(
         "-DefaultReturnMode",
         return_mode,
     ]
+    if plan_only:
+        args.append("-PlanOnly")
     if dry_run:
         args.append("-DryRun")
+    mode = "plan_only" if plan_only else "dry_run" if dry_run else "run"
 
     return ProcessLaunchPlan(
         args=args,
         job_kind="rerun_csv",
-        mode="dry_run" if dry_run else "run",
+        mode=mode,
         metadata={
             "csv_path": str(csv_path),
+            "dry_run": bool(dry_run),
+            "plan_only": bool(plan_only),
             "default_stage_mode": stage_mode,
             "default_original_mode": original_mode,
             "default_return_mode": return_mode,
