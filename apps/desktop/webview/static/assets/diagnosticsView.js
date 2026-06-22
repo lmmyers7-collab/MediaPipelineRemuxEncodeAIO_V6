@@ -1606,7 +1606,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       );
       commandIssues.slice(0, 6).forEach((entry) => {
         const owner = typeof window.commandHistoryOwnerPage === "function" ? window.commandHistoryOwnerPage(entry) : "Diagnostics";
-        const issue = typeof window.commandHistoryIssueLevel === "function" ? window.commandHistoryIssueLevel(entry) : entry.severity || "review";
+        const issue = typeof commandHistoryView.commandHistoryIssueLevel === "function" ? commandHistoryView.commandHistoryIssueLevel(entry) : entry.severity || "review";
         lines.push(`- ${owner}: ${entry.command || "command"}; issue=${issue}; ${entry.message || ""}`);
       });
     } else if (row.key === "owning-pages") {

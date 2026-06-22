@@ -294,7 +294,7 @@
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
       commandHistoryCommandText: window.mediaPipelineCommandHistory?.commandHistoryCommandText,
-      commandHistoryIssueLevel: window.commandHistoryIssueLevel,
+      commandHistoryIssueLevel: window.mediaPipelineCommandHistory?.commandHistoryIssueLevel,
       commandHistoryOwnerPage: window.commandHistoryOwnerPage,
       commandHistorySuggestedAction: window.mediaPipelineCommandHistory?.commandHistorySuggestedAction,
       completedEvidenceState,

@@ -290,6 +290,7 @@
       queueReviewRowReasons,
       queueReviewRows,
       queueRowIssueDigestLines,
+      commandHistoryIssueLevel: window.mediaPipelineCommandHistory?.commandHistoryIssueLevel,
       queueRowKey,
       queueRuntimeLines,
       queueSnapshotIsStale,

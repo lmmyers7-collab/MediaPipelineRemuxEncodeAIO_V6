@@ -1,4 +1,4 @@
-/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, settingsRawActionPlanRows, settingsRawActionPlanStatus */
+/* global getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, settingsRawActionPlanRows, settingsRawActionPlanStatus */
 (function () {
   const formatters = window.mediaPipelineFormatters || {};
   const formatProgressValue = typeof formatters.formatProgressValue === "function"
@@ -12,6 +12,7 @@
   const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
+  const commandHistoryView = window.mediaPipelineCommandHistory || {};
 
   function homeReadinessNextStep({ snapshot, closeReadiness, failures }) {
     const items = Array.isArray(failures) ? failures : [];
@@ -180,7 +181,7 @@
     const history = typeof getCommandHistory === "function" ? getCommandHistory() : [];
     if (!Array.isArray(history)) return [];
     return history.filter((entry) => {
-      const level = typeof commandHistoryIssueLevel === "function" ? commandHistoryIssueLevel(entry) : (entry?.ok ? "ok" : (entry?.severity || "error"));
+      const level = typeof commandHistoryView.commandHistoryIssueLevel === "function" ? commandHistoryView.commandHistoryIssueLevel(entry) : (entry?.ok ? "ok" : (entry?.severity || "error"));
       return !["ok", "info", "none"].includes(String(level || "").toLowerCase());
     });
   }

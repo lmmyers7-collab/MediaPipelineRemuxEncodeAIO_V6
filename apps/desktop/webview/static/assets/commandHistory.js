@@ -1463,5 +1463,4 @@
   window.getCommandHistory = getCommandHistory;
   window.commandHistoryCompactEvidenceLine = commandHistoryCompactEvidenceLine;
   window.commandHistoryOwnerPage = commandHistoryOwnerPage;
-  window.commandHistoryIssueLevel = commandHistoryIssueLevel;
 })();

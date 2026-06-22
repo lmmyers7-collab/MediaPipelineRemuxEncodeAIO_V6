@@ -27,6 +27,7 @@
     queueReviewRowReasons,
     queueReviewRows,
     queueRowIssueDigestLines,
+    commandHistoryIssueLevel,
     queueRowKey,
     queueRuntimeLines,
     queueSnapshotIsStale,
@@ -42,6 +43,7 @@
     byId = typeof byId === "function" ? byId : function (id) { return document.getElementById(id); };
     clearRows = typeof clearRows === "function" ? clearRows : function () { return null; };
     getCommandHistory = typeof getCommandHistory === "function" ? getCommandHistory : function () { return []; };
+    commandHistoryIssueLevel = typeof commandHistoryIssueLevel === "function" ? commandHistoryIssueLevel : null;
     getLastQueuePayload = typeof getLastQueuePayload === "function" ? getLastQueuePayload : function () { return {}; };
     getLastQueueRows = typeof getLastQueueRows === "function" ? getLastQueueRows : function () { return []; };
     getSelectedQueueRow = typeof getSelectedQueueRow === "function" ? getSelectedQueueRow : function () { return null; };

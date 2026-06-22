@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: df2ba59b4ee4e883178b7d2c0f44af2a0efbf087df8c75d5750f3b01c44ffa66
+sha256: 671634553ee4eab370cce4d4123b5182d9a8e4f552757f570ba3b2d78c57e5fe
 ---
 # `apps/desktop/webview/static/assets/queueView.js`
 

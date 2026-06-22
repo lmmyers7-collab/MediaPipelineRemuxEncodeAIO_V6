@@ -13,6 +13,7 @@
   const scheduleWatcherSummary = typeof scheduleView.scheduleWatcherSummary === "function" ? scheduleView.scheduleWatcherSummary : null;
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
+  const commandHistoryView = window.mediaPipelineCommandHistory || {};
   const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
   const isLaunchCommand = launchHistoryView.isLaunchCommand || function () { return false; };
   const launchHistoryLine = launchHistoryView.launchHistoryLine || function () { return ""; };
@@ -431,7 +432,7 @@
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
       collectPipelineStartRequest: (...args) => collectPipelineStartRequest(...args),
-      commandHistoryIssueLevel: typeof window.commandHistoryIssueLevel === "function" ? window.commandHistoryIssueLevel : (typeof commandHistoryIssueLevel === "function" ? commandHistoryIssueLevel : null),
+      commandHistoryIssueLevel: typeof commandHistoryView.commandHistoryIssueLevel === "function" ? commandHistoryView.commandHistoryIssueLevel : null,
       getCommandHistory: typeof window.getCommandHistory === "function" ? () => window.getCommandHistory() : (typeof getCommandHistory === "function" ? () => getCommandHistory() : () => []),
       getLastLaunchBackendPreflightPayloads: () => getLastLaunchBackendPreflightPayloads(),
       getLastLaunchBackendPreflightRefreshInfo: () => getLastLaunchBackendPreflightRefreshInfo() || {},

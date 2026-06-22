@@ -4933,7 +4933,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1109,
+      "line": 1110,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5189,7 +5189,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 839,
+      "line": 840,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5205,7 +5205,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 801,
+      "line": 802,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5221,7 +5221,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1039,
+      "line": 1040,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5237,7 +5237,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 941,
+      "line": 942,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5403,7 +5403,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1940,
+      "line": 1941,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5418,7 +5418,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1965,
+      "line": 1966,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5433,7 +5433,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2030,
+      "line": 2031,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5448,7 +5448,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2227,
+      "line": 2228,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5463,7 +5463,7 @@
       "normalized_route": "/api/queue/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1480,
+      "line": 1481,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5478,7 +5478,7 @@
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2661,
+      "line": 2662,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5557,7 +5557,7 @@
       "normalized_route": "/api/rerun/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1200,
+      "line": 1201,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",

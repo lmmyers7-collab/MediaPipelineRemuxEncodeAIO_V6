@@ -49,7 +49,7 @@
   }
 
   function launchHistoryIssueLevel(entry) {
-    if (typeof commandHistoryIssueLevel === "function") return commandHistoryIssueLevel(entry);
+    if (typeof commandHistoryView.commandHistoryIssueLevel === "function") return commandHistoryView.commandHistoryIssueLevel(entry);
     if (!entry) return "none";
     if (entry.ok) return String(entry.severity || "").toLowerCase() === "warning" ? "warning" : "ok";
     return String(entry.severity || "error").toLowerCase();
