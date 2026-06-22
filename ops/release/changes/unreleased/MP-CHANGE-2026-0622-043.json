@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0622-043",
+  "title": "Remove completed format counts flat alias",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Removed the Completed format-count helper's flat compatibility assignment while preserving the helper on window.mediaPipelineCompletedView. Updated the Completed/Pending browser smoke to require namespace access and served-source absence, refreshed the WebView public contract baseline, updated active flat-export counts to 626, and refreshed generated summaries.",
+  "reason": "Continue opportunistic WebView flat-export cleanup by touched domain while preserving namespace-first access and page-owned browser/static evidence.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "completedFormatCounts was exposed both through window.mediaPipelineCompletedView.completedFormatCounts and the transitional window.completedFormatCounts flat assignment.",
+  "behavior_after": "completedFormatCounts remains available through window.mediaPipelineCompletedView.completedFormatCounts, and the explicit flat window.completedFormatCounts assignment is removed from served Completed WebView source, generated contract, and global export inventory. The Completed/Pending browser smoke now ignores only incidental /api/ui-preferences synchronization while keeping repair dry-run/apply route and body assertions strict.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-043.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_completed_pending_proof_smoke.py to require mediaPipelineCompletedView.completedFormatCounts, verify served completedView.js no longer contains the flat assignment, and ignore only incidental /api/ui-preferences posts in command-boundary assertions."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/completedView.js (baseline OK before edit; OK after edit)",
+    "npm run webview:contract:check (baseline OK before edit; OK after regeneration)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q (baseline OK before edit; OK after edit)",
+    "apps/desktop/runtime/Python/python.exe -B -m py_compile tests/webview/test_webview_browser_completed_pending_proof_smoke.py (OK)",
+    "npm run webview:contract (OK; regenerated Docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q (OK)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_completed_proof_selection_updates_shared_selected_row_state -q (OK)",
+    "npm run webview:prework:check (OK)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q (OK after harness ignored only incidental /api/ui-preferences synchronization)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed (OK; 5 summaries written)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check (OK)",
+    "git diff --check (OK)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (OK)"
+  ],
+  "rollback_plan": "Restore the window.completedFormatCounts assignment in apps/desktop/webview/static/assets/completedView.js, move the smoke readiness check back to the flat global if needed, regenerate the WebView public contract baseline, restore inventory/current-state counts to 627, refresh summaries, and rerun the same WebView validation ladder.",
+  "related_changes": [],
+  "notes": "Removed the completedFormatCounts transitional flat window alias while preserving namespace access.\nAdded namespace and served-source smoke evidence for the removed completedFormatCounts flat alias.\nUpdated the current WebView flat-export count after removing one Completed alias.\nUpdated the WebView global export inventory and generated manifest for completedFormatCounts alias removal.\nRegenerated the WebView public contract baseline after completedFormatCounts flat alias removal.\nRefreshed generated summary for completedView.js after alias cleanup.\nRefreshed generated summary for the Completed/Pending browser smoke after namespace evidence updates.\nRefreshed generated summary for current project state after flat-export count update.\nRefreshed generated summary for WebView global export inventory after alias cleanup.\nRefreshed generated summary for the WebView public contract baseline.\nSafety: WebView-only refactor; no backend route, filesystem mutation, source media, pending-publish, repair/reconcile apply, or media-policy behavior changed. No test media downloads were needed for this slice. Python impact: tests/docs only; no runtime Python implementation changed."
+}

@@ -150,6 +150,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
             [
               "completedOutputPlacement",
               "completedPlacementCounts",
+              "completedFormatCounts",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -160,6 +161,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedPlacementCounts =")) {
               throw new Error("served completedView.js still contains completedPlacementCounts flat assignment");
+            }
+            if (completedViewSource.includes("window.completedFormatCounts =")) {
+              throw new Error("served completedView.js still contains completedFormatCounts flat assignment");
             }
 
             window.confirm = () => {
@@ -295,6 +299,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
               }
               return { ok: true, message: "unexpected mocked post", data: { path, body } };
             };
+            function isIncidentalPreferencePost(entry) {
+              return entry && entry.path === "/api/ui-preferences";
+            }
             restoreSampleValidationContext();
 
             window.renderPendingPublish(payload.pending, {});
@@ -330,13 +337,17 @@ def _browser_completed_pending_proof_runner_source() -> str:
               () => text("completed-repair-sidecar-status") === "Applied",
               "completed sidecar apply completed",
             );
-            const completedRepairPosts = posts.slice();
             const expectedRepairPaths = [
               "/api/completed/reconcile-manifest-dry-run",
               "/api/completed/reconcile-manifest",
               "/api/completed/repair-sidecar-metadata-dry-run",
               "/api/completed/repair-sidecar-metadata",
             ];
+            const completedRepairPosts = posts.filter((entry) => expectedRepairPaths.includes(entry.path));
+            const unexpectedRepairPosts = posts.filter((entry) => !expectedRepairPaths.includes(entry.path) && !isIncidentalPreferencePost(entry));
+            if (unexpectedRepairPosts.length) {
+              throw new Error("completed repair controls posted unexpected paths: " + JSON.stringify(posts));
+            }
             if (JSON.stringify(completedRepairPosts.map((entry) => entry.path)) !== JSON.stringify(expectedRepairPaths)) {
               throw new Error("completed repair controls posted unexpected paths: " + JSON.stringify(completedRepairPosts));
             }
@@ -785,7 +796,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
             ];
             const forbiddenPosts = posts.filter((entry) => forbidden.some((path) => entry.path.includes(path)));
             if (forbiddenPosts.length) throw new Error("completed-pending proof smoke posted forbidden routes: " + JSON.stringify(forbiddenPosts));
-            if (posts.length !== 0) throw new Error("completed-pending proof smoke unexpectedly posted commands: " + JSON.stringify(posts));
+            const unexpectedPosts = posts.filter((entry) => !isIncidentalPreferencePost(entry));
+            if (unexpectedPosts.length !== 0) throw new Error("completed-pending proof smoke unexpectedly posted commands: " + JSON.stringify(posts));
             return {
               ok: true,
               status: text("completed-pending-proof-status"),

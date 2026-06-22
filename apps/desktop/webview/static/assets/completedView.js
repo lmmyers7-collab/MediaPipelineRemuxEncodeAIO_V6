@@ -1503,7 +1503,6 @@
   window.completedDiagnosticsGuidanceLines = completedDiagnosticsGuidanceLines;
   window.renderCompletedDiagnosticsLinks = renderCompletedDiagnosticsLinks;
   window.requestCompletedDiagnosticsAction = requestCompletedDiagnosticsAction;
-  window.completedFormatCounts = completedFormatCounts;
   window.completedFreshnessLine = completedFreshnessLine;
   window.completedManifestIsAged = completedManifestIsAged;
   window.renderCompletedTrustDecision = renderCompletedTrustDecision;
