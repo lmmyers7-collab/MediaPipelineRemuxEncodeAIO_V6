@@ -17,6 +17,7 @@
   const diagnosticsStateRecommendedFirstAction = diagnosticsStateSummaryView.diagnosticsStateRecommendedFirstAction || function () {
     return "inspect this state artifact.";
   };
+  const commandHistoryView = window.mediaPipelineCommandHistory || {};
 
   function diagnosticsBridgeApi() {
     return window.mediaPipelineDiagnosticsBridge || {};
@@ -1737,7 +1738,7 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
       lines.push("", "Recent command issue(s):");
       commandIssues.slice(0, 5).forEach((entry) => {
         const owner = typeof window.commandHistoryOwnerPage === "function" ? window.commandHistoryOwnerPage(entry) : "Diagnostics";
-        const action = typeof window.commandHistorySuggestedAction === "function" ? window.commandHistorySuggestedAction(entry) : "inspect command details and diagnostics.";
+        const action = typeof commandHistoryView.commandHistorySuggestedAction === "function" ? commandHistoryView.commandHistorySuggestedAction(entry) : "inspect command details and diagnostics.";
         lines.push(`- ${entry.command || entry.raw?.command || "command"} (${owner}): ${entry.message || entry.result || "issue"}; next: ${action}`);
       });
     }

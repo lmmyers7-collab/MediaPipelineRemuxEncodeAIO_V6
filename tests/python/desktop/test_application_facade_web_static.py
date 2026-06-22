@@ -1568,7 +1568,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "renderCompactCommandHistoryBlock")
         _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "commandHistoryDiagnosticLine")
         _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "commandHistoryCommandText")
+        _assert_namespace_export(self, command_history_js, "mediaPipelineCommandHistory", "commandHistorySuggestedAction")
         self.assertNotIn("window.commandHistoryCommandText = commandHistoryCommandText", command_history_js)
+        self.assertNotIn("window.commandHistorySuggestedAction = commandHistorySuggestedAction", command_history_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", settings_command_history_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", rename_history_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", launch_history_view_js)
@@ -2526,6 +2528,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         pending_view_js = _read_pending_publish_asset_bundle(assets_root)
         reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
         command_history_js = _read_command_history_asset_bundle(assets_root)
+        diagnostics_view_js = (assets_root / "diagnosticsView.js").read_text(encoding="utf-8")
         diagnostics_view_investigation_js = (assets_root / "diagnosticsView.investigation.js").read_text(encoding="utf-8")
 
         for node_id in [
@@ -2574,6 +2577,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('diagnosticsBridgeHandoffLines("Command result selected row"', command_history_js)
         self.assertIn('byId("command-diagnostics-actions")', command_history_js)
         self.assertIn("button.dataset.commandDiagnosticsTarget = action.target", command_history_js)
+        self.assertIn("commandHistoryView.commandHistorySuggestedAction(entry)", diagnostics_view_js)
 
     def test_diagnostics_bridge_namespace_exports_cover_helper_consumers(self) -> None:
         desktop_root = find_repo_root(Path(__file__))

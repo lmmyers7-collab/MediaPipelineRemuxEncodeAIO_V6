@@ -296,7 +296,7 @@
       commandHistoryCommandText: window.mediaPipelineCommandHistory?.commandHistoryCommandText,
       commandHistoryIssueLevel: window.commandHistoryIssueLevel,
       commandHistoryOwnerPage: window.commandHistoryOwnerPage,
-      commandHistorySuggestedAction: window.commandHistorySuggestedAction,
+      commandHistorySuggestedAction: window.mediaPipelineCommandHistory?.commandHistorySuggestedAction,
       completedEvidenceState,
       completedFilterFields: COMPLETED_FILTER_FIELDS,
       completedCurrentRows: (...args) => completedCurrentRows(...args),

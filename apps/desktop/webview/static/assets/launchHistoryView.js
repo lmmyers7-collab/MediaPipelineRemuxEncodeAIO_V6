@@ -71,7 +71,7 @@
   }
 
   function launchHistoryNextAction(entry) {
-    if (typeof commandHistorySuggestedAction === "function") return commandHistorySuggestedAction(entry);
+    if (typeof commandHistoryView.commandHistorySuggestedAction === "function") return commandHistoryView.commandHistorySuggestedAction(entry);
     const issue = launchHistoryIssueLevel(entry);
     if (issue === "ok" || issue === "info") return "Refresh Home and Launch only if the expected process state did not update.";
     if (issue === "warning") return "Review the launch detail, refresh Home, then inspect Diagnostics if active work or schedule state looks wrong.";
