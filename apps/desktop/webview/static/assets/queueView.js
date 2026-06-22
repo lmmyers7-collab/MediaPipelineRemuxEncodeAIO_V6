@@ -23,6 +23,10 @@
   const QUEUE_FILTER_FIELDS = ["media_type", "display_name", "relative_path", "source_path", "route_name", "route_reason", "route_reason_code", "route_decision_summary", "route_evidence_lines", "phase", "priority_reasons", "blocked_reason", "error", "operator_status", "operator_guidance", "review_flags", "runtime_outcome_status", "runtime_outcome_error_code", "runtime_outcome_reason", "runtime_outcome_event_type"];
   const QUEUE_PRIORITY_ROUTE = "/api/queue/priority";
   const QUEUE_STRATEGY_ROUTE = "/api/queue/strategy";
+
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
   const QUEUE_FILE_OVERRIDES_ROUTE = "/api/queue/file-overrides";
 
   // ---------------------------------------------------------------------------
@@ -225,12 +229,12 @@
   delete window.__queueDetailModule;
   const _queueDetail = typeof __queueDetailMod.createQueueDetailModule === "function"
     ? __queueDetailMod.createQueueDetailModule({
-      appendDiagnosticsBridgeButton: window.appendDiagnosticsBridgeButton,
-      appendDiagnosticsBridgeGroupedButtons: window.appendDiagnosticsBridgeGroupedButtons,
+      appendDiagnosticsBridgeButton: diagnosticsBridgeApi().appendDiagnosticsBridgeButton,
+      appendDiagnosticsBridgeGroupedButtons: diagnosticsBridgeApi().appendDiagnosticsBridgeGroupedButtons,
       byId: typeof byId === "function" ? byId : window.byId,
       commandHistoryCompactEvidenceLine: window.commandHistoryCompactEvidenceLine,
-      diagnosticsBridgeHandoffLines: window.diagnosticsBridgeHandoffLines,
-      diagnosticsBridgeRowTrustLines: window.diagnosticsBridgeRowTrustLines,
+      diagnosticsBridgeHandoffLines: diagnosticsBridgeApi().diagnosticsBridgeHandoffLines,
+      diagnosticsBridgeRowTrustLines: diagnosticsBridgeApi().diagnosticsBridgeRowTrustLines,
       queueInvestigationSignalLines,
       queueListText,
       queueRowKey,

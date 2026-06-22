@@ -30,6 +30,10 @@
     "failure-preview-all-clear-button",
     "failure-clear-all-button",
   ];
+
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
   const reportAuditCommandButtonIds = [
     "report-audit-start-button",
     "report-audit-score-policy-save-button",
@@ -1305,11 +1309,17 @@
     const container = byId(containerId);
     if (!container) return;
     container.replaceChildren();
-    diagnosticsBridgeActions(actions).forEach((action) => {
+    const bridge = diagnosticsBridgeApi();
+    const bridgeActions = typeof bridge.diagnosticsBridgeActions === "function"
+      ? bridge.diagnosticsBridgeActions(actions)
+      : (Array.isArray(actions) ? actions : []);
+    bridgeActions.forEach((action) => {
       const button = document.createElement("button");
       button.className = "secondary-button";
       button.type = "button";
-      button.textContent = diagnosticsBridgeActionLabel(action);
+      button.textContent = typeof bridge.diagnosticsBridgeActionLabel === "function"
+        ? bridge.diagnosticsBridgeActionLabel(action)
+        : `${action.kind === "tail" ? "Read" : "Open"} ${action.target}`;
       button.title = action.reason || "";
       button.dataset.reportDiagnosticsAction = action.kind;
       button.dataset.reportDiagnosticsTarget = action.target;
@@ -1322,8 +1332,8 @@
       }
       container.appendChild(button);
     });
-    if (typeof appendDiagnosticsBridgeButton === "function") {
-      appendDiagnosticsBridgeButton(container, actions, sourceLabel);
+    if (typeof bridge.appendDiagnosticsBridgeButton === "function") {
+      bridge.appendDiagnosticsBridgeButton(container, actions, sourceLabel);
     }
   }
 
@@ -1357,8 +1367,9 @@
     }
     const clearMarkerPaths = failureClearMarkerPathsForRow(item);
     const clearAvailable = clearMarkerPaths.length > 0;
-    const handoffLines = typeof diagnosticsBridgeHandoffLines === "function"
-      ? diagnosticsBridgeHandoffLines("Reports failure selected row", failureDiagnosticsActionsForRow(item), {
+    const bridge = diagnosticsBridgeApi();
+    const handoffLines = typeof bridge.diagnosticsBridgeHandoffLines === "function"
+      ? bridge.diagnosticsBridgeHandoffLines("Reports failure selected row", failureDiagnosticsActionsForRow(item), {
         evidence: [
           item.classification ? `classification=${item.classification}` : "",
           item.error_code ? `code=${item.error_code}` : "",
@@ -2581,8 +2592,9 @@
       renderReportDiagnosticsActions("audit-preview-diagnostics-actions", auditDiagnosticsActionsForRow(null), "Reports audit page");
       return;
     }
-    const handoffLines = typeof diagnosticsBridgeHandoffLines === "function"
-      ? diagnosticsBridgeHandoffLines("Reports audit selected row", auditDiagnosticsActionsForRow(item), {
+    const bridge = diagnosticsBridgeApi();
+    const handoffLines = typeof bridge.diagnosticsBridgeHandoffLines === "function"
+      ? bridge.diagnosticsBridgeHandoffLines("Reports audit selected row", auditDiagnosticsActionsForRow(item), {
         evidence: [
           item.effective_bucket ? `bucket=${item.effective_bucket}` : "",
           item.priority_fix_level || item.priority_score ? `priority=${item.priority_fix_level || ""} ${item.priority_score || ""}`.trim() : "",

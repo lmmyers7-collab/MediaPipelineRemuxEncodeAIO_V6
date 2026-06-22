@@ -1626,7 +1626,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function appendDiagnosticsBridgeButton", diagnostics_bridge_js)
         self.assertIn("Review in Diagnostics", diagnostics_bridge_js)
         self.assertIn("bridge selection does not read files, open paths, mutate queue state, or publish outputs", diagnostics_bridge_js)
-        self.assertIn("window.diagnosticsBridgeActions = diagnosticsBridgeActions", diagnostics_bridge_js)
+        _assert_namespace_export(self, diagnostics_bridge_js, "mediaPipelineDiagnosticsBridge", "diagnosticsBridgeActions")
+        self.assertNotIn("window.diagnosticsBridgeActions = diagnosticsBridgeActions", diagnostics_bridge_js)
 
         self.assertIsNotNone(
             re.search(
@@ -1657,7 +1658,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('renameConfigValue(config, "DeleteSourceAfterProcessing", "false")', rename_view_js)
         self.assertNotIn("DeleteOriginalAfterProcessing", rename_view_js)
         self.assertIn("request.selected_sources = rowsToApply.map((row) => row.source);", rename_view_js)
-        self.assertIn("Apply sends this scope as backend selected_sources.", rename_view_js)
+        self.assertIn("Apply scope: checked rows are required and are sent as selected_sources", rename_view_js)
         self.assertGreaterEqual(
             maintenance_view_js.count('lines.push("", "Warnings:", ...(result.warnings || []).map((item) => `- ${item}`));'),
             2,
@@ -2541,7 +2542,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('groupDataset: "diagnosticsActionGroup"', diagnostics_bridge_js)
         self.assertIn("targetDataset: `${datasetPrefix}Target`", diagnostics_bridge_js)
         self.assertIn("Guardrail: this handoff selects or invokes backend allowlisted diagnostics targets only", diagnostics_bridge_js)
-        self.assertIn("window.diagnosticsBridgeHandoffLines = diagnosticsBridgeHandoffLines", diagnostics_bridge_js)
+        _assert_namespace_export(self, diagnostics_bridge_js, "mediaPipelineDiagnosticsBridge", "diagnosticsBridgeHandoffLines")
+        self.assertNotIn("window.diagnosticsBridgeHandoffLines = diagnosticsBridgeHandoffLines", diagnostics_bridge_js)
 
         self.assertIn('diagnosticsBridgeHandoffLines("Queue selected row"', queue_view_js)
         self.assertIn('diagnosticsBridgeHandoffLines("Completed selected row"', completed_view_js)
@@ -2562,7 +2564,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('byId("command-diagnostics-actions")', command_history_js)
         self.assertIn("button.dataset.commandDiagnosticsTarget = action.target", command_history_js)
 
-    def test_diagnostics_bridge_flat_exports_cover_legacy_helper_consumers(self) -> None:
+    def test_diagnostics_bridge_namespace_exports_cover_helper_consumers(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
         assets_root = desktop_root / "apps" / "desktop" / "webview" / "static" / "assets"
         diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
@@ -2597,12 +2599,9 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                 "diagnosticsBridgeRowTrustLines",
             ],
         )
-        missing_exports = [
-            name
-            for name in consumed_helpers
-            if f"window.{name} = {name}" not in diagnostics_bridge_js
-        ]
-        self.assertEqual(missing_exports, [])
+        for name in consumed_helpers:
+            _assert_namespace_export(self, diagnostics_bridge_js, "mediaPipelineDiagnosticsBridge", name)
+            self.assertNotIn(f"window.{name} = {name}", diagnostics_bridge_js)
 
     def test_static_page_scoped_ids_remain_in_their_own_pages(self) -> None:
         desktop_root = find_repo_root(Path(__file__))

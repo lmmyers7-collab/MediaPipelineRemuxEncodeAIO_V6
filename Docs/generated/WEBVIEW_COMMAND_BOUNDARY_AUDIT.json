@@ -4553,7 +4553,7 @@
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2458,
+      "line": 2469,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4569,7 +4569,7 @@
       "normalized_route": "/api/audit/ignore",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2418,
+      "line": 2429,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4585,7 +4585,7 @@
       "normalized_route": "/api/audit/score-policy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2374,
+      "line": 2385,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4601,7 +4601,7 @@
       "normalized_route": "/api/audit/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2340,
+      "line": 2351,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4783,7 +4783,7 @@
       "normalized_route": "/api/diagnostics/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2143,
+      "line": 2150,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4798,7 +4798,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix-audit",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2086,
+      "line": 2093,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4813,7 +4813,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 1974,
+      "line": 1981,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4828,7 +4828,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/rerun",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2001,
+      "line": 2008,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4843,7 +4843,7 @@
       "normalized_route": "/api/failures/clear",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 1178,
+      "line": 1182,
       "script_owner": "Reports",
       "allowed_owners": [
         "Reports"
@@ -4918,7 +4918,7 @@
       "normalized_route": "/api/maintenance",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1047,
+      "line": 1055,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4949,7 +4949,7 @@
       "normalized_route": "/api/maintenance/completed-backfill-dry-run",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1522,
+      "line": 1530,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4964,7 +4964,7 @@
       "normalized_route": "/api/maintenance/dependency-atlas",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1613,
+      "line": 1621,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4979,7 +4979,7 @@
       "normalized_route": "/api/maintenance/dependency-atlas/open-folder",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1645,
+      "line": 1653,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -4994,7 +4994,7 @@
       "normalized_route": "/api/maintenance/progress",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 525,
+      "line": 529,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5009,7 +5009,7 @@
       "normalized_route": "/api/maintenance/release-build",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1439,
+      "line": 1447,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5024,7 +5024,7 @@
       "normalized_route": "/api/maintenance/release-dry-run",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "line": 1349,
+      "line": 1357,
       "script_owner": "Maintenance",
       "allowed_owners": [
         "Maintenance"
@@ -5403,7 +5403,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1936,
+      "line": 1940,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5418,7 +5418,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1961,
+      "line": 1965,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5433,7 +5433,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2026,
+      "line": 2030,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5448,7 +5448,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2223,
+      "line": 2227,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5463,7 +5463,7 @@
       "normalized_route": "/api/queue/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1476,
+      "line": 1480,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5478,7 +5478,7 @@
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2657,
+      "line": 2661,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"

@@ -15,6 +15,10 @@
   let pendingActionCenterEventsInitialized = false;
   const PENDING_FILTER_FIELDS = ["state", "local_file", "server_out", "source_path", "error", "issue_summary", "route", "publish_mode", "diagnostic_status", "diagnostic_severity", "drain_recommendation", "operator_guidance"];
 
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
+
   let setPendingOpenBusy = function (isBusy) {
     pendingOpenInFlight = Boolean(isBusy);
     document.querySelectorAll("[data-open-pending]").forEach((button) => {
@@ -803,8 +807,8 @@
     ? pendingDetailsModule.createPendingPublishDetailsModule({
       byId: typeof byId === "function" ? byId : window.byId,
       backendRowStatusState: window.backendRowStatusState,
-      diagnosticsBridgeHandoffLines: window.diagnosticsBridgeHandoffLines,
-      diagnosticsBridgeRowTrustLines: window.diagnosticsBridgeRowTrustLines,
+      diagnosticsBridgeHandoffLines: diagnosticsBridgeApi().diagnosticsBridgeHandoffLines,
+      diagnosticsBridgeRowTrustLines: diagnosticsBridgeApi().diagnosticsBridgeRowTrustLines,
       pendingDiagnosticsActionsForRow: (...args) => pendingDiagnosticsActionsForRow(...args),
       pendingFilterVisibilityLines: (...args) => pendingFilterVisibilityLines(...args),
       pendingInvestigationSignalLines: (...args) => pendingInvestigationSignalLines(...args),
@@ -940,8 +944,8 @@
     ? pendingDiagnosticsModule.createPendingPublishDiagnosticsModule({
       apiPost: typeof apiPost === "function" ? apiPost : window.apiPost,
       appendCommandResult: typeof appendCommandResult === "function" ? appendCommandResult : window.appendCommandResult,
-      appendDiagnosticsBridgeButton: typeof appendDiagnosticsBridgeButton === "function" ? appendDiagnosticsBridgeButton : window.appendDiagnosticsBridgeButton,
-      appendDiagnosticsBridgeGroupedButtons: typeof appendDiagnosticsBridgeGroupedButtons === "function" ? appendDiagnosticsBridgeGroupedButtons : window.appendDiagnosticsBridgeGroupedButtons,
+      appendDiagnosticsBridgeButton: diagnosticsBridgeApi().appendDiagnosticsBridgeButton,
+      appendDiagnosticsBridgeGroupedButtons: diagnosticsBridgeApi().appendDiagnosticsBridgeGroupedButtons,
       byId: typeof byId === "function" ? byId : window.byId,
       commandHistoryCompactEvidenceLine: typeof window.commandHistoryCompactEvidenceLine === "function" ? window.commandHistoryCompactEvidenceLine : (typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null),
       getSelectedPendingRow: (...args) => getSelectedPendingRow(...args),

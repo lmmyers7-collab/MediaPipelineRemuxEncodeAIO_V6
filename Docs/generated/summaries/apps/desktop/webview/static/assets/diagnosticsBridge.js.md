@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/diagnosticsBridge.js
 pipeline_stage: observability
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-19
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 07ca1e927b9a8faba8789cc3b718b8b1e51c03a525672881c75c089540afaeb1
+sha256: d4bd0220f4ea2bca615430636df996f6ad873ee5a38fef9ddcd389fd1a3bed42
 ---
 # `apps/desktop/webview/static/assets/diagnosticsBridge.js`
 

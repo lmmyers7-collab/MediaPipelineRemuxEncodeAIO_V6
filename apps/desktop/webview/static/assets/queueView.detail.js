@@ -11,10 +11,11 @@
     const queueSelectedOpenTargetLines = deps.queueSelectedOpenTargetLines || function () { return []; };
     const renderQueueSelectedAtAGlance = deps.renderQueueSelectedAtAGlance || function () {};
     const requestQueueDiagnosticsAction = deps.requestQueueDiagnosticsAction || async function () {};
-    const appendDiagnosticsBridgeGroupedButtons = deps.appendDiagnosticsBridgeGroupedButtons || window.appendDiagnosticsBridgeGroupedButtons;
-    const appendDiagnosticsBridgeButton = deps.appendDiagnosticsBridgeButton || window.appendDiagnosticsBridgeButton;
-    const diagnosticsBridgeHandoffLines = deps.diagnosticsBridgeHandoffLines || window.diagnosticsBridgeHandoffLines;
-    const diagnosticsBridgeRowTrustLines = deps.diagnosticsBridgeRowTrustLines || window.diagnosticsBridgeRowTrustLines;
+    const diagnosticsBridge = window.mediaPipelineDiagnosticsBridge || {};
+    const appendDiagnosticsBridgeGroupedButtons = deps.appendDiagnosticsBridgeGroupedButtons || diagnosticsBridge.appendDiagnosticsBridgeGroupedButtons;
+    const appendDiagnosticsBridgeButton = deps.appendDiagnosticsBridgeButton || diagnosticsBridge.appendDiagnosticsBridgeButton;
+    const diagnosticsBridgeHandoffLines = deps.diagnosticsBridgeHandoffLines || diagnosticsBridge.diagnosticsBridgeHandoffLines;
+    const diagnosticsBridgeRowTrustLines = deps.diagnosticsBridgeRowTrustLines || diagnosticsBridge.diagnosticsBridgeRowTrustLines;
     const commandHistoryCompactEvidenceLine = deps.commandHistoryCompactEvidenceLine || window.commandHistoryCompactEvidenceLine;
 
     function queueRowReviewChecklistLines(item) {

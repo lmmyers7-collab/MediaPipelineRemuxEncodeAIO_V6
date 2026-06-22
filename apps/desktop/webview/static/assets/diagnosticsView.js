@@ -17,6 +17,11 @@
   const diagnosticsStateRecommendedFirstAction = diagnosticsStateSummaryView.diagnosticsStateRecommendedFirstAction || function () {
     return "inspect this state artifact.";
   };
+
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
+
   let lastDiagnosticsLogRows = [];
   let selectedDiagnosticsFirstResponseKey = "";
   let tdarrMatrixConsoleState = {
@@ -732,8 +737,9 @@
 
   function diagnosticsActionLabel(action) {
     if (!action) return "";
-    if (typeof window.diagnosticsBridgeActionLabel === "function") {
-      return window.diagnosticsBridgeActionLabel(action);
+    const bridge = diagnosticsBridgeApi();
+    if (typeof bridge.diagnosticsBridgeActionLabel === "function") {
+      return bridge.diagnosticsBridgeActionLabel(action);
     }
     const verb = action.kind === "tail" ? "Read" : "Open";
     return action.label || `${verb} ${String(action.target || "").replaceAll("_", " ")}`;
@@ -741,8 +747,9 @@
 
   function diagnosticsOrderedActions(actions) {
     const candidates = Array.isArray(actions) ? actions.filter((action) => action && action.target) : [];
-    if (typeof window.diagnosticsBridgeOrderedActions === "function") {
-      return window.diagnosticsBridgeOrderedActions(candidates);
+    const bridge = diagnosticsBridgeApi();
+    if (typeof bridge.diagnosticsBridgeOrderedActions === "function") {
+      return bridge.diagnosticsBridgeOrderedActions(candidates);
     }
     return candidates;
   }

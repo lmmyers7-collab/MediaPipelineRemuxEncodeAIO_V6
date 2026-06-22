@@ -209,7 +209,7 @@
 
   /**
    * Public namespace for the diagnostics bridge module.
-   * Prefer this namespace from new code; flat window.* exports are transitional compatibility aliases when present.
+   * Consumers use this namespace directly; no flat window.* exports are published from this module.
    */
   window.mediaPipelineDiagnosticsBridge = {
     diagnosticsBridgeActions,
@@ -226,11 +226,4 @@
     diagnosticsBridgeReviewAction,
     appendDiagnosticsBridgeButton,
   };
-  window.diagnosticsBridgeActions = diagnosticsBridgeActions;
-  window.diagnosticsBridgeActionLabel = diagnosticsBridgeActionLabel;
-  window.diagnosticsBridgeOrderedActions = diagnosticsBridgeOrderedActions;
-  window.diagnosticsBridgeRowTrustLines = diagnosticsBridgeRowTrustLines;
-  window.appendDiagnosticsBridgeGroupedButtons = appendDiagnosticsBridgeGroupedButtons;
-  window.diagnosticsBridgeHandoffLines = diagnosticsBridgeHandoffLines;
-  window.appendDiagnosticsBridgeButton = appendDiagnosticsBridgeButton;
 })();

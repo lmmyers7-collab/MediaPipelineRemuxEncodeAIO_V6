@@ -6,6 +6,10 @@
     return window.mediaPipelineLaunchView || {};
   }
 
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
+
   function isLaunchCommand(entry) {
     const command = String(entry?.command || "").toLowerCase();
     return command === "pipeline.start" || command === "rerun.start";
@@ -328,9 +332,10 @@
     container.replaceChildren();
     if (!item) return;
     const rawActions = launchCommandDiagnosticsActions(item.entry);
-    const actions = typeof diagnosticsBridgeActions === "function" ? diagnosticsBridgeActions(rawActions) : rawActions;
-    if (typeof appendDiagnosticsBridgeGroupedButtons === "function") {
-      appendDiagnosticsBridgeGroupedButtons(container, actions, {
+    const bridge = diagnosticsBridgeApi();
+    const actions = typeof bridge.diagnosticsBridgeActions === "function" ? bridge.diagnosticsBridgeActions(rawActions) : rawActions;
+    if (typeof bridge.appendDiagnosticsBridgeGroupedButtons === "function") {
+      bridge.appendDiagnosticsBridgeGroupedButtons(container, actions, {
         datasetPrefix: "launchCommandDiagnostics",
         onAction: requestLaunchCommandDiagnosticsAction,
       });
@@ -339,8 +344,8 @@
         const button = document.createElement("button");
         button.type = "button";
         button.className = "secondary-button";
-        button.textContent = typeof diagnosticsBridgeActionLabel === "function"
-          ? diagnosticsBridgeActionLabel(action)
+        button.textContent = typeof bridge.diagnosticsBridgeActionLabel === "function"
+          ? bridge.diagnosticsBridgeActionLabel(action)
           : `${action.kind === "tail" ? "Read" : "Open"} ${action.target}`;
         button.title = action.reason || "";
         button.dataset.launchCommandDiagnosticsAction = action.kind;
@@ -349,8 +354,8 @@
         container.appendChild(button);
       });
     }
-    if (typeof appendDiagnosticsBridgeButton === "function") {
-      appendDiagnosticsBridgeButton(container, rawActions, "Launch command review selected row");
+    if (typeof bridge.appendDiagnosticsBridgeButton === "function") {
+      bridge.appendDiagnosticsBridgeButton(container, rawActions, "Launch command review selected row");
     }
   }
 

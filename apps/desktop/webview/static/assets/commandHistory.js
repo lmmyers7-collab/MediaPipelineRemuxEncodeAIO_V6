@@ -15,6 +15,10 @@
     return fn;
   }
 
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
+
   function commandHistoryFormatter(name) {
     const fn = commandHistoryFormatters[name];
     if (typeof fn !== "function") throw new Error(`commandHistory formatter slice missing ${name}`);
@@ -923,8 +927,9 @@
     lines.push("", ...commandHistoryOwnerLiveStateLines(item));
     const specialized = commandHistorySpecializedDetailLines(item);
     if (specialized.length) lines.push("", ...specialized);
-    if (typeof diagnosticsBridgeHandoffLines === "function") {
-      lines.push("", ...diagnosticsBridgeHandoffLines("Command result selected row", commandHistoryDiagnosticsActions(item), {
+    const bridge = diagnosticsBridgeApi();
+    if (typeof bridge.diagnosticsBridgeHandoffLines === "function") {
+      lines.push("", ...bridge.diagnosticsBridgeHandoffLines("Command result selected row", commandHistoryDiagnosticsActions(item), {
         evidence: [
           item.command ? `command=${item.command}` : "",
           item.result ? `result=${item.result}` : "",
@@ -1128,11 +1133,12 @@
     if (!container) return;
     container.replaceChildren();
     if (!item) return;
-    const actions = typeof diagnosticsBridgeActions === "function"
-      ? diagnosticsBridgeActions(commandHistoryDiagnosticsActions(item))
+    const bridge = diagnosticsBridgeApi();
+    const actions = typeof bridge.diagnosticsBridgeActions === "function"
+      ? bridge.diagnosticsBridgeActions(commandHistoryDiagnosticsActions(item))
       : commandHistoryDiagnosticsActions(item);
-    if (typeof appendDiagnosticsBridgeGroupedButtons === "function") {
-      appendDiagnosticsBridgeGroupedButtons(container, actions, {
+    if (typeof bridge.appendDiagnosticsBridgeGroupedButtons === "function") {
+      bridge.appendDiagnosticsBridgeGroupedButtons(container, actions, {
         datasetPrefix: "commandDiagnostics",
         onAction: requestCommandDiagnosticsAction,
       });
@@ -1141,8 +1147,8 @@
         const button = document.createElement("button");
         button.className = "secondary-button";
         button.type = "button";
-        button.textContent = typeof diagnosticsBridgeActionLabel === "function"
-          ? diagnosticsBridgeActionLabel(action)
+        button.textContent = typeof bridge.diagnosticsBridgeActionLabel === "function"
+          ? bridge.diagnosticsBridgeActionLabel(action)
           : `${action.kind === "tail" ? "Read" : "Open"} ${action.target}`;
         button.title = action.reason || "";
         button.dataset.commandDiagnosticsAction = action.kind;
@@ -1151,8 +1157,8 @@
         container.appendChild(button);
       });
     }
-    if (typeof appendDiagnosticsBridgeButton === "function") {
-      appendDiagnosticsBridgeButton(container, actions, "Command result selected row");
+    if (typeof bridge.appendDiagnosticsBridgeButton === "function") {
+      bridge.appendDiagnosticsBridgeButton(container, actions, "Command result selected row");
     }
   }
 
@@ -1161,11 +1167,12 @@
     if (!container) return;
     container.replaceChildren();
     if (!item) return;
-    const actions = typeof diagnosticsBridgeActions === "function"
-      ? diagnosticsBridgeActions(commandHistoryDiagnosticsActions(item))
+    const bridge = diagnosticsBridgeApi();
+    const actions = typeof bridge.diagnosticsBridgeActions === "function"
+      ? bridge.diagnosticsBridgeActions(commandHistoryDiagnosticsActions(item))
       : commandHistoryDiagnosticsActions(item);
-    if (typeof appendDiagnosticsBridgeGroupedButtons === "function") {
-      appendDiagnosticsBridgeGroupedButtons(container, actions, {
+    if (typeof bridge.appendDiagnosticsBridgeGroupedButtons === "function") {
+      bridge.appendDiagnosticsBridgeGroupedButtons(container, actions, {
         datasetPrefix: "diagnosticsCommandDrilldown",
         onAction: requestCommandDiagnosticsAction,
       });
@@ -1175,8 +1182,8 @@
       const button = document.createElement("button");
       button.className = "secondary-button";
       button.type = "button";
-      button.textContent = typeof diagnosticsBridgeActionLabel === "function"
-        ? diagnosticsBridgeActionLabel(action)
+      button.textContent = typeof bridge.diagnosticsBridgeActionLabel === "function"
+        ? bridge.diagnosticsBridgeActionLabel(action)
         : `${action.kind === "tail" ? "Read" : "Open"} ${action.target}`;
       button.title = action.reason || "";
       button.dataset.diagnosticsCommandDrilldownAction = action.kind;

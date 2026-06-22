@@ -24,6 +24,10 @@
   let maintenanceDryRunInFlight = false;
   let dependencyAtlasOpenInFlight = false;
 
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
+
   function maintenanceStatusState(value) {
     const text = String(value || "").trim().toLowerCase();
     if (!text) return "empty";
@@ -586,12 +590,15 @@
       return;
     }
     const actions = maintenanceDiagnosticsActionsForRow(item);
-    if (typeof appendDiagnosticsBridgeGroupedButtons === "function") {
-      appendDiagnosticsBridgeGroupedButtons(container, actions, {
+    const bridge = diagnosticsBridgeApi();
+    if (typeof bridge.appendDiagnosticsBridgeGroupedButtons === "function") {
+      bridge.appendDiagnosticsBridgeGroupedButtons(container, actions, {
         datasetPrefix: "maintenanceDiagnostics",
         onAction: requestMaintenanceDiagnosticsAction,
       });
-      appendDiagnosticsBridgeButton(container, actions, `Maintenance check ${item.name || ""}`);
+      if (typeof bridge.appendDiagnosticsBridgeButton === "function") {
+        bridge.appendDiagnosticsBridgeButton(container, actions, `Maintenance check ${item.name || ""}`);
+      }
     } else {
       actions.forEach((action) => {
         const button = document.createElement("button");
@@ -615,8 +622,9 @@
     }
     const actions = maintenanceDiagnosticsActionsForRow(item);
     const lines = [];
-    if (typeof diagnosticsBridgeRowTrustLines === "function") {
-      lines.push(...diagnosticsBridgeRowTrustLines(`Maintenance check ${item.name || ""}`, actions, {
+    const bridge = diagnosticsBridgeApi();
+    if (typeof bridge.diagnosticsBridgeRowTrustLines === "function") {
+      lines.push(...bridge.diagnosticsBridgeRowTrustLines(`Maintenance check ${item.name || ""}`, actions, {
         trustState: item.operator_status || item.status || "review",
         primaryConcern: item.operator_guidance || "verify maintenance health before trusting dry-run commands",
         evidence: [

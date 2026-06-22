@@ -23,6 +23,10 @@
   let initCompletedRepairEvents = function () {};
   let isCompletedRepairCommand = function () { return false; };
   let repairDryRunIsSafeForSelection = function () { return false; };
+
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
   let renderCompletedRepairControls = function () {};
   let renderCompletedRepairHistory = function () {};
   let requestCompletedRepairApply = async function () {};
@@ -453,8 +457,8 @@
   delete window.__completedViewDiagnosticsModule;
   const completedDiagnostics = typeof completedDiagnosticsModule.createCompletedDiagnosticsModule === "function"
     ? completedDiagnosticsModule.createCompletedDiagnosticsModule({
-      appendDiagnosticsBridgeButton: window.appendDiagnosticsBridgeButton,
-      appendDiagnosticsBridgeGroupedButtons: window.appendDiagnosticsBridgeGroupedButtons,
+      appendDiagnosticsBridgeButton: diagnosticsBridgeApi().appendDiagnosticsBridgeButton,
+      appendDiagnosticsBridgeGroupedButtons: diagnosticsBridgeApi().appendDiagnosticsBridgeGroupedButtons,
       byId: typeof byId === "function" ? byId : window.byId,
       requestDiagnosticsOpen: (...args) => {
         const request = typeof window.requestDiagnosticsOpen === "function"
@@ -501,7 +505,7 @@
       completedProofCompletedSourcePath,
       completedProofRowLabel,
       completedProofRowMissingOutput,
-      diagnosticsBridgeRowTrustLines: typeof diagnosticsBridgeRowTrustLines === "function" ? diagnosticsBridgeRowTrustLines : window.diagnosticsBridgeRowTrustLines,
+      diagnosticsBridgeRowTrustLines: diagnosticsBridgeApi().diagnosticsBridgeRowTrustLines,
       filterRows: typeof filterRows === "function" ? filterRows : window.filterRows,
       makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
       renderCompletedDetail: (...args) => renderCompletedDetail(...args),
@@ -647,7 +651,7 @@
       completedSelectedAtAGlanceLines: (...args) => completedSelectedAtAGlanceLines(...args),
       completedSelectedOpenTargetLines: (...args) => completedSelectedOpenTargetLines(...args),
       completedSelectedQuickSignalLines: (...args) => completedSelectedQuickSignalLines(...args),
-      diagnosticsBridgeHandoffLines: window.diagnosticsBridgeHandoffLines,
+      diagnosticsBridgeHandoffLines: diagnosticsBridgeApi().diagnosticsBridgeHandoffLines,
       renderCompletedDiagnosticsLinks: (...args) => renderCompletedDiagnosticsLinks(...args),
       renderCompletedActiveOutputContext: (...args) => renderCompletedActiveOutputContext(...args),
       renderCompletedPromotionActions: (...args) => renderCompletedPromotionActions(...args),

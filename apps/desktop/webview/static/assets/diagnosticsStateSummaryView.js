@@ -13,6 +13,10 @@
   let lastDiagnosticsStateTriageRows = [];
   let selectedDiagnosticsStateTriageKey = "";
 
+  function diagnosticsBridgeApi() {
+    return window.mediaPipelineDiagnosticsBridge || {};
+  }
+
   function diagnosticsStateSummaryRowKey(item) {
     return [
       item?.target || "",
@@ -113,8 +117,9 @@
 
   function diagnosticsStateActionLabel(action) {
     if (!action) return "";
-    if (typeof window.diagnosticsBridgeActionLabel === "function") {
-      return window.diagnosticsBridgeActionLabel(action);
+    const bridge = diagnosticsBridgeApi();
+    if (typeof bridge.diagnosticsBridgeActionLabel === "function") {
+      return bridge.diagnosticsBridgeActionLabel(action);
     }
     const verb = action.kind === "tail" ? "Read" : "Open";
     return action.label || `${verb} ${String(action.target || "").replaceAll("_", " ")}`;
@@ -122,8 +127,9 @@
 
   function diagnosticsStateActionGroups(actions) {
     const candidates = Array.isArray(actions) ? actions.filter((action) => action && action.target) : [];
-    const ordered = typeof window.diagnosticsBridgeOrderedActions === "function"
-      ? window.diagnosticsBridgeOrderedActions(candidates)
+    const bridge = diagnosticsBridgeApi();
+    const ordered = typeof bridge.diagnosticsBridgeOrderedActions === "function"
+      ? bridge.diagnosticsBridgeOrderedActions(candidates)
       : candidates;
     return {
       readFirst: ordered.filter((action) => action.kind === "tail"),

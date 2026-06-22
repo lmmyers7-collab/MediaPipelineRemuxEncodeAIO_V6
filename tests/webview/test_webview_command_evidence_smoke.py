@@ -350,9 +350,11 @@ def _node_runner_source() -> str:
         };
         context.updateTableStatusLegend = (id) => { texts[id] = "mock table legend"; };
         context.tableStatusLegendText = () => "mock table legend";
-        context.diagnosticsBridgeActions = () => [];
-        context.diagnosticsBridgeHandoffLines = (label) => [`Diagnostics bridge: ${label}`];
-        context.appendDiagnosticsBridgeGroupedButtons = () => {};
+        context.mediaPipelineDiagnosticsBridge = {
+          diagnosticsBridgeActions: () => [],
+          diagnosticsBridgeHandoffLines: (label) => [`Diagnostics bridge: ${label}`],
+          appendDiagnosticsBridgeGroupedButtons: () => {},
+        };
         context.requestCommandDiagnosticsAction = () => {};
         context.apiGet = async () => ({});
         context.apiPost = async () => ({ ok: false, message: "mocked" });
