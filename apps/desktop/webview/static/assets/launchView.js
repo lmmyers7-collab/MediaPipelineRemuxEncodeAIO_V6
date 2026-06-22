@@ -1355,9 +1355,6 @@
   window.launchSettingsDecisionLines = launchSettingsDecisionLines;
   window.launchSettingsRiskLines = launchSettingsRiskLines;
   window.launchRealMediaReadinessLines = launchRealMediaReadinessLines;
-  window.launchSettingsRiskRows = launchSettingsRiskRows;
-  window.launchSettingsRiskStatus = launchSettingsRiskStatus;
-  window.launchSettingsRiskSummaryLines = launchSettingsRiskSummaryLines;
   window.renderLaunchSettingsRiskHandoff = renderLaunchSettingsRiskHandoff;
   window.launchPolicyBoundaryStatus = launchPolicyBoundaryStatus;
   window.launchPolicyBoundarySummaryLines = launchPolicyBoundarySummaryLines;
