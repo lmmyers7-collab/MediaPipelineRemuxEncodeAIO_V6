@@ -152,6 +152,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPlacementCounts",
               "completedFormatCounts",
               "completedFreshnessLine",
+              "completedManifestIsAged",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -168,6 +169,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedFreshnessLine =")) {
               throw new Error("served completedView.js still contains completedFreshnessLine flat assignment");
+            }
+            if (completedViewSource.includes("window.completedManifestIsAged =")) {
+              throw new Error("served completedView.js still contains completedManifestIsAged flat assignment");
             }
 
             window.confirm = () => {
