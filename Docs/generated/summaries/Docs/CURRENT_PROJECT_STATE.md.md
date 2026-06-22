@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 46801e941ea475738b787b9feebc79265f5ec2e2c83fca585c8f04726433f04d
+sha256: 81febcaeb5d0883f6670af356c833ea898b7660505ae85fb2488ae14536ab4f0
 ---
 # `docs/CURRENT_PROJECT_STATE.md`
 
