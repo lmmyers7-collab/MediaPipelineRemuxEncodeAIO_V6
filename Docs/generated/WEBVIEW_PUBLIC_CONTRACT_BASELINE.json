@@ -1039,7 +1039,6 @@
       "getLastSettings",
       "getLastSnapshot",
       "getSelectedActiveJobRow",
-      "getSelectedCommandEntry",
       "getSelectedCompletedRow",
       "getSelectedDiagnosticsLogRow",
       "getSelectedDiagnosticsOwnerHandoffRow",
@@ -3830,7 +3829,6 @@
         "commandHistoryOwnerPage",
         "commandHistoryRowKey",
         "getCommandHistory",
-        "getSelectedCommandEntry",
         "selectCommandEntry"
       ],
       "api_routes": [],
