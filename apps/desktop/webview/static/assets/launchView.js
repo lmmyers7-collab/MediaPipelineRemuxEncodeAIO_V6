@@ -1341,16 +1341,10 @@
   window.isPipelineControlCommand = isPipelineControlCommand;
   window.pipelineControlHistoryLine = pipelineControlHistoryLine;
   window.renderPipelineControlHistory = renderPipelineControlHistory;
-  window.syncPipelineModeControls = syncPipelineModeControls;
-  window.selectPipelineModePreset = selectPipelineModePreset;
-  window.browsePipelineSingleFile = browsePipelineSingleFile;
-  window.clearPipelineSingleFile = clearPipelineSingleFile;
   window.startPipelineFromForm = startPipelineFromForm;
   window.startStateJournalArchive = startStateJournalArchive;
   window.collectRerunStartRequest = collectRerunStartRequest;
   window.startRerunFromForm = startRerunFromForm;
-  window.launchSettingsWorkspace = launchSettingsWorkspace;
-  window.launchSettingsTrustStatus = launchSettingsTrustStatus;
   window.launchSettingsIntentRows = launchSettingsIntentRows;
   window.launchSettingsIntentStatus = launchSettingsIntentStatus;
   window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
@@ -1360,7 +1354,6 @@
   window.launchWorksheetEvidence = launchWorksheetEvidence;
   window.launchQueueIntentCategoryMatch = launchQueueIntentCategoryMatch;
   window.launchPolicyAlignmentQueueIntentEvidence = launchPolicyAlignmentQueueIntentEvidence;
-  window.launchSampleSetCoverageLine = launchSampleSetCoverageLine;
   window.launchSampleValidationRecordEvidence = launchSampleValidationRecordEvidence;
   window.launchSampleExecutionRows = launchSampleExecutionRows;
   window.launchPilotRunReadinessRows = launchPilotRunReadinessRows;
