@@ -1378,10 +1378,6 @@
   window.launchCompactGateRows = launchCompactGateRows;
   window.launchCompactGateOverallStatus = launchCompactGateOverallStatus;
   window.renderLaunchCompactGate = renderLaunchCompactGate;
-  window.launchRealMediaProofRows = launchRealMediaProofRows;
-  window.launchRealMediaProofStatus = launchRealMediaProofStatus;
-  window.launchRealMediaProofSummaryLines = launchRealMediaProofSummaryLines;
-  window.launchRealMediaProofDetailLines = launchRealMediaProofDetailLines;
   window.launchWorksheetEvidence = launchWorksheetEvidence;
   window.launchWorksheetRunRows = launchWorksheetRunRows;
   window.launchWorksheetRunsMatchingSample = launchWorksheetRunsMatchingSample;
