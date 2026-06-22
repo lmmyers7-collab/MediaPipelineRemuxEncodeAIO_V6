@@ -97,7 +97,4 @@
     shortenPath,
   };
   window.formatProgressValue = formatProgressValue;
-  window.formatConfigValue = formatConfigValue;
-  window.parseSettingsListText = parseSettingsListText;
-  window.formatSettingsListValue = formatSettingsListValue;
 })();

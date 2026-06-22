@@ -10,6 +10,26 @@
   const renderSettingsCommandHistory = settingsCommandHistory.renderSettingsCommandHistory || function () {};
   const domHelpers = window.mediaPipelineDom || {};
   const formatters = window.mediaPipelineFormatters || {};
+  const formatConfigValue = typeof formatters.formatConfigValue === "function"
+    ? formatters.formatConfigValue
+    : function (value) {
+      if (Array.isArray(value)) return value.join(", ");
+      if (value && typeof value === "object") return JSON.stringify(value);
+      if (value === null || value === undefined) return "";
+      return String(value);
+    };
+  const parseSettingsListText = typeof formatters.parseSettingsListText === "function"
+    ? formatters.parseSettingsListText
+    : function (raw) {
+      return String(raw || "").split(/[\n,;]+/).map((item) => item.trim()).filter(Boolean);
+    };
+  const formatSettingsListValue = typeof formatters.formatSettingsListValue === "function"
+    ? formatters.formatSettingsListValue
+    : function (value) {
+      if (Array.isArray(value)) return value.join(", ");
+      if (value === undefined || value === null) return "";
+      return String(value);
+    };
   const settingsValuesEqual = typeof formatters.settingsValuesEqual === "function"
     ? formatters.settingsValuesEqual
     : function (left, right) {

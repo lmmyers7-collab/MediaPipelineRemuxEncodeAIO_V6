@@ -691,8 +691,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1494,
-            "end": 2100,
+            "start": 1514,
+            "end": 2120,
             "line_count": 607
           },
           "functions_to_move": [
@@ -981,8 +981,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 1260,
-            "end": 1436,
+            "start": 1280,
+            "end": 1456,
             "line_count": 177
           },
           "functions_to_move": [
@@ -1220,8 +1220,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.policyImpact.js",
           "topic": "settings-final-library",
           "line_range": {
-            "start": 704,
-            "end": 870,
+            "start": 724,
+            "end": 890,
             "line_count": 167
           },
           "functions_to_move": [
@@ -1420,8 +1420,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 397,
-            "end": 548,
+            "start": 417,
+            "end": 568,
             "line_count": 152
           },
           "functions_to_move": [
@@ -1469,11 +1469,14 @@
           "dependencies_to_resolve": [
             "fileSafetySettingsBuilderFields",
             "fileSafetySettingsBuilderState",
+            "formatConfigValue",
             "formatSettingsChoiceLabel",
+            "formatSettingsListValue",
             "lastSettingsFieldDefinitions",
             "lastSettingsValues",
             "networkSettingsBuilderFields",
             "networkSettingsBuilderState",
+            "parseSettingsListText",
             "pendingPublishSettingsBuilderFields",
             "pendingPublishSettingsBuilderState",
             "queueSettingsBuilderFields",
@@ -1493,10 +1496,7 @@
             "settingsFieldDefinition",
             "settingsImpactGroupForKey",
             "settingsSpecificImpactHints",
-            "settingsVobSubOcrPathEvidenceLines",
-            "settingsVobSubOcrPathEvidenceStatus",
-            "subtitleSettingsBuilder",
-            "writeSettingsPatchJson"
+            "settingsVobSubOcrPathEvidenceLines"
           ],
           "globals_to_preserve": [
             "applyAudioSettingsBuilderToPatch",
@@ -1602,11 +1602,14 @@
             "parent_state_reads": [
               "fileSafetySettingsBuilderFields",
               "fileSafetySettingsBuilderState",
+              "formatConfigValue",
               "formatSettingsChoiceLabel",
+              "formatSettingsListValue",
               "lastSettingsFieldDefinitions",
               "lastSettingsValues",
               "networkSettingsBuilderFields",
               "networkSettingsBuilderState",
+              "parseSettingsListText",
               "pendingPublishSettingsBuilderFields",
               "pendingPublishSettingsBuilderState",
               "queueSettingsBuilderFields",
@@ -1653,10 +1656,7 @@
               "byId",
               "clearRows",
               "filterRows",
-              "formatConfigValue",
-              "formatSettingsListValue",
               "makeRowSelectable",
-              "parseSettingsListText",
               "runNetworkWorkerTestConnection",
               "setText",
               "updateTableStatusLegend"
@@ -1682,8 +1682,8 @@
           "proposed_child_file": "apps/desktop/webview/static/assets/settingsView.core.js",
           "topic": "settings-core",
           "line_range": {
-            "start": 64,
-            "end": 189,
+            "start": 84,
+            "end": 209,
             "line_count": 126
           },
           "functions_to_move": [

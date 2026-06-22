@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 0bec28c6b3103dee9292997dde51d45a3739a7510c5ac660cdba2e36870ead39
+sha256: 4a2104fe67695a8d16eecfa8adc751df442e15f24c037bb770df368342f9bcc9
 ---
 # `apps/desktop/webview/static/assets/formatters.js`
 

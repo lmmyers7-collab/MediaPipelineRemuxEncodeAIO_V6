@@ -5635,7 +5635,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2056,
+      "line": 2076,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5652,7 +5652,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 713,
+      "line": 733,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5669,7 +5669,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1714,
+      "line": 1734,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5686,7 +5686,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 765,
+      "line": 785,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5703,7 +5703,7 @@
       "normalized_route": "/api/settings/reload",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1982,
+      "line": 2002,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5720,7 +5720,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1899,
+      "line": 1919,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5737,7 +5737,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 837,
+      "line": 857,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5754,7 +5754,7 @@
       "normalized_route": "/api/settings/validate",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1264,
+      "line": 1284,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",

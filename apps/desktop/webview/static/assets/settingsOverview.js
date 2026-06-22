@@ -1,4 +1,14 @@
 (function () {
+  const formatters = window.mediaPipelineFormatters || {};
+  const formatConfigValue = typeof formatters.formatConfigValue === "function"
+    ? formatters.formatConfigValue
+    : function (value) {
+      if (Array.isArray(value)) return value.join(", ");
+      if (value && typeof value === "object") return JSON.stringify(value);
+      if (value === null || value === undefined) return "";
+      return String(value);
+    };
+
   function configValue(config, key, fallback = "(not set)") {
     if (!config || typeof config !== "object") return fallback;
     if (Object.prototype.hasOwnProperty.call(config, key)) return formatConfigValue(config[key]) || fallback;
