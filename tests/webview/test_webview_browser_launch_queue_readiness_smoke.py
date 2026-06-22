@@ -208,17 +208,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "renderLaunchScopeReconciliation",
               "launchScopeReconciliationRows",
               "renderLaunchStartDecisionSummary",
-              "launchStartDecisionRows",
-              "launchCompactGateRows",
-              "renderLaunchCompactGate",
-              "launchWorksheetEvidence",
-              "launchSampleValidationRecordEvidence",
-              "launchPolicyAlignmentQueueIntentEvidence",
-              "launchQueueIntentCategoryMatch",
               "renderLaunchSampleExecutionChecklist",
-              "launchSampleExecutionRows",
               "renderLaunchPilotRunReadiness",
-              "launchPilotRunReadinessRows",
               "refreshLaunchBackendPreflight",
               "renderQueueLaunchDecisionChecklist",
               "queueLaunchDecisionRows",
@@ -231,6 +222,23 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (typeof window.mediaPipelineScheduleView?.renderScheduleTimingTrust !== "function") {
               throw new Error("missing mediaPipelineScheduleView.renderScheduleTimingTrust");
             }
+            [
+              "launchStartDecisionRows",
+              "launchCompactGateRows",
+              "renderLaunchCompactGate",
+              "launchWorksheetEvidence",
+              "launchSampleValidationRecordEvidence",
+              "launchPolicyAlignmentQueueIntentEvidence",
+              "launchQueueIntentCategoryMatch",
+              "launchSampleExecutionRows",
+              "launchPilotRunReadinessRows",
+              "pipelineLaunchPreflightLines",
+              "rerunLaunchPreflightLines",
+            ].forEach((name) => {
+              if (typeof window.mediaPipelineLaunchView?.[name] !== "function") {
+                throw new Error("missing mediaPipelineLaunchView." + name);
+              }
+            });
 
             window.showPage("launch");
             if (typeof window.mediaPipelineLaunchView?.activateLaunchTab !== "function") throw new Error("missing mediaPipelineLaunchView.activateLaunchTab");

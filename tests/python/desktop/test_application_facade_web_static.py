@@ -1203,6 +1203,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("launchCompactGateRows,", launch_js)
         self.assertIn("launchCompactGateOverallStatus,", launch_js)
         self.assertIn("renderLaunchCompactGate,", launch_js)
+        self.assertNotIn("window.launchCompactGateRows =", launch_js)
+        self.assertNotIn("window.renderLaunchCompactGate =", launch_js)
         self.assertNotIn("window.launchCompactGateOverallStatus =", launch_js)
         self.assertIn("Submit ${label} for ${scope}? Backend will re-check queue, settings, schedule, and locks before starting.", launch_js)
         self.assertIn("Resolve blocked Backend Preflight checks", launch_js)

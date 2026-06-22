@@ -1337,15 +1337,4 @@
     initLaunchViewEvents,
     initLaunchRecoveryActionEvents,
   };
-  window.launchStartDecisionRows = launchStartDecisionRows;
-  window.launchCompactGateRows = launchCompactGateRows;
-  window.renderLaunchCompactGate = renderLaunchCompactGate;
-  window.launchWorksheetEvidence = launchWorksheetEvidence;
-  window.launchQueueIntentCategoryMatch = launchQueueIntentCategoryMatch;
-  window.launchPolicyAlignmentQueueIntentEvidence = launchPolicyAlignmentQueueIntentEvidence;
-  window.launchSampleValidationRecordEvidence = launchSampleValidationRecordEvidence;
-  window.launchSampleExecutionRows = launchSampleExecutionRows;
-  window.launchPilotRunReadinessRows = launchPilotRunReadinessRows;
-  window.pipelineLaunchPreflightLines = pipelineLaunchPreflightLines;
-  window.rerunLaunchPreflightLines = rerunLaunchPreflightLines;
 })();
