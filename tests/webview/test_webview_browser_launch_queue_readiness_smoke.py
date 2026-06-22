@@ -223,9 +223,11 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "renderQueueLaunchDecisionChecklist",
               "queueLaunchDecisionRows",
               "getCommandHistory",
-              "renderLaunchCommandHistory",
               "commandHistoryOwnerPage",
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineLaunchHistoryView?.renderLaunchCommandHistory !== "function") {
+              throw new Error("missing mediaPipelineLaunchHistoryView.renderLaunchCommandHistory");
+            }
             if (typeof window.mediaPipelineScheduleView?.renderScheduleTimingTrust !== "function") {
               throw new Error("missing mediaPipelineScheduleView.renderScheduleTimingTrust");
             }

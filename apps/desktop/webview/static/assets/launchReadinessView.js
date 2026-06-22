@@ -359,9 +359,7 @@
     setText("launch-readiness", launchReadinessLines(payload).join("\n"));
     renderLaunchReadinessRecoveryActions(lastLaunchReadinessPayload);
     renderLaunchTimingTrust(lastLaunchReadinessPayload);
-    if (typeof renderLaunchSettingsIntentChecklist === "function") {
-      renderLaunchSettingsIntentChecklist(undefined, lastLaunchReadinessPayload);
-    }
+    window.mediaPipelineLaunchView?.renderLaunchSettingsIntentChecklist?.(undefined, lastLaunchReadinessPayload);
   }
 
   function getLastLaunchReadinessPayload() {

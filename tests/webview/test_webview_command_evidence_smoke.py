@@ -420,7 +420,7 @@ def _node_runner_source() -> str:
         });
         context.pendingDrainGuardState = () => ({ status: "Do not drain", action: "Resolve missing payload before publishing." });
         context.mediaPipelineLaunchView.getLastLaunchBackendPreflightPayloads = () => [{ target: "pipeline", status: "review" }];
-        context.launchSettingsIntentStatus = () => "Review";
+        context.mediaPipelineLaunchView.launchSettingsIntentStatus = () => "Review";
         context.queueLaunchDecisionStatus = () => "Read evidence";
 
         [
@@ -442,6 +442,9 @@ def _node_runner_source() -> str:
         if (typeof context.mediaPipelineLaunchView?.renderPipelineControlHistory !== "function") {
           throw new Error("missing launch namespace pipeline control history renderer");
         }
+        if (typeof context.mediaPipelineLaunchHistoryView?.renderLaunchCommandHistory !== "function") {
+          throw new Error("missing launch history namespace renderer");
+        }
 
         context.renderCommandHistoryPayload({ entries: payload.entries });
         const renderedHistory = context.getCommandHistory();
@@ -454,10 +457,10 @@ def _node_runner_source() -> str:
           "renderDiagnosticsOpenHistory",
           "renderMaintenanceDryRunHistory",
           "renderRenameApplyHistory",
-          "renderLaunchCommandHistory",
         ].forEach((name) => {
           if (typeof context[name] === "function") context[name](renderedHistory);
         });
+        context.mediaPipelineLaunchHistoryView.renderLaunchCommandHistory(renderedHistory);
         context.mediaPipelineLaunchView.renderPipelineControlHistory(renderedHistory);
         context.mediaPipelineSettingsCommandHistory.renderSettingsCommandHistory(renderedHistory);
         context.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(renderedHistory);

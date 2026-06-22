@@ -861,7 +861,7 @@
       const launchView = window.mediaPipelineLaunchView || {};
       const preflightPayloads = typeof launchView.getLastLaunchBackendPreflightPayloads === "function" ? launchView.getLastLaunchBackendPreflightPayloads() : [];
       const pipelinePreflight = Array.isArray(preflightPayloads) ? preflightPayloads.find((payload) => String(payload?.target || "").toLowerCase() === "pipeline") : null;
-      const launchIntent = typeof launchSettingsIntentStatus === "function" ? launchSettingsIntentStatus() : "unavailable";
+      const launchIntent = typeof launchView.launchSettingsIntentStatus === "function" ? launchView.launchSettingsIntentStatus() : "unavailable";
       const queueDecision = typeof queueLaunchDecisionStatus === "function" ? queueLaunchDecisionStatus() : "unavailable";
       return finish(true, `Launch cached evidence: preflight=${pipelinePreflight?.status || "missing"}; launch intent=${launchIntent}; queue decision=${queueDecision}.`, [], [
         "Owner action: compare Backend Launch Preflight, Saved Settings vs Launch Intent, Queue-to-Launch Handoff, and Diagnostics before pressing Start again.",
@@ -1302,12 +1302,11 @@
     renderCommandDetail(getSelectedCommandEntry());
     renderDiagnosticsCommandDrilldown(commandHistory);
     const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
+    const launchView = window.mediaPipelineLaunchView || {};
     if (typeof launchHistoryView.renderLaunchCommandHistory === "function") {
       launchHistoryView.renderLaunchCommandHistory(commandHistory);
-    } else if (typeof renderLaunchCommandHistory === "function") {
-      renderLaunchCommandHistory(commandHistory);
     }
-    if (typeof renderLaunchSettingsIntentChecklist === "function") renderLaunchSettingsIntentChecklist();
+    launchView.renderLaunchSettingsIntentChecklist?.();
     if (typeof renderPendingDrainHistory === "function") renderPendingDrainHistory(commandHistory);
     if (typeof renderPendingRecoveryPlanHistory === "function") renderPendingRecoveryPlanHistory(commandHistory);
     if (typeof renderPendingDrainDecisionChecklist === "function") renderPendingDrainDecisionChecklist(undefined, undefined, undefined, commandHistory);

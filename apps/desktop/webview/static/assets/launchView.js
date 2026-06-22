@@ -14,15 +14,15 @@
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
   const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
-  const isLaunchCommand = launchHistoryView.isLaunchCommand || window.isLaunchCommand || function () { return false; };
-  const launchHistoryLine = launchHistoryView.launchHistoryLine || window.launchHistoryLine || function () { return ""; };
+  const isLaunchCommand = launchHistoryView.isLaunchCommand || function () { return false; };
+  const launchHistoryLine = launchHistoryView.launchHistoryLine || function () { return ""; };
   const launchCommandCorrelationRows = launchHistoryView.launchCommandCorrelationRows || window.launchCommandCorrelationRows || null;
   const launchCommandCorrelationStatus = launchHistoryView.launchCommandCorrelationStatus || window.launchCommandCorrelationStatus || null;
   const launchCommandDiagnosticsActions = launchHistoryView.launchCommandDiagnosticsActions || window.launchCommandDiagnosticsActions || null;
   const launchCommandReviewRows = launchHistoryView.launchCommandReviewRows || window.launchCommandReviewRows || null;
   const launchCommandReviewStatus = launchHistoryView.launchCommandReviewStatus || window.launchCommandReviewStatus || null;
   const launchCommandReviewSummaryLines = launchHistoryView.launchCommandReviewSummaryLines || window.launchCommandReviewSummaryLines || null;
-  const renderLaunchCommandHistory = launchHistoryView.renderLaunchCommandHistory || window.renderLaunchCommandHistory || function () {};
+  const renderLaunchCommandHistory = launchHistoryView.renderLaunchCommandHistory || function () {};
   const domHelpers = window.mediaPipelineDom || {};
   const jsonDetailText = domHelpers.jsonDetailText || function (options = {}) {
     const label = options.label || "JSON detail";
@@ -283,7 +283,7 @@
       getLastQueueRows: typeof window.getLastQueueRows === "function" ? () => window.getLastQueueRows() : (typeof getLastQueueRows === "function" ? () => getLastQueueRows() : () => []),
       getLastSettings: typeof window.getLastSettings === "function" ? () => window.getLastSettings() : (typeof getLastSettings === "function" ? () => getLastSettings() : () => ({})),
       isLaunchCommand,
-      launchHistoryLine: typeof launchHistoryLine === "function" ? launchHistoryLine : window.launchHistoryLine,
+      launchHistoryLine,
       makeRowSelectable: typeof makeRowSelectable === "function" ? makeRowSelectable : window.makeRowSelectable,
       pipelineModeLabel,
       queueCurrentFilterScope: typeof window.queueCurrentFilterScope === "function" ? window.queueCurrentFilterScope : (typeof queueCurrentFilterScope === "function" ? queueCurrentFilterScope : null),
@@ -1337,9 +1337,6 @@
     initLaunchViewEvents,
     initLaunchRecoveryActionEvents,
   };
-  window.launchSettingsIntentRows = launchSettingsIntentRows;
-  window.launchSettingsIntentStatus = launchSettingsIntentStatus;
-  window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
   window.launchStartDecisionRows = launchStartDecisionRows;
   window.launchCompactGateRows = launchCompactGateRows;
   window.renderLaunchCompactGate = renderLaunchCompactGate;
@@ -1351,7 +1348,4 @@
   window.launchPilotRunReadinessRows = launchPilotRunReadinessRows;
   window.pipelineLaunchPreflightLines = pipelineLaunchPreflightLines;
   window.rerunLaunchPreflightLines = rerunLaunchPreflightLines;
-  window.isLaunchCommand = isLaunchCommand;
-  window.renderLaunchCommandHistory = renderLaunchCommandHistory;
-  window.launchHistoryLine = launchHistoryLine;
 })();

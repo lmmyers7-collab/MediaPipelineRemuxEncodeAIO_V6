@@ -143,11 +143,12 @@
   }
 
   function launchCommandIntentCorrelationRows(entry) {
-    if (launchHistoryTarget(entry?.command) !== "pipeline" || typeof launchSettingsIntentRows !== "function") return [];
+    const launchView = launchViewApi();
+    if (launchHistoryTarget(entry?.command) !== "pipeline" || typeof launchView.launchSettingsIntentRows !== "function") return [];
     const request = launchHistoryRequest(entry);
     let rows = [];
     try {
-      rows = launchSettingsIntentRows(request);
+      rows = launchView.launchSettingsIntentRows(request);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       return [launchCommandCorrelationRow(

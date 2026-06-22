@@ -1064,21 +1064,17 @@
       "initSampleValidationViewEvents",
       "initSettingsViewEvents",
       "isDiagnosticsOpenCommand",
-      "isLaunchCommand",
       "isPendingDrainCommand",
       "isPendingOpenCommand",
       "isPendingRecoveryPlanCommand",
       "isQueueLaunchCommand",
       "isQueueOpenCommand",
       "launchCompactGateRows",
-      "launchHistoryLine",
       "launchPilotRunReadinessRows",
       "launchPolicyAlignmentQueueIntentEvidence",
       "launchQueueIntentCategoryMatch",
       "launchSampleExecutionRows",
       "launchSampleValidationRecordEvidence",
-      "launchSettingsIntentRows",
-      "launchSettingsIntentStatus",
       "launchStartDecisionRows",
       "launchWorksheetEvidence",
       "makeRowSelectable",
@@ -1265,9 +1261,7 @@
       "renderExternalDependencyDigest",
       "renderFileSafetySettingsBuilderGuidance",
       "renderFinalLibraryPromotionSettingsGuidance",
-      "renderLaunchCommandHistory",
       "renderLaunchCompactGate",
-      "renderLaunchSettingsIntentChecklist",
       "renderNetworkSettingsBuilderGuidance",
       "renderPendingBackendDrainScopePreview",
       "renderPendingDetail",
@@ -3824,17 +3818,17 @@
         },
         {
           "name": "commandHistoryDiagnosticLine",
-          "line": 1360,
+          "line": 1359,
           "kind": "function"
         },
         {
           "name": "formatCommandHistoryLines",
-          "line": 1366,
+          "line": 1365,
           "kind": "function"
         },
         {
           "name": "getCommandHistory",
-          "line": 1377,
+          "line": 1376,
           "kind": "function"
         }
       ],
@@ -20107,7 +20101,7 @@
         },
         {
           "name": "getLastLaunchReadinessPayload",
-          "line": 367,
+          "line": 365,
           "kind": "function"
         }
       ],
@@ -20196,87 +20190,87 @@
         },
         {
           "name": "launchCommandQueueCorrelationRows",
-          "line": 181,
+          "line": 182,
           "kind": "function"
         },
         {
           "name": "launchCommandCorrelationRows",
-          "line": 222,
+          "line": 223,
           "kind": "function"
         },
         {
           "name": "launchCommandCorrelationStatus",
-          "line": 231,
+          "line": 232,
           "kind": "function"
         },
         {
           "name": "launchCommandCorrelationSummary",
-          "line": 245,
+          "line": 246,
           "kind": "function"
         },
         {
           "name": "launchCommandDiagnosticsAdd",
-          "line": 255,
+          "line": 256,
           "kind": "function"
         },
         {
           "name": "launchCommandDiagnosticsActions",
-          "line": 260,
+          "line": 261,
           "kind": "function"
         },
         {
           "name": "requestLaunchCommandDiagnosticsAction",
-          "line": 280,
+          "line": 281,
           "kind": "function"
         },
         {
           "name": "launchCommandDiagnosticsGuidanceLines",
-          "line": 294,
+          "line": 295,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandDiagnosticsActions",
-          "line": 324,
+          "line": 325,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewRows",
-          "line": 356,
+          "line": 357,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewStatus",
-          "line": 375,
+          "line": 376,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewSummaryLines",
-          "line": 384,
+          "line": 385,
           "kind": "function"
         },
         {
           "name": "selectedLaunchCommandReviewRow",
-          "line": 406,
+          "line": 407,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewDetailLines",
-          "line": 411,
+          "line": 412,
           "kind": "function"
         },
         {
           "name": "selectLaunchCommandReviewRow",
-          "line": 451,
+          "line": 452,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandReview",
-          "line": 457,
+          "line": 458,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandHistory",
-          "line": 497,
+          "line": 498,
           "kind": "function"
         }
       ],
@@ -21238,22 +21232,16 @@
         "mediaPipelineLaunchView"
       ],
       "flat_window_exports": [
-        "isLaunchCommand",
         "launchCompactGateRows",
-        "launchHistoryLine",
         "launchPilotRunReadinessRows",
         "launchPolicyAlignmentQueueIntentEvidence",
         "launchQueueIntentCategoryMatch",
         "launchSampleExecutionRows",
         "launchSampleValidationRecordEvidence",
-        "launchSettingsIntentRows",
-        "launchSettingsIntentStatus",
         "launchStartDecisionRows",
         "launchWorksheetEvidence",
         "pipelineLaunchPreflightLines",
-        "renderLaunchCommandHistory",
         "renderLaunchCompactGate",
-        "renderLaunchSettingsIntentChecklist",
         "rerunLaunchPreflightLines"
       ],
       "api_routes": [

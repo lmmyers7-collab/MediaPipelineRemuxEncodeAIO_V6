@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: e1f93df79e66908c66600b912207295eec2758e8bf1f9d5f1dafc080144553af
+sha256: 43f161aece279d55161b430cff696f4fed679bc1ad337306af7cc75dda176130
 ---
 # `tests/webview/test_webview_command_evidence_smoke.py`
 
