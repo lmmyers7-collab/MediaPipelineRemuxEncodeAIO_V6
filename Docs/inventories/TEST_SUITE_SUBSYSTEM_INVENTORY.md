@@ -45,6 +45,8 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ContractSchemaChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-ConfigKeyRegistryChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-FailureCodeRegistryChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-DynamicHdrDetectionChecks.ps1
+.\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-DynamicHdrToolingChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncodeFlagPolicyChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncoderCapabilityProbeChecks.ps1
 .\ops\pipeline\runtime\PowerShell-7.6.0-win-x64\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\ops\pipeline\tests\Unit\Invoke-EncoderRuntimeMatrixChecks.ps1
@@ -69,7 +71,11 @@ These focused PowerShell checks sit outside `tests\python\desktop` and guard cro
 
 `Invoke-FailureCodeRegistryChecks.ps1` guards the `FailureCodes.ps1` registry: every classifier return code must be known, every registry row must include family/stage/when-fires/retryability/operator severity/handler/operator-action metadata, representative high-risk metadata rows must stay accurate, broader pipeline outcome/error codes emitted by PowerShell surfaces must be known, and unknown-code metadata lookup must fail closed.
 
-`Invoke-EncodeFlagPolicyChecks.ps1` guards encode argument parity and descriptor scaffolding: current HEVC/NVENC and libx265 attempt snapshots remain unchanged, dormant descriptor flag shapes fail closed where required, retry classification covers NVENC/QSV/AMF signatures, and descriptor-owned primary/fallback selection plus attempt-plan evidence stays family-consistent without activating new encoder families.
+`Invoke-DynamicHdrDetectionChecks.ps1` guards Dynamic HDR source/output detection and verification: Dolby Vision side-data/profile evidence, HDR10+ frame evidence, Dynamic HDR state summaries, unsupported/error paths, and preservation-verification fail-closed behavior.
+
+`Invoke-DynamicHdrToolingChecks.ps1` guards Dynamic HDR tool and capability decisions: helper-tool availability/version reporting, cached x265 capability probing, FFmpeg-native Dolby Vision encoder support detection, relative HDR10+ JSON x265 probe paths, and planner/tooling fallbacks without mutating source media.
+
+`Invoke-EncodeFlagPolicyChecks.ps1` guards encode argument parity and descriptor scaffolding: current HEVC/NVENC and libx265 attempt snapshots remain unchanged, Dynamic HDR CPU plans use FFmpeg-native `-dolbyvision true` plus guarded x265 profile/HDR10+ parameters without passing CLI-only RPU paths through `-x265-params`, dormant descriptor flag shapes fail closed where required, retry classification covers NVENC/QSV/AMF signatures, and descriptor-owned primary/fallback selection plus attempt-plan evidence stays family-consistent without activating new encoder families.
 
 `Invoke-EncoderCapabilityProbeChecks.ps1` guards descriptor-owned encoder capability probe helpers: exact ffmpeg encoder-list matching, missing-ffmpeg failure behavior, list-only probe reporting, one-frame lavfi runtime probing for bundled `libaom-av1`, hardware list-only reporting, and list/runtime cache separation. It does not enable dormant encoder descriptors or replace the future per-encoder runtime matrix.
 

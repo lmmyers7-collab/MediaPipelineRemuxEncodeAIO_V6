@@ -3,9 +3,9 @@ file: ops/pipeline/engine/decide/encode_policy.ps1
 pipeline_stage: decide
 token_priority: high
 owner_domain: decide
-last_modified: 2026-06-21
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: fa9ed9a1418a0d70ad9e9e66923e0726f67f43ff864a0749ddf0c0249092a42f
+sha256: 5dad6b74ffb9d737e588453a8fbf08f7aaeef7df56384d29f8810215e9fe222c
 ---
 # `ops/pipeline/engine/decide/encode_policy.ps1`
 

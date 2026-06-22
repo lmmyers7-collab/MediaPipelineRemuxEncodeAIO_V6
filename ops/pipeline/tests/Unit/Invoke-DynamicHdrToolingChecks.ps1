@@ -91,6 +91,44 @@ try {
     $forcedCapability = Test-X265DynamicHdrCapability -FfmpegPath $missingFfmpegB -Force
     Assert-Equal $forcedCapability.FfmpegPath $missingFfmpegB 'Capability probe should refresh when Force is supplied.'
 
+    $fakeFfmpegPath = Join-Path $tempRoot 'fake-ffmpeg.cmd'
+    $fakeArgsPath = Join-Path $tempRoot 'fake-ffmpeg-args.txt'
+    Set-Content -LiteralPath $fakeFfmpegPath -Encoding ASCII -Value @(
+        '@echo off',
+        'echo %* >> "%~dp0fake-ffmpeg-args.txt"',
+        'echo %* | findstr /C:"encoder=libx265" >nul',
+        'if not errorlevel 1 (',
+        '  echo   -dolbyvision       ^<boolean^> E..V....... Enable Dolby Vision RPU coding',
+        '  exit /b 0',
+        ')',
+        'echo probe > "%CD%\dovi.hevc"',
+        'echo probe > "%CD%\hdr10plus.hevc"',
+        'exit /b 0'
+    )
+    $fixtureDir = Join-Path $tempRoot 'capability-fixtures'
+    [System.IO.Directory]::CreateDirectory($fixtureDir) | Out-Null
+    $doviFixture = Join-Path $fixtureDir 'fixture.rpu.bin'
+    $hdr10PlusFixture = Join-Path $fixtureDir 'fixture.hdr10plus.json'
+    [System.IO.File]::WriteAllBytes($doviFixture, [byte[]](1, 2, 3, 4))
+    Set-Content -LiteralPath $hdr10PlusFixture -Encoding UTF8 -Value '{"application_identifier":4}'
+    Clear-DynamicHdrCapabilityProbe
+    $fixtureCapability = Test-X265DynamicHdrCapability -FfmpegPath $fakeFfmpegPath -DoviRpuFixturePath $doviFixture -Hdr10PlusJsonFixturePath $hdr10PlusFixture -Force
+    Assert-True ([bool]$fixtureCapability.Probed) 'Fixture-backed capability probe should mark execution as probed.'
+    Assert-True ([bool]$fixtureCapability.DolbyVision) 'Successful fixture-backed probe should mark Dolby Vision x265 capability available.'
+    Assert-True ([bool]$fixtureCapability.Hdr10Plus) 'Successful fixture-backed probe should mark HDR10+ x265 capability available.'
+    $fakeArgText = Get-Content -LiteralPath $fakeArgsPath -Raw
+    Assert-True ($fakeArgText -match 'encoder=libx265') 'Capability probe should inspect libx265 encoder help for native Dolby Vision support.'
+    Assert-True (-not ($fakeArgText -match 'dolby-vision-rpu=')) 'Capability probe must not pass the CLI-only DoVi RPU path option through FFmpeg x265 params.'
+    Assert-True ($fakeArgText -match 'dhdr10-info=hdr10plus_probe\.json') 'Capability probe should pass a relative HDR10+ JSON path to x265.'
+    Assert-True (-not ($fakeArgText -match [regex]::Escape($fixtureDir))) 'Capability probe must not pass rooted fixture paths into x265 params.'
+
+    Clear-DynamicHdrCapabilityProbe
+    $doviOnlyCapability = Test-X265DynamicHdrCapability -FfmpegPath $fakeFfmpegPath -DoviRpuFixturePath $doviFixture -Hdr10PlusJsonFixturePath '' -Force
+    Assert-True ([bool]$doviOnlyCapability.Probed) 'Dolby-only capability probe should still mark execution as probed.'
+    Assert-True ([bool]$doviOnlyCapability.DolbyVision) 'Dolby-only capability probe should mark Dolby Vision x265 capability available.'
+    Assert-True (-not [bool]$doviOnlyCapability.Hdr10Plus) 'Dolby-only capability probe should not claim HDR10+ x265 capability.'
+    Assert-True (-not [bool]$doviOnlyCapability.Hdr10PlusProbe.supplied) 'Dolby-only capability probe should report HDR10+ fixture as not supplied.'
+
     $warnPlan = New-DynamicHdrPreservationPlan `
         -Route encode `
         -Policy warn `

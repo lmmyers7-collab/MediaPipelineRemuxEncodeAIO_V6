@@ -341,7 +341,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu hdr dynamic hdr artifacts mkv'
         Params = @{ UseCpuFallback = $true; IsHDR = $true; Hdr10MasterDisplay = $hdr10MasterDisplay; Hdr10MaxCll = $hdr10MaxCll; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1'; Hdr10PlusJsonPath = 'dynamic_hdr\hdr10plus.json' }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400:dolby-vision-rpu=dynamic_hdr\rpu.bin:dolby-vision-profile=8.1:vbv-maxrate=50000:vbv-bufsize=50000:dhdr10-info=dynamic_hdr\hdr10plus.json|-profile:v|main10|-pix_fmt|p010le|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-dolbyvision|true|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400:dolby-vision-profile=8.1:vbv-maxrate=50000:vbv-bufsize=50000:dhdr10-info=dynamic_hdr\hdr10plus.json|-profile:v|main10|-pix_fmt|p010le|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'

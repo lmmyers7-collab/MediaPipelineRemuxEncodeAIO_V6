@@ -972,7 +972,6 @@ function Add-DynamicHdrX265ParameterPairs {
         if ($targetProfile -ne '8.1') {
             throw "Dynamic HDR Dolby Vision x265 parameters currently support only target profile '8.1'."
         }
-        $ParamPairs.Add("dolby-vision-rpu=$doviPath")
         $ParamPairs.Add('dolby-vision-profile=8.1')
         $ParamPairs.Add('vbv-maxrate=50000')
         $ParamPairs.Add('vbv-bufsize=50000')
@@ -1047,6 +1046,9 @@ function New-EncoderVideoFlags {
             '-preset', $resolvedCpuPreset,
             '-crf', $effectiveCpuQuality
         )
+        if ($IsHDR -and -not [string]::IsNullOrWhiteSpace($DolbyVisionRpuPath)) {
+            $flags += @('-dolbyvision', 'true')
+        }
         if ($CpuMaxThreads -gt 0) {
             $flags += @('-threads', [string]$CpuMaxThreads)
         }

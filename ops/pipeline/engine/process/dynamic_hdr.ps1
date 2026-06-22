@@ -1241,23 +1241,146 @@ function Test-X265DynamicHdrCapability {
         return $script:X265DynamicHdrCapabilityCache
     }
 
-    $reason = ''
+    $reasonParts = [System.Collections.Generic.List[string]]::new()
     $probed = $false
+    $dolbyVision = $false
+    $hdr10Plus = $false
+    $doviProbe = $null
+    $hdr10PlusProbe = $null
     if ([string]::IsNullOrWhiteSpace($FfmpegPath) -or -not (Test-Path -LiteralPath $FfmpegPath -PathType Leaf)) {
-        $reason = "ffmpeg not found: $FfmpegPath"
-    } elseif ([string]::IsNullOrWhiteSpace($DoviRpuFixturePath) -and [string]::IsNullOrWhiteSpace($Hdr10PlusJsonFixturePath)) {
-        $reason = 'dynamic HDR x265 capability probe fixtures were not supplied'
+        $reasonParts.Add("ffmpeg not found: $FfmpegPath")
     } else {
-        $reason = 'dynamic HDR x265 capability probe execution is pending representative fixture validation'
+        $probeRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-x265-dhdr-capability-{0}" -f ([guid]::NewGuid().ToString('N')))
+        [System.IO.Directory]::CreateDirectory($probeRoot) | Out-Null
+        try {
+            function Invoke-X265DolbyVisionCapabilityProbe {
+                $result = [ordered]@{
+                    feature      = 'dovi'
+                    supplied     = -not [string]::IsNullOrWhiteSpace($DoviRpuFixturePath)
+                    probed       = $false
+                    ok           = $false
+                    exit_code    = -1
+                    reason       = ''
+                    fixture_leaf = ''
+                    probe_type   = 'ffmpeg_encoder_help'
+                    output_tail  = ''
+                }
+
+                $helpOutput = & $FfmpegPath @('-hide_banner', '-h', 'encoder=libx265') 2>&1
+                $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+                $outputText = (@($helpOutput) | ForEach-Object { [string]$_ }) -join "`n"
+                $result.probed = $true
+                $result.exit_code = $exitCode
+                $result.output_tail = (($outputText -split '\r?\n') | Where-Object { $_ -match '\S' } | Select-Object -Last 8) -join "`n"
+                if ($exitCode -ne 0) {
+                    $result.reason = "ffmpeg libx265 help probe failed with exit $exitCode"
+                    return [pscustomobject]$result
+                }
+                if ($outputText -match '(?im)^\s*-dolbyvision\b') {
+                    $result.ok = $true
+                    $result.reason = 'ffmpeg libx265 exposes native Dolby Vision coding'
+                    return [pscustomobject]$result
+                }
+
+                $result.reason = 'ffmpeg libx265 does not expose native Dolby Vision coding'
+                return [pscustomobject]$result
+            }
+
+            function Invoke-X265DynamicHdrCapabilityProbe {
+                param(
+                    [Parameter(Mandatory)] [string] $Feature,
+                    [string] $FixturePath,
+                    [Parameter(Mandatory)] [string] $FixtureLeaf,
+                    [Parameter(Mandatory)] [array] $DynamicParams
+                )
+
+                $result = [ordered]@{
+                    feature      = $Feature
+                    supplied     = -not [string]::IsNullOrWhiteSpace($FixturePath)
+                    probed       = $false
+                    ok           = $false
+                    exit_code    = -1
+                    reason       = ''
+                    fixture_leaf = $FixtureLeaf
+                    output_tail  = ''
+                }
+                if ([string]::IsNullOrWhiteSpace($FixturePath)) {
+                    $result.reason = 'fixture was not supplied'
+                    return [pscustomobject]$result
+                }
+                if (-not (Test-Path -LiteralPath $FixturePath -PathType Leaf)) {
+                    $result.reason = "fixture not found: $FixturePath"
+                    return [pscustomobject]$result
+                }
+
+                Copy-Item -LiteralPath $FixturePath -Destination (Join-Path $probeRoot $FixtureLeaf) -Force
+                $probeOutput = Join-Path $probeRoot ("{0}.hevc" -f $Feature)
+                $x265Params = @(
+                    'log-level=error',
+                    'hdr10=1',
+                    'repeat-headers=1',
+                    'colorprim=bt2020',
+                    'transfer=smpte2084',
+                    'colormatrix=bt2020nc'
+                ) + @($DynamicParams)
+                $arguments = @(
+                    '-hide_banner', '-loglevel', 'error', '-y',
+                    '-f', 'lavfi', '-i', 'testsrc2=duration=1:size=64x64:rate=1',
+                    '-frames:v', '1',
+                    '-pix_fmt', 'yuv420p10le',
+                    '-c:v', 'libx265',
+                    '-preset', 'ultrafast',
+                    '-x265-params', ($x265Params -join ':'),
+                    '-f', 'hevc',
+                    $probeOutput
+                )
+                Push-Location $probeRoot
+                try {
+                    $nativeOutput = & $FfmpegPath @arguments 2>&1
+                    $exitCode = if ($null -eq $LASTEXITCODE) { 0 } else { [int]$LASTEXITCODE }
+                } finally {
+                    Pop-Location
+                }
+                $outputText = (@($nativeOutput) | ForEach-Object { [string]$_ }) -join "`n"
+                $result.probed = $true
+                $result.exit_code = $exitCode
+                $result.ok = ($exitCode -eq 0 -and (Test-Path -LiteralPath $probeOutput -PathType Leaf))
+                $result.reason = if ([bool]$result.ok) { 'probe encode succeeded' } else { "probe encode failed with exit $exitCode" }
+                $result.output_tail = (($outputText -split '\r?\n') | Where-Object { $_ -match '\S' } | Select-Object -Last 8) -join "`n"
+                return [pscustomobject]$result
+            }
+
+            $doviProbe = Invoke-X265DolbyVisionCapabilityProbe
+            $hdr10PlusProbe = Invoke-X265DynamicHdrCapabilityProbe `
+                -Feature 'hdr10plus' `
+                -FixturePath $Hdr10PlusJsonFixturePath `
+                -FixtureLeaf 'hdr10plus_probe.json' `
+                -DynamicParams @('dhdr10-info=hdr10plus_probe.json')
+
+            $probed = ([bool]$doviProbe.probed -or [bool]$hdr10PlusProbe.probed)
+            $dolbyVision = [bool]$doviProbe.ok
+            $hdr10Plus = [bool]$hdr10PlusProbe.ok
+            foreach ($probe in @($doviProbe, $hdr10PlusProbe)) {
+                if ($probe -and ([bool]$probe.supplied -or [string]$probe.feature -eq 'dovi')) {
+                    $state = if ([bool]$probe.ok) { 'available' } else { [string]$probe.reason }
+                    $reasonParts.Add("$($probe.feature): $state")
+                }
+            }
+        } finally {
+            Remove-Item -LiteralPath $probeRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
     }
 
+    $reason = if ($reasonParts.Count -gt 0) { ($reasonParts.ToArray() -join '; ') } else { 'dynamic HDR x265 capability probe completed' }
     $script:X265DynamicHdrCapabilityCache = [pscustomobject][ordered]@{
         Probed      = $probed
-        DolbyVision = $false
-        Hdr10Plus   = $false
+        DolbyVision = $dolbyVision
+        Hdr10Plus   = $hdr10Plus
         FfmpegPath  = [string]$FfmpegPath
         Reason      = $reason
         CheckedAt   = (Get-Date).ToString('o')
+        DoviProbe   = $doviProbe
+        Hdr10PlusProbe = $hdr10PlusProbe
     }
     return $script:X265DynamicHdrCapabilityCache
 }

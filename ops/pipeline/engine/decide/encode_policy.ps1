@@ -268,6 +268,9 @@ function New-EncodeVideoFlags {
             '-preset', $resolvedCpuPreset,
             '-crf', $effectiveCpuQuality
         )
+        if ($IsHDR -and -not [string]::IsNullOrWhiteSpace($DolbyVisionRpuPath)) {
+            $flags += @('-dolbyvision', 'true')
+        }
         # libav side: also cap the global thread count when bounded.
         if ($CpuMaxThreads -gt 0) {
             $flags += @('-threads', [string]$CpuMaxThreads)

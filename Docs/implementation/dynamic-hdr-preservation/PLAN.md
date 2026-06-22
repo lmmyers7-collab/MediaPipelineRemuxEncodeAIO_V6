@@ -68,9 +68,11 @@ and validation rung. Do not combine phases into one session.
   `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1` enforces count and
   ORDER alignment — keys must be inserted at the same ordinal position everywhere.
 - T4 — `-x265-params` is colon-separated. A Windows absolute path
-  (`C:\...`) inside `dolby-vision-rpu=` or `dhdr10-info=` breaks x265 param
-  parsing on the drive colon. See §6.3 for the mandated mitigation; never pass a
-  raw absolute Windows path inside `-x265-params`.
+  (`C:\...`) inside file-valued x265 params such as `dhdr10-info=` breaks x265
+  param parsing on the drive colon. See §6.3 for the mandated mitigation; never
+  pass a raw absolute Windows path inside `-x265-params`. The validated FFmpeg
+  Dolby Vision encode path uses native `-dolbyvision true`, not
+  `dolby-vision-rpu=` inside `-x265-params`.
 - T5 — NVENC cannot carry a DoVi RPU or write per-frame ST 2094-40 SEI. DoVi/HDR10+
   preservation params must only ever be appended on the CPU/libx265 branch of
   `New-EncodeVideoFlags`. The GPU primary and safe-retry attempts must be skipped
@@ -189,7 +191,7 @@ use bundled; same pattern as `BdpgsOcrToolPath`).
 
 | Source metadata | Remux route | Encode route (policy `preserve_*`) |
 | --- | --- | --- |
-| DoVi profile 8.1 (BL compat id 1, HDR10 base) | Pass through; verify (Phase 2/4) | x265 CPU only, `dolby-vision-rpu` + `dolby-vision-profile=8.1` (Phase 3) |
+| DoVi profile 8.1 (BL compat id 1, HDR10 base) | Pass through; verify (Phase 2/4) | x265 CPU only, FFmpeg native `-dolbyvision true` + `dolby-vision-profile=8.1`/VBV x265 params; extracted RPU is retained as roundtrip evidence (Phase 3) |
 | DoVi profile 7 (UHD-BD dual layer) | Pass through as-is; verify | Convert RPU 7→8.1 via `dovi_tool -m 2 extract-rpu`; encode BL with converted RPU; EL is intentionally discarded (Phase 3) |
 | DoVi profile 5 (IPTPQc2, no HDR10 base) | Pass through; verify | NOT preservable by encode (no compatible base layer). `preserve_or_remux` → remux; `preserve_or_review` → review. Never re-encode P5 video. |
 | DoVi profile 4 / 8.2 / 8.4 / anything else | Pass through; verify | Treated as unsupported-for-encode, same handling as profile 5 |
@@ -484,15 +486,13 @@ contract enumerates a count). This module owns everything tool-shaped:
   `native_process_contracts.ps1` — reuse `Invoke-FFprobeCommand`'s underlying
   runner pattern; do NOT shell out bare).
 - `Test-X265DynamicHdrCapability` — cached one-shot probe in the style of
-  `Test-NvencAvailable` (encode_policy.ps1:484): generate 8 frames of lavfi
-  color to null with
-  `-x265-params dolby-vision-profile=8.1:dolby-vision-rpu=<tiny valid rpu>:vbv-bufsize=2000:vbv-maxrate=2000`
-  and separately `dhdr10-info=<tiny json>`; success/failure of each tells us
-  whether the bundled ffmpeg's libx265 was built with DoVi and HDR10+ support.
-  Cache in `$script:DynamicHdrCapabilityProbe` for process lifetime. The tiny
-  RPU/JSON fixtures ship under the test fixtures path (§9.1), and the probe is
-  only invoked lazily on the first file that wants preservation (never at
-  startup — startup cost is a §7-adjacent regression).
+  `Test-NvencAvailable` (encode_policy.ps1:484): inspect
+  `ffmpeg -h encoder=libx265` for native `-dolbyvision` support, and separately
+  run a one-frame lavfi encode with relative `dhdr10-info=<tiny json>` to prove
+  HDR10+ x265 support when a JSON fixture is available. Cache in
+  `$script:DynamicHdrCapabilityProbe` for process lifetime. The probe is only
+  invoked lazily on the first file that wants preservation (never at startup —
+  startup cost is a §7-adjacent regression).
 
 ### 5.4 Remux-path verification (the real deliverable of Phase 2)
 
@@ -557,9 +557,10 @@ change for existing users.
 ## 6. Phase 3 — Preserve on encode (x265 CPU path only)
 
 The §7-heaviest phase. Pre-condition: Phase 2 verdict says remux preserves, and
-the capability probe says the bundled libx265 supports `dolby-vision-rpu` (and
-`dhdr10-info` for HDR10+). If either is false, this phase is BLOCKED — report,
-do not work around.
+the capability probe says the bundled FFmpeg/libx265 exposes native
+`-dolbyvision` for Dolby Vision coding and `dhdr10-info` for HDR10+ when an
+HDR10+ fixture is available. If the required feature is false, this phase is
+BLOCKED — report, do not work around.
 
 ### 6.1 Decision gating in `Do-Encode`
 
@@ -649,17 +650,21 @@ preservation encodes are CPU encodes PLUS one stream-copy of the video track.
 
 ### 6.3 x265 parameter injection (`New-EncodeVideoFlags`, encode_policy.ps1)
 
-Status 2026-06-21: the encode argument builders now thread
+Status 2026-06-22: the encode argument builders now thread
 `-DolbyVisionRpuPath`, `-DolbyVisionTargetProfile`, and `-Hdr10PlusJsonPath`
 through `New-EncodeAttemptPlan`/`New-EncodeVideoFlags` and descriptor-owned
 libx265 flag generation. The implementation is intentionally guarded to CPU
-libx265 HDR plans, Dolby Vision target profile `8.1`, and relative,
-colon-free artifact paths. `Resolve-DynamicHdrX265ArtifactPaths` now converts
-successful extraction outputs into x265-safe relative paths, fails closed for
-missing artifacts, rooted paths, cross-drive/colon-bearing paths, or missing
-base directories, and the x265 parameter builder rejects rooted artifact paths
-directly. Extraction-to-encode invocation, policy routing, force-CPU activation,
-output verification, and real-media proof remain open.
+libx265 HDR plans and Dolby Vision target profile `8.1`. Dolby Vision encode
+uses FFmpeg native `-dolbyvision true`; the previously planned
+`dolby-vision-rpu=` x265 param is not passed because local FFmpeg/libx265 rejects
+that CLI-only option through `-x265-params`. HDR10+ JSON still uses a relative,
+colon-free `dhdr10-info=` artifact path. `Resolve-DynamicHdrX265ArtifactPaths`
+converts successful extraction outputs into x265-safe relative paths, fails
+closed for missing artifacts, rooted paths, cross-drive/colon-bearing paths, or
+missing base directories, and the x265 parameter builder rejects rooted artifact
+paths directly. Extraction-to-encode invocation, policy routing, force-CPU
+activation, output verification, and Dolby Vision P8.1 real-media proof are in
+place; representative HDR10+ proof remains open.
 
 New parameters (default `''`/`$false`, threaded through `New-EncodeAttemptPlan`
 exactly like `Hdr10MasterDisplay` at encode_policy.ps1:372-391):
@@ -671,7 +676,7 @@ encode_policy.ps1:215-220):
 
 ```powershell
 if (-not [string]::IsNullOrWhiteSpace($DolbyVisionRpuPath)) {
-    $x265ParamPairs.Add("dolby-vision-rpu=$DolbyVisionRpuPath")
+    $flags += @('-dolbyvision', 'true')
     $x265ParamPairs.Add("dolby-vision-profile=$DolbyVisionTargetProfile")
     # x265 hard-requires VBV with dolby-vision-profile; without these it
     # errors out. L5.1-high-tier-safe defaults, above every route bitrate cap.
@@ -741,8 +746,9 @@ When `$preservePlan.Action -eq 'encode_preserve'`:
   relative-path/colon rejection logic.
 - Agent-side integration with SYNTHETIC fixtures (§9.1): full Do-Encode on a
   6-second DoVi 8.1 fixture and an HDR10+ fixture in a sandbox LocalBase
-  (the end-to-end smoke harness pattern), asserting tool invocations, x265 args
-  (via the repro/arg logging), and a non-empty output.
+  (the end-to-end smoke harness pattern), asserting tool invocations, FFmpeg
+  native DoVi flag/x265 args (via the repro/arg logging), and a non-empty
+  output.
 - End-to-end smoke, `-ValidateOnly`, dump parity (no new keys this phase, so
   byte-identical).
 - Operator (REQUIRED): real P7 UHD-BD remux source and real HDR10+ source
@@ -851,7 +857,7 @@ library root, per AGENTS.md §9):
 | 3 | DoVi P7 oversized → remux fallback | preserve_or_remux | remux output verified, plays as DV |
 | 4 | DoVi P5 (web-DL) | preserve_or_remux | forced remux, verified |
 | 5 | DoVi P5 | preserve_or_review | review queue, no output |
-| 6 | DoVi P8.1 (web-DL) | preserve_or_remux | preserved CPU encode, verified |
+| 6 | DoVi P8.1 (web-DL) | preserve_or_remux | preserved CPU encode, verified; Dolby Browser Test Kit P8.1 proof passed 2026-06-22 |
 | 7 | HDR10+ (web-DL) | preserve_or_remux | dhdr10-info encode, verified, HDR10+ engages |
 | 8 | HDR10 only | preserve_or_remux | normal GPU-first encode, outcome none_detected |
 | 9 | SDR | any | zero probes, unchanged |
@@ -930,7 +936,7 @@ hdr10plus_tool extract -i <work.hevc> -o <meta.json>
 hdr10plus_tool inject  -i <enc.hevc> -j <meta.json> -o <out.hevc>     # contingency path only
 
 # x265 via ffmpeg (CPU branch only; relative, colon-free paths only)
--x265-params ...:dolby-vision-rpu=<rel\rpu.bin>:dolby-vision-profile=8.1:vbv-maxrate=50000:vbv-bufsize=50000
+-dolbyvision true -x265-params ...:dolby-vision-profile=8.1:vbv-maxrate=50000:vbv-bufsize=50000
 -x265-params ...:dhdr10-info=<rel\meta.json>
 ```
 
