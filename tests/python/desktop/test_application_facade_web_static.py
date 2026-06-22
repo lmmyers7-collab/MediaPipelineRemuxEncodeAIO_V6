@@ -1288,8 +1288,10 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         assets_root = static_root / "assets"
         html = _render_static_index_html(static_root)
         app_js = (assets_root / "app.js").read_text(encoding="utf-8")
+        home_js = (assets_root / "app" / "home.js").read_text(encoding="utf-8")
         launch_js = (assets_root / "launchView.js").read_text(encoding="utf-8")
         pending_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
+        queue_js = (assets_root / "queueView.js").read_text(encoding="utf-8")
         queue_summary_js = (assets_root / "queueView.summary.js").read_text(encoding="utf-8")
         large_table_smoke_py = (desktop_root / "tests" / "webview" / "test_webview_browser_large_table_smoke.py").read_text(
             encoding="utf-8"
@@ -1307,6 +1309,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("activateLaunchTab(button.dataset.launchTab || \"pipeline\");", launch_js)
         self.assertIn("window.mediaPipelineProgressView?.renderProgressBarsInto?.(...args)", pending_view_js)
         self.assertIn("const progressRenderer = window.mediaPipelineProgressView?.renderProgressBarsInto;", queue_summary_js)
+        self.assertIn("const shortenPath = typeof formatters.shortenPath", home_js)
+        self.assertIn("const shortenPath = typeof formatters.shortenPath", pending_view_js)
+        self.assertIn("const shortenPath = typeof formatters.shortenPath", queue_js)
+        self.assertIn("shortenPath,", pending_view_js)
+        self.assertIn("shortenPath,", queue_js)
         self.assertIn('document.readyState === "complete"', large_table_smoke_py)
         self.assertIn('typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function"', large_table_smoke_py)
         self.assertIn('typeof window.refreshAllNow === "function"', large_table_smoke_py)

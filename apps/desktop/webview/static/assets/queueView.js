@@ -1,4 +1,6 @@
 (function () {
+  const formatters = window.mediaPipelineFormatters || {};
+  const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
   let lastQueueRows = [];
   let lastQueueExcludedRows = [];
   let lastQueueHiddenSidecarRows = [];
@@ -204,7 +206,7 @@
       queueRowKey,
       queueTableRowStatus,
       selectQueueRow,
-      shortenPath: typeof shortenPath === "function" ? shortenPath : window.shortenPath,
+      shortenPath,
       wireManualOrderRow: (row, item) => wireQueueManualOrderRow(row, item),
     })
     : {};

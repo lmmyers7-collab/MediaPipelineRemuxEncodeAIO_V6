@@ -1,5 +1,7 @@
-/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, settingsRawActionPlanRows, settingsRawActionPlanStatus, shortenPath */
+/* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, settingsRawActionPlanRows, settingsRawActionPlanStatus */
 (function () {
+  const formatters = window.mediaPipelineFormatters || {};
+  const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
 

@@ -5363,6 +5363,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function settingsValuesEqual", formatters_js)
         self.assertNotIn("window.formatPercent =", formatters_js)
         self.assertNotIn("window.formatMemoryMb =", formatters_js)
+        self.assertNotIn("window.shortenPath =", formatters_js)
         self.assertIn("window.mediaPipelineCommandHistory", command_history_js)
         self.assertIn("let commandHistory", command_history_js)
         self.assertIn("function appendCommandResult", command_history_js)

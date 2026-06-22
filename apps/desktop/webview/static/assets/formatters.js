@@ -101,5 +101,4 @@
   window.parseSettingsListText = parseSettingsListText;
   window.formatSettingsListValue = formatSettingsListValue;
   window.settingsValuesEqual = settingsValuesEqual;
-  window.shortenPath = shortenPath;
 })();

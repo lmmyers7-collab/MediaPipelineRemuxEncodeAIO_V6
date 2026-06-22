@@ -1,4 +1,6 @@
 (function () {
+  const formatters = window.mediaPipelineFormatters || {};
+  const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
   let lastPendingRows = [];
   let lastPendingPayload = {};
   let lastPendingSnapshot = {};
@@ -425,7 +427,7 @@
       renderProgressBarsInto: (...args) => window.mediaPipelineProgressView?.renderProgressBarsInto?.(...args),
       selectPendingRow: (...args) => selectPendingRow(...args),
       setText: typeof setText === "function" ? setText : window.setText,
-      shortenPath: window.shortenPath,
+      shortenPath,
       updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
     })
     : {};
