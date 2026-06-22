@@ -873,7 +873,6 @@
       "collectPendingPublishSettingsBuilderPatch",
       "collectQualityDetailSettingsBuilderPatch",
       "collectQueueSettingsBuilderPatch",
-      "collectRerunStartRequest",
       "collectRuntimeSettingsBuilderPatch",
       "collectSubtitleSettingsBuilderPatch",
       "collectVideoDetailSettingsBuilderPatch",
@@ -1069,7 +1068,6 @@
       "isPendingDrainCommand",
       "isPendingOpenCommand",
       "isPendingRecoveryPlanCommand",
-      "isPipelineControlCommand",
       "isQueueLaunchCommand",
       "isQueueOpenCommand",
       "launchCompactGateRows",
@@ -1154,7 +1152,6 @@
       "pendingSampleValidationHandoffLines",
       "pendingSelectedOpenTargetLines",
       "pendingValidationStatus",
-      "pipelineControlHistoryLine",
       "pipelineLaunchPreflightLines",
       "previewFinalLibraryPromotionSettings",
       "publishReconciliationDetailLines",
@@ -1293,7 +1290,6 @@
       "renderPendingRecoveryPlanRowDetail",
       "renderPendingRecoveryPlanRows",
       "renderPendingReviewDigest",
-      "renderPipelineControlHistory",
       "renderPublishReconciliation",
       "renderQualityDetailSettingsBuilderGuidance",
       "renderQueue",
@@ -1455,7 +1451,6 @@
       "settingsVobSubOcrPathEvidenceStatus",
       "showPage",
       "showSelectedCompletedRow",
-      "startStateJournalArchive",
       "syncAudioSettingsBuilderFromConfig",
       "syncFileSafetySettingsBuilderFromConfig",
       "syncFinalLibraryPromotionSettingsBuilderFromConfig",
@@ -2125,7 +2120,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3721
+    "top_level_declaration_count": 3722
   },
   "scripts": [
     {
@@ -3818,23 +3813,28 @@
           "kind": "function"
         },
         {
-          "name": "renderCommandHistory",
+          "name": "renderLaunchPipelineControlHistory",
           "line": 1277,
           "kind": "function"
         },
         {
+          "name": "renderCommandHistory",
+          "line": 1284,
+          "kind": "function"
+        },
+        {
           "name": "commandHistoryDiagnosticLine",
-          "line": 1353,
+          "line": 1360,
           "kind": "function"
         },
         {
           "name": "formatCommandHistoryLines",
-          "line": 1359,
+          "line": 1366,
           "kind": "function"
         },
         {
           "name": "getCommandHistory",
-          "line": 1370,
+          "line": 1377,
           "kind": "function"
         }
       ],
@@ -21238,9 +21238,7 @@
         "mediaPipelineLaunchView"
       ],
       "flat_window_exports": [
-        "collectRerunStartRequest",
         "isLaunchCommand",
-        "isPipelineControlCommand",
         "launchCompactGateRows",
         "launchHistoryLine",
         "launchPilotRunReadinessRows",
@@ -21252,14 +21250,11 @@
         "launchSettingsIntentStatus",
         "launchStartDecisionRows",
         "launchWorksheetEvidence",
-        "pipelineControlHistoryLine",
         "pipelineLaunchPreflightLines",
         "renderLaunchCommandHistory",
         "renderLaunchCompactGate",
         "renderLaunchSettingsIntentChecklist",
-        "renderPipelineControlHistory",
-        "rerunLaunchPreflightLines",
-        "startStateJournalArchive"
+        "rerunLaunchPreflightLines"
       ],
       "api_routes": [
         "/api/maintenance/archive-state-journals",

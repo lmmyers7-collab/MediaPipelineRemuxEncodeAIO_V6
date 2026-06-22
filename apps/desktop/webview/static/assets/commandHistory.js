@@ -1274,6 +1274,13 @@
     renderCommandDiagnosticsActions(item || null);
   }
 
+  function renderLaunchPipelineControlHistory(history) {
+    const launchView = window.mediaPipelineLaunchView || {};
+    if (typeof launchView.renderPipelineControlHistory === "function") {
+      launchView.renderPipelineControlHistory(history);
+    }
+  }
+
   function renderCommandHistory() {
     if (selectedCommandKey && !commandHistory.some((entry) => commandHistoryRowKey(entry) === selectedCommandKey)) {
       selectedCommandKey = "";
@@ -1316,7 +1323,7 @@
     if (typeof renderPendingOpenHistory === "function") renderPendingOpenHistory(commandHistory);
     if (typeof renderDiagnosticsOpenHistory === "function") renderDiagnosticsOpenHistory(commandHistory);
     window.mediaPipelineRenameHistoryView?.renderRenameApplyHistory?.(commandHistory);
-    if (typeof renderPipelineControlHistory === "function") renderPipelineControlHistory(commandHistory);
+    renderLaunchPipelineControlHistory(commandHistory);
     window.mediaPipelineReportsView?.renderReportOpenHistory?.(commandHistory);
     window.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(commandHistory);
     const tbody = byId("command-rows");

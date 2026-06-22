@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-22
 last_reviewed: 2026-06-02
-sha256: b64824e96948b68ba747786fa5b57281ed1b0aa5d94e76973c5ecb8535075678
+sha256: 44dc9a994b65bede57eb84ba5070e2982629ab6102123300ae9ab0227cd5f2fc
 ---
 # `docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md`
 

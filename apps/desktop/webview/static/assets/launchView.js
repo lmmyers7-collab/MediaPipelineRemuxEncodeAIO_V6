@@ -1337,11 +1337,6 @@
     initLaunchViewEvents,
     initLaunchRecoveryActionEvents,
   };
-  window.isPipelineControlCommand = isPipelineControlCommand;
-  window.pipelineControlHistoryLine = pipelineControlHistoryLine;
-  window.renderPipelineControlHistory = renderPipelineControlHistory;
-  window.startStateJournalArchive = startStateJournalArchive;
-  window.collectRerunStartRequest = collectRerunStartRequest;
   window.launchSettingsIntentRows = launchSettingsIntentRows;
   window.launchSettingsIntentStatus = launchSettingsIntentStatus;
   window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
