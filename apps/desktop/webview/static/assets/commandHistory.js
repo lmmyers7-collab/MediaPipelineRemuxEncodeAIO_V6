@@ -1464,7 +1464,6 @@
   window.commandHistoryRowKey = commandHistoryRowKey;
   window.selectCommandEntry = selectCommandEntry;
   window.getSelectedCommandEntry = getSelectedCommandEntry;
-  window.commandHistoryCommandText = commandHistoryCommandText;
   window.commandHistoryCompactEvidenceLine = commandHistoryCompactEvidenceLine;
   window.commandHistoryOwnerPage = commandHistoryOwnerPage;
   window.commandHistoryIssueLevel = commandHistoryIssueLevel;

@@ -293,7 +293,7 @@
       appendCells: typeof appendCells === "function" ? appendCells : window.appendCells,
       byId: typeof byId === "function" ? byId : window.byId,
       clearRows: typeof clearRows === "function" ? clearRows : window.clearRows,
-      commandHistoryCommandText: window.commandHistoryCommandText,
+      commandHistoryCommandText: window.mediaPipelineCommandHistory?.commandHistoryCommandText,
       commandHistoryIssueLevel: window.commandHistoryIssueLevel,
       commandHistoryOwnerPage: window.commandHistoryOwnerPage,
       commandHistorySuggestedAction: window.commandHistorySuggestedAction,

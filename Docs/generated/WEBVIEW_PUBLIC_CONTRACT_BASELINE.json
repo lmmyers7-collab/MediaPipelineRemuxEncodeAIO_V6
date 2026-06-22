@@ -874,7 +874,6 @@
       "collectRuntimeSettingsBuilderPatch",
       "collectSubtitleSettingsBuilderPatch",
       "collectVideoDetailSettingsBuilderPatch",
-      "commandHistoryCommandText",
       "commandHistoryCompactEvidenceLine",
       "commandHistoryIssueLevel",
       "commandHistoryOwnerPage",
@@ -3827,7 +3826,6 @@
       ],
       "flat_window_exports": [
         "appendCommandResult",
-        "commandHistoryCommandText",
         "commandHistoryCompactEvidenceLine",
         "commandHistoryIssueLevel",
         "commandHistoryOwnerPage",
