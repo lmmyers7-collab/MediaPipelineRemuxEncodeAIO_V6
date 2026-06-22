@@ -253,6 +253,26 @@
         .join("; ");
     }
 
+    function settingsEncoderCapabilityList(value) {
+      return Array.isArray(value)
+        ? value.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+    }
+
+    function settingsEncoderCapabilityActivationLines(report = settingsEncoderCapabilityReport()) {
+      if (!report?.schema_version) return [];
+      const active = settingsEncoderCapabilityList(report.active_encoders);
+      const inactive = settingsEncoderCapabilityList(report.available_inactive_encoders);
+      const unknown = settingsEncoderCapabilityList(report.activation_unknown_encoders);
+      const lines = [
+        `Descriptor activation: active=${active.length}; available inactive=${inactive.length}; activation unknown=${unknown.length}.`,
+      ];
+      if (active.length) lines.push(`Active descriptor-owned encoders: ${active.join(", ")}.`);
+      if (inactive.length) lines.push(`Available but not active for descriptor-owned attempts: ${inactive.join(", ")}.`);
+      if (unknown.length) lines.push(`Descriptor activation unknown: ${unknown.join(", ")}.`);
+      return lines;
+    }
+
     function settingsEncoderCapabilitySummaryLines(report = settingsEncoderCapabilityReport()) {
       if (!report?.schema_version) {
         return ["No encoder capability report is loaded."];
@@ -264,6 +284,7 @@
       if (report.generated_at) lines.push(`Generated: ${report.generated_at}.`);
       const counts = settingsEncoderCapabilityBackendCountsText(report.backend_counts);
       if (counts) lines.push(`Backend availability: ${counts}.`);
+      settingsEncoderCapabilityActivationLines(report).forEach((line) => lines.push(line));
       lines.push("Read-only annotation: dropdown choices stay visible; backend Save and encode planning remain authoritative.");
       return lines;
     }
@@ -274,6 +295,20 @@
       if (row.runtime_ok) flags.push("runtime ok");
       if (row.runtime_probe_skipped) flags.push("runtime skipped");
       if (row.backend_invalidated) flags.push("backend invalidated");
+      if (row.activation_known) {
+        flags.push(row.descriptor_flags_active ? "descriptor flags active" : "descriptor flags inactive");
+      } else if (row.available) {
+        flags.push("descriptor activation unknown");
+      }
+      if (Array.isArray(row.activation)) {
+        row.activation.forEach((item) => {
+          if (!item || typeof item !== "object") return;
+          const role = String(item.role || "attempt");
+          const active = item.active ? "active" : "inactive";
+          const reason = String(item.reason || "").trim();
+          flags.push(`${role} ${active}${reason ? `: ${reason}` : ""}`);
+        });
+      }
       if (row.probed_at) flags.push(`probed ${row.probed_at}`);
       if (row.reason) flags.push(row.reason);
       return flags.join("; ") || "No row evidence.";

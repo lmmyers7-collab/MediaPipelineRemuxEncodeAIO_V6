@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0622-011",
+  "title": "Render encoder activation evidence in WebView",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Rendered backend-provided encoder activation evidence explicitly in the read-only WebView Settings capability panel and Launch backend-preflight summary. Operators can now see active descriptor-owned encoders, available-but-inactive encoders, and activation-unknown counts/lists without the frontend enabling hardware families or choosing FFmpeg flags.",
+  "reason": "Encoder breadth remediation needs operator-visible launch preflight capability threading before dormant hardware families can be evaluated. The backend already owns the descriptor activation evidence; the WebView should display it clearly while preserving backend authority and fail-closed hardware activation boundaries.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Settings rendered read-only encoder/backend availability annotations, and Launch preflight exposed encoder capability detail mostly through the selected row payload. Activation counts/lists were present in backend payloads but not summarized explicitly in the WebView panels.",
+  "behavior_after": "Settings summary lines and row evidence now include descriptor activation counts, active descriptor-owned encoders, available-but-inactive encoders, activation-unknown encoders, and per-row activation reasons. Launch backend preflight now summarizes the same backend detail across active targets and states that the WebView does not enable hardware families or choose FFmpeg flags.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.video.js",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-011.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_handbrake_settings_ui.py::WebViewHandbrakeSettingsUiTests::test_encoder_capability_report_is_read_only_settings_evidence",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py::WebViewLaunchCommandButtonsSmoke::test_backend_preflight_refresh_is_explicit_and_splits_csv_preview_from_start"
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_handbrake_settings_ui tests.webview.test_webview_launch_command_buttons_smoke -q (PASS: 35 tests)",
+    "node ops/scripts/dev/run-eslint.mjs \"apps/desktop/webview/static/assets/launchView.preflight.js\" \"apps/desktop/webview/static/assets/settingsView.builders.video.js\" (PASS: inherited warnings only; no errors)",
+    "npm run webview:lint:budget && npm run webview:lint:budget:check (PASS: regenerated/current budget 630 warnings, 0 errors)",
+    "npm run webview:prework:check (PASS: asset, lint budget, map, public contract, split candidates, DOM gaps, route ownership, command boundary, script order)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed (PASS: generated summaries refreshed)"
+  ],
+  "rollback_plan": "Revert the Settings/Launch WebView rendering helpers, the focused WebView assertions, the checklist sentence, regenerated lint budget/summary files, and this change packet. No media, queue, publish, settings-state, encoder descriptor activation, or hardware recovery is required because this is read-only display/test/docs work.",
+  "related_changes": [],
+  "notes": "Render explicit encoder activation count/list evidence in Settings read-only capability summary.\nRender backend encoder activation evidence in Launch backend preflight summary without adding commands or routes.\nPin Settings activation evidence strings and read-only rendering helpers.\nPin Launch preflight activation evidence rendering from backend payload detail.\nDocument WebView activation evidence rendering validation in the encoder breadth workstream.\nRefresh generated WebView ESLint warning budget through tooling after current lint output; total warnings decreased from the stale 664 baseline to the current 630, with no errors.\nRefresh generated summary for the lint budget artifact.\nRefresh generated summary for Launch preflight JS.\nRefresh generated summary for Settings video builder JS.\nRefresh generated summary for Settings WebView test.\nRefresh generated summary for Launch WebView smoke test.\nNo real-media or hardware-runtime validation was run because this slice does not alter FFmpeg command generation, encoder activation, media policy, publish/drain, source/scratch/output movement, or backend routes."
+}

@@ -272,6 +272,22 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
         vm.createContext(context);
         vm.runInContext(source, context);
 
+        const encoderCapabilityDetail = {{
+          schema_version: "settings_encoder_capability_report.v1",
+          read_only: true,
+          active_encoders: ["libaom-av1"],
+          available_inactive_encoders: ["av1_nvenc"],
+          activation_unknown_encoders: [],
+        }};
+        const encoderCapabilityCheck = {{
+          key: "encoder_capability_report",
+          label: "Encoder capability evidence",
+          status: "ready",
+          evidence: "active_count=1; inactive_available_count=1",
+          action: "Review inactive hardware encoder rows before enabling new families.",
+          detail: [encoderCapabilityDetail],
+        }};
+
         const fetchUrls = [];
         const factory = context.window.__launchViewPreflightModule.createLaunchPreflightModule;
         const launchPreflightModule = factory({{
@@ -285,7 +301,10 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
               target,
               status: "ready",
               request,
-              checks: [{{ key: `${{target}}-${{request.dry_run || "na"}}`, label: "Ready check", status: "ready", evidence: "ok", action: "No action." }}],
+              checks: [
+                {{ key: `${{target}}-${{request.dry_run || "na"}}`, label: "Ready check", status: "ready", evidence: "ok", action: "No action." }},
+                encoderCapabilityCheck,
+              ],
             }});
           }},
           byId(id) {{ return elements[id] || null; }},
@@ -326,7 +345,10 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
                 target,
                 status: "ready",
                 request,
-                checks: [{{ key: `${{target}}-ready`, label: "Ready check", status: "ready", evidence: "ok", action: "No action." }}],
+                checks: [
+                  {{ key: `${{target}}-ready`, label: "Ready check", status: "ready", evidence: "ok", action: "No action." }},
+                  encoderCapabilityCheck,
+                ],
               }});
             }},
             byId(id) {{ return emptyCsvElements[id] || null; }},
@@ -343,6 +365,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
           const emptyCsvPayloads = emptyCsvModule.getLastLaunchBackendPreflightPayloads();
           const emptyCsvRows = emptyCsvModule.launchBackendPreflightRows(emptyCsvPayloads);
           const emptyCsvRefreshInfo = emptyCsvModule.getLastLaunchBackendPreflightRefreshInfo();
+          const emptyCsvSummary = emptyCsvText["launch-backend-preflight-summary"];
           const emptyCsvCandidates = emptyCsvModule.launchBackendPreflightCandidateRequests().map((item) => ({{
             key: item.key,
             active: item.active,
@@ -397,7 +420,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             emptyCsvLabels: emptyCsvRows.map((row) => row.targetLabel),
             emptyCsvStatusText: emptyCsvText["launch-backend-preflight-status"],
             emptyCsvRefreshInfo,
-            emptyCsvSummary: emptyCsvText["launch-backend-preflight-summary"],
+            emptyCsvSummary,
             emptyCsvCandidates,
             poisonStatus: emptyCsvModule.launchBackendPreflightOverallStatus(poisonPayloads),
             poisonRows: emptyCsvModule.launchBackendPreflightRows(poisonPayloads).map((row) => row.targetLabel + ":" + row.posture),
@@ -659,10 +682,12 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["refreshInfo"]["skipped_request_count"], 0)
         self.assertIn("Status scope: active targets only", result["stagedSummary"])
         self.assertIn("Launch backend preflight by active target", result["stagedSummary"])
+        self.assertIn("Encoder activation evidence: active=1 (libaom-av1); available inactive=1 (av1_nvenc); activation unknown=0.", result["stagedSummary"])
+        self.assertIn("WebView does not enable hardware families", result["stagedSummary"])
         self.assertEqual(len(result["emptyCsvFetchUrls"]), 1)
         self.assertIn("target=pipeline", result["emptyCsvFetchUrls"][0])
         self.assertFalse(any("target=rerun" in item for item in result["emptyCsvFetchUrls"]))
-        self.assertEqual(result["emptyCsvLabels"], ["Pipeline"])
+        self.assertEqual(sorted(set(result["emptyCsvLabels"])), ["Pipeline"])
         self.assertEqual(result["emptyCsvStatusText"], "Ready")
         self.assertEqual(result["emptyCsvRefreshInfo"]["candidate_request_count"], 4)
         self.assertEqual(result["emptyCsvRefreshInfo"]["skipped_request_count"], 3)
@@ -672,6 +697,7 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         )
         self.assertIn("Pipeline backend preflight", result["emptyCsvSummary"])
         self.assertIn("Inactive targets skipped: CSV Rerun Start: CSV path is not staged.", result["emptyCsvSummary"])
+        self.assertIn("Encoder activation evidence: active=1 (libaom-av1); available inactive=1 (av1_nvenc); activation unknown=0.", result["emptyCsvSummary"])
         self.assertEqual(
             {item["key"]: item["active"] for item in result["emptyCsvCandidates"]},
             {"pipeline": True, "rerun-live": False, "rerun-preview": False, "rerun-plan-only": False},

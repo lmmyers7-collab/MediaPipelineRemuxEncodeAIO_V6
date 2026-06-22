@@ -426,8 +426,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         for token in (
             "encoder_capability_report",
             "function settingsEncoderCapabilityReport",
+            "function settingsEncoderCapabilityActivationLines",
             "function renderSettingsEncoderCapabilityReport",
             "settingsEncoderCapabilitySummaryLines",
+            "Descriptor activation: active=",
+            "Available but not active for descriptor-owned attempts",
+            "descriptor flags active",
+            "descriptor flags inactive",
             "Read-only annotation: dropdown choices stay visible",
             "backend Save and encode planning remain authoritative",
             "Unavailable",

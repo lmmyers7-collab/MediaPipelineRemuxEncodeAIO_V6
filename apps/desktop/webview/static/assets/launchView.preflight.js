@@ -11,7 +11,7 @@
       getCommandHistory = function () { return []; },
       getLastQueuePayload = function () { return null; },
       getLastQueueRows = function () { return []; },
-      getLastSnapshot = function () { return null; },
+      getLastSnapshot: _getLastSnapshot = function () { return null; },
       getSelectedQueueRow = function () { return null; },
       launchPolicyAlignmentQueueIntentEvidence = function () { return {}; },
       launchPolicyBoundaryRows = function () { return []; },
@@ -25,7 +25,7 @@
       launchSampleExecutionStatus = function () { return "Unknown"; },
       launchSampleExecutionSummaryLines = function () { return []; },
       launchSampleSetCoverageEvidence = function () { return {}; },
-      launchSettingsDecisionLines = function () { return []; },
+      launchSettingsDecisionLines: _launchSettingsDecisionLines = function () { return []; },
       launchSettingsIntentPayload = function () { return {}; },
       launchSettingsIntentRows = function () { return []; },
       launchSettingsIntentStatus = function () { return "Unknown"; },
@@ -37,7 +37,7 @@
       launchStartDecisionRank = function () { return 0; },
       launchStartDecisionRowStatus = function () { return "unknown"; },
       launchStartDecisionWorstPosture = function () { return "unknown"; },
-      launchUnsavedSettingsPatchLines = function () { return []; },
+      launchUnsavedSettingsPatchLines: _launchUnsavedSettingsPatchLines = function () { return []; },
       makeRowSelectable = function () {},
       pipelineModeLabel = function (mode) { return mode || "Pipeline"; },
       queueLaunchDecisionRows = function () { return []; },
@@ -122,7 +122,6 @@
 
   function launchPilotRunReadinessRows(context = getLaunchRealMediaContext()) {
     const merged = launchPilotReadinessContext(context);
-    const request = collectPipelineStartRequest();
     const history = typeof getCommandHistory === "function" ? getCommandHistory() : [];
     const queueRows = typeof getLastQueueRows === "function" ? getLastQueueRows() : (Array.isArray(merged.queue?.rows) ? merged.queue.rows : []);
     const queuePayload = typeof getLastQueuePayload === "function" ? getLastQueuePayload() : (merged.queue || {});
@@ -560,6 +559,53 @@
     return rows.sort((left, right) => launchBackendPreflightStatusRank(left.posture) - launchBackendPreflightStatusRank(right.posture));
   }
 
+  function launchBackendPreflightList(value) {
+    return Array.isArray(value)
+      ? value.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+  }
+
+  function launchBackendPreflightEncoderCapabilityDetails(payloads = []) {
+    const details = [];
+    launchBackendPreflightIncludedPayloads(payloads).forEach((payload) => {
+      const checks = Array.isArray(payload?.checks) ? payload.checks : [];
+      checks.forEach((check) => {
+        if (String(check?.key || "") !== "encoder_capability_report") return;
+        (Array.isArray(check.detail) ? check.detail : []).forEach((item) => {
+          if (item && typeof item === "object") details.push(item);
+        });
+      });
+    });
+    return details;
+  }
+
+  function launchBackendPreflightEncoderActivationLines(payloads = []) {
+    const details = launchBackendPreflightEncoderCapabilityDetails(payloads);
+    if (!details.length) return [];
+    const active = new Set();
+    const inactive = new Set();
+    const unknown = new Set();
+    details.forEach((detail) => {
+      launchBackendPreflightList(detail.active_encoders).forEach((item) => active.add(item));
+      launchBackendPreflightList(detail.available_inactive_encoders).forEach((item) => inactive.add(item));
+      launchBackendPreflightList(detail.activation_unknown_encoders).forEach((item) => unknown.add(item));
+    });
+    const activeList = Array.from(active);
+    const inactiveList = Array.from(inactive);
+    const unknownList = Array.from(unknown);
+    const lines = [
+      `Encoder activation evidence: active=${activeList.length}${activeList.length ? ` (${activeList.join(", ")})` : ""}; available inactive=${inactiveList.length}${inactiveList.length ? ` (${inactiveList.join(", ")})` : ""}; activation unknown=${unknownList.length}${unknownList.length ? ` (${unknownList.join(", ")})` : ""}.`,
+    ];
+    if (inactiveList.length) {
+      lines.push(`Inactive available encoders remain review-only until descriptor activation and validation: ${inactiveList.join(", ")}.`);
+    }
+    if (unknownList.length) {
+      lines.push(`Activation-unknown encoders require fresh backend capability evidence: ${unknownList.join(", ")}.`);
+    }
+    lines.push("Encoder activation authority: backend encoder_capability_report detail; WebView does not enable hardware families or choose FFmpeg flags.");
+    return lines;
+  }
+
   function launchBackendPreflightPipelineBlockers(payloads = []) {
     return launchBackendPreflightRows(payloads).filter((row) => {
       const target = String(row?.target || row?.payload?.target || "").toLowerCase();
@@ -652,6 +698,7 @@
     if (skippedTargets.length) {
       lines.push(`Inactive targets skipped: ${skippedTargets.map((item) => `${item.label}: ${item.reason}`).join("; ")}`);
     }
+    launchBackendPreflightEncoderActivationLines(payloads).forEach((line) => lines.push(line));
     if (stale && payloads.length) {
       lines.push("Form state changed after the last backend preflight. Action: Refresh Backend Preflight before using normal Start or CSV Rerun controls.");
     }

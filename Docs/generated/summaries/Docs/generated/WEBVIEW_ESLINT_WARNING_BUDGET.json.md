@@ -3,9 +3,9 @@ file: docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-16
+last_modified: 2026-06-22
 last_reviewed: 2026-06-02
-sha256: 1a83d0541435e8a0a4bcc1933ab5c3d4c8158579c972167e1ba5783eb0765e83
+sha256: 92a807ca4fe6c8c7d8f2e403b08fabd993a1ee20d56f4bf6a55c3d6be76f971a
 ---
 # `docs/generated/WEBVIEW_ESLINT_WARNING_BUDGET.json`
 

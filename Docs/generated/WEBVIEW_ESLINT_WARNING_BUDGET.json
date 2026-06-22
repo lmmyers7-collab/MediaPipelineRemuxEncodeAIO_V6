@@ -3,27 +3,23 @@
   "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
   "target": "apps/desktop/webview/static/assets/**/*.js",
   "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
-  "total_warnings": 664,
+  "total_warnings": 630,
   "total_errors": 0,
   "by_rule": {
     "complexity": {
-      "warnings": 101,
+      "warnings": 108,
       "errors": 0
     },
     "max-lines-per-function": {
-      "warnings": 33,
-      "errors": 0
-    },
-    "no-extra-boolean-cast": {
-      "warnings": 1,
+      "warnings": 37,
       "errors": 0
     },
     "no-undef": {
-      "warnings": 381,
+      "warnings": 340,
       "errors": 0
     },
     "no-unused-vars": {
-      "warnings": 146,
+      "warnings": 143,
       "errors": 0
     },
     "parse-error": {
@@ -34,12 +30,12 @@
   "files": [
     {
       "path": "apps/desktop/webview/static/assets/app.js",
-      "warnings": 80,
+      "warnings": 40,
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "max-lines-per-function": 1,
-        "no-undef": 76,
+        "max-lines-per-function": 2,
+        "no-undef": 35,
         "no-unused-vars": 1
       }
     },
@@ -49,7 +45,7 @@
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "no-unused-vars": 1
+        "no-undef": 1
       }
     },
     {
@@ -62,11 +58,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/commandHistory.js",
-      "warnings": 44,
+      "warnings": 45,
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "no-undef": 42
+        "no-undef": 43
       }
     },
     {
@@ -147,11 +143,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/completedView.js",
-      "warnings": 37,
+      "warnings": 40,
       "errors": 0,
       "rules": {
         "complexity": 3,
-        "no-undef": 9,
+        "no-undef": 12,
         "no-unused-vars": 25
       }
     },
@@ -166,6 +162,14 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/completedView.repair.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/completedView.review.js",
       "warnings": 11,
       "errors": 0,
@@ -177,116 +181,147 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
-      "warnings": 1,
+      "path": "apps/desktop/webview/static/assets/contractView.js",
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "max-lines-per-function": 1
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 1
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
-      "warnings": 58,
+      "warnings": 59,
       "errors": 0,
       "rules": {
         "complexity": 1,
-        "no-undef": 1,
+        "no-undef": 2,
         "no-unused-vars": 56
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "max-lines-per-function": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
       "warnings": 3,
       "errors": 0,
       "rules": {
-        "complexity": 2,
-        "max-lines-per-function": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
-      "warnings": 3,
-      "errors": 0,
-      "rules": {
-        "complexity": 2,
-        "max-lines-per-function": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "max-lines-per-function": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
-      "warnings": 3,
-      "errors": 0,
-      "rules": {
-        "complexity": 2,
-        "max-lines-per-function": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "no-undef": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "no-undef": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
-      "warnings": 1,
-      "errors": 0,
-      "rules": {
-        "no-undef": 1
-      }
-    },
-    {
-      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
-      "warnings": 4,
-      "errors": 0,
-      "rules": {
-        "complexity": 1,
         "max-lines-per-function": 1,
         "no-undef": 2
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
+      "warnings": 5,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "no-undef": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "no-undef": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+      "warnings": 13,
+      "errors": 0,
+      "rules": {
+        "no-undef": 13
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-undef": 4
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "warnings": 8,
+      "warnings": 16,
       "errors": 0,
       "rules": {
         "complexity": 5,
+        "no-undef": 8,
         "no-unused-vars": 3
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js",
-      "warnings": 3,
+      "warnings": 4,
       "errors": 0,
       "rules": {
         "max-lines-per-function": 1,
-        "no-undef": 2
+        "no-undef": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/dom/status.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
       }
     },
     {
@@ -330,6 +365,14 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/launch/statusRender.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
       "warnings": 21,
       "errors": 0,
@@ -339,30 +382,29 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/launchReadinessView.js",
-      "warnings": 13,
+      "warnings": 3,
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "no-undef": 11
+        "no-undef": 1
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/launchView.js",
-      "warnings": 63,
+      "warnings": 48,
       "errors": 0,
       "rules": {
-        "complexity": 1,
-        "no-undef": 62
+        "complexity": 2,
+        "no-undef": 46
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
-      "warnings": 5,
+      "warnings": 3,
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "max-lines-per-function": 1,
-        "no-unused-vars": 2
+        "max-lines-per-function": 1
       }
     },
     {
@@ -395,12 +437,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/maintenanceView.js",
-      "warnings": 13,
+      "warnings": 10,
       "errors": 0,
       "rules": {
-        "complexity": 1,
-        "no-extra-boolean-cast": 1,
-        "no-undef": 11
+        "complexity": 3,
+        "no-undef": 7
       }
     },
     {
@@ -413,12 +454,12 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/networkView.js",
-      "warnings": 14,
+      "warnings": 11,
       "errors": 0,
       "rules": {
         "complexity": 4,
-        "no-undef": 8,
-        "no-unused-vars": 2
+        "no-undef": 6,
+        "no-unused-vars": 1
       }
     },
     {
@@ -491,11 +532,20 @@
       }
     },
     {
-      "path": "apps/desktop/webview/static/assets/progressView.js",
-      "warnings": 4,
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.repair.js",
+      "warnings": 1,
       "errors": 0,
       "rules": {
-        "complexity": 3,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progressView.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 4,
+        "no-undef": 1,
         "no-unused-vars": 1
       }
     },
@@ -519,11 +569,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/queueView.js",
-      "warnings": 44,
+      "warnings": 43,
       "errors": 0,
       "rules": {
         "complexity": 2,
-        "no-undef": 16,
+        "no-undef": 15,
         "no-unused-vars": 26
       }
     },
@@ -558,10 +608,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/rename/applyReadiness.js",
-      "warnings": 1,
+      "warnings": 2,
       "errors": 0,
       "rules": {
-        "complexity": 1
+        "complexity": 1,
+        "no-unused-vars": 1
       }
     },
     {
@@ -590,19 +641,20 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/reportsView.js",
-      "warnings": 16,
+      "warnings": 15,
       "errors": 0,
       "rules": {
         "complexity": 1,
-        "no-undef": 13,
+        "no-undef": 12,
         "no-unused-vars": 2
       }
     },
     {
       "path": "apps/desktop/webview/static/assets/scheduleView.js",
-      "warnings": 2,
+      "warnings": 3,
       "errors": 0,
       "rules": {
+        "complexity": 1,
         "no-undef": 1,
         "no-unused-vars": 1
       }
@@ -653,6 +705,14 @@
       }
     },
     {
+      "path": "apps/desktop/webview/static/assets/settingsOverview.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-undef": 1
+      }
+    },
+    {
       "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
       "warnings": 1,
       "errors": 0,
@@ -687,11 +747,11 @@
     },
     {
       "path": "apps/desktop/webview/static/assets/settingsView.js",
-      "warnings": 28,
+      "warnings": 15,
       "errors": 0,
       "rules": {
         "complexity": 3,
-        "no-undef": 24,
+        "no-undef": 11,
         "no-unused-vars": 1
       }
     },
@@ -708,7 +768,7 @@
       "warnings": 1,
       "errors": 0,
       "rules": {
-        "no-undef": 1
+        "complexity": 1
       }
     }
   ]
