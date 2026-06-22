@@ -1364,8 +1364,6 @@
   window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
   window.launchStartDecisionRows = launchStartDecisionRows;
   window.launchStartDecisionStatus = launchStartDecisionStatus;
-  window.launchStartDecisionSummaryLines = launchStartDecisionSummaryLines;
-  window.launchStartDecisionDetailLines = launchStartDecisionDetailLines;
   window.launchCompactGateRows = launchCompactGateRows;
   window.launchCompactGateOverallStatus = launchCompactGateOverallStatus;
   window.renderLaunchCompactGate = renderLaunchCompactGate;
