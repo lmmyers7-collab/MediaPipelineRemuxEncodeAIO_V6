@@ -2,6 +2,10 @@
   const commandHistoryView = window.mediaPipelineCommandHistory || {};
   let selectedLaunchCommandReviewKey = "";
 
+  function launchViewApi() {
+    return window.mediaPipelineLaunchView || {};
+  }
+
   function isLaunchCommand(entry) {
     const command = String(entry?.command || "").toLowerCase();
     return command === "pipeline.start" || command === "rerun.start";
@@ -89,7 +93,8 @@
   function launchCommandBackendCorrelationRows(entry) {
     const target = launchHistoryTarget(entry?.command);
     if (!target) return [];
-    if (typeof launchBackendPreflightPayloadForTarget !== "function") {
+    const launchView = launchViewApi();
+    if (typeof launchView.launchBackendPreflightPayloadForTarget !== "function") {
       return [launchCommandCorrelationRow(
         "Backend preflight",
         "Cached preflight unavailable",
@@ -98,7 +103,7 @@
         "Refresh Launch and inspect Diagnostics before retrying a failed start.",
       )];
     }
-    const payload = launchBackendPreflightPayloadForTarget(target);
+    const payload = launchView.launchBackendPreflightPayloadForTarget(target);
     if (!payload) {
       return [launchCommandCorrelationRow(
         "Backend preflight",
@@ -108,8 +113,8 @@
         "Refresh Backend Launch Preflight before comparing this command result.",
       )];
     }
-    const rows = typeof launchBackendPreflightRows === "function"
-      ? launchBackendPreflightRows([payload])
+    const rows = typeof launchView.launchBackendPreflightRows === "function"
+      ? launchView.launchBackendPreflightRows([payload])
       : (Array.isArray(payload.checks) ? payload.checks.map((check) => ({
         check: check.label || check.key || "Check",
         posture: check.status || "unknown",

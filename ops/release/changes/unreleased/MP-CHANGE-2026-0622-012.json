@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0622-012",
+  "title": "Remove Launch preflight flat aliases",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Removed eight Launch backend-preflight compatibility aliases from the flat window surface while preserving the mediaPipelineLaunchView namespace contract.",
+  "reason": "Continue opportunistic WebView flat-export cleanup in a touched Launch/Queue evidence domain without changing backend mutation, media policy, command routing, source media handling, or pending-publish behavior.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Launch backend-preflight helpers were available both through window.mediaPipelineLaunchView and direct flat window.* aliases; Queue launch handoff, Launch command history, and shared command-history evidence could read the flat aliases.",
+  "behavior_after": "Launch backend-preflight helpers remain available through window.mediaPipelineLaunchView only; Queue launch handoff, Launch command history, and shared command-history evidence resolve them through the namespace at runtime.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/commandHistory.js",
+    "apps/desktop/webview/static/assets/launchHistoryView.js",
+    "apps/desktop/webview/static/assets/launchView.js",
+    "apps/desktop/webview/static/assets/queueView.launch.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/commandHistory.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchHistoryView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.launch.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_command_evidence_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-012.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/webview/test_webview_command_evidence_smoke.py"
+  ],
+  "tests_added": [
+    "Extended existing Local API WebView static assertions to require namespace-backed Launch backend-preflight access and reject the removed flat aliases.",
+    "Updated the command-evidence smoke fixture to seed Launch preflight evidence through mediaPipelineLaunchView."
+  ],
+  "manual_validation": [
+    "python -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q - passed",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only -q - passed",
+    "python -m unittest tests.webview.test_webview_command_evidence_smoke.WebViewCommandEvidenceSmokeTests.test_backend_served_webview_command_evidence_renders_owner_issue_lines -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke.WebViewBrowserLaunchQueueReadinessSmoke.test_real_browser_renders_launch_queue_readiness_without_mutation_posts -q - passed",
+    "python -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q - passed",
+    "npm run webview:contract - passed; regenerated docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "npm run webview:contract:check - passed",
+    "npm run webview:prework:check - passed",
+    "refresh_summaries --changed - wrote 9 summaries",
+    "refresh_summaries --check - passed",
+    "validate_changes --require-worktree-coverage - passed",
+    "git diff --check - passed",
+    "Known unrelated validation note: ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors currently fails on a pre-existing Rename text assertion unrelated to this Launch flat-export slice."
+  ],
+  "rollback_plan": "Restore the eight Launch backend-preflight flat window assignments in launchView.js, switch Queue launch handoff, Launch command history, and shared command-history evidence back to flat alias lookup, revert the updated tests/docs/generated artifacts, refresh summaries, and rerun the targeted WebView validation ladder.",
+  "related_changes": [],
+  "notes": "Removed Launch backend-preflight flat aliases while retaining mediaPipelineLaunchView namespace exports.\nSwitched Queue launch handoff backend-preflight evidence lookup to mediaPipelineLaunchView.\nSwitched Launch command history backend-preflight evidence lookup to mediaPipelineLaunchView.\nUpdated WebView static assertions for Launch backend-preflight namespace access and removed flat aliases.\nSwitched shared command-history Launch evidence lookup to mediaPipelineLaunchView.\nUpdated command evidence smoke fixture to seed Launch namespace preflight evidence.\nRegenerated WebView public contract after removing Launch backend-preflight flat aliases.\nUpdated flat-export inventory count and Launch manifest after alias removal.\nUpdated current WebView flat export count after Launch cleanup.\nRefreshed generated summary after Launch backend-preflight flat alias cleanup."
+}

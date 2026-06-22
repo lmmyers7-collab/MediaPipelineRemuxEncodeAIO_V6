@@ -419,7 +419,7 @@ def _node_runner_source() -> str:
           },
         });
         context.pendingDrainGuardState = () => ({ status: "Do not drain", action: "Resolve missing payload before publishing." });
-        context.getLastLaunchBackendPreflightPayloads = () => [{ target: "pipeline", status: "review" }];
+        context.mediaPipelineLaunchView.getLastLaunchBackendPreflightPayloads = () => [{ target: "pipeline", status: "review" }];
         context.launchSettingsIntentStatus = () => "Review";
         context.queueLaunchDecisionStatus = () => "Read evidence";
 

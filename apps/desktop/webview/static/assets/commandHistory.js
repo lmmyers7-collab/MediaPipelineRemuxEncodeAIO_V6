@@ -858,7 +858,8 @@
     }
 
     if (owner === "Launch") {
-      const preflightPayloads = typeof getLastLaunchBackendPreflightPayloads === "function" ? getLastLaunchBackendPreflightPayloads() : [];
+      const launchView = window.mediaPipelineLaunchView || {};
+      const preflightPayloads = typeof launchView.getLastLaunchBackendPreflightPayloads === "function" ? launchView.getLastLaunchBackendPreflightPayloads() : [];
       const pipelinePreflight = Array.isArray(preflightPayloads) ? preflightPayloads.find((payload) => String(payload?.target || "").toLowerCase() === "pipeline") : null;
       const launchIntent = typeof launchSettingsIntentStatus === "function" ? launchSettingsIntentStatus() : "unavailable";
       const queueDecision = typeof queueLaunchDecisionStatus === "function" ? queueLaunchDecisionStatus() : "unavailable";

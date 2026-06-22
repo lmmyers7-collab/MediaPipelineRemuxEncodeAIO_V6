@@ -71,6 +71,10 @@
     const QUEUE_FILTER_FIELDS = Array.isArray(queueFilterFields) ? queueFilterFields : [];
     let selectedQueueLaunchDecisionKey = "";
 
+    function launchViewApi() {
+      return window.mediaPipelineLaunchView || {};
+    }
+
     function queueLaunchDecisionPostureStatus(posture) {
       const normalized = String(posture || "").toLowerCase();
       if (normalized.includes("block") || normalized.includes("do not")) return "blocked";
@@ -116,11 +120,12 @@
 
 
     function queueLaunchBackendPreflightPayload() {
-      if (typeof launchBackendPreflightPayloadForTarget === "function") {
-        return launchBackendPreflightPayloadForTarget("pipeline");
+      const launchView = launchViewApi();
+      if (typeof launchView.launchBackendPreflightPayloadForTarget === "function") {
+        return launchView.launchBackendPreflightPayloadForTarget("pipeline");
       }
-      if (typeof getLastLaunchBackendPreflightPayloads === "function") {
-        const payloads = getLastLaunchBackendPreflightPayloads();
+      if (typeof launchView.getLastLaunchBackendPreflightPayloads === "function") {
+        const payloads = launchView.getLastLaunchBackendPreflightPayloads();
         return (Array.isArray(payloads) ? payloads : []).find((payload) => String(payload?.target || "").toLowerCase() === "pipeline") || null;
       }
       return null;
@@ -129,7 +134,8 @@
 
     function queueLaunchBackendPreflightRows(payload) {
       if (!payload) return [];
-      if (typeof launchBackendPreflightRows === "function") return launchBackendPreflightRows([payload]);
+      const launchView = launchViewApi();
+      if (typeof launchView.launchBackendPreflightRows === "function") return launchView.launchBackendPreflightRows([payload]);
       const target = payload?.target || "pipeline";
       return (Array.isArray(payload?.checks) ? payload.checks : []).map((check, index) => ({
         key: `${target}:${check.key || check.label || index}`,
@@ -158,7 +164,8 @@
         };
       }
       const rows = queueLaunchBackendPreflightRows(payload);
-      const refreshInfo = typeof getLastLaunchBackendPreflightRefreshInfo === "function" ? getLastLaunchBackendPreflightRefreshInfo() : {};
+      const launchView = launchViewApi();
+      const refreshInfo = typeof launchView.getLastLaunchBackendPreflightRefreshInfo === "function" ? launchView.getLastLaunchBackendPreflightRefreshInfo() : {};
       const status = String(payload.status || "unknown").toLowerCase();
       const nonReadyRows = rows.filter((row) => String(row.posture || "").toLowerCase() !== "ready");
       const blockedRows = rows.filter((row) => queueLaunchDecisionPostureStatus(row.posture) === "blocked");

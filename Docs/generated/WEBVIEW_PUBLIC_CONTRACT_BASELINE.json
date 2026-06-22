@@ -1049,8 +1049,6 @@
       "getLastCompletedPendingProofRows",
       "getLastCompletedRows",
       "getLastDiagnosticsLogRows",
-      "getLastLaunchBackendPreflightPayloads",
-      "getLastLaunchBackendPreflightRefreshInfo",
       "getLastPendingPublishPayload",
       "getLastQueuePayload",
       "getLastQueueRows",
@@ -1077,10 +1075,6 @@
       "isPipelineControlCommand",
       "isQueueLaunchCommand",
       "isQueueOpenCommand",
-      "launchBackendPreflightDetailLines",
-      "launchBackendPreflightPayloadForTarget",
-      "launchBackendPreflightRows",
-      "launchBackendPreflightSummaryLines",
       "launchCompactGateOverallStatus",
       "launchCompactGateRows",
       "launchHistoryLine",
@@ -1265,7 +1259,6 @@
       "queueWorkflowStatus",
       "refreshAll",
       "refreshAllNow",
-      "refreshLaunchBackendPreflight",
       "rejectPendingOpenWhileBusy",
       "rejectPendingRecoveryPlanWhileBusy",
       "renderActiveJobDetail",
@@ -1316,7 +1309,6 @@
       "renderExternalDependencyDigest",
       "renderFileSafetySettingsBuilderGuidance",
       "renderFinalLibraryPromotionSettingsGuidance",
-      "renderLaunchBackendPreflight",
       "renderLaunchCommandHistory",
       "renderLaunchCompactGate",
       "renderLaunchPolicyBoundary",
@@ -2181,7 +2173,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3720
+    "top_level_declaration_count": 3721
   },
   "scripts": [
     {
@@ -3790,107 +3782,107 @@
         },
         {
           "name": "commandHistoryOwnerLiveStateLines",
-          "line": 895,
+          "line": 896,
           "kind": "function"
         },
         {
           "name": "commandHistorySpecializedDetailLines",
-          "line": 899,
+          "line": 900,
           "kind": "function"
         },
         {
           "name": "commandHistoryDetailLines",
-          "line": 906,
+          "line": 907,
           "kind": "function"
         },
         {
           "name": "commandHistoryDiagnosticsDrilldownDetailLines",
-          "line": 948,
+          "line": 949,
           "kind": "function"
         },
         {
           "name": "commandHistoryEvidenceTokens",
-          "line": 982,
+          "line": 983,
           "kind": "function"
         },
         {
           "name": "commandHistoryLogEvidenceRows",
-          "line": 1005,
+          "line": 1006,
           "kind": "function"
         },
         {
           "name": "commandHistoryTargetEvidenceRows",
-          "line": 1029,
+          "line": 1030,
           "kind": "function"
         },
         {
           "name": "commandHistoryDiagnosticsEvidenceRows",
-          "line": 1040,
+          "line": 1041,
           "kind": "function"
         },
         {
           "name": "commandHistoryDiagnosticsEvidenceStatus",
-          "line": 1065,
+          "line": 1066,
           "kind": "function"
         },
         {
           "name": "commandHistoryDiagnosticsEvidenceSummaryLines",
-          "line": 1078,
+          "line": 1079,
           "kind": "function"
         },
         {
           "name": "requestCommandDiagnosticsAction",
-          "line": 1115,
+          "line": 1116,
           "kind": "function"
         },
         {
           "name": "renderCommandDiagnosticsActions",
-          "line": 1125,
+          "line": 1126,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsCommandDrilldownActions",
-          "line": 1158,
+          "line": 1159,
           "kind": "function"
         },
         {
           "name": "renderCommandDiagnosticsEvidence",
-          "line": 1188,
+          "line": 1189,
           "kind": "function"
         },
         {
           "name": "renderDiagnosticsCommandDrilldown",
-          "line": 1220,
+          "line": 1221,
           "kind": "function"
         },
         {
           "name": "renderCommandSummary",
-          "line": 1267,
+          "line": 1268,
           "kind": "function"
         },
         {
           "name": "renderCommandDetail",
-          "line": 1271,
+          "line": 1272,
           "kind": "function"
         },
         {
           "name": "renderCommandHistory",
-          "line": 1276,
+          "line": 1277,
           "kind": "function"
         },
         {
           "name": "commandHistoryDiagnosticLine",
-          "line": 1352,
+          "line": 1353,
           "kind": "function"
         },
         {
           "name": "formatCommandHistoryLines",
-          "line": 1358,
+          "line": 1359,
           "kind": "function"
         },
         {
           "name": "getCommandHistory",
-          "line": 1369,
+          "line": 1370,
           "kind": "function"
         }
       ],
@@ -20191,143 +20183,148 @@
           "kind": "let"
         },
         {
-          "name": "isLaunchCommand",
+          "name": "launchViewApi",
           "line": 5,
           "kind": "function"
         },
         {
+          "name": "isLaunchCommand",
+          "line": 9,
+          "kind": "function"
+        },
+        {
           "name": "launchHistoryLabel",
-          "line": 10,
+          "line": 14,
           "kind": "function"
         },
         {
           "name": "launchHistoryDetail",
-          "line": 16,
+          "line": 20,
           "kind": "function"
         },
         {
           "name": "launchHistoryLine",
-          "line": 30,
+          "line": 34,
           "kind": "function"
         },
         {
           "name": "launchHistoryIssueLevel",
-          "line": 43,
+          "line": 47,
           "kind": "function"
         },
         {
           "name": "launchHistoryTarget",
-          "line": 50,
+          "line": 54,
           "kind": "function"
         },
         {
           "name": "launchHistoryRequest",
-          "line": 57,
+          "line": 61,
           "kind": "function"
         },
         {
           "name": "launchHistoryNextAction",
-          "line": 65,
+          "line": 69,
           "kind": "function"
         },
         {
           "name": "launchCommandCorrelationRow",
-          "line": 73,
+          "line": 77,
           "kind": "function"
         },
         {
           "name": "launchCommandBackendCorrelationRows",
-          "line": 89,
+          "line": 93,
           "kind": "function"
         },
         {
           "name": "launchCommandIntentCorrelationRows",
-          "line": 140,
+          "line": 145,
           "kind": "function"
         },
         {
           "name": "launchCommandQueueCorrelationRows",
-          "line": 176,
+          "line": 181,
           "kind": "function"
         },
         {
           "name": "launchCommandCorrelationRows",
-          "line": 217,
+          "line": 222,
           "kind": "function"
         },
         {
           "name": "launchCommandCorrelationStatus",
-          "line": 226,
+          "line": 231,
           "kind": "function"
         },
         {
           "name": "launchCommandCorrelationSummary",
-          "line": 240,
+          "line": 245,
           "kind": "function"
         },
         {
           "name": "launchCommandDiagnosticsAdd",
-          "line": 250,
-          "kind": "function"
-        },
-        {
-          "name": "launchCommandDiagnosticsActions",
           "line": 255,
           "kind": "function"
         },
         {
+          "name": "launchCommandDiagnosticsActions",
+          "line": 260,
+          "kind": "function"
+        },
+        {
           "name": "requestLaunchCommandDiagnosticsAction",
-          "line": 275,
+          "line": 280,
           "kind": "function"
         },
         {
           "name": "launchCommandDiagnosticsGuidanceLines",
-          "line": 289,
+          "line": 294,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandDiagnosticsActions",
-          "line": 319,
+          "line": 324,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewRows",
-          "line": 351,
+          "line": 356,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewStatus",
-          "line": 370,
+          "line": 375,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewSummaryLines",
-          "line": 379,
+          "line": 384,
           "kind": "function"
         },
         {
           "name": "selectedLaunchCommandReviewRow",
-          "line": 401,
-          "kind": "function"
-        },
-        {
-          "name": "launchCommandReviewDetailLines",
           "line": 406,
           "kind": "function"
         },
         {
+          "name": "launchCommandReviewDetailLines",
+          "line": 411,
+          "kind": "function"
+        },
+        {
           "name": "selectLaunchCommandReviewRow",
-          "line": 446,
+          "line": 451,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandReview",
-          "line": 452,
+          "line": 457,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandHistory",
-          "line": 492,
+          "line": 497,
           "kind": "function"
         }
       ],
@@ -21292,15 +21289,9 @@
         "browsePipelineSingleFile",
         "clearPipelineSingleFile",
         "collectRerunStartRequest",
-        "getLastLaunchBackendPreflightPayloads",
-        "getLastLaunchBackendPreflightRefreshInfo",
         "initLaunchViewEvents",
         "isLaunchCommand",
         "isPipelineControlCommand",
-        "launchBackendPreflightDetailLines",
-        "launchBackendPreflightPayloadForTarget",
-        "launchBackendPreflightRows",
-        "launchBackendPreflightSummaryLines",
         "launchCompactGateOverallStatus",
         "launchCompactGateRows",
         "launchHistoryLine",
@@ -21352,8 +21343,6 @@
         "launchWorksheetRunsMatchingSample",
         "pipelineControlHistoryLine",
         "pipelineLaunchPreflightLines",
-        "refreshLaunchBackendPreflight",
-        "renderLaunchBackendPreflight",
         "renderLaunchCommandHistory",
         "renderLaunchCompactGate",
         "renderLaunchPolicyBoundary",
