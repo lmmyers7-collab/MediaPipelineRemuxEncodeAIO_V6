@@ -1506,7 +1506,6 @@
   window.completedFormatCounts = completedFormatCounts;
   window.completedFreshnessLine = completedFreshnessLine;
   window.completedManifestIsAged = completedManifestIsAged;
-  window.completedOutputPlacement = completedOutputPlacement;
   window.completedPlacementCounts = completedPlacementCounts;
   window.renderCompletedTrustDecision = renderCompletedTrustDecision;
   window.renderCompletedActiveOutputContext = renderCompletedActiveOutputContext;
