@@ -1379,9 +1379,6 @@
   window.launchSampleValidationRecordRows = launchSampleValidationRecordRows;
   window.launchSampleValidationRecordsMatchingSample = launchSampleValidationRecordsMatchingSample;
   window.launchSampleExecutionRows = launchSampleExecutionRows;
-  window.launchSampleExecutionStatus = launchSampleExecutionStatus;
-  window.launchSampleExecutionSummaryLines = launchSampleExecutionSummaryLines;
-  window.launchSampleExecutionDetailLines = launchSampleExecutionDetailLines;
   window.launchPilotRunReadinessRows = launchPilotRunReadinessRows;
   window.launchPilotRunReadinessStatus = launchPilotRunReadinessStatus;
   window.launchPilotRunReadinessSummaryLines = launchPilotRunReadinessSummaryLines;
