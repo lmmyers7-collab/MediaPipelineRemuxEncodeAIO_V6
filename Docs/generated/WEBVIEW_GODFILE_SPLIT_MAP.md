@@ -7,7 +7,7 @@ Candidate slices require at least **80** contiguous lines with gaps of **25** li
 
 ## `apps/desktop/webview/static/assets/app.js`
 
-- Lines: **1758** (1464 nonblank)
+- Lines: **1759** (1465 nonblank)
 - Top-level declarations: **160**
 - Namespace exports: -
 - Flat compatibility exports: **10**

@@ -1062,7 +1062,6 @@
       "getSelectedQueuePriorityRows",
       "getSelectedQueueRow",
       "initDiagnosticsViewEvents",
-      "initLaunchViewEvents",
       "initSampleValidationViewEvents",
       "initSettingsViewEvents",
       "isDiagnosticsOpenCommand",
@@ -1336,7 +1335,6 @@
       "requestPendingDiagnosticsAction",
       "requestPendingPublishOpen",
       "requestPendingRecoveryPlan",
-      "requestPipelineControl",
       "requestQueueDiagnosticsAction",
       "requestQueueOpen",
       "requestQueueScan",
@@ -1457,8 +1455,6 @@
       "settingsVobSubOcrPathEvidenceStatus",
       "showPage",
       "showSelectedCompletedRow",
-      "startPipelineFromForm",
-      "startRerunFromForm",
       "startStateJournalArchive",
       "syncAudioSettingsBuilderFromConfig",
       "syncFileSafetySettingsBuilderFromConfig",
@@ -21243,7 +21239,6 @@
       ],
       "flat_window_exports": [
         "collectRerunStartRequest",
-        "initLaunchViewEvents",
         "isLaunchCommand",
         "isPipelineControlCommand",
         "launchCompactGateRows",
@@ -21263,10 +21258,7 @@
         "renderLaunchCompactGate",
         "renderLaunchSettingsIntentChecklist",
         "renderPipelineControlHistory",
-        "requestPipelineControl",
         "rerunLaunchPreflightLines",
-        "startPipelineFromForm",
-        "startRerunFromForm",
         "startStateJournalArchive"
       ],
       "api_routes": [

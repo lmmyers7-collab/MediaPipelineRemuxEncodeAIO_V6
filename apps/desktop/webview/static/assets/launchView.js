@@ -1337,14 +1337,11 @@
     initLaunchViewEvents,
     initLaunchRecoveryActionEvents,
   };
-  window.requestPipelineControl = requestPipelineControl;
   window.isPipelineControlCommand = isPipelineControlCommand;
   window.pipelineControlHistoryLine = pipelineControlHistoryLine;
   window.renderPipelineControlHistory = renderPipelineControlHistory;
-  window.startPipelineFromForm = startPipelineFromForm;
   window.startStateJournalArchive = startStateJournalArchive;
   window.collectRerunStartRequest = collectRerunStartRequest;
-  window.startRerunFromForm = startRerunFromForm;
   window.launchSettingsIntentRows = launchSettingsIntentRows;
   window.launchSettingsIntentStatus = launchSettingsIntentStatus;
   window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
@@ -1362,5 +1359,4 @@
   window.isLaunchCommand = isLaunchCommand;
   window.renderLaunchCommandHistory = renderLaunchCommandHistory;
   window.launchHistoryLine = launchHistoryLine;
-  window.initLaunchViewEvents = initLaunchViewEvents;
 })();

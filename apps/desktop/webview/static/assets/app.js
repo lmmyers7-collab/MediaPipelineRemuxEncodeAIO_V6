@@ -1644,7 +1644,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     setSettingsCommandBusy: window.mediaPipelineSettingsView?.setSettingsCommandBusy,
     rejectSettingsCommandWhileBusy: window.mediaPipelineSettingsView?.rejectSettingsCommandWhileBusy,
   });
-  initLaunchViewEvents();
+  const launchView = window.mediaPipelineLaunchView || {};
+  launchView.initLaunchViewEvents?.();
   window.mediaPipelineMetricsView?.initMetricsViewEvents?.();
   window.mediaPipelineReportsView?.initReportsViewEvents?.();
   window.mediaPipelineScheduleView?.initScheduleViewEvents?.();
@@ -1655,13 +1656,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   maintenanceView.initMaintenanceViewEvents?.();
   if (typeof initSampleValidationViewEvents === "function") initSampleValidationViewEvents();
   const pipelineStartButton = byId("pipeline-start-button");
-  if (pipelineStartButton) pipelineStartButton.addEventListener("click", startPipelineFromForm);
+  if (pipelineStartButton) pipelineStartButton.addEventListener("click", () => launchView.startPipelineFromForm?.());
   const rerunPlanOnlyButton = byId("rerun-plan-only-button");
-  if (rerunPlanOnlyButton) rerunPlanOnlyButton.addEventListener("click", () => startRerunFromForm({ plan_only: true }));
+  if (rerunPlanOnlyButton) rerunPlanOnlyButton.addEventListener("click", () => launchView.startRerunFromForm?.({ plan_only: true }));
   const rerunDryRunButton = byId("rerun-dry-run-button");
-  if (rerunDryRunButton) rerunDryRunButton.addEventListener("click", () => startRerunFromForm({ dry_run: true }));
+  if (rerunDryRunButton) rerunDryRunButton.addEventListener("click", () => launchView.startRerunFromForm?.({ dry_run: true }));
   const rerunStartButton = byId("rerun-start-button");
-  if (rerunStartButton) rerunStartButton.addEventListener("click", () => startRerunFromForm({ dry_run: false }));
+  if (rerunStartButton) rerunStartButton.addEventListener("click", () => launchView.startRerunFromForm?.({ dry_run: false }));
   const pendingDrainButton = byId("pending-drain-button");
   if (pendingDrainButton) pendingDrainButton.addEventListener("click", () => window.mediaPipelineLaunchView?.startPendingPublishDrain?.());
   const pendingRecoveryPlanSelectedButton = byId("pending-recovery-plan-selected-button");
@@ -1745,7 +1746,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const auditPreviewPriorityOnly = byId("audit-preview-priority-only");
   if (auditPreviewPriorityOnly) auditPreviewPriorityOnly.addEventListener("change", refreshAll);
   document.querySelectorAll("[data-control-action]").forEach((button) => {
-    button.addEventListener("click", () => requestPipelineControl(button.dataset.controlAction || ""));
+    button.addEventListener("click", () => launchView.requestPipelineControl?.(button.dataset.controlAction || ""));
   });
   document.querySelectorAll("[data-open-diagnostics]").forEach((button) => {
     button.addEventListener("click", () => requestDiagnosticsOpen(button.dataset.openDiagnostics || "", button));
