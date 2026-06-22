@@ -468,7 +468,7 @@ def _node_runner_source() -> str:
         context.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(renderedHistory);
         context.mediaPipelineReportsView?.renderReportOpenHistory?.(renderedHistory);
         context.renderBackendLifecycleHistory(renderedHistory);
-        const sampleValidationActions = context.commandHistoryDiagnosticsActions({
+        const sampleValidationActions = context.mediaPipelineCommandHistory.commandHistoryDiagnosticsActions({
           command: "diagnostics.open",
           ok: true,
           severity: "info",

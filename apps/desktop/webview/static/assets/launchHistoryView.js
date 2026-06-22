@@ -266,7 +266,9 @@
     if (!entry) return [];
     const command = String(entry.command || "").toLowerCase();
     const target = launchHistoryTarget(command);
-    const base = typeof commandHistoryDiagnosticsActions === "function" ? commandHistoryDiagnosticsActions(entry) : [];
+    const base = typeof commandHistoryView.commandHistoryDiagnosticsActions === "function"
+      ? commandHistoryView.commandHistoryDiagnosticsActions(entry)
+      : [];
     const actions = Array.isArray(base) ? base.slice() : [];
     launchCommandDiagnosticsAdd(actions, "tail", "last_stderr_log", "Read Last Stderr", "Read the latest stderr context before retrying a launch failure.");
     launchCommandDiagnosticsAdd(actions, "open", "run_logs", "Open Run Logs", "Inspect backend launch and PowerShell process logs around the command time.");

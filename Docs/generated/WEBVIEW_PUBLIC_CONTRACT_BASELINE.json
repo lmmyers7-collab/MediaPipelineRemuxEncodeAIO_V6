@@ -876,7 +876,6 @@
       "collectVideoDetailSettingsBuilderPatch",
       "commandHistoryCommandText",
       "commandHistoryCompactEvidenceLine",
-      "commandHistoryDiagnosticsActions",
       "commandHistoryIssueLevel",
       "commandHistoryOwnerPage",
       "commandHistoryRowKey",
@@ -3830,7 +3829,6 @@
         "appendCommandResult",
         "commandHistoryCommandText",
         "commandHistoryCompactEvidenceLine",
-        "commandHistoryDiagnosticsActions",
         "commandHistoryIssueLevel",
         "commandHistoryOwnerPage",
         "commandHistoryRowKey",
@@ -20240,57 +20238,57 @@
         },
         {
           "name": "requestLaunchCommandDiagnosticsAction",
-          "line": 285,
+          "line": 287,
           "kind": "function"
         },
         {
           "name": "launchCommandDiagnosticsGuidanceLines",
-          "line": 299,
+          "line": 301,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandDiagnosticsActions",
-          "line": 329,
+          "line": 331,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewRows",
-          "line": 362,
+          "line": 364,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewStatus",
-          "line": 383,
+          "line": 385,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewSummaryLines",
-          "line": 392,
+          "line": 394,
           "kind": "function"
         },
         {
           "name": "selectedLaunchCommandReviewRow",
-          "line": 414,
+          "line": 416,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewDetailLines",
-          "line": 419,
+          "line": 421,
           "kind": "function"
         },
         {
           "name": "selectLaunchCommandReviewRow",
-          "line": 459,
+          "line": 461,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandReview",
-          "line": 465,
+          "line": 467,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandHistory",
-          "line": 505,
+          "line": 507,
           "kind": "function"
         }
       ],

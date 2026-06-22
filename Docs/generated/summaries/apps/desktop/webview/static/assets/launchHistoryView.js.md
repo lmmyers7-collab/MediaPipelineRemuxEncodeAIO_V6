@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: 69ba2f10ba4e317519a9301928068966b91c50a3c7ff09daa7ece7efcfe2c1e4
+sha256: 1f105304ba7bd567d45051360b0876baa8ecbe193b570929d17793e285501a14
 ---
 # `apps/desktop/webview/static/assets/launchHistoryView.js`
 

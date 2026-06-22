@@ -1469,5 +1469,4 @@
   window.commandHistoryOwnerPage = commandHistoryOwnerPage;
   window.commandHistoryIssueLevel = commandHistoryIssueLevel;
   window.commandHistorySuggestedAction = commandHistorySuggestedAction;
-  window.commandHistoryDiagnosticsActions = commandHistoryDiagnosticsActions;
 })();
