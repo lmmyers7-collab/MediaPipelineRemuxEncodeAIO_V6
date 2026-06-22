@@ -149,6 +149,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
             ].forEach(requireFunction);
             [
               "completedOutputPlacement",
+              "completedPlacementCounts",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -156,6 +157,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             const completedViewSource = await fetch("/assets/completedView.js").then((response) => response.text());
             if (completedViewSource.includes("window.completedOutputPlacement =")) {
               throw new Error("served completedView.js still contains completedOutputPlacement flat assignment");
+            }
+            if (completedViewSource.includes("window.completedPlacementCounts =")) {
+              throw new Error("served completedView.js still contains completedPlacementCounts flat assignment");
             }
 
             window.confirm = () => {
