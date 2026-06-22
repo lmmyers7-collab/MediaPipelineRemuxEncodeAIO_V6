@@ -151,6 +151,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedOutputPlacement",
               "completedPlacementCounts",
               "completedFormatCounts",
+              "completedFreshnessLine",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -164,6 +165,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedFormatCounts =")) {
               throw new Error("served completedView.js still contains completedFormatCounts flat assignment");
+            }
+            if (completedViewSource.includes("window.completedFreshnessLine =")) {
+              throw new Error("served completedView.js still contains completedFreshnessLine flat assignment");
             }
 
             window.confirm = () => {
