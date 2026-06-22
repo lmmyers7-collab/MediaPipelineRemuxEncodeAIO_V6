@@ -1461,7 +1461,6 @@
   };
   window.appendCommandResult = appendCommandResult;
   window.getCommandHistory = getCommandHistory;
-  window.selectCommandEntry = selectCommandEntry;
   window.commandHistoryCompactEvidenceLine = commandHistoryCompactEvidenceLine;
   window.commandHistoryOwnerPage = commandHistoryOwnerPage;
   window.commandHistoryIssueLevel = commandHistoryIssueLevel;

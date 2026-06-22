@@ -1362,7 +1362,6 @@
       "sampleValidationWorksheetSummaryLines",
       "saveFinalLibraryPromotionSettings",
       "selectActiveJobRow",
-      "selectCommandEntry",
       "selectCompletedFinalTrustStep",
       "selectCompletedPendingProofRow",
       "selectCompletedRow",
@@ -3826,8 +3825,7 @@
         "commandHistoryCompactEvidenceLine",
         "commandHistoryIssueLevel",
         "commandHistoryOwnerPage",
-        "getCommandHistory",
-        "selectCommandEntry"
+        "getCommandHistory"
       ],
       "api_routes": [],
       "dom_ids_touched": [

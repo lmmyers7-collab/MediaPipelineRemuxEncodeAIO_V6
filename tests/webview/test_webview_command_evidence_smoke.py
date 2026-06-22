@@ -505,7 +505,7 @@ def _node_runner_source() -> str:
         requireText("diagnostics-command-history", ["pipeline.start", "pending_publish.drain"]);
         const drainCommand = renderedHistory.find((entry) => entry.command === "pending_publish.drain");
         if (!drainCommand) throw new Error("missing pending_publish.drain command in rendered history");
-        context.selectCommandEntry(drainCommand);
+        context.mediaPipelineCommandHistory.selectCommandEntry(drainCommand);
         requireText("command-detail", ["Owner page live state handoff:", "Owner page: Pending Publish", "Pending cached rows: 1", "Drain Button Guard: Do not drain", "Completed/Pending final-placement handoff:", "still-pending=1; drain-proof=1", "Treat as final-placement conflict", "Mutation guardrail: owner-state handoff is read-only"]);
         requireText("diagnostics-command-drilldown-detail", ["Owner page: Pending Publish", "Suggested next action:", "Read-first order: bounded tail targets before opening folders/files.", "Completed/Pending final-placement handoff:"]);
         requireText("diagnostics-command-evidence-summary", ["Command / diagnostics evidence correlation:", "Owner page live-state rows: 1", "Completed/Pending final-placement proof rows: 1", "final-placement proof is active", "Backend allowlist evidence targets:"]);

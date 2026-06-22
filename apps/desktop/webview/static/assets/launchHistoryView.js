@@ -460,7 +460,7 @@
 
   function selectLaunchCommandReviewRow(item, history = []) {
     selectedLaunchCommandReviewKey = item?.key || "";
-    if (item?.entry && typeof selectCommandEntry === "function") selectCommandEntry(item.entry);
+    if (item?.entry && typeof commandHistoryView.selectCommandEntry === "function") commandHistoryView.selectCommandEntry(item.entry);
     renderLaunchCommandReview(history);
   }
 
@@ -493,7 +493,7 @@
         item.correlation,
         item.nextStep,
       ]);
-      if (typeof makeRowSelectable === "function" && typeof selectCommandEntry === "function") {
+      if (typeof makeRowSelectable === "function" && typeof commandHistoryView.selectCommandEntry === "function") {
         makeRowSelectable(row, () => selectLaunchCommandReviewRow(item, history), {
           selected: Boolean(item.key && item.key === selectedLaunchCommandReviewKey),
           label: `Launch command review ${item.latestCommand} ${item.issue}`,
