@@ -3,9 +3,9 @@ file: ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-17
+last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: d4928ee6011ca6692eb72d9b074e55da4864f14082e84dab043cbf1776899c15
+sha256: 5d525f59ff4796dfa818897ef49ca383de279193b5973d70b733c19046ee0385
 ---
 # `ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1`
 

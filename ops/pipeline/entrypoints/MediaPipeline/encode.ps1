@@ -433,7 +433,7 @@ function Do-Encode {
         if (-not [bool]$videoStreamPolicy.Allowed) {
             $reason = [string]$videoStreamPolicy.Reason
             $errorCode = [string]$videoStreamPolicy.ErrorCode
-            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $reason -Stage 'video-stream-policy' -ErrorCode $errorCode -SuggestedAction 'Use a source with one real video stream or add per-stream routing and output-manifest validation before processing multi-video sources.'
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $reason -Stage 'video-stream-policy' -ErrorCode $errorCode -SuggestedAction 'Inspect ffprobe video stream inventory and attached-picture detection; publish remains blocked until source video stream inventory is probeable.'
             Write-Log "ENCODE: $reason" "ERROR"
             $localIn = $null
             return $false
@@ -772,6 +772,18 @@ function Do-Encode {
         $subResult        = Build-SubtitleArgsForFFmpeg $subFilter $defaultAudioLang $localIn "ENCODE: "
         if ($subResult.Failures -and @($subResult.Failures).Count -gt 0) {
             Register-SubtitleExtractionFailure -SourceFile $file -ScratchPath $localIn -Failures @($subResult.Failures) -Stage 'subtitle-extract'
+            $localIn = $null
+            return $false
+        }
+        if ($subResult.BurnTrack -and [int]$videoStreamPolicy.Inventory.RealVideoStreamCount -gt 1) {
+            $reason = "Subtitle burn-in currently produces one filtered video output, but source has $([int]$videoStreamPolicy.Inventory.RealVideoStreamCount) real video streams; refusing encode because preserve-all video policy cannot be satisfied."
+            $failureProperties = [ordered]@{
+                source_video_stream_count = [int]$videoStreamPolicy.Inventory.RealVideoStreamCount
+                subtitle_burn_stream      = $subResult.BurnTrack
+                video_stream_inventory    = $videoStreamPolicy.Inventory
+            }
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $reason -Stage 'subtitle-burn-video-stream-policy' -ErrorCode 'SUBTITLE_BURN_MULTI_VIDEO_UNSUPPORTED' -SuggestedAction 'Disable subtitle burn-in or use a single-video source until burn-in topology can preserve secondary video streams without silent loss.' -AdditionalProperties $failureProperties
+            Write-Log "ENCODE: $reason" "ERROR"
             $localIn = $null
             return $false
         }
@@ -1217,6 +1229,21 @@ function Do-Encode {
             $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'transient' -Reason 'ENCODE duration mismatch' -Stage 'encode-verify' -SuggestedAction 'Compare source and encoded output A/V end times. Container-duration differences caused by subtitle tails are tolerated, so a remaining encode-verify failure usually means the output A/V is genuinely shorter than the source.'
             $localIn = $null
             Write-Log "ENCODE: duration mismatch - recorded as transient and scheduled for retry: $safeName" "ERROR"
+            return $false
+        }
+
+        $videoPreservation = Test-OutputVideoStreamPreservation -SourcePath $localIn -OutputPath $tempOut -Route $verifyRoute -SourceInventory $videoStreamPolicy.Inventory
+        if (-not [bool]$videoPreservation.Allowed) {
+            $reason = [string]$videoPreservation.Reason
+            $errorCode = [string]$videoPreservation.ErrorCode
+            $failureProperties = [ordered]@{
+                video_stream_preservation = $videoPreservation
+                source_video_stream_count = [int]$videoPreservation.SourceCount
+                output_video_stream_count = [int]$videoPreservation.OutputCount
+            }
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $tempOut -Classification 'operator_required' -Reason $reason -Stage 'encode-video-stream-verify' -ErrorCode $errorCode -SuggestedAction 'Inspect source/output ffprobe stream inventories and saved FFmpeg repro commands; publish remains blocked until every real source video stream is present in output.' -AdditionalProperties $failureProperties
+            Write-Log "ENCODE: $reason" "ERROR"
+            $tempOut = $null
             return $false
         }
 

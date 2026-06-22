@@ -51,6 +51,7 @@ $matched = Test-DurationMatch -SourcePath 'source.mkv' -OutputPath 'output.mkv' 
 Assert-True ([bool]$matched) 'Valid duration match should still pass.'
 
 $script:VideoInventoryProbeCase = 'single'
+$script:VideoInventoryProbeByPath = @{}
 function global:Invoke-FFprobeCommand {
     param(
         [array]$ArgumentList,
@@ -60,7 +61,12 @@ function global:Invoke-FFprobeCommand {
     if ($Stage -ne 'source-video-stream-inventory') {
         return [pscustomobject]@{ ExitCode = 1; Output = ''; Error = 'unexpected ffprobe stage'; TimedOut = $false; Stopped = $false }
     }
-    switch ($script:VideoInventoryProbeCase) {
+    $probeCase = $script:VideoInventoryProbeCase
+    $probePath = if ($ArgumentList -and $ArgumentList.Count -gt 0) { [string]$ArgumentList[$ArgumentList.Count - 1] } else { '' }
+    if ($script:VideoInventoryProbeByPath -and $script:VideoInventoryProbeByPath.ContainsKey($probePath)) {
+        $probeCase = [string]$script:VideoInventoryProbeByPath[$probePath]
+    }
+    switch ($probeCase) {
         'single' {
             return [pscustomobject]@{
                 ExitCode = 0
@@ -111,8 +117,8 @@ Assert-Equal ([int]$singleVideoPolicy.Inventory.AttachedPicCount) 0 'Single-vide
 
 $script:VideoInventoryProbeCase = 'multi'
 $multiVideoPolicy = Test-SourceVideoStreamPublishPolicy -FilePath 'multi.mkv' -Route 'encode'
-Assert-True (-not [bool]$multiVideoPolicy.Allowed) 'Multiple real video streams must fail closed until per-stream routing exists.'
-Assert-Equal ([string]$multiVideoPolicy.ErrorCode) 'SOURCE_VIDEO_STREAMS_UNVETTED' 'Multi-video policy should use the unvetted-stream error code.'
+Assert-True ([bool]$multiVideoPolicy.Allowed) "Multiple real video streams should be eligible when preserve-all output verification is enforced. Reason: $($multiVideoPolicy.Reason)"
+Assert-Equal ([string]$multiVideoPolicy.ErrorCode) '' 'Multi-video policy should not use the historical unvetted-stream error code after FR-016 preserve-all.'
 Assert-Equal ([int]$multiVideoPolicy.Inventory.RealVideoStreamCount) 2 'Multi-video inventory should exclude attached pictures from real video count.'
 Assert-Equal ([int]$multiVideoPolicy.Inventory.AttachedPicCount) 1 'Attached pictures should be counted separately from real video streams.'
 
@@ -132,6 +138,34 @@ $script:VideoInventoryProbeCase = 'failure'
 $probeFailurePolicy = Test-SourceVideoStreamPublishPolicy -FilePath 'broken.mkv' -Route 'encode'
 Assert-True (-not [bool]$probeFailurePolicy.Allowed) 'Video inventory probe failure must fail closed.'
 Assert-Equal ([string]$probeFailurePolicy.ErrorCode) 'SOURCE_VIDEO_STREAM_PROBE_FAILED' 'Probe failure should use the probe-failed error code.'
+
+$script:VideoInventoryProbeByPath = @{
+    'source-multi.mkv' = 'multi'
+    'output-multi.mkv' = 'multi'
+}
+$preservedOutput = Test-OutputVideoStreamPreservation -SourcePath 'source-multi.mkv' -OutputPath 'output-multi.mkv' -Route 'encode'
+Assert-True ([bool]$preservedOutput.Allowed) "Output with the same real-video count should satisfy preserve-all verification. Reason: $($preservedOutput.Reason)"
+Assert-Equal ([int]$preservedOutput.SourceCount) 2 'Preserved-output source count mismatch.'
+Assert-Equal ([int]$preservedOutput.OutputCount) 2 'Preserved-output output count mismatch.'
+
+$script:VideoInventoryProbeByPath = @{
+    'source-multi.mkv' = 'multi'
+    'output-single.mkv' = 'single'
+}
+$mismatchedOutput = Test-OutputVideoStreamPreservation -SourcePath 'source-multi.mkv' -OutputPath 'output-single.mkv' -Route 'remux'
+Assert-True (-not [bool]$mismatchedOutput.Allowed) 'Output missing a secondary real video stream must fail closed before publish.'
+Assert-Equal ([string]$mismatchedOutput.ErrorCode) 'OUTPUT_VIDEO_STREAM_COUNT_MISMATCH' 'Mismatched output should use the output-count error code.'
+Assert-Equal ([int]$mismatchedOutput.SourceCount) 2 'Mismatched-output source count mismatch.'
+Assert-Equal ([int]$mismatchedOutput.OutputCount) 1 'Mismatched-output output count mismatch.'
+
+$script:VideoInventoryProbeByPath = @{
+    'source-single.mkv' = 'single'
+    'output-broken.mkv' = 'failure'
+}
+$outputProbeFailure = Test-OutputVideoStreamPreservation -SourcePath 'source-single.mkv' -OutputPath 'output-broken.mkv' -Route 'encode'
+Assert-True (-not [bool]$outputProbeFailure.Allowed) 'Output probe failure must fail closed before publish.'
+Assert-Equal ([string]$outputProbeFailure.ErrorCode) 'OUTPUT_VIDEO_STREAM_PROBE_FAILED' 'Output probe failure should use the output-probe error code.'
+$script:VideoInventoryProbeByPath = @{}
 
 $tempDir = Join-Path ([System.IO.Path]::GetTempPath()) ('mp-existing-output-' + [guid]::NewGuid().ToString('N'))
 [System.IO.Directory]::CreateDirectory($tempDir) | Out-Null
@@ -161,6 +195,9 @@ Assert-True ($remuxText -match '\$script:LastPublishResult\s*=\s*New-ExistingOut
 Assert-True ($encodeText -match '\$script:LastPublishResult\s*=\s*New-ExistingOutputPublishResult') 'Encode existing-output branch must set LastPublishResult.'
 Assert-True ($remuxText -match 'Test-SourceVideoStreamPublishPolicy') 'Remux must run source video stream policy before FFmpeg/mkvmerge publish.'
 Assert-True ($encodeText -match 'Test-SourceVideoStreamPublishPolicy') 'Encode must run source video stream policy before FFmpeg publish.'
+Assert-True ($remuxText -match 'Test-OutputVideoStreamPreservation') 'Remux must verify output real-video stream preservation before publish.'
+Assert-True ($encodeText -match 'Test-OutputVideoStreamPreservation') 'Encode must verify output real-video stream preservation before publish.'
+Assert-True ($encodeText -match 'SUBTITLE_BURN_MULTI_VIDEO_UNSUPPORTED') 'Encode must fail closed when subtitle burn-in would collapse multiple real video streams.'
 Assert-True ($remuxText -match 'REMUX_AUDIO_TID_MAPPING_FAILED') 'Remux must fail closed when audio TID probing cannot cover expected tracks.'
 Assert-True ($remuxText -notmatch 'skipping explicit default-track flags') 'Remux must not publish after skipping explicit audio default-track flags.'
 

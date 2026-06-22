@@ -165,7 +165,7 @@ function Do-Remux {
         if (-not [bool]$videoStreamPolicy.Allowed) {
             $reason = [string]$videoStreamPolicy.Reason
             $errorCode = [string]$videoStreamPolicy.ErrorCode
-            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $reason -Stage 'video-stream-policy' -ErrorCode $errorCode -SuggestedAction 'Use a source with one real video stream or add per-stream routing and output-manifest validation before processing multi-video sources.'
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason $reason -Stage 'video-stream-policy' -ErrorCode $errorCode -SuggestedAction 'Inspect ffprobe video stream inventory and attached-picture detection; publish remains blocked until source video stream inventory is probeable.'
             Write-Log "REMUX: $reason" "ERROR"
             $localIn = $null
             return $false
@@ -493,6 +493,20 @@ function Do-Remux {
         if (-not (Test-DurationMatch -SourcePath $localIn -OutputPath $paths.LocalOut -Label "REMUX" -AllowAVFallback)) {
             $null = Register-SourceFailure -SourceFile $file -ScratchPath $paths.LocalOut -Classification 'transient' -Reason 'REMUX duration mismatch' -Stage 'remux-verify' -SuggestedAction 'Compare source and remuxed output A/V end times. Subtitle-tail container differences are tolerated now, so a remaining remux-verify failure usually indicates the output A/V is actually short.'
             Write-Log "REMUX: output duration mismatch - treating as failure" "ERROR"
+            return $false
+        }
+
+        $videoPreservation = Test-OutputVideoStreamPreservation -SourcePath $localIn -OutputPath $paths.LocalOut -Route 'remux' -SourceInventory $videoStreamPolicy.Inventory
+        if (-not [bool]$videoPreservation.Allowed) {
+            $reason = [string]$videoPreservation.Reason
+            $errorCode = [string]$videoPreservation.ErrorCode
+            $failureProperties = [ordered]@{
+                video_stream_preservation = $videoPreservation
+                source_video_stream_count = [int]$videoPreservation.SourceCount
+                output_video_stream_count = [int]$videoPreservation.OutputCount
+            }
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $paths.LocalOut -Classification 'operator_required' -Reason $reason -Stage 'remux-video-stream-verify' -ErrorCode $errorCode -SuggestedAction 'Inspect source/output ffprobe stream inventories and saved FFmpeg/mkvmerge repro commands; publish remains blocked until every real source video stream is present in output.' -AdditionalProperties $failureProperties
+            Write-Log "REMUX: $reason" "ERROR"
             return $false
         }
 

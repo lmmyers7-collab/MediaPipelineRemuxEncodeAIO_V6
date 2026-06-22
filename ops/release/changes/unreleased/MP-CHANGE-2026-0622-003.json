@@ -1,0 +1,62 @@
+{
+  "id": "MP-CHANGE-2026-0622-003",
+  "title": "Preserve all video streams",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "FR-016 now preserves all real source video streams by allowing multi-video source inventories, verifying remux/encode output real-video stream counts before publish, and failing closed when subtitle burn-in would collapse multiple real video streams to one filtered output.",
+  "reason": "The old policy blocked multi-video inputs even though the remux and encode command topology already used real-video stream mapping. The decided FR-016 policy is preserve-all, so publish must be gated by output evidence rather than by rejecting multi-video sources up front.",
+  "affected_areas": [
+    "docs",
+    "ffmpeg",
+    "media-policy",
+    "validation"
+  ],
+  "behavior_before": "Multi-video sources failed source video-stream policy with SOURCE_VIDEO_STREAMS_UNVETTED, and there was no remux/encode publish gate comparing real-video source and output stream counts.",
+  "behavior_after": "Source video-stream policy accepts one or more real video streams once probeable, remux and encode block publish with OUTPUT_VIDEO_STREAM_COUNT_MISMATCH or OUTPUT_VIDEO_STREAM_PROBE_FAILED when output evidence cannot prove preserve-all, and subtitle burn-in blocks multi-video encode with SUBTITLE_BURN_MULTI_VIDEO_UNSUPPORTED.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md.md",
+    "docs/generated/summaries/ops/pipeline/engine/probe/media_probe.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/shared/failure_codes.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/remux.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-MultiVideoTopologyChecks.ps1.md",
+    "docs/inventories/TEST_SUITE_SUBSYSTEM_INVENTORY.md",
+    "ops/pipeline/engine/probe/media_probe.ps1",
+    "ops/pipeline/engine/shared/failure_codes.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/remux.ps1",
+    "ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-MultiVideoTopologyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-003.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-MediaVerificationSafetyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-MultiVideoTopologyChecks.ps1"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.integration.test_ffmpeg_media_policy_regression_matrix -q - passed; 4 tests",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Invoke-ReliabilityRegressionChecks.ps1 - passed; includes FR-016 Tdarr-derived topology proof",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-ActiveDocsReferenceChecks.ps1 - passed",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-EncodeFlagPolicyChecks.ps1 - passed; Snapshot count: 23",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-FailureCodeRegistryChecks.ps1 - passed; outcome codes: 182",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-MediaVerificationSafetyChecks.ps1 - RED failed before pipeline wiring on missing output video-stream preservation assertion",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-MediaVerificationSafetyChecks.ps1 - passed",
+    "pwsh -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-MultiVideoTopologyChecks.ps1 - passed; SourceOrigin=tdarr-derived source=2 remux=2 encode=2",
+    "refresh_summaries --check; generate_project_index --check; generate_feature_file_map --check; generate_pipeline_map --check - passed"
+  ],
+  "rollback_plan": "Revert the media_probe.ps1 output-preservation helper/source-policy change, the remux.ps1 and encode.ps1 verification call sites, the new failure-code registry entries, and the FR-016 topology test/reliability wiring; then refresh generated summaries/maps and reopen FR-016 in the active checklist.",
+  "related_changes": [],
+  "notes": "FR-016 preserve-all video stream policy, output verification, topology proof, docs, and generated context.\nValidation used retained LocalBase Tdarr seed as read-only input and wrote only temp proof media under %TEMP%."
+}

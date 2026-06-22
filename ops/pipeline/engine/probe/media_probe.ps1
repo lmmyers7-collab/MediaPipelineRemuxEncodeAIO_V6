@@ -323,21 +323,89 @@ function Test-SourceVideoStreamPublishPolicy {
             Inventory = $inventory
         }
     }
-    if ($count -gt 1) {
-        $details = (@($inventory.RealVideoStreams) | ForEach-Object { "index $($_.Index) codec $($_.Codec)" }) -join '; '
+    return [pscustomobject][ordered]@{
+        Allowed   = $true
+        ErrorCode = ''
+        Reason    = if ($count -eq 1) {
+            'one real video stream is eligible for preserve-all publish validation'
+        } else {
+            $details = (@($inventory.RealVideoStreams) | ForEach-Object { "index $($_.Index) codec $($_.Codec)" }) -join '; '
+            "source has $count real video streams ($details); preserve-all stream topology and output verification are required before publish"
+        }
+        Inventory = $inventory
+    }
+}
+
+function Test-OutputVideoStreamPreservation {
+    param(
+        [Parameter(Mandatory)] [string] $SourcePath,
+        [Parameter(Mandatory)] [string] $OutputPath,
+        [string] $Route = '',
+        $SourceInventory = $null
+    )
+
+    $sourceInventoryForCompare = $SourceInventory
+    if (-not $sourceInventoryForCompare -or -not $sourceInventoryForCompare.PSObject.Properties['Ok'] -or -not [bool]$sourceInventoryForCompare.Ok) {
+        $sourceInventoryForCompare = Get-SourceVideoStreamInventory -FilePath $SourcePath
+    }
+    if (-not [bool]$sourceInventoryForCompare.Ok) {
         return [pscustomobject][ordered]@{
-            Allowed   = $false
-            ErrorCode = 'SOURCE_VIDEO_STREAMS_UNVETTED'
-            Reason    = "source has $count real video streams ($details); current routing validates only the primary stream, so $Route is blocked until per-stream routing and output validation exist"
-            Inventory = $inventory
+            Allowed         = $false
+            ErrorCode       = [string]$sourceInventoryForCompare.ErrorCode
+            Reason          = "could not verify source video stream inventory before $Route output preservation check: $($sourceInventoryForCompare.Reason)"
+            SourceCount     = 0
+            OutputCount     = 0
+            SourceInventory = $sourceInventoryForCompare
+            OutputInventory = $null
+        }
+    }
+
+    $outputInventory = Get-SourceVideoStreamInventory -FilePath $OutputPath
+    if (-not [bool]$outputInventory.Ok) {
+        return [pscustomobject][ordered]@{
+            Allowed         = $false
+            ErrorCode       = 'OUTPUT_VIDEO_STREAM_PROBE_FAILED'
+            Reason          = "could not verify $Route output video stream inventory before publish: $($outputInventory.Reason)"
+            SourceCount     = [int]$sourceInventoryForCompare.RealVideoStreamCount
+            OutputCount     = 0
+            SourceInventory = $sourceInventoryForCompare
+            OutputInventory = $outputInventory
+        }
+    }
+
+    $sourceCount = [int]$sourceInventoryForCompare.RealVideoStreamCount
+    $outputCount = [int]$outputInventory.RealVideoStreamCount
+    if ($sourceCount -le 0) {
+        return [pscustomobject][ordered]@{
+            Allowed         = $false
+            ErrorCode       = 'SOURCE_VIDEO_STREAM_MISSING'
+            Reason          = "source has no probeable real video stream; refusing $Route publish"
+            SourceCount     = $sourceCount
+            OutputCount     = $outputCount
+            SourceInventory = $sourceInventoryForCompare
+            OutputInventory = $outputInventory
+        }
+    }
+    if ($outputCount -ne $sourceCount) {
+        return [pscustomobject][ordered]@{
+            Allowed         = $false
+            ErrorCode       = 'OUTPUT_VIDEO_STREAM_COUNT_MISMATCH'
+            Reason          = "source has $sourceCount real video stream(s) but $Route output has $outputCount; refusing publish because preserve-all video stream topology did not hold"
+            SourceCount     = $sourceCount
+            OutputCount     = $outputCount
+            SourceInventory = $sourceInventoryForCompare
+            OutputInventory = $outputInventory
         }
     }
 
     return [pscustomobject][ordered]@{
-        Allowed   = $true
-        ErrorCode = ''
-        Reason    = 'exactly one real video stream is eligible for current publish validation'
-        Inventory = $inventory
+        Allowed         = $true
+        ErrorCode       = ''
+        Reason          = "$Route output preserves $outputCount real video stream(s)"
+        SourceCount     = $sourceCount
+        OutputCount     = $outputCount
+        SourceInventory = $sourceInventoryForCompare
+        OutputInventory = $outputInventory
     }
 }
 

@@ -110,14 +110,14 @@ future code change touches the matching validation gate.
 - [ ] **Mutation-capable Python stage dispatcher** — Stage contracts and dry-run/planning support exist, but mutation-capable stages remain disabled until mutation intent contracts, strict confirmations, journal evidence, rollback/recovery evidence, boundary checks, and representative validation are in place.
 - [ ] **WebView flat export cleanup** — Namespace-first access is guarded, but transitional flat `window.*` compatibility exports remain. Continue reducing them opportunistically by touched domain with WebView static/browser evidence.
 
-### Deferred With Reason
+### Deferred / Recently Resolved Decisions
 
-- [ ] **FR-016 multi-video stream policy/evidence** — Policy decision: preserve all real video streams. Implementation remains open and needs FFmpeg command topology tests plus representative multi-video real-media validation before unblocking multi-video inputs.
+- [x] **FR-016 multi-video stream policy/evidence** — Resolved on 2026-06-22 with preserve-all real-video stream policy. Remux and encode now verify source/output real-video stream counts before publish, subtitle burn-in fails closed for multi-video sources because the current filter graph produces a single video output, and `Invoke-MultiVideoTopologyChecks.ps1` proves bundled FFmpeg remux plus `New-EncodeFfmpegArgumentList` encode topology preserve a Tdarr-derived two-real-video sample (`source=2 remux=2 encode=2`). Broader Dynamic HDR and hardware-encoder real-media validation remain separate open gates.
 - [x] **FR-042 rerun `-DryRun` semantics** — Resolved on 2026-06-22: `-DryRun` remains evidence-writing, and CSV rerun now has a distinct no-write `-PlanOnly` mode. Validation includes temp-LocalBase PlanOnly no-write coverage plus backend launch-plan/route/WebView preflight/request tests.
 
 ### Recurring Validation Gates
 
-- [ ] **Real-media rerun gate** — Re-run representative real-media validation after Dynamic HDR, encoder breadth/AV1, media policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior changes. Latest media-policy rerun: MP-CHANGE-2026-0622-001 on 2026-06-22, Tdarr proof-pack run `run-20260622-codex-proof-all-final`, 92 cases executed, 76 published outputs ffprobe-verified, 92/92 source hashes unchanged, remaining warnings terminal/non-retryable expected-invalid fixtures.
+- [ ] **Real-media rerun gate** — Re-run representative real-media validation after Dynamic HDR, encoder breadth/AV1, media policy, subtitle, audio, publish/drain, source/scratch/output movement, or cleanup behavior changes. Latest media-policy rerun: MP-CHANGE-2026-0622-001 on 2026-06-22, Tdarr proof-pack run `run-20260622-codex-proof-all-final`, 92 cases executed, 76 published outputs ffprobe-verified, 92/92 source hashes unchanged, remaining warnings terminal/non-retryable expected-invalid fixtures. Latest targeted FR-016 proof: MP-CHANGE-2026-0622-003 on 2026-06-22, `Invoke-MultiVideoTopologyChecks.ps1`, Tdarr-derived two-real-video sample, `source=2 remux=2 encode=2`.
 - [ ] **Package/open/close rerun gate** — Re-run package/open/close validation after launcher, package, Tauri, Local API bootstrap, or release-layout changes.
 
 ---
@@ -129,5 +129,5 @@ future code change touches the matching validation gate.
 | Closed promotion blockers | 0 |
 | Completed elsewhere / no active implementation work | 7 |
 | Open or partial implementation workstreams | 5 |
-| Deferred-with-reason decisions | 2 |
+| Deferred/recently resolved decisions | 2 |
 | Recurring validation gates | 2 |
