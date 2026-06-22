@@ -1359,13 +1359,9 @@
   window.renderLaunchPolicyBoundary = renderLaunchPolicyBoundary;
   window.launchSettingsIntentRows = launchSettingsIntentRows;
   window.launchSettingsIntentStatus = launchSettingsIntentStatus;
-  window.launchSettingsIntentSummaryLines = launchSettingsIntentSummaryLines;
-  window.launchSettingsIntentDetailLines = launchSettingsIntentDetailLines;
   window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
   window.launchStartDecisionRows = launchStartDecisionRows;
-  window.launchStartDecisionStatus = launchStartDecisionStatus;
   window.launchCompactGateRows = launchCompactGateRows;
-  window.launchCompactGateOverallStatus = launchCompactGateOverallStatus;
   window.renderLaunchCompactGate = renderLaunchCompactGate;
   window.launchWorksheetEvidence = launchWorksheetEvidence;
   window.launchWorksheetRunRows = launchWorksheetRunRows;
