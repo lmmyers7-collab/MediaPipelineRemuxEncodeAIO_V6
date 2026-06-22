@@ -1468,7 +1468,6 @@
   window.commandHistoryCompactEvidenceLine = commandHistoryCompactEvidenceLine;
   window.commandHistoryOwnerPage = commandHistoryOwnerPage;
   window.commandHistoryIssueLevel = commandHistoryIssueLevel;
-  window.commandHistoryRefreshTarget = commandHistoryRefreshTarget;
   window.commandHistorySuggestedAction = commandHistorySuggestedAction;
   window.commandHistoryDiagnosticsActions = commandHistoryDiagnosticsActions;
 })();

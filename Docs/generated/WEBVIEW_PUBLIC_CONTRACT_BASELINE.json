@@ -879,7 +879,6 @@
       "commandHistoryDiagnosticsActions",
       "commandHistoryIssueLevel",
       "commandHistoryOwnerPage",
-      "commandHistoryRefreshTarget",
       "commandHistoryRowKey",
       "commandHistorySuggestedAction",
       "completedAcceptanceDetailLines",
@@ -3834,7 +3833,6 @@
         "commandHistoryDiagnosticsActions",
         "commandHistoryIssueLevel",
         "commandHistoryOwnerPage",
-        "commandHistoryRefreshTarget",
         "commandHistoryRowKey",
         "commandHistorySuggestedAction",
         "getCommandHistory",
@@ -20262,37 +20260,37 @@
         },
         {
           "name": "launchCommandReviewStatus",
-          "line": 381,
+          "line": 383,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewSummaryLines",
-          "line": 390,
+          "line": 392,
           "kind": "function"
         },
         {
           "name": "selectedLaunchCommandReviewRow",
-          "line": 412,
+          "line": 414,
           "kind": "function"
         },
         {
           "name": "launchCommandReviewDetailLines",
-          "line": 417,
+          "line": 419,
           "kind": "function"
         },
         {
           "name": "selectLaunchCommandReviewRow",
-          "line": 457,
+          "line": 459,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandReview",
-          "line": 463,
+          "line": 465,
           "kind": "function"
         },
         {
           "name": "renderLaunchCommandHistory",
-          "line": 503,
+          "line": 505,
           "kind": "function"
         }
       ],

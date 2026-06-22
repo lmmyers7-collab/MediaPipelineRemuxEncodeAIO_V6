@@ -364,7 +364,9 @@
     return entries.map((entry, index) => {
       const issue = launchHistoryIssueLevel(entry);
       const raw = entry?.raw && typeof entry.raw === "object" ? entry.raw : {};
-      const refresh = raw.refresh_hint || (typeof commandHistoryRefreshTarget === "function" ? commandHistoryRefreshTarget(entry) : "snapshot");
+      const refresh = raw.refresh_hint || (typeof commandHistoryView.commandHistoryRefreshTarget === "function"
+        ? commandHistoryView.commandHistoryRefreshTarget(entry)
+        : "snapshot");
       return {
         key: typeof commandHistoryRowKey === "function" ? commandHistoryRowKey(entry) : `${entry?.command || "launch"}:${entry?.at || index}`,
         entry,
