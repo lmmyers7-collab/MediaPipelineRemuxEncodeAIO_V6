@@ -5359,8 +5359,10 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function filterRows", dom_helpers_js)
         self.assertIn("function appendCells", dom_helpers_js)
         self.assertIn("window.mediaPipelineFormatters", formatters_js)
+        _assert_namespace_export(self, formatters_js, "mediaPipelineFormatters", "formatProgressValue")
         self.assertIn("function formatMemoryMb", formatters_js)
         self.assertIn("function settingsValuesEqual", formatters_js)
+        self.assertNotIn("window.formatProgressValue =", formatters_js)
         self.assertNotIn("window.formatPercent =", formatters_js)
         self.assertNotIn("window.formatMemoryMb =", formatters_js)
         self.assertNotIn("window.formatConfigValue =", formatters_js)
@@ -7433,6 +7435,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("role\", \"progressbar", progress_view_js)
         self.assertIn("function renderProgressDetails", progress_view_js)
         self.assertIn("function renderProgressEvidence", progress_view_js)
+        self.assertIn("const formatters = window.mediaPipelineFormatters || {}", progress_view_js)
+        self.assertIn("const formatProgressValue = typeof formatters.formatProgressValue", progress_view_js)
         for flat_progress_export in (
             "window.renderProgressBarsInto =",
             "window.renderProgressBars =",

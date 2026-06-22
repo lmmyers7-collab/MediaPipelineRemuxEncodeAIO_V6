@@ -1,4 +1,13 @@
 (function () {
+  const formatters = window.mediaPipelineFormatters || {};
+  const formatProgressValue = typeof formatters.formatProgressValue === "function"
+    ? formatters.formatProgressValue
+    : (value) => {
+        if (value === null || value === undefined) return "";
+        if (Array.isArray(value)) return value.join(", ");
+        if (value && typeof value === "object") return JSON.stringify(value);
+        return String(value);
+      };
   let selectedProgressEvidenceKey = "";
   const STALE_DISPLAY_CONFIRMATION_COUNT = 2;
   const progressStaleDisplayCounts = new Map();

@@ -339,7 +339,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               clearTimeout,
               lastSnapshot: { pipeline_state: "processing", recent_events: [] },
               byId(id) { return id === "topbar-event-ticker" ? ticker : null; },
-              formatProgressValue(value) { return value == null ? "" : String(value); },
+              mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
               homeProgressPercent(value) { return value == null || value === "" ? "" : `${value}%`; },
             };
             context.window = context;
@@ -453,7 +453,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               Date,
               document: { createElement: makeElement },
               byId() { return null; },
-              formatProgressValue(value) { return value == null ? "" : String(value); },
+              mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
             context.window = context;
             vm.createContext(context);
@@ -606,7 +606,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               Date,
               document: { createElement: makeElement },
               byId(id) { return id === "progress-bar-list" ? container : null; },
-              formatProgressValue(value) { return value == null ? "" : String(value); },
+              mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
             context.window = context;
             vm.createContext(context);
@@ -759,7 +759,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                   row.appendChild(cell);
                 });
               },
-              formatProgressValue(value) { return value == null ? "" : String(value); },
+              setText(id, value) { if (elements[id]) elements[id].textContent = value; },
+              mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
             context.window = context;
             vm.createContext(context);
@@ -888,7 +889,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
               document: { createElement: makeElement },
               byId(id) { return elements[id] || null; },
               setText(id, value) { if (elements[id]) elements[id].textContent = value; },
-              formatProgressValue(value) { return value == null ? "" : String(value); },
+              setText(id, value) { if (elements[id]) elements[id].textContent = value; },
+              mediaPipelineFormatters: { formatProgressValue(value) { return value == null ? "" : String(value); } },
             };
             context.window = context;
             vm.createContext(context);
@@ -1276,6 +1278,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("Encoder sessions", telemetry_js)
         self.assertNotIn("#65a7ff", telemetry_js)
         self.assertIn("function progressWorkerPayload", progress_js)
+        self.assertIn("const formatters = window.mediaPipelineFormatters || {}", progress_js)
+        self.assertIn("const formatProgressValue = typeof formatters.formatProgressValue", progress_js)
         self.assertIn("function progressWorkerRows", progress_js)
         self.assertIn("desktop_worker_progress.v1", progress_js)
         self.assertIn("Worker progress", progress_js)

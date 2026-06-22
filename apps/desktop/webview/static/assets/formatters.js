@@ -96,5 +96,4 @@
     settingsValuesEqual,
     shortenPath,
   };
-  window.formatProgressValue = formatProgressValue;
 })();

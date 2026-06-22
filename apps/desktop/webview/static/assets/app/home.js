@@ -1,6 +1,14 @@
 /* global commandHistoryIssueLevel, getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, settingsRawActionPlanRows, settingsRawActionPlanStatus */
 (function () {
   const formatters = window.mediaPipelineFormatters || {};
+  const formatProgressValue = typeof formatters.formatProgressValue === "function"
+    ? formatters.formatProgressValue
+    : (value) => {
+        if (value === null || value === undefined) return "";
+        if (Array.isArray(value)) return value.join(", ");
+        if (value && typeof value === "object") return JSON.stringify(value);
+        return String(value);
+      };
   const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;

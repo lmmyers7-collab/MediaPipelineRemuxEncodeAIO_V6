@@ -3,6 +3,15 @@
   const TOPBAR_PENDING_LAUNCH_TTL_MS = 120000;
   const TOPBAR_IDLE_PENDING_GRACE_MS = 45000;
   const COMPLETED_TAB_STORAGE_KEY = "mediapipeline-completed-tab";
+  const formatters = window.mediaPipelineFormatters || {};
+  const formatProgressValue = typeof formatters.formatProgressValue === "function"
+    ? formatters.formatProgressValue
+    : (value) => {
+        if (value === null || value === undefined) return "";
+        if (Array.isArray(value)) return value.join(", ");
+        if (value && typeof value === "object") return JSON.stringify(value);
+        return String(value);
+      };
   const scheduleView = window.mediaPipelineScheduleView || {};
   const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
   let topbarPendingLaunch = null;
