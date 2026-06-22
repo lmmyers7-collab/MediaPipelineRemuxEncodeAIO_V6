@@ -1362,9 +1362,6 @@
   window.launchSettingsIntentSummaryLines = launchSettingsIntentSummaryLines;
   window.launchSettingsIntentDetailLines = launchSettingsIntentDetailLines;
   window.renderLaunchSettingsIntentChecklist = renderLaunchSettingsIntentChecklist;
-  window.launchScopeReconciliationStatus = launchScopeReconciliationStatus;
-  window.launchScopeReconciliationSummaryLines = launchScopeReconciliationSummaryLines;
-  window.launchScopeReconciliationDetailLines = launchScopeReconciliationDetailLines;
   window.launchStartDecisionRows = launchStartDecisionRows;
   window.launchStartDecisionStatus = launchStartDecisionStatus;
   window.launchStartDecisionSummaryLines = launchStartDecisionSummaryLines;
