@@ -1380,9 +1380,6 @@
   window.launchSampleValidationRecordsMatchingSample = launchSampleValidationRecordsMatchingSample;
   window.launchSampleExecutionRows = launchSampleExecutionRows;
   window.launchPilotRunReadinessRows = launchPilotRunReadinessRows;
-  window.launchPilotRunReadinessStatus = launchPilotRunReadinessStatus;
-  window.launchPilotRunReadinessSummaryLines = launchPilotRunReadinessSummaryLines;
-  window.launchPilotRunReadinessDetailLines = launchPilotRunReadinessDetailLines;
   window.pipelineLaunchPreflightLines = pipelineLaunchPreflightLines;
   window.rerunLaunchPreflightLines = rerunLaunchPreflightLines;
   window.isLaunchCommand = isLaunchCommand;
