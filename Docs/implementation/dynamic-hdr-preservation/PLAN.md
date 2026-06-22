@@ -663,8 +663,13 @@ converts successful extraction outputs into x265-safe relative paths, fails
 closed for missing artifacts, rooted paths, cross-drive/colon-bearing paths, or
 missing base directories, and the x265 parameter builder rejects rooted artifact
 paths directly. Extraction-to-encode invocation, policy routing, force-CPU
-activation, output verification, and Dolby Vision P8.1 real-media proof are in
-place; representative HDR10+ proof remains open.
+activation, output verification, Dolby Vision P8.1 real-media proof, and
+representative HDR10+ metadata proof are in place. The HDR10+ proof is
+MP-CHANGE-2026-0622-007: the FFPictures Lake sample preserved through
+CPU/libx265 with relative `dhdr10-info`, output HDR10+ was detected by
+`Test-DynamicHdrOutputPreservation`, extracted source/output HDR10+ JSON hashes
+matched, and the source hash was unchanged. Playback-device HDR10+ indicator
+validation remains outside that automated metadata proof.
 
 New parameters (default `''`/`$false`, threaded through `New-EncodeAttemptPlan`
 exactly like `Hdr10MasterDisplay` at encode_policy.ps1:372-391):

@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0622-007",
+  "title": "Validate HDR10+ Dynamic HDR preservation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "test",
+  "risk_level": "high",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Validated representative HDR10+ Dynamic HDR metadata preservation with the public FFPictures Lake sample. The local proof ran source detection, x265 capability probing, HDR10+ metadata extraction, CPU/libx265 encode with relative dhdr10-info, output verification, output HDR10+ JSON extraction, and source hash comparison.",
+  "reason": "Dynamic HDR Dolby Vision P8.1 had public real-media proof, but HDR10+ representative proof remained open before the implemented Dynamic HDR preservation path could be documented as metadata-proven.",
+  "affected_areas": [
+    "docs",
+    "dynamic_hdr",
+    "generated",
+    "real_media_validation"
+  ],
+  "behavior_before": "Active docs listed HDR10+ representative proof as open, leaving Dynamic HDR preservation metadata validation incomplete after the Dolby Vision P8.1 proof.",
+  "behavior_after": "Active docs record MP-CHANGE-2026-0622-007 HDR10+ proof: source SHA256 unchanged, x265 HDR10+ capability available, CPU/libx265 encode used relative dhdr10-info, output HDR10+ was detected by Test-DynamicHdrOutputPreservation, and source/output extracted HDR10+ JSON hashes matched.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/RealMediaValidationRuns/README.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/RealMediaValidationRuns/README.md.md",
+    "docs/implementation/dynamic-hdr-preservation/PLAN.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-007.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.generate_feature_file_map --check - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.generate_project_index --check - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check - passed (1763 current summaries)",
+    ".\\\\ops\\\\pipeline\\\\runtime\\\\PowerShell-7.6.0-win-x64\\\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\\\LocalBase\\\\DynamicHdrValidationRuns\\\\20260622-hdr10plus-full\\\\Run-Hdr10PlusProof.ps1 - passed; evidence pass=true, source hash unchanged, output HDR10+ verified, source/output HDR10+ JSON SHA256 matched",
+    ".\\\\ops\\\\pipeline\\\\runtime\\\\PowerShell-7.6.0-win-x64\\\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\\\LocalBase\\\\DynamicHdrValidationRuns\\\\20260622-hdr10plus-full\\\\Run-Hdr10PlusProof.ps1 -PlanOnly - passed; source detected HDR10+ only, x265 HDR10+ capability true, preserve_encode decision, relative dhdr10-info path",
+    ".\\\\ops\\\\pipeline\\\\runtime\\\\PowerShell-7.6.0-win-x64\\\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\\\ops\\\\pipeline\\\\tests\\\\Unit\\\\Invoke-DynamicHdrDetectionChecks.ps1 - passed",
+    ".\\\\ops\\\\pipeline\\\\runtime\\\\PowerShell-7.6.0-win-x64\\\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\\\ops\\\\pipeline\\\\tests\\\\Unit\\\\Invoke-DynamicHdrToolingChecks.ps1 - passed",
+    ".\\\\ops\\\\pipeline\\\\runtime\\\\PowerShell-7.6.0-win-x64\\\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\\\ops\\\\pipeline\\\\tests\\\\Unit\\\\Invoke-EncodeFlagPolicyChecks.ps1 - passed; Snapshot count: 23"
+  ],
+  "rollback_plan": "Revert the documentation and generated-summary updates plus this packet. Leave ignored LocalBase DynamicHdrValidationRuns/DynamicHdrValidationSamples artifacts in place unless local validation cleanup is desired.",
+  "related_changes": [],
+  "notes": "Document HDR10+ Dynamic HDR preservation proof evidence.\nLocalBase proof artifacts are gitignored and intentionally not packaged; committed docs carry non-sensitive evidence summary.\nExisting Dynamic HDR guardrails passed after HDR10+ proof documentation update.\nRefresh generated summaries for HDR10+ validation documentation.\nCompleted HDR10+ metadata-preservation documentation after proof and guardrail checks."
+}

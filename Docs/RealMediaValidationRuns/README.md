@@ -47,6 +47,24 @@ evidence summary.
   and the corrupt AVI/rawvideo fixture reports `SOURCE_MEDIA_CONTAINER_INVALID`.
   These warnings are terminal and non-retryable.
 
+## Targeted Dynamic HDR metadata preservation status
+
+- Status: targeted local metadata-preservation proofs complete for the currently
+  implemented Dolby Vision P8.1 and HDR10+ encode paths as of 2026-06-22.
+- Dolby Vision proof: MP-CHANGE-2026-0622-004, public Dolby Browser Test Kit
+  P8.1 SD source, CPU/libx265 encode with FFmpeg native Dolby Vision coding,
+  output DOVI verified, source/output RPU frame counts `1721/1721`, source hash
+  unchanged.
+- HDR10+ proof: MP-CHANGE-2026-0622-007, public FFPictures Lake HDR10+ sample,
+  CPU/libx265 encode with relative `dhdr10-info`, output HDR10+ verified,
+  source/output extracted HDR10+ JSON hashes matched, source hash unchanged.
+- Evidence handling: detailed source/output paths and generated proof artifacts
+  remain under gitignored `LocalBase\DynamicHdrValidationRuns\` and
+  `LocalBase\DynamicHdrValidationSamples\`.
+- Limitation: these are automated metadata-preservation proofs. Playback-device
+  Dolby Vision/HDR10+ indicator checks and broader untested profile/source
+  combinations remain future real-media validation gates for those cases.
+
 ## Revalidation rule
 
 Rerun representative real-media validation whenever FFmpeg command generation,
