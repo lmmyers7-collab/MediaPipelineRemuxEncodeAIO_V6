@@ -165,6 +165,11 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedFilterScopeEvidence",
               "completedFilterScopeAction",
               "completedFilterScopeDetailLines",
+              "renderCompletedRouteAgreement",
+              "completedRouteAgreementRows",
+              "completedRouteAgreementStatus",
+              "completedRouteAgreementSummaryLines",
+              "completedRouteAgreementDetailLines",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -271,6 +276,21 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedFilterScopeDetailLines =")) {
               throw new Error("served completedView.js still contains completedFilterScopeDetailLines flat assignment");
+            }
+            if (completedViewSource.includes("window.renderCompletedRouteAgreement =")) {
+              throw new Error("served completedView.js still contains renderCompletedRouteAgreement flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRouteAgreementRows =")) {
+              throw new Error("served completedView.js still contains completedRouteAgreementRows flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRouteAgreementStatus =")) {
+              throw new Error("served completedView.js still contains completedRouteAgreementStatus flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRouteAgreementSummaryLines =")) {
+              throw new Error("served completedView.js still contains completedRouteAgreementSummaryLines flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRouteAgreementDetailLines =")) {
+              throw new Error("served completedView.js still contains completedRouteAgreementDetailLines flat assignment");
             }
 
             window.confirm = () => {

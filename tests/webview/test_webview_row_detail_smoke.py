@@ -256,7 +256,9 @@ def _node_runner_source() -> str:
         };
         context.window = context;
         context.globalThis = context;
+        const bodyElement = makeElement("body");
         context.document = {
+          body: bodyElement,
           getElementById(id) {
             if (!elements.has(id)) elements.set(id, makeElement(id));
             return elements.get(id);

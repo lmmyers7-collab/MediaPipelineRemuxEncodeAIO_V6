@@ -1453,11 +1453,6 @@
   window.completedAcceptanceSummaryLines = completedAcceptanceSummaryLines;
   window.completedAcceptanceDetailLines = completedAcceptanceDetailLines;
   window.completedCurrentFilterScope = completedCurrentFilterScope;
-  window.renderCompletedRouteAgreement = renderCompletedRouteAgreement;
-  window.completedRouteAgreementRows = completedRouteAgreementRows;
-  window.completedRouteAgreementStatus = completedRouteAgreementStatus;
-  window.completedRouteAgreementSummaryLines = completedRouteAgreementSummaryLines;
-  window.completedRouteAgreementDetailLines = completedRouteAgreementDetailLines;
   window.completedRouteAgreementPostureStatus = completedRouteAgreementPostureStatus;
   window.completedRouteAgreementRouteToken = completedRouteAgreementRouteToken;
   window.completedRouteAgreementReason = completedRouteAgreementReason;
