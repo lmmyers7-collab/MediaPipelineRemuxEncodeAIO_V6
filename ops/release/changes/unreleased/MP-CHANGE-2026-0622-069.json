@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0622-069",
+  "title": "Remove completed filter-scope helper flat aliases",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Removed the transitional flat window.completedFilterScopeEvidence, window.completedFilterScopeAction, and window.completedFilterScopeDetailLines aliases from the Completed WebView module while preserving mediaPipelineCompletedView namespace access.",
+  "reason": "Continue namespace-first WebView cleanup in the touched Completed filter-scope evidence domain without changing backend ownership, media policy, or mutation behavior.",
+  "affected_areas": [
+    "change_control",
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "completedView.js exported the filter-scope evidence/action/detail helpers through the mediaPipelineCompletedView namespace and as direct window.* compatibility aliases.",
+  "behavior_after": "The filter-scope evidence/action/detail helpers remain on mediaPipelineCompletedView only; the browser smoke verifies namespace access and rejects the removed flat assignments in the served asset.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-069.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_completed_pending_proof_smoke.py to require mediaPipelineCompletedView filter-scope helper access and fail if the served completedView.js still contains the removed flat assignments."
+  ],
+  "manual_validation": [
+    "Baseline: node --check apps/desktop/webview/static/assets/completedView.js (pass)",
+    "Baseline: npm run webview:contract:check (pass)",
+    "Baseline: apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q (pass)",
+    "Baseline: rg checks for completedFilterScopeEvidence, completedFilterScopeAction, and completedFilterScopeDetailLines found no flat consumers outside generated docs/contract data and the completedView.js assignments.",
+    "npm run webview:contract (pass; regenerated docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json)",
+    "node --check apps/desktop/webview/static/assets/completedView.js (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m py_compile tests/webview/test_webview_browser_completed_pending_proof_smoke.py (pass)",
+    "npm run webview:contract:check (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_completed_proof_selection_updates_shared_selected_row_state -q (pass)",
+    "npm run webview:prework:check (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q (pass)",
+    "rg -n \"window\\.(completedFilterScopeEvidence|completedFilterScopeAction|completedFilterScopeDetailLines)\\s*=\" apps Docs tests (only browser-smoke negative assertions remain)",
+    "rg -n \"completedFilterScopeEvidence,|completedFilterScopeAction,|completedFilterScopeDetailLines,\" apps/desktop/webview/static/assets/completedView.js tests/webview/test_webview_browser_completed_pending_proof_smoke.py (namespace object source entries remain)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check (pass: 1763 source files current, no orphan summaries)",
+    "git diff --check (pass; Git reported expected line-ending normalization warnings only)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (pass: 599 packets valid)"
+  ],
+  "rollback_plan": "Restore the three completedView.js flat aliases, regenerate the WebView public contract baseline and summaries, revert the inventory/current-state counts, and remove the smoke's namespace/negative-assertion additions for these helpers.",
+  "related_changes": [],
+  "notes": "Removed completed filter-scope helper flat aliases while preserving namespace exports.\nRequire namespace access and reject removed filter-scope helper flat assignments in served assets.\nUpdated active WebView flat-export count after helper alias cleanup.\nUpdated WebView flat-export inventory counts and removed helper aliases from completedView manifest.\nRegenerated WebView public contract after removing helper flat aliases.\nRefreshed generated summary after completedView helper alias cleanup.\nRefreshed generated summary after browser-smoke helper alias guard update.\nRefreshed generated summary after current-state flat-export count update.\nRefreshed generated summary after WebView export inventory update.\nRefreshed generated summary after public contract regeneration.\nTracked change packet metadata and validation evidence.\nSafety: WebView-only compatibility cleanup; no backend route, command journal, repair/reconcile apply, pending-publish drain, filesystem mutation, media policy, or source-media behavior changed.\nDownloads/real-media validation: not used for this slice because the touched behavior is WebView namespace compatibility only.\nPython impact: tests/docs only; no Python runtime implementation changed."
+}
