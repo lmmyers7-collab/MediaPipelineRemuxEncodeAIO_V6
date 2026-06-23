@@ -2336,7 +2336,6 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   window.renderActiveJobDetail = renderActiveJobDetail;
   window.diagnosticsLineTimestamp = diagnosticsLineTimestamp;
   window.diagnosticsLogRows = diagnosticsLogRows;
-  window.diagnosticsLogRowKey = diagnosticsLogRowKey;
   window.diagnosticsArtifactsForLine = diagnosticsArtifactsForLine;
   window.renderDiagnosticsLogActions = renderDiagnosticsLogActions;
   window.filteredDiagnosticsLogRows = filteredDiagnosticsLogRows;
