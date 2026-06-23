@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0623-008",
+  "title": "Reduce Completed review digest exports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed three transitional Completed review-digest helper flat window exports while preserving the canonical mediaPipelineCompletedView namespace functions and updating WebView contract/inventory evidence.",
+  "reason": "WebView flat-export cleanup remains an active remediation workstream. The review-digest helpers are already namespace-exposed and live callers use dependency or namespace access, so the direct aliases can be retired with static/browser guard coverage.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "completedView.js exported renderCompletedReviewDigest, completedReviewDigestStatus, and completedReviewDigestAction both on mediaPipelineCompletedView and as direct window.* aliases.",
+  "behavior_after": "The three review-digest helpers remain available through mediaPipelineCompletedView only; direct window.* compatibility assignments are removed. Completed rendering, selection, pending-publish proof, repair/reconcile controls, backend routes, media policy, and source/publish behavior are unchanged.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-008.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py now requires the three review-digest helpers through mediaPipelineCompletedView and asserts the served completedView.js source does not reintroduce their flat assignments."
+  ],
+  "manual_validation": [
+    "PASS: node --check apps\\desktop\\webview\\static\\assets\\completedView.js",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m py_compile tests\\webview\\test_webview_browser_completed_pending_proof_smoke.py",
+    "PASS: rg scan found no window.(renderCompletedReviewDigest|completedReviewDigestStatus|completedReviewDigestAction) assignments in apps\\desktop\\webview\\static, tests, or Docs",
+    "PASS: npm run webview:contract",
+    "PASS: npm run webview:contract:check",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_row_detail_smoke -q",
+    "PASS: npm run webview:prework:check",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    "PASS: git diff --check",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_script_is_bounded tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_uses_browser_without_mutation_routes -q"
+  ],
+  "rollback_plan": "Revert this change packet to restore the three direct window.* aliases, regenerate the WebView public contract baseline and summaries, and restore the prior flat export counts in Docs/CURRENT_PROJECT_STATE.md and Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.",
+  "related_changes": [],
+  "notes": "Removed Completed review-digest helper flat exports while keeping namespace access.\nGuarded namespace access and absence of removed Completed review-digest flat assignments.\nRegenerated WebView public contract after review-digest flat export removal.\nUpdated flat export totals and Completed manifest entry.\nUpdated active WebView flat export count.\nRefreshed generated summary for current-state doc update.\nRefreshed generated summary for WebView contract baseline.\nRefreshed generated summary for export inventory update.\nRefreshed generated summary for Completed view export cleanup.\nRefreshed generated summary for WebView browser smoke guard update.\nNo backend routes, source media, pending-publish drain/publish behavior, repair/reconcile routes, FFmpeg/media policy, or filesystem mutation behavior changed. No downloads or real-media validation are required for this WebView-only compatibility cleanup."
+}

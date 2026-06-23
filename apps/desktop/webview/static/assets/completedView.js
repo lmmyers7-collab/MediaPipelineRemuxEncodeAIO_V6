@@ -1415,9 +1415,6 @@
   window.completedReviewStatus = completedReviewStatus;
   window.completedReviewBoardLines = completedReviewBoardLines;
   window.completedReviewRows = completedReviewRows;
-  window.renderCompletedReviewDigest = renderCompletedReviewDigest;
-  window.completedReviewDigestStatus = completedReviewDigestStatus;
-  window.completedReviewDigestAction = completedReviewDigestAction;
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
   window.completedRealMediaProofStatus = completedRealMediaProofStatus;
   window.completedRealMediaProofSummaryLines = completedRealMediaProofSummaryLines;
