@@ -876,7 +876,6 @@
       "collectVideoDetailSettingsBuilderPatch",
       "commandHistoryCompactEvidenceLine",
       "completedPendingProofRows",
-      "completedReviewRows",
       "configValue",
       "crossPageConflictRows",
       "crossPageConflictStatus",
@@ -1244,7 +1243,6 @@
       "sampleValidationWorksheetSummaryLines",
       "saveFinalLibraryPromotionSettings",
       "selectActiveJobRow",
-      "selectCompletedFinalTrustStep",
       "selectCompletedRow",
       "selectDiagnosticsLogRow",
       "selectDiagnosticsOwnerHandoffRow",
@@ -5476,7 +5474,6 @@
       ],
       "flat_window_exports": [
         "completedPendingProofRows",
-        "completedReviewRows",
         "getLastCompletedPayload",
         "getLastCompletedPendingProofRows",
         "getLastCompletedRows",
@@ -5487,7 +5484,6 @@
         "renderCompletedPilotEvidencePacket",
         "renderCompletedRealMediaProof",
         "resetCompletedFilters",
-        "selectCompletedFinalTrustStep",
         "selectCompletedRow"
       ],
       "api_routes": [],

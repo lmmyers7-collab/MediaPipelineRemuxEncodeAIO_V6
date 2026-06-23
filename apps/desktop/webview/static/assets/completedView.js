@@ -1391,9 +1391,7 @@
   window.renderCompleted = renderCompleted;
   window.resetCompletedFilters = resetCompletedFilters;
   window.renderCompletedPendingProof = renderCompletedPendingProof;
-  window.completedReviewRows = completedReviewRows;
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
-  window.selectCompletedFinalTrustStep = selectCompletedFinalTrustStep;
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
   window.renderCompletedOutputAcceptance = renderCompletedOutputAcceptance;
   window.completedPendingProofRows = completedPendingProofRows;

@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0623-016",
+  "title": "Reduce Completed diagnostics helper exports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed two transitional flat window.* aliases for Completed diagnostics helper functions after moving Diagnostics handoff consumers to window.mediaPipelineCompletedView.",
+  "reason": "Continue namespace-first WebView cleanup in a scoped Diagnostics/Completed handoff slice while preserving intentional flat compatibility hooks still used by other page-owned consumers.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Diagnostics owner-handoff code read Completed review rows and final-trust step selection through direct window.completedReviewRows and window.selectCompletedFinalTrustStep flat aliases, while completedView.js also exposed those helpers through window.mediaPipelineCompletedView.",
+  "behavior_after": "Diagnostics owner-handoff code reads Completed review rows and final-trust step selection through window.mediaPipelineCompletedView, and completedView.js keeps those two helpers namespace-only. Remaining Completed flat aliases are unchanged for current consumers.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsView.investigation.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-016.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-016.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "tests_added": [
+    "Updated tests/python/desktop/test_application_facade_local_api.py to require Completed namespace exports and served-source absence for the removed flat aliases.",
+    "Updated tests/python/desktop/test_application_facade_web_static.py to require Diagnostics consumers to use mediaPipelineCompletedView and to reject the removed flat helper lookups."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m py_compile tests\\python\\desktop\\test_application_facade_web_static.py tests\\python\\desktop\\test_application_facade_local_api.py tests\\webview\\test_webview_browser_diagnostics_handoff_smoke.py tests\\webview\\test_webview_browser_completed_pending_proof_smoke.py (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_tables_share_accessible_selection_helpers tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_selected_rows_share_diagnostics_handoff -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_diagnostics_handoff_smoke_script_is_bounded tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_diagnostics_handoff_smoke_uses_browser_without_mutation_routes -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_diagnostics_handoff_smoke.WebViewBrowserDiagnosticsHandoffSmoke.test_real_browser_clicks_read_only_diagnostics_handoffs_for_backend_risk_rows tests.webview.test_webview_browser_diagnostics_handoff_smoke.WebViewBrowserDiagnosticsHandoffSmoke.test_real_browser_clicks_table_rows_before_read_only_diagnostics_handoffs -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q (passed)",
+    "node --check apps\\desktop\\webview\\static\\assets\\diagnosticsView.investigation.js; node --check apps\\desktop\\webview\\static\\assets\\completedView.js (passed)",
+    "npm run webview:contract (passed; regenerated docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json)",
+    "npm run webview:contract:check (passed)",
+    "npm run webview:prework:check (passed)",
+    "rg -n \"window\\.(completedReviewRows|selectCompletedFinalTrustStep)\\b\" apps tests docs --glob '!docs/generated/summaries/**' (only negative assertions and historical changelog text remain)"
+  ],
+  "rollback_plan": "Revert this change packet to restore the two direct Completed diagnostics helper window.* aliases, move Diagnostics handoff consumers back to the flat helper lookups, regenerate the WebView public contract baseline and summaries, and restore the prior flat export counts in docs/CURRENT_PROJECT_STATE.md and docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.",
+  "related_changes": [],
+  "notes": "Guard Completed helper namespace exports and absence of removed flat aliases in served asset checks.\nAssert Diagnostics uses Completed namespace helpers instead of removed flat aliases.\nMoved Diagnostics Completed review/final-trust lookups to the Completed namespace.\nRemoved two transitional Completed diagnostics helper flat aliases.\nUpdated active WebView flat-export total after Diagnostics helper cleanup.\nUpdated WebView global export inventory counts and Completed manifest after Diagnostics helper cleanup.\nRegenerated WebView public contract baseline after alias removal.\nRefreshed summary after current-state flat-export count update.\nRefreshed summary after WebView contract baseline regeneration.\nRefreshed summary after WebView global export inventory update.\nRefreshed summary after Completed flat alias cleanup.\nRefreshed summary after Diagnostics namespace consumer update.\nRefreshed summary after local API served-asset assertion update.\nRefreshed summary after WebView static assertion update.\nNo source media, backend mutation routes, pending-publish drain/publish behavior, repair/reconcile routes, FFmpeg/media policy, encoder behavior, or dispatcher behavior changed. No downloads or real-media validation are required for this WebView-only compatibility cleanup.\nA broad non-slice run of tests.python.desktop.test_tauri_shell_scaffold failed on unrelated route inventory and Network browser-smoke text expectations; the scoped Diagnostics handoff Tauri scaffold checks passed.\nGenerated summary for the completed change packet.\nRegenerated project index after adding the change packet summary."
+}

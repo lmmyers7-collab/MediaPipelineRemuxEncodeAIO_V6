@@ -40,7 +40,8 @@
   function diagnosticsPageReviewRows(name, payload) {
     const rows = diagnosticsSafeRows(payload);
     if (name === "queue" && typeof window.queueReviewRows === "function") return window.queueReviewRows(payload || {}, rows);
-    if (name === "completed" && typeof window.completedReviewRows === "function") return window.completedReviewRows(payload || {}, rows);
+    const completedView = window.mediaPipelineCompletedView || {};
+    if (name === "completed" && typeof completedView.completedReviewRows === "function") return completedView.completedReviewRows(payload || {}, rows);
     if (name === "pending" && typeof window.pendingReviewRows === "function") return window.pendingReviewRows(payload || {}, rows);
     return [];
   }
@@ -318,7 +319,7 @@
         owner: "Completed",
         payload: context.completed || {},
         rows: diagnosticsSafeRows(context.completed),
-        getter: window.completedReviewRows,
+        getter: window.mediaPipelineCompletedView?.completedReviewRows,
       },
       {
         owner: "Pending Publish",
@@ -498,10 +499,11 @@
     }
     window.showPage(pageId);
     selectOwnerRow(item.row || null);
+    const completedView = window.mediaPipelineCompletedView || {};
     const completedFinalTrustSelected = item.owner === "Completed"
       && item.completedFinalTrust?.step
-      && typeof window.selectCompletedFinalTrustStep === "function"
-      ? window.selectCompletedFinalTrustStep(item.completedFinalTrust.step)
+      && typeof completedView.selectCompletedFinalTrustStep === "function"
+      ? completedView.selectCompletedFinalTrustStep(item.completedFinalTrust.step)
       : false;
     const completedFinalTrustSuffix = item.owner === "Completed" && item.completedFinalTrust?.step
       ? completedFinalTrustSelected
