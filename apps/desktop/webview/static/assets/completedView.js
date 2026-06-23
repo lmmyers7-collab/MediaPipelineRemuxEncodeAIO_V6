@@ -1459,11 +1459,6 @@
   window.completedPendingProofIsFinalPlacementReviewSignal = completedPendingProofIsFinalPlacementReviewSignal;
   window.completedPendingProofEvidenceText = completedPendingProofEvidenceText;
   window.completedPendingProofDetailLines = completedPendingProofDetailLines;
-  window.renderPublishReconciliation = renderPublishReconciliation;
-  window.publishReconciliationRows = publishReconciliationRows;
-  window.publishReconciliationDetailLines = publishReconciliationDetailLines;
-  window.publishReconciliationRowKey = publishReconciliationRowKey;
-  window.selectPublishReconciliationRow = selectPublishReconciliationRow;
   window.completedProofRowMissingOutput = completedProofRowMissingOutput;
   window.completedRowReviewChecklistLines = completedRowReviewChecklistLines;
   window.completedRowIssueDigestLines = completedRowIssueDigestLines;

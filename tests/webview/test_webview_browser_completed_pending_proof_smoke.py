@@ -128,10 +128,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedFinalTrustRows",
               "completedFinalTrustDetailLines",
               "requestPublishReconciliation",
-              "renderPublishReconciliation",
-              "selectPublishReconciliationRow",
-              "publishReconciliationRows",
-              "publishReconciliationDetailLines",
               "selectPendingRow",
               "pendingSelectedCompletedCorrelationRows",
               "pendingSelectedCompletedCorrelationLines",
@@ -179,6 +175,11 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofRowKey",
               "renderCompletedPendingProofDetail",
               "selectCompletedPendingProofRow",
+              "renderPublishReconciliation",
+              "publishReconciliationRows",
+              "publishReconciliationDetailLines",
+              "publishReconciliationRowKey",
+              "selectPublishReconciliationRow",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -215,7 +216,12 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofNextAction",
               "completedPendingProofRowKey",
               "renderCompletedPendingProofDetail",
-              "selectCompletedPendingProofRow"
+              "selectCompletedPendingProofRow",
+              "renderPublishReconciliation",
+              "publishReconciliationRows",
+              "publishReconciliationDetailLines",
+              "publishReconciliationRowKey",
+              "selectPublishReconciliationRow"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
                 throw new Error("served completedView.js still contains " + name + " flat assignment");
@@ -790,7 +796,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               if (staleBackendRow && staleBackendRow.dataset.status !== "stale") {
                 throw new Error("stale reconciliation rows should be visibly marked stale");
               }
-              window.renderPublishReconciliation({ status: "error", rows: [], summary_lines: ["Backend publish reconciliation failed: smoke error"] });
+              window.mediaPipelineCompletedView.renderPublishReconciliation({ status: "error", rows: [], summary_lines: ["Backend publish reconciliation failed: smoke error"] });
               requireText("publish-reconciliation-status", ["Error"]);
               requireText("publish-reconciliation-summary", ["smoke error"]);
               requireText("publish-reconciliation-rows", ["Backend reconciliation failed."]);
