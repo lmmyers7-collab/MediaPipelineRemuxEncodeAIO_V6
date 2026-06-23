@@ -1497,7 +1497,6 @@
   window.completedFocusedInvestigationLabels = completedFocusedInvestigationLabels;
   window.completedInvestigationSignalLines = completedInvestigationSignalLines;
   window.completedRealMediaTraceLines = completedRealMediaTraceLines;
-  window.completedRowTrustSummaryLines = completedRowTrustSummaryLines;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
