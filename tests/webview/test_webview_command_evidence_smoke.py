@@ -389,7 +389,7 @@ def _node_runner_source() -> str:
           operator_trust_state: "ready",
         }];
         context.getLastQueuePayload = () => ({ produced_at: "2026-05-14T12:00:00-04:00", source: "queue_snapshot.json" });
-        context.getLastCompletedRows = () => [{
+        context.mediaPipelineCompletedView.getLastCompletedRows = () => [{
           row_key: completedRowKey,
           lookup_title: "Serial Experiments Lain - S02E01 - Weird",
           output_path: completedRowKey,
@@ -398,7 +398,7 @@ def _node_runner_source() -> str:
           output_exists: false,
           output_health: "missing output",
         }];
-        context.getLastCompletedPayload = () => ({ source: "completed_jobs.jsonl", count: 1 });
+        context.mediaPipelineCompletedView.getLastCompletedPayload = () => ({ source: "completed_jobs.jsonl", count: 1 });
         context.getLastPendingPublishPayload = () => ({
           pending_root: "PendingServerPush",
           rows: [{

@@ -619,9 +619,9 @@
     if (
       typeof completedView.completedPendingProofRows === "function"
       && typeof completedView.getLastCompletedPayload === "function"
-      && typeof window.getLastCompletedRows === "function"
+      && typeof completedView.getLastCompletedRows === "function"
     ) {
-      return completedView.completedPendingProofRows(completedView.getLastCompletedPayload(), window.getLastCompletedRows(), pending || {});
+      return completedView.completedPendingProofRows(completedView.getLastCompletedPayload(), completedView.getLastCompletedRows(), pending || {});
     }
     return [];
   }

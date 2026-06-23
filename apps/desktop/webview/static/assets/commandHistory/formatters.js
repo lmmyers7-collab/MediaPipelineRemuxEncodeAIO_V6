@@ -424,10 +424,10 @@
     if (
       typeof completedView.completedPendingProofRows === "function"
       && typeof completedView.getLastCompletedPayload === "function"
-      && typeof getLastCompletedRows === "function"
+      && typeof completedView.getLastCompletedRows === "function"
     ) {
       const completed = completedView.getLastCompletedPayload() || {};
-      const completedRows = getLastCompletedRows() || [];
+      const completedRows = completedView.getLastCompletedRows() || [];
       const pending = typeof getLastPendingPublishPayload === "function" ? getLastPendingPublishPayload() || {} : {};
       return completedView.completedPendingProofRows(completed, completedRows, pending);
     }

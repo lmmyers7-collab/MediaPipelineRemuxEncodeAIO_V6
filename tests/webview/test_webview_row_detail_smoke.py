@@ -794,8 +794,8 @@ def _node_runner_source() -> str:
           output_file: unicodeLeaf,
           operator_trust_state: "review",
         };
-        const originalGetLastCompletedRows = context.getLastCompletedRows;
-        context.getLastCompletedRows = () => [exactUnicodeCompleted, sameLeafUnicodeCompleted];
+        const originalGetLastCompletedRows = context.mediaPipelineCompletedView.getLastCompletedRows;
+        context.mediaPipelineCompletedView.getLastCompletedRows = () => [exactUnicodeCompleted, sameLeafUnicodeCompleted];
         const unicodeCorrelation = context.pendingSelectedCompletedCorrelationRows(uncPending);
         if (unicodeCorrelation.exactDestination.length !== 1) {
           throw new Error(`expected one exact UNC/Unicode destination match, got ${unicodeCorrelation.exactDestination.length}`);
@@ -819,7 +819,7 @@ def _node_runner_source() -> str:
             throw new Error(`UNC/Unicode pending correlation missing ${fragment}\nActual:\n${unicodeCorrelationLines}`);
           }
         }
-        if (originalGetLastCompletedRows) context.getLastCompletedRows = originalGetLastCompletedRows;
+        if (originalGetLastCompletedRows) context.mediaPipelineCompletedView.getLastCompletedRows = originalGetLastCompletedRows;
 
         const unicodeProofRows = context.completedPendingProofRows(
           { rows: [exactUnicodeCompleted, sameLeafUnicodeCompleted] },

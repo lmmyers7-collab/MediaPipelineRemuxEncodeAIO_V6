@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: a6b0d29fbd1db87d4902047ba02a0599cefb72fd5db3eab8c427058ef13385f2
+sha256: 84b29d6b8db8311db0e5deaa07d91aec06f31fd1d2a47e3f0c0653dc6fcdb4cf
 ---
 # `apps/desktop/webview/static/assets/commandHistory/formatters.js`
 

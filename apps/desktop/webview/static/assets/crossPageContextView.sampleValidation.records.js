@@ -501,7 +501,7 @@
       const completed = context.completed || (typeof completedView.getLastCompletedPayload === "function" ? completedView.getLastCompletedPayload() : {});
       const rows = Array.isArray(completed?.rows)
         ? completed.rows
-        : typeof window.getLastCompletedRows === "function" ? window.getLastCompletedRows() : [];
+        : typeof completedView.getLastCompletedRows === "function" ? completedView.getLastCompletedRows() : [];
       const proofRows = typeof completedView.getLastCompletedPendingProofRows === "function" ? completedView.getLastCompletedPendingProofRows() : [];
       const pending = context.pending || (typeof window.getLastPendingPublishPayload === "function" ? window.getLastPendingPublishPayload() : {});
       return completedView.completedPilotEvidencePacketRows(completed || {}, rows || [], proofRows || [], pending || {});

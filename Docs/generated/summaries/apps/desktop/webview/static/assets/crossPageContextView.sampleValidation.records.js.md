@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: c04a11ccce46c70cf24616793129926aba7c36e7f8b993bb08bdeca3ae2feb9d
+sha256: a52d06c7967554cae241e081a47aa8377c1b317e60ce08d0d635dd5760330a55
 ---
 # `apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js`
 

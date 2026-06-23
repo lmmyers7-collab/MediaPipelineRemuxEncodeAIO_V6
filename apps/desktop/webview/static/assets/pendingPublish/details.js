@@ -295,8 +295,9 @@ function pendingCompletedCorrelationCompletedRowLabel(row) {
   }
 
 function pendingCompletedCorrelationLoadedRows() {
-    if (typeof window.getLastCompletedRows === "function") {
-      const rows = window.getLastCompletedRows();
+    const completedView = window.mediaPipelineCompletedView || {};
+    if (typeof completedView.getLastCompletedRows === "function") {
+      const rows = completedView.getLastCompletedRows();
       return Array.isArray(rows) ? rows : [];
     }
     return [];

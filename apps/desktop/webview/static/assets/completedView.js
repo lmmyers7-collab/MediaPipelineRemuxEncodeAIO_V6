@@ -1390,5 +1390,4 @@
   initCompletedRepairEvents();
   window.renderCompleted = renderCompleted;
   window.selectCompletedRow = selectCompletedRow;
-  window.getLastCompletedRows = getLastCompletedRows;
 })();

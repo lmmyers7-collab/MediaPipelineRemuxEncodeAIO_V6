@@ -935,7 +935,6 @@
       "filteredDiagnosticsLogRows",
       "formatStatusCounts",
       "getCommandHistory",
-      "getLastCompletedRows",
       "getLastDiagnosticsLogRows",
       "getLastPendingPublishPayload",
       "getLastQueuePayload",
@@ -5464,7 +5463,6 @@
         "mediaPipelineCompletedView"
       ],
       "flat_window_exports": [
-        "getLastCompletedRows",
         "renderCompleted",
         "selectCompletedRow"
       ],

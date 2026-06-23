@@ -839,9 +839,9 @@
       ]);
     }
 
-    if (owner === "Completed" && typeof getLastCompletedRows === "function") {
-      const rows = getLastCompletedRows();
-      const completedView = window.mediaPipelineCompletedView || {};
+    const completedView = window.mediaPipelineCompletedView || {};
+    if (owner === "Completed" && typeof completedView.getLastCompletedRows === "function") {
+      const rows = completedView.getLastCompletedRows();
       const payload = typeof completedView.getLastCompletedPayload === "function" ? completedView.getLastCompletedPayload() : {};
       const matches = commandHistoryMatchingRows(candidates, rows, ["row_key", "source_path", "output_path", "sidecar_path", "output_file", "lookup_title"]);
       return finish(true, `Completed cached rows: ${rows.length}; manifest=${payload?.source || "loaded/unknown"}; row-key/path match=${matches.length ? "yes" : "no"}.`, matches, [

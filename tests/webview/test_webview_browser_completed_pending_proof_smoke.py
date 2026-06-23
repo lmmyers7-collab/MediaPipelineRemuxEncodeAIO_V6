@@ -356,6 +356,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofDetailLines",
               "completedPendingProofRows",
               "getSelectedCompletedRow",
+              "getLastCompletedRows",
               "getLastCompletedPendingProofRows",
               "getLastCompletedPayload",
               "renderCompletedPendingProof",
