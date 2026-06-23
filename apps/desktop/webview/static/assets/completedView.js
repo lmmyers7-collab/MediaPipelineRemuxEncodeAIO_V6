@@ -1493,7 +1493,6 @@
   window.completedSelectedAtAGlanceStatus = completedSelectedAtAGlanceStatus;
   window.completedSelectedAtAGlanceLines = completedSelectedAtAGlanceLines;
   window.renderCompletedSelectedAtAGlance = renderCompletedSelectedAtAGlance;
-  window.completedFilterVisibilityLines = completedFilterVisibilityLines;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
