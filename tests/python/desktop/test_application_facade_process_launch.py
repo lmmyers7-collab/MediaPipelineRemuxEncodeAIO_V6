@@ -1517,6 +1517,94 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
             ["copy", "cpu", "libaom"],
         )
 
+    def test_launch_preflight_surfaces_hardware_runtime_proof_gaps(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v1",
+                        "generated_at": "2026-06-23T12:30:00Z",
+                        "video_codec": "hevc_nvenc",
+                        "encoder_backend": "auto",
+                        "selection": {"resolved": True, "reason": "resolved primary descriptor 'hevc/nvenc'", "family": "hevc"},
+                        "encoders": [
+                            {
+                                "encoder_name": "hevc_nvenc",
+                                "probe_encoder_name": "hevc_nvenc",
+                                "family": "hevc",
+                                "backend": "nvenc",
+                                "roles": ["primary"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "primary",
+                                        "active": True,
+                                        "descriptor_encoder": "hevc_nvenc",
+                                        "active_descriptor_encoder": "hevc_nvenc",
+                                        "reason": "descriptor-owned flags are active for primary attempt",
+                                    }
+                                ],
+                                "available": False,
+                                "probed": False,
+                                "runtime_probe_skipped": True,
+                                "encoder_list_match": True,
+                                "runtime_ok": False,
+                                "reason": "runtime probe skipped for hardware descriptor",
+                            },
+                            {
+                                "encoder_name": "libx265",
+                                "probe_encoder_name": "libx265",
+                                "family": "hevc",
+                                "backend": "cpu",
+                                "roles": ["cpu_fallback"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "cpu_fallback",
+                                        "active": True,
+                                        "descriptor_encoder": "libx265",
+                                        "active_descriptor_encoder": "libx265",
+                                        "reason": "descriptor-owned flags are active for cpu_fallback attempt",
+                                    }
+                                ],
+                                "available": True,
+                                "probed": True,
+                                "runtime_probe_skipped": False,
+                                "encoder_list_match": True,
+                                "runtime_ok": True,
+                                "reason": "encoder 'libx265' probe succeeded",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.config_data = {"NetworkRole": "standalone"}
+
+            preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        rows = {row["key"]: row for row in preflight["checks"]}
+        report = rows["encoder_capability_report"]
+        self.assertTrue(preflight["can_request_start"])
+        self.assertEqual(report["status"], "review")
+        self.assertIn("hardware_runtime_skipped_count=1", report["evidence"])
+        self.assertIn("active_hardware_unverified_count=1", report["evidence"])
+        self.assertEqual(report["detail"][0]["hardware_runtime_verified_encoders"], [])
+        self.assertEqual(report["detail"][0]["hardware_runtime_skipped_encoders"], ["hevc_nvenc"])
+        self.assertEqual(report["detail"][0]["active_hardware_runtime_unverified_encoders"], ["hevc_nvenc"])
+        self.assertIn("Active hardware descriptor rows lack runtime proof", "\n".join(report["detail"][0]["errors"]))
+        self.assertEqual(
+            report["detail"][0]["encoding_capability_facts"]["supported_encoder_backends"],
+            ["copy", "cpu", "x265"],
+        )
+
     def test_audit_preflight_skips_unc_library_root_exists_check(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

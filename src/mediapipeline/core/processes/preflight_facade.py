@@ -267,6 +267,11 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
     active = [str(item) for item in report.get("active_encoders", []) if str(item)]
     inactive_available = [str(item) for item in report.get("available_inactive_encoders", []) if str(item)]
     activation_unknown = [str(item) for item in report.get("activation_unknown_encoders", []) if str(item)]
+    hardware_runtime_verified = [str(item) for item in report.get("hardware_runtime_verified_encoders", []) if str(item)]
+    hardware_runtime_skipped = [str(item) for item in report.get("hardware_runtime_skipped_encoders", []) if str(item)]
+    active_hardware_unverified = [
+        str(item) for item in report.get("active_hardware_runtime_unverified_encoders", []) if str(item)
+    ]
     evidence = (
         f"status={report.get('operator_status') or 'Unknown'}; "
         f"source_path={report.get('source_path') or '(unavailable)'}; "
@@ -278,6 +283,9 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
         f"active_count={len(active)}; "
         f"inactive_available_count={len(inactive_available)}; "
         f"activation_unknown_count={len(activation_unknown)}; "
+        f"hardware_runtime_verified_count={len(hardware_runtime_verified)}; "
+        f"hardware_runtime_skipped_count={len(hardware_runtime_skipped)}; "
+        f"active_hardware_unverified_count={len(active_hardware_unverified)}; "
         f"read_only={'yes' if report.get('read_only') else 'no'}"
     )
     return _preflight_check(
@@ -306,6 +314,9 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
                     "active_encoders": active,
                     "available_inactive_encoders": inactive_available,
                     "activation_unknown_encoders": activation_unknown,
+                    "hardware_runtime_verified_encoders": hardware_runtime_verified,
+                    "hardware_runtime_skipped_encoders": hardware_runtime_skipped,
+                    "active_hardware_runtime_unverified_encoders": active_hardware_unverified,
                     "backend_counts": report.get("backend_counts") or {},
                     "encoding_capability_facts": report.get("encoding_capability_facts") or {},
                     "summary_lines": list(report.get("summary_lines") or []),

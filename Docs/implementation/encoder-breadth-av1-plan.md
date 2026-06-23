@@ -13,8 +13,9 @@ primary/fallback descriptor capability evidence, and the Settings wizard hardwar
 probe now threads configured-FFmpeg encoder listings into video-only
 `EncodingCapabilityFacts` plus UI backend annotations. Existing descriptor
 capability reports now also derive bounded `EncodingCapabilityFacts` from
-available descriptor rows and carry those facts through Settings workspace and
-launch preflight read-only evidence. A dormant global
+available descriptor rows, carry those facts through Settings workspace and
+launch preflight read-only evidence, and surface hardware runtime verified/skipped
+plus active-hardware-unverified lists from the same report rows. A dormant global
 `EncoderBackend` config key now round-trips through the PowerShell/Python schema
 surfaces and the WebView video detail settings builder with default `auto`, but
 it feeds only saved settings and the capability diagnostic. The Settings workspace
@@ -34,8 +35,9 @@ explicitly mark dormant AV1 selection as not yet active, but new families are no
 wired into the active `Do-Encode` ladder.
 Fallback wiring, host-hardware runtime execution, real-media HDR validation, and
 new encoder enablement remain incomplete. Launch preflight now surfaces the
-existing descriptor capability report plus derived validation facts as
-non-blocking read-only evidence.
+existing descriptor capability report plus derived validation facts and hardware
+runtime proof-gap lists as non-blocking read-only evidence without activating
+hardware families.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -516,7 +518,8 @@ changing any default encode behavior.
   annotations without removing choices. Settings workspace and launch preflight
   now surface the same existing descriptor dump as non-blocking read-only encoder
   capability evidence, including derived `EncodingCapabilityFacts` from available
-  descriptor rows for validation consumers.
+  descriptor rows plus hardware runtime verified/skipped and active-hardware-unverified
+  lists for validation consumers.
 
 ### 6.2 `EncoderBackend` key (settings schema — section 7 area, operator gate)
 
@@ -567,7 +570,9 @@ will catch most omissions:
   `/api/launch/preflight` surfaces that evidence as a non-blocking read-only
   preflight row. Descriptor dump rows now derive a bounded
   `EncodingCapabilityFacts` payload from available encoders and carry it in
-  Settings workspace plus launch preflight detail for validation consumers. UI
+  Settings workspace plus launch preflight detail for validation consumers.
+  Settings/Launch also thread hardware runtime verified/skipped and
+  active-hardware-unverified lists from those rows as review evidence. UI
   choice filtering =
   annotate unavailable encoders in `choice_help` ("not detected on this machine") —
   never remove choices (settings round-trip safety; a config written on machine A

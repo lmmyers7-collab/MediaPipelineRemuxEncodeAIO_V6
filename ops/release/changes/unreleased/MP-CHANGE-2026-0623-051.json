@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0623-051",
+  "title": "Thread hardware encoder runtime evidence into launch preflight",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Settings workspace and launch preflight now thread read-only hardware runtime proof evidence from existing encoder capability reports, including verified hardware runtime rows, skipped hardware runtime probes, and active hardware descriptor rows that still lack runtime proof.",
+  "reason": "The encoder breadth workstream requires launch preflight capability threading and fail-closed hardware evidence before dormant AV1/NVENC, QSV, or AMF families can be enabled. This slice improves operator-facing evidence without changing encoder selection or FFmpeg command generation.",
+  "affected_areas": [
+    "config",
+    "docs",
+    "generated",
+    "process",
+    "tests"
+  ],
+  "behavior_before": "Encoder capability reports could show available/active/inactive encoder counts, but launch preflight did not expose hardware runtime proof gaps directly. Active hardware descriptor rows with skipped runtime probes were only indirectly visible through unavailable/review status.",
+  "behavior_after": "Read-only Settings and launch preflight evidence include hardware_runtime_verified_encoders, hardware_runtime_skipped_encoders, and active_hardware_runtime_unverified_encoders. Active hardware descriptor rows without runtime proof add review-only error and summary evidence while capability facts continue to exclude unavailable hardware rows.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/settings_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/preflight_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_facade_settings_policy.py.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-051.json",
+    "src/mediapipeline/core/config/settings_policy.py",
+    "src/mediapipeline/core/processes/preflight_facade.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_facade_settings_policy.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_facade_settings_policy.SettingsFacadePolicyTests.test_encoder_capability_report_marks_skipped_active_hardware_runtime_as_review",
+    "tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_launch_preflight_surfaces_hardware_runtime_proof_gaps"
+  ],
+  "manual_validation": [
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_facade_settings_policy -q (passed)",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_process_launch -q (passed)",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_settings_workspace -q (passed)",
+    "ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops\\pipeline\\tests\\Unit\\Invoke-EncoderCapabilityProbeChecks.ps1 (passed)",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q (passed)",
+    "apps\\desktop\\runtime\\Python\\python.exe ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed (5 summaries written)",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m json.tool ops\\release\\changes\\unreleased\\MP-CHANGE-2026-0623-051.json (passed)",
+    "git diff --check (passed; line-ending warnings only)",
+    "apps\\desktop\\runtime\\Python\\python.exe -B ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (passed; 653 packet(s) valid)"
+  ],
+  "rollback_plan": "Revert the settings_policy.py and preflight_facade.py evidence-threading changes, remove the two focused regression tests, and restore the docs plus generated summaries to the prior encoder-breadth status. This rollback is read-only and does not require source media or runtime state mutation.",
+  "related_changes": [],
+  "notes": "Thread hardware runtime proof-gap lists from encoder capability reports into read-only Settings evidence.\nAdd regression coverage for active hardware descriptor rows whose runtime probe was skipped.\nAdd launch preflight regression coverage for hardware runtime proof-gap evidence.\nUpdate the encoder breadth workstream status with the new read-only hardware runtime evidence threading.\nKeep the encoder breadth implementation plan aligned with Settings/Launch hardware runtime proof-gap evidence.\nRefresh generated summary after current-state encoder evidence update.\nRefresh generated summary for launch preflight encoder evidence threading.\nRefresh generated summary for launch preflight regression tests.\nRefresh generated summary for settings encoder capability evidence parser.\nRefresh generated summary for settings encoder capability regression tests.\nRecord the new Settings/Launch hardware runtime proof-gap evidence while keeping hardware activation open.\nExpose hardware runtime verified/skipped and active-unverified counts/lists in launch preflight evidence."
+}

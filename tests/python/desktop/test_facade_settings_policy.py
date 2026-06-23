@@ -243,6 +243,87 @@ class SettingsFacadePolicyTests(unittest.TestCase):
             ["copy", "cpu", "libaom"],
         )
 
+    def test_encoder_capability_report_marks_skipped_active_hardware_runtime_as_review(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v1",
+                        "generated_at": "2026-06-23T12:00:00Z",
+                        "video_codec": "hevc_nvenc",
+                        "encoder_backend": "auto",
+                        "selection": {"resolved": True, "reason": "resolved primary descriptor 'hevc/nvenc'", "family": "hevc"},
+                        "encoders": [
+                            {
+                                "encoder_name": "hevc_nvenc",
+                                "probe_encoder_name": "hevc_nvenc",
+                                "family": "hevc",
+                                "backend": "nvenc",
+                                "roles": ["primary"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "primary",
+                                        "active": True,
+                                        "descriptor_encoder": "hevc_nvenc",
+                                        "active_descriptor_encoder": "hevc_nvenc",
+                                        "reason": "descriptor-owned flags are active for primary attempt",
+                                    }
+                                ],
+                                "available": False,
+                                "probed": False,
+                                "runtime_probe_skipped": True,
+                                "encoder_list_match": True,
+                                "runtime_ok": False,
+                                "reason": "runtime probe skipped for hardware descriptor",
+                            },
+                            {
+                                "encoder_name": "libx265",
+                                "probe_encoder_name": "libx265",
+                                "family": "hevc",
+                                "backend": "cpu",
+                                "roles": ["cpu_fallback"],
+                                "descriptor_flags_active": True,
+                                "activation": [
+                                    {
+                                        "role": "cpu_fallback",
+                                        "active": True,
+                                        "descriptor_encoder": "libx265",
+                                        "active_descriptor_encoder": "libx265",
+                                        "reason": "descriptor-owned flags are active for cpu_fallback attempt",
+                                    }
+                                ],
+                                "available": True,
+                                "probed": True,
+                                "runtime_probe_skipped": False,
+                                "encoder_list_match": True,
+                                "runtime_ok": True,
+                                "reason": "encoder 'libx265' probe succeeded",
+                            },
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            evidence = settings_encoder_capability_report(_resolved(root))
+
+        self.assertEqual(evidence["operator_status"], "Review")
+        self.assertEqual(evidence["operator_status_state"], "warning")
+        self.assertEqual(evidence["hardware_runtime_verified_encoders"], [])
+        self.assertEqual(evidence["hardware_runtime_skipped_encoders"], ["hevc_nvenc"])
+        self.assertEqual(evidence["active_hardware_runtime_unverified_encoders"], ["hevc_nvenc"])
+        self.assertIn("Hardware runtime probe skipped for: hevc_nvenc.", "\n".join(evidence["summary_lines"]))
+        self.assertIn("Active hardware descriptor rows lack runtime proof", "\n".join(evidence["errors"]))
+        self.assertEqual(evidence["active_encoders"], ["libx265"])
+        self.assertEqual(
+            evidence["encoding_capability_facts"]["supported_encoder_backends"],
+            ["copy", "cpu", "x265"],
+        )
+
     def test_encoder_capability_report_malformed_json_is_non_blocking_review_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

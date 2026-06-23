@@ -39,6 +39,7 @@ VOBSUB_TESSERACT_BUNDLED_CANDIDATES = (
 ENCODER_CAPABILITY_REPORT_SCHEMA = "settings_encoder_capability_report.v1"
 ENCODER_CAPABILITY_REPORT_SOURCE_SCHEMA = "mediapipeline.encoder_capabilities.v1"
 ENCODER_CAPABILITY_REPORT_MAX_BYTES = 1024 * 1024
+HARDWARE_ENCODER_BACKENDS = frozenset({"nvenc", "qsv", "amf"})
 
 
 def _command_result(**fields: Any) -> "CommandResult":
@@ -189,6 +190,9 @@ def _settings_encoder_capability_report_base(path: Path | None) -> dict[str, Any
         "active_encoders": [],
         "available_inactive_encoders": [],
         "activation_unknown_encoders": [],
+        "hardware_runtime_verified_encoders": [],
+        "hardware_runtime_skipped_encoders": [],
+        "active_hardware_runtime_unverified_encoders": [],
         "backend_counts": {},
         "encoding_capability_facts": {},
         "summary_lines": [],
@@ -223,6 +227,21 @@ def _settings_encoder_capability_report_from_payload(
         for row in rows
         if row["available"] and not row["activation_known"]
     ]
+    hardware_runtime_verified = [
+        row["encoder_name"]
+        for row in rows
+        if _settings_encoder_row_is_hardware(row) and row["runtime_ok"]
+    ]
+    hardware_runtime_skipped = [
+        row["encoder_name"]
+        for row in rows
+        if _settings_encoder_row_is_hardware(row) and row["runtime_probe_skipped"]
+    ]
+    active_hardware_runtime_unverified = [
+        row["encoder_name"]
+        for row in rows
+        if _settings_encoder_row_is_hardware(row) and row["descriptor_flags_active"] and not row["runtime_ok"]
+    ]
     activation_known = any(row["activation_known"] for row in rows)
     capability_rows = [row for row in rows if row["available"] and row["descriptor_flags_active"]] if activation_known else rows
     capability_facts = encoding_capability_facts_from_encoder_rows(capability_rows).model_dump()
@@ -236,6 +255,11 @@ def _settings_encoder_capability_report_from_payload(
         errors.append(
             "Encoder capability report did not include descriptor activation readiness for: "
             f"{', '.join(activation_unknown)}"
+        )
+    if active_hardware_runtime_unverified:
+        errors.append(
+            "Active hardware descriptor rows lack runtime proof and remain review-only: "
+            f"{', '.join(active_hardware_runtime_unverified)}"
         )
     state = "ready" if not errors and not unavailable and not inactive_available else "warning"
     status = "Ready" if state == "ready" else "Review"
@@ -252,6 +276,15 @@ def _settings_encoder_capability_report_from_payload(
         summary.append(
             "Available but not active for descriptor-owned attempts: "
             f"{', '.join(inactive_available)}."
+        )
+    if hardware_runtime_verified:
+        summary.append(f"Hardware runtime proof available for: {', '.join(hardware_runtime_verified)}.")
+    if hardware_runtime_skipped:
+        summary.append(f"Hardware runtime probe skipped for: {', '.join(hardware_runtime_skipped)}.")
+    if active_hardware_runtime_unverified:
+        summary.append(
+            "Active hardware descriptors without runtime proof: "
+            f"{', '.join(active_hardware_runtime_unverified)}."
         )
     if errors:
         summary.extend(errors)
@@ -272,6 +305,9 @@ def _settings_encoder_capability_report_from_payload(
             "active_encoders": active,
             "available_inactive_encoders": inactive_available,
             "activation_unknown_encoders": activation_unknown,
+            "hardware_runtime_verified_encoders": hardware_runtime_verified,
+            "hardware_runtime_skipped_encoders": hardware_runtime_skipped,
+            "active_hardware_runtime_unverified_encoders": active_hardware_runtime_unverified,
             "backend_counts": _settings_encoder_backend_counts(rows),
             "encoding_capability_facts": capability_facts,
             "summary_lines": summary,
@@ -338,6 +374,11 @@ def _settings_encoder_capability_row_activation(value: Any) -> list[dict[str, An
             }
         )
     return rows
+
+
+def _settings_encoder_row_is_hardware(row: dict[str, Any]) -> bool:
+    backend = str(row.get("backend") or "").strip().casefold()
+    return backend in HARDWARE_ENCODER_BACKENDS
 
 
 def _settings_encoder_backend_counts(rows: list[dict[str, Any]]) -> dict[str, dict[str, int]]:
