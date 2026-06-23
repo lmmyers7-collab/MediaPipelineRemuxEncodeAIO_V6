@@ -138,7 +138,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "pendingSelectedCompletedCorrelationLines",
               "pendingSampleValidationHandoffLines",
               "sampleValidationRecordComparisonRowsForPaths",
-              "completedSampleValidationComparisonLines",
               "completedPolicyAlignmentOutputEvidence",
               "completedPolicyOutputCategorySignal",
               "pendingSampleValidationComparisonLines"
@@ -156,6 +155,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedEvidenceCopyState",
               "copyCompletedEvidencePacket",
               "requestCompletedDiagnosticsAction",
+              "completedSampleValidationComparisonLines",
               "completedDiagnosticsActionsForRow",
               "completedDiagnosticsGuidanceLines",
               "renderCompletedDiagnosticsLinks",
@@ -208,6 +208,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedDiagnosticsActionsForRow =")) {
               throw new Error("served completedView.js still contains completedDiagnosticsActionsForRow flat assignment");
+            }
+            if (completedViewSource.includes("window.completedSampleValidationComparisonLines =")) {
+              throw new Error("served completedView.js still contains completedSampleValidationComparisonLines flat assignment");
             }
 
             window.confirm = () => {
