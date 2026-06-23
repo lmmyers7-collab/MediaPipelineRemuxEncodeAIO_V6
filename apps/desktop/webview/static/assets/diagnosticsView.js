@@ -2362,7 +2362,6 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   window.renderTdarrMatrixConsole = renderTdarrMatrixConsole;
   window.requestTdarrMatrixConsole = requestTdarrMatrixConsole;
   window.requestTdarrMatrixEvidenceOpen = requestTdarrMatrixEvidenceOpen;
-  window.requestTdarrMatrixRerun = requestTdarrMatrixRerun;
   window.initDiagnosticsViewEvents = initDiagnosticsViewEvents;
   window.requestDiagnosticsOpen = requestDiagnosticsOpen;
   window.isDiagnosticsOpenCommand = isDiagnosticsOpenCommand;
