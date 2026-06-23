@@ -7120,6 +7120,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("requestDiagnosticsOpen(target, button)", diagnostics_view_js)
         self.assertIn("Fallback for an error line with no specific artifact match.", diagnostics_view_js)
         self.assertIn("Fallback for an active-work line with no specific artifact match.", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "renderDiagnosticsTail")
+        self.assertNotIn("window.renderDiagnosticsTail = renderDiagnosticsTail", diagnostics_view_js)
         self.assertIn("Mutation guardrail: log triage is read-only", diagnostics_view_js)
         self.assertIn("window.mediaPipelineDiagnosticsTailView", diagnostics_tail_view_js)
         self.assertIn("function requestDiagnosticsTail", diagnostics_tail_view_js)

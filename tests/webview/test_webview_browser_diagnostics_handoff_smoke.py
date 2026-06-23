@@ -322,7 +322,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 [{ ok: true, target: "cluster_log", label: "Cluster Log", exists: true, is_file: true, text: "tail partial", truncated: true }, "Loaded truncated", "warning", "truncated"],
                 [{ ok: false, target: "cluster_log", label: "Cluster Log", errors: ["fixture read failed"] }, "Read error", "blocked", "read-error"],
               ].forEach(([payloadCase, expectedText, expectedState, label]) => {
-                window.renderDiagnosticsTail(payloadCase);
+                window.mediaPipelineDiagnosticsView.renderDiagnosticsTail(payloadCase);
                 checks.tailStates.push({
                   label,
                   fileLog: checkPanelStatus("diagnostics-tail-status", expectedText, expectedState, "file log " + label),
