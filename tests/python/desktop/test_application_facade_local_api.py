@@ -7009,6 +7009,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("delete window.__diagnosticsLogModule", diagnostics_view_parent_js)
         self.assertIn("delete window.__diagnosticsInvestigationModule", diagnostics_view_parent_js)
         self.assertIn("window.mediaPipelineDiagnosticsView", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "requestTdarrMatrixAudit")
+        self.assertNotIn("window.requestTdarrMatrixAudit = requestTdarrMatrixAudit", diagnostics_view_js)
         self.assertIn("function renderDiagnostics", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsTriage", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsInvestigationTrail", diagnostics_view_js)

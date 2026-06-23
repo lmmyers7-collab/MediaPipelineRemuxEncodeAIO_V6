@@ -2288,7 +2288,6 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   };
   window.renderDiagnostics = renderDiagnostics;
   window.renderDiagnosticsRefreshFailures = renderDiagnosticsRefreshFailures;
-  window.requestTdarrMatrixAudit = requestTdarrMatrixAudit;
   window.diagnosticsTextLines = diagnosticsTextLines;
   window.diagnosticsSeverityForLine = diagnosticsSeverityForLine;
   window.diagnosticsMalformedStateLines = diagnosticsMalformedStateLines;
