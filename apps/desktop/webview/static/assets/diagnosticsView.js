@@ -2356,7 +2356,6 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   window.setDiagnosticsTailBusy = setDiagnosticsTailBusy;
   window.renderDiagnosticsTail = renderDiagnosticsTail;
   window.requestDiagnosticsTail = requestDiagnosticsTail;
-  window.renderTdarrMatrixAuditFindings = renderTdarrMatrixAuditFindings;
   window.initDiagnosticsViewEvents = initDiagnosticsViewEvents;
   window.requestDiagnosticsOpen = requestDiagnosticsOpen;
   window.isDiagnosticsOpenCommand = isDiagnosticsOpenCommand;

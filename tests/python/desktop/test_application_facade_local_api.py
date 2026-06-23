@@ -7028,6 +7028,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertNotIn("window.renderTdarrMatrixRunComparison = renderTdarrMatrixRunComparison", diagnostics_view_js)
         _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "renderTdarrMatrixBucketCoverage")
         self.assertNotIn("window.renderTdarrMatrixBucketCoverage = renderTdarrMatrixBucketCoverage", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "renderTdarrMatrixAuditFindings")
+        self.assertNotIn("window.renderTdarrMatrixAuditFindings = renderTdarrMatrixAuditFindings", diagnostics_view_js)
         self.assertIn("function renderDiagnostics", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsTriage", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsInvestigationTrail", diagnostics_view_js)
