@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0623-027",
+  "title": "Restore WebView detail shortcut visibility",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Restored WebView keyboard detail shortcut visibility for Queue, Completed, and Pending Publish selected-row detail blocks by making data-visual-keep explicit and honoring it in the shared prose-box disposition classifier.",
+  "reason": "The browser-backed large-table smoke could select rows and render detail text, but the d shortcut failed because runtime prose-box disposition marked the detail target hidden, leaving it unfocusable.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Queue, Completed, and Pending Publish selected-row detail prose blocks could be populated with row evidence but then hidden by the prose-box disposition pass, so the d keyboard shortcut returned false before focus in the browser large-table smoke.",
+  "behavior_after": "The selected-row detail blocks carry data-visual-keep=\"copy-output\", the shared prose-box disposition classifier treats that marker as defended/visible, and the d shortcut can focus the populated detail targets in browser validation.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/dom/text.js",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "apps/desktop/webview/static/partials/page-pending.html",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/dom/text.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-pending.html.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-027.json",
+    "tests/python/desktop/test_application_facade_local_api.py"
+  ],
+  "tests_added": [
+    "Strengthened LocalApiServerTests.test_local_api_serves_read_only_web_prototype to assert rendered selected-row detail blocks carry data-visual-keep=\"copy-output\"."
+  ],
+  "manual_validation": [
+    "Baseline before fix: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_large_table_smoke -q failed at Queue detail shortcut with detailDisplay none.",
+    "node --check apps\\desktop\\webview\\static\\assets\\dom\\text.js passed.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_dom_helpers_smoke -q passed.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q passed.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_large_table_smoke -q passed.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_prose_box_audit -q passed.",
+    "npm run webview:prework:check passed.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed wrote 5 summaries."
+  ],
+  "rollback_plan": "Revert this packet's WebView partial, dom/text.js, rendered HTML test, generated-summary, and packet changes; rerun the large-table browser smoke to confirm the previous shortcut failure is restored only if rollback is intentional.",
+  "related_changes": [],
+  "notes": "Keep Queue selected-row detail visible and focusable for keyboard detail shortcut smoke evidence.\nKeep Completed selected-row detail visible and focusable for keyboard detail shortcut smoke evidence.\nKeep Pending Publish selected-row detail visible and focusable for keyboard detail shortcut smoke evidence.\nHonor data-visual-keep in the prose-box disposition classifier so keyboard detail targets stay focusable.\nAssert the rendered Local API WebView HTML keeps selected-row detail shortcut targets visually kept.\nRefreshed generated summary after Pending Publish detail markup update.\nRefreshed generated summary after prose classifier update.\nRefreshed generated summary after rendered WebView HTML assertion update.\nRefreshed generated summary after Queue detail markup update.\nRefreshed generated summary after Completed detail markup update."
+}

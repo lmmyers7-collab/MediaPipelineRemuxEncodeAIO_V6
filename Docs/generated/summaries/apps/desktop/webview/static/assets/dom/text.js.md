@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/dom/text.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-19
+last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 9cac89cfab1d4684140208994ae5dc43beb2e0439ffd518fbc3efa7dd5f7d88c
+sha256: 077b64b0fb7610fc82e3776fa1f1172b860144bff23a0104d5a9677d17ffb385
 ---
 # `apps/desktop/webview/static/assets/dom/text.js`
 

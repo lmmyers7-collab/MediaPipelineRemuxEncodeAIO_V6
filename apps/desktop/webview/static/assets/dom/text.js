@@ -194,6 +194,12 @@
     function classifyProseBox(node) {
       const text = proseBoxText(node);
       if (!proseBoxCandidate(node)) return { disposition: "ignored", defense: "" };
+      if (node.hasAttribute?.("data-visual-keep") || node.closest?.("[data-visual-keep]")) {
+        return {
+          disposition: "defended",
+          defense: "explicit visual-keep marker; kept visible because this detail is the keyboard-focus or copy target",
+        };
+      }
       if (node.classList?.contains("log-block")) {
         return {
           disposition: "defended",
