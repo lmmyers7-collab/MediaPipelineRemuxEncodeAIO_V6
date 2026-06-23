@@ -423,10 +423,10 @@
     if (Array.isArray(cached) && cached.length) return cached.slice();
     if (
       typeof completedPendingProofRows === "function"
-      && typeof getLastCompletedPayload === "function"
+      && typeof completedView.getLastCompletedPayload === "function"
       && typeof getLastCompletedRows === "function"
     ) {
-      const completed = getLastCompletedPayload() || {};
+      const completed = completedView.getLastCompletedPayload() || {};
       const completedRows = getLastCompletedRows() || [];
       const pending = typeof getLastPendingPublishPayload === "function" ? getLastPendingPublishPayload() || {} : {};
       return completedPendingProofRows(completed, completedRows, pending);

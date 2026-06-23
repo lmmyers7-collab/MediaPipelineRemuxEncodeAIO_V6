@@ -354,7 +354,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofEvidenceText",
               "completedPendingProofDetailLines",
               "getSelectedCompletedRow",
-              "getLastCompletedPendingProofRows"
+              "getLastCompletedPendingProofRows",
+              "getLastCompletedPayload"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
                 throw new Error("served completedView.js still contains " + name + " flat assignment");

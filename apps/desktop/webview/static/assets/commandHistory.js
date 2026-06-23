@@ -841,7 +841,8 @@
 
     if (owner === "Completed" && typeof getLastCompletedRows === "function") {
       const rows = getLastCompletedRows();
-      const payload = typeof getLastCompletedPayload === "function" ? getLastCompletedPayload() : {};
+      const completedView = window.mediaPipelineCompletedView || {};
+      const payload = typeof completedView.getLastCompletedPayload === "function" ? completedView.getLastCompletedPayload() : {};
       const matches = commandHistoryMatchingRows(candidates, rows, ["row_key", "source_path", "output_path", "sidecar_path", "output_file", "lookup_title"]);
       return finish(true, `Completed cached rows: ${rows.length}; manifest=${payload?.source || "loaded/unknown"}; row-key/path match=${matches.length ? "yes" : "no"}.`, matches, [
         "Owner action: compare Completed Manifest, Output Acceptance, and Completed/Pending proof before rerun or cleanup decisions.",

@@ -498,7 +498,7 @@
     function sampleValidationCompletedPacketRows(context = {}) {
       const completedView = completedViewNamespace();
       if (typeof completedView.completedPilotEvidencePacketRows !== "function") return [];
-      const completed = context.completed || (typeof window.getLastCompletedPayload === "function" ? window.getLastCompletedPayload() : {});
+      const completed = context.completed || (typeof completedView.getLastCompletedPayload === "function" ? completedView.getLastCompletedPayload() : {});
       const rows = Array.isArray(completed?.rows)
         ? completed.rows
         : typeof window.getLastCompletedRows === "function" ? window.getLastCompletedRows() : [];

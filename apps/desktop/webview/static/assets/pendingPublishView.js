@@ -259,21 +259,22 @@
     const completedView = window.mediaPipelineCompletedView || {};
     if (
       typeof window.renderCompletedPendingProof === "function"
-      && typeof window.getLastCompletedPayload === "function"
+      && typeof completedView.getLastCompletedPayload === "function"
       && typeof window.getLastCompletedRows === "function"
     ) {
-      window.renderCompletedPendingProof(window.getLastCompletedPayload(), window.getLastCompletedRows(), lastPendingPayload);
+      const completedPayload = completedView.getLastCompletedPayload();
+      window.renderCompletedPendingProof(completedPayload, window.getLastCompletedRows(), lastPendingPayload);
       if (typeof window.renderCompletedRealMediaProof === "function" && typeof completedView.getLastCompletedPendingProofRows === "function") {
         const completedPendingProofRows = completedView.getLastCompletedPendingProofRows();
         window.renderCompletedRealMediaProof(
-          window.getLastCompletedPayload(),
+          completedPayload,
           window.getLastCompletedRows(),
           completedPendingProofRows,
           lastPendingPayload,
         );
         if (typeof window.renderCompletedPilotEvidencePacket === "function") {
           window.renderCompletedPilotEvidencePacket(
-            window.getLastCompletedPayload(),
+            completedPayload,
             window.getLastCompletedRows(),
             completedPendingProofRows,
             lastPendingPayload,

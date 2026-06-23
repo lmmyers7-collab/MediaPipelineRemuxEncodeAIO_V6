@@ -615,12 +615,13 @@
   }
 
   function pendingDrainDecisionCompletedProofRows(pending) {
+    const completedView = window.mediaPipelineCompletedView || {};
     if (
       typeof window.completedPendingProofRows === "function"
-      && typeof window.getLastCompletedPayload === "function"
+      && typeof completedView.getLastCompletedPayload === "function"
       && typeof window.getLastCompletedRows === "function"
     ) {
-      return window.completedPendingProofRows(window.getLastCompletedPayload(), window.getLastCompletedRows(), pending || {});
+      return window.completedPendingProofRows(completedView.getLastCompletedPayload(), window.getLastCompletedRows(), pending || {});
     }
     return [];
   }
