@@ -617,11 +617,11 @@
   function pendingDrainDecisionCompletedProofRows(pending) {
     const completedView = window.mediaPipelineCompletedView || {};
     if (
-      typeof window.completedPendingProofRows === "function"
+      typeof completedView.completedPendingProofRows === "function"
       && typeof completedView.getLastCompletedPayload === "function"
       && typeof window.getLastCompletedRows === "function"
     ) {
-      return window.completedPendingProofRows(completedView.getLastCompletedPayload(), window.getLastCompletedRows(), pending || {});
+      return completedView.completedPendingProofRows(completedView.getLastCompletedPayload(), window.getLastCompletedRows(), pending || {});
     }
     return [];
   }

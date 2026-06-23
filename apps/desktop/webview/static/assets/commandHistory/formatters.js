@@ -422,14 +422,14 @@
     const cached = typeof completedView.getLastCompletedPendingProofRows === "function" ? completedView.getLastCompletedPendingProofRows() : [];
     if (Array.isArray(cached) && cached.length) return cached.slice();
     if (
-      typeof completedPendingProofRows === "function"
+      typeof completedView.completedPendingProofRows === "function"
       && typeof completedView.getLastCompletedPayload === "function"
       && typeof getLastCompletedRows === "function"
     ) {
       const completed = completedView.getLastCompletedPayload() || {};
       const completedRows = getLastCompletedRows() || [];
       const pending = typeof getLastPendingPublishPayload === "function" ? getLastPendingPublishPayload() || {} : {};
-      return completedPendingProofRows(completed, completedRows, pending);
+      return completedView.completedPendingProofRows(completed, completedRows, pending);
     }
     return [];
   }

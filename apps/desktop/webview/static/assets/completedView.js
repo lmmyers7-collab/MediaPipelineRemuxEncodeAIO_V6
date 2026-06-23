@@ -1392,7 +1392,6 @@
   window.renderCompletedPendingProof = renderCompletedPendingProof;
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
-  window.completedPendingProofRows = completedPendingProofRows;
   window.selectCompletedRow = selectCompletedRow;
   window.getLastCompletedRows = getLastCompletedRows;
 })();

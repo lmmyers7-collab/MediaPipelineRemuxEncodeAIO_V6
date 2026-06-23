@@ -875,7 +875,6 @@
       "collectSubtitleSettingsBuilderPatch",
       "collectVideoDetailSettingsBuilderPatch",
       "commandHistoryCompactEvidenceLine",
-      "completedPendingProofRows",
       "configValue",
       "crossPageConflictRows",
       "crossPageConflictStatus",
@@ -5468,7 +5467,6 @@
         "mediaPipelineCompletedView"
       ],
       "flat_window_exports": [
-        "completedPendingProofRows",
         "getLastCompletedRows",
         "renderCompleted",
         "renderCompletedPendingProof",
