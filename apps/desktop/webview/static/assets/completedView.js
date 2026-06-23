@@ -1399,7 +1399,6 @@
   window.renderCompletedValidation = renderCompletedValidation;
   window.renderCompletedWorkflow = renderCompletedWorkflow;
   window.renderCompletedReviewBoard = renderCompletedReviewBoard;
-  window.renderCompletedSizeReview = renderCompletedSizeReview;
   window.renderCompletedPendingProof = renderCompletedPendingProof;
   window.completedIntegrityStatus = completedIntegrityStatus;
   window.completedIntegrityLines = completedIntegrityLines;
@@ -1419,10 +1418,6 @@
   window.renderCompletedReviewDigest = renderCompletedReviewDigest;
   window.completedReviewDigestStatus = completedReviewDigestStatus;
   window.completedReviewDigestAction = completedReviewDigestAction;
-  window.completedSizeReviewRows = completedSizeReviewRows;
-  window.completedSizeReviewStatus = completedSizeReviewStatus;
-  window.completedSizeReviewLines = completedSizeReviewLines;
-  window.completedSizeReviewAction = completedSizeReviewAction;
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
   window.completedRealMediaProofStatus = completedRealMediaProofStatus;
   window.completedRealMediaProofSummaryLines = completedRealMediaProofSummaryLines;
