@@ -467,7 +467,6 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             }
             [
               "renderQueue", "selectQueueRow",
-              "renderCompleted",
               "renderPendingPublish", "selectPendingRow",
               "requestDiagnosticsTail", "requestDiagnosticsOpen",
               "renderDiagnosticsOwnerHandoff", "navigateDiagnosticsOwnerHandoffRow",
@@ -479,6 +478,9 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               "renderContract", "contractSafetyReviewRows", "renderContractSafetyReview",
               "getCommandHistory", "showPage"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.renderCompleted !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.renderCompleted");
+            }
             if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
               throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
             }
@@ -557,7 +559,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
 
             const completedRow = payload.completed.rows[0];
             window.showPage("completed");
-            window.renderCompleted(payload.completed);
+            window.mediaPipelineCompletedView.renderCompleted(payload.completed);
             if (payload.tableClickRows) {
               click('#completed-history-rows tr[data-row-key]', "completed history table row");
               await waitFor(

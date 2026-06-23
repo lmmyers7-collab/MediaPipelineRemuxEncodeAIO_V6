@@ -1388,5 +1388,4 @@
     setCompletedRepairBusy,
   };
   initCompletedRepairEvents();
-  window.renderCompleted = renderCompleted;
 })();

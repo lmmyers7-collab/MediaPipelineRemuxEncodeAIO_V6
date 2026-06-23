@@ -64,9 +64,11 @@ def _browser_runner_source() -> str:
             }
             [
               "renderQueue", "selectQueueRow",
-              "renderCompleted",
               "renderPendingPublish", "selectPendingRow"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.renderCompleted !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.renderCompleted");
+            }
             if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
               throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
             }
@@ -121,7 +123,7 @@ def _browser_runner_source() -> str:
               runtime_outcome_reason: "Completed manifest points at a missing file.",
               proof_summary: ["completed manifest row exists", "output file is missing", "sidecar proof is missing"],
             })];
-            window.renderCompleted(riskCompleted);
+            window.mediaPipelineCompletedView.renderCompleted(riskCompleted);
             window.mediaPipelineCompletedView.selectCompletedRow(riskCompleted.rows[0]);
             requireText("completed-detail", [
               "Row state: broken-output",
@@ -212,9 +214,11 @@ def _browser_runner_source() -> str:
             }
             [
               "renderQueue", "selectQueueRow",
-              "renderCompleted",
               "renderPendingPublish", "selectPendingRow"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.renderCompleted !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.renderCompleted");
+            }
             if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
               throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
             }
@@ -236,7 +240,7 @@ def _browser_runner_source() -> str:
             ]);
 
             const completedRow = firstRow("completed");
-            window.renderCompleted(payload.completed);
+            window.mediaPipelineCompletedView.renderCompleted(payload.completed);
             window.mediaPipelineCompletedView.selectCompletedRow(completedRow);
             requireText("completed-detail", [
               "Row state: broken-output",
@@ -312,14 +316,14 @@ def _browser_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("queue-detail") && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
+                expression: `Boolean(document.getElementById("queue-detail") && typeof window.renderQueue === "function" && typeof window.mediaPipelineCompletedView?.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("queue-detail") && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
+              expression: `Boolean(document.getElementById("queue-detail") && typeof window.renderQueue === "function" && typeof window.mediaPipelineCompletedView?.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) {

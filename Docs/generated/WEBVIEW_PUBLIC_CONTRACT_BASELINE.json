@@ -1092,7 +1092,6 @@
       "renderActiveJobDiagnosticsActions",
       "renderActiveJobRows",
       "renderAudioSettingsBuilderGuidance",
-      "renderCompleted",
       "renderCrossPageConflictBoard",
       "renderCrossPageContext",
       "renderCrossPageRealMediaWorksheet",
@@ -5461,9 +5460,7 @@
       "namespace_exports": [
         "mediaPipelineCompletedView"
       ],
-      "flat_window_exports": [
-        "renderCompleted"
-      ],
+      "flat_window_exports": [],
       "api_routes": [],
       "dom_ids_touched": [
         "completed-active-output-context",

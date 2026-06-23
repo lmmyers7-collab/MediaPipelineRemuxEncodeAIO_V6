@@ -167,6 +167,7 @@ def _node_runner_source() -> str:
         context.window = context;
         context.globalThis = context;
         context.document = {
+          body: makeElement("", "body"),
           getElementById(id) {
             if (!elements.has(id)) elements.set(id, makeElement(id));
             return elements.get(id);
@@ -316,7 +317,7 @@ def _node_runner_source() -> str:
         ]);
 
         const completedItem = rows.find((row) => row.owner === "Completed");
-        context.renderCompleted(handoffContext.completed);
+        context.mediaPipelineCompletedView.renderCompleted(handoffContext.completed);
         if (!context.navigateDiagnosticsOwnerHandoffRow(completedItem)) {
           throw new Error("expected Completed owner navigation to succeed");
         }

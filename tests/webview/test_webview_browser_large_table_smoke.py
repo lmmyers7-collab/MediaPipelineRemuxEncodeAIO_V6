@@ -208,9 +208,12 @@ def _browser_large_table_runner_source() -> str:
             function pad(index) { return String(index + 1).padStart(3, "0"); }
             [
               "renderQueue", "renderQueueRows", "selectQueueRow",
-              "renderCompleted", "renderCompletedRows", "renderCompletedInventoryProgress", "completedInventoryProgressBars",
+              "renderCompletedRows", "renderCompletedInventoryProgress", "completedInventoryProgressBars",
               "renderPendingPublish", "renderPendingRows", "selectPendingRow", "renderPendingInventoryProgress", "pendingInventoryProgressBars"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.renderCompleted !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.renderCompleted");
+            }
             if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
               throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
             }
@@ -541,7 +544,7 @@ def _browser_large_table_runner_source() -> str:
                 proof_summary: ["large payload completed row", "render cap smoke"],
               };
             });
-            window.renderCompleted({
+            window.mediaPipelineCompletedView.renderCompleted({
               ok: true,
               count: 260,
               encode_count: 130,
@@ -829,14 +832,14 @@ def _browser_large_table_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
+                expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.mediaPipelineCompletedView?.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
+              expression: `Boolean(document.readyState === "complete" && document.getElementById("queue-rows") && document.getElementById("completed-rows") && document.getElementById("pending-rows") && typeof window.mediaPipelineProgressView?.renderProgressBarsInto === "function" && typeof window.refreshAllNow === "function" && typeof window.renderQueue === "function" && typeof window.mediaPipelineCompletedView?.renderCompleted === "function" && typeof window.renderPendingPublish === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) {

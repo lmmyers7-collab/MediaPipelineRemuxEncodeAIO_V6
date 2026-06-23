@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 4cd5fc91e7d8634dc629e1529b6fab362f919e2534905e628f5fd5502a2baaca
+sha256: 1f5738f69ce8ff7e52e726919edf71bf4bfb3ec73b85a04c29307019e0281b78
 ---
 # `tests/webview/test_webview_browser_large_table_smoke.py`
 

@@ -306,7 +306,6 @@ def _node_runner_source() -> str:
         [
           "renderQueue",
           "selectQueueRow",
-          "renderCompleted",
           "selectCompletedRow",
           "renderPendingPublish",
           "selectPendingRow",
@@ -321,10 +320,13 @@ def _node_runner_source() -> str:
             throw new Error(`missing exported function ${name}; related=${related.join(",")}`);
           }
         });
+        if (typeof context.mediaPipelineCompletedView?.renderCompleted !== "function") {
+          throw new Error("missing mediaPipelineCompletedView.renderCompleted");
+        }
 
         context.renderPendingPublish(payload.pending, {});
         context.renderQueue(payload.queue);
-        context.renderCompleted(payload.completed);
+        context.mediaPipelineCompletedView.renderCompleted(payload.completed);
         context.selectQueueRow(payload.queue.rows[0]);
         context.mediaPipelineCompletedView.selectCompletedRow(payload.completed.rows[0]);
         context.selectPendingRow(payload.pending.rows[0]);
@@ -566,7 +568,7 @@ def _node_runner_source() -> str:
           count: currentDuplicateRows.length,
           rows: currentDuplicateRows,
         });
-        context.renderCompleted(duplicateCurrentPayload);
+        context.mediaPipelineCompletedView.renderCompleted(duplicateCurrentPayload);
         const currentRows = context.mediaPipelineCompletedView.completedCurrentRows(currentDuplicateRows);
         if (currentRows.length !== 1 || currentRows[0].row_key !== "current-output-newest") {
           throw new Error(`Current Output Status should keep only the newest row per output path; got ${currentRows.map((row) => row.row_key).join(",")}`);
@@ -605,7 +607,7 @@ def _node_runner_source() -> str:
             output_exists: true,
           }),
         ];
-        context.renderCompleted(Object.assign({}, payload.completed, {
+        context.mediaPipelineCompletedView.renderCompleted(Object.assign({}, payload.completed, {
           count: libraryFilterRows.length,
           rows: libraryFilterRows,
         }));
@@ -639,7 +641,7 @@ def _node_runner_source() -> str:
         ]);
         librarySelect.value = "all";
         context.mediaPipelineCompletedView.renderCompletedRows();
-        context.renderCompleted(payload.completed);
+        context.mediaPipelineCompletedView.renderCompleted(payload.completed);
         context.mediaPipelineCompletedView.selectCompletedRow(payload.completed.rows[0]);
 
         requireText("pending-detail", [
@@ -1002,7 +1004,7 @@ def _node_runner_source() -> str:
             subtitle_decision_preview: ["s:0 eng ass -> srt (plex_srt)", "s:1 jpn pgs -> drop (not_preferred)", "s:2 eng srt -> copy (external)", "s:3 und tx3g -> drop (converted)"],
             proof_summary: ["completed manifest row exists", "output file is missing", "sidecar proof is missing"],
           })];
-          context.renderCompleted(riskCompleted);
+          context.mediaPipelineCompletedView.renderCompleted(riskCompleted);
           context.mediaPipelineCompletedView.renderFinalLibraryPromotion({ enabled: false, counts: { total: 1, eligible: 0 }, items: [] });
           context.mediaPipelineCompletedView.selectCompletedRow(riskCompleted.rows[0]);
           requireText("completed-active-output-title", [String(riskCompleted.rows[0].output_file || riskCompleted.rows[0].lookup_title || "")]);
