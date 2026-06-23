@@ -1439,7 +1439,6 @@
   window.completedFinalTrustStatus = completedFinalTrustStatus;
   window.completedFinalTrustSummaryLines = completedFinalTrustSummaryLines;
   window.completedFinalTrustDetailLines = completedFinalTrustDetailLines;
-  window.completedFinalTrustPostureStatus = completedFinalTrustPostureStatus;
   window.selectCompletedFinalTrustStep = selectCompletedFinalTrustStep;
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
   window.completedPilotEvidencePacketRows = completedPilotEvidencePacketRows;

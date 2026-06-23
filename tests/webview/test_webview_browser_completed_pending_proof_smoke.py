@@ -159,6 +159,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedSelectedAtAGlanceStatus",
               "completedSelectedAtAGlanceLines",
               "renderCompletedSelectedAtAGlance",
+              "completedFinalTrustPostureStatus",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -247,6 +248,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.renderCompletedSelectedAtAGlance =")) {
               throw new Error("served completedView.js still contains renderCompletedSelectedAtAGlance flat assignment");
+            }
+            if (completedViewSource.includes("window.completedFinalTrustPostureStatus =")) {
+              throw new Error("served completedView.js still contains completedFinalTrustPostureStatus flat assignment");
             }
 
             window.confirm = () => {
