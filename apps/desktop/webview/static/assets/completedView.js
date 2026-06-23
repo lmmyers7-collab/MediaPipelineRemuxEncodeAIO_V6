@@ -1459,8 +1459,6 @@
   window.completedPendingProofIsFinalPlacementReviewSignal = completedPendingProofIsFinalPlacementReviewSignal;
   window.completedPendingProofEvidenceText = completedPendingProofEvidenceText;
   window.completedPendingProofDetailLines = completedPendingProofDetailLines;
-  window.renderCompletedPendingProofDetail = renderCompletedPendingProofDetail;
-  window.selectCompletedPendingProofRow = selectCompletedPendingProofRow;
   window.renderPublishReconciliation = renderPublishReconciliation;
   window.publishReconciliationRows = publishReconciliationRows;
   window.publishReconciliationDetailLines = publishReconciliationDetailLines;

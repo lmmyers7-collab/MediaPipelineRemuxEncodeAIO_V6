@@ -119,7 +119,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompleted",
               "renderPendingPublish",
               "renderCompletedPendingProof",
-              "selectCompletedPendingProofRow",
               "completedPendingProofRows",
               "completedPendingProofDetailLines",
               "renderCompletedRealMediaProof",
@@ -178,6 +177,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofDataStatus",
               "completedPendingProofNextAction",
               "completedPendingProofRowKey",
+              "renderCompletedPendingProofDetail",
+              "selectCompletedPendingProofRow",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -212,7 +213,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofSummaryLines",
               "completedPendingProofDataStatus",
               "completedPendingProofNextAction",
-              "completedPendingProofRowKey"
+              "completedPendingProofRowKey",
+              "renderCompletedPendingProofDetail",
+              "selectCompletedPendingProofRow"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
                 throw new Error("served completedView.js still contains " + name + " flat assignment");

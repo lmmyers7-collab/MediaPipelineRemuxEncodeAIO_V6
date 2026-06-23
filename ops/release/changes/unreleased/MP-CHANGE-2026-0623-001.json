@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0623-001",
+  "title": "WebView Completed pending proof selector flat cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed two Completed pending-proof detail/selection compatibility flat exports while preserving the same helpers on window.mediaPipelineCompletedView.",
+  "reason": "Continue the namespace-first WebView cleanup in the Completed/Pending proof surface without changing backend routes, media policy, publish/drain behavior, source files, or mutation authority.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "completedView.js exported renderCompletedPendingProofDetail and selectCompletedPendingProofRow both through the mediaPipelineCompletedView namespace and as transitional flat window aliases.",
+  "behavior_after": "The two helpers remain available through window.mediaPipelineCompletedView only; the served Completed asset no longer contains the matching flat assignments. The active WebView flat-export total is 583.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/Docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/Docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-001.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_completed_pending_proof_smoke.py to require renderCompletedPendingProofDetail and selectCompletedPendingProofRow on mediaPipelineCompletedView and reject their served flat assignments."
+  ],
+  "manual_validation": [
+    "Baseline before edit: node --check apps\\desktop\\webview\\static\\assets\\completedView.js",
+    "Baseline before edit: npm run webview:contract:check",
+    "Baseline before edit: apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q",
+    "Baseline before edit: rg confirmed renderCompletedPendingProofDetail and selectCompletedPendingProofRow had no app flat consumers outside the compatibility assignment and focused smoke expectation.",
+    "npm run webview:contract",
+    "node --check apps\\desktop\\webview\\static\\assets\\completedView.js",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m py_compile tests\\webview\\test_webview_browser_completed_pending_proof_smoke.py",
+    "npm run webview:contract:check",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q",
+    "rg -n \"window\\.(renderCompletedPendingProofDetail|selectCompletedPendingProofRow)\\s*=\" apps\\desktop\\webview\\static tests Docs returned no matches.",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_row_detail_smoke -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_completed_proof_selection_updates_shared_selected_row_state -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_script_is_bounded tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_uses_browser_without_mutation_routes -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q",
+    "npm run webview:prework:check",
+    "apps\\desktop\\runtime\\Python\\python.exe ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Restore the two completedView.js flat assignments, rerun npm run webview:contract, restore the WebView flat-export counts to 585/89, refresh summaries, and rerun the same WebView static/browser checks.",
+  "related_changes": [],
+  "notes": "Regenerated WebView public contract after removing two flat aliases.\nAssert pending-proof detail/select helpers are namespace-accessible and absent as served flat assignments.\nRemoved Completed pending-proof detail/select flat compatibility aliases while preserving namespace members.\nUpdated active WebView flat export total after the Completed pending-proof detail/select cleanup.\nUpdated WebView flat export inventory for the Completed pending-proof detail/select alias reduction."
+}
