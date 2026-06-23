@@ -1227,11 +1227,8 @@
       "selectPendingRow",
       "selectQueueRow",
       "selectRowInGroup",
-      "selectedDiagnosticsTailMaxBytes",
       "setActionBusy",
       "setDiagnosticsOwnerHandoffNavStatus",
-      "setDiagnosticsTailBusy",
-      "setDiagnosticsTailStatus",
       "setDiagnosticsTailTarget",
       "setInlineActionStatus",
       "setPanelStatus",
@@ -17060,10 +17057,7 @@
         "selectActiveJobRow",
         "selectDiagnosticsLogRow",
         "selectDiagnosticsOwnerHandoffRow",
-        "selectedDiagnosticsTailMaxBytes",
         "setDiagnosticsOwnerHandoffNavStatus",
-        "setDiagnosticsTailBusy",
-        "setDiagnosticsTailStatus",
         "setDiagnosticsTailTarget"
       ],
       "api_routes": [

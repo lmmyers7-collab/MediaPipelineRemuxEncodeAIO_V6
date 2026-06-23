@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0623-041",
+  "title": "Remove Diagnostics tail helper flat exports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed three Diagnostics parent transitional flat window assignments for tail helper functions while preserving the namespace exports and regenerating WebView contract/inventory evidence.",
+  "reason": "Continue the opportunistic WebView flat-export cleanup in the already touched Diagnostics domain without changing backend authority, media policy, mutation routes, or Diagnostics runtime behavior.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "diagnosticsView.js assigned selectedDiagnosticsTailMaxBytes, setDiagnosticsTailStatus, and setDiagnosticsTailBusy onto window as transitional flat compatibility exports, even though window.mediaPipelineDiagnosticsView already exposed those helpers.",
+  "behavior_after": "diagnosticsView.js exposes selectedDiagnosticsTailMaxBytes, setDiagnosticsTailStatus, and setDiagnosticsTailBusy through window.mediaPipelineDiagnosticsView only; intentional bridge/open/tail flat hooks remain unchanged.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-041.json",
+    "tests/python/desktop/test_application_facade_local_api.py"
+  ],
+  "tests_added": [
+    "Extended tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype to assert the Diagnostics namespace exports remain present and the removed tail helper flat assignments are absent."
+  ],
+  "manual_validation": [
+    "node --check apps\\desktop\\webview\\static\\assets\\diagnosticsView.js",
+    "npm run webview:contract",
+    "npm run webview:slices",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs -q",
+    "npm run webview:contract:check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_frontend_mutation_boundary -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_diagnostics_handoff_smoke -q",
+    "npm run webview:prework:check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m json.tool ops\\release\\changes\\unreleased\\MP-CHANGE-2026-0623-041.json",
+    "git diff --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Re-add the removed Diagnostics flat assignments, regenerate the WebView contract/inventory/summaries, and remove the corresponding negative static assertions if an intentional compatibility consumer is discovered.",
+  "related_changes": [],
+  "notes": "Removed three unused Diagnostics tail helper flat window assignments while preserving namespace exports.\nPinned namespace availability and absence of the removed tail helper flat assignments.\nUpdated the WebView flat export count after the Diagnostics tail helper cleanup.\nUpdated the global export inventory count and Diagnostics export list.\nRegenerated the WebView public contract baseline after removing three flat assignments.\nRefreshed generated summary for current-state documentation.\nRefreshed generated summary for the WebView public contract baseline.\nRefreshed generated summary for the WebView global export inventory.\nRefreshed generated summary for Diagnostics WebView source.\nRefreshed generated summary for the Local API static WebView test."
+}
