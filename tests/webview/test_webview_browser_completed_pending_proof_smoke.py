@@ -155,6 +155,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedEvidenceCopyState",
               "copyCompletedEvidencePacket",
               "requestCompletedDiagnosticsAction",
+              "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
               "completedRealMediaTraceLines",
               "completedRowTrustSummaryLines",
@@ -223,6 +224,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedInvestigationSignalLines =")) {
               throw new Error("served completedView.js still contains completedInvestigationSignalLines flat assignment");
+            }
+            if (completedViewSource.includes("window.completedFocusedInvestigationLabels =")) {
+              throw new Error("served completedView.js still contains completedFocusedInvestigationLabels flat assignment");
             }
 
             window.confirm = () => {
