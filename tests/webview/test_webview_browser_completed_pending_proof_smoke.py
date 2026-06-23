@@ -154,6 +154,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedManifestIsAged",
               "renderCompletedTrustDecision",
               "renderCompletedActiveOutputContext",
+              "showSelectedCompletedRow",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -179,6 +180,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.renderCompletedActiveOutputContext =")) {
               throw new Error("served completedView.js still contains renderCompletedActiveOutputContext flat assignment");
+            }
+            if (completedViewSource.includes("window.showSelectedCompletedRow =")) {
+              throw new Error("served completedView.js still contains showSelectedCompletedRow flat assignment");
             }
 
             window.confirm = () => {
