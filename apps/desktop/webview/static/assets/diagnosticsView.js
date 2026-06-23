@@ -2349,7 +2349,6 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   window.getSelectedDiagnosticsLogRow = getSelectedDiagnosticsLogRow;
   window.renderDiagnosticsLogRows = renderDiagnosticsLogRows;
   window.renderDiagnosticsLogDetail = renderDiagnosticsLogDetail;
-  window.selectedDiagnosticsTailTarget = selectedDiagnosticsTailTarget;
   window.selectedDiagnosticsTailMaxBytes = selectedDiagnosticsTailMaxBytes;
   window.setDiagnosticsTailTarget = setDiagnosticsTailTarget;
   window.setDiagnosticsTailStatus = setDiagnosticsTailStatus;
