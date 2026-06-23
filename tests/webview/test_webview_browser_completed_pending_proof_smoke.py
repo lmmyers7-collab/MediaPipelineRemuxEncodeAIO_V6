@@ -118,7 +118,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
             [
               "renderCompleted",
               "renderPendingPublish",
-              "renderCompletedPendingProof",
               "completedPendingProofRows",
               "renderCompletedRealMediaProof",
               "completedRealMediaProofRows",
@@ -270,7 +269,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofIsExactPathSignal",
               "completedPendingProofIsFinalPlacementReviewSignal",
               "completedPendingProofEvidenceText",
-              "completedPendingProofDetailLines"
+              "completedPendingProofDetailLines",
+              "renderCompletedPendingProof"
             ].forEach((name) => requireNamespaceFunction("mediaPipelineCompletedView", name));
             const completedViewSource = await fetch("/assets/completedView.js").then((response) => response.text());
             if (completedViewSource.includes("window.completedOutputPlacement =")) {
@@ -358,6 +358,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "getSelectedCompletedRow",
               "getLastCompletedPendingProofRows",
               "getLastCompletedPayload",
+              "renderCompletedPendingProof",
               "renderCompletedRealMediaProof"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
@@ -688,7 +689,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
             posts.length = 0;
             confirmCalls = 0;
             restoreSampleValidationContext();
-            window.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
+            window.mediaPipelineCompletedView.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
             window.mediaPipelineCompletedView.renderCompletedRealMediaProof(payload.completed, payload.completed.rows, getCompletedPendingProofRows(), payload.pending);
             window.mediaPipelineCompletedView.renderCompletedFinalTrust(payload.completed, payload.completed.rows, getCompletedPendingProofRows(), payload.pending);
             const currentCompletedRows = (payload.completed.rows || []).filter((row) => row.output_exists !== false);
@@ -872,7 +873,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               if (copied !== false) throw new Error("empty evidence copy should return false");
               requireText("completed-copy-evidence-status", ["No evidence packet text is available to copy."]);
               window.renderCompleted(payload.completed);
-              window.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
+              window.mediaPipelineCompletedView.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
               return true;
             }).then(() => {
 
@@ -998,7 +999,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               }
             };
             window.renderCompleted(missingDrainedCompleted);
-            window.renderCompletedPendingProof(missingDrainedCompleted, missingDrainedCompleted.rows, missingDrainedPending);
+            window.mediaPipelineCompletedView.renderCompletedPendingProof(missingDrainedCompleted, missingDrainedCompleted.rows, missingDrainedPending);
             window.renderCompleted(missingDrainedCompleted);
             requireText("completed-pending-proof-status", ["Review final placement"]);
             requireText("completed-pending-proof-summary", [
@@ -1035,7 +1036,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
             })];
             brokenCompleted.count = 1;
             window.renderCompleted(brokenCompleted);
-            window.renderCompletedPendingProof(brokenCompleted, brokenCompleted.rows, { rows: [], count: 0 });
+            window.mediaPipelineCompletedView.renderCompletedPendingProof(brokenCompleted, brokenCompleted.rows, { rows: [], count: 0 });
             window.renderCompleted(brokenCompleted);
             const noProofPlacementLabels = (brokenCompleted.rows || []).map((row) => window.mediaPipelineCompletedView.completedOutputPlacement(row, getCompletedPendingProofRows()).label);
             if (!noProofPlacementLabels.includes("Missing: no proof")) throw new Error("expected a missing-output row with no-proof placement");
@@ -1152,14 +1153,14 @@ def _browser_completed_pending_proof_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("completed-pending-proof-detail") && document.getElementById("completed-real-media-proof-detail") && document.getElementById("completed-final-trust-detail") && document.getElementById("publish-reconciliation-detail") && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function" && typeof window.renderCompletedPendingProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedRealMediaProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedFinalTrust === "function" && typeof window.mediaPipelineCompletedView.completedRealMediaProofRows === "function" && typeof window.mediaPipelineCompletedView.completedFinalTrustRows === "function" && typeof window.mediaPipelinePendingPublishView.pendingSelectedCompletedCorrelationLines === "function" && typeof window.mediaPipelineCompletedView.requestPublishReconciliation === "function")`,
+                expression: `Boolean(document.getElementById("completed-pending-proof-detail") && document.getElementById("completed-real-media-proof-detail") && document.getElementById("completed-final-trust-detail") && document.getElementById("publish-reconciliation-detail") && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function" && typeof window.mediaPipelineCompletedView.renderCompletedPendingProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedRealMediaProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedFinalTrust === "function" && typeof window.mediaPipelineCompletedView.completedRealMediaProofRows === "function" && typeof window.mediaPipelineCompletedView.completedFinalTrustRows === "function" && typeof window.mediaPipelinePendingPublishView.pendingSelectedCompletedCorrelationLines === "function" && typeof window.mediaPipelineCompletedView.requestPublishReconciliation === "function")`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;
               await sleep(150);
             }
             const ready = await client.send("Runtime.evaluate", {
-              expression: `Boolean(document.getElementById("completed-pending-proof-detail") && document.getElementById("completed-real-media-proof-detail") && document.getElementById("completed-final-trust-detail") && document.getElementById("publish-reconciliation-detail") && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function" && typeof window.renderCompletedPendingProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedRealMediaProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedFinalTrust === "function" && typeof window.mediaPipelineCompletedView.completedRealMediaProofRows === "function" && typeof window.mediaPipelineCompletedView.completedFinalTrustRows === "function" && typeof window.mediaPipelinePendingPublishView.pendingSelectedCompletedCorrelationLines === "function" && typeof window.mediaPipelineCompletedView.requestPublishReconciliation === "function")`,
+              expression: `Boolean(document.getElementById("completed-pending-proof-detail") && document.getElementById("completed-real-media-proof-detail") && document.getElementById("completed-final-trust-detail") && document.getElementById("publish-reconciliation-detail") && typeof window.renderCompleted === "function" && typeof window.renderPendingPublish === "function" && typeof window.mediaPipelineCompletedView.renderCompletedPendingProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedRealMediaProof === "function" && typeof window.mediaPipelineCompletedView.renderCompletedFinalTrust === "function" && typeof window.mediaPipelineCompletedView.completedRealMediaProofRows === "function" && typeof window.mediaPipelineCompletedView.completedFinalTrustRows === "function" && typeof window.mediaPipelinePendingPublishView.pendingSelectedCompletedCorrelationLines === "function" && typeof window.mediaPipelineCompletedView.requestPublishReconciliation === "function")`,
               returnByValue: true,
             });
             if (ready.result?.value !== true) {

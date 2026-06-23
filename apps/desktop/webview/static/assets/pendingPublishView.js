@@ -258,24 +258,25 @@
     renderPendingRepairOrphanControls();
     const completedView = window.mediaPipelineCompletedView || {};
     if (
-      typeof window.renderCompletedPendingProof === "function"
+      typeof completedView.renderCompletedPendingProof === "function"
       && typeof completedView.getLastCompletedPayload === "function"
-      && typeof window.getLastCompletedRows === "function"
+      && typeof completedView.getLastCompletedRows === "function"
     ) {
       const completedPayload = completedView.getLastCompletedPayload();
-      window.renderCompletedPendingProof(completedPayload, window.getLastCompletedRows(), lastPendingPayload);
+      const completedRows = completedView.getLastCompletedRows();
+      completedView.renderCompletedPendingProof(completedPayload, completedRows, lastPendingPayload);
       if (typeof completedView.renderCompletedRealMediaProof === "function" && typeof completedView.getLastCompletedPendingProofRows === "function") {
         const completedPendingProofRows = completedView.getLastCompletedPendingProofRows();
         completedView.renderCompletedRealMediaProof(
           completedPayload,
-          window.getLastCompletedRows(),
+          completedRows,
           completedPendingProofRows,
           lastPendingPayload,
         );
         if (typeof completedView.renderCompletedPilotEvidencePacket === "function") {
           completedView.renderCompletedPilotEvidencePacket(
             completedPayload,
-            window.getLastCompletedRows(),
+            completedRows,
             completedPendingProofRows,
             lastPendingPayload,
           );

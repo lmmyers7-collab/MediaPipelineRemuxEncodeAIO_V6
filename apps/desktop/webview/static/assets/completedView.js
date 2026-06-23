@@ -1389,7 +1389,6 @@
   };
   initCompletedRepairEvents();
   window.renderCompleted = renderCompleted;
-  window.renderCompletedPendingProof = renderCompletedPendingProof;
   window.selectCompletedRow = selectCompletedRow;
   window.getLastCompletedRows = getLastCompletedRows;
 })();
