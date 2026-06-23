@@ -170,6 +170,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedRouteAgreementStatus",
               "completedRouteAgreementSummaryLines",
               "completedRouteAgreementDetailLines",
+              "completedRouteAgreementPostureStatus",
+              "completedRouteAgreementRouteToken",
+              "completedRouteAgreementReason",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -291,6 +294,15 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedRouteAgreementDetailLines =")) {
               throw new Error("served completedView.js still contains completedRouteAgreementDetailLines flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRouteAgreementPostureStatus =")) {
+              throw new Error("served completedView.js still contains completedRouteAgreementPostureStatus flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRouteAgreementRouteToken =")) {
+              throw new Error("served completedView.js still contains completedRouteAgreementRouteToken flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRouteAgreementReason =")) {
+              throw new Error("served completedView.js still contains completedRouteAgreementReason flat assignment");
             }
 
             window.confirm = () => {

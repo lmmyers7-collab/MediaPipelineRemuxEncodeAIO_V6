@@ -1453,9 +1453,6 @@
   window.completedAcceptanceSummaryLines = completedAcceptanceSummaryLines;
   window.completedAcceptanceDetailLines = completedAcceptanceDetailLines;
   window.completedCurrentFilterScope = completedCurrentFilterScope;
-  window.completedRouteAgreementPostureStatus = completedRouteAgreementPostureStatus;
-  window.completedRouteAgreementRouteToken = completedRouteAgreementRouteToken;
-  window.completedRouteAgreementReason = completedRouteAgreementReason;
   window.completedPendingProofRows = completedPendingProofRows;
   window.completedPendingProofStatus = completedPendingProofStatus;
   window.completedPendingProofSummaryLines = completedPendingProofSummaryLines;
