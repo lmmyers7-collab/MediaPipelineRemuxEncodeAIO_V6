@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0623-014",
+  "title": "Reduce Completed secondary helper exports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed six transitional flat window.* aliases for Completed secondary helper functions while preserving the same functions on window.mediaPipelineCompletedView.",
+  "reason": "Continue the namespace-first WebView cleanup stream with a scoped Completed-domain change that avoids aliases still used by app.js, commandHistory.js, Pending Publish, Diagnostics, or browser smokes.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Completed helpers resetCompletedHistoryFilters, renderCompletedDetail, completedReviewStatus, completedReviewBoardLines, completedPilotEvidencePacketSummaryLines, and completedCurrentFilterScope were available through both window.mediaPipelineCompletedView and direct window.* flat aliases.",
+  "behavior_after": "Those helpers remain available through window.mediaPipelineCompletedView and internal dependency injection, while their direct flat aliases are removed. Compatibility aliases that still have direct callers remain untouched.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-014.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-014.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_completed_pending_proof_smoke.py to require the removed helper names through mediaPipelineCompletedView and to assert the served Completed source no longer assigns those flat aliases."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m py_compile tests\\webview\\test_webview_browser_completed_pending_proof_smoke.py (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_script_is_bounded tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_uses_browser_without_mutation_routes -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_row_detail_smoke -q (passed)",
+    "node --check apps\\desktop\\webview\\static\\assets\\completedView.js (passed)",
+    "npm run webview:contract (passed; regenerated docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json)",
+    "npm run webview:contract:check (passed)",
+    "npm run webview:prework:check (passed)",
+    "rg -n \"window\\.(resetCompletedHistoryFilters|renderCompletedDetail|completedReviewStatus|completedReviewBoardLines|completedPilotEvidencePacketSummaryLines|completedCurrentFilterScope)\\s*=\" apps\\desktop\\webview\\static tests docs (no matches)"
+  ],
+  "rollback_plan": "Revert this change packet to restore the six direct window.* aliases, regenerate the WebView public contract baseline and summaries, and restore the prior flat export counts in docs/CURRENT_PROJECT_STATE.md and docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.",
+  "related_changes": [],
+  "notes": "Removed six Completed helper flat aliases while preserving namespace exports.\nGuarded namespace access and absence of removed Completed helper flat aliases.\nRegenerated WebView public contract baseline after removing Completed helper flat aliases.\nUpdated active WebView flat-export count after Completed helper cleanup.\nUpdated WebView global export inventory counts and Completed manifest after helper cleanup.\nRefreshed summary for current-state flat-export count update.\nRefreshed summary for regenerated WebView public contract baseline.\nRefreshed summary for updated WebView global export inventory.\nRefreshed summary for Completed WebView export cleanup.\nRefreshed summary for updated Completed/Pending browser smoke guard.\nNo source media, backend mutation routes, pending-publish drain/publish behavior, repair/reconcile routes, FFmpeg/media policy, encoder behavior, or dispatcher behavior changed. No downloads or real-media validation are required for this WebView-only compatibility cleanup.\nGenerated summary for this change packet.\nRegenerated project index after adding the change packet summary."
+}
