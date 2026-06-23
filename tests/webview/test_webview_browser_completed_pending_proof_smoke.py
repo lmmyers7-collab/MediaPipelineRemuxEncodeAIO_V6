@@ -141,7 +141,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedSampleValidationComparisonLines",
               "completedPolicyAlignmentOutputEvidence",
               "completedPolicyOutputCategorySignal",
-              "renderCompletedEvidenceCopyState",
               "pendingSampleValidationComparisonLines",
               "copyCompletedEvidencePacket"
             ].forEach(requireFunction);
@@ -155,6 +154,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedActiveOutputContext",
               "showSelectedCompletedRow",
               "markPublishReconciliationStale",
+              "renderCompletedEvidenceCopyState",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -186,6 +186,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.markPublishReconciliationStale =")) {
               throw new Error("served completedView.js still contains markPublishReconciliationStale flat assignment");
+            }
+            if (completedViewSource.includes("window.renderCompletedEvidenceCopyState =")) {
+              throw new Error("served completedView.js still contains renderCompletedEvidenceCopyState flat assignment");
             }
 
             window.confirm = () => {
