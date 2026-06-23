@@ -135,6 +135,18 @@ def _browser_sample_validation_runner_source() -> str:
               "buildSampleValidationRequest",
               "getCommandHistory",
             ].forEach(requireFunction);
+            const sampleRecordsSource = await fetch("/assets/crossPageContextView.sampleValidation.records.js").then((response) => response.text());
+            [
+              "completedPilotEvidencePacketRows",
+              "completedPilotEvidencePacketStatus",
+              "completedPilotEvidencePacketDetailLines",
+              "completedPilotEvidencePacketMarkdownLines",
+              "completedPilotEvidencePostureStatus",
+            ].forEach((name) => {
+              if (sampleRecordsSource.includes("window." + name)) {
+                throw new Error("sample validation records still read flat Completed pilot helper " + name);
+              }
+            });
 
             window.showPage("home");
             await waitFor(

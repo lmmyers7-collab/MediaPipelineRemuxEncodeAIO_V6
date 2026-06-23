@@ -491,20 +491,26 @@
       updateTableStatusLegend("sample-validation-legend", tbody, "Sample validation records");
     }
 
+    function completedViewNamespace() {
+      return window.mediaPipelineCompletedView || {};
+    }
+
     function sampleValidationCompletedPacketRows(context = {}) {
-      if (typeof window.completedPilotEvidencePacketRows !== "function") return [];
+      const completedView = completedViewNamespace();
+      if (typeof completedView.completedPilotEvidencePacketRows !== "function") return [];
       const completed = context.completed || (typeof window.getLastCompletedPayload === "function" ? window.getLastCompletedPayload() : {});
       const rows = Array.isArray(completed?.rows)
         ? completed.rows
         : typeof window.getLastCompletedRows === "function" ? window.getLastCompletedRows() : [];
       const proofRows = typeof window.getLastCompletedPendingProofRows === "function" ? window.getLastCompletedPendingProofRows() : [];
       const pending = context.pending || (typeof window.getLastPendingPublishPayload === "function" ? window.getLastPendingPublishPayload() : {});
-      return window.completedPilotEvidencePacketRows(completed || {}, rows || [], proofRows || [], pending || {});
+      return completedView.completedPilotEvidencePacketRows(completed || {}, rows || [], proofRows || [], pending || {});
     }
 
     function sampleValidationCompletedPacketPostureStatus(row) {
-      if (typeof window.completedPilotEvidencePostureStatus === "function") {
-        return window.completedPilotEvidencePostureStatus(row?.posture);
+      const completedView = completedViewNamespace();
+      if (typeof completedView.completedPilotEvidencePostureStatus === "function") {
+        return completedView.completedPilotEvidencePostureStatus(row?.posture);
       }
       const normalized = String(row?.posture || "").toLowerCase();
       if (normalized.includes("blocked")) return "blocked";
@@ -517,7 +523,8 @@
     function sampleValidationCompletedPacketStatus(context = {}) {
       const rows = sampleValidationCompletedPacketRows(context);
       if (!rows.length) return "No Completed packet";
-      if (typeof window.completedPilotEvidencePacketStatus === "function") return window.completedPilotEvidencePacketStatus(rows);
+      const completedView = completedViewNamespace();
+      if (typeof completedView.completedPilotEvidencePacketStatus === "function") return completedView.completedPilotEvidencePacketStatus(rows);
       if (rows.some((row) => sampleValidationCompletedPacketPostureStatus(row) === "blocked")) return "Packet blocked";
       if (rows.some((row) => sampleValidationCompletedPacketPostureStatus(row) === "warning")) return "Packet review";
       if (rows.some((row) => sampleValidationCompletedPacketPostureStatus(row) === "changed")) return "Manual check";
@@ -577,8 +584,9 @@
           "Mutation guardrail: this detail panel is read-only.",
         ];
       }
-      if (typeof window.completedPilotEvidencePacketDetailLines === "function") {
-        return window.completedPilotEvidencePacketDetailLines(row);
+      const completedView = completedViewNamespace();
+      if (typeof completedView.completedPilotEvidencePacketDetailLines === "function") {
+        return completedView.completedPilotEvidencePacketDetailLines(row);
       }
       return [
         "Completed evidence handoff for Sample Validation:",
@@ -592,8 +600,9 @@
 
     function sampleValidationCompletedPacketMarkdownLines(context = {}) {
       const rows = sampleValidationCompletedPacketRows(context);
-      if (typeof window.completedPilotEvidencePacketMarkdownLines === "function") {
-        return window.completedPilotEvidencePacketMarkdownLines(rows);
+      const completedView = completedViewNamespace();
+      if (typeof completedView.completedPilotEvidencePacketMarkdownLines === "function") {
+        return completedView.completedPilotEvidencePacketMarkdownLines(rows);
       }
       return [
         "# Completed Evidence Handoff For Sample Validation",

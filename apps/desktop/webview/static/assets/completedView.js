@@ -1395,11 +1395,6 @@
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
   window.selectCompletedFinalTrustStep = selectCompletedFinalTrustStep;
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
-  window.completedPilotEvidencePacketRows = completedPilotEvidencePacketRows;
-  window.completedPilotEvidencePacketStatus = completedPilotEvidencePacketStatus;
-  window.completedPilotEvidencePacketDetailLines = completedPilotEvidencePacketDetailLines;
-  window.completedPilotEvidencePacketMarkdownLines = completedPilotEvidencePacketMarkdownLines;
-  window.completedPilotEvidencePostureStatus = completedPilotEvidencePostureStatus;
   window.renderCompletedOutputAcceptance = renderCompletedOutputAcceptance;
   window.completedPendingProofRows = completedPendingProofRows;
   window.selectCompletedRow = selectCompletedRow;
