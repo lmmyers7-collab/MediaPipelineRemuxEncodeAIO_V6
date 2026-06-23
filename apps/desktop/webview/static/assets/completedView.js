@@ -1452,7 +1452,6 @@
   window.completedAcceptanceStatus = completedAcceptanceStatus;
   window.completedAcceptanceSummaryLines = completedAcceptanceSummaryLines;
   window.completedAcceptanceDetailLines = completedAcceptanceDetailLines;
-  window.completedAcceptancePostureStatus = completedAcceptancePostureStatus;
   window.completedCurrentFilterScope = completedCurrentFilterScope;
   window.completedFilterScopePosture = completedFilterScopePosture;
   window.completedFilterScopeEvidence = completedFilterScopeEvidence;

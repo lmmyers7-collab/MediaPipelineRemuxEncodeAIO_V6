@@ -876,7 +876,6 @@
       "collectVideoDetailSettingsBuilderPatch",
       "commandHistoryCompactEvidenceLine",
       "completedAcceptanceDetailLines",
-      "completedAcceptancePostureStatus",
       "completedAcceptanceRows",
       "completedAcceptanceStatus",
       "completedAcceptanceSummaryLines",
@@ -5564,7 +5563,6 @@
       ],
       "flat_window_exports": [
         "completedAcceptanceDetailLines",
-        "completedAcceptancePostureStatus",
         "completedAcceptanceRows",
         "completedAcceptanceStatus",
         "completedAcceptanceSummaryLines",

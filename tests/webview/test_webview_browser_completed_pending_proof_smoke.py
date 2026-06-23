@@ -160,6 +160,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedSelectedAtAGlanceLines",
               "renderCompletedSelectedAtAGlance",
               "completedFinalTrustPostureStatus",
+              "completedAcceptancePostureStatus",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -251,6 +252,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedFinalTrustPostureStatus =")) {
               throw new Error("served completedView.js still contains completedFinalTrustPostureStatus flat assignment");
+            }
+            if (completedViewSource.includes("window.completedAcceptancePostureStatus =")) {
+              throw new Error("served completedView.js still contains completedAcceptancePostureStatus flat assignment");
             }
 
             window.confirm = () => {
