@@ -1510,5 +1510,4 @@
   window.getLastCompletedPendingProofRows = getLastCompletedPendingProofRows;
   window.requestCompletedOpen = requestCompletedOpen;
   window.renderCompletedOpenHistory = renderCompletedOpenHistory;
-  window.copyCompletedEvidencePacket = copyCompletedEvidencePacket;
 })();
