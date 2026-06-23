@@ -1033,6 +1033,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("settingsResultStatusLabel(result, \"Preview ready\", \"Preview failed\")", settings_js)
         self.assertIn("settingsResultStatusLabel(result, \"Saved\", \"Save failed\")", settings_js)
 
+    def test_settings_patch_validation_hints_are_namespace_only_exports(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        self.assertIn("settingsPatchLocalValidationHints, settingsPatchLocalValidationHintLines,", settings_js)
+        self.assertNotIn("window.settingsPatchLocalValidationHints =", settings_js)
+        self.assertNotIn("window.settingsPatchLocalValidationHintLines =", settings_js)
+
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")

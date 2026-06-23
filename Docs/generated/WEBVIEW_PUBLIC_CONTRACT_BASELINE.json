@@ -1237,8 +1237,6 @@
       "settingsLaunchImpactStatus",
       "settingsPatchEffectiveChangedEntries",
       "settingsPatchIsTouched",
-      "settingsPatchLocalValidationHintLines",
-      "settingsPatchLocalValidationHints",
       "settingsPolicyDeltaRows",
       "settingsPolicyDeltaStatus",
       "settingsRawActionPlanDetailLines",
@@ -12471,12 +12469,12 @@
         },
         {
           "name": "saveBtn",
-          "line": 2185,
+          "line": 2184,
           "kind": "const"
         },
         {
           "name": "reloadBtn",
-          "line": 2187,
+          "line": 2186,
           "kind": "const"
         }
       ],
@@ -12547,8 +12545,6 @@
         "settingsLaunchImpactStatus",
         "settingsPatchEffectiveChangedEntries",
         "settingsPatchIsTouched",
-        "settingsPatchLocalValidationHintLines",
-        "settingsPatchLocalValidationHints",
         "settingsPolicyDeltaRows",
         "settingsPolicyDeltaStatus",
         "settingsRawActionPlanDetailLines",
