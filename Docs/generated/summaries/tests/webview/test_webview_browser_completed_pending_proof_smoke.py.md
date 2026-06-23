@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-22
 last_reviewed: 2026-06-04
-sha256: a5c3d3745dcd90419cc8bfc6c9049d6758950844d26caa21af8197ea7ce876e5
+sha256: 1d94e6c4f11f129a6f2a97cb23e0f0964c89cc069e44748e3e36ea5e8c1188a3
 ---
 # `tests/webview/test_webview_browser_completed_pending_proof_smoke.py`
 
