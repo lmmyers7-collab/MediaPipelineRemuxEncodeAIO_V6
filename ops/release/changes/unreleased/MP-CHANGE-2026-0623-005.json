@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0623-005",
+  "title": "WebView Completed pending proof flat cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Moved Completed pending-proof signal/detail helper consumers to mediaPipelineCompletedView and removed five direct window compatibility aliases.",
+  "reason": "Continue opportunistic WebView flat export cleanup while preserving Completed/Pending proof rendering and command-history read-only evidence behavior.",
+  "affected_areas": [
+    "webview",
+    "tests",
+    "docs",
+    "release"
+  ],
+  "behavior_before": "completedView.js exported completedPendingProofSignalLabel, completedPendingProofIsExactPathSignal, completedPendingProofIsFinalPlacementReviewSignal, completedPendingProofEvidenceText, and completedPendingProofDetailLines both through mediaPipelineCompletedView and as direct window.* compatibility aliases. Command-history formatters and one row-detail smoke could still rely on flat helper names.",
+  "behavior_after": "Those helpers remain available through window.mediaPipelineCompletedView only. Command-history formatting and row-detail smoke use the namespace, and the served-browser smoke rejects the removed flat assignments.",
+  "files_touched": [
+    "Docs/CURRENT_PROJECT_STATE.md",
+    "Docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "Docs/generated/summaries/Docs/CURRENT_PROJECT_STATE.md.md",
+    "Docs/generated/summaries/Docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "Docs/generated/summaries/Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/commandHistory/formatters.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "Docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_row_detail_smoke.py.md",
+    "Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "apps/desktop/webview/static/assets/commandHistory/formatters.js",
+    "apps/desktop/webview/static/assets/completedView.js",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-005.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+    "tests/webview/test_webview_row_detail_smoke.py"
+  ],
+  "tests_added": [
+    "Updated Completed/Pending proof browser smoke to require pending-proof helper access through mediaPipelineCompletedView and reject the removed flat assignments.",
+    "Updated WebView row-detail smoke to call completedPendingProofDetailLines through mediaPipelineCompletedView."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/completedView.js",
+    "node --check apps/desktop/webview/static/assets/commandHistory/formatters.js",
+    "apps/desktop/runtime/Python/python.exe -B -m py_compile tests/webview/test_webview_browser_completed_pending_proof_smoke.py tests/webview/test_webview_row_detail_smoke.py",
+    "rg -n 'window\\.(completedPendingProofSignalLabel|completedPendingProofIsExactPathSignal|completedPendingProofIsFinalPlacementReviewSignal|completedPendingProofEvidenceText|completedPendingProofDetailLines)\\s*=' apps/desktop/webview/static tests Docs (expected no matches, rg exit 1)",
+    "npm run webview:contract",
+    "npm run webview:contract:check",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_command_evidence_smoke.WebViewCommandEvidenceSmokeTests -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_row_detail_smoke -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_completed_proof_selection_updates_shared_selected_row_state -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_script_is_bounded tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_completed_pending_proof_smoke_uses_browser_without_mutation_routes -q",
+    "npm run webview:prework:check",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Restore the five removed window.completedPendingProof* assignments in completedView.js, move commandHistory/formatters.js and row-detail smoke back to flat helper access, restore the browser smoke flat-global requirements, regenerate WebView public contract and summaries, update the global export inventory/current-state count back to 572, and rerun the targeted WebView validation ladder.",
+  "related_changes": [],
+  "notes": "Flat export scanner now reports completedView.js=71 and total=567. This is WebView compatibility cleanup only: no backend route, command journal semantics, strict confirmation handling, repair/reconcile apply, pending-publish drain, filesystem mutation, encoder/media policy, source media, or runtime state mutation changed. No downloads or real-media validation were needed for this slice."
+}

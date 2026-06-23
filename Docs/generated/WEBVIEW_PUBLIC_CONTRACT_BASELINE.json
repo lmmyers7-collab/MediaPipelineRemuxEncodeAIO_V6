@@ -889,12 +889,7 @@
       "completedFinalTrustSummaryLines",
       "completedIntegrityLines",
       "completedIntegrityStatus",
-      "completedPendingProofDetailLines",
-      "completedPendingProofEvidenceText",
-      "completedPendingProofIsExactPathSignal",
-      "completedPendingProofIsFinalPlacementReviewSignal",
       "completedPendingProofRows",
-      "completedPendingProofSignalLabel",
       "completedPilotEvidencePacketDetailLines",
       "completedPilotEvidencePacketMarkdownLines",
       "completedPilotEvidencePacketRows",
@@ -2027,7 +2022,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3739
+    "top_level_declaration_count": 3740
   },
   "scripts": [
     {
@@ -3015,148 +3010,153 @@
           "kind": "function"
         },
         {
+          "name": "completedViewApi",
+          "line": 29,
+          "kind": "function"
+        },
+        {
           "name": "commandResultFeedbackLines",
-          "line": 30,
+          "line": 34,
           "kind": "function"
         },
         {
           "name": "commandResultDisplayMessage",
-          "line": 40,
+          "line": 44,
           "kind": "function"
         },
         {
           "name": "commandHistoryCommandText",
-          "line": 49,
+          "line": 53,
           "kind": "function"
         },
         {
           "name": "commandHistoryCompactEvidenceLine",
-          "line": 55,
+          "line": 59,
           "kind": "function"
         },
         {
           "name": "compactCommandHistoryEntries",
-          "line": 76,
+          "line": 80,
           "kind": "function"
         },
         {
           "name": "compactCommandHistoryBlockText",
-          "line": 83,
+          "line": 87,
           "kind": "function"
         },
         {
           "name": "renderCompactCommandHistoryBlock",
-          "line": 104,
+          "line": 108,
           "kind": "function"
         },
         {
           "name": "commandHistoryOwnerPage",
-          "line": 122,
+          "line": 126,
           "kind": "function"
         },
         {
           "name": "commandHistoryIssueLevel",
-          "line": 154,
+          "line": 158,
           "kind": "function"
         },
         {
           "name": "commandHistoryRefreshTarget",
-          "line": 165,
+          "line": 169,
           "kind": "function"
         },
         {
           "name": "commandHistoryRawData",
-          "line": 173,
+          "line": 177,
           "kind": "function"
         },
         {
           "name": "commandHistoryRequestData",
-          "line": 179,
+          "line": 183,
           "kind": "function"
         },
         {
           "name": "commandHistoryIsPendingPublishCommand",
-          "line": 187,
+          "line": 191,
           "kind": "function"
         },
         {
           "name": "commandHistoryPendingPublishCommandKind",
-          "line": 203,
+          "line": 207,
           "kind": "function"
         },
         {
           "name": "commandHistoryPendingPublishIssueLevel",
-          "line": 215,
+          "line": 219,
           "kind": "function"
         },
         {
           "name": "commandHistoryPendingPublishSuggestedAction",
-          "line": 233,
+          "line": 237,
           "kind": "function"
         },
         {
           "name": "commandHistorySuggestedAction",
-          "line": 254,
+          "line": 258,
           "kind": "function"
         },
         {
           "name": "commandHistoryOwnerCounts",
-          "line": 291,
+          "line": 295,
           "kind": "function"
         },
         {
           "name": "commandHistoryIssueEntries",
-          "line": 301,
+          "line": 305,
           "kind": "function"
         },
         {
           "name": "formatCommandCountMap",
-          "line": 309,
+          "line": 313,
           "kind": "function"
         },
         {
           "name": "commandHistoryIssueDigestLines",
-          "line": 319,
+          "line": 323,
           "kind": "function"
         },
         {
           "name": "commandHistoryPendingPublishEntries",
-          "line": 345,
+          "line": 349,
           "kind": "function"
         },
         {
           "name": "commandHistoryPendingPublishDigestLines",
-          "line": 350,
+          "line": 354,
           "kind": "function"
         },
         {
           "name": "commandHistoryFinalPlacementApplies",
-          "line": 386,
+          "line": 390,
           "kind": "function"
         },
         {
           "name": "commandHistoryFinalPlacementProofRows",
-          "line": 415,
+          "line": 419,
           "kind": "function"
         },
         {
           "name": "commandHistoryFinalPlacementConflictCounts",
-          "line": 433,
+          "line": 437,
           "kind": "function"
         },
         {
           "name": "commandHistoryFinalPlacementConflictSummary",
-          "line": 460,
+          "line": 466,
           "kind": "function"
         },
         {
           "name": "commandHistoryFinalPlacementConflictLines",
-          "line": 526,
+          "line": 532,
           "kind": "function"
         },
         {
           "name": "commandHistoryTraceLines",
-          "line": 550,
+          "line": 559,
           "kind": "function"
         }
       ],
@@ -5546,12 +5546,7 @@
         "completedFinalTrustSummaryLines",
         "completedIntegrityLines",
         "completedIntegrityStatus",
-        "completedPendingProofDetailLines",
-        "completedPendingProofEvidenceText",
-        "completedPendingProofIsExactPathSignal",
-        "completedPendingProofIsFinalPlacementReviewSignal",
         "completedPendingProofRows",
-        "completedPendingProofSignalLabel",
         "completedPilotEvidencePacketDetailLines",
         "completedPilotEvidencePacketMarkdownLines",
         "completedPilotEvidencePacketRows",

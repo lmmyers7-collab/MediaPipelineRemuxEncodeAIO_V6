@@ -120,7 +120,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderPendingPublish",
               "renderCompletedPendingProof",
               "completedPendingProofRows",
-              "completedPendingProofDetailLines",
               "renderCompletedRealMediaProof",
               "completedRealMediaProofRows",
               "completedRealMediaProofDetailLines",
@@ -197,7 +196,12 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply",
               "requestCompletedOpen",
-              "renderCompletedOpenHistory"
+              "renderCompletedOpenHistory",
+              "completedPendingProofSignalLabel",
+              "completedPendingProofIsExactPathSignal",
+              "completedPendingProofIsFinalPlacementReviewSignal",
+              "completedPendingProofEvidenceText",
+              "completedPendingProofDetailLines"
             ].forEach((name) => requireNamespaceFunction("mediaPipelineCompletedView", name));
             const completedViewSource = await fetch("/assets/completedView.js").then((response) => response.text());
             if (completedViewSource.includes("window.completedOutputPlacement =")) {
@@ -233,7 +237,12 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedRowIssueDigestLines",
               "completedSelectedQuickSignalLines",
               "requestCompletedOpen",
-              "renderCompletedOpenHistory"
+              "renderCompletedOpenHistory",
+              "completedPendingProofSignalLabel",
+              "completedPendingProofIsExactPathSignal",
+              "completedPendingProofIsFinalPlacementReviewSignal",
+              "completedPendingProofEvidenceText",
+              "completedPendingProofDetailLines"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
                 throw new Error("served completedView.js still contains " + name + " flat assignment");

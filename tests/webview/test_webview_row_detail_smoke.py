@@ -843,7 +843,7 @@ def _node_runner_source() -> str:
         if (exactSourceProofRows.length !== 1) throw new Error(`expected one exact pending source proof row, got ${exactSourceProofRows.length}`);
         if (drainOutputProofRows.length !== 1) throw new Error(`expected one exact durable drain output proof row, got ${drainOutputProofRows.length}`);
         if (duplicateLeafRows.length !== 2) throw new Error(`expected two same-leaf advisory proof rows from pending and drain evidence, got ${duplicateLeafRows.length}`);
-        const duplicateLeafDetail = context.completedPendingProofDetailLines(duplicateLeafRows[0]).join("\n");
+        const duplicateLeafDetail = context.mediaPipelineCompletedView.completedPendingProofDetailLines(duplicateLeafRows[0]).join("\n");
         for (const fragment of [
           "Signal: Same leaf review",
           "Only the filename leaf matches; full paths differ or are missing.",

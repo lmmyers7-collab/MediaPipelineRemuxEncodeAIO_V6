@@ -26,6 +26,10 @@
       .slice(0, COMMAND_RESULT_LIST_LIMIT);
   }
 
+  function completedViewApi() {
+    return window.mediaPipelineCompletedView || {};
+  }
+
 
   function commandResultFeedbackLines(result) {
     const errors = commandResultList(result?.errors);
@@ -432,6 +436,8 @@
 
   function commandHistoryFinalPlacementConflictCounts(rows) {
     const source = Array.isArray(rows) ? rows : [];
+    const completedView = completedViewApi();
+    const isFinalPlacementReviewSignal = completedView.completedPendingProofIsFinalPlacementReviewSignal;
     return source.reduce((acc, row) => {
       const signal = String(row?.signal || "");
       const status = String(row?.status || "").toLowerCase();
@@ -439,7 +445,7 @@
       if (signal === "completed-missing-output-still-pending") acc.stillPending += 1;
       if (signal === "completed-missing-output-with-drain-proof") acc.drainProof += 1;
       if (signal === "completed-missing-output-no-pending-proof") acc.noProof += 1;
-      if (typeof completedPendingProofIsFinalPlacementReviewSignal === "function" && completedPendingProofIsFinalPlacementReviewSignal(signal)) {
+      if (typeof isFinalPlacementReviewSignal === "function" && isFinalPlacementReviewSignal(signal)) {
         acc.finalPlacement += 1;
       }
       if (status === "blocked") acc.blocked += 1;
@@ -534,10 +540,13 @@
       "Mutation guardrail: this handoff is read-only and cannot drain, rerun, cleanup, delete, publish, rewrite manifests, or touch media files.",
     ];
     if (summary.rows.length) {
+      const completedView = completedViewApi();
+      const signalLabel = completedView.completedPendingProofSignalLabel;
+      const evidenceText = completedView.completedPendingProofEvidenceText;
       lines.push("Representative proof:");
       summary.rows.slice(0, 3).forEach((row) => {
-        const signal = typeof completedPendingProofSignalLabel === "function" ? completedPendingProofSignalLabel(row.signal) : row.signal || "proof";
-        const detail = typeof completedPendingProofEvidenceText === "function" ? completedPendingProofEvidenceText(row) : row.match_path || "";
+        const signal = typeof signalLabel === "function" ? signalLabel(row.signal) : row.signal || "proof";
+        const detail = typeof evidenceText === "function" ? evidenceText(row) : row.match_path || "";
         lines.push(`- ${signal}: ${boundedCommandText(detail, 220)}`);
       });
     } else {
