@@ -1310,6 +1310,7 @@
     renderDiagnosticsCommandDrilldown(commandHistory);
     const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
     const launchView = window.mediaPipelineLaunchView || {};
+    const completedView = window.mediaPipelineCompletedView || {};
     if (typeof launchHistoryView.renderLaunchCommandHistory === "function") {
       launchHistoryView.renderLaunchCommandHistory(commandHistory);
     }
@@ -1322,7 +1323,7 @@
     window.mediaPipelineSettingsCommandHistory?.renderSettingsCommandHistory?.(commandHistory);
     if (typeof renderQueueOpenHistory === "function") renderQueueOpenHistory(commandHistory);
     if (typeof renderQueueLaunchDecisionChecklist === "function") renderQueueLaunchDecisionChecklist(undefined, undefined, commandHistory);
-    if (typeof renderCompletedOpenHistory === "function") renderCompletedOpenHistory(commandHistory);
+    completedView.renderCompletedOpenHistory?.(commandHistory);
     if (typeof renderCompletedOutputAcceptance === "function") renderCompletedOutputAcceptance(undefined, undefined, undefined, commandHistory);
     if (typeof renderCompletedFinalTrust === "function") renderCompletedFinalTrust(undefined, undefined, undefined, undefined, commandHistory);
     if (typeof renderCompletedPilotEvidencePacket === "function") renderCompletedPilotEvidencePacket(undefined, undefined, undefined, undefined, commandHistory);

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/app/rowOpenActions.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-06
+last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 2c66394e5e97c92e7d86074533d01a739472c5559950c9a99257d1343f91456f
+sha256: 8016be65ede2c480153ecf35c4c24295bda90b9bff7080c270ab6e06a71eda9f
 ---
 # `apps/desktop/webview/static/assets/app/rowOpenActions.js`
 

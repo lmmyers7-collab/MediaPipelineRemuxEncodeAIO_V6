@@ -9,7 +9,7 @@
           { kind: "open", target: "sidecar", label: "Open Sidecar", hint: "Open the backend-selected sidecar file." },
           { kind: "open", target: "source_folder", label: "Open Source Folder", hint: "Open the backend-selected source folder." },
         ],
-        onOpen: (target) => window.requestCompletedOpen?.(target),
+        onOpen: (target) => window.mediaPipelineCompletedView?.requestCompletedOpen?.(target),
       },
       pending: {
         targetDataset: "openPending",

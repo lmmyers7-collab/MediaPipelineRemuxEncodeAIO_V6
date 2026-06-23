@@ -1153,7 +1153,6 @@
       "renderCompletedConsistency",
       "renderCompletedDetail",
       "renderCompletedIntegrity",
-      "renderCompletedOpenHistory",
       "renderCompletedOutputAcceptance",
       "renderCompletedPendingProof",
       "renderCompletedPilotEvidencePacket",
@@ -1239,7 +1238,6 @@
       "renderTdarrMatrixConsole",
       "renderTdarrMatrixRunComparison",
       "renderVideoDetailSettingsBuilderGuidance",
-      "requestCompletedOpen",
       "requestDiagnosticsOpen",
       "requestDiagnosticsTail",
       "requestPendingDiagnosticsAction",
@@ -3746,17 +3744,17 @@
         },
         {
           "name": "commandHistoryDiagnosticLine",
-          "line": 1366,
+          "line": 1367,
           "kind": "function"
         },
         {
           "name": "formatCommandHistoryLines",
-          "line": 1372,
+          "line": 1373,
           "kind": "function"
         },
         {
           "name": "getCommandHistory",
-          "line": 1383,
+          "line": 1384,
           "kind": "function"
         }
       ],
@@ -5595,7 +5593,6 @@
         "renderCompletedConsistency",
         "renderCompletedDetail",
         "renderCompletedIntegrity",
-        "renderCompletedOpenHistory",
         "renderCompletedOutputAcceptance",
         "renderCompletedPendingProof",
         "renderCompletedPilotEvidencePacket",
@@ -5607,7 +5604,6 @@
         "renderCompletedSizeReview",
         "renderCompletedValidation",
         "renderCompletedWorkflow",
-        "requestCompletedOpen",
         "resetCompletedFilters",
         "resetCompletedHistoryFilters",
         "selectCompletedFinalTrustStep",

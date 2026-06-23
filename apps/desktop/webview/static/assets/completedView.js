@@ -1464,6 +1464,4 @@
   window.getLastCompletedPayload = getLastCompletedPayload;
   window.getLastCompletedRows = getLastCompletedRows;
   window.getLastCompletedPendingProofRows = getLastCompletedPendingProofRows;
-  window.requestCompletedOpen = requestCompletedOpen;
-  window.renderCompletedOpenHistory = renderCompletedOpenHistory;
 })();

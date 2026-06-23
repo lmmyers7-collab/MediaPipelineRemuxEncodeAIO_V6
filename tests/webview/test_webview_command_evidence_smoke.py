@@ -428,7 +428,6 @@ def _node_runner_source() -> str:
         [
           "renderCommandHistoryPayload",
           "renderQueueOpenHistory",
-          "renderCompletedOpenHistory",
           "renderPendingDrainHistory",
           "renderDiagnosticsOpenHistory",
           "renderBackendLifecycleHistory",
@@ -447,12 +446,14 @@ def _node_runner_source() -> str:
         if (typeof context.mediaPipelineLaunchHistoryView?.renderLaunchCommandHistory !== "function") {
           throw new Error("missing launch history namespace renderer");
         }
+        if (typeof context.mediaPipelineCompletedView?.renderCompletedOpenHistory !== "function") {
+          throw new Error("missing Completed namespace open-history renderer");
+        }
 
         context.renderCommandHistoryPayload({ entries: payload.entries });
         const renderedHistory = context.getCommandHistory();
         [
           "renderQueueOpenHistory",
-          "renderCompletedOpenHistory",
           "renderPendingDrainHistory",
           "renderPendingOpenHistory",
           "renderPendingRecoveryPlanHistory",
@@ -464,6 +465,7 @@ def _node_runner_source() -> str:
         });
         context.mediaPipelineLaunchHistoryView.renderLaunchCommandHistory(renderedHistory);
         context.mediaPipelineLaunchView.renderPipelineControlHistory(renderedHistory);
+        context.mediaPipelineCompletedView.renderCompletedOpenHistory(renderedHistory);
         context.mediaPipelineSettingsCommandHistory.renderSettingsCommandHistory(renderedHistory);
         context.mediaPipelineNetworkView?.renderNetworkOpenHistory?.(renderedHistory);
         context.mediaPipelineReportsView?.renderReportOpenHistory?.(renderedHistory);
