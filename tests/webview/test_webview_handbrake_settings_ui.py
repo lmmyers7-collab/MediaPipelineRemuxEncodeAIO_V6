@@ -1040,6 +1040,19 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertNotIn("window.settingsPatchLocalValidationHints =", settings_js)
         self.assertNotIn("window.settingsPatchLocalValidationHintLines =", settings_js)
 
+    def test_settings_runtime_restart_helpers_are_namespace_only_exports(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        settings_wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
+
+        self.assertIn(
+            "settingsRuntimeRestartConfirmationLine, settingsRuntimeRestartNoticeLines, maybeShowSettingsRuntimeRestartNotice,",
+            settings_js,
+        )
+        self.assertIn("window.mediaPipelineSettingsView?.settingsRuntimeRestartConfirmationLine?.()", settings_wizard_js)
+        self.assertIn("window.mediaPipelineSettingsView.settingsRuntimeRestartNoticeLines(result)", settings_wizard_js)
+        self.assertNotIn("window.settingsRuntimeRestartConfirmationLine =", settings_js)
+        self.assertNotIn("window.settingsRuntimeRestartNoticeLines =", settings_js)
+
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")

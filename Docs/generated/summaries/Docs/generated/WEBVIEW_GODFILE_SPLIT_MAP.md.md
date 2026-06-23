@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-23
 last_reviewed: 2026-06-02
-sha256: 8d6b2c81375ed8c717cc0a692aa4e5f0b266dca74f20172c1efd5aac93131017
+sha256: 94eed7e2cd73ee912686022296b798862b1fa51fc4375ed60c22f8dc81f11d03
 ---
 # `docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md`
 

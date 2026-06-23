@@ -1247,8 +1247,6 @@
       "settingsRawTriageRows",
       "settingsRawTriageStatus",
       "settingsRawTriageSummaryLines",
-      "settingsRuntimeRestartConfirmationLine",
-      "settingsRuntimeRestartNoticeLines",
       "settingsSafetyLockRows",
       "settingsSafetyLockStatus",
       "settingsSafetyLockSummaryLines",
@@ -12469,12 +12467,12 @@
         },
         {
           "name": "saveBtn",
-          "line": 2184,
+          "line": 2183,
           "kind": "const"
         },
         {
           "name": "reloadBtn",
-          "line": 2186,
+          "line": 2185,
           "kind": "const"
         }
       ],
@@ -12555,8 +12553,6 @@
         "settingsRawTriageRows",
         "settingsRawTriageStatus",
         "settingsRawTriageSummaryLines",
-        "settingsRuntimeRestartConfirmationLine",
-        "settingsRuntimeRestartNoticeLines",
         "settingsSafetyLockRows",
         "settingsSafetyLockStatus",
         "settingsSafetyLockSummaryLines",
