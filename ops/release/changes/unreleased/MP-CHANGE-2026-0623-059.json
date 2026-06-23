@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0623-059",
+  "title": "Remove Settings overview row flat exports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed six transitional flat Settings overview/raw-row support aliases while preserving the helpers on mediaPipelineSettingsView.",
+  "reason": "WebView flat export cleanup remains an active opportunistic workstream. These helpers are still namespace-exported and passed internally through Settings module dependency injection; no direct window.* consumers remain for this group. Raw Action Plan aliases intentionally remain flat because Home still consumes them directly.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "settingsView.js exposed configValue, overview render/build, raw settings row render/set, and builder-covered-key helpers both through mediaPipelineSettingsView and direct window.* compatibility aliases.",
+  "behavior_after": "The helpers remain available through mediaPipelineSettingsView and existing Settings module dependency injection, but no longer create direct window.* aliases. Raw Action Plan helpers remain flat for the current Home-page consumer. The global export inventory and WebView public contract baseline now report 435 flat exports.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/WEBVIEW_SPLIT_CANDIDATES.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_SPLIT_CANDIDATES.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-059.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_settings_overview_row_helpers_are_namespace_only_exports verifies the six Settings overview/raw-row support helpers remain present but are no longer direct window.* aliases."
+  ],
+  "manual_validation": [
+    "Baseline targeted test failed before the source edit because window.configValue still existed.",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_settings_overview_row_helpers_are_namespace_only_exports -q",
+    "node --check apps\\desktop\\webview\\static\\assets\\settingsView.js",
+    "rg \"window\\.(configValue|buildSettingsOverviewRows|renderSettingsOverview|setSettingsRows|renderSettingsRows|settingsBuilderCoveredKeys)|Flat export total: 441|Flat exports \\(63\\)|direct compatibility flat exports remain at 441\" Docs\\CURRENT_PROJECT_STATE.md Docs\\inventories\\WEBVIEW_GLOBAL_EXPORT_INVENTORY.md apps\\desktop\\webview\\static\\assets\\settingsView.js tests\\webview\\test_webview_handbrake_settings_ui.py -n returned no matches.",
+    "npm run webview:contract",
+    "npm run webview:map",
+    "npm run webview:slices",
+    "npm run webview:prework:check",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_settings_save_warns_active_runtime_keeps_startup_config -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q",
+    "apps\\desktop\\runtime\\Python\\python.exe ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Revert this packet to restore the six Settings direct window.* overview/raw-row support aliases, regenerate the WebView public contract baseline, godfile map, split candidates, global export inventory, summaries, and restore the flat export count from 435 to 441.",
+  "related_changes": [],
+  "notes": "Remove six Settings overview/raw-row support direct window aliases while keeping namespace exports."
+}

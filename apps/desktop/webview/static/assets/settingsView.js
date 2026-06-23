@@ -2156,8 +2156,7 @@ async function reloadSettingsFromDisk() {
     settingsRenameLogCasePayload, submitSettingsRenameLogCase, initSettingsRenameLogCaseEvents,
     writeSettingsPatchJson, parseSettingsPatchJson, initSettingsViewEvents,
   };
-  window.configValue = configValue; window.buildSettingsOverviewRows = buildSettingsOverviewRows; window.renderSettingsOverview = renderSettingsOverview; window.setSettingsRows = setSettingsRows;
-  window.renderSettingsRows = renderSettingsRows; window.settingsBuilderCoveredKeys = settingsBuilderCoveredKeys; window.settingsRawActionPlanRows = settingsRawActionPlanRows;
+  window.settingsRawActionPlanRows = settingsRawActionPlanRows;
   window.settingsRawActionPlanStatus = settingsRawActionPlanStatus; window.settingsRawActionPlanSummaryLines = settingsRawActionPlanSummaryLines; window.settingsRawActionPlanDetailLines = settingsRawActionPlanDetailLines; window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
   window.renderSettings = renderSettings; window.getLastSettings = getLastSettings;
   window.settingsPolicyDeltaRows = settingsPolicyDeltaRows; window.settingsPolicyDeltaStatus = settingsPolicyDeltaStatus; window.settingsLaunchImpactRows = settingsLaunchImpactRows; window.settingsLaunchImpactStatus = settingsLaunchImpactStatus;

@@ -71,10 +71,10 @@ Candidate slices require at least **80** contiguous lines with gaps of **25** li
 
 ## `apps/desktop/webview/static/assets/settingsView.js`
 
-- Lines: **2183** (2078 nonblank)
+- Lines: **2182** (2077 nonblank)
 - Top-level declarations: **326**
 - Namespace exports: `mediaPipelineSettingsView`
-- Flat compatibility exports: **63**
+- Flat compatibility exports: **57**
 - API routes: `/api/settings/browse-path`, `/api/settings/preview-patch`, `/api/settings/reload`, `/api/settings/save-patch`, `/api/settings/validate`
 - DOM IDs touched: **14**
 - Event types: `click`, `close`, `submit`
