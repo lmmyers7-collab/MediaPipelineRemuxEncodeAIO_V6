@@ -2157,11 +2157,11 @@ async function reloadSettingsFromDisk() {
     writeSettingsPatchJson, parseSettingsPatchJson, initSettingsViewEvents,
   };
   window.settingsRawActionPlanRows = settingsRawActionPlanRows;
-  window.settingsRawActionPlanStatus = settingsRawActionPlanStatus; window.settingsRawActionPlanSummaryLines = settingsRawActionPlanSummaryLines; window.settingsRawActionPlanDetailLines = settingsRawActionPlanDetailLines; window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
+  window.settingsRawActionPlanStatus = settingsRawActionPlanStatus; window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
   window.renderSettings = renderSettings; window.getLastSettings = getLastSettings;
   window.settingsPolicyDeltaRows = settingsPolicyDeltaRows; window.settingsPolicyDeltaStatus = settingsPolicyDeltaStatus; window.settingsLaunchImpactRows = settingsLaunchImpactRows; window.settingsLaunchImpactStatus = settingsLaunchImpactStatus;
   window.settingsPatchIsTouched = settingsPatchIsTouched; window.settingsPatchEffectiveChangedEntries = settingsPatchEffectiveChangedEntries;
-  window.renderSettingsMediaPolicyCrossCheck = renderSettingsMediaPolicyCrossCheck; window.writeSettingsPatchJson = writeSettingsPatchJson; window.initSettingsViewEvents = initSettingsViewEvents;
+  window.writeSettingsPatchJson = writeSettingsPatchJson; window.initSettingsViewEvents = initSettingsViewEvents;
 
   (function () {
     const saveBtn = byId("settings-save-header-save-button");
