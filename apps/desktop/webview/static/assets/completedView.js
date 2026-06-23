@@ -1422,9 +1422,6 @@
   window.completedRealMediaProofPostureStatus = completedRealMediaProofPostureStatus;
   window.completedPolicyAlignmentOutputEvidence = completedPolicyAlignmentOutputEvidence;
   window.completedPolicyOutputCategorySignal = completedPolicyOutputCategorySignal;
-  window.completedFinalTrustStatus = completedFinalTrustStatus;
-  window.completedFinalTrustSummaryLines = completedFinalTrustSummaryLines;
-  window.completedFinalTrustDetailLines = completedFinalTrustDetailLines;
   window.selectCompletedFinalTrustStep = selectCompletedFinalTrustStep;
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
   window.completedPilotEvidencePacketRows = completedPilotEvidencePacketRows;
