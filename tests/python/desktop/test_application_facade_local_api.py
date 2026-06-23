@@ -7096,6 +7096,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function renderDiagnosticsLogDetail", diagnostics_view_js)
         self.assertIn("function diagnosticsArtifactsForLine", diagnostics_view_js)
         self.assertIn("function diagnosticsLogRowActions", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "diagnosticsLogRowActions")
+        self.assertNotIn("window.diagnosticsLogRowActions = diagnosticsLogRowActions", diagnostics_view_js)
         self.assertIn("function diagnosticsLogRowNextStep", diagnostics_view_js)
         _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "diagnosticsLogRowNextStep")
         self.assertNotIn("window.diagnosticsLogRowNextStep = diagnosticsLogRowNextStep", diagnostics_view_js)
