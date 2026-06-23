@@ -453,7 +453,10 @@
 
   function diagnosticsOwnerSelectFunction(owner) {
     if (owner === "Queue" && typeof window.selectQueueRow === "function") return window.selectQueueRow;
-    if (owner === "Completed" && typeof window.selectCompletedRow === "function") return window.selectCompletedRow;
+    const completedView = window.mediaPipelineCompletedView || {};
+    if (owner === "Completed" && typeof completedView.selectCompletedRow === "function") {
+      return (row) => completedView.selectCompletedRow(row);
+    }
     if (owner === "Pending Publish" && typeof window.selectPendingRow === "function") return window.selectPendingRow;
     return null;
   }

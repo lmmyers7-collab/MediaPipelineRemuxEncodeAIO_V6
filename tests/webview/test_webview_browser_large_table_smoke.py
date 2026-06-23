@@ -208,9 +208,12 @@ def _browser_large_table_runner_source() -> str:
             function pad(index) { return String(index + 1).padStart(3, "0"); }
             [
               "renderQueue", "renderQueueRows", "selectQueueRow",
-              "renderCompleted", "renderCompletedRows", "selectCompletedRow", "renderCompletedInventoryProgress", "completedInventoryProgressBars",
+              "renderCompleted", "renderCompletedRows", "renderCompletedInventoryProgress", "completedInventoryProgressBars",
               "renderPendingPublish", "renderPendingRows", "selectPendingRow", "renderPendingInventoryProgress", "pendingInventoryProgressBars"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
+            }
 
             const queueRows = Array.from({ length: 260 }, (_value, index) => {
               const label = "Large Queue " + pad(index);
@@ -614,7 +617,7 @@ def _browser_large_table_runner_source() -> str:
             ]);
             clickRowContaining("#completed-output-acceptance-rows tr", "Display filter / backend action scope");
             requireText("completed-output-acceptance-detail", ["Current Output display filter / backend action scope", "hidden blocked rows: 0", "hidden review rows: 0", "Current Output filters never accept outputs"]);
-            window.selectCompletedRow(completedRows[259]);
+            window.mediaPipelineCompletedView.selectCompletedRow(completedRows[259]);
             requireText("completed-selected-summary", [
               "Large Completed 260.mkv",
               "Output unavailable",

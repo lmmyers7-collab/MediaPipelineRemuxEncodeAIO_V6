@@ -1389,5 +1389,4 @@
   };
   initCompletedRepairEvents();
   window.renderCompleted = renderCompleted;
-  window.selectCompletedRow = selectCompletedRow;
 })();

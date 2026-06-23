@@ -272,8 +272,9 @@
         if (typeof window.showPage === "function") window.showPage("queue");
         return;
       }
-      if (target.kind === "completed" && typeof window.selectCompletedRow === "function") {
-        window.selectCompletedRow(target.row);
+      const completedView = window.mediaPipelineCompletedView || {};
+      if (target.kind === "completed" && typeof completedView.selectCompletedRow === "function") {
+        completedView.selectCompletedRow(target.row);
         if (typeof window.showPage === "function") window.showPage("completed");
         return;
       }

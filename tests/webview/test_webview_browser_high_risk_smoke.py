@@ -64,9 +64,12 @@ def _browser_runner_source() -> str:
             }
             [
               "renderQueue", "selectQueueRow",
-              "renderCompleted", "selectCompletedRow",
+              "renderCompleted",
               "renderPendingPublish", "selectPendingRow"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
+            }
 
             const riskQueue = clone(payload.queue);
             riskQueue.rows = [Object.assign({}, riskQueue.rows[0], {
@@ -119,7 +122,7 @@ def _browser_runner_source() -> str:
               proof_summary: ["completed manifest row exists", "output file is missing", "sidecar proof is missing"],
             })];
             window.renderCompleted(riskCompleted);
-            window.selectCompletedRow(riskCompleted.rows[0]);
+            window.mediaPipelineCompletedView.selectCompletedRow(riskCompleted.rows[0]);
             requireText("completed-detail", [
               "Row state: broken-output",
               "Output health: missing output",
@@ -209,9 +212,12 @@ def _browser_runner_source() -> str:
             }
             [
               "renderQueue", "selectQueueRow",
-              "renderCompleted", "selectCompletedRow",
+              "renderCompleted",
               "renderPendingPublish", "selectPendingRow"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
+            }
 
             const queueRow = firstRow("queue");
             window.renderQueue(payload.queue);
@@ -231,7 +237,7 @@ def _browser_runner_source() -> str:
 
             const completedRow = firstRow("completed");
             window.renderCompleted(payload.completed);
-            window.selectCompletedRow(completedRow);
+            window.mediaPipelineCompletedView.selectCompletedRow(completedRow);
             requireText("completed-detail", [
               "Row state: broken-output",
               "Output health: completed metadata without media",
@@ -492,7 +498,3 @@ class WebViewBrowserHighRiskSmoke(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-
-
-
-

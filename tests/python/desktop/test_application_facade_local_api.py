@@ -5469,6 +5469,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Still gated. Click Advanced to make this panel always visible.", app_layout_manager_js)
         self.assertIn("window.mediaPipelineCompletedView", completed_view_js)
         self.assertIn("function renderCompleted", completed_view_js)
+        _assert_namespace_export(self, completed_view_js, "mediaPipelineCompletedView", "selectCompletedRow")
+        self.assertNotIn("window.selectCompletedRow = selectCompletedRow", completed_view_js)
         self.assertIn("function renderCompletedRowsImpl", completed_view_table_js)
         self.assertIn("renderCompletedRows = completedReviewNoop", completed_view_js)
         self.assertIn("function renderCompletedIntegrity", completed_view_review_js)

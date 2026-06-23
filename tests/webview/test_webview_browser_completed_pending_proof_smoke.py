@@ -359,6 +359,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "getLastCompletedRows",
               "getLastCompletedPendingProofRows",
               "getLastCompletedPayload",
+              "selectCompletedRow",
               "renderCompletedPendingProof",
               "renderCompletedRealMediaProof"
             ].forEach((name) => {

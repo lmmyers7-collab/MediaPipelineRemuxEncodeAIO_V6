@@ -1233,7 +1233,6 @@
       "sampleValidationWorksheetSummaryLines",
       "saveFinalLibraryPromotionSettings",
       "selectActiveJobRow",
-      "selectCompletedRow",
       "selectDiagnosticsLogRow",
       "selectDiagnosticsOwnerHandoffRow",
       "selectPendingRecoveryPlanRow",
@@ -5463,8 +5462,7 @@
         "mediaPipelineCompletedView"
       ],
       "flat_window_exports": [
-        "renderCompleted",
-        "selectCompletedRow"
+        "renderCompleted"
       ],
       "api_routes": [],
       "dom_ids_touched": [

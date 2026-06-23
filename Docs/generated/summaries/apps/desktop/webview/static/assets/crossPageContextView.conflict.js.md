@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/crossPageContextView.conflict.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 9c70e467c4016e235188371c31ac33f4aa904ddf37b9bb4d1499d15406841151
+sha256: a8f292798443d5c3eb608aa9b9b9cbaa1e875db914d9b002c31890d52b763222
 ---
 # `apps/desktop/webview/static/assets/crossPageContextView.conflict.js`
 

@@ -467,7 +467,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
             }
             [
               "renderQueue", "selectQueueRow",
-              "renderCompleted", "selectCompletedRow",
+              "renderCompleted",
               "renderPendingPublish", "selectPendingRow",
               "requestDiagnosticsTail", "requestDiagnosticsOpen",
               "renderDiagnosticsOwnerHandoff", "navigateDiagnosticsOwnerHandoffRow",
@@ -479,6 +479,9 @@ def _browser_diagnostics_handoff_runner_source() -> str:
               "renderContract", "contractSafetyReviewRows", "renderContractSafetyReview",
               "getCommandHistory", "showPage"
             ].forEach(requireFunction);
+            if (typeof window.mediaPipelineCompletedView?.selectCompletedRow !== "function") {
+              throw new Error("missing mediaPipelineCompletedView.selectCompletedRow");
+            }
 
             const queueRow = payload.queue.rows[0];
             window.renderQueue(payload.queue);
@@ -588,7 +591,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 "completed history clear filters restores history table",
               );
             } else {
-              window.selectCompletedRow(completedRow);
+              window.mediaPipelineCompletedView.selectCompletedRow(completedRow);
             }
             click('#completed-diagnostics-actions [data-diagnostics-bridge-target="last_stderr_log"]', "completed diagnostics bridge");
             await waitFor(

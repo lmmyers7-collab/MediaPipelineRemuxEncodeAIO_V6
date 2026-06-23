@@ -326,7 +326,7 @@ def _node_runner_source() -> str:
         context.renderQueue(payload.queue);
         context.renderCompleted(payload.completed);
         context.selectQueueRow(payload.queue.rows[0]);
-        context.selectCompletedRow(payload.completed.rows[0]);
+        context.mediaPipelineCompletedView.selectCompletedRow(payload.completed.rows[0]);
         context.selectPendingRow(payload.pending.rows[0]);
 
         function requireText(id, fragments) {
@@ -631,7 +631,7 @@ def _node_runner_source() -> str:
         if (!libraryScope.active || libraryScope.libraryLabel !== "Anime Library" || libraryScope.visibleRows !== 1 || libraryScope.totalRows !== 2) {
           throw new Error(`Completed library filter scope mismatch: ${JSON.stringify(libraryScope)}`);
         }
-        context.selectCompletedRow(libraryFilterRows[1]);
+        context.mediaPipelineCompletedView.selectCompletedRow(libraryFilterRows[1]);
         requireText("completed-detail", [
           "Selected row visible in table: no",
           "library=Anime Library",
@@ -640,7 +640,7 @@ def _node_runner_source() -> str:
         librarySelect.value = "all";
         context.mediaPipelineCompletedView.renderCompletedRows();
         context.renderCompleted(payload.completed);
-        context.selectCompletedRow(payload.completed.rows[0]);
+        context.mediaPipelineCompletedView.selectCompletedRow(payload.completed.rows[0]);
 
         requireText("pending-detail", [
           "Selected pending-row quick signal:",
@@ -1004,7 +1004,7 @@ def _node_runner_source() -> str:
           })];
           context.renderCompleted(riskCompleted);
           context.mediaPipelineCompletedView.renderFinalLibraryPromotion({ enabled: false, counts: { total: 1, eligible: 0 }, items: [] });
-          context.selectCompletedRow(riskCompleted.rows[0]);
+          context.mediaPipelineCompletedView.selectCompletedRow(riskCompleted.rows[0]);
           requireText("completed-active-output-title", [String(riskCompleted.rows[0].output_file || riskCompleted.rows[0].lookup_title || "")]);
           requireText("completed-active-output-trust", ["Output unavailable"]);
           requireText("completed-active-output-placement", ["Missing:"]);
