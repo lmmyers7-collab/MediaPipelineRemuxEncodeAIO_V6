@@ -2358,7 +2358,6 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   window.requestDiagnosticsTail = requestDiagnosticsTail;
   window.initDiagnosticsViewEvents = initDiagnosticsViewEvents;
   window.requestDiagnosticsOpen = requestDiagnosticsOpen;
-  window.isDiagnosticsOpenCommand = isDiagnosticsOpenCommand;
   window.diagnosticsOpenHistoryLine = diagnosticsOpenHistoryLine;
   window.renderDiagnosticsOpenHistory = renderDiagnosticsOpenHistory;
 })();
