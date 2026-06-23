@@ -1416,12 +1416,6 @@
   window.completedReviewBoardLines = completedReviewBoardLines;
   window.completedReviewRows = completedReviewRows;
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
-  window.completedRealMediaProofStatus = completedRealMediaProofStatus;
-  window.completedRealMediaProofSummaryLines = completedRealMediaProofSummaryLines;
-  window.completedRealMediaProofDetailLines = completedRealMediaProofDetailLines;
-  window.completedRealMediaProofPostureStatus = completedRealMediaProofPostureStatus;
-  window.completedPolicyAlignmentOutputEvidence = completedPolicyAlignmentOutputEvidence;
-  window.completedPolicyOutputCategorySignal = completedPolicyOutputCategorySignal;
   window.selectCompletedFinalTrustStep = selectCompletedFinalTrustStep;
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
   window.completedPilotEvidencePacketRows = completedPilotEvidencePacketRows;
