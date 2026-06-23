@@ -1126,6 +1126,55 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(helper, settings_js)
             self.assertNotIn(f"window.{helper} =", settings_js)
 
+    def test_settings_builder_helpers_are_namespace_only_exports(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        for helper in (
+            "syncVideoDetailSettingsBuilderFromConfig",
+            "collectVideoDetailSettingsBuilderPatch",
+            "applyVideoDetailSettingsBuilderToPatch",
+            "renderVideoDetailSettingsBuilderGuidance",
+            "markVideoDetailSettingsBuilderDirty",
+            "syncFileSafetySettingsBuilderFromConfig",
+            "collectFileSafetySettingsBuilderPatch",
+            "applyFileSafetySettingsBuilderToPatch",
+            "renderFileSafetySettingsBuilderGuidance",
+            "markFileSafetySettingsBuilderDirty",
+            "syncQualityDetailSettingsBuilderFromConfig",
+            "collectQualityDetailSettingsBuilderPatch",
+            "applyQualityDetailSettingsBuilderToPatch",
+            "renderQualityDetailSettingsBuilderGuidance",
+            "markQualityDetailSettingsBuilderDirty",
+            "syncNetworkSettingsBuilderFromConfig",
+            "collectNetworkSettingsBuilderPatch",
+            "applyNetworkSettingsBuilderToPatch",
+            "renderNetworkSettingsBuilderGuidance",
+            "markNetworkSettingsBuilderDirty",
+            "syncQueueSettingsBuilderFromConfig",
+            "collectQueueSettingsBuilderPatch",
+            "applyQueueSettingsBuilderToPatch",
+            "renderQueueSettingsBuilderGuidance",
+            "markQueueSettingsBuilderDirty",
+            "syncRuntimeSettingsBuilderFromConfig",
+            "collectRuntimeSettingsBuilderPatch",
+            "applyRuntimeSettingsBuilderToPatch",
+            "renderRuntimeSettingsBuilderGuidance",
+            "markRuntimeSettingsBuilderDirty",
+            "syncPendingPublishSettingsBuilderFromConfig",
+            "collectPendingPublishSettingsBuilderPatch",
+            "applyPendingPublishSettingsBuilderToPatch",
+            "renderPendingPublishSettingsBuilderGuidance",
+            "markPendingPublishSettingsBuilderDirty",
+            "syncFinalLibraryPromotionSettingsBuilderFromConfig",
+            "collectFinalLibraryPromotionSettingsPatch",
+            "previewFinalLibraryPromotionSettings",
+            "saveFinalLibraryPromotionSettings",
+            "renderFinalLibraryPromotionSettingsGuidance",
+            "markFinalLibraryPromotionSettingsBuilderDirty",
+        ):
+            self.assertIn(helper, settings_js)
+            self.assertNotIn(f"window.{helper} =", settings_js)
+
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
