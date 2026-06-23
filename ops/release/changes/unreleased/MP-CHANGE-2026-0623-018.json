@@ -1,0 +1,61 @@
+{
+  "id": "MP-CHANGE-2026-0623-018",
+  "title": "Reduce Completed selected row export",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed the transitional Completed selected-row flat export while preserving the namespace helper on mediaPipelineCompletedView. Cross-page Sample Validation consumers and the Completed/Pending browser smoke now call mediaPipelineCompletedView.getSelectedCompletedRow(), and the WebView export inventory plus generated public contract baseline are refreshed to 505 flat exports.",
+  "reason": "Continue opportunistic WebView flat-export cleanup within the touched Completed/Sample Validation domain while preserving intentional browser test hooks and backend-owned mutation boundaries.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "completedView.js exposed getSelectedCompletedRow both through mediaPipelineCompletedView and as a transitional window.getSelectedCompletedRow flat export. Cross-page Sample Validation helpers and the Completed/Pending browser smoke could still read the flat alias.",
+  "behavior_after": "getSelectedCompletedRow remains available through window.mediaPipelineCompletedView only. The touched consumers use the namespace helper, the served Completed browser smoke fails if the removed flat assignment returns, and the documented flat-export count is 505 across 49 files.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
+    "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/crossPageContextView.sample.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-018.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-018.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py"
+  ],
+  "tests_added": [
+    "Extended tests/webview/test_webview_browser_completed_pending_proof_smoke.py to require mediaPipelineCompletedView.getSelectedCompletedRow() and reject a served window.getSelectedCompletedRow flat assignment."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -B -m py_compile tests/webview/test_webview_browser_completed_pending_proof_smoke.py",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_sample_validation_smoke.WebViewBrowserSampleValidationSmoke.test_real_browser_renders_sample_validation_pilot_and_preview_without_append -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_row_detail_smoke -q",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed",
+    "node --check apps/desktop/webview/static/assets/completedView.js",
+    "node --check apps/desktop/webview/static/assets/crossPageContextView.sample.js",
+    "node --check apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
+    "npm run webview:contract",
+    "npm run webview:contract:check",
+    "npm run webview:prework:check",
+    "rg -n \"window\\\\.getSelectedCompletedRow\\\\b\" apps tests docs --glob '!docs/generated/summaries/**' (exit 1, no matches)"
+  ],
+  "rollback_plan": "Restore the window.getSelectedCompletedRow assignment in completedView.js, move the touched consumers back to the flat alias only if compatibility is intentionally required, regenerate the WebView public contract baseline and summaries, and rerun the same WebView/static validation ladder.",
+  "related_changes": [],
+  "notes": "Source-media safety: this is a WebView compatibility-export cleanup only. It does not change backend routes, command confirmations, pending-publish manifests, filesystem mutation, media policy, FFmpeg arguments, repair/apply behavior, or source/scratch/output handling. No downloads or real-media validation are required for this low-risk frontend namespace cleanup.\nRemove the transitional selected Completed row flat export while keeping the namespace helper.\nMove the Sample Validation seed lookup to mediaPipelineCompletedView.getSelectedCompletedRow.\nMove the Sample Validation completed evidence summary lookup to the Completed namespace helper.\nValidate the Completed selected-row helper through the namespace and guard the removed flat assignment in served browser source.\nUpdate the current WebView flat-export count after removing one Completed compatibility alias.\nUpdate the WebView global export inventory total, module count, generated manifest, and cross-module dependency description.\nRefresh the generated WebView public contract after removing the Completed selected-row flat export.\nRefresh generated summary for the current-state doc.\nRefresh generated summary for the WebView public contract baseline.\nRefresh generated summary for the WebView global export inventory.\nRefresh generated summary for completedView.js.\nRefresh generated summary for the cross-page sample helper.\nRefresh generated summary for the Sample Validation records helper.\nRefresh generated summary for the Completed/Pending browser smoke.\nRefresh the generated project index after the packet summary and touched summaries changed.\nAdd the generated summary for this change packet."
+}

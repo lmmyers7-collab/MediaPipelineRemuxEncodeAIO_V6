@@ -553,7 +553,8 @@
       const blocked = rows.filter((row) => sampleValidationCompletedPacketPostureStatus(row) === "blocked").length;
       const review = rows.filter((row) => sampleValidationCompletedPacketPostureStatus(row) === "warning").length;
       const manual = rows.filter((row) => sampleValidationCompletedPacketPostureStatus(row) === "changed").length;
-      const selected = typeof window.getSelectedCompletedRow === "function" ? window.getSelectedCompletedRow() : null;
+      const completedView = window.mediaPipelineCompletedView || {};
+      const selected = typeof completedView.getSelectedCompletedRow === "function" ? completedView.getSelectedCompletedRow() : null;
       const policyRow = sampleValidationCompletedPolicyReconciliationRow(context);
       const lines = [
         "Completed evidence handoff for Sample Validation:",

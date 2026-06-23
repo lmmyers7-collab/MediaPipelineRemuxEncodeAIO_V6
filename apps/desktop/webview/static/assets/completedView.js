@@ -1394,7 +1394,6 @@
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
   window.completedPendingProofRows = completedPendingProofRows;
   window.selectCompletedRow = selectCompletedRow;
-  window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
   window.getLastCompletedRows = getLastCompletedRows;
   window.getLastCompletedPendingProofRows = getLastCompletedPendingProofRows;

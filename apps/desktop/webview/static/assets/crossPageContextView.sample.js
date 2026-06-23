@@ -82,7 +82,8 @@
       const seeds = [];
       const seen = new Set();
       const selectedQueue = typeof window.getSelectedQueueRow === "function" ? window.getSelectedQueueRow() : null;
-      const selectedCompleted = typeof window.getSelectedCompletedRow === "function" ? window.getSelectedCompletedRow() : null;
+      const completedView = window.mediaPipelineCompletedView || {};
+      const selectedCompleted = typeof completedView.getSelectedCompletedRow === "function" ? completedView.getSelectedCompletedRow() : null;
       const selectedPending = typeof window.getSelectedPendingRow === "function" ? window.getSelectedPendingRow() : null;
       crossPageSampleAddSeed(seeds, seen, "Queue", "selected Queue row", selectedQueue, queueRows.indexOf(selectedQueue), true);
       crossPageSampleAddSeed(seeds, seen, "Completed", "selected Completed row", selectedCompleted, completedRows.indexOf(selectedCompleted), true);

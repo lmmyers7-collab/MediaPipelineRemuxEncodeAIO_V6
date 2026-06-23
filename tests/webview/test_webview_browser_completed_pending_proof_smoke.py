@@ -352,7 +352,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofIsExactPathSignal",
               "completedPendingProofIsFinalPlacementReviewSignal",
               "completedPendingProofEvidenceText",
-              "completedPendingProofDetailLines"
+              "completedPendingProofDetailLines",
+              "getSelectedCompletedRow"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
                 throw new Error("served completedView.js still contains " + name + " flat assignment");
@@ -601,7 +602,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
 
             window.renderPendingPublish(payload.pending, {});
             window.renderCompleted(payload.completed);
-            const selectedCompleted = window.getSelectedCompletedRow();
+            const selectedCompleted = window.mediaPipelineCompletedView.getSelectedCompletedRow();
             if (!selectedCompleted) throw new Error("missing completed row for repair controls");
             await waitFor(
               () => !byId("completed-reconcile-manifest-dry-run-button").disabled
