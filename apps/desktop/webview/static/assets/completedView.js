@@ -1495,7 +1495,6 @@
   window.renderCompletedSelectedAtAGlance = renderCompletedSelectedAtAGlance;
   window.completedFilterVisibilityLines = completedFilterVisibilityLines;
   window.completedFocusedInvestigationLabels = completedFocusedInvestigationLabels;
-  window.completedInvestigationSignalLines = completedInvestigationSignalLines;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
