@@ -1459,10 +1459,6 @@
   window.completedPendingProofIsFinalPlacementReviewSignal = completedPendingProofIsFinalPlacementReviewSignal;
   window.completedPendingProofEvidenceText = completedPendingProofEvidenceText;
   window.completedPendingProofDetailLines = completedPendingProofDetailLines;
-  window.completedProofRowMissingOutput = completedProofRowMissingOutput;
-  window.completedRowReviewChecklistLines = completedRowReviewChecklistLines;
-  window.completedRowIssueDigestLines = completedRowIssueDigestLines;
-  window.completedSelectedQuickSignalLines = completedSelectedQuickSignalLines;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;

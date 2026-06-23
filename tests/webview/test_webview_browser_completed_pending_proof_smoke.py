@@ -180,6 +180,10 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "publishReconciliationDetailLines",
               "publishReconciliationRowKey",
               "selectPublishReconciliationRow",
+              "completedProofRowMissingOutput",
+              "completedRowReviewChecklistLines",
+              "completedRowIssueDigestLines",
+              "completedSelectedQuickSignalLines",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -221,7 +225,11 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "publishReconciliationRows",
               "publishReconciliationDetailLines",
               "publishReconciliationRowKey",
-              "selectPublishReconciliationRow"
+              "selectPublishReconciliationRow",
+              "completedProofRowMissingOutput",
+              "completedRowReviewChecklistLines",
+              "completedRowIssueDigestLines",
+              "completedSelectedQuickSignalLines"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
                 throw new Error("served completedView.js still contains " + name + " flat assignment");
