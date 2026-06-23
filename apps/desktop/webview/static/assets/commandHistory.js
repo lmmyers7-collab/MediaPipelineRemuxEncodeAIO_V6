@@ -19,6 +19,10 @@
     return window.mediaPipelineDiagnosticsBridge || {};
   }
 
+  function renderDiagnosticsOpenHistoryFromNamespace(history) {
+    window.mediaPipelineDiagnosticsView?.renderDiagnosticsOpenHistory?.(history);
+  }
+
   function commandHistoryFormatter(name) {
     const fn = commandHistoryFormatters[name];
     if (typeof fn !== "function") throw new Error(`commandHistory formatter slice missing ${name}`);
@@ -1329,7 +1333,7 @@
     if (typeof renderCompletedFinalTrust === "function") renderCompletedFinalTrust(undefined, undefined, undefined, undefined, commandHistory);
     completedView.renderCompletedPilotEvidencePacket?.(undefined, undefined, undefined, undefined, commandHistory);
     if (typeof renderPendingOpenHistory === "function") renderPendingOpenHistory(commandHistory);
-    if (typeof renderDiagnosticsOpenHistory === "function") renderDiagnosticsOpenHistory(commandHistory);
+    renderDiagnosticsOpenHistoryFromNamespace(commandHistory);
     window.mediaPipelineRenameHistoryView?.renderRenameApplyHistory?.(commandHistory);
     renderLaunchPipelineControlHistory(commandHistory);
     window.mediaPipelineReportsView?.renderReportOpenHistory?.(commandHistory);

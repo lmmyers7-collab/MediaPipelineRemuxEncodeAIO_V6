@@ -429,7 +429,6 @@ def _node_runner_source() -> str:
           "renderCommandHistoryPayload",
           "renderQueueOpenHistory",
           "renderPendingDrainHistory",
-          "renderDiagnosticsOpenHistory",
           "renderBackendLifecycleHistory",
         ].forEach((name) => {
           if (typeof context[name] !== "function") {
@@ -449,6 +448,9 @@ def _node_runner_source() -> str:
         if (typeof context.mediaPipelineCompletedView?.renderCompletedOpenHistory !== "function") {
           throw new Error("missing Completed namespace open-history renderer");
         }
+        if (typeof context.mediaPipelineDiagnosticsView?.renderDiagnosticsOpenHistory !== "function") {
+          throw new Error("missing Diagnostics namespace open-history renderer");
+        }
 
         context.renderCommandHistoryPayload({ entries: payload.entries });
         const renderedHistory = context.getCommandHistory();
@@ -457,12 +459,12 @@ def _node_runner_source() -> str:
           "renderPendingDrainHistory",
           "renderPendingOpenHistory",
           "renderPendingRecoveryPlanHistory",
-          "renderDiagnosticsOpenHistory",
           "renderMaintenanceDryRunHistory",
           "renderRenameApplyHistory",
         ].forEach((name) => {
           if (typeof context[name] === "function") context[name](renderedHistory);
         });
+        context.mediaPipelineDiagnosticsView.renderDiagnosticsOpenHistory(renderedHistory);
         context.mediaPipelineLaunchHistoryView.renderLaunchCommandHistory(renderedHistory);
         context.mediaPipelineLaunchView.renderPipelineControlHistory(renderedHistory);
         context.mediaPipelineCompletedView.renderCompletedOpenHistory(renderedHistory);
