@@ -278,6 +278,9 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
           active_encoders: ["libaom-av1"],
           available_inactive_encoders: ["av1_nvenc"],
           activation_unknown_encoders: [],
+          hardware_runtime_verified_encoders: [],
+          hardware_runtime_skipped_encoders: ["av1_nvenc"],
+          active_hardware_runtime_unverified_encoders: ["av1_nvenc"],
         }};
         const encoderCapabilityCheck = {{
           key: "encoder_capability_report",
@@ -683,6 +686,8 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertIn("Status scope: active targets only", result["stagedSummary"])
         self.assertIn("Launch backend preflight by active target", result["stagedSummary"])
         self.assertIn("Encoder activation evidence: active=1 (libaom-av1); available inactive=1 (av1_nvenc); activation unknown=0.", result["stagedSummary"])
+        self.assertIn("Hardware runtime proof: verified=0; skipped=1 (av1_nvenc); active unverified=1 (av1_nvenc).", result["stagedSummary"])
+        self.assertIn("Active hardware encoders without runtime proof remain review-only: av1_nvenc.", result["stagedSummary"])
         self.assertIn("WebView does not enable hardware families", result["stagedSummary"])
         self.assertEqual(len(result["emptyCsvFetchUrls"]), 1)
         self.assertIn("target=pipeline", result["emptyCsvFetchUrls"][0])
@@ -698,6 +703,7 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertIn("Pipeline backend preflight", result["emptyCsvSummary"])
         self.assertIn("Inactive targets skipped: CSV Rerun Start: CSV path is not staged.", result["emptyCsvSummary"])
         self.assertIn("Encoder activation evidence: active=1 (libaom-av1); available inactive=1 (av1_nvenc); activation unknown=0.", result["emptyCsvSummary"])
+        self.assertIn("Hardware runtime proof: verified=0; skipped=1 (av1_nvenc); active unverified=1 (av1_nvenc).", result["emptyCsvSummary"])
         self.assertEqual(
             {item["key"]: item["active"] for item in result["emptyCsvCandidates"]},
             {"pipeline": True, "rerun-live": False, "rerun-preview": False, "rerun-plan-only": False},

@@ -34,10 +34,10 @@ now expose descriptor-selection evidence for current HEVC/libx265 parity paths a
 explicitly mark dormant AV1 selection as not yet active, but new families are not
 wired into the active `Do-Encode` ladder.
 Fallback wiring, host-hardware runtime execution, real-media HDR validation, and
-new encoder enablement remain incomplete. Launch preflight now surfaces the
-existing descriptor capability report plus derived validation facts and hardware
-runtime proof-gap lists as non-blocking read-only evidence without activating
-hardware families.
+new encoder enablement remain incomplete. Settings and Launch preflight now
+surface the existing descriptor capability report plus derived validation facts
+and hardware runtime proof-gap lists as non-blocking read-only evidence without
+activating hardware families.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder
@@ -571,7 +571,7 @@ will catch most omissions:
   preflight row. Descriptor dump rows now derive a bounded
   `EncodingCapabilityFacts` payload from available encoders and carry it in
   Settings workspace plus launch preflight detail for validation consumers.
-  Settings/Launch also thread hardware runtime verified/skipped and
+  Settings/Launch also thread and render hardware runtime verified/skipped and
   active-hardware-unverified lists from those rows as review evidence. UI
   choice filtering =
   annotate unavailable encoders in `choice_help` ("not detected on this machine") —

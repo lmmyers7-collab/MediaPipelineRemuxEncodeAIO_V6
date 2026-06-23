@@ -273,6 +273,23 @@
       return lines;
     }
 
+    function settingsEncoderCapabilityHardwareRuntimeLines(report = settingsEncoderCapabilityReport()) {
+      if (!report?.schema_version) return [];
+      const verified = settingsEncoderCapabilityList(report.hardware_runtime_verified_encoders);
+      const skipped = settingsEncoderCapabilityList(report.hardware_runtime_skipped_encoders);
+      const activeUnverified = settingsEncoderCapabilityList(report.active_hardware_runtime_unverified_encoders);
+      const lines = [
+        `Hardware runtime proof: verified=${verified.length}${verified.length ? ` (${verified.join(", ")})` : ""}; runtime skipped=${skipped.length}${skipped.length ? ` (${skipped.join(", ")})` : ""}; active unverified=${activeUnverified.length}${activeUnverified.length ? ` (${activeUnverified.join(", ")})` : ""}.`,
+      ];
+      if (activeUnverified.length) {
+        lines.push(`Active hardware descriptors without runtime proof remain review-only: ${activeUnverified.join(", ")}.`);
+      }
+      if (skipped.length) {
+        lines.push(`Skipped hardware runtime probes need host-hardware validation before activation: ${skipped.join(", ")}.`);
+      }
+      return lines;
+    }
+
     function settingsEncoderCapabilitySummaryLines(report = settingsEncoderCapabilityReport()) {
       if (!report?.schema_version) {
         return ["No encoder capability report is loaded."];
@@ -285,6 +302,7 @@
       const counts = settingsEncoderCapabilityBackendCountsText(report.backend_counts);
       if (counts) lines.push(`Backend availability: ${counts}.`);
       settingsEncoderCapabilityActivationLines(report).forEach((line) => lines.push(line));
+      settingsEncoderCapabilityHardwareRuntimeLines(report).forEach((line) => lines.push(line));
       lines.push("Read-only annotation: dropdown choices stay visible; backend Save and encode planning remain authoritative.");
       return lines;
     }
@@ -419,6 +437,7 @@
       settingsEncoderCapabilityReport,
       settingsEncoderCapabilityStatus,
       settingsEncoderCapabilitySummaryLines,
+      settingsEncoderCapabilityHardwareRuntimeLines,
       renderSettingsEncoderCapabilityReport,
     };
   }

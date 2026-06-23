@@ -3,9 +3,9 @@ file: tests/webview/test_webview_handbrake_settings_ui.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-22
+last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 06c99fd76e668211186310aa6c1b21e127d772ca10b0b75fce365a1ab99df95e
+sha256: 1f1a2eac9a897fa5dc30f0bc7b7f43ba79ca4ab83db023eb42832104dd84d6fc
 ---
 # `tests/webview/test_webview_handbrake_settings_ui.py`
 

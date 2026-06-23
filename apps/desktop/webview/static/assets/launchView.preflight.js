@@ -606,6 +606,32 @@
     return lines;
   }
 
+  function launchBackendPreflightEncoderHardwareRuntimeLines(payloads = []) {
+    const details = launchBackendPreflightEncoderCapabilityDetails(payloads);
+    if (!details.length) return [];
+    const verified = new Set();
+    const skipped = new Set();
+    const activeUnverified = new Set();
+    details.forEach((detail) => {
+      launchBackendPreflightList(detail.hardware_runtime_verified_encoders).forEach((item) => verified.add(item));
+      launchBackendPreflightList(detail.hardware_runtime_skipped_encoders).forEach((item) => skipped.add(item));
+      launchBackendPreflightList(detail.active_hardware_runtime_unverified_encoders).forEach((item) => activeUnverified.add(item));
+    });
+    const verifiedList = Array.from(verified);
+    const skippedList = Array.from(skipped);
+    const activeUnverifiedList = Array.from(activeUnverified);
+    const lines = [
+      `Hardware runtime proof: verified=${verifiedList.length}${verifiedList.length ? ` (${verifiedList.join(", ")})` : ""}; skipped=${skippedList.length}${skippedList.length ? ` (${skippedList.join(", ")})` : ""}; active unverified=${activeUnverifiedList.length}${activeUnverifiedList.length ? ` (${activeUnverifiedList.join(", ")})` : ""}.`,
+    ];
+    if (activeUnverifiedList.length) {
+      lines.push(`Active hardware encoders without runtime proof remain review-only: ${activeUnverifiedList.join(", ")}.`);
+    }
+    if (skippedList.length) {
+      lines.push(`Skipped hardware runtime probes require host-hardware validation before activation: ${skippedList.join(", ")}.`);
+    }
+    return lines;
+  }
+
   function launchBackendPreflightPipelineBlockers(payloads = []) {
     return launchBackendPreflightRows(payloads).filter((row) => {
       const target = String(row?.target || row?.payload?.target || "").toLowerCase();
@@ -699,6 +725,7 @@
       lines.push(`Inactive targets skipped: ${skippedTargets.map((item) => `${item.label}: ${item.reason}`).join("; ")}`);
     }
     launchBackendPreflightEncoderActivationLines(payloads).forEach((line) => lines.push(line));
+    launchBackendPreflightEncoderHardwareRuntimeLines(payloads).forEach((line) => lines.push(line));
     if (stale && payloads.length) {
       lines.push("Form state changed after the last backend preflight. Action: Refresh Backend Preflight before using normal Start or CSV Rerun controls.");
     }
@@ -1042,6 +1069,7 @@
       launchBackendPreflightOverallStatus,
       launchBackendPreflightStatusState,
       launchBackendPreflightRows,
+      launchBackendPreflightEncoderHardwareRuntimeLines,
       launchBackendPreflightPipelineBlockers,
       renderLaunchBackendPreflightStartupAlert,
       getLastLaunchBackendPreflightPayloads,

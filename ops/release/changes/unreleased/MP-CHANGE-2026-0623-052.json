@@ -1,0 +1,54 @@
+{
+  "id": "MP-CHANGE-2026-0623-052",
+  "title": "Render hardware encoder runtime proof gaps in WebView",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Rendered backend-provided hardware encoder runtime proof gaps in the WebView Settings encoder capability summary and Launch backend preflight summary.",
+  "reason": "The backend now threads hardware runtime verified/skipped and active-hardware-unverified encoder lists into descriptor capability reports; the operator surface needed to expose that evidence without enabling dormant hardware families or changing FFmpeg policy.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Settings and Launch could show descriptor activation evidence, but hardware runtime verified/skipped and active-hardware-unverified proof gaps were only present in backend detail and not summarized for operator review.",
+  "behavior_after": "Settings renders a read-only hardware runtime proof line plus review-only skipped/unverified guidance from encoder_capability_report. Launch preflight aggregates the same backend detail across active preflight payloads and displays hardware runtime proof gaps without enabling hardware encoders or changing start authority.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.preflight.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.video.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.preflight.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.video.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-052.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_encoder_capability_report_is_read_only_settings_evidence now requires Settings hardware runtime proof-gap rendering tokens.",
+    "tests.webview.test_webview_launch_command_buttons_smoke.WebViewLaunchCommandButtonsSmoke.test_backend_preflight_refresh_is_explicit_and_splits_csv_preview_from_start now asserts Launch hardware runtime verified/skipped/unverified proof-gap summary text."
+  ],
+  "manual_validation": [
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_encoder_capability_report_is_read_only_settings_evidence -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_launch_command_buttons_smoke.WebViewLaunchCommandButtonsSmoke.test_backend_preflight_refresh_is_explicit_and_splits_csv_preview_from_start -q",
+    "node --check apps\\desktop\\webview\\static\\assets\\settingsView.builders.video.js",
+    "node --check apps\\desktop\\webview\\static\\assets\\launchView.preflight.js",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q",
+    "npm run webview:prework:check",
+    "apps\\desktop\\runtime\\Python\\python.exe ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Revert the Settings/Launch WebView rendering changes, the focused WebView test expectations, the docs wording updates, and regenerated summaries. This is read-only UI evidence only; no media files, backend mutation routes, FFmpeg policy, or source/scratch/output state are changed.",
+  "related_changes": [
+    "MP-CHANGE-2026-0623-051"
+  ],
+  "notes": "Render Settings hardware runtime proof-gap lines from the read-only encoder capability report.\nRender Launch preflight hardware runtime proof-gap lines from backend encoder capability detail.\nAssert Settings static coverage for hardware runtime proof-gap rendering tokens.\nAssert Launch preflight smoke summary includes hardware runtime verified/skipped/unverified proof gaps.\nUpdate current-state encoder breadth wording for WebView-rendered hardware runtime proof gaps.\nClarify encoder breadth checklist status for WebView-rendered hardware runtime proof-gap evidence.\nClarify encoder breadth plan status for Settings and Launch proof-gap rendering.\nGenerated summary refreshed after current-state wording update.\nGenerated summary refreshed after Settings proof-gap renderer update.\nGenerated summary refreshed after Launch proof-gap renderer update.\nGenerated summary refreshed after Settings WebView test update.\nGenerated summary refreshed after Launch WebView smoke update.\nNo real-media validation or downloaded fixtures were required because this slice only renders existing backend evidence and does not alter media policy, FFmpeg commands, encoder activation, publish/drain, or file mutation."
+}
