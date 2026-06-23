@@ -502,7 +502,7 @@
       const rows = Array.isArray(completed?.rows)
         ? completed.rows
         : typeof window.getLastCompletedRows === "function" ? window.getLastCompletedRows() : [];
-      const proofRows = typeof window.getLastCompletedPendingProofRows === "function" ? window.getLastCompletedPendingProofRows() : [];
+      const proofRows = typeof completedView.getLastCompletedPendingProofRows === "function" ? completedView.getLastCompletedPendingProofRows() : [];
       const pending = context.pending || (typeof window.getLastPendingPublishPayload === "function" ? window.getLastPendingPublishPayload() : {});
       return completedView.completedPilotEvidencePacketRows(completed || {}, rows || [], proofRows || [], pending || {});
     }

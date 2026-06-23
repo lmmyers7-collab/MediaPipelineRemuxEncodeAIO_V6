@@ -256,24 +256,26 @@
     renderPendingRows();
     renderPendingRepairManifestControls();
     renderPendingRepairOrphanControls();
+    const completedView = window.mediaPipelineCompletedView || {};
     if (
       typeof window.renderCompletedPendingProof === "function"
       && typeof window.getLastCompletedPayload === "function"
       && typeof window.getLastCompletedRows === "function"
     ) {
       window.renderCompletedPendingProof(window.getLastCompletedPayload(), window.getLastCompletedRows(), lastPendingPayload);
-      if (typeof window.renderCompletedRealMediaProof === "function" && typeof window.getLastCompletedPendingProofRows === "function") {
+      if (typeof window.renderCompletedRealMediaProof === "function" && typeof completedView.getLastCompletedPendingProofRows === "function") {
+        const completedPendingProofRows = completedView.getLastCompletedPendingProofRows();
         window.renderCompletedRealMediaProof(
           window.getLastCompletedPayload(),
           window.getLastCompletedRows(),
-          window.getLastCompletedPendingProofRows(),
+          completedPendingProofRows,
           lastPendingPayload,
         );
         if (typeof window.renderCompletedPilotEvidencePacket === "function") {
           window.renderCompletedPilotEvidencePacket(
             window.getLastCompletedPayload(),
             window.getLastCompletedRows(),
-            window.getLastCompletedPendingProofRows(),
+            completedPendingProofRows,
             lastPendingPayload,
           );
         }

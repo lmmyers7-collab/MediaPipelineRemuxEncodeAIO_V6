@@ -937,7 +937,6 @@
       "formatStatusCounts",
       "getCommandHistory",
       "getLastCompletedPayload",
-      "getLastCompletedPendingProofRows",
       "getLastCompletedRows",
       "getLastDiagnosticsLogRows",
       "getLastPendingPublishPayload",
@@ -3079,22 +3078,22 @@
         },
         {
           "name": "commandHistoryFinalPlacementConflictCounts",
-          "line": 437,
+          "line": 438,
           "kind": "function"
         },
         {
           "name": "commandHistoryFinalPlacementConflictSummary",
-          "line": 466,
+          "line": 467,
           "kind": "function"
         },
         {
           "name": "commandHistoryFinalPlacementConflictLines",
-          "line": 532,
+          "line": 533,
           "kind": "function"
         },
         {
           "name": "commandHistoryTraceLines",
-          "line": 559,
+          "line": 560,
           "kind": "function"
         }
       ],
@@ -5472,7 +5471,6 @@
       "flat_window_exports": [
         "completedPendingProofRows",
         "getLastCompletedPayload",
-        "getLastCompletedPendingProofRows",
         "getLastCompletedRows",
         "renderCompleted",
         "renderCompletedPendingProof",
@@ -8017,472 +8015,472 @@
         },
         {
           "name": "renderPendingDrainProgress",
-          "line": 284,
+          "line": 286,
           "kind": "function"
         },
         {
           "name": "getLastPendingPublishPayload",
-          "line": 296,
+          "line": 298,
           "kind": "function"
         },
         {
           "name": "getLastPendingPublishRows",
-          "line": 300,
+          "line": 302,
           "kind": "function"
         },
         {
           "name": "pendingFileInventoryPayload",
-          "line": 304,
+          "line": 306,
           "kind": "function"
         },
         {
           "name": "pendingFileInventoryRows",
-          "line": 309,
+          "line": 311,
           "kind": "function"
         },
         {
           "name": "pendingFileInventoryStatus",
-          "line": 314,
+          "line": 316,
           "kind": "function"
         },
         {
           "name": "pendingFileInventorySummaryLines",
-          "line": 325,
+          "line": 327,
           "kind": "function"
         },
         {
           "name": "pendingFileInventoryRowStatus",
-          "line": 351,
+          "line": 353,
           "kind": "function"
         },
         {
           "name": "renderPendingFileInventory",
-          "line": 360,
+          "line": 362,
           "kind": "function"
         },
         {
           "name": "pendingInventoryProgressBars",
-          "line": 393,
-          "kind": "let"
-        },
-        {
-          "name": "renderPendingInventoryProgress",
-          "line": 394,
-          "kind": "let"
-        },
-        {
-          "name": "pendingEmptyStateMessage",
           "line": 395,
           "kind": "let"
         },
         {
-          "name": "pendingRowHasHealthIssue",
+          "name": "renderPendingInventoryProgress",
           "line": 396,
           "kind": "let"
         },
         {
-          "name": "pendingPublishReadinessStatus",
+          "name": "pendingEmptyStateMessage",
           "line": 397,
           "kind": "let"
         },
         {
-          "name": "pendingPublishReadinessLines",
+          "name": "pendingRowHasHealthIssue",
           "line": 398,
           "kind": "let"
         },
         {
-          "name": "renderPendingPublishReadiness",
+          "name": "pendingPublishReadinessStatus",
           "line": 399,
           "kind": "let"
         },
         {
-          "name": "pendingWorkflowStatus",
+          "name": "pendingPublishReadinessLines",
           "line": 400,
           "kind": "let"
         },
         {
-          "name": "pendingWorkflowLines",
+          "name": "renderPendingPublishReadiness",
           "line": 401,
           "kind": "let"
         },
         {
-          "name": "renderPendingWorkflow",
+          "name": "pendingWorkflowStatus",
           "line": 402,
           "kind": "let"
         },
         {
-          "name": "pendingReviewRowReasons",
+          "name": "pendingWorkflowLines",
           "line": 403,
           "kind": "let"
         },
         {
-          "name": "pendingReviewRows",
+          "name": "renderPendingWorkflow",
           "line": 404,
           "kind": "let"
         },
         {
-          "name": "pendingReviewStatus",
+          "name": "pendingReviewRowReasons",
           "line": 405,
           "kind": "let"
         },
         {
-          "name": "pendingReviewBoardLines",
+          "name": "pendingReviewRows",
           "line": 406,
           "kind": "let"
         },
         {
-          "name": "pendingReviewDigestStatus",
+          "name": "pendingReviewStatus",
           "line": 407,
           "kind": "let"
         },
         {
-          "name": "pendingReviewDigestAction",
+          "name": "pendingReviewBoardLines",
           "line": 408,
           "kind": "let"
         },
         {
-          "name": "renderPendingReviewDigest",
+          "name": "pendingReviewDigestStatus",
           "line": 409,
           "kind": "let"
         },
         {
-          "name": "renderPendingReviewBoard",
+          "name": "pendingReviewDigestAction",
           "line": 410,
           "kind": "let"
         },
         {
-          "name": "pendingFormatCounts",
+          "name": "renderPendingReviewDigest",
           "line": 411,
           "kind": "let"
         },
         {
-          "name": "pendingRecoverySummaryPayload",
+          "name": "renderPendingReviewBoard",
           "line": 412,
           "kind": "let"
         },
         {
-          "name": "pendingRecoverySummaryLines",
+          "name": "pendingFormatCounts",
           "line": 413,
           "kind": "let"
         },
         {
-          "name": "pendingRiskStatus",
+          "name": "pendingRecoverySummaryPayload",
           "line": 414,
           "kind": "let"
         },
         {
-          "name": "pendingRiskLines",
+          "name": "pendingRecoverySummaryLines",
           "line": 415,
           "kind": "let"
         },
         {
-          "name": "renderPendingRiskBreakdown",
+          "name": "pendingRiskStatus",
           "line": 416,
           "kind": "let"
         },
         {
-          "name": "pendingValidationStatus",
+          "name": "pendingRiskLines",
           "line": 417,
           "kind": "let"
         },
         {
-          "name": "pendingValidationChecklistLines",
+          "name": "renderPendingRiskBreakdown",
           "line": 418,
           "kind": "let"
         },
         {
-          "name": "renderPendingValidation",
+          "name": "pendingValidationStatus",
           "line": 419,
           "kind": "let"
         },
         {
-          "name": "pendingSummaryModule",
+          "name": "pendingValidationChecklistLines",
+          "line": 420,
+          "kind": "let"
+        },
+        {
+          "name": "renderPendingValidation",
           "line": 421,
+          "kind": "let"
+        },
+        {
+          "name": "pendingSummaryModule",
+          "line": 423,
           "kind": "const"
         },
         {
           "name": "pendingSummary",
-          "line": 422,
+          "line": 424,
           "kind": "const"
         },
         {
           "name": "pendingTableRowStatus",
-          "line": 466,
-          "kind": "let"
-        },
-        {
-          "name": "pendingInvestigationFilterLabel",
-          "line": 467,
-          "kind": "let"
-        },
-        {
-          "name": "pendingMatchesInvestigationFilter",
           "line": 468,
           "kind": "let"
         },
         {
-          "name": "pendingFocusedInvestigationLabels",
+          "name": "pendingInvestigationFilterLabel",
           "line": 469,
           "kind": "let"
         },
         {
-          "name": "pendingFilterVisibilityLines",
+          "name": "pendingMatchesInvestigationFilter",
           "line": 470,
           "kind": "let"
         },
         {
-          "name": "pendingSelectedQuickSignalLines",
+          "name": "pendingFocusedInvestigationLabels",
           "line": 471,
           "kind": "let"
         },
         {
-          "name": "pendingInvestigationSignalLines",
+          "name": "pendingFilterVisibilityLines",
           "line": 472,
           "kind": "let"
         },
         {
-          "name": "pendingFiltersModule",
+          "name": "pendingSelectedQuickSignalLines",
+          "line": 473,
+          "kind": "let"
+        },
+        {
+          "name": "pendingInvestigationSignalLines",
           "line": 474,
+          "kind": "let"
+        },
+        {
+          "name": "pendingFiltersModule",
+          "line": 476,
           "kind": "const"
         },
         {
           "name": "pendingFilters",
-          "line": 475,
+          "line": 477,
           "kind": "const"
         },
         {
           "name": "pendingListText",
-          "line": 494,
+          "line": 496,
           "kind": "function"
         },
         {
           "name": "pendingRowKey",
-          "line": 498,
+          "line": 500,
           "kind": "function"
         },
         {
           "name": "getSelectedPendingRow",
-          "line": 508,
+          "line": 510,
           "kind": "function"
         },
         {
           "name": "capturePendingSelectionScroll",
-          "line": 513,
+          "line": 515,
           "kind": "function"
         },
         {
           "name": "restorePendingSelectionScroll",
-          "line": 517,
+          "line": 519,
           "kind": "function"
         },
         {
           "name": "selectPendingRow",
-          "line": 521,
+          "line": 523,
           "kind": "function"
         },
         {
           "name": "pendingDrainOverviewState",
-          "line": 535,
+          "line": 537,
           "kind": "function"
         },
         {
           "name": "pendingActionCenterTriage",
-          "line": 544,
+          "line": 546,
           "kind": "function"
         },
         {
           "name": "pendingActionCenterOutcome",
-          "line": 564,
+          "line": 566,
           "kind": "function"
         },
         {
           "name": "setPendingActionCount",
-          "line": 631,
+          "line": 633,
           "kind": "function"
         },
         {
           "name": "renderPendingActionCenter",
-          "line": 643,
+          "line": 645,
           "kind": "function"
         },
         {
           "name": "renderPendingDrainOverview",
-          "line": 688,
+          "line": 690,
           "kind": "function"
         },
         {
           "name": "applyPendingActionFilter",
-          "line": 718,
+          "line": 720,
           "kind": "function"
         },
         {
           "name": "triggerPendingActionDrain",
-          "line": 747,
+          "line": 749,
           "kind": "function"
         },
         {
           "name": "triggerPendingActionRefresh",
-          "line": 761,
+          "line": 763,
           "kind": "function"
         },
         {
           "name": "initPendingActionCenterEvents",
-          "line": 776,
+          "line": 778,
           "kind": "function"
         },
         {
           "name": "pendingRowReviewChecklistLines",
-          "line": 791,
-          "kind": "let"
-        },
-        {
-          "name": "pendingSelectedAtAGlanceState",
-          "line": 792,
-          "kind": "let"
-        },
-        {
-          "name": "pendingSelectedAtAGlanceStatus",
           "line": 793,
           "kind": "let"
         },
         {
-          "name": "pendingSelectedAtAGlanceLines",
+          "name": "pendingSelectedAtAGlanceState",
           "line": 794,
           "kind": "let"
         },
         {
-          "name": "renderPendingSelectedAtAGlance",
+          "name": "pendingSelectedAtAGlanceStatus",
           "line": 795,
           "kind": "let"
         },
         {
-          "name": "pendingRowIssueDigestLines",
+          "name": "pendingSelectedAtAGlanceLines",
           "line": 796,
           "kind": "let"
         },
         {
-          "name": "pendingRealMediaTraceLines",
+          "name": "renderPendingSelectedAtAGlance",
           "line": 797,
           "kind": "let"
         },
         {
-          "name": "pendingSelectedCompletedCorrelationRows",
+          "name": "pendingRowIssueDigestLines",
           "line": 798,
           "kind": "let"
         },
         {
-          "name": "pendingSelectedCompletedCorrelationLines",
+          "name": "pendingRealMediaTraceLines",
           "line": 799,
           "kind": "let"
         },
         {
-          "name": "pendingSampleValidationHandoffLines",
+          "name": "pendingSelectedCompletedCorrelationRows",
           "line": 800,
           "kind": "let"
         },
         {
-          "name": "pendingSampleValidationComparisonLines",
+          "name": "pendingSelectedCompletedCorrelationLines",
           "line": 801,
           "kind": "let"
         },
         {
-          "name": "pendingRowTrustSummaryLines",
+          "name": "pendingSampleValidationHandoffLines",
           "line": 802,
           "kind": "let"
         },
         {
-          "name": "renderPendingDetail",
+          "name": "pendingSampleValidationComparisonLines",
           "line": 803,
           "kind": "let"
         },
         {
-          "name": "pendingDetailsModule",
+          "name": "pendingRowTrustSummaryLines",
+          "line": 804,
+          "kind": "let"
+        },
+        {
+          "name": "renderPendingDetail",
           "line": 805,
+          "kind": "let"
+        },
+        {
+          "name": "pendingDetailsModule",
+          "line": 807,
           "kind": "const"
         },
         {
           "name": "pendingDetails",
-          "line": 806,
+          "line": 808,
           "kind": "const"
         },
         {
           "name": "renderPendingRows",
-          "line": 837,
+          "line": 839,
           "kind": "function"
         },
         {
           "name": "resetPendingFilters",
-          "line": 921,
+          "line": 923,
           "kind": "function"
         },
         {
           "name": "pendingDiagnosticsState",
-          "line": 932,
+          "line": 934,
           "kind": "const"
         },
         {
           "name": "pendingDiagnosticsModule",
-          "line": 941,
-          "kind": "const"
-        },
-        {
-          "name": "pendingDiagnostics",
           "line": 943,
           "kind": "const"
         },
         {
-          "name": "pendingDrainModule",
-          "line": 972,
+          "name": "pendingDiagnostics",
+          "line": 945,
           "kind": "const"
         },
         {
-          "name": "pendingDrain",
+          "name": "pendingDrainModule",
           "line": 974,
           "kind": "const"
         },
         {
+          "name": "pendingDrain",
+          "line": 976,
+          "kind": "const"
+        },
+        {
           "name": "pendingDrainFn",
-          "line": 1010,
+          "line": 1012,
           "kind": "const"
         },
         {
           "name": "pendingRecoveryState",
-          "line": 1055,
+          "line": 1057,
           "kind": "const"
         },
         {
           "name": "pendingRecoveryModule",
-          "line": 1076,
-          "kind": "const"
-        },
-        {
-          "name": "pendingRecovery",
           "line": 1078,
           "kind": "const"
         },
         {
-          "name": "pendingRepairModule",
-          "line": 1123,
+          "name": "pendingRecovery",
+          "line": 1080,
           "kind": "const"
         },
         {
-          "name": "pendingRepair",
+          "name": "pendingRepairModule",
           "line": 1125,
           "kind": "const"
         },
         {
+          "name": "pendingRepair",
+          "line": 1127,
+          "kind": "const"
+        },
+        {
           "name": "pendingConfidenceState",
-          "line": 1160,
+          "line": 1162,
           "kind": "const"
         },
         {
           "name": "pendingConfidenceModule",
-          "line": 1175,
+          "line": 1177,
           "kind": "const"
         },
         {
           "name": "pendingConfidence",
-          "line": 1177,
+          "line": 1179,
           "kind": "const"
         }
       ],

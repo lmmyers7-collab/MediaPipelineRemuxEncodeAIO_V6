@@ -353,7 +353,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPendingProofIsFinalPlacementReviewSignal",
               "completedPendingProofEvidenceText",
               "completedPendingProofDetailLines",
-              "getSelectedCompletedRow"
+              "getSelectedCompletedRow",
+              "getLastCompletedPendingProofRows"
             ].forEach((name) => {
               if (completedViewSource.includes("window." + name + " =")) {
                 throw new Error("served completedView.js still contains " + name + " flat assignment");
@@ -604,6 +605,10 @@ def _browser_completed_pending_proof_runner_source() -> str:
             window.renderCompleted(payload.completed);
             const selectedCompleted = window.mediaPipelineCompletedView.getSelectedCompletedRow();
             if (!selectedCompleted) throw new Error("missing completed row for repair controls");
+            const getCompletedPendingProofRows = () => {
+              const completedView = window.mediaPipelineCompletedView || {};
+              return typeof completedView.getLastCompletedPendingProofRows === "function" ? completedView.getLastCompletedPendingProofRows() : [];
+            };
             await waitFor(
               () => !byId("completed-reconcile-manifest-dry-run-button").disabled
                 && byId("completed-reconcile-manifest-apply-button").disabled
@@ -680,8 +685,8 @@ def _browser_completed_pending_proof_runner_source() -> str:
             confirmCalls = 0;
             restoreSampleValidationContext();
             window.renderCompletedPendingProof(payload.completed, payload.completed.rows, payload.pending);
-            window.renderCompletedRealMediaProof(payload.completed, payload.completed.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], payload.pending);
-            window.mediaPipelineCompletedView.renderCompletedFinalTrust(payload.completed, payload.completed.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], payload.pending);
+            window.renderCompletedRealMediaProof(payload.completed, payload.completed.rows, getCompletedPendingProofRows(), payload.pending);
+            window.mediaPipelineCompletedView.renderCompletedFinalTrust(payload.completed, payload.completed.rows, getCompletedPendingProofRows(), payload.pending);
             const currentCompletedRows = (payload.completed.rows || []).filter((row) => row.output_exists !== false);
             requireText("completed-count", [String(currentCompletedRows.length)]);
             requireText("completed-encode-count", [String(currentCompletedRows.filter((row) => String(row.route || "").startsWith("encode")).length)]);
@@ -997,7 +1002,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "final-placement conflict",
               "Mutation guardrail",
             ]);
-            const drainedPlacementLabels = (missingDrainedCompleted.rows || []).map((row) => window.mediaPipelineCompletedView.completedOutputPlacement(row, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : []).label);
+            const drainedPlacementLabels = (missingDrainedCompleted.rows || []).map((row) => window.mediaPipelineCompletedView.completedOutputPlacement(row, getCompletedPendingProofRows()).label);
             if (!drainedPlacementLabels.includes("Missing: drain proof")) throw new Error("expected a missing-output row with drain proof placement");
             requireText("completed-history-rows", ["Missing: drain proof"]);
             const finalPlacementRows = Array.from(document.querySelectorAll("#completed-pending-proof-rows tr[data-row-key]"));
@@ -1028,11 +1033,11 @@ def _browser_completed_pending_proof_runner_source() -> str:
             window.renderCompleted(brokenCompleted);
             window.renderCompletedPendingProof(brokenCompleted, brokenCompleted.rows, { rows: [], count: 0 });
             window.renderCompleted(brokenCompleted);
-            const noProofPlacementLabels = (brokenCompleted.rows || []).map((row) => window.mediaPipelineCompletedView.completedOutputPlacement(row, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : []).label);
+            const noProofPlacementLabels = (brokenCompleted.rows || []).map((row) => window.mediaPipelineCompletedView.completedOutputPlacement(row, getCompletedPendingProofRows()).label);
             if (!noProofPlacementLabels.includes("Missing: no proof")) throw new Error("expected a missing-output row with no-proof placement");
             requireText("completed-history-rows", ["Missing: no proof"]);
-            window.renderCompletedRealMediaProof(brokenCompleted, brokenCompleted.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], { rows: [], count: 0 });
-            window.mediaPipelineCompletedView.renderCompletedFinalTrust(brokenCompleted, brokenCompleted.rows, window.getLastCompletedPendingProofRows ? window.getLastCompletedPendingProofRows() : [], { rows: [], count: 0 });
+            window.renderCompletedRealMediaProof(brokenCompleted, brokenCompleted.rows, getCompletedPendingProofRows(), { rows: [], count: 0 });
+            window.mediaPipelineCompletedView.renderCompletedFinalTrust(brokenCompleted, brokenCompleted.rows, getCompletedPendingProofRows(), { rows: [], count: 0 });
             requireText("completed-real-media-proof-status", ["Blocked proof"]);
             requireText("completed-real-media-proof-summary", [
               "Real-media output proof ladder:",

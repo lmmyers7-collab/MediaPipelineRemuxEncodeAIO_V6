@@ -418,7 +418,8 @@
 
   function commandHistoryFinalPlacementProofRows(item) {
     if (!commandHistoryFinalPlacementApplies(item)) return [];
-    const cached = typeof getLastCompletedPendingProofRows === "function" ? getLastCompletedPendingProofRows() : [];
+    const completedView = window.mediaPipelineCompletedView || {};
+    const cached = typeof completedView.getLastCompletedPendingProofRows === "function" ? completedView.getLastCompletedPendingProofRows() : [];
     if (Array.isArray(cached) && cached.length) return cached.slice();
     if (
       typeof completedPendingProofRows === "function"

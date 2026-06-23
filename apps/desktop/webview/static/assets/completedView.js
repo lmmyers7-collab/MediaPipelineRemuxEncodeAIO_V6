@@ -1396,5 +1396,4 @@
   window.selectCompletedRow = selectCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
   window.getLastCompletedRows = getLastCompletedRows;
-  window.getLastCompletedPendingProofRows = getLastCompletedPendingProofRows;
 })();

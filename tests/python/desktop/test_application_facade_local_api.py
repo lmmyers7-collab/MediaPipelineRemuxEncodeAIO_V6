@@ -5594,7 +5594,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("renderCompletedPilotEvidencePacket(undefined, undefined, undefined, undefined, commandHistory)", command_history_js)
         self.assertIn("window.renderCompletedPilotEvidencePacket(", pending_publish_view_js)
         self.assertIn("window.renderCompletedRealMediaProof(", pending_publish_view_js)
-        self.assertIn("window.getLastCompletedPendingProofRows()", pending_publish_view_js)
+        self.assertIn("completedView.getLastCompletedPendingProofRows()", pending_publish_view_js)
         self.assertIn("completedView.renderCompletedOutputAcceptance?.(undefined, undefined, undefined, commandHistory)", command_history_js)
         _assert_namespace_export(self, completed_view_js, "mediaPipelineCompletedView", "renderCompletedOutputAcceptance")
         self.assertNotIn("window.renderCompletedOutputAcceptance = renderCompletedOutputAcceptance", completed_view_js)
