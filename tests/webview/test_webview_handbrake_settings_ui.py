@@ -1053,6 +1053,22 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertNotIn("window.settingsRuntimeRestartConfirmationLine =", settings_js)
         self.assertNotIn("window.settingsRuntimeRestartNoticeLines =", settings_js)
 
+    def test_settings_ocr_path_evidence_helpers_are_namespace_only_exports(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        for helper in (
+            "settingsBdpgsOcrPathEvidence",
+            "settingsBdpgsOcrPathEvidenceStatus",
+            "settingsBdpgsOcrPathEvidenceLines",
+            "renderSettingsBdpgsOcrPathEvidence",
+            "settingsVobSubOcrPathEvidence",
+            "settingsVobSubOcrPathEvidenceStatus",
+            "settingsVobSubOcrPathEvidenceLines",
+            "renderSettingsVobSubOcrPathEvidence",
+        ):
+            self.assertIn(helper, settings_js)
+            self.assertNotIn(f"window.{helper} =", settings_js)
+
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")

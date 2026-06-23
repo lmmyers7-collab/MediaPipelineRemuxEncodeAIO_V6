@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0623-055",
+  "title": "Remove Settings OCR path evidence flat exports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed eight transitional flat Settings OCR path evidence aliases while preserving the helpers on mediaPipelineSettingsView.",
+  "reason": "WebView flat export cleanup remains an active opportunistic workstream. The OCR path evidence helpers are still namespace-exported and are consumed through dependency injection within Settings modules rather than direct window.* access, so their flat aliases can be retired safely.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "settingsView.js exposed BDPGS and VobSub OCR path evidence helpers both through mediaPipelineSettingsView and as direct window.* compatibility aliases.",
+  "behavior_after": "The BDPGS and VobSub OCR path evidence helpers remain available through mediaPipelineSettingsView and existing Settings module dependency injection, but no longer create direct window.* aliases. The global export inventory and WebView public contract baseline now report 460 flat exports.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/WEBVIEW_SPLIT_CANDIDATES.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_SPLIT_CANDIDATES.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-055.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_settings_ocr_path_evidence_helpers_are_namespace_only_exports asserts the OCR path evidence helpers remain present while direct flat aliases are absent."
+  ],
+  "manual_validation": [
+    "Baseline targeted test failed before source edit because window.settingsBdpgsOcrPathEvidence still existed.",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_settings_ocr_path_evidence_helpers_are_namespace_only_exports -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority -q",
+    "node --check apps\\desktop\\webview\\static\\assets\\settingsView.js",
+    "rg \"window\\.settingsBdpgsOcrPathEvidence|window\\.settingsVobSubOcrPathEvidence|window\\.renderSettingsBdpgsOcrPathEvidence|window\\.renderSettingsVobSubOcrPathEvidence\" apps\\desktop\\webview\\static tests\\webview Docs\\inventories -n returned no matches after removal.",
+    "npm run webview:contract",
+    "npm run webview:map",
+    "npm run webview:slices",
+    "npm run webview:prework:check",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_settings_save_warns_active_runtime_keeps_startup_config -q",
+    "apps\\desktop\\runtime\\Python\\python.exe ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Revert this packet to restore the eight Settings direct window.* OCR path evidence aliases, regenerate the WebView public contract baseline, godfile map, split candidates, global export inventory, summaries, and restore the flat export count from 460 to 468.",
+  "related_changes": [],
+  "notes": "Remove eight Settings OCR path evidence direct window aliases while keeping namespace exports.\nAdd namespace-only static guard for Settings OCR path evidence helpers.\nUpdate WebView flat export inventory after removing eight Settings aliases.\nUpdate active WebView flat export count from 468 to 460.\nRegenerate WebView public contract baseline after Settings OCR flat export removal.\nRegenerate WebView godfile split map after Settings alias cleanup.\nRegenerate WebView split candidates after Settings OCR flat export cleanup.\nGenerated summary refreshed after current-state flat export count update.\nGenerated summary refreshed after WebView godfile map update.\nGenerated summary refreshed after WebView public contract baseline update.\nGenerated summary refreshed after WebView split candidates update.\nGenerated summary refreshed after WebView global export inventory update.\nGenerated summary refreshed after Settings flat export cleanup.\nGenerated summary refreshed after Settings WebView static test update."
+}
