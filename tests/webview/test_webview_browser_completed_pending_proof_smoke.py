@@ -173,6 +173,11 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedRouteAgreementPostureStatus",
               "completedRouteAgreementRouteToken",
               "completedRouteAgreementReason",
+              "completedPendingProofStatus",
+              "completedPendingProofSummaryLines",
+              "completedPendingProofDataStatus",
+              "completedPendingProofNextAction",
+              "completedPendingProofRowKey",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -202,6 +207,17 @@ def _browser_completed_pending_proof_runner_source() -> str:
             if (completedViewSource.includes("window.completedManifestIsAged =")) {
               throw new Error("served completedView.js still contains completedManifestIsAged flat assignment");
             }
+            [
+              "completedPendingProofStatus",
+              "completedPendingProofSummaryLines",
+              "completedPendingProofDataStatus",
+              "completedPendingProofNextAction",
+              "completedPendingProofRowKey"
+            ].forEach((name) => {
+              if (completedViewSource.includes("window." + name + " =")) {
+                throw new Error("served completedView.js still contains " + name + " flat assignment");
+              }
+            });
             if (completedViewSource.includes("window.renderCompletedTrustDecision =")) {
               throw new Error("served completedView.js still contains renderCompletedTrustDecision flat assignment");
             }

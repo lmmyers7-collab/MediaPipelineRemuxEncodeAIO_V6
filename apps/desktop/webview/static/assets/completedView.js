@@ -1454,15 +1454,10 @@
   window.completedAcceptanceDetailLines = completedAcceptanceDetailLines;
   window.completedCurrentFilterScope = completedCurrentFilterScope;
   window.completedPendingProofRows = completedPendingProofRows;
-  window.completedPendingProofStatus = completedPendingProofStatus;
-  window.completedPendingProofSummaryLines = completedPendingProofSummaryLines;
   window.completedPendingProofSignalLabel = completedPendingProofSignalLabel;
   window.completedPendingProofIsExactPathSignal = completedPendingProofIsExactPathSignal;
   window.completedPendingProofIsFinalPlacementReviewSignal = completedPendingProofIsFinalPlacementReviewSignal;
-  window.completedPendingProofDataStatus = completedPendingProofDataStatus;
   window.completedPendingProofEvidenceText = completedPendingProofEvidenceText;
-  window.completedPendingProofNextAction = completedPendingProofNextAction;
-  window.completedPendingProofRowKey = completedPendingProofRowKey;
   window.completedPendingProofDetailLines = completedPendingProofDetailLines;
   window.renderCompletedPendingProofDetail = renderCompletedPendingProofDetail;
   window.selectCompletedPendingProofRow = selectCompletedPendingProofRow;

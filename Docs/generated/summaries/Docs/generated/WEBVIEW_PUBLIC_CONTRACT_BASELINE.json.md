@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-22
 last_reviewed: 2026-06-02
-sha256: cb9b1f7021a27128e461f55eb53440ef94ca64be3b6ea476db5d1776b100bf79
+sha256: 8e01ea52ac6250801cb55a3236c14127f51490b4eb4ecc559337af04cbdeac25
 ---
 # `docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json`
 
