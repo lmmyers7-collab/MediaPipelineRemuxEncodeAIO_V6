@@ -1503,7 +1503,6 @@
   window.completedDiagnosticsGuidanceLines = completedDiagnosticsGuidanceLines;
   window.renderCompletedDiagnosticsLinks = renderCompletedDiagnosticsLinks;
   window.requestCompletedDiagnosticsAction = requestCompletedDiagnosticsAction;
-  window.markPublishReconciliationStale = markPublishReconciliationStale;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;

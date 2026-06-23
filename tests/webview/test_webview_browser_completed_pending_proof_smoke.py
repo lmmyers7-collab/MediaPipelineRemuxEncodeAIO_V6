@@ -141,7 +141,6 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedSampleValidationComparisonLines",
               "completedPolicyAlignmentOutputEvidence",
               "completedPolicyOutputCategorySignal",
-              "markPublishReconciliationStale",
               "renderCompletedEvidenceCopyState",
               "pendingSampleValidationComparisonLines",
               "copyCompletedEvidencePacket"
@@ -155,6 +154,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedTrustDecision",
               "renderCompletedActiveOutputContext",
               "showSelectedCompletedRow",
+              "markPublishReconciliationStale",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -183,6 +183,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.showSelectedCompletedRow =")) {
               throw new Error("served completedView.js still contains showSelectedCompletedRow flat assignment");
+            }
+            if (completedViewSource.includes("window.markPublishReconciliationStale =")) {
+              throw new Error("served completedView.js still contains markPublishReconciliationStale flat assignment");
             }
 
             window.confirm = () => {
