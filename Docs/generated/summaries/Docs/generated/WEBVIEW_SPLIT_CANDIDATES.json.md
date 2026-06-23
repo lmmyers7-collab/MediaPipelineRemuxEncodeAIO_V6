@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-23
 last_reviewed: 2026-06-02
-sha256: 9897fe5ea4504e24d5bfb3de5226b8e90d456ea368b3e6b28eff1ffcce3b34e8
+sha256: 524b599c4282575e93c7432176bb910e4ba80f17d75b493369a2f9351e9e15ae
 ---
 # `docs/generated/WEBVIEW_SPLIT_CANDIDATES.json`
 

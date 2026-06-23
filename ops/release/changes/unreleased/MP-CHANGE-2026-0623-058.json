@@ -1,0 +1,58 @@
+{
+  "id": "MP-CHANGE-2026-0623-058",
+  "title": "Remove Settings raw triage flat exports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed five transitional flat Settings Raw Triage aliases while preserving the helpers on mediaPipelineSettingsView.",
+  "reason": "WebView flat export cleanup remains an active opportunistic workstream. The Raw Triage helpers are still namespace-exported and passed internally through Settings module dependency injection, while Raw Action Plan aliases remain flat because Home still consumes them directly.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "settingsView.js exposed Settings Raw Triage row, status, summary, detail, and render helpers both through mediaPipelineSettingsView and as direct window.* compatibility aliases.",
+  "behavior_after": "The Settings Raw Triage helpers remain available through mediaPipelineSettingsView and existing Settings module dependency injection, but no longer create direct window.* aliases. Raw Action Plan helpers intentionally remain flat for the current Home-page consumer. The global export inventory and WebView public contract baseline now report 441 flat exports.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/WEBVIEW_SPLIT_CANDIDATES.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_SPLIT_CANDIDATES.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-058.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_settings_raw_triage_helpers_are_namespace_only_exports asserts the Raw Triage helpers remain present while direct flat aliases are absent."
+  ],
+  "manual_validation": [
+    "Baseline targeted test failed before source edit because window.settingsRawTriageRows still existed.",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui.WebViewHandBrakeSettingsUiTests.test_settings_raw_triage_helpers_are_namespace_only_exports -q",
+    "node --check apps\\desktop\\webview\\static\\assets\\settingsView.js",
+    "rg \"window\\.(settingsRawTriageRows|settingsRawTriageStatus|settingsRawTriageSummaryLines|settingsRawTriageDetailLines|renderSettingsRawTriage)\" apps\\desktop\\webview\\static tests\\webview Docs\\inventories -n returned no matches after removal.",
+    "npm run webview:contract",
+    "npm run webview:map",
+    "npm run webview:slices",
+    "npm run webview:prework:check",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_inventory_docs -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q",
+    "apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_settings_save_warns_active_runtime_keeps_startup_config -q",
+    "apps\\desktop\\runtime\\Python\\python.exe ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Revert this packet to restore the five Settings direct window.* Raw Triage aliases, regenerate the WebView public contract baseline, godfile map, split candidates, global export inventory, summaries, and restore the flat export count from 441 to 446.",
+  "related_changes": [],
+  "notes": "Remove five Settings Raw Triage direct window aliases while keeping namespace exports."
+}

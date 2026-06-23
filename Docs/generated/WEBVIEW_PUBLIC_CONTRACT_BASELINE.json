@@ -1138,7 +1138,6 @@
       "renderSettingsMediaPolicyCrossCheck",
       "renderSettingsOverview",
       "renderSettingsRawActionPlan",
-      "renderSettingsRawTriage",
       "renderSettingsRows",
       "renderVideoDetailSettingsBuilderGuidance",
       "requestDiagnosticsOpen",
@@ -1229,10 +1228,6 @@
       "settingsRawActionPlanRows",
       "settingsRawActionPlanStatus",
       "settingsRawActionPlanSummaryLines",
-      "settingsRawTriageDetailLines",
-      "settingsRawTriageRows",
-      "settingsRawTriageStatus",
-      "settingsRawTriageSummaryLines",
       "showPage",
       "syncFileSafetySettingsBuilderFromConfig",
       "syncFinalLibraryPromotionSettingsBuilderFromConfig",
@@ -12445,12 +12440,12 @@
         },
         {
           "name": "saveBtn",
-          "line": 2178,
+          "line": 2177,
           "kind": "const"
         },
         {
           "name": "reloadBtn",
-          "line": 2180,
+          "line": 2179,
           "kind": "const"
         }
       ],
@@ -12497,7 +12492,6 @@
         "renderSettingsMediaPolicyCrossCheck",
         "renderSettingsOverview",
         "renderSettingsRawActionPlan",
-        "renderSettingsRawTriage",
         "renderSettingsRows",
         "renderVideoDetailSettingsBuilderGuidance",
         "saveFinalLibraryPromotionSettings",
@@ -12513,10 +12507,6 @@
         "settingsRawActionPlanRows",
         "settingsRawActionPlanStatus",
         "settingsRawActionPlanSummaryLines",
-        "settingsRawTriageDetailLines",
-        "settingsRawTriageRows",
-        "settingsRawTriageStatus",
-        "settingsRawTriageSummaryLines",
         "syncFileSafetySettingsBuilderFromConfig",
         "syncFinalLibraryPromotionSettingsBuilderFromConfig",
         "syncNetworkSettingsBuilderFromConfig",
