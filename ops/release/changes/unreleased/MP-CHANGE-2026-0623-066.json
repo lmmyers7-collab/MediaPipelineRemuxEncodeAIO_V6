@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0623-066",
+  "title": "Use Completed namespace during refresh",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Routed broad refresh and Current Output Status refresh through window.mediaPipelineCompletedView.renderCompleted after the Completed flat render export was removed.",
+  "reason": "The WebView refresh paths still called the removed flat renderCompleted global, which could abort refresh before Settings builders populated saved values.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "refreshAllNow and refreshCurrentOutputStatus called bare renderCompleted(...). With no flat window.renderCompleted export, a refresh could fail in the Completed renderer and leave later surfaces, including Settings fields, stale or blank.",
+  "behavior_after": "Both refresh paths call window.mediaPipelineCompletedView.renderCompleted through the existing Completed namespace. The flat export remains removed, and missing namespace state fails closed without restoring a compatibility global.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/refresh.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/refresh.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-066.json",
+    "tests/python/desktop/test_application_facade_local_api.py"
+  ],
+  "tests_added": [
+    "Extended tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype to assert refresh callers use mediaPipelineCompletedView.renderCompleted and no longer call the flat renderCompleted global."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/app.js",
+    "node --check apps/desktop/webview/static/assets/app/refresh.js",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q",
+    "npm run webview:prework:check",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke -q",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed"
+  ],
+  "rollback_plan": "Revert the two namespace call replacements and the static assertions, then refresh generated summaries. This restores the prior flat-global refresh dependency but does not touch settings files, media, queue, publish, or source paths.",
+  "related_changes": [],
+  "notes": "Config diagnosis: C:/Users/lmmye/AppData/Local/MediaPipelineRemuxEncodeAIO/MediaPipeline_config.psd1 imports cleanly and still contains SourceMovies, SourceTV, Outsource, LocalBase, RobocopyFlags, SkipStabilityCheck, EnableIntegrityCheck, and LibraryProfiles. The visible blank Settings fields are consistent with the frontend refresh exception rather than a PSD1 parse failure. No settings persistence, backend route, media, source, queue, publish, drain, or filesystem mutation behavior changed."
+}

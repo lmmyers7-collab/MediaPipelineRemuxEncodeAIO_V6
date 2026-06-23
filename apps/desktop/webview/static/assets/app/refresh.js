@@ -1,4 +1,4 @@
-/* global lastRefreshCompletedAt, lastRefreshDurationMs, lastRefreshStartedAt, refreshAll, renderCompleted, renderHomeRecentCompleted, renderTopbarActivity */
+/* global lastRefreshCompletedAt, lastRefreshDurationMs, lastRefreshStartedAt, refreshAll, renderHomeRecentCompleted, renderTopbarActivity */
 (function () {
   let queueRefreshBusy = false;
 
@@ -69,7 +69,7 @@
       const completed = attachRefreshMetadata("completed", completedRaw);
       const finalLibraryPromotion = attachRefreshMetadata("final library promotion", promotionRaw);
       scrollSnapshot = window.mediaPipelineDom?.captureScrollablePositions?.();
-      renderCompleted(completed);
+      window.mediaPipelineCompletedView?.renderCompleted?.(completed);
       window.mediaPipelineCompletedView?.markPublishReconciliationStale?.("Current Output Status was refreshed after the last backend reconciliation snapshot.");
       window.mediaPipelineCompletedView?.renderFinalLibraryPromotion?.(finalLibraryPromotion);
       window.mediaPipelineAppHome?.renderHomePromotionEntry?.(finalLibraryPromotion);

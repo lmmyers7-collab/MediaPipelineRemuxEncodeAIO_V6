@@ -801,7 +801,7 @@ async function refreshAllNow(options = {}) {
   if (values.queue) renderQueue(values.queue);
   renderHomeQueueSnapshot(values.queue || {});
   renderHomePipelineQueueOutcome(values.snapshot || lastSnapshot, values.queue || {});
-  if (values.completed) renderCompleted(values.completed);
+  if (values.completed) window.mediaPipelineCompletedView?.renderCompleted?.(values.completed);
   // Reuse the final-library promotion status attached to the completed payload:
   // the completed read already computes it via the same builder
   // (annotate_final_library_promotion_rows -> get_final_library_promotion_status),
