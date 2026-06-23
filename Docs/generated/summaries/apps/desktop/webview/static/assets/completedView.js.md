@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: b835f426fcb9d10d7fada1bac7ce8ffe42c934025ac1fda78d8b7456103d09e3
+sha256: 79c03657a49bbf3f19792e69a63e1d862f5ff571ab19d30e94107a6fe3aa4230
 ---
 # `apps/desktop/webview/static/assets/completedView.js`
 

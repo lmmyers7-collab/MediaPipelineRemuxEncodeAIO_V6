@@ -875,10 +875,6 @@
       "collectSubtitleSettingsBuilderPatch",
       "collectVideoDetailSettingsBuilderPatch",
       "commandHistoryCompactEvidenceLine",
-      "completedAcceptanceDetailLines",
-      "completedAcceptanceRows",
-      "completedAcceptanceStatus",
-      "completedAcceptanceSummaryLines",
       "completedBreakdownLines",
       "completedBreakdownStatus",
       "completedConsistencyLines",
@@ -5518,10 +5514,6 @@
         "mediaPipelineCompletedView"
       ],
       "flat_window_exports": [
-        "completedAcceptanceDetailLines",
-        "completedAcceptanceRows",
-        "completedAcceptanceStatus",
-        "completedAcceptanceSummaryLines",
         "completedBreakdownLines",
         "completedBreakdownStatus",
         "completedConsistencyLines",

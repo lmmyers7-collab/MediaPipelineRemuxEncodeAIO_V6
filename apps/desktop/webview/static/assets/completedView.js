@@ -1434,10 +1434,6 @@
   window.completedPilotEvidencePacketMarkdownLines = completedPilotEvidencePacketMarkdownLines;
   window.completedPilotEvidencePostureStatus = completedPilotEvidencePostureStatus;
   window.renderCompletedOutputAcceptance = renderCompletedOutputAcceptance;
-  window.completedAcceptanceRows = completedAcceptanceRows;
-  window.completedAcceptanceStatus = completedAcceptanceStatus;
-  window.completedAcceptanceSummaryLines = completedAcceptanceSummaryLines;
-  window.completedAcceptanceDetailLines = completedAcceptanceDetailLines;
   window.completedCurrentFilterScope = completedCurrentFilterScope;
   window.completedPendingProofRows = completedPendingProofRows;
   window.selectCompletedRow = selectCompletedRow;
