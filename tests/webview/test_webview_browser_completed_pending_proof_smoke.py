@@ -157,6 +157,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "requestCompletedDiagnosticsAction",
               "completedSelectedAtAGlanceState",
               "completedSelectedAtAGlanceStatus",
+              "completedSelectedAtAGlanceLines",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -239,6 +240,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedSelectedAtAGlanceStatus =")) {
               throw new Error("served completedView.js still contains completedSelectedAtAGlanceStatus flat assignment");
+            }
+            if (completedViewSource.includes("window.completedSelectedAtAGlanceLines =")) {
+              throw new Error("served completedView.js still contains completedSelectedAtAGlanceLines flat assignment");
             }
 
             window.confirm = () => {

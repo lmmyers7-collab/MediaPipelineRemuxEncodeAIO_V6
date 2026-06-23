@@ -1489,7 +1489,6 @@
   window.completedRowReviewChecklistLines = completedRowReviewChecklistLines;
   window.completedRowIssueDigestLines = completedRowIssueDigestLines;
   window.completedSelectedQuickSignalLines = completedSelectedQuickSignalLines;
-  window.completedSelectedAtAGlanceLines = completedSelectedAtAGlanceLines;
   window.renderCompletedSelectedAtAGlance = renderCompletedSelectedAtAGlance;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
