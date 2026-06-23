@@ -1389,11 +1389,9 @@
   };
   initCompletedRepairEvents();
   window.renderCompleted = renderCompleted;
-  window.resetCompletedFilters = resetCompletedFilters;
   window.renderCompletedPendingProof = renderCompletedPendingProof;
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
   window.renderCompletedPilotEvidencePacket = renderCompletedPilotEvidencePacket;
-  window.renderCompletedOutputAcceptance = renderCompletedOutputAcceptance;
   window.completedPendingProofRows = completedPendingProofRows;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;

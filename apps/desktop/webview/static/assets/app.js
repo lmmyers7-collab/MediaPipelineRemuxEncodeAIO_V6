@@ -1698,7 +1698,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   const completedInvestigationFilter = byId("completed-investigation-filter");
   if (completedInvestigationFilter) completedInvestigationFilter.addEventListener("change", () => window.mediaPipelineCompletedView?.renderCompletedRows?.());
   const completedClearFiltersButton = byId("completed-clear-filters-button");
-  if (completedClearFiltersButton) completedClearFiltersButton.addEventListener("click", resetCompletedFilters);
+  if (completedClearFiltersButton) completedClearFiltersButton.addEventListener("click", () => window.mediaPipelineCompletedView?.resetCompletedFilters?.());
   const completedShowSelectedButton = byId("completed-show-selected-button");
   if (completedShowSelectedButton) completedShowSelectedButton.addEventListener("click", () => window.mediaPipelineCompletedView?.showSelectedCompletedRow?.());
   const completedRefreshCurrentOutputButton = byId("completed-refresh-current-output-button");
