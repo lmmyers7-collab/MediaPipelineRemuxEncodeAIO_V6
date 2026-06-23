@@ -132,6 +132,15 @@
     return candidates.find((action) => action.kind === "tail") || candidates[0] || null;
   }
 
+  function diagnosticsBridgeSetTailTarget(target) {
+    const setter = window.mediaPipelineDiagnosticsView?.setDiagnosticsTailTarget
+      || window.mediaPipelineDiagnosticsTailView?.setDiagnosticsTailTarget
+      || window.setDiagnosticsTailTarget;
+    if (typeof setter !== "function") return false;
+    setter(target);
+    return true;
+  }
+
   function diagnosticsBridgeHandoffLines(sourceLabel = "selected row", actions = [], options = {}) {
     const ordered = diagnosticsBridgeOrderedActions(actions);
     const primary = diagnosticsBridgePrimaryAction(ordered);
@@ -160,9 +169,7 @@
     const label = sourceLabel || "selected row";
     const message = `Diagnostics bridge selected ${target} from ${label}.`;
     if (kind === "tail") {
-      if (typeof window.setDiagnosticsTailTarget === "function") {
-        window.setDiagnosticsTailTarget(target);
-      }
+      diagnosticsBridgeSetTailTarget(target);
       if (typeof setPanelStatus === "function") {
         setPanelStatus("diagnostics-tail-status", message, "changed");
       } else {

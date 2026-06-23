@@ -7042,6 +7042,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertNotIn("window.setDiagnosticsTailStatus = setDiagnosticsTailStatus", diagnostics_view_js)
         _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "setDiagnosticsTailBusy")
         self.assertNotIn("window.setDiagnosticsTailBusy = setDiagnosticsTailBusy", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "setDiagnosticsTailTarget")
+        self.assertNotIn("window.setDiagnosticsTailTarget = setDiagnosticsTailTarget", diagnostics_view_js)
         self.assertIn("function renderDiagnostics", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsTriage", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsInvestigationTrail", diagnostics_view_js)

@@ -1229,7 +1229,6 @@
       "selectRowInGroup",
       "setActionBusy",
       "setDiagnosticsOwnerHandoffNavStatus",
-      "setDiagnosticsTailTarget",
       "setInlineActionStatus",
       "setPanelStatus",
       "setPendingOpenBusy",
@@ -1936,7 +1935,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3740
+    "top_level_declaration_count": 3741
   },
   "scripts": [
     {
@@ -3751,18 +3750,23 @@
           "kind": "function"
         },
         {
-          "name": "diagnosticsBridgeHandoffLines",
+          "name": "diagnosticsBridgeSetTailTarget",
           "line": 135,
           "kind": "function"
         },
         {
+          "name": "diagnosticsBridgeHandoffLines",
+          "line": 144,
+          "kind": "function"
+        },
+        {
           "name": "diagnosticsBridgeReviewAction",
-          "line": 155,
+          "line": 164,
           "kind": "function"
         },
         {
           "name": "appendDiagnosticsBridgeButton",
-          "line": 194,
+          "line": 201,
           "kind": "function"
         }
       ],
@@ -17057,8 +17061,7 @@
         "selectActiveJobRow",
         "selectDiagnosticsLogRow",
         "selectDiagnosticsOwnerHandoffRow",
-        "setDiagnosticsOwnerHandoffNavStatus",
-        "setDiagnosticsTailTarget"
+        "setDiagnosticsOwnerHandoffNavStatus"
       ],
       "api_routes": [
         "/api/diagnostics/open",
