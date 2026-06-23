@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: e5b9170ef037359bddeb79ae9307c3742afbbcbda088980206f6bb33b72a0039
+sha256: a21473ff26b1e11f83f590361bd807c2aa81a577d0d1275104f8a56a6060c299
 ---
 # `apps/desktop/webview/static/assets/diagnosticsView.js`
 
