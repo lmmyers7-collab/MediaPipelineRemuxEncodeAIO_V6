@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 3eed3539cff6105833c764350049e8a11ec1ada4e7614d1a02834bf2ee153edc
+sha256: 2b03738127e33a8a6480c769763af002971b200cd4bfdda105a6e8b76c218f40
 ---
 # `apps/desktop/webview/static/assets/commandHistory.js`
 

@@ -1327,7 +1327,7 @@
     completedView.renderCompletedOpenHistory?.(commandHistory);
     completedView.renderCompletedOutputAcceptance?.(undefined, undefined, undefined, commandHistory);
     if (typeof renderCompletedFinalTrust === "function") renderCompletedFinalTrust(undefined, undefined, undefined, undefined, commandHistory);
-    if (typeof renderCompletedPilotEvidencePacket === "function") renderCompletedPilotEvidencePacket(undefined, undefined, undefined, undefined, commandHistory);
+    completedView.renderCompletedPilotEvidencePacket?.(undefined, undefined, undefined, undefined, commandHistory);
     if (typeof renderPendingOpenHistory === "function") renderPendingOpenHistory(commandHistory);
     if (typeof renderDiagnosticsOpenHistory === "function") renderDiagnosticsOpenHistory(commandHistory);
     window.mediaPipelineRenameHistoryView?.renderRenameApplyHistory?.(commandHistory);

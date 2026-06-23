@@ -272,8 +272,8 @@
           completedPendingProofRows,
           lastPendingPayload,
         );
-        if (typeof window.renderCompletedPilotEvidencePacket === "function") {
-          window.renderCompletedPilotEvidencePacket(
+        if (typeof completedView.renderCompletedPilotEvidencePacket === "function") {
+          completedView.renderCompletedPilotEvidencePacket(
             completedPayload,
             window.getLastCompletedRows(),
             completedPendingProofRows,

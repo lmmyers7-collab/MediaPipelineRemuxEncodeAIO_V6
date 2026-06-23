@@ -338,6 +338,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "completedPilotEvidencePacketDetailLines",
               "completedPilotEvidencePacketMarkdownLines",
               "completedPilotEvidencePostureStatus",
+              "renderCompletedPilotEvidencePacket",
               "completedRealMediaProofStatus",
               "completedRealMediaProofSummaryLines",
               "completedRealMediaProofDetailLines",

@@ -1095,7 +1095,6 @@
       "renderAudioSettingsBuilderGuidance",
       "renderCompleted",
       "renderCompletedPendingProof",
-      "renderCompletedPilotEvidencePacket",
       "renderCompletedRealMediaProof",
       "renderCrossPageConflictBoard",
       "renderCrossPageContext",
@@ -5470,7 +5469,6 @@
         "getLastCompletedRows",
         "renderCompleted",
         "renderCompletedPendingProof",
-        "renderCompletedPilotEvidencePacket",
         "renderCompletedRealMediaProof",
         "selectCompletedRow"
       ],
