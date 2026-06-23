@@ -1499,7 +1499,6 @@
   window.completedRealMediaTraceLines = completedRealMediaTraceLines;
   window.completedRowTrustSummaryLines = completedRowTrustSummaryLines;
   window.completedSampleValidationComparisonLines = completedSampleValidationComparisonLines;
-  window.completedDiagnosticsActionsForRow = completedDiagnosticsActionsForRow;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;

@@ -156,6 +156,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedEvidenceCopyState",
               "copyCompletedEvidencePacket",
               "requestCompletedDiagnosticsAction",
+              "completedDiagnosticsActionsForRow",
               "completedDiagnosticsGuidanceLines",
               "renderCompletedDiagnosticsLinks",
               "renderCompletedRepairControls",
@@ -204,6 +205,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedDiagnosticsGuidanceLines =")) {
               throw new Error("served completedView.js still contains completedDiagnosticsGuidanceLines flat assignment");
+            }
+            if (completedViewSource.includes("window.completedDiagnosticsActionsForRow =")) {
+              throw new Error("served completedView.js still contains completedDiagnosticsActionsForRow flat assignment");
             }
 
             window.confirm = () => {
