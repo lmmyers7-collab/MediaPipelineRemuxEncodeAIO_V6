@@ -1423,12 +1423,6 @@
   window.completedSizeReviewStatus = completedSizeReviewStatus;
   window.completedSizeReviewLines = completedSizeReviewLines;
   window.completedSizeReviewAction = completedSizeReviewAction;
-  window.renderCompletedSizeEvidence = renderCompletedSizeEvidence;
-  window.completedSizeEvidenceRows = completedSizeEvidenceRows;
-  window.completedSizeEvidenceStatus = completedSizeEvidenceStatus;
-  window.completedSizeEvidenceSummaryLines = completedSizeEvidenceSummaryLines;
-  window.completedSizeEvidenceDetailLines = completedSizeEvidenceDetailLines;
-  window.completedSizeEvidencePostureStatus = completedSizeEvidencePostureStatus;
   window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
   window.completedRealMediaProofStatus = completedRealMediaProofStatus;
   window.completedRealMediaProofSummaryLines = completedRealMediaProofSummaryLines;
