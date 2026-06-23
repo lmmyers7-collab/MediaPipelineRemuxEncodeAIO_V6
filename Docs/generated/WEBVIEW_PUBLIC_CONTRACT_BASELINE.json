@@ -1095,7 +1095,6 @@
       "renderAudioSettingsBuilderGuidance",
       "renderCompleted",
       "renderCompletedPendingProof",
-      "renderCompletedRealMediaProof",
       "renderCrossPageConflictBoard",
       "renderCrossPageContext",
       "renderCrossPageRealMediaWorksheet",
@@ -5469,7 +5468,6 @@
         "getLastCompletedRows",
         "renderCompleted",
         "renderCompletedPendingProof",
-        "renderCompletedRealMediaProof",
         "selectCompletedRow"
       ],
       "api_routes": [],

@@ -1390,7 +1390,6 @@
   initCompletedRepairEvents();
   window.renderCompleted = renderCompleted;
   window.renderCompletedPendingProof = renderCompletedPendingProof;
-  window.renderCompletedRealMediaProof = renderCompletedRealMediaProof;
   window.selectCompletedRow = selectCompletedRow;
   window.getLastCompletedRows = getLastCompletedRows;
 })();

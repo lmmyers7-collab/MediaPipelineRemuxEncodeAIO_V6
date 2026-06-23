@@ -264,9 +264,9 @@
     ) {
       const completedPayload = completedView.getLastCompletedPayload();
       window.renderCompletedPendingProof(completedPayload, window.getLastCompletedRows(), lastPendingPayload);
-      if (typeof window.renderCompletedRealMediaProof === "function" && typeof completedView.getLastCompletedPendingProofRows === "function") {
+      if (typeof completedView.renderCompletedRealMediaProof === "function" && typeof completedView.getLastCompletedPendingProofRows === "function") {
         const completedPendingProofRows = completedView.getLastCompletedPendingProofRows();
-        window.renderCompletedRealMediaProof(
+        completedView.renderCompletedRealMediaProof(
           completedPayload,
           window.getLastCompletedRows(),
           completedPendingProofRows,
