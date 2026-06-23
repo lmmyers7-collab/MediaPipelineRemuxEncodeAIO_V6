@@ -7098,6 +7098,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function diagnosticsLogRowActions", diagnostics_view_js)
         self.assertIn("function diagnosticsLogRowNextStep", diagnostics_view_js)
         self.assertIn("function diagnosticsLogRealMediaTraceLines", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "diagnosticsLogRealMediaTraceLines")
+        self.assertNotIn("window.diagnosticsLogRealMediaTraceLines = diagnosticsLogRealMediaTraceLines", diagnostics_view_js)
         self.assertIn("Real-media sample trace: Diagnostics log", diagnostics_view_js)
         self.assertIn("a single log line is not completion, output, sidecar, size, subtitle/audio, or publish proof", diagnostics_view_js)
         self.assertIn("function diagnosticsActionGroups", diagnostics_view_js)
