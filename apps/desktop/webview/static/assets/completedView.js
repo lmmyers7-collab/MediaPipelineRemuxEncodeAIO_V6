@@ -1500,7 +1500,6 @@
   window.completedRowTrustSummaryLines = completedRowTrustSummaryLines;
   window.completedSampleValidationComparisonLines = completedSampleValidationComparisonLines;
   window.completedDiagnosticsActionsForRow = completedDiagnosticsActionsForRow;
-  window.completedDiagnosticsGuidanceLines = completedDiagnosticsGuidanceLines;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
