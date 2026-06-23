@@ -1649,7 +1649,7 @@ document.addEventListener("DOMContentLoaded", async () => {
   window.mediaPipelineMetricsView?.initMetricsViewEvents?.();
   window.mediaPipelineReportsView?.initReportsViewEvents?.();
   window.mediaPipelineScheduleView?.initScheduleViewEvents?.();
-  initDiagnosticsViewEvents();
+  window.mediaPipelineDiagnosticsView?.initDiagnosticsViewEvents?.();
   window.mediaPipelineNetworkView?.initNetworkViewEvents?.();
   window.mediaPipelineContractView?.initContractViewEvents?.();
   const maintenanceView = window.mediaPipelineMaintenanceView || {};
