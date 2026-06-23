@@ -1392,13 +1392,6 @@
   window.resetCompletedFilters = resetCompletedFilters;
   window.resetCompletedHistoryFilters = resetCompletedHistoryFilters;
   window.renderCompletedDetail = renderCompletedDetail;
-  window.renderCompletedIntegrity = renderCompletedIntegrity;
-  window.renderCompletedBreakdown = renderCompletedBreakdown;
-  window.renderCompletedRuntime = renderCompletedRuntime;
-  window.renderCompletedConsistency = renderCompletedConsistency;
-  window.renderCompletedValidation = renderCompletedValidation;
-  window.renderCompletedWorkflow = renderCompletedWorkflow;
-  window.renderCompletedReviewBoard = renderCompletedReviewBoard;
   window.renderCompletedPendingProof = renderCompletedPendingProof;
   window.completedReviewStatus = completedReviewStatus;
   window.completedReviewBoardLines = completedReviewBoardLines;
