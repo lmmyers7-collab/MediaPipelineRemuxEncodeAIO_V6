@@ -155,6 +155,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "markPublishReconciliationStale",
               "renderCompletedEvidenceCopyState",
               "copyCompletedEvidencePacket",
+              "requestCompletedDiagnosticsAction",
               "renderCompletedRepairControls",
               "requestCompletedRepairDryRun",
               "requestCompletedRepairApply"
@@ -192,6 +193,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.copyCompletedEvidencePacket =")) {
               throw new Error("served completedView.js still contains copyCompletedEvidencePacket flat assignment");
+            }
+            if (completedViewSource.includes("window.requestCompletedDiagnosticsAction =")) {
+              throw new Error("served completedView.js still contains requestCompletedDiagnosticsAction flat assignment");
             }
 
             window.confirm = () => {

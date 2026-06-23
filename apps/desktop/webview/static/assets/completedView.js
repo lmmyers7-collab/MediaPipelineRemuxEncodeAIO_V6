@@ -1502,7 +1502,6 @@
   window.completedDiagnosticsActionsForRow = completedDiagnosticsActionsForRow;
   window.completedDiagnosticsGuidanceLines = completedDiagnosticsGuidanceLines;
   window.renderCompletedDiagnosticsLinks = renderCompletedDiagnosticsLinks;
-  window.requestCompletedDiagnosticsAction = requestCompletedDiagnosticsAction;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;
