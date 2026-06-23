@@ -7022,6 +7022,8 @@ class LocalApiServerTests(unittest.TestCase):
         )
         _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "requestTdarrMatrixConsole")
         self.assertNotIn("window.requestTdarrMatrixConsole = requestTdarrMatrixConsole", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "renderTdarrMatrixConsole")
+        self.assertNotIn("window.renderTdarrMatrixConsole = renderTdarrMatrixConsole", diagnostics_view_js)
         self.assertIn("function renderDiagnostics", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsTriage", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsInvestigationTrail", diagnostics_view_js)

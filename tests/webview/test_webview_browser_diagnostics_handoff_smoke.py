@@ -363,7 +363,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 }],
                 bucket_summary: [{ diagnostic_bucket: "video", finding_count: 1, severity: "error" }],
               };
-              window.renderTdarrMatrixConsole({ latest_run_id: "", run: {}, runs: [], findings: [], proof_pack_rows: [], smoke_pack_rows: [], bucket_summary: [] });
+              window.mediaPipelineDiagnosticsView.renderTdarrMatrixConsole({ latest_run_id: "", run: {}, runs: [], findings: [], proof_pack_rows: [], smoke_pack_rows: [], bucket_summary: [] });
               checks.tdarr.initial = {
                 prepare: assertTdarrGate("prepare-proof-pack", false, "initial Tdarr gate"),
                 proof: assertTdarrGate("proof-pack", true, "initial Tdarr gate"),
