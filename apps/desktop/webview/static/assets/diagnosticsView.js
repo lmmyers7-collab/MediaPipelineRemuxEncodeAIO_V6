@@ -2358,6 +2358,5 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
   window.requestDiagnosticsTail = requestDiagnosticsTail;
   window.initDiagnosticsViewEvents = initDiagnosticsViewEvents;
   window.requestDiagnosticsOpen = requestDiagnosticsOpen;
-  window.diagnosticsOpenHistoryLine = diagnosticsOpenHistoryLine;
   window.renderDiagnosticsOpenHistory = renderDiagnosticsOpenHistory;
 })();
