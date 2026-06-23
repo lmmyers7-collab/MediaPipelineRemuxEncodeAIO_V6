@@ -6626,7 +6626,9 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn('settingsPolicyImpactDo("renderSettingsLaunchImpactHandoffFromEntries", [entries])', settings_view_js)
         self.assertIn("Launch uses saved backend settings, not unsaved edits.", settings_view_js)
         self.assertIn("backend launch validation remains authoritative", settings_view_js)
-        self.assertIn("window.settingsLaunchImpactRows = settingsLaunchImpactRows", settings_view_js)
+        _assert_namespace_export(self, settings_view_js, "mediaPipelineSettingsView", "settingsLaunchImpactRows")
+        settings_launch_flat_alias = "window." + "settingsLaunchImpactRows = settingsLaunchImpactRows"
+        self.assertNotIn(settings_launch_flat_alias, settings_view_js)
         self.assertIn("let settingsPatchTouched = false", settings_view_js)
         self.assertIn("/api/settings/browse-path", settings_view_js)
         self.assertIn("function browseSettingsPath", settings_view_js)

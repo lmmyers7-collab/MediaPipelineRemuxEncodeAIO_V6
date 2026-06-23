@@ -2159,8 +2159,6 @@ async function reloadSettingsFromDisk() {
   window.settingsRawActionPlanRows = settingsRawActionPlanRows;
   window.settingsRawActionPlanStatus = settingsRawActionPlanStatus; window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
   window.renderSettings = renderSettings; window.getLastSettings = getLastSettings;
-  window.settingsPolicyDeltaRows = settingsPolicyDeltaRows; window.settingsPolicyDeltaStatus = settingsPolicyDeltaStatus; window.settingsLaunchImpactRows = settingsLaunchImpactRows; window.settingsLaunchImpactStatus = settingsLaunchImpactStatus;
-  window.settingsPatchIsTouched = settingsPatchIsTouched; window.settingsPatchEffectiveChangedEntries = settingsPatchEffectiveChangedEntries;
   window.writeSettingsPatchJson = writeSettingsPatchJson; window.initSettingsViewEvents = initSettingsViewEvents;
 
   (function () {

@@ -1186,6 +1186,35 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(helper, settings_js)
             self.assertNotIn(f"window.{helper} =", settings_js)
 
+    def test_launch_settings_policy_helpers_use_settings_namespace(self) -> None:
+        launch_js = (STATIC_ROOT / "assets" / "launchView.js").read_text(encoding="utf-8")
+
+        self.assertIn("const settingsView = window.mediaPipelineSettingsView || {};", launch_js)
+        for helper in (
+            "settingsPolicyDeltaRows",
+            "settingsPolicyDeltaStatus",
+            "settingsLaunchImpactRows",
+            "settingsLaunchImpactStatus",
+            "settingsPatchIsTouched",
+            "settingsPatchEffectiveChangedEntries",
+        ):
+            self.assertIn(f"settingsView.{helper}", launch_js)
+            self.assertNotIn(f"window.{helper}", launch_js)
+
+    def test_settings_policy_launch_helpers_are_namespace_only_exports(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        for helper in (
+            "settingsPolicyDeltaRows",
+            "settingsPolicyDeltaStatus",
+            "settingsLaunchImpactRows",
+            "settingsLaunchImpactStatus",
+            "settingsPatchIsTouched",
+            "settingsPatchEffectiveChangedEntries",
+        ):
+            self.assertIn(helper, settings_js)
+            self.assertNotIn(f"window.{helper} =", settings_js)
+
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")

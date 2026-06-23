@@ -12,6 +12,7 @@
   const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
   const scheduleWatcherSummary = typeof scheduleView.scheduleWatcherSummary === "function" ? scheduleView.scheduleWatcherSummary : null;
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
+  const settingsView = window.mediaPipelineSettingsView || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
   const commandHistoryView = window.mediaPipelineCommandHistory || {};
   const launchHistoryView = window.mediaPipelineLaunchHistoryView || {};
@@ -292,13 +293,13 @@
       scheduleDisplayValue,
       setText: typeof setText === "function" ? setText : window.setText,
       settingsCommandHistoryLine: typeof window.mediaPipelineSettingsCommandHistory?.settingsCommandHistoryLine === "function" ? window.mediaPipelineSettingsCommandHistory.settingsCommandHistoryLine : null,
-      settingsLaunchImpactRows: typeof window.settingsLaunchImpactRows === "function" ? window.settingsLaunchImpactRows : (typeof settingsLaunchImpactRows === "function" ? settingsLaunchImpactRows : null),
-      settingsLaunchImpactStatus: typeof window.settingsLaunchImpactStatus === "function" ? window.settingsLaunchImpactStatus : (typeof settingsLaunchImpactStatus === "function" ? settingsLaunchImpactStatus : null),
+      settingsLaunchImpactRows: typeof settingsView.settingsLaunchImpactRows === "function" ? settingsView.settingsLaunchImpactRows : null,
+      settingsLaunchImpactStatus: typeof settingsView.settingsLaunchImpactStatus === "function" ? settingsView.settingsLaunchImpactStatus : null,
       settingsOperatorTrustStatus,
-      settingsPatchEffectiveChangedEntries: typeof window.settingsPatchEffectiveChangedEntries === "function" ? window.settingsPatchEffectiveChangedEntries : (typeof settingsPatchEffectiveChangedEntries === "function" ? settingsPatchEffectiveChangedEntries : null),
-      settingsPatchIsTouched: typeof window.settingsPatchIsTouched === "function" ? window.settingsPatchIsTouched : (typeof settingsPatchIsTouched === "function" ? settingsPatchIsTouched : null),
-      settingsPolicyDeltaRows: typeof window.settingsPolicyDeltaRows === "function" ? window.settingsPolicyDeltaRows : (typeof settingsPolicyDeltaRows === "function" ? settingsPolicyDeltaRows : null),
-      settingsPolicyDeltaStatus: typeof window.settingsPolicyDeltaStatus === "function" ? window.settingsPolicyDeltaStatus : (typeof settingsPolicyDeltaStatus === "function" ? settingsPolicyDeltaStatus : null),
+      settingsPatchEffectiveChangedEntries: typeof settingsView.settingsPatchEffectiveChangedEntries === "function" ? settingsView.settingsPatchEffectiveChangedEntries : null,
+      settingsPatchIsTouched: typeof settingsView.settingsPatchIsTouched === "function" ? settingsView.settingsPatchIsTouched : null,
+      settingsPolicyDeltaRows: typeof settingsView.settingsPolicyDeltaRows === "function" ? settingsView.settingsPolicyDeltaRows : null,
+      settingsPolicyDeltaStatus: typeof settingsView.settingsPolicyDeltaStatus === "function" ? settingsView.settingsPolicyDeltaStatus : null,
       state: launchRiskState,
       updateTableStatusLegend: typeof updateTableStatusLegend === "function" ? updateTableStatusLegend : window.updateTableStatusLegend,
     })
