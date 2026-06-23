@@ -7105,6 +7105,8 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("function activeJobDiagnosticsActions", diagnostics_view_js)
         self.assertIn("function renderActiveJobDiagnosticsActions", diagnostics_view_js)
         self.assertIn("function diagnosticsLogGuidanceLines", diagnostics_view_js)
+        _assert_namespace_export(self, diagnostics_view_js, "mediaPipelineDiagnosticsView", "diagnosticsLogGuidanceLines")
+        self.assertNotIn("window.diagnosticsLogGuidanceLines = diagnosticsLogGuidanceLines", diagnostics_view_js)
         self.assertIn("Proof boundary: an empty or clean log view", diagnostics_view_js)
         self.assertIn("function renderDiagnosticsLogActions", diagnostics_view_js)
         self.assertIn("function getLastDiagnosticsLogRows", diagnostics_view_js)
