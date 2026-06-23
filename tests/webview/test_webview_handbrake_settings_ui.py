@@ -1186,6 +1186,28 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(helper, settings_js)
             self.assertNotIn(f"window.{helper} =", settings_js)
 
+    def test_home_raw_action_plan_helpers_use_settings_namespace(self) -> None:
+        home_js = (STATIC_ROOT / "assets" / "app" / "home.js").read_text(encoding="utf-8")
+
+        self.assertIn("const settingsView = window.mediaPipelineSettingsView || {};", home_js)
+        for helper in (
+            "settingsRawActionPlanRows",
+            "settingsRawActionPlanStatus",
+        ):
+            self.assertIn(f"settingsView.{helper}", home_js)
+            self.assertNotIn(f"window.{helper}", home_js)
+        self.assertNotIn("settingsRawActionPlanRows, settingsRawActionPlanStatus", home_js)
+
+    def test_settings_raw_action_plan_row_helpers_are_namespace_only_exports(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+
+        for helper in (
+            "settingsRawActionPlanRows",
+            "settingsRawActionPlanStatus",
+        ):
+            self.assertIn(helper, settings_js)
+            self.assertNotIn(f"window.{helper} =", settings_js)
+
     def test_launch_settings_policy_helpers_use_settings_namespace(self) -> None:
         launch_js = (STATIC_ROOT / "assets" / "launchView.js").read_text(encoding="utf-8")
 

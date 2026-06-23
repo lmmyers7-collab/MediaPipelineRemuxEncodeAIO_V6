@@ -1,4 +1,4 @@
-/* global getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel, settingsRawActionPlanRows, settingsRawActionPlanStatus */
+/* global getCommandHistory, lastRefreshCompletedAt, lastRefreshDurationMs, refreshTimeLabel */
 (function () {
   const formatters = window.mediaPipelineFormatters || {};
   const formatProgressValue = typeof formatters.formatProgressValue === "function"
@@ -11,6 +11,7 @@
       };
   const shortenPath = typeof formatters.shortenPath === "function" ? formatters.shortenPath : null;
   const settingsOverview = window.mediaPipelineSettingsOverview || {};
+  const settingsView = window.mediaPipelineSettingsView || {};
   const settingsOperatorTrustStatus = typeof settingsOverview.settingsOperatorTrustStatus === "function" ? settingsOverview.settingsOperatorTrustStatus : null;
   const commandHistoryView = window.mediaPipelineCommandHistory || {};
 
@@ -1141,10 +1142,10 @@
         nextStep: "Use Diagnostics State Artifact Summary read order, then return to Settings > Media Output before rerun or manual-review decisions."
       });
     }
-    if (typeof settingsRawActionPlanRows === "function") {
-      const rawActionRows = settingsRawActionPlanRows();
+    if (typeof settingsView.settingsRawActionPlanRows === "function") {
+      const rawActionRows = settingsView.settingsRawActionPlanRows();
       if (rawActionRows.length) {
-        const rawStatus = typeof settingsRawActionPlanStatus === "function" ? settingsRawActionPlanStatus(rawActionRows) : "Review";
+        const rawStatus = typeof settingsView.settingsRawActionPlanStatus === "function" ? settingsView.settingsRawActionPlanStatus(rawActionRows) : "Review";
         const blockedRows = rawActionRows.filter(row => String(row.posture || "").toLowerCase().includes("blocked"));
         const highRows = rawActionRows.filter(row => String(row.posture || "").toLowerCase().includes("high"));
         const reviewRows = rawActionRows.filter(row => String(row.posture || "").toLowerCase().includes("review") || String(row.posture || "").toLowerCase().includes("exclusion"));

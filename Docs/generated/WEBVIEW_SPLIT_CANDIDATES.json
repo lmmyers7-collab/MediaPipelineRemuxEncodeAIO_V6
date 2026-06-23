@@ -593,8 +593,6 @@
         "mediaPipelineSettingsView",
         "renderSettings",
         "renderSettingsRawActionPlan",
-        "settingsRawActionPlanRows",
-        "settingsRawActionPlanStatus",
         "writeSettingsPatchJson"
       ],
       "candidate_count": 5,
@@ -673,8 +671,6 @@
             "mediaPipelineSettingsView",
             "renderSettings",
             "renderSettingsRawActionPlan",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
             "writeSettingsPatchJson"
           ],
           "api_routes": [
@@ -860,8 +856,6 @@
             "mediaPipelineSettingsView",
             "renderSettings",
             "renderSettingsRawActionPlan",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
             "writeSettingsPatchJson"
           ],
           "api_routes": [
@@ -993,8 +987,6 @@
             "mediaPipelineSettingsView",
             "renderSettings",
             "renderSettingsRawActionPlan",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
             "writeSettingsPatchJson"
           ],
           "api_routes": [
@@ -1156,8 +1148,6 @@
             "mediaPipelineSettingsView",
             "renderSettings",
             "renderSettingsRawActionPlan",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
             "writeSettingsPatchJson"
           ],
           "api_routes": [],
@@ -1298,8 +1288,6 @@
             "mediaPipelineSettingsView",
             "renderSettings",
             "renderSettingsRawActionPlan",
-            "settingsRawActionPlanRows",
-            "settingsRawActionPlanStatus",
             "writeSettingsPatchJson"
           ],
           "api_routes": [],

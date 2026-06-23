@@ -2156,8 +2156,7 @@ async function reloadSettingsFromDisk() {
     settingsRenameLogCasePayload, submitSettingsRenameLogCase, initSettingsRenameLogCaseEvents,
     writeSettingsPatchJson, parseSettingsPatchJson, initSettingsViewEvents,
   };
-  window.settingsRawActionPlanRows = settingsRawActionPlanRows;
-  window.settingsRawActionPlanStatus = settingsRawActionPlanStatus; window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
+  window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
   window.renderSettings = renderSettings; window.getLastSettings = getLastSettings;
   window.writeSettingsPatchJson = writeSettingsPatchJson; window.initSettingsViewEvents = initSettingsViewEvents;
 

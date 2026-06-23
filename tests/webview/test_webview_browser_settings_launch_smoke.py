@@ -378,7 +378,6 @@ def _browser_settings_launch_runner_source() -> str:
               "showPage",
               "renderSettings",
               "renderSettingsPatchSummary",
-              "settingsRawActionPlanRows",
               "renderSettingsRawActionPlan",
               "externalDependencyRows",
               "markSettingsPatchTouched",
@@ -391,6 +390,11 @@ def _browser_settings_launch_runner_source() -> str:
               "renderAllLaunchPreflights",
               "getCommandHistory",
             ].forEach(requireFunction);
+            ["settingsRawActionPlanRows", "settingsRawActionPlanStatus"].forEach((name) => {
+              if (typeof window.mediaPipelineSettingsView?.[name] !== "function") {
+                throw new Error("missing Settings namespace function " + name);
+              }
+            });
 
             window.renderQueue({
               ok: true,

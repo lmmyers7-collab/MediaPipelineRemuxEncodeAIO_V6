@@ -1178,8 +1178,6 @@
       "setText",
       "setTextState",
       "setTopbarPendingLaunch",
-      "settingsRawActionPlanRows",
-      "settingsRawActionPlanStatus",
       "showPage",
       "tableStatusFilterLabel",
       "tableStatusMatchesFilter",
@@ -1840,7 +1838,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3743
+    "top_level_declaration_count": 3744
   },
   "scripts": [
     {
@@ -12384,12 +12382,12 @@
         },
         {
           "name": "saveBtn",
-          "line": 2165,
+          "line": 2164,
           "kind": "const"
         },
         {
           "name": "reloadBtn",
-          "line": 2167,
+          "line": 2166,
           "kind": "const"
         }
       ],
@@ -12401,8 +12399,6 @@
         "initSettingsViewEvents",
         "renderSettings",
         "renderSettingsRawActionPlan",
-        "settingsRawActionPlanRows",
-        "settingsRawActionPlanStatus",
         "writeSettingsPatchJson"
       ],
       "api_routes": [
@@ -21732,458 +21728,463 @@
           "kind": "const"
         },
         {
-          "name": "settingsOperatorTrustStatus",
+          "name": "settingsView",
           "line": 14,
           "kind": "const"
         },
         {
-          "name": "commandHistoryView",
+          "name": "settingsOperatorTrustStatus",
           "line": 15,
           "kind": "const"
         },
         {
+          "name": "commandHistoryView",
+          "line": 16,
+          "kind": "const"
+        },
+        {
           "name": "homeReadinessNextStep",
-          "line": 17,
+          "line": 18,
           "kind": "function"
         },
         {
           "name": "setHomePanelStatus",
-          "line": 43,
+          "line": 44,
           "kind": "function"
         },
         {
           "name": "homePanelStateFromStatus",
-          "line": 53,
+          "line": 54,
           "kind": "function"
         },
         {
           "name": "selectHomeListItem",
-          "line": 63,
+          "line": 64,
           "kind": "function"
         },
         {
           "name": "renderHomeReadiness",
-          "line": 72,
+          "line": 73,
           "kind": "function"
         },
         {
           "name": "dailyDriverCount",
-          "line": 112,
+          "line": 113,
           "kind": "function"
         },
         {
           "name": "dailyDriverRow",
-          "line": 117,
+          "line": 118,
           "kind": "function"
         },
         {
           "name": "dailyDriverStatusRank",
-          "line": 121,
+          "line": 122,
           "kind": "function"
         },
         {
           "name": "dailyDriverOverallStatus",
-          "line": 129,
+          "line": 130,
           "kind": "function"
         },
         {
           "name": "dailyDriverStatusClass",
-          "line": 136,
+          "line": 137,
           "kind": "function"
         },
         {
           "name": "dailyDriverSettingsStatus",
-          "line": 143,
+          "line": 144,
           "kind": "function"
         },
         {
           "name": "dependencyStatusRank",
-          "line": 159,
+          "line": 160,
           "kind": "function"
         },
         {
           "name": "dependencyStatusLabel",
-          "line": 167,
+          "line": 168,
           "kind": "function"
         },
         {
           "name": "dailyDriverDiagnosticsCounts",
-          "line": 174,
+          "line": 175,
           "kind": "function"
         },
         {
           "name": "dailyDriverCommandIssues",
-          "line": 180,
+          "line": 181,
           "kind": "function"
         },
         {
           "name": "dailyDriverRealMediaProofRow",
-          "line": 189,
+          "line": 190,
           "kind": "function"
         },
         {
           "name": "homeNetworkDriftPayload",
-          "line": 213,
+          "line": 214,
           "kind": "function"
         },
         {
           "name": "homeNetworkDriftFieldsText",
-          "line": 218,
+          "line": 219,
           "kind": "function"
         },
         {
           "name": "homeNetworkPolicyDivergencePayload",
-          "line": 227,
+          "line": 228,
           "kind": "function"
         },
         {
           "name": "homeNetworkPolicyDivergenceFieldsText",
-          "line": 232,
+          "line": 233,
           "kind": "function"
         },
         {
           "name": "homeNetworkPolicyDivergenceStatusText",
-          "line": 242,
+          "line": 243,
           "kind": "function"
         },
         {
           "name": "homeNetworkPolicyDivergenceActive",
-          "line": 250,
+          "line": 251,
           "kind": "function"
         },
         {
           "name": "dailyDriverRows",
-          "line": 254,
+          "line": 255,
           "kind": "function"
         },
         {
           "name": "dailyDriverSummaryLines",
-          "line": 404,
+          "line": 405,
           "kind": "function"
         },
         {
           "name": "homeProgressPercent",
-          "line": 423,
+          "line": 424,
           "kind": "function"
         },
         {
           "name": "homeCompactShortValue",
-          "line": 430,
+          "line": 431,
           "kind": "function"
         },
         {
           "name": "homeQueueLeaf",
-          "line": 437,
+          "line": 438,
           "kind": "function"
         },
         {
           "name": "homeQueuePathSegments",
-          "line": 444,
+          "line": 445,
           "kind": "function"
         },
         {
           "name": "homeQueueStem",
-          "line": 452,
+          "line": 453,
           "kind": "function"
         },
         {
           "name": "homeQueueNumberToken",
-          "line": 456,
+          "line": 457,
           "kind": "function"
         },
         {
           "name": "homeQueueSeasonEpisodeFromText",
-          "line": 461,
+          "line": 462,
           "kind": "function"
         },
         {
           "name": "homeQueueSeasonEpisodeCode",
-          "line": 470,
+          "line": 471,
           "kind": "function"
         },
         {
           "name": "homeQueueLooksTv",
-          "line": 494,
+          "line": 495,
           "kind": "function"
         },
         {
           "name": "homeQueueRejectSeriesLabel",
-          "line": 515,
+          "line": 516,
           "kind": "function"
         },
         {
           "name": "homeQueueSeriesCandidateFromText",
-          "line": 521,
+          "line": 522,
           "kind": "function"
         },
         {
           "name": "homeQueueSeriesCandidateFromPath",
-          "line": 530,
+          "line": 531,
           "kind": "function"
         },
         {
           "name": "homeMovieTitleYear",
-          "line": 547,
+          "line": 548,
           "kind": "function"
         },
         {
           "name": "homeNormalizeQueueTitle",
-          "line": 569,
+          "line": 570,
           "kind": "function"
         },
         {
           "name": "homeQueueTitle",
-          "line": 580,
+          "line": 581,
           "kind": "function"
         },
         {
           "name": "homeQueueDisplayLabel",
-          "line": 594,
+          "line": 595,
           "kind": "function"
         },
         {
           "name": "homeQueueRoute",
-          "line": 627,
+          "line": 628,
           "kind": "function"
         },
         {
           "name": "homeQueueMeta",
-          "line": 633,
+          "line": 634,
           "kind": "function"
         },
         {
           "name": "homeQueueDetailLines",
-          "line": 641,
+          "line": 642,
           "kind": "function"
         },
         {
           "name": "homeQueueRowIsRunnable",
-          "line": 656,
+          "line": 657,
           "kind": "function"
         },
         {
           "name": "homeQueueGlobalOrder",
-          "line": 661,
+          "line": 662,
           "kind": "function"
         },
         {
           "name": "homeQueueSourceKey",
-          "line": 666,
+          "line": 667,
           "kind": "function"
         },
         {
           "name": "homeCurrentQueueOrder",
-          "line": 678,
+          "line": 679,
           "kind": "function"
         },
         {
           "name": "homeNextQueueRows",
-          "line": 694,
+          "line": 695,
           "kind": "function"
         },
         {
           "name": "renderHomePendingCount",
-          "line": 711,
+          "line": 712,
           "kind": "function"
         },
         {
           "name": "renderHomeNetworkRole",
-          "line": 716,
+          "line": 717,
           "kind": "function"
         },
         {
           "name": "homeStorageRows",
-          "line": 722,
+          "line": 723,
           "kind": "function"
         },
         {
           "name": "normalizeStoragePath",
-          "line": 727,
+          "line": 728,
           "kind": "function"
         },
         {
           "name": "homeStoragePath",
-          "line": 731,
+          "line": 732,
           "kind": "function"
         },
         {
           "name": "homeStorageRowForPath",
-          "line": 735,
+          "line": 736,
           "kind": "function"
         },
         {
           "name": "homeFirstStorageRow",
-          "line": 746,
+          "line": 747,
           "kind": "function"
         },
         {
           "name": "homeActiveOutputPath",
-          "line": 755,
+          "line": 756,
           "kind": "function"
         },
         {
           "name": "homeStorageUnknownRow",
-          "line": 766,
+          "line": 767,
           "kind": "function"
         },
         {
           "name": "homeScratchStorageRow",
-          "line": 787,
+          "line": 788,
           "kind": "function"
         },
         {
           "name": "homeOutputStorageRow",
-          "line": 792,
+          "line": 793,
           "kind": "function"
         },
         {
           "name": "homeStorageNumber",
-          "line": 803,
+          "line": 804,
           "kind": "function"
         },
         {
           "name": "homeStorageStatus",
-          "line": 808,
+          "line": 809,
           "kind": "function"
         },
         {
           "name": "homeStorageGbText",
-          "line": 818,
+          "line": 819,
           "kind": "function"
         },
         {
           "name": "homeStorageDetail",
-          "line": 824,
+          "line": 825,
           "kind": "function"
         },
         {
           "name": "setHomeStorageMetric",
-          "line": 834,
+          "line": 835,
           "kind": "function"
         },
         {
           "name": "renderHomeStorageHealth",
-          "line": 847,
+          "line": 848,
           "kind": "function"
         },
         {
           "name": "renderHomeQueueSnapshot",
-          "line": 852,
+          "line": 853,
           "kind": "function"
         },
         {
           "name": "homeCompletedText",
-          "line": 872,
+          "line": 873,
           "kind": "function"
         },
         {
           "name": "homeCompletedPathSegments",
-          "line": 876,
+          "line": 877,
           "kind": "function"
         },
         {
           "name": "homeCompletedPathLeaf",
-          "line": 880,
+          "line": 881,
           "kind": "function"
         },
         {
           "name": "homeCompletedStem",
-          "line": 885,
+          "line": 886,
           "kind": "function"
         },
         {
           "name": "homeCompletedSeasonOnlyText",
-          "line": 889,
+          "line": 890,
           "kind": "function"
         },
         {
           "name": "homeCompletedLooksTv",
-          "line": 895,
+          "line": 896,
           "kind": "function"
         },
         {
           "name": "homeCompletedUnique",
-          "line": 912,
+          "line": 913,
           "kind": "function"
         },
         {
           "name": "homeCompletedSpecificFileLabel",
-          "line": 924,
+          "line": 925,
           "kind": "function"
         },
         {
           "name": "homeCompletedParentContext",
-          "line": 941,
+          "line": 942,
           "kind": "function"
         },
         {
           "name": "homeCompletedRouteLabel",
-          "line": 953,
+          "line": 954,
           "kind": "function"
         },
         {
           "name": "homeCompletedRowModel",
-          "line": 962,
+          "line": 963,
           "kind": "function"
         },
         {
           "name": "renderHomeCompletedFileCell",
-          "line": 989,
+          "line": 990,
           "kind": "function"
         },
         {
           "name": "renderHomeRecentCompleted",
-          "line": 1006,
+          "line": 1007,
           "kind": "function"
         },
         {
           "name": "homeRecentCompletedDetailLines",
-          "line": 1040,
+          "line": 1041,
           "kind": "function"
         },
         {
           "name": "homePromotionRunActive",
-          "line": 1054,
+          "line": 1055,
           "kind": "function"
         },
         {
           "name": "renderHomePromotionEntry",
-          "line": 1060,
+          "line": 1061,
           "kind": "function"
         },
         {
           "name": "externalDependencyRows",
-          "line": 1092,
+          "line": 1093,
           "kind": "function"
         },
         {
           "name": "externalDependencyOverallStatus",
-          "line": 1191,
+          "line": 1192,
           "kind": "function"
         },
         {
           "name": "externalDependencySummaryLines",
-          "line": 1198,
+          "line": 1199,
           "kind": "function"
         },
         {
           "name": "externalDependencyEvidenceText",
-          "line": 1217,
+          "line": 1218,
           "kind": "function"
         },
         {
           "name": "renderExternalDependencyDigest",
-          "line": 1222,
+          "line": 1223,
           "kind": "function"
         },
         {
           "name": "renderHomeNextQueue",
-          "line": 1227,
+          "line": 1228,
           "kind": "function"
         },
         {
           "name": "renderDailyDriverReadiness",
-          "line": 1282,
+          "line": 1283,
           "kind": "function"
         }
       ],
