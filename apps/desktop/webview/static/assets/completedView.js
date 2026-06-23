@@ -1496,7 +1496,6 @@
   window.completedFilterVisibilityLines = completedFilterVisibilityLines;
   window.completedFocusedInvestigationLabels = completedFocusedInvestigationLabels;
   window.completedInvestigationSignalLines = completedInvestigationSignalLines;
-  window.completedRealMediaTraceLines = completedRealMediaTraceLines;
   window.selectCompletedRow = selectCompletedRow;
   window.getSelectedCompletedRow = getSelectedCompletedRow;
   window.getLastCompletedPayload = getLastCompletedPayload;

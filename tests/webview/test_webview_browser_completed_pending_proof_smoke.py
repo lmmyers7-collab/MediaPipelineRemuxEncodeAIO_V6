@@ -155,6 +155,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedEvidenceCopyState",
               "copyCompletedEvidencePacket",
               "requestCompletedDiagnosticsAction",
+              "completedRealMediaTraceLines",
               "completedRowTrustSummaryLines",
               "completedSampleValidationComparisonLines",
               "completedDiagnosticsActionsForRow",
@@ -215,6 +216,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedRowTrustSummaryLines =")) {
               throw new Error("served completedView.js still contains completedRowTrustSummaryLines flat assignment");
+            }
+            if (completedViewSource.includes("window.completedRealMediaTraceLines =")) {
+              throw new Error("served completedView.js still contains completedRealMediaTraceLines flat assignment");
             }
 
             window.confirm = () => {

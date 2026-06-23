@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0622-058",
+  "title": "Remove completed real-media trace flat alias",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-22",
+  "date_completed": "2026-06-22",
+  "summary": "Removed the transitional flat window.completedRealMediaTraceLines alias from the Completed WebView module while keeping window.mediaPipelineCompletedView.completedRealMediaTraceLines as the supported access path.",
+  "reason": "Continue namespace-first WebView cleanup in the touched Completed review/proof domain without changing backend ownership, media policy, or mutation behavior.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "completedView.js exported completedRealMediaTraceLines both through the mediaPipelineCompletedView namespace and as a direct window.* compatibility alias.",
+  "behavior_after": "completedRealMediaTraceLines remains available through mediaPipelineCompletedView only; the browser smoke verifies namespace access and rejects the removed flat assignment in the served asset.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/completedView.js",
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completedView.js.md",
+    "docs/generated/summaries/docs/CURRENT_PROJECT_STATE.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_completed_pending_proof_smoke.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0622-058.json",
+    "tests/webview/test_webview_browser_completed_pending_proof_smoke.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_completed_pending_proof_smoke.py to require mediaPipelineCompletedView.completedRealMediaTraceLines and fail if the served completedView.js still contains the removed flat assignment."
+  ],
+  "manual_validation": [
+    "Baseline: node --check apps/desktop/webview/static/assets/completedView.js (pass)",
+    "Baseline: npm run webview:contract:check (pass)",
+    "Baseline: apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q (pass)",
+    "node --check apps/desktop/webview/static/assets/completedView.js (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m py_compile tests/webview/test_webview_browser_completed_pending_proof_smoke.py (pass)",
+    "npm run webview:contract:check (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q (pass)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_completed_proof_selection_updates_shared_selected_row_state -q (pass)",
+    "npm run webview:prework:check (pass)",
+    "rg -n \"window\\.completedRealMediaTraceLines\\s*=\" apps Docs tests (only browser-smoke negative assertion remains)",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_completed_pending_proof_smoke.WebViewBrowserCompletedPendingProofSmoke.test_real_browser_renders_completed_pending_proof_overlap_and_missing_output_detail -q (pass)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check (pass: 1763 source files current, no orphan summaries)",
+    "git diff --check (pass)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (pass: 588 packets valid)"
+  ],
+  "rollback_plan": "Restore the single completedView.js flat alias, regenerate the WebView public contract baseline and summaries, revert the inventory/current-state counts, and remove the smoke's negative assertion.",
+  "related_changes": [],
+  "notes": "Updated current WebView flat-export count after real-media trace alias cleanup.\nRemoved completedRealMediaTraceLines direct window compatibility alias while preserving namespace access.\nUpdated WebView flat-export inventory counts and removed completedRealMediaTraceLines from completedView flat exports.\nAdded namespace requirement and served-asset negative assertion for completedRealMediaTraceLines.\nRegenerated WebView public contract after removing the flat real-media trace alias.\nRefreshed generated summary for completedView.js after real-media trace alias cleanup.\nRefreshed generated summary for Completed/Pending proof browser smoke after real-media trace guard update.\nRefreshed generated summary for current-state doc after flat-export count update.\nRefreshed generated summary for WebView global-export inventory after count/list update.\nRefreshed generated summary for WebView public contract baseline after regeneration.\nSafety: WebView-only compatibility cleanup; no backend route, filesystem mutation, pending-publish/drain, source-media, settings, command-journal, or media-policy behavior changed.\nTesting files: no external downloads were needed for this slice because no real-media or hardware encoder behavior changed.\nPython impact: test-only smoke guard updated; no Python runtime implementation changed.\nOptional non-gating check: tests.webview.test_webview_row_detail_smoke.WebViewRowDetailSmoke failed in untouched pendingPublishView.confidence.js fake-DOM setup because document.body was undefined; the required served-browser Completed/Pending proof smoke passed."
+}
