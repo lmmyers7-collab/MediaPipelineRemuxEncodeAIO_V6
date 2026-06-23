@@ -161,6 +161,7 @@ def _browser_completed_pending_proof_runner_source() -> str:
               "renderCompletedSelectedAtAGlance",
               "completedFinalTrustPostureStatus",
               "completedAcceptancePostureStatus",
+              "completedFilterScopePosture",
               "completedFilterVisibilityLines",
               "completedFocusedInvestigationLabels",
               "completedInvestigationSignalLines",
@@ -255,6 +256,9 @@ def _browser_completed_pending_proof_runner_source() -> str:
             }
             if (completedViewSource.includes("window.completedAcceptancePostureStatus =")) {
               throw new Error("served completedView.js still contains completedAcceptancePostureStatus flat assignment");
+            }
+            if (completedViewSource.includes("window.completedFilterScopePosture =")) {
+              throw new Error("served completedView.js still contains completedFilterScopePosture flat assignment");
             }
 
             window.confirm = () => {
