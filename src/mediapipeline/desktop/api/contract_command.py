@@ -682,6 +682,16 @@ LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "response_schema": "desktop_command_result.v1",
         "purpose": "Rebuild the rename plan in the backend and apply only explicitly selected source rows through the transactional rename service. Paths outside configured media roots require an additional outside-root confirmation.",
     },
+    {
+        "method": "POST",
+        "path": "/api/rename/undo",
+        "auth_required": True,
+        "effect": "filesystem-mutation",
+        "request_keys": ["undo_manifest", "confirm_undo"],
+        "response_schema": "desktop_command_result.v1",
+        "data_schema": "desktop_rename_undo_result.v1",
+        "purpose": "Undo the last backend rename apply from a backend-owned RenameUndo manifest after explicit confirmation. The backend validates the manifest under its resolved undo root and reverses media/sidecar operations; the frontend cannot rename files directly.",
+    },
 )
 
 LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (

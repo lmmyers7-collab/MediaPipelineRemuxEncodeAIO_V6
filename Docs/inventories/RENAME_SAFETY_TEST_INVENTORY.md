@@ -14,8 +14,8 @@ Most fixture data is generated dynamically in temporary directories or hardcoded
 | Test file | Type | What it covers |
 |---|---|---|
 | `test_rename_workbench.py` | Python unittest | Rename WebView static structure, JS route literals/exports, backend browse mode normalization, and bad-case corpus append command boundary |
-| `test_webview_rename_readiness_smoke.py` | Node VM (no browser) | Apply Readiness state transitions in mocked DOM; single-row "Ready" scope; duplicate-destination "Blocked" scope; verifies `rename.apply` is not called when blocked |
-| `test_webview_browser_rename_smoke.py` | Chrome/Edge CDP | Same logic under real browser rendering; verifies the Browse Files button posts `POST /api/rename/browse` and stages returned paths without apply; renders a TV rename preview row, selects it, validates readiness = Ready; creates duplicate-destination scenario, validates readiness = Blocked; confirms no POST to `/api/rename/apply` |
+| `test_webview_rename_readiness_smoke.py` | Node VM (no browser) | Apply Readiness state transitions in mocked DOM; single-row "Ready" scope; duplicate-destination "Blocked" scope; verifies `rename.apply` is not called when blocked; verifies immediate apply progress and `rename.undo` post shape |
+| `test_webview_browser_rename_smoke.py` | Chrome/Edge CDP | Same logic under real browser rendering; verifies the Browse Files button posts `POST /api/rename/browse` and stages returned paths without apply; renders a TV rename preview row, selects it, validates readiness = Ready; creates duplicate-destination scenario, validates readiness = Blocked; confirms no POST to `/api/rename/apply`; verifies Undo Last Apply visibility after a backend result with undo manifest |
 
 Both tests share the same fixture shape: a single TV episode row — `Serial Experiments Lain E01 Weird.mkv` → `Serial Experiments Lain - S02E01 - Weird.mkv` — and a duplicate-destination scenario with two rows sharing the same target path.
 
@@ -55,7 +55,7 @@ Both tests share the same fixture shape: a single TV episode row — `Serial Exp
 |---|---|---|
 | `test_service_rename_preview.py` | Python unittest | Preview generation and pipeline naming integration |
 | `test_service_rename_preview_runner.py` | Python unittest | Preview script execution (subprocess mock) and output parsing |
-| `test_service_rename_apply_runner.py` | Python unittest | Apply operation execution |
+| `test_service_rename_apply_runner.py` | Python unittest | Apply operation execution plus undo-manifest reversal, sidecar metadata restore, and missing-destination preflight blocking |
 | `test_service_rename_apply.py` | Python unittest | Filesystem apply operations; Windows case-only rename (case-safe path handling); sidecar JSON reading (marks corrupt JSON with error flag); sidecar metadata update after rename (preserves error markers, appends to rename history capped at 25 entries, updates output path fields) |
 | `test_service_rename_tv_folder.py` | Python unittest | TV folder structure handling |
 | `test_rename_bad_case_corpus.py` | Python unittest | JSONL bad rename regression corpus schema, unique IDs, and active case output expectations |
@@ -81,6 +81,7 @@ Most rename test data is inline:
 |---|---|---|
 | Windows file-browser selection stages paths only | `test_application_facade_local_api`, `test_api_path_dialogs.py`, `test_webview_browser_rename_smoke` | Covered with injected picker/stubbed route plus dialog-host selection and process-failure coverage; automated smokes do not open the real native dialog |
 | `rename.apply` is not called when readiness is Blocked | `test_webview_rename_readiness_smoke`, `test_webview_browser_rename_smoke` | Covered at UI layer (Node VM and real browser) |
+| `rename.undo` requires backend manifest authority and strict confirmation | `test_service_rename_apply_runner`, `test_application_facade_local_api`, `test_api_command_contracts` | Covered with temp fixtures; source/destination reversal and `confirm_undo` strict boolean rejection are verified |
 | Duplicate-destination detection blocks apply | `test_service_rename_planner.py`, `test_webview_rename_readiness_smoke`, `test_webview_browser_rename_smoke` | Covered at service and UI layers; backend planner blocks every colliding row |
 | Backend rebuilds plan independently before apply | Implicit in `test_rename_service` (apply path uses planner) | Service-level coverage; no explicit "backend ignores frontend plan" test |
 | `confirm_apply` required as literal JSON boolean `true` in API payload | Route contract (`contract_command.py` field list), `test_application_facade_rename.py`, `test_application_facade_local_api.py` | Covered at facade and Local API route layers for absent, false, and non-boolean truthy confirmation values with no rename mutation |
@@ -115,7 +116,7 @@ In coordinator/worker mode, `WorkerSourcePathMap` rewrites source path prefixes 
 
 ### 2. Undo Manifest Verification
 
-The apply service writes an undo manifest (RENAME_TOOL_SIDECAR_SCHEMA_VERSION) alongside renames. There is no test that reads the undo manifest back and confirms it can be used to reverse a rename batch. The existence of the manifest is implied by the sidecar metadata tests but undo-path correctness is not exercised.
+Closed 2026-06-23. `test_service_rename_apply_runner.py` now reads a completed undo manifest back, reverses media and sidecar operations, restores sidecar metadata from manifest backups, and blocks a missing-destination manifest before mutation.
 
 ### 3. No Real Filesystem Rename In CI Path
 
@@ -130,14 +131,13 @@ All CI-safe tests use temporary directories with minimal files. No test exercise
 - Pending publish interaction — rename and pending publish are separate subsystems; no test crosses the boundary.
 - Network-mode coordinator path rewrites — see gap 3 above.
 - Native Windows dialog display in an interactive shell — automated smokes inject/stub `/api/rename/browse` and `test_api_path_dialogs.py` stubs the PowerShell process, so they do not block on a real dialog.
-- Undo reversal correctness — see gap 4 above.
 - Rename under active pipeline lock — no test verifies that rename.apply is correctly blocked or serialized when the pipeline is actively encoding the same file.
 
 ---
 
 ## See Also
 
-- Rename command route: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/rename/browse`, `POST /api/rename/preview`, `POST /api/rename/filter-cases`, `POST /api/rename/apply`)
+- Rename command route: `LOCAL_API_ROUTE_OWNERSHIP_MAP.md` (`POST /api/rename/browse`, `POST /api/rename/preview`, `POST /api/rename/filter-cases`, `POST /api/rename/apply`, `POST /api/rename/undo`)
 - Rename apply route contract: `src/mediapipeline/desktop/api/contract_command.py` (`LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT`)
 - WebView smoke catalog: `WEBVIEW_SMOKE_TEST_CATALOG.md`
 - Browser smoke runbook: `BROWSER_SMOKE_TEST_RUNBOOK.md`

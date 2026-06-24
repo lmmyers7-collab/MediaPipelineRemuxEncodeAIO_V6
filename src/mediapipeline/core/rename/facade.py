@@ -16,6 +16,13 @@ from mediapipeline.core.rename.policy import (
     rename_apply_service_unavailable_result,
     rename_apply_success_result,
     rename_apply_unscoped_operator_paths_result,
+    rename_undo_confirmation_required_result,
+    rename_undo_active_work_result,
+    rename_undo_busy_result,
+    rename_undo_exception_result,
+    rename_undo_missing_manifest_result,
+    rename_undo_service_unavailable_result,
+    rename_undo_success_result,
     annotate_rename_plan_path_authority,
     normalize_rename_template_preset,
     rename_configured_media_roots_from_request,
@@ -151,6 +158,35 @@ class RenameFacadeMixin:
             self._release_rename_apply_lock(lock)
         renamed = self._int_value(summary.get("renamed"))
         return rename_apply_success_result(summary, renamed=renamed)
+
+    def undo_rename_selection(self, request: dict[str, Any], resolved: Any | None = None) -> CommandResult:
+        """Undo the most recent backend rename apply from a backend-owned undo manifest."""
+        if request.get("confirm_undo") is not True:
+            return rename_undo_confirmation_required_result()
+        undo_manifest = str(request.get("undo_manifest") or "").strip()
+        if not undo_manifest:
+            return rename_undo_missing_manifest_result()
+        undoer = getattr(self.service, "undo_rename_manifest", None)
+        if not callable(undoer):
+            return rename_undo_service_unavailable_result()
+        lock, block_message = self._acquire_rename_apply_lock()
+        if block_message:
+            return rename_undo_busy_result(block_message)
+        try:
+            if resolved is not None:
+                active_work_block = self._active_work_block_message(resolved, "Rename undo")
+                if active_work_block:
+                    return rename_undo_active_work_result(active_work_block)
+            try:
+                summary = undoer(
+                    undo_manifest,
+                    undo_manifest_root=rename_undo_manifest_root_from_request(request),
+                )
+            except Exception as exc:
+                return rename_undo_exception_result(exc)
+        finally:
+            self._release_rename_apply_lock(lock)
+        return rename_undo_success_result(summary)
 
     def _build_rename_plan_from_request(self, request: dict[str, Any]) -> list[dict[str, Any]]:
         planner = getattr(self.service, "plan_rename_paths", None)

@@ -50,6 +50,7 @@ from mediapipeline.core.rename.tv import (
     extract_confident_tv_episode_title,
     resolve_tv_folder_season_info,
 )
+from mediapipeline.core.rename.undo_runner import undo_rename_manifest_for_service
 from mediapipeline.core.rename.utils import (
     associated_sidecar_candidates,
     casefold_path,
@@ -438,6 +439,14 @@ class RenameServiceMixin:
         undo_manifest_root: Path | None = None,
     ) -> dict[str, Any]:
         return apply_rename_path_plan_for_service(self, plan, undo_manifest_root=undo_manifest_root)
+
+    def undo_rename_manifest(
+        self,
+        undo_manifest: Path,
+        *,
+        undo_manifest_root: Path | None = None,
+    ) -> dict[str, Any]:
+        return undo_rename_manifest_for_service(self, undo_manifest, undo_manifest_root=undo_manifest_root)
 
     def apply_batch_tv_rename_plan(self, plan: list[dict[str, Any]]) -> dict[str, Any]:
         return self.apply_rename_path_plan(plan)

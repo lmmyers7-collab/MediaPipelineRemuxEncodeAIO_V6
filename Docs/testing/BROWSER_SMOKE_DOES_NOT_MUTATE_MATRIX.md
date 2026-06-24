@@ -37,8 +37,8 @@ Provides explicit mutation-boundary guarantees for all WebView smoke wrappers. E
 
 | | |
 |---|---|
-| **Exercises** | Rename WebView assets in Node with mocked DOM state. Verifies Apply Readiness and Apply Outcome Review for a ready single-row scope, 260-row render-cap disclosure, and a blocked duplicate-target scope. |
-| **Does not** | Call `rename.apply`, rename files, save settings, process media, mutate queue state, or touch source/output/scratch paths. |
+| **Exercises** | Rename WebView assets in Node with mocked DOM state. Verifies Apply Readiness, immediate mocked apply progress, Apply Outcome Review, Undo Last Apply post shape, 260-row render-cap disclosure, and a blocked duplicate-target scope. |
+| **Does not** | Call backend `rename.apply`/`rename.undo` against real files, rename files, save settings, process media, mutate queue state, or touch source/output/scratch paths. |
 | **Requires** | Bundled Python, Node.js. |
 
 ### Test-WebViewSettingsLaunchPolicySmoke.ps1
@@ -181,8 +181,8 @@ As of 2026-05-20, every fixture-backed browser smoke captures a SHA-256/size sna
 
 | | |
 |---|---|
-| **Exercises** | Clicks the Rename Browse Files control through a stubbed backend browse response, stages selected paths without apply, clicks Rename preview rows and Check Applicable Rows, verifies Apply Readiness and Apply Outcome Review, verifies 260-row render-cap disclosure, and verifies duplicate-target apply blocking. |
-| **Does not** | Call `rename.apply`, rename files, save settings, process media, launch pipeline commands, publish, mutate queue state, or touch source/output/scratch paths. |
+| **Exercises** | Clicks the Rename Browse Files control through a stubbed backend browse response, stages selected paths without apply, clicks Rename preview rows and Check Applicable Rows, verifies Apply Readiness, Apply Outcome Review, Undo Last Apply visibility, 260-row render-cap disclosure, and duplicate-target apply blocking. |
+| **Does not** | Call backend `rename.apply`/`rename.undo` against real files, rename files, save settings, process media, launch pipeline commands, publish, mutate queue state, or touch source/output/scratch paths. |
 | **Skip** | Exits 0 when Chrome/Edge not installed. |
 
 ### Test-WebViewBrowserNetworkSmoke.ps1
@@ -236,7 +236,7 @@ Every smoke in this matrix guarantees:
 | Process real media (FFmpeg encode/remux) | Never |
 | Launch pipeline (`/api/pipeline/start`) | Never |
 | Save live config (`/api/settings/save-patch`) | Never* |
-| Rename files on disk (`/api/rename/apply`) | Never |
+| Rename files on disk (`/api/rename/apply`, `/api/rename/undo`) | Never |
 | Drain / publish pending outputs | Never |
 | Write to source, output, or scratch paths | Never |
 | Delete any file | Never |
@@ -357,5 +357,3 @@ Findings: Layout-manager smoke uses the shared Chrome/Edge CDP runner and media/
 Open questions: None.
 Risk: Low - WebView layout personalization only.
 ```
-
-

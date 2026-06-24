@@ -114,8 +114,9 @@ class RenameWorkbenchHtmlTests(unittest.TestCase):
         self.assertIn('id="rename-confirm-list"', self.html)
         self.assertIn('id="rename-confirm-count"', self.html)
         self.assertIn("Confirm filesystem rename", self.html)
-        self.assertIn("Apply filesystem rename sends the checked source paths to backend rename.apply", self.html)
-        self.assertIn("Apply filesystem rename", self.html)
+        self.assertIn("Backend rename.apply will rename the checked media and matching sidecars", self.html)
+        self.assertIn("Apply Renames", self.html)
+        self.assertIn('id="rename-undo-button"', self.html)
         self.assertIn('id="rename-result-dialog"', self.html)
         for counter in ("rename-result-success", "rename-result-unchanged", "rename-result-failed", "rename-result-skipped", "rename-result-protected"):
             self.assertIn(counter, self.html)
@@ -235,6 +236,14 @@ class RenameWorkbenchJsTests(unittest.TestCase):
         self.assertIn("submitRenameBadCaseDialog", self.js)
         self.assertIn('apiPost("/api/rename/filter-cases", request)', self.js)
         self.assertIn("confirm_append: true", self.js)
+
+    def test_undo_last_apply_button_posts_backend_command(self) -> None:
+        self.assertIn("undoLastRenameApply", self.js)
+        self.assertIn('apiPost("/api/rename/undo"', self.js)
+        self.assertIn("confirm_undo: true", self.js)
+        self.assertIn("lastRenameUndoManifest = payload.ok ? renameUndoManifestFromApplyResult(payload) : \"\";", self.js)
+        self.assertIn('if (undoButton) undoButton.addEventListener("click", () => undoLastRenameApply());', self.js)
+        self.assertIn("syncRenameUndoButton", self.js)
 
 
 class RenameBackendBrowseModeTests(unittest.TestCase):

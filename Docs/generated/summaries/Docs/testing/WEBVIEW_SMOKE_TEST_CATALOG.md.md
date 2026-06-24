@@ -3,9 +3,9 @@ file: docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-19
+last_modified: 2026-06-23
 last_reviewed: 2026-05-29
-sha256: fe323488c64de0fe15a4edb8b48199ce35ad5edc4087cb227df21310cb8ca9ff
+sha256: 3ae42f28e755c610fb6b2429847e5e6d3a4cc8699f0a6a1dc393d0d3c60ae86a
 ---
 # `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
 

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: bceb1fe1f8506bcccb12c233a6e0fe0a79427fd4525c57ad4f525e7240274ffa
+sha256: fa054416ffaddbe2a905a6a7d3326756296dfd65fd1b205a5bfbdc408567ecfc
 ---
 # `tests/python/desktop/test_api_command_contracts.py`
 

@@ -15,6 +15,7 @@ COMMAND_ROUTE_METHODS: dict[str, str] = {
     "/api/rename/browse": "_rename_browse_payload",
     "/api/rename/filter-cases": "_rename_filter_case_payload",
     "/api/rename/apply": "_rename_apply_payload",
+    "/api/rename/undo": "_rename_undo_payload",
     "/api/diagnostics/open": "_diagnostics_open_payload",
     "/api/diagnostics/tdarr-matrix-audit": "_diagnostics_tdarr_matrix_audit_payload",
     "/api/diagnostics/tdarr-matrix/evidence/open": "_diagnostics_tdarr_matrix_evidence_open_payload",

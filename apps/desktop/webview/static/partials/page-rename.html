@@ -132,46 +132,59 @@
                 <pre id="rename-pipeline-handoff" class="prose-block compact-text-block">No rename-to-pipeline handoff loaded.</pre>
                 <div class="action-row action-row-left wrap-actions">
                   <button type="button" id="rename-apply-button" class="primary-button" disabled>Preview before apply</button>
+                  <button type="button" id="rename-undo-button" class="secondary-button" disabled hidden>Undo Last Apply</button>
                   <span id="rename-apply-status-hint" class="note"></span>
                 </div>
-                <div class="table-wrap">
-                  <table class="rename-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Checkpoint</th>
-                        <th scope="col">Posture</th>
-                        <th scope="col">Evidence</th>
-                        <th scope="col">Operator Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="rename-apply-readiness-rows">
-                      <tr><td colspan="4">No rename preview loaded.</td></tr>
-                    </tbody>
-                  </table>
+                <div id="rename-apply-status-panel" class="rename-apply-status-panel" data-state="waiting">
+                  <div class="rename-apply-status-header">
+                    <p id="rename-apply-status-summary" class="status-line" data-state="waiting">Ready to apply 0 checked renames</p>
+                    <span id="rename-undo-status" class="note">No undo available.</span>
+                  </div>
+                  <div id="rename-apply-progress-bars" class="progress-bar-list compact-progress-list" aria-live="polite">
+                    <p class="note">No rename apply progress loaded.</p>
+                  </div>
                 </div>
-                <p id="rename-apply-readiness-legend" class="note table-legend">Rename apply readiness is read-only. Backend rename.apply remains the only filesystem mutation path.</p>
-                <p id="rename-apply-readiness-status" class="status-line">No preview</p>
-                <div id="rename-apply-progress-bars" class="progress-bar-list" aria-live="polite">
-                  <p class="note">No rename apply progress loaded.</p>
-                </div>
-                <div class="table-wrap">
-                  <table class="rename-table">
-                    <thead>
-                      <tr>
-                        <th scope="col">Outcome Checkpoint</th>
-                        <th scope="col">Posture</th>
-                        <th scope="col">Evidence</th>
-                        <th scope="col">Operator Action</th>
-                      </tr>
-                    </thead>
-                    <tbody id="rename-apply-outcome-rows">
-                      <tr><td colspan="4">No rename apply result loaded.</td></tr>
-                    </tbody>
-                  </table>
-                </div>
-                <p id="rename-apply-outcome-legend" class="note table-legend">Rename apply outcome review is read-only. Backend rename.apply remains the only filesystem mutation path.</p>
-                <p id="rename-apply-outcome-status" class="status-line">No apply</p>
-                <pre id="rename-apply-outcome-summary" class="prose-block compact-text-block">No rename apply outcome loaded.</pre>
+                <details id="rename-apply-readiness-details" class="rename-disclosure">
+                  <summary>Show apply readiness details</summary>
+                  <div class="table-wrap">
+                    <table class="rename-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Checkpoint</th>
+                          <th scope="col">Posture</th>
+                          <th scope="col">Evidence</th>
+                          <th scope="col">Operator Action</th>
+                        </tr>
+                      </thead>
+                      <tbody id="rename-apply-readiness-rows">
+                        <tr><td colspan="4">No rename preview loaded.</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p id="rename-apply-readiness-legend" class="note table-legend">Rename apply readiness is read-only. Backend rename.apply remains the only filesystem mutation path.</p>
+                  <p id="rename-apply-readiness-status" class="status-line">No preview</p>
+                </details>
+                <details id="rename-apply-outcome-details" class="rename-disclosure">
+                  <summary>Show apply result details</summary>
+                  <div class="table-wrap">
+                    <table class="rename-table">
+                      <thead>
+                        <tr>
+                          <th scope="col">Outcome Checkpoint</th>
+                          <th scope="col">Posture</th>
+                          <th scope="col">Evidence</th>
+                          <th scope="col">Operator Action</th>
+                        </tr>
+                      </thead>
+                      <tbody id="rename-apply-outcome-rows">
+                        <tr><td colspan="4">No rename apply result loaded.</td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <p id="rename-apply-outcome-legend" class="note table-legend">Rename apply outcome review is read-only. Backend rename.apply remains the only filesystem mutation path.</p>
+                  <p id="rename-apply-outcome-status" class="status-line">No apply</p>
+                  <pre id="rename-apply-outcome-summary" class="prose-block compact-text-block">No rename apply outcome loaded.</pre>
+                </details>
                 <p id="rename-last-apply-status" class="status-line">No apply</p>
                 <pre id="rename-last-apply-detail" class="prose-block compact-text-block">No rename apply result loaded.</pre>
                 <pre id="rename-apply-history" class="prose-block compact-text-block">No rename apply command history loaded.</pre>
@@ -181,18 +194,18 @@
           </section>
 
           <!--
-            Confirmation dialog shown before apply. Renders count + old -> new list.
+            Confirmation dialog shown before apply. Renders compact batch summary + optional details.
           -->
           <dialog id="rename-confirm-dialog" class="rename-modal" aria-labelledby="rename-confirm-title">
             <form method="dialog" class="rename-modal-form">
               <h2 id="rename-confirm-title" class="rename-modal-title">Confirm filesystem rename</h2>
               <p id="rename-confirm-count" class="rename-modal-count">Renaming 0 file(s).</p>
-              <p id="rename-confirm-mutation-warning" class="rename-modal-warning">Preview is read-only. Apply filesystem rename sends the checked source paths to backend rename.apply and can rename files on disk.</p>
-              <div id="rename-confirm-list" class="rename-modal-list" role="list"></div>
+              <p id="rename-confirm-mutation-warning" class="rename-modal-summary">Backend rename.apply will rename the checked media and matching sidecars.</p>
+              <div id="rename-confirm-list" class="rename-modal-list" role="group"></div>
               <p id="rename-confirm-warning" class="rename-modal-warning" hidden></p>
               <div class="action-row action-row-right">
                 <button type="button" id="rename-confirm-cancel-button" class="secondary-button" value="cancel">Cancel</button>
-                <button type="submit" id="rename-confirm-apply-button" class="primary-button" value="confirm">Apply filesystem rename</button>
+                <button type="submit" id="rename-confirm-apply-button" class="primary-button" value="confirm">Apply Renames</button>
               </div>
             </form>
           </dialog>

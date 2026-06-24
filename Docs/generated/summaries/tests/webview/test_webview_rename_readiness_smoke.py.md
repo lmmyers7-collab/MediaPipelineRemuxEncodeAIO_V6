@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 5ad175a818dcdc966ac11996fbf003bdc0a330688043022154cdc61b794950c8
+sha256: d0f0a261734ef4dc59d5477ee7842fcf56f2f831499e7dff72af8f112bcf80c7
 ---
 # `tests/webview/test_webview_rename_readiness_smoke.py`
 

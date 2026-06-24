@@ -421,8 +421,49 @@ def _rename_readiness_runner_source() -> str:
           request: { mode: "tv", confirm_apply: true, selected_sources: [first.source] },
         });
         requireContains("apply outcome status", text("rename-apply-outcome-status"), ["Applied"]);
-        requireContains("apply outcome summary", text("rename-apply-outcome-summary"), ["Backend rename apply outcome review", "selected=1", "Undo manifest: C:/State/Rename/undo.json", "read-only"]);
+        requireContains("apply outcome summary", text("rename-apply-outcome-summary"), ["Backend rename apply outcome review", "selected=1", "Undo manifest: C:/State/Rename/undo.json", "Mutation guardrail"]);
         requireContains("apply outcome rows", outcomeCellText(), ["Backend result", "Selected scope", "Sidecar operations", "Undo / rollback evidence", "Mutation boundary"]);
+        requireContains("apply status panel", text("rename-apply-status-summary"), ["1 renamed / 1 applied"]);
+        requireContains("undo status after apply", text("rename-undo-status"), ["Undo available for the last apply"]);
+        const undoButton = context.document.getElementById("rename-undo-button");
+        if (undoButton.hidden) throw new Error("undo button stayed hidden after apply result with undo manifest");
+        if (undoButton.disabled) throw new Error("undo button stayed disabled after apply result with undo manifest");
+        if (!String(undoButton.title || "").includes("C:/State/Rename/undo.json")) {
+          throw new Error("undo button did not expose manifest evidence in its title: " + String(undoButton.title || ""));
+        }
+        const undoPosts = [];
+        const undoOriginalApiPost = context.apiPost;
+        context.apiPost = async (url, body = {}) => {
+          undoPosts.push({ url: String(url || ""), body: JSON.parse(JSON.stringify(body || {})) });
+          if (String(url || "") === "/api/rename/undo") {
+            return {
+              command: "rename.undo",
+              ok: true,
+              message: "Undo completed.",
+              data: {
+                schema_version: "desktop_rename_undo_result.v1",
+                media_operations: 1,
+                sidecar_operations: 1,
+                undone: 2,
+                skipped: 0,
+                failed: 0,
+                undo_manifest: "C:/State/Rename/undo.json",
+                rows: [{ source: first.destination, destination: first.source, status: "undone", kind: "media" }],
+              },
+            };
+          }
+          if (String(url || "") === "/api/rename/preview") return { rows: [], counts: {} };
+          return { command: "unexpected", ok: false, message: "unexpected " + String(url || "") };
+        };
+        await context.mediaPipelineRenameView.undoLastRenameApply();
+        context.apiPost = undoOriginalApiPost;
+        const undoPost = undoPosts.find((entry) => entry.url === "/api/rename/undo");
+        if (!undoPost) throw new Error("undo button flow did not post /api/rename/undo");
+        if (undoPost.body.confirm_undo !== true) throw new Error("undo post omitted confirm_undo=true: " + JSON.stringify(undoPost.body));
+        if (undoPost.body.undo_manifest !== "C:/State/Rename/undo.json") throw new Error("undo post used wrong manifest: " + JSON.stringify(undoPost.body));
+        requireContains("undo result summary", text("rename-apply-status-summary"), ["2 undone / 0 skipped"]);
+        requireContains("undo status completed", text("rename-undo-status"), ["Undo completed"]);
+        if (!undoButton.disabled) throw new Error("undo button was not disabled after successful undo");
 
         const largeRows = Array.from({ length: 260 }, (_value, index) => {
           const episode = String(index + 1).padStart(2, "0");

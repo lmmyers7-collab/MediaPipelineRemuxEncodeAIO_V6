@@ -140,6 +140,11 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
             "/api/backend/shutdown": {"force_active_work_shutdown": True, "token": "client-owned"},
             "/api/rename/apply": {"paths": [], "selected_sources": [], "confirm_apply": True, "selected_ids": ["1"]},
+            "/api/rename/undo": {
+                "undo_manifest": r"C:\State\RenameUndo\rename-undo.json",
+                "confirm_undo": True,
+                "client_owned": True,
+            },
             "/api/rename/filter-cases": {
                 "source_folder": "Show S01",
                 "source_file": "S01E01.mkv",
@@ -602,6 +607,11 @@ class ApiCommandContractsTests(unittest.TestCase):
                     "source_file": "S01E01.mkv",
                     "expected_name": "Show - S01E01.mkv",
                 },
+            ),
+            (
+                "/api/rename/undo",
+                "confirm_undo",
+                {"undo_manifest": r"C:\State\RenameUndo\rename-undo.json"},
             ),
             ("/api/final-library-promotion/promote-queue", "confirm_promote", {"row_keys": ["row-1"]}),
         ]

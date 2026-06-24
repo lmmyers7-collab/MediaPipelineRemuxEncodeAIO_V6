@@ -164,3 +164,11 @@ class LocalApiRenameCommandPayloadMixin:
             self._rename_request_with_backend_authority(request, resolved=resolved),
             resolved=resolved,
         ).to_mapping()
+
+    def _rename_undo_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved_provider = getattr(self, "resolved_provider", None)
+        resolved = resolved_provider() if callable(resolved_provider) else None
+        return self.facade.undo_rename_selection(
+            self._rename_request_with_backend_authority(request, resolved=resolved),
+            resolved=resolved,
+        ).to_mapping()

@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/rename/applyResult.js
 pipeline_stage: rename
 token_priority: high
 owner_domain: webview
-last_modified: 2026-06-18
+last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 82292e80d63e9767ea0424ce5903e4e80fed7fbd69e0af387ac92b752e6c22ca
+sha256: 7a16558d15b05ef38d228adcfaaa802d279f573b6438a00d1739ddcbc5170410
 ---
 # `apps/desktop/webview/static/assets/rename/applyResult.js`
 

@@ -282,8 +282,8 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-clear-paths-button", ["Clear staged paths"]);
             requireText("rename-add-path-button", ["Add manual path"]);
             requireText("rename-confirm-title", ["Confirm filesystem rename"]);
-            requireText("rename-confirm-mutation-warning", ["Preview is read-only", "backend rename.apply", "can rename files on disk"]);
-            requireText("rename-confirm-apply-button", ["Apply filesystem rename"]);
+            requireText("rename-confirm-mutation-warning", ["Backend rename.apply", "matching sidecars"]);
+            requireText("rename-confirm-apply-button", ["Apply Renames"]);
             const originalApiPost = window.apiPost;
             const browsePosts = [];
             window.apiPost = async (url, body) => {
@@ -448,8 +448,13 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-batch-safety", ["Apply scope", "checked rows are required", "selected_sources"]);
             requireTextAbsent("rename-batch-safety", ["selected detail row"]);
             const posted = [];
+            let resolveApplyPost = null;
+            const delayedApplyPost = new Promise((resolve) => {
+              resolveApplyPost = resolve;
+            });
             window.apiPost = async (url, body) => {
               posted.push({ url: String(url || ""), body: JSON.parse(JSON.stringify(body || {})) });
+              if (String(url || "") === "/api/rename/apply") return delayedApplyPost;
               return { ok: false, command: "rename.apply", message: "mocked browser rename apply" };
             };
             const second = {
@@ -495,16 +500,33 @@ def _browser_rename_runner_source() -> str:
             if (!byId("rename-confirm-dialog").open) {
               throw new Error("rename confirm dialog did not open for checked scope");
             }
-            requireText("rename-confirm-count", ["Renaming 2 checked files."]);
-            requireText("rename-confirm-warning", ["Preview is read-only", "backend rename.apply"]);
+            requireText("rename-confirm-count", ["Renaming 2 checked media files."]);
+            requireText("rename-confirm-apply-button", ["Apply 2 Renames"]);
+            requireText("rename-confirm-list", ["2 media files ready", "0 matching sidecars will move", "Sequence", "Serial Experiments Lain - S02E01 - Weird.mkv -> Serial Experiments Lain - S02E02 - Girls.mkv", "0 blocked", "0 conflicts", "0 existing destinations", "Show details"]);
+            requireTextAbsent("rename-confirm-list", ["C:/TV/Season 02", "authority=", "status=ready"]);
+            const confirmDetails = document.querySelector(".rename-confirm-details");
+            if (!confirmDetails || confirmDetails.open) throw new Error("rename confirm details should exist and be collapsed by default");
+            const readyBadge = document.querySelector(".rename-confirm-detail-row-ready .rename-confirm-status-badge");
+            if (!readyBadge || readyBadge.getAttribute("aria-label") !== "Ready" || !readyBadge.textContent.trim()) {
+              throw new Error("ready status badge was not rendered with an accessible label");
+            }
+            const detailText = confirmDetails.textContent || "";
+            if (!detailText.includes("Serial Experiments Lain E01 Weird.mkv") || !detailText.includes("Serial Experiments Lain - S02E01 - Weird.mkv")) {
+              throw new Error("rename confirm details did not expose basename row evidence\\nActual:\\n" + detailText);
+            }
             click("#rename-confirm-apply-button", "confirm checked rename apply");
-            await new Promise((resolve) => setTimeout(resolve, 250));
+            await new Promise((resolve) => setTimeout(resolve, 150));
             const applyPost = posted.find((entry) => entry.url === "/api/rename/apply");
             if (!applyPost) throw new Error("checked rename apply did not post /api/rename/apply");
             if (JSON.stringify(applyPost.body.selected_sources || []) !== JSON.stringify([first.source, second.source])) {
               throw new Error("checked apply selected_sources did not match checked rows: " + JSON.stringify(applyPost.body));
             }
             if (applyPost.body.confirm_apply !== true) throw new Error("rename apply post omitted confirm_apply=true");
+            requireText("rename-apply-outcome-status", ["Applying"]);
+            requireText("rename-apply-outcome-summary", ["Status: Applying", "does not prove any file was renamed"]);
+            requireText("rename-apply-progress-bars", ["Rename apply", "active", "running", "2 checked renames submitted", "source: rename.apply"]);
+            resolveApplyPost({ ok: false, command: "rename.apply", message: "mocked browser rename apply" });
+            await new Promise((resolve) => setTimeout(resolve, 250));
             if (byId("rename-result-dialog").open) byId("rename-result-dialog").close();
             requireText("rename-pipeline-handoff-status", ["Ready"]);
             requireText("rename-pipeline-handoff", ["Rename-to-pipeline handoff", "Saved routing profile: plex_direct_stream", "output container: mkv", "renaming changes filenames only"]);
@@ -548,8 +570,13 @@ def _browser_rename_runner_source() -> str:
               request: { mode: "tv", confirm_apply: true, selected_sources: [first.source] },
             });
             requireText("rename-apply-outcome-status", ["Applied"]);
-            requireText("rename-apply-outcome-summary", ["Backend rename apply outcome review", "selected=1", "Undo manifest: C:/State/Rename/undo.json", "read-only"]);
+            requireText("rename-apply-outcome-summary", ["Backend rename apply outcome review", "selected=1", "Undo manifest: C:/State/Rename/undo.json", "Mutation guardrail"]);
             requireText("rename-apply-progress-bars", ["Rename apply", "complete", "100%", "1 renamed / 1 planned", "source: rename.apply"]);
+            requireText("rename-apply-status-summary", ["1 renamed / 1 applied"]);
+            requireText("rename-undo-button", ["Undo Last Apply"]);
+            requireText("rename-undo-status", ["Undo available for the last apply"]);
+            if (byId("rename-undo-button").hidden) throw new Error("undo button stayed hidden after apply result with undo manifest");
+            if (byId("rename-undo-button").disabled) throw new Error("undo button stayed disabled after apply result with undo manifest");
             window.mediaPipelineRenameView.renameOpenResultDialog({
               ok: true,
               message: "Applied selected rename.",

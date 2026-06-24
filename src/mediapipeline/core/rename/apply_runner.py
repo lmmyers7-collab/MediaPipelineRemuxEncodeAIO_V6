@@ -26,6 +26,7 @@ def apply_rename_path_plan_for_service(
         "schema_version": "rename_undo.v1",
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "status": "planned",
+        "metadata_backups": [],
         "operations": [
             {
                 "kind": str(operation["kind"]),
@@ -103,6 +104,10 @@ def apply_rename_path_plan_for_service(
                     "force_pipeline_name": force_pipeline_name,
                 }
             )
+        undo_manifest["metadata_backups"] = [
+            {"path": path_text, "content": original_text, "existed": original_text is not None}
+            for path_text, original_text in sorted(metadata_backups.items())
+        ]
         undo_manifest["status"] = "completed"
         undo_manifest["completed_at"] = datetime.now().isoformat(timespec="seconds")
         write_undo_manifest()

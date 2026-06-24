@@ -50,8 +50,8 @@ These run Python/Node in a mocked or fixture-backed environment without opening 
 
 - **Unittest:** `tests.webview.test_webview_rename_readiness_smoke`
 - **What it does:** Evaluates Rename WebView assets in Node with mocked DOM state.
-- **Verifies:** Apply Readiness, Pipeline Handoff, and Apply Outcome Review for a ready single-row scope, large-preview 250-row render-cap wording with `260 checked` backend scope, and a blocked duplicate-target scope. Verifies duplicate-target blocking does not call `rename.apply`.
-- **Does not:** Call `rename.apply`, rename files, save settings, process media, mutate queue state, or touch source/output/scratch paths.
+- **Verifies:** Apply Readiness, Pipeline Handoff, immediate mocked apply progress, Apply Outcome Review, Undo Last Apply post shape, large-preview 250-row render-cap wording with `260 checked` backend scope, and a blocked duplicate-target scope. Verifies duplicate-target blocking does not call `rename.apply`.
+- **Does not:** Call backend `rename.apply`/`rename.undo` against real files, save settings, process media, mutate queue state, or touch source/output/scratch paths.
 - **Node.js required:** Yes (for mocked DOM runner).
 
 ### `Test-WebViewSettingsLaunchPolicySmoke.ps1`
@@ -184,9 +184,9 @@ The Python browser-smoke modules share `tests\python\desktop\webview_browser_smo
 ### `Test-WebViewBrowserRenameSmoke.ps1`
 
 - **Unittest:** `tests.webview.test_webview_browser_rename_smoke`
-- **What it does:** Starts a temporary local API, clicks actual Rename preview rows and Check Applicable Rows, verifies Apply Readiness, Pipeline Handoff, and Apply Outcome Review status, verifies large-preview render-cap wording, and verifies duplicate-target apply blocking does not call `rename.apply`.
-- **Verifies:** Rename row selection, Apply Readiness rendering, Pipeline Handoff text for saved routing/container/subtitle posture, Apply Outcome Review rows for backend result/scope/sidecar/undo evidence, 250-of-260 render-cap disclosure with checked backend scope, and frontend blocking of duplicate-target apply under real browser rendering.
-- **Does not:** Call `rename.apply`, rename files, save settings, process media, launch pipeline commands, publish, mutate queue state. No Playwright or Puppeteer dependency.
+- **What it does:** Starts a temporary local API, clicks actual Rename preview rows and Check Applicable Rows, verifies Apply Readiness, Pipeline Handoff, Apply Outcome Review status, Undo Last Apply visibility, verifies large-preview render-cap wording, and verifies duplicate-target apply blocking does not call `rename.apply`.
+- **Verifies:** Rename row selection, Apply Readiness rendering, Pipeline Handoff text for saved routing/container/subtitle posture, Apply Outcome Review rows for backend result/scope/sidecar/undo evidence, Undo Last Apply availability, 250-of-260 render-cap disclosure with checked backend scope, and frontend blocking of duplicate-target apply under real browser rendering.
+- **Does not:** Call backend `rename.apply`/`rename.undo` against real files, save settings, process media, launch pipeline commands, publish, mutate queue state. No Playwright or Puppeteer dependency.
 
 ### `Test-WebViewBrowserNetworkSmoke.ps1`
 

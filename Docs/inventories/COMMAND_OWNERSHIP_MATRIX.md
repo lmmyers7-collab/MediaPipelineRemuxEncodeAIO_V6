@@ -8,7 +8,7 @@ Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `src/mediapipeline/core/api/commands.py`, and the WebView `apiPost` call
 inventory.
 
-Total command routes: 93 POST routes across 11 contract groups.
+Total command routes: 94 POST routes across 11 contract groups.
 
 Network lifecycle start/stop now has backend-owned dry-run and confirmed POST
 routes. Confirmed coordinator/worker lifecycle routes are confirmation-gated,
@@ -26,7 +26,7 @@ dry-run fingerprints and backend backups.
 | `LOCAL_API_MAINTENANCE_COMMAND_ROUTE_CONTRACT` | maintenance/release-dry-run, maintenance/release-build, maintenance/completed-backfill-dry-run, maintenance/retention-dry-run, maintenance/dependency-atlas, maintenance/dependency-atlas/open-folder, maintenance/archive-state-journals, maintenance/support-export |
 | `LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT` | metrics/sources, metrics/backfill |
 | `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open, diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/evidence/open, diagnostics/tdarr-matrix/rerun |
-| `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/filter-cases, rename/apply |
+| `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/filter-cases, rename/apply, rename/undo |
 | `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/preset-library/validate, settings/preset-library/compare, settings/preset-library/import-preview, settings/preset-library/save, settings/preset-library/export, settings/preset-library/apply-preview, settings/preset-library/apply, settings/browse-path, settings/preview-patch, settings/pipeline-plan-preview, settings/save-patch, settings/import-psd1-preview, settings/import-psd1, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/wizard/save, settings/reload |
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
@@ -155,6 +155,7 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | `POST /api/rename/browse` | Rename | `renameView.js` | `shell-dialog` | Allowed selection modes: `files`, `folder`, `folder_files`; stages selected or dropped media paths only |
 | `POST /api/rename/filter-cases` | Rename | `renameView.js` | `test-fixture-write` | `confirm_append: true` required; appends backend-validated cases to `tests/fixtures/rename/bad_rename_cases.jsonl` only; no media paths are touched |
 | `POST /api/rename/apply` | Rename | `renameView.js` | `filesystem-mutation` | `confirm_apply: true` required; backend rebuilds plan from state; outside configured roots also require `allow_outside_configured_roots: true` |
+| `POST /api/rename/undo` | Rename | `renameView.js` | `filesystem-mutation` | `confirm_undo: true` required; backend validates the undo manifest under its resolved undo root before reversing media/sidecar operations |
 
 ### Settings
 
@@ -267,7 +268,7 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `app-state-write` | 1 | schedule/save |
 | `config-write` | 4 | settings/save-patch, settings/import-psd1, settings/wizard/save, network/worker/join-cluster |
 | `secret-transfer` | 1 | network/coordinator/join-blob |
-| `filesystem-mutation` | 2 | rename/apply, final-library-promotion/promote-queue |
+| `filesystem-mutation` | 3 | rename/apply, rename/undo, final-library-promotion/promote-queue |
 | `control-state-write` | 2 | final-library-promotion/pause, final-library-promotion/resume |
 | `control-flag-write` | 1 | pipeline/control |
 | `process-dry-run` | 3 | queue/scan, maintenance/release-dry-run, maintenance/completed-backfill-dry-run |
@@ -287,6 +288,7 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 outputs, force process cleanup, or shut down the backend:
 
 - `rename/apply`
+- `rename/undo`
 - `final-library-promotion/promote-queue`
 - `pipeline/start` with `mode: drain_pending_pushes`
 - `backend/shutdown`
@@ -353,7 +355,7 @@ The backend contract independently enforces:
 
 - Path resolution for shell-open commands; the frontend passes row keys and allowlisted targets only.
 - Queue source-path scope for priority and file-override writes.
-- Explicit confirmation for rename apply, settings save/import, schedule save, release build, final-library promotion, folder-rule save, and failure marker clear.
+- Explicit confirmation for rename apply/undo, settings save/import, schedule save, release build, final-library promotion, folder-rule save, and failure marker clear.
 - Launch locks and duplicate-command protection.
 - Mode validation for pipeline start and pipeline control.
 - Diagnostics target allowlist.
@@ -363,7 +365,6 @@ These are backend/API contract requirements, not frontend conventions.
 
 ---
 
-## Freshness Review - 2026-06-05 (MDS-005)
 ## Freshness Review - 2026-06-23 (MP-CHANGE-2026-0623-067)
 
 Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
@@ -372,6 +373,7 @@ persistence. The matrix now includes `settings/import-psd1-preview` and
 `settings/import-psd1`; `settings/save-patch` writes the JSON authority and
 generated PSD1 projection together.
 
+## Freshness Review - 2026-06-05 (MDS-005)
 
 Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
 `COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same POST route set,

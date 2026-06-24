@@ -136,6 +136,26 @@ The matrix guard is synthetic validation only. It does not replace PowerShell ru
 
 ## Subsystem Index
 
+### Stage Contracts and Dispatcher
+
+Tests for the versioned stage contract, Python runner journal/event handoff, and PowerShell entrypoint dispatch boundary.
+
+| Test file | What it covers |
+|---|---|
+| `test_stage_contracts.py` | Stage request/result Pydantic contracts, generated schema parity, mutation intent requirements, strict execute confirmations, and the allowlist proving only `ingest` is enabled among mutation-capable stages |
+| `test_stage_runner.py` | Python stage runner result parsing, timeout/error classification, command-journal evidence summaries, stage-event mirror handoff, low-risk probe/decide helpers, and guarded ingest helper dispatch |
+| `test_stage_entrypoint.py` | PowerShell stage entrypoint contract rejection, read-only probe/decide round trips, and guarded ingest dry-run/execute behavior using temporary source files, scratch-boundary checks, evidence files, and source-hash preservation |
+
+Targeted command:
+
+```powershell
+& $py -m unittest tests.python.desktop.test_stage_contracts tests.python.desktop.test_stage_runner tests.python.desktop.test_stage_entrypoint -q
+```
+
+Coverage gap: the ingest tests use temporary representative files and do not replace representative real-media validation for future source/scratch/output workflow changes.
+
+---
+
 ### Config
 
 Tests for config loading, PSD1 parsing, key resolution, profile validation, and save/reload runners.

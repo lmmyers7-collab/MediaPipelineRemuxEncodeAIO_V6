@@ -14,9 +14,13 @@ if TYPE_CHECKING:
     from mediapipeline.desktop.application.dto_base import JsonMap
 
 RENAME_APPLY_COMMAND = "rename.apply"
+RENAME_UNDO_COMMAND = "rename.undo"
 RENAME_REFRESH_HINT = "rename"
 CONFIRM_RENAME_APPLY_MESSAGE = "Rename apply requires explicit confirmation."
 CONFIRM_RENAME_APPLY_WARNING = "confirm_apply must be true."
+CONFIRM_RENAME_UNDO_MESSAGE = "Rename undo requires explicit confirmation."
+CONFIRM_RENAME_UNDO_WARNING = "confirm_undo must be true."
+NO_RENAME_UNDO_MANIFEST_MESSAGE = "Rename undo requires an undo manifest path."
 NO_RENAME_SELECTION_MESSAGE = "Select one or more rename rows before applying."
 NO_RENAME_SELECTION_WARNING = "No selected_sources were provided."
 MISSING_RENAME_SELECTION_MESSAGE = "One or more selected rename rows are no longer in the current plan."
@@ -238,11 +242,106 @@ def rename_apply_success_result(summary: Mapping[str, Any], *, renamed: int) -> 
     )
 
 
+def rename_undo_confirmation_required_result() -> CommandResult:
+    return _command_result(
+        command=RENAME_UNDO_COMMAND,
+        ok=False,
+        message=CONFIRM_RENAME_UNDO_MESSAGE,
+        severity="warning",
+        warnings=[CONFIRM_RENAME_UNDO_WARNING],
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
+def rename_undo_missing_manifest_result() -> CommandResult:
+    return _command_result(
+        command=RENAME_UNDO_COMMAND,
+        ok=False,
+        message=NO_RENAME_UNDO_MANIFEST_MESSAGE,
+        severity="warning",
+        warnings=[NO_RENAME_UNDO_MANIFEST_MESSAGE],
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
+def rename_undo_service_unavailable_result() -> CommandResult:
+    message = "Rename undo service is not available."
+    return _command_result(
+        command=RENAME_UNDO_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=[message],
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
+def rename_undo_busy_result(message: str = "Rename undo blocked because another rename command is already in progress.") -> CommandResult:
+    return _command_result(
+        command=RENAME_UNDO_COMMAND,
+        ok=False,
+        message=message,
+        severity="warning",
+        warnings=[message],
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
+def rename_undo_active_work_result(message: str) -> CommandResult:
+    return _command_result(
+        command=RENAME_UNDO_COMMAND,
+        ok=False,
+        message=message,
+        severity="error",
+        errors=["active_work"],
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
+def rename_undo_exception_result(exc: Exception) -> CommandResult:
+    return _command_result(
+        command=RENAME_UNDO_COMMAND,
+        ok=False,
+        message=f"Rename undo failed: {exc}",
+        severity="error",
+        errors=[str(exc)],
+        refresh_hint=RENAME_REFRESH_HINT,
+    )
+
+
+def rename_undo_success_result(summary: Mapping[str, Any]) -> CommandResult:
+    rows = [_json_safe(dict(row)) for row in summary.get("rows") or [] if isinstance(row, dict)]
+    warnings = [str(item) for item in summary.get("warnings") or []]
+    undone = int(summary.get("undone") or 0)
+    return _command_result(
+        command=RENAME_UNDO_COMMAND,
+        ok=True,
+        message=f"Rename undo applied: {undone} operation(s) restored.",
+        severity="warning" if warnings else "info",
+        warnings=warnings,
+        refresh_hint=RENAME_REFRESH_HINT,
+        data={
+            "schema_version": "desktop_rename_undo_result.v1",
+            "media_operations": int(summary.get("media_operations") or 0),
+            "sidecar_operations": int(summary.get("sidecar_operations") or 0),
+            "undone": undone,
+            "skipped": int(summary.get("skipped") or 0),
+            "failed": int(summary.get("failed") or 0),
+            "undo_manifest": str(summary.get("undo_manifest") or ""),
+            "rows": rows,
+        },
+    )
+
+
 __all__ = [
     "RENAME_APPLY_COMMAND",
+    "RENAME_UNDO_COMMAND",
     "RENAME_REFRESH_HINT",
     "CONFIRM_RENAME_APPLY_MESSAGE",
     "CONFIRM_RENAME_APPLY_WARNING",
+    "CONFIRM_RENAME_UNDO_MESSAGE",
+    "CONFIRM_RENAME_UNDO_WARNING",
+    "NO_RENAME_UNDO_MANIFEST_MESSAGE",
     "NO_RENAME_SELECTION_MESSAGE",
     "NO_RENAME_SELECTION_WARNING",
     "MISSING_RENAME_SELECTION_MESSAGE",
@@ -261,4 +360,11 @@ __all__ = [
     "rename_apply_exception_result",
     "rename_apply_progress_payload",
     "rename_apply_success_result",
+    "rename_undo_confirmation_required_result",
+    "rename_undo_missing_manifest_result",
+    "rename_undo_service_unavailable_result",
+    "rename_undo_busy_result",
+    "rename_undo_active_work_result",
+    "rename_undo_exception_result",
+    "rename_undo_success_result",
 ]

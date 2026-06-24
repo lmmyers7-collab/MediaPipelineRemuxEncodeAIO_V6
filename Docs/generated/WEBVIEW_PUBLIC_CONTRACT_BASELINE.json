@@ -1032,15 +1032,12 @@
       "queueRowReviewChecklistLines",
       "queueRowTrustSummaryLines",
       "queueRuntimeLines",
-      "queueScanIsRunning",
-      "queueScanStatusLines",
       "queueSelectedAtAGlanceLines",
       "queueSelectedAtAGlanceState",
       "queueSelectedAtAGlanceStatus",
       "queueSelectedOpenTargetLines",
       "queueSelectedQuickSignalLines",
       "queueSnapshotIsStale",
-      "queueSourceInventoryLines",
       "queueValidationStatus",
       "queueWorkflowLines",
       "queueWorkflowStatus",
@@ -1097,7 +1094,6 @@
       "renderQueueReadiness",
       "renderQueueReviewBoard",
       "renderQueueReviewDigest",
-      "renderQueueScanArtifacts",
       "renderQueueSelectedAtAGlance",
       "renderQueueSummary",
       "renderQueueWorkflow",
@@ -1110,7 +1106,6 @@
       "requestPendingRecoveryPlan",
       "requestQueueDiagnosticsAction",
       "requestQueueOpen",
-      "requestQueueScan",
       "resetQueueFilters",
       "sampleValidationAcceptanceGateDetailLines",
       "sampleValidationAcceptanceGateStatus",
@@ -6272,307 +6267,307 @@
         },
         {
           "name": "queuePriorityBadgeLabel",
-          "line": 1719,
+          "line": 1714,
           "kind": "function"
         },
         {
           "name": "queuePriorityPathKey",
-          "line": 1724,
+          "line": 1719,
           "kind": "function"
         },
         {
           "name": "queuePriorityNormalizedLevel",
-          "line": 1728,
+          "line": 1723,
           "kind": "function"
         },
         {
           "name": "queuePriorityRowMatchesPath",
-          "line": 1733,
+          "line": 1728,
           "kind": "function"
         },
         {
           "name": "queueDisplayedFileOverrideMarkerForRow",
-          "line": 1738,
+          "line": 1733,
           "kind": "function"
         },
         {
           "name": "queueRowWithDisplayedFileOverrideMarker",
-          "line": 1748,
+          "line": 1743,
           "kind": "function"
         },
         {
           "name": "queuePriorityRowHasVisibleMarker",
-          "line": 1760,
+          "line": 1755,
           "kind": "function"
         },
         {
           "name": "queuePriorityRowPath",
-          "line": 1765,
+          "line": 1760,
           "kind": "function"
         },
         {
           "name": "queuePriorityItemsForSelected",
-          "line": 1769,
+          "line": 1764,
           "kind": "function"
         },
         {
           "name": "refreshDisplayedQueuePriorityRows",
-          "line": 1786,
+          "line": 1781,
           "kind": "function"
         },
         {
           "name": "applyDisplayedQueuePriorityUpdates",
-          "line": 1809,
+          "line": 1804,
           "kind": "function"
         },
         {
           "name": "clearDisplayedQueuePriorityManifest",
-          "line": 1833,
+          "line": 1828,
           "kind": "function"
         },
         {
           "name": "applyDisplayedQueueFileOverrideMarker",
-          "line": 1845,
+          "line": 1840,
           "kind": "function"
         },
         {
           "name": "queuePriorityControlIds",
-          "line": 1881,
+          "line": 1876,
           "kind": "function"
         },
         {
           "name": "updateQueuePriorityControls",
-          "line": 1893,
+          "line": 1888,
           "kind": "function"
         },
         {
           "name": "beginQueuePriorityCommand",
-          "line": 1902,
+          "line": 1897,
           "kind": "function"
         },
         {
           "name": "isCurrentQueuePriorityCommand",
-          "line": 1911,
+          "line": 1906,
           "kind": "function"
         },
         {
           "name": "endQueuePriorityCommand",
-          "line": 1915,
+          "line": 1910,
           "kind": "function"
         },
         {
           "name": "queuePriorityActionsPausedForScan",
-          "line": 1923,
+          "line": 1918,
           "kind": "function"
         },
         {
           "name": "sendQueuePriority",
-          "line": 1929,
+          "line": 1924,
           "kind": "function"
         },
         {
           "name": "sendQueuePriorityBulk",
-          "line": 1954,
+          "line": 1949,
           "kind": "function"
         },
         {
           "name": "confirmLoadedQueuePriorityBulk",
-          "line": 1979,
+          "line": 1974,
           "kind": "function"
         },
         {
           "name": "sendSelectedQueuePriority",
-          "line": 1996,
+          "line": 1991,
           "kind": "function"
         },
         {
           "name": "confirmClearQueuePriorityManifest",
-          "line": 2009,
+          "line": 2004,
           "kind": "function"
         },
         {
           "name": "clearQueuePriorityManifest",
-          "line": 2020,
+          "line": 2015,
           "kind": "function"
         },
         {
           "name": "queueManualOrderStatus",
-          "line": 2044,
+          "line": 2039,
           "kind": "function"
         },
         {
           "name": "queueManualOrderKeyOrder",
-          "line": 2048,
+          "line": 2043,
           "kind": "function"
         },
         {
           "name": "resetQueueManualOrderLoadedKeys",
-          "line": 2054,
+          "line": 2049,
           "kind": "function"
         },
         {
           "name": "queueManualOrderCurrentKeySignature",
-          "line": 2059,
+          "line": 2054,
           "kind": "function"
         },
         {
           "name": "queueManualOrderLoadedKeySignature",
-          "line": 2063,
+          "line": 2058,
           "kind": "function"
         },
         {
           "name": "syncQueueManualOrderDraftDirty",
-          "line": 2067,
+          "line": 2062,
           "kind": "function"
         },
         {
           "name": "queueManualOrderSelectValue",
-          "line": 2075,
+          "line": 2070,
           "kind": "function"
         },
         {
           "name": "queueManualOrderIsEnabled",
-          "line": 2080,
+          "line": 2075,
           "kind": "function"
         },
         {
           "name": "queueManualOrderRowPhase",
-          "line": 2084,
+          "line": 2079,
           "kind": "function"
         },
         {
           "name": "queueManualOrderPhaseLabel",
-          "line": 2093,
+          "line": 2088,
           "kind": "function"
         },
         {
           "name": "queueManualOrderItemPath",
-          "line": 2105,
+          "line": 2100,
           "kind": "function"
         },
         {
           "name": "queueManualOrderPositionItems",
-          "line": 2109,
+          "line": 2104,
           "kind": "function"
         },
         {
           "name": "queueManualOrderSelectedContext",
-          "line": 2123,
+          "line": 2118,
           "kind": "function"
         },
         {
           "name": "queueManualOrderSameKeys",
-          "line": 2147,
+          "line": 2142,
           "kind": "function"
         },
         {
           "name": "queueManualOrderMoveRows",
-          "line": 2152,
+          "line": 2147,
           "kind": "function"
         },
         {
           "name": "queueManualOrderApplyPhaseRows",
-          "line": 2193,
+          "line": 2188,
           "kind": "function"
         },
         {
           "name": "saveQueueManualOrderPositions",
-          "line": 2205,
+          "line": 2200,
           "kind": "function"
         },
         {
           "name": "moveQueueManualOrder",
-          "line": 2258,
+          "line": 2253,
           "kind": "function"
         },
         {
           "name": "saveCurrentQueueManualOrder",
-          "line": 2288,
+          "line": 2283,
           "kind": "function"
         },
         {
           "name": "discardQueueManualOrderDraft",
-          "line": 2298,
+          "line": 2293,
           "kind": "function"
         },
         {
           "name": "restoreQueueManualOrderLoadedOrder",
-          "line": 2315,
+          "line": 2310,
           "kind": "function"
         },
         {
           "name": "wireQueueManualOrderRow",
-          "line": 2329,
+          "line": 2324,
           "kind": "function"
         },
         {
           "name": "updateQueueManualOrderControls",
-          "line": 2382,
+          "line": 2377,
           "kind": "function"
         },
         {
           "name": "initQueueManualOrderToolbar",
-          "line": 2421,
+          "line": 2416,
           "kind": "function"
         },
         {
           "name": "initQueuePriorityToolbar",
-          "line": 2448,
+          "line": 2443,
           "kind": "function"
         },
         {
           "name": "QUEUE_STRATEGIES",
-          "line": 2505,
+          "line": 2500,
           "kind": "const"
         },
         {
           "name": "QUEUE_STRATEGY_DESCRIPTIONS",
-          "line": 2516,
+          "line": 2511,
           "kind": "const"
         },
         {
           "name": "splitQueueStrategyOptionText",
-          "line": 2527,
+          "line": 2522,
           "kind": "function"
         },
         {
           "name": "syncQueueStrategyChoiceGroup",
-          "line": 2536,
+          "line": 2531,
           "kind": "function"
         },
         {
           "name": "enhanceQueueStrategySelector",
-          "line": 2547,
+          "line": 2542,
           "kind": "function"
         },
         {
           "name": "loadQueueStrategy",
-          "line": 2606,
+          "line": 2601,
           "kind": "function"
         },
         {
           "name": "resetQueueStrategySelectorToActive",
-          "line": 2636,
+          "line": 2631,
           "kind": "function"
         },
         {
           "name": "applyQueueStrategy",
-          "line": 2649,
+          "line": 2644,
           "kind": "function"
         },
         {
           "name": "initQueueStrategySelector",
-          "line": 2683,
+          "line": 2678,
           "kind": "function"
         },
         {
           "name": "panel",
-          "line": 2705,
+          "line": 2700,
           "kind": "const"
         },
         {
           "name": "wasVisible",
-          "line": 2707,
+          "line": 2702,
           "kind": "let"
         }
       ],
@@ -6632,15 +6627,12 @@
         "queueRowReviewChecklistLines",
         "queueRowTrustSummaryLines",
         "queueRuntimeLines",
-        "queueScanIsRunning",
-        "queueScanStatusLines",
         "queueSelectedAtAGlanceLines",
         "queueSelectedAtAGlanceState",
         "queueSelectedAtAGlanceStatus",
         "queueSelectedOpenTargetLines",
         "queueSelectedQuickSignalLines",
         "queueSnapshotIsStale",
-        "queueSourceInventoryLines",
         "queueValidationStatus",
         "queueWorkflowLines",
         "queueWorkflowStatus",
@@ -6655,13 +6647,11 @@
         "renderQueueReadiness",
         "renderQueueReviewBoard",
         "renderQueueReviewDigest",
-        "renderQueueScanArtifacts",
         "renderQueueSelectedAtAGlance",
         "renderQueueSummary",
         "renderQueueWorkflow",
         "requestQueueDiagnosticsAction",
         "requestQueueOpen",
-        "requestQueueScan",
         "resetQueueFilters",
         "selectQueueRow"
       ],

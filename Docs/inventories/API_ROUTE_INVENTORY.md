@@ -202,7 +202,7 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 
 Metrics source and backfill commands are backend-owned. Source registry updates write only Metrics state, and backfill recursively reads `*.pipeline.json` sidecars under configured source roots while skipping symlinked folders. It does not rewrite sidecars, launch work, drain, publish, rename, mutate queue state, or touch source/output media files.
 
-### Rename Commands (4 routes)
+### Rename Commands (5 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -210,8 +210,9 @@ Metrics source and backfill commands are backend-owned. Source registry updates 
 | `POST /api/rename/browse` | `shell-dialog` | `selection_mode` (`files`, `folder`, `folder_files`), `initial_path`, `paths` | Rename | Low — opens native Windows file/folder browser or resolves already-known dropped paths; `folder_files` filters sidecars/non-media and reports optional ignored counts | `test_application_facade_local_api.py`, `test_api_path_dialogs.py`, `test_webview_browser_rename_smoke.py` |
 | `POST /api/rename/filter-cases` | `test-fixture-write` | `source_folder`, `source_file`, `expected_name`, `status`, `confirm_append` | Rename | Low — appends to rename regression fixture only | `test_rename_workbench.py`, `test_api_command_contracts.py`, `test_webview_rename_readiness_smoke.py` |
 | `POST /api/rename/apply` | `filesystem-mutation` | `paths`, `selected_sources`, `confirm_apply`, `allow_outside_configured_roots` | Rename | **High** — renames files on disk | `test_application_facade_rename.py`, `test_service_rename_apply.py` |
+| `POST /api/rename/undo` | `filesystem-mutation` | `undo_manifest`, `confirm_undo` | Rename | **High** — reverses a backend-owned rename undo manifest under the resolved undo root | `test_application_facade_local_api.py`, `test_service_rename_apply_runner.py`, `test_api_command_contracts.py` |
 
-`rename/browse` is a non-mutating path-selection helper: the backend opens the Windows file/folder browser or resolves already-known dropped paths and returns media paths for staging. In `folder_files` mode it returns only media-extension paths and reports `raw_path_count`, `ignored_path_count`, and `ignored_sidecar_count` when sidecars or other non-media files are present. It does not preview, apply, rename, move, delete, or touch media files. `rename/filter-cases` appends only to `tests/fixtures/rename/bad_rename_cases.jsonl` after `confirm_append: true`; it does not inspect or mutate media files. `rename/apply` requires `confirm_apply: true`. Backend rebuilds the rename plan from its own state, not from the frontend-submitted plan, and preview/apply canonicalize staged input to media rows before sidecar companion moves are planned. If selected paths are outside backend-injected configured media roots, the backend also requires `allow_outside_configured_roots: true` after explicit operator review.
+`rename/browse` is a non-mutating path-selection helper: the backend opens the Windows file/folder browser or resolves already-known dropped paths and returns media paths for staging. In `folder_files` mode it returns only media-extension paths and reports `raw_path_count`, `ignored_path_count`, and `ignored_sidecar_count` when sidecars or other non-media files are present. It does not preview, apply, rename, move, delete, or touch media files. `rename/filter-cases` appends only to `tests/fixtures/rename/bad_rename_cases.jsonl` after `confirm_append: true`; it does not inspect or mutate media files. `rename/apply` requires `confirm_apply: true`; `rename/undo` requires `confirm_undo: true` and a backend-owned undo manifest under the resolved undo root. Backend rebuilds the rename plan from its own state, not from the frontend-submitted plan, and preview/apply canonicalize staged input to media rows before sidecar companion moves are planned. If selected paths are outside backend-injected configured media roots, the backend also requires `allow_outside_configured_roots: true` after explicit operator review.
 
 ### Settings Commands (21 routes)
 
@@ -339,7 +340,7 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `completed-sidecar-json-write` | 1 | `POST /api/completed/repair-sidecar-metadata` |
 | `pending-manifest-write` | 1 | `POST /api/pending-publish/repair-manifest` |
 | `pending-orphan-manifest-write` | 1 | `POST /api/pending-publish/reconcile-orphan-payloads` |
-| `filesystem-mutation` | 2 | `POST /api/rename/apply`, `final-library-promotion/promote-queue` |
+| `filesystem-mutation` | 3 | `POST /api/rename/apply`, `POST /api/rename/undo`, `final-library-promotion/promote-queue` |
 | `process-launch` | 3 | `POST /api/pipeline/start`, `audit/start`, `rerun/start` |
 | `backend-lifecycle` | 5 | `POST /api/backend/shutdown`, `POST /api/network/coordinator/start`, `POST /api/network/coordinator/stop`, `POST /api/network/worker/start`, `POST /api/network/worker/stop` |
 

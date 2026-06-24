@@ -3769,6 +3769,74 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertEqual(row["path_authority_status"], "ready")
         self.assertNotIn("outside configured", " ".join(row.get("warnings", [])).casefold())
 
+    def test_local_api_rename_undo_uses_backend_root_and_strict_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            configured = root / "ConfiguredMovies"
+            configured.mkdir()
+            media = configured / "Example Movie 2024 1080p BluRay.mkv"
+            media.write_text("media", encoding="utf-8")
+            resolved = _resolved(root)
+            resolved.local_base = root / "Scratch"
+            resolved.state_root = resolved.local_base / "State"
+            resolved.source_movies = configured
+            resolved.source_tv = root / "ConfiguredTV"
+            resolved.config_data = {"SourceMovies": str(configured), "Outsource": str(root / "Outsource")}
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            server = LocalApiServer(facade, token="rename-token", resolved_provider=lambda: resolved)
+            spoofed_undo_root = root / "SpoofedUndo"
+            apply_payload = {
+                "paths": [str(media)],
+                "mode": "movie",
+                "movie_title": "Example Movie",
+                "movie_year": "2024",
+                "selected_sources": [str(media)],
+                "confirm_apply": True,
+                "use_pipeline_naming_preview": False,
+            }
+            try:
+                server.start()
+                apply_status, applied = self._post_json(
+                    f"{server.url}/api/rename/apply",
+                    apply_payload,
+                    token="rename-token",
+                )
+                undo_manifest = str(applied["data"]["undo_manifest"])
+                string_rejected_status, string_rejected = self._post_json(
+                    f"{server.url}/api/rename/undo",
+                    {"undo_manifest": undo_manifest, "confirm_undo": "true"},
+                    token="rename-token",
+                )
+                undo_status, undo = self._post_json(
+                    f"{server.url}/api/rename/undo",
+                    {
+                        "undo_manifest": undo_manifest,
+                        "confirm_undo": True,
+                        "_rename_undo_manifest_root": str(spoofed_undo_root),
+                    },
+                    token="rename-token",
+                )
+            finally:
+                server.stop()
+            destination = configured / "Example Movie (2024).mkv"
+            media_exists_after_undo = media.exists()
+            destination_exists_after_undo = destination.exists()
+            spoofed_undo_root_exists = spoofed_undo_root.exists()
+
+        self.assertEqual(apply_status, 200)
+        self.assertTrue(applied["ok"], applied)
+        self.assertEqual(string_rejected_status, 400)
+        self.assertIn("confirm_undo", string_rejected["error"])
+        self.assertEqual(undo_status, 200)
+        self.assertTrue(undo["ok"], undo)
+        self.assertEqual(undo["command"], "rename.undo")
+        self.assertEqual(undo["data"]["schema_version"], "desktop_rename_undo_result.v1")
+        self.assertEqual(undo["data"]["media_operations"], 1)
+        self.assertTrue(media_exists_after_undo)
+        self.assertFalse(destination_exists_after_undo)
+        self.assertFalse(spoofed_undo_root_exists)
+
     def test_local_api_serves_read_only_web_prototype(self) -> None:
         from urllib.request import urlopen
 

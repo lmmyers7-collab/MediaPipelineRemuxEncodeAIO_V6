@@ -7,12 +7,12 @@ Candidate slices require at least **80** contiguous lines with gaps of **25** li
 
 ## `apps/desktop/webview/static/assets/app.js`
 
-- Lines: **1759** (1465 nonblank)
+- Lines: **1761** (1467 nonblank)
 - Top-level declarations: **160**
 - Namespace exports: -
 - Flat compatibility exports: **10**
 - API routes: `/api/backend/shutdown`, `/api/ui-preferences`
-- DOM IDs touched: **73**
+- DOM IDs touched: **74**
 - Event types: `DOMContentLoaded`, `beforeunload`, `change`, `click`, `focus`, `input`, `keydown`, `mediapipeline:backend-lifecycle`, `visibilitychange`
 
 ### Candidate Slices

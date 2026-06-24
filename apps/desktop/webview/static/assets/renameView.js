@@ -38,7 +38,11 @@
   let renamePreviewInFlight = false;
   let renameBrowseInFlight = false;
   let renameApplyInFlight = false;
+  let renameUndoInFlight = false;
   let renameBadCaseInFlight = false;
+  let lastRenameApplyHadResult = false;
+  let lastRenameUndoManifest = "";
+  let lastRenameUndoCompleted = false;
   let renameCleaningFilterEventsBound = false;
   let lastRenamePreviewSignature = "";
   let renamePreviewStale = false;
@@ -1723,8 +1727,9 @@
   });
   const {
     renderRenameApplyOutcomeReview,
+    renderRenameApplyInFlight,
     renderRenameApplyProgress,
-    renderRenameApplyResult,
+    renderRenameApplyResult: renderRenameApplyResultFromSlice,
     renameApplyOutcomeRows,
     renameApplyOutcomeStatus,
     renameApplyOutcomeStatusState,
@@ -1732,6 +1737,108 @@
     renameApplyProgressBars,
     renameApplyResultLines,
   } = renameApplyResultSlice;
+
+  function renameApplyPayloadFromResult(result) {
+    if (!result || typeof result !== "object") return {};
+    return result.raw && typeof result.raw === "object" ? result.raw : result;
+  }
+
+  function renameUndoManifestFromApplyResult(result) {
+    const payload = renameApplyPayloadFromResult(result);
+    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
+    return String(data.undo_manifest || "").trim();
+  }
+
+  function syncRenameUndoButton() {
+    const button = byId("rename-undo-button");
+    const status = byId("rename-undo-status");
+    const hasManifest = Boolean(lastRenameUndoManifest);
+    if (button) {
+      button.hidden = !lastRenameApplyHadResult;
+      button.disabled = renameApplyInFlight || renameUndoInFlight || !hasManifest || lastRenameUndoCompleted;
+      button.textContent = "Undo Last Apply";
+      button.title = hasManifest
+        ? `Undo manifest: ${lastRenameUndoManifest}`
+        : "Undo is unavailable because the last backend apply result did not report an undo manifest.";
+    }
+    if (status) {
+      if (!lastRenameApplyHadResult) status.textContent = "No undo available.";
+      else if (lastRenameUndoCompleted) status.textContent = "Undo completed.";
+      else if (hasManifest) status.textContent = "Undo available for the last apply.";
+      else status.textContent = "No undo manifest reported for this apply.";
+    }
+  }
+
+  function syncRenameApplyStatusPanelFromResult(result) {
+    const payload = renameApplyPayloadFromResult(result);
+    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
+    const panel = byId("rename-apply-status-panel");
+    const renamed = Number(data.renamed || 0);
+    const applied = Number(data.applied_count ?? data.selected ?? 0);
+    if (panel) panel.dataset.state = payload.ok ? "ready" : payload.severity || "blocked";
+    if (!payload || !Object.keys(payload).length) {
+      setRenameStatusLine("rename-apply-status-summary", "Ready to apply 0 checked renames", "waiting");
+      return;
+    }
+    if (payload.ok) {
+      setRenameStatusLine("rename-apply-status-summary", `${renamed} renamed / ${applied} applied`, "ready");
+    } else {
+      setRenameStatusLine("rename-apply-status-summary", payload.message || "Rename apply failed", "blocked");
+    }
+  }
+
+  function renderRenameApplyResult(result) {
+    renderRenameApplyResultFromSlice(result);
+    if (!result) {
+      lastRenameApplyHadResult = false;
+      lastRenameUndoManifest = "";
+      lastRenameUndoCompleted = false;
+      syncRenameApplyStatusPanelFromResult(null);
+      syncRenameUndoButton();
+      return;
+    }
+    const payload = renameApplyPayloadFromResult(result);
+    lastRenameApplyHadResult = Boolean(payload && Object.keys(payload).length);
+    lastRenameUndoManifest = payload.ok ? renameUndoManifestFromApplyResult(payload) : "";
+    lastRenameUndoCompleted = false;
+    syncRenameApplyStatusPanelFromResult(payload);
+    syncRenameUndoButton();
+  }
+
+  function renderRenameUndoResult(result) {
+    const payload = renameApplyPayloadFromResult(result);
+    const data = payload.data && typeof payload.data === "object" ? payload.data : {};
+    const undone = Number(data.undone || 0);
+    const skipped = Number(data.skipped || 0);
+    const failed = Number(data.failed || 0);
+    const status = payload.ok && failed <= 0 ? "ready" : "blocked";
+    setRenameStatusLine(
+      "rename-apply-status-summary",
+      payload.ok ? `${undone} undone / ${skipped} skipped operations` : payload.message || "Rename undo failed",
+      status,
+    );
+    setRenameStatusLine(
+      "rename-last-apply-status",
+      payload.ok ? `Undo completed: ${undone} restored / ${skipped} skipped` : "Undo failed",
+      status,
+    );
+    setText(
+      "rename-last-apply-detail",
+      [
+        `Command: ${payload.command || "rename.undo"}`,
+        `Result: ${payload.ok ? "ok" : payload.severity || "error"}`,
+        `Message: ${payload.message || ""}`,
+        `Undo manifest: ${data.undo_manifest || lastRenameUndoManifest}`,
+        `Media operations: ${data.media_operations ?? ""}`,
+        `Sidecar operations: ${data.sidecar_operations ?? ""}`,
+        `Undone operations: ${undone}`,
+        `Skipped operations: ${skipped}`,
+        `Failed operations: ${failed}`,
+      ].join("\n"),
+    );
+    lastRenameUndoCompleted = Boolean(payload.ok && failed <= 0);
+    syncRenameUndoButton();
+  }
 
   function resetRenameApplyEvidence(reason = "") {
     renderRenameApplyResult(null);
@@ -1851,10 +1958,17 @@
   function setRenameApplyBusy(isBusy) {
     renameApplyInFlight = Boolean(isBusy);
     syncRenameCommandButtons();
+    syncRenameUndoButton();
+  }
+
+  function setRenameUndoBusy(isBusy) {
+    renameUndoInFlight = Boolean(isBusy);
+    syncRenameCommandButtons();
+    syncRenameUndoButton();
   }
 
   function syncRenameCommandButtons() {
-    const commandBusy = renamePreviewInFlight || renameBrowseInFlight || renameApplyInFlight || renameBadCaseInFlight;
+    const commandBusy = renamePreviewInFlight || renameBrowseInFlight || renameApplyInFlight || renameUndoInFlight || renameBadCaseInFlight;
     const stalePreview = updateRenamePreviewFreshnessState();
     const applyScope = getRenameApplyScopeRows();
     const rowsToApply = applyScope.rows;
@@ -1934,6 +2048,7 @@
       if (bulkButton) bulkButton.disabled = commandBusy || !bulkRows.length;
     });
     syncRenameBadCaseButton();
+    syncRenameUndoButton();
   }
 
   async function refreshRenamePreview() {
@@ -2072,6 +2187,7 @@
     applyRenameSelectedOverride,
     clearRenameSelectedOverride,
     applySelectedRename,
+    undoLastRenameApply,
     replaceRenamePathText,
     renderRenameApplyResult,
     renameApplyResultLines,
@@ -2123,60 +2239,207 @@
     return el && typeof el.showModal === "function" ? el : null;
   }
 
+  function renameConfirmBasename(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    const normalized = text.replace(/\\/g, "/");
+    return normalized.split("/").filter(Boolean).pop() || text;
+  }
+
+  function renameConfirmSourceName(item) {
+    return String(item?.source_name || "").trim() || renameConfirmBasename(item?.source_path || item?.source);
+  }
+
+  function renameConfirmTargetName(item) {
+    return String(item?.target_name || item?.final_name || item?.pipeline_guess || "").trim()
+      || renameConfirmBasename(item?.destination || item?.target_path);
+  }
+
+  function renameConfirmSidecarCount(item) {
+    const explicit = Number(item?.sidecar_count ?? item?.sidecars);
+    if (Number.isFinite(explicit)) return Math.max(0, explicit);
+    return Array.isArray(item?.sidecar_moves) ? item.sidecar_moves.length : 0;
+  }
+
+  function renameConfirmRowState(item) {
+    const status = String(item?.status || "").trim().toLowerCase();
+    const hasErrors = Array.isArray(item?.errors) && item.errors.length > 0;
+    if (hasErrors || ["blocked", "failed", "error", "duplicate"].includes(status)) return "blocked";
+    if (["warning", "review"].includes(status) || (Array.isArray(item?.warnings) && item.warnings.length > 0)) return "review";
+    if (status === "match") return "match";
+    return "ready";
+  }
+
+  function renameConfirmStatusToken(state) {
+    if (state === "blocked") return { symbol: "×", label: "Blocked" };
+    if (state === "review") return { symbol: "!", label: "Review" };
+    if (state === "match") return { symbol: "=", label: "Match" };
+    return { symbol: "✓", label: "Ready" };
+  }
+
+  function renameConfirmSequenceText(rows) {
+    if (!rows.length) return "No rename rows selected";
+    const first = renameConfirmTargetName(rows[0]);
+    const last = renameConfirmTargetName(rows[rows.length - 1]);
+    if (!first && !last) return "No target names reported";
+    if (!last || first === last) return first || last;
+    return `${first} -> ${last}`;
+  }
+
+  function renameConfirmCounts(rows) {
+    const duplicateTargets = typeof renameDuplicateTargets === "function" ? renameDuplicateTargets(rows) : [];
+    const existingDestinations = rows.filter((row) => Boolean(row?.destination_exists) && !row?.matches_target).length;
+    return rows.reduce((acc, row) => {
+      const state = renameConfirmRowState(row);
+      acc[state] = (acc[state] || 0) + 1;
+      acc.sidecars += renameConfirmSidecarCount(row);
+      return acc;
+    }, {
+      ready: 0,
+      match: 0,
+      review: 0,
+      blocked: 0,
+      sidecars: 0,
+      conflicts: duplicateTargets.length,
+      existingDestinations,
+    });
+  }
+
+  function renameConfirmAppendText(parent, className, text) {
+    const node = document.createElement("span");
+    node.className = className;
+    node.textContent = text;
+    parent.appendChild(node);
+    return node;
+  }
+
+  function renameConfirmStatusBadge(state) {
+    const token = renameConfirmStatusToken(state);
+    const badge = document.createElement("span");
+    badge.className = `rename-confirm-status-badge rename-confirm-status-${state}`;
+    badge.title = token.label;
+    badge.setAttribute("aria-label", token.label);
+    badge.textContent = token.symbol;
+    return badge;
+  }
+
+  function renderRenameConfirmSummary(listEl, rowsToApply, outsideRootRows) {
+    if (!listEl) return;
+    if (typeof listEl.replaceChildren === "function") listEl.replaceChildren();
+    else listEl.innerHTML = "";
+    const counts = renameConfirmCounts(rowsToApply);
+    const primaryState = counts.blocked ? "blocked" : counts.review ? "review" : "ready";
+
+    const summary = document.createElement("div");
+    summary.className = "rename-confirm-summary";
+
+    const metrics = document.createElement("div");
+    metrics.className = "rename-confirm-metrics";
+    [
+      [`${rowsToApply.length} media file${rowsToApply.length === 1 ? "" : "s"} ready`, "Media"],
+      [`${counts.sidecars} matching sidecar${counts.sidecars === 1 ? "" : "s"} will move`, "Sidecars"],
+    ].forEach(([value, label]) => {
+      const metric = document.createElement("div");
+      metric.className = "rename-confirm-metric";
+      renameConfirmAppendText(metric, "rename-confirm-metric-value", value);
+      renameConfirmAppendText(metric, "rename-confirm-metric-label", label);
+      metrics.appendChild(metric);
+    });
+    summary.appendChild(metrics);
+
+    const sequence = document.createElement("div");
+    sequence.className = "rename-confirm-sequence";
+    renameConfirmAppendText(sequence, "rename-confirm-label", "Sequence");
+    renameConfirmAppendText(sequence, "rename-confirm-sequence-value", renameConfirmSequenceText(rowsToApply));
+    summary.appendChild(sequence);
+
+    const health = document.createElement("div");
+    health.className = "rename-confirm-health";
+    const batchBadge = renameConfirmStatusBadge(primaryState);
+    health.appendChild(batchBadge);
+    renameConfirmAppendText(health, "rename-confirm-health-label", renameConfirmStatusToken(primaryState).label);
+    [
+      `${counts.blocked} blocked`,
+      `${counts.conflicts} conflicts`,
+      `${counts.existingDestinations} existing destinations`,
+    ].forEach((label) => renameConfirmAppendText(health, "rename-confirm-health-chip", label));
+    summary.appendChild(health);
+    listEl.appendChild(summary);
+
+    const details = document.createElement("details");
+    details.className = "rename-confirm-details";
+    const detailsSummary = document.createElement("summary");
+    detailsSummary.textContent = "Show details";
+    details.appendChild(detailsSummary);
+    const table = document.createElement("div");
+    table.className = "rename-confirm-detail-table";
+    table.setAttribute("role", "table");
+    const header = document.createElement("div");
+    header.className = "rename-confirm-detail-row rename-confirm-detail-header";
+    header.setAttribute("role", "row");
+    ["Status", "Original", "New name", "Sidecars"].forEach((label) => {
+      const cell = document.createElement("span");
+      cell.setAttribute("role", "columnheader");
+      cell.textContent = label;
+      header.appendChild(cell);
+    });
+    table.appendChild(header);
+    rowsToApply.forEach((item) => {
+      const state = renameConfirmRowState(item);
+      const row = document.createElement("div");
+      row.className = `rename-confirm-detail-row rename-confirm-detail-row-${state}`;
+      row.setAttribute("role", "row");
+      const statusCell = document.createElement("span");
+      statusCell.setAttribute("role", "cell");
+      statusCell.appendChild(renameConfirmStatusBadge(state));
+      row.appendChild(statusCell);
+      [renameConfirmSourceName(item), renameConfirmTargetName(item), String(renameConfirmSidecarCount(item))].forEach((value) => {
+        const cell = document.createElement("span");
+        cell.setAttribute("role", "cell");
+        cell.textContent = value;
+        row.appendChild(cell);
+      });
+      table.appendChild(row);
+      if (state === "review" || state === "blocked") {
+        const evidence = document.createElement("div");
+        evidence.className = "rename-confirm-detail-row rename-confirm-detail-evidence";
+        evidence.setAttribute("role", "row");
+        evidence.textContent = [
+          ...(Array.isArray(item.warnings) ? item.warnings : []),
+          ...(Array.isArray(item.errors) ? item.errors : []),
+          item.destination_exists && !item.matches_target ? `Destination exists: ${item.destination || item.target_path || renameConfirmTargetName(item)}` : "",
+          Array.isArray(outsideRootRows) && outsideRootRows.includes(item) && state === "blocked" ? `Path evidence: ${item.source || item.source_path || renameConfirmSourceName(item)}` : "",
+        ].filter(Boolean).join(" ");
+        if (evidence.textContent) table.appendChild(evidence);
+      }
+    });
+    details.appendChild(table);
+    listEl.appendChild(details);
+  }
+
   function renameOpenConfirmDialog(rowsToApply, outsideRootRows) {
     const dialog = renameDialogById("rename-confirm-dialog");
     if (!dialog) return Promise.resolve(false);
     const countEl = byId("rename-confirm-count");
-    if (countEl) countEl.textContent = `Renaming ${rowsToApply.length} checked file${rowsToApply.length === 1 ? "" : "s"}.`;
-    const listEl = byId("rename-confirm-list");
-    if (listEl) {
-      listEl.innerHTML = "";
-      rowsToApply.forEach((item) => {
-        const row = document.createElement("div");
-        row.className = "rename-modal-list-row";
-        row.setAttribute("role", "listitem");
-        const sourcePath = String(item.source_path || item.source || item.source_name || "");
-        const destinationPath = String(item.destination || item.target_path || item.target_name || item.final_name || "");
-        const sidecarMoves = Array.isArray(item.sidecar_moves) ? item.sidecar_moves : [];
-        const sidecarCount = item.sidecar_count ?? sidecarMoves.length ?? 0;
-        const oldSpan = document.createElement("span");
-        oldSpan.className = "rename-modal-old";
-        oldSpan.textContent = sourcePath;
-        const arrow = document.createElement("span");
-        arrow.className = "rename-modal-arrow";
-        arrow.textContent = "->";
-        const newSpan = document.createElement("span");
-        newSpan.className = "rename-modal-new";
-        newSpan.textContent = destinationPath;
-        const meta = document.createElement("span");
-        meta.className = "rename-modal-row-meta";
-        meta.textContent = [
-          `status=${item.status || "unknown"}`,
-          `sidecars=${sidecarCount}`,
-          `authority=${item.path_authority || "not reported"}`,
-          sidecarMoves.length ? `sidecar moves=${sidecarMoves.length}` : "",
-        ].filter(Boolean).join("; ");
-        row.append(oldSpan, arrow, newSpan, meta);
-        listEl.appendChild(row);
-      });
-    }
+    if (countEl) countEl.textContent = `Renaming ${rowsToApply.length} checked media file${rowsToApply.length === 1 ? "" : "s"}.`;
+    const applyButton = byId("rename-confirm-apply-button");
+    if (applyButton) applyButton.textContent = `Apply ${rowsToApply.length} Rename${rowsToApply.length === 1 ? "" : "s"}`;
+    renderRenameConfirmSummary(byId("rename-confirm-list"), rowsToApply, outsideRootRows);
     const warningEl = byId("rename-confirm-warning");
     if (warningEl) {
       const warnings = [];
-      warnings.push("Preview is read-only. Continue only if these exact checked source and destination paths are correct; Apply mutates files through backend rename.apply.");
       if (lastRenameRows.length > RENAME_PREVIEW_RENDER_LIMIT) {
         const hiddenChecked = rowsToApply.filter((row) => lastRenameRows.indexOf(row) >= RENAME_PREVIEW_RENDER_LIMIT).length;
         warnings.push(`Render cap: ${RENAME_PREVIEW_RENDER_LIMIT} of ${lastRenameRows.length} preview rows are visible${hiddenChecked ? `; ${hiddenChecked} checked row(s) are not visible in the table` : ""}.`);
-      }
-      if (outsideRootRows && outsideRootRows.length) {
-        warnings.push(`Warning: ${outsideRootRows.length} row(s) are outside configured media roots. Verify source/destination before continuing.`);
       }
       warningEl.textContent = warnings.join(" ");
       warningEl.hidden = !warnings.length;
     }
     return new Promise((resolve) => {
       const onClose = () => {
-        dialog.removeEventListener("close", onClose);
+        if (typeof dialog.removeEventListener === "function") {
+          dialog.removeEventListener("close", onClose);
+        }
         const confirmed = dialog.returnValue === "confirm";
         if (!confirmed) {
           setText("rename-apply-status-hint", "Apply canceled. No rename.apply request was sent.");
@@ -2192,7 +2455,9 @@
       try {
         dialog.showModal();
       } catch (_err) {
-        dialog.removeEventListener("close", onClose);
+        if (typeof dialog.removeEventListener === "function") {
+          dialog.removeEventListener("close", onClose);
+        }
         resolve(false);
       }
     });
@@ -2343,6 +2608,7 @@
       request.selected_sources = rowsToApply.map((row) => row.source);
       request.confirm_apply = true;
       request.allow_outside_configured_roots = outsideRootRows.length > 0;
+      renderRenameApplyInFlight(rowsToApply.length);
       const result = await apiPost("/api/rename/apply", request);
       visibleResult = { ...result, request };
       appendCommandResult(visibleResult);
@@ -2353,11 +2619,39 @@
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      visibleResult = { ok: false, severity: "error", message, errors: [message] };
+      visibleResult = { command: "rename.apply", ok: false, severity: "error", message, errors: [message] };
       appendCommandResult({ command: "rename.apply", ok: false, severity: "error", message });
+      renderRenameApplyResult(visibleResult);
     } finally {
       setRenameApplyBusy(false);
       if (visibleResult) renameOpenResultDialog(visibleResult);
+    }
+  }
+
+  async function undoLastRenameApply() {
+    if (renameUndoInFlight || renameApplyInFlight || !lastRenameUndoManifest || lastRenameUndoCompleted) {
+      syncRenameUndoButton();
+      return;
+    }
+    setRenameUndoBusy(true);
+    setRenameStatusLine("rename-apply-status-summary", "Undoing last rename apply", "active");
+    try {
+      const result = await apiPost("/api/rename/undo", {
+        undo_manifest: lastRenameUndoManifest,
+        confirm_undo: true,
+      });
+      appendCommandResult(result);
+      renderRenameUndoResult(result);
+      if (result.ok) {
+        replaceRenamePathText((result.data || {}).rows || []);
+        await refreshRenamePreview();
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      renderRenameUndoResult({ command: "rename.undo", ok: false, severity: "error", message, errors: [message] });
+      appendCommandResult({ command: "rename.undo", ok: false, severity: "error", message });
+    } finally {
+      setRenameUndoBusy(false);
     }
   }
 
@@ -2419,6 +2713,8 @@
   function renameInitWorkbenchEvents() {
     const applyButton = byId("rename-apply-button");
     if (applyButton) applyButton.addEventListener("click", () => applyRenameWorkbench());
+    const undoButton = byId("rename-undo-button");
+    if (undoButton) undoButton.addEventListener("click", () => undoLastRenameApply());
     const previewButton = byId("rename-preview-button");
     if (previewButton) previewButton.addEventListener("click", () => refreshRenamePreview());
     const browseFilesButton = byId("rename-browse-files-button");
@@ -2472,6 +2768,7 @@
     renameSyncModeFieldVisibility();
     renameInitDropZone();
     syncRenameBadCaseButton();
+    syncRenameUndoButton();
   }
 
 })();

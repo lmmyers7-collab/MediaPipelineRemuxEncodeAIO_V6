@@ -180,6 +180,24 @@ class WebViewInventoryDocsTests(unittest.TestCase):
                     self.assertIn("Public namespace", doc, f"{script.name} {name} missing public namespace wording")
                     self.assertIn("flat window.* exports", doc, f"{script.name} {name} missing compatibility-export boundary")
 
+    def test_queue_scan_helpers_are_namespace_only(self) -> None:
+        source = (ASSETS_ROOT / "queueView.js").read_text(encoding="utf-8")
+        match = re.search(r"window\.mediaPipelineQueueView\s*=\s*\{(?P<body>.*?)\n  \};", source, flags=re.DOTALL)
+        self.assertIsNotNone(match)
+        namespace_body = match.group("body") if match else ""
+        namespace_only_helpers = [
+            "requestQueueScan",
+            "queueScanIsRunning",
+            "queueScanStatusLines",
+            "queueSourceInventoryLines",
+            "renderQueueScanArtifacts",
+        ]
+
+        for helper in namespace_only_helpers:
+            with self.subTest(helper=helper):
+                self.assertIn(f"    {helper},", namespace_body)
+                self.assertNotIn(f"window.{helper} =", source)
+
 
 if __name__ == "__main__":
     unittest.main()

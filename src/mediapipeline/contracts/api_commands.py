@@ -267,6 +267,15 @@ class RenameApplyCommandPayload(StrictApiCommandPayload):
     allow_outside_configured_roots: StrictBool | None = None
 
 
+class RenameUndoCommandPayload(StrictApiCommandPayload):
+    undo_manifest: Any = None
+    confirm_undo: StrictBool | None = None
+    rename_undo_manifest_root: Any = Field(default=None, alias="_rename_undo_manifest_root")
+
+    def to_wire_payload(self) -> dict[str, Any]:
+        return dict(self.model_dump(mode="json", by_alias=True, exclude_unset=True))
+
+
 class RenameFilterCaseCommandPayload(StrictApiCommandPayload):
     case_id: Any = None
     source_folder: Any = None
@@ -538,6 +547,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/rename/browse": RenameCommandPayload,
     "/api/rename/filter-cases": RenameFilterCaseCommandPayload,
     "/api/rename/apply": RenameApplyCommandPayload,
+    "/api/rename/undo": RenameUndoCommandPayload,
     "/api/diagnostics/open": OpenLocationCommandPayload,
     "/api/diagnostics/tdarr-matrix-audit": DiagnosticsTdarrMatrixAuditCommandPayload,
     "/api/diagnostics/tdarr-matrix/evidence/open": DiagnosticsTdarrMatrixEvidenceOpenCommandPayload,

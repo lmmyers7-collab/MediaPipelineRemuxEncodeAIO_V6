@@ -173,7 +173,7 @@
           "Undo / rollback evidence",
           data.undo_manifest ? "ready" : "review",
           data.undo_manifest ? `Undo manifest: ${data.undo_manifest}` : "No undo manifest path reported in the backend result.",
-          data.undo_manifest ? "Keep this path for manual recovery review if a later row looks wrong." : "Do not rely on WebView for undo; inspect backend logs before manual repair.",
+          data.undo_manifest ? "Use Undo Last Apply for this result if the batch needs to be reversed." : "Inspect backend logs before manual repair.",
         ),
         renameApplyOutcomeRow(
           "Warnings and errors",
@@ -190,8 +190,8 @@
         renameApplyOutcomeRow(
           "Mutation boundary",
           "ready",
-          "Only /api/rename/apply can mutate files. This outcome review cannot rename, undo, retry, delete, or touch files.",
-          "For any doubt, compare preview, command history, output folders, and backend logs before applying another batch.",
+          "Only /api/rename/apply and /api/rename/undo can mutate rename paths. This outcome review cannot rename, retry, delete, or touch files.",
+          "For any doubt, compare preview, command history, output folders, and backend logs before another mutation.",
         ),
       ];
     }
@@ -205,7 +205,7 @@
           "Backend rename apply outcome review:",
           "Status: No apply",
           "Next step: run Preview, check intended rows, read Apply Readiness, then use backend-owned Apply Checked / Selected Rename.",
-          "Mutation guardrail: this panel is read-only and cannot rename, undo, retry, or touch files.",
+          "Mutation guardrail: this panel is read-only until Apply or Undo is explicitly confirmed.",
         ];
       }
       const data = payload.data && typeof payload.data === "object" ? payload.data : {};
@@ -218,7 +218,7 @@
         `Applied: selected=${data.selected ?? ""}; applied=${data.applied_count ?? ""}; renamed=${counts.renamed}; unchanged=${counts.unchanged}; skipped=${counts.skipped}; protected=${counts.protected}; failed=${counts.failed}; sidecars=${data.sidecars ?? ""}`,
         `Undo manifest: ${data.undo_manifest || "(not reported)"}`,
         "Next step: verify rows/sidecars on disk only after command result and history agree.",
-        "Mutation guardrail: this panel is read-only and cannot rename, undo, retry, delete, or touch files.",
+        "Mutation guardrail: use Undo Last Apply only when this backend result reports an undo manifest.",
       ];
     }
 
@@ -254,6 +254,25 @@
       const progress = data.rename_progress && typeof data.rename_progress === "object" ? data.rename_progress : {};
       if (Array.isArray(progress.progress_bars)) return progress.progress_bars.filter(Boolean);
       if (Array.isArray(data.progress_bars)) return data.progress_bars.filter(Boolean);
+      if (payload && typeof payload === "object" && Object.keys(payload).length) {
+        const rows = Array.isArray(data.rows) ? data.rows : [];
+        const counts = renameApplyOutcomeCounts(data, rows);
+        const applied = renameApplyOutcomeNumber(data.applied_count, rows.length);
+        const sidecars = renameApplyOutcomeNumber(data.sidecars, 0);
+        const failed = !payload.ok || counts.failed > 0;
+        const detail = failed
+          ? String(payload.message || "Backend rename apply failed.")
+          : `${counts.renamed} renamed / ${applied} applied${sidecars ? `; ${sidecars} sidecar${sidecars === 1 ? "" : "s"} followed` : ""}`;
+        return [{
+          id: "rename.apply",
+          label: "Rename apply",
+          mode: "determinate",
+          percent: 100,
+          status: failed ? "failed" : "complete",
+          detail,
+          source: payload.command || "rename.apply",
+        }];
+      }
       return [];
     }
 
@@ -262,6 +281,79 @@
       const data = payload?.data && typeof payload.data === "object" ? payload.data : {};
       const progress = data.rename_progress && typeof data.rename_progress === "object" ? data.rename_progress : {};
       renderProgressBarsInto("rename-apply-progress-bars", renameApplyProgressBars(payload), progress, "No rename apply progress loaded.");
+    }
+
+    function renameApplyInFlightRows(selectedCount) {
+      const planned = Math.max(0, renameApplyOutcomeNumber(selectedCount, 0));
+      const countText = `${planned} checked rename${planned === 1 ? "" : "s"}`;
+      return [
+        renameApplyOutcomeRow(
+          "Backend result",
+          "active",
+          `rename.apply is running for ${countText}.`,
+          "Wait for the backend command result before changing checked rows or retrying apply.",
+        ),
+        renameApplyOutcomeRow(
+          "Mutation boundary",
+          "ready",
+          "Filesystem mutation is still owned by /api/rename/apply; this panel is rendering request progress only.",
+          "Use the final backend result and command history as durable evidence.",
+        ),
+      ];
+    }
+
+    function renderRenameApplyInFlight(selectedCount) {
+      const planned = Math.max(0, renameApplyOutcomeNumber(selectedCount, 0));
+      if (typeof renderProgressBarsInto === "function") {
+        const updatedAt = new Date().toISOString();
+        renderProgressBarsInto(
+          "rename-apply-progress-bars",
+          [{
+            id: "rename_apply",
+            label: "Rename apply",
+            mode: "indeterminate",
+            status: "active",
+            detail: `${planned} checked rename${planned === 1 ? "" : "s"} submitted; waiting for backend result`,
+            source: "rename.apply",
+            updated_at: updatedAt,
+            stale: false,
+          }],
+          {
+            schema_version: "desktop_rename_apply_progress.v1",
+            status: "active",
+            selected: planned,
+            updated_at: updatedAt,
+          },
+          "No rename apply progress loaded.",
+        );
+      }
+      setText("rename-last-apply-status", `Applying ${planned} checked rename${planned === 1 ? "" : "s"}`);
+      const lastStatusNode = byId("rename-last-apply-status");
+      if (lastStatusNode) lastStatusNode.dataset.state = "active";
+      setText("rename-last-apply-detail", "Rename apply request has been submitted to the backend. Waiting for backend result evidence.");
+      setText("rename-apply-outcome-status", "Applying");
+      const statusNode = byId("rename-apply-outcome-status");
+      if (statusNode) statusNode.dataset.state = "active";
+      setText(
+        "rename-apply-outcome-summary",
+        [
+          "Backend rename apply outcome review:",
+          `Status: Applying; selected=${planned}`,
+          "Next step: wait for the backend rename.apply result before retrying, undoing, or changing scope.",
+          "Mutation guardrail: this in-flight progress does not prove any file was renamed.",
+        ].join("\n"),
+      );
+      const tbody = byId("rename-apply-outcome-rows");
+      if (tbody) {
+        tbody.replaceChildren();
+        renameApplyInFlightRows(planned).forEach((item) => {
+          const row = document.createElement("tr");
+          row.dataset.status = item.posture || "";
+          appendCells(row, [item.checkpoint, item.posture, item.evidence, item.action]);
+          tbody.appendChild(row);
+        });
+      }
+      setText("rename-apply-outcome-legend", "Rename apply outcome review: active=1, ready=1. Waiting for backend rename.apply result.");
     }
 
     function renderRenameApplyResult(result) {
@@ -285,8 +377,10 @@
 
     return {
       renderRenameApplyOutcomeReview,
+      renderRenameApplyInFlight,
       renderRenameApplyProgress,
       renderRenameApplyResult,
+      renameApplyOutcomeCounts,
       renameApplyOutcomeRows,
       renameApplyOutcomeStatus,
       renameApplyOutcomeStatusState,

@@ -7,10 +7,10 @@
   "violations": [],
   "summary": {
     "scripts": 138,
-    "controls": 442,
-    "route_usages": 87,
+    "controls": 441,
+    "route_usages": 86,
     "dynamic_api_posts": 1,
-    "route_contracts": 140,
+    "route_contracts": 142,
     "high_risk_route_usages": 47,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
@@ -27,7 +27,7 @@
       "local-or-read-only": 48,
       "local-queue-order-staging": 1,
       "local-read-navigation": 34,
-      "local-rename-staging": 5,
+      "local-rename-staging": 4,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
       "local-settings-staging": 36,
@@ -3142,15 +3142,6 @@
     {
       "page": "rename",
       "tag": "button",
-      "id": "rename-check-all-button",
-      "text": "Check All",
-      "classification": "local-rename-staging",
-      "route": "",
-      "data_attrs": {}
-    },
-    {
-      "page": "rename",
-      "tag": "button",
       "id": "rename-check-applicable-button",
       "text": "Check Applicable",
       "classification": "local-rename-staging",
@@ -5502,7 +5493,7 @@
       "normalized_route": "/api/rename/apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 2346,
+      "line": 2253,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -5518,23 +5509,7 @@
       "normalized_route": "/api/rename/browse",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1097,
-      "script_owner": "Rename",
-      "allowed_owners": [
-        "Rename",
-        "Settings"
-      ],
-      "contract_effect": "shell-dialog",
-      "high_risk_effect": false,
-      "contract_found": true,
-      "owner_ok": true
-    },
-    {
-      "route": "/api/rename/browse",
-      "normalized_route": "/api/rename/browse",
-      "method": "POST",
-      "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1273,
+      "line": 1187,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -5550,7 +5525,7 @@
       "normalized_route": "/api/rename/filter-cases",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 883,
+      "line": 852,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -5566,7 +5541,7 @@
       "normalized_route": "/api/rename/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1969,
+      "line": 1877,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -7304,7 +7279,6 @@
       "network_lifecycle": false,
       "request_keys": [
         "initial_path",
-        "paths",
         "selection_mode"
       ]
     },
@@ -7452,6 +7426,28 @@
         "selection_mode",
         "setting_key"
       ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/import-psd1",
+      "effect": "config-write",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_import"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/settings/import-psd1-preview",
+      "effect": "none",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": []
     },
     {
       "method": "POST",
