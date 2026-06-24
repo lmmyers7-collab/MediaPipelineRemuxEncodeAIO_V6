@@ -123,6 +123,7 @@ def _browser_rename_runner_source() -> str:
               "renderRenamePreview",
               "selectRenameRow",
               "checkApplicableRenameRows",
+              "checkAllRenameRows",
               "applySelectedRename",
               "renameApplyReadinessRows",
               "renameApplyScopeBlockers",
@@ -288,6 +289,38 @@ def _browser_rename_runner_source() -> str:
             window.apiPost = async (url, body) => {
               if (String(url || "") === "/api/rename/browse") {
                 browsePosts.push({ url: String(url || ""), body: body || {} });
+                if (Array.isArray(body?.paths)) {
+                  if (body.paths.some((path) => String(path).includes("Season 02"))) {
+                    return {
+                      command: "rename.browse",
+                      ok: true,
+                      message: "Resolved dropped path(s) to 2 media files.",
+                      data: {
+                        paths: ["C:/Drop/Season 02/Ranma - S01E01.mkv", "C:/Drop/Season 02/Ranma - S01E02.mkv"],
+                        selection_mode: "folder_files",
+                        source: "dropped_paths",
+                        path_count: 2,
+                        raw_path_count: 4,
+                        ignored_path_count: 2,
+                        ignored_sidecar_count: 2,
+                      },
+                    };
+                  }
+                  return {
+                    command: "rename.browse",
+                    ok: true,
+                    message: "Resolved dropped path(s) to 1 media file.",
+                    data: {
+                      paths: ["C:/Drop/Ranma - S01E01.mkv"],
+                      selection_mode: "folder_files",
+                      source: "dropped_paths",
+                      path_count: 1,
+                      raw_path_count: 2,
+                      ignored_path_count: 1,
+                      ignored_sidecar_count: 1,
+                    },
+                  };
+                }
                 return {
                   command: "rename.browse",
                   ok: true,
@@ -304,17 +337,46 @@ def _browser_rename_runner_source() -> str:
             };
             click("#rename-browse-files-button", "browse rename files");
             await new Promise((resolve) => setTimeout(resolve, 100));
-            requireText("rename-file-source-summary", ["Windows file browser added 2 paths", "Source paths staged: 2", "Origins: browse=2", "C:/Browse/Selected Rename A.mkv"]);
+            requireText("rename-file-source-summary", ["Windows file browser added 2 paths", "Source paths staged: 2", "Media paths eligible for preview/apply: 2", "Origins: browse=2", "C:/Browse/Selected Rename A.mkv"]);
             if (browsePosts.length !== 1 || browsePosts[0].body.selection_mode !== "files") {
               throw new Error("rename browse did not submit expected file-browser request: " + JSON.stringify(browsePosts));
             }
-            window.apiPost = originalApiPost;
             click("#rename-clear-paths-button", "clear browsed rename paths");
             setValue("rename-add-path-input", "C:/Manual/Typed Rename Source.mkv");
             click("#rename-add-path-button", "add typed rename path");
-            requireText("rename-file-source-summary", ["Manual path added 1 path", "Source paths staged: 1", "Origins: manual=1"]);
+            requireText("rename-file-source-summary", ["Manual path added 1 path", "Source paths staged: 1", "Media paths eligible for preview/apply: 1", "Origins: manual=1"]);
             click("#rename-clear-paths-button", "clear typed rename paths");
             requireText("rename-file-source-summary", ["Cleared staged rename paths.", "No source paths staged."]);
+            const tauriDropped = window.mediaPipelineRenameView.renameDroppedPathValuesFromBridgeDetail({
+              kind: "drop",
+              paths: [
+                "C:/Drop/Ranma - S01E01.mkv",
+                "C:/Drop/Ranma - S01E01.pipeline.json",
+                "Ranma - S01E02.mkv",
+              ],
+            });
+            if (tauriDropped.length !== 2 || !tauriDropped.includes("C:/Drop/Ranma - S01E01.mkv") || !tauriDropped.includes("C:/Drop/Ranma - S01E01.pipeline.json")) {
+              throw new Error("Tauri dropped paths were not normalized correctly: " + JSON.stringify(tauriDropped));
+            }
+            if (window.mediaPipelineRenameView.renameDroppedPathFromFile({ name: "Ranma - S01E02.mkv" }) !== "") {
+              throw new Error("bare browser File.name should not be accepted as a filesystem path");
+            }
+            await window.mediaPipelineRenameView.handleRenameDroppedPaths(tauriDropped, "Tauri drag and drop");
+            requireText("rename-file-source-summary", ["Tauri drag and drop added 1 path", "Ignored 1 non-media path including 1 sidecar path", "Source paths staged: 1", "Media paths eligible for preview/apply: 1", "Origins: drop=1"]);
+            const fileDropPost = browsePosts[browsePosts.length - 1];
+            if (fileDropPost.body.selection_mode !== "folder_files" || !Array.isArray(fileDropPost.body.paths)) {
+              throw new Error("rename file drop did not submit expected folder_files request: " + JSON.stringify(fileDropPost));
+            }
+            click("#rename-clear-paths-button", "clear dropped rename paths");
+            await window.mediaPipelineRenameView.handleRenameDroppedPaths(["C:/Drop/Season 02"], "Drag and drop");
+            requireText("rename-file-source-summary", ["Drag and drop added 2 paths", "Ignored 2 non-media paths including 2 sidecar paths", "Source paths staged: 2", "Media paths eligible for preview/apply: 2", "Origins: drop=2", "Ranma - S01E01.mkv"]);
+            if (byId("rename-paths").value === "C:/Drop/Season 02" || byId("rename-paths").value.includes("C:/Drop/Season 02\\n")) {
+              throw new Error("dropped folder path was staged instead of direct media children: " + byId("rename-paths").value);
+            }
+            click("#rename-clear-paths-button", "clear dropped folder rename paths");
+            await window.mediaPipelineRenameView.handleRenameDroppedPaths(["Ranma - S01E02.mkv"], "Drag and drop");
+            requireText("rename-file-source-summary", ["Drop did not expose full filesystem paths", "No source paths staged."]);
+            window.apiPost = originalApiPost;
             setValue("rename-mode", "tv");
             setValue("rename-show", "Serial Experiments Lain");
             setValue("rename-season", "S02");
@@ -343,6 +405,24 @@ def _browser_rename_runner_source() -> str:
               warnings: [],
               errors: [],
             };
+            setValue("rename-paths", [
+              "C:/TV/Season 02/Serial Experiments Lain E01 Weird.mkv",
+              "C:/TV/Season 02/Serial Experiments Lain E01 Weird.pipeline.json",
+            ].join("\\n"));
+            window.mediaPipelineRenameView.renderRenameFileSourceSummary("Sidecar classification check.");
+            requireText("rename-file-source-summary", ["Source paths staged: 2", "Media paths eligible for preview/apply: 1", "Ignored by preview/apply: 1 (1 sidecar"]);
+            window.mediaPipelineRenameView.renderRenamePreview({
+              rows: [first],
+              counts: { total: 1, ready: 1 },
+              input_counts: { raw: 2, media: 1, ignored: 1, ignored_sidecar: 1 },
+              confidence_counts: { high: 1 },
+              preview_source_counts: { auto_tv_heuristic: 1 },
+              change_kind_counts: { rename: 1 },
+              warnings: ["Ignored 1 staged rename sidecar path(s); sidecars are attached to media rows automatically."],
+            });
+            requireText("rename-summary", ["Rows: 1", "Preview warnings: Ignored 1 staged rename sidecar path"]);
+            requireTextAbsent("rename-rows", ["pipeline.json"]);
+            setValue("rename-paths", "C:/TV/Season 02/Serial Experiments Lain E01 Weird.mkv");
             window.mediaPipelineRenameView.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
             requireText("rename-apply-button", ["Check rows before apply"]);
             requireText("rename-apply-status-hint", ["No rows checked", "Check Applicable"]);
@@ -380,7 +460,22 @@ def _browser_rename_runner_source() -> str:
               target_name: "Serial Experiments Lain - S02E02 - Girls.mkv",
               pipeline_guess: "Serial Experiments Lain - S02E02 - Girls.mkv",
             };
-            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first, second], counts: { total: 2, ready: 2 }, confidence_counts: { high: 2 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
+            const warningSecond = {
+              ...second,
+              status: "warning",
+              confidence: "review",
+              warnings: ["Manual review needed"],
+            };
+            window.mediaPipelineRenameView.renderRenamePreview({ rows: [first, warningSecond], counts: { total: 2, ready: 1, warning: 1 }, confidence_counts: { high: 1, review: 1 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
+            window.mediaPipelineRenameView.clearCheckedRenameRows();
+            click('#rename-rows tr[data-selectable-row="true"] input[type="checkbox"]', "first rename checkbox");
+            requireText("rename-selected-count", ["1 checked"]);
+            requireText("rename-apply-button", ["Apply 1 checked rename"]);
+            click('#rename-rows tr[data-selectable-row="true"] input[type="checkbox"]', "first rename checkbox uncheck");
+            requireText("rename-selected-count", ["0 checked"]);
+            click('#rename-rows tr[data-selectable-row="true"] td:first-child', "first rename checkbox cell");
+            requireText("rename-selected-count", ["1 checked"]);
+            click("#rename-clear-checks-button", "clear manually checked rename row");
             click('#rename-rows tr[data-selectable-row="true"]', "first rename preview row");
             click("#rename-clear-checks-button", "clear checked rename rows");
             requireText("rename-apply-button", ["Check rows before apply"]);
@@ -388,6 +483,12 @@ def _browser_rename_runner_source() -> str:
               throw new Error("unchecked two-row rename apply button was not disabled");
             }
             click("#rename-check-applicable-button", "check applicable rename rows");
+            requireText("rename-selected-count", ["1 checked"]);
+            requireText("rename-apply-status-hint", ["Checked 1 ready/match row", "warning=1"]);
+            click("#rename-clear-checks-button", "clear checked rename rows");
+            click("#rename-check-all-button", "check all selectable rename rows");
+            requireText("rename-selected-count", ["2 checked"]);
+            requireText("rename-apply-status-hint", ["Checked 2 selectable rows", "skipped 0"]);
             requireText("rename-apply-button", ["Apply 2 checked renames"]);
             click("#rename-apply-button", "apply checked rename rows");
             await new Promise((resolve) => setTimeout(resolve, 100));

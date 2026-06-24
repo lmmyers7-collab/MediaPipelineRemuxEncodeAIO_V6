@@ -186,11 +186,11 @@ Metrics commands write only backend Metrics state under `State\Metrics`. Source 
 | Route | Effect | Key Request Keys | Mutation Risk | Frontend Caller |
 |---|---|---|---|---|
 | `POST /api/rename/preview` | `none` | `paths`, `mode`, `show_name`, `season`, `start_episode`, `movie_title`, `movie_year` | None — predictions only | Rename |
-| `POST /api/rename/browse` | `shell-dialog` | `selection_mode` (`files`, `folder`, `folder_files`), `initial_path` | Low — native Windows file/folder browser only; no media mutation | Rename |
+| `POST /api/rename/browse` | `shell-dialog` | `selection_mode` (`files`, `folder`, `folder_files`), `initial_path`, `paths` | Low — native Windows file/folder browser or already-known dropped path resolution only; no media mutation | Rename |
 | `POST /api/rename/filter-cases` | `test-fixture-write` | `source_folder`, `source_file`, `expected_name`, `status`, `confirm_append` | Low — appends to rename regression fixture only; no media mutation | Rename |
 | `POST /api/rename/apply` | `filesystem-mutation` | `paths`, `selected_sources`, `confirm_apply`, `allow_outside_configured_roots` | **High** — filesystem rename | Rename |
 
-`rename/browse` only opens the Windows file/folder browser and returns operator-selected paths for staging. `rename/filter-cases` appends only to `tests/fixtures/rename/bad_rename_cases.jsonl` after `confirm_append: true`; it does not preview, apply, rename, move, delete, or touch media files. `rename/apply` is the only rename media mutation route. The backend rebuilds the rename plan independently from the submitted paths and applies only the explicitly selected source rows through the transactional rename service. `confirm_apply` must be set; the backend does not infer confirmation from prior preview calls. Paths outside backend-injected configured media roots also require `allow_outside_configured_roots: true` after explicit operator review.
+`rename/browse` opens the Windows file/folder browser or resolves already-known dropped paths, then returns media paths for staging. `rename/filter-cases` appends only to `tests/fixtures/rename/bad_rename_cases.jsonl` after `confirm_append: true`; it does not preview, apply, rename, move, delete, or touch media files. `rename/apply` is the only rename media mutation route. The backend rebuilds the rename plan independently from the submitted paths and applies only the explicitly selected source rows through the transactional rename service. `confirm_apply` must be set; the backend does not infer confirmation from prior preview calls. Paths outside backend-injected configured media roots also require `allow_outside_configured_roots: true` after explicit operator review.
 
 ### Settings Commands
 
@@ -290,7 +290,7 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/maintenance/dependency-atlas/open-folder` | OS open only; no file mutation |
-| `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker only; no file mutation |
+| `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker or already-known path resolution only; no file mutation |
 | `test-fixture-write` | `POST /api/rename/filter-cases` | Appends backend-validated JSONL rows to `tests/fixtures/rename/bad_rename_cases.jsonl` only |
 | `diagnostic-process` | `POST /api/diagnostics/tdarr-matrix-audit`, `POST /api/diagnostics/tdarr-matrix/rerun` | Backend-owned Tdarr Matrix scratch audit presets and isolated reruns only |
 | `diagnostics-artifact-write` | `POST /api/maintenance/support-export` | Backend-owned redacted support export under per-user AppData DiagnosticsExports only |
@@ -333,7 +333,7 @@ All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipel
 Every mutation route enforces backend ownership:
 
 - **File open** (`queue/open`, `completed/open`, `pending-publish/open`): backend selects the path from its own manifest/snapshot by `row_key` and `target` key; the frontend cannot pass a raw path.
-- **Rename browse** (`rename/browse`): backend opens the native Windows file/folder browser and returns operator-selected paths for staging only; preview/apply still use separate backend routes.
+- **Rename browse** (`rename/browse`): backend opens the native Windows file/folder browser or resolves already-known dropped paths and returns media paths for staging only; preview/apply still use separate backend routes.
 - **Settings path browse** (`settings/browse-path`): backend opens the native Windows folder browser for allowlisted source/output/scratch and final-library promotion root settings and returns validation evidence for staging only; Preview/Save remains the only settings persistence path.
 - **Diagnostics open/tail**: frontend passes an allowlisted target key string; backend resolves the real path and rejects any key not in the allowlist.
 - **UI preferences**: frontend sends only allowlisted `mediapipeline-*`/`mediapipeline.*` local customization keys; backend stores them as UI state under `LocalBase\State` and never treats them as config or media policy.

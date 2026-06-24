@@ -105,6 +105,36 @@ class RenamePlannerTests(unittest.TestCase):
             all("two selected files would produce the same destination" in row["errors"] for row in plan)
         )
 
+    def test_sidecar_inputs_do_not_consume_manual_tv_episode_numbers(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            first = root / "Ranma - S01E19.mkv"
+            second = root / "Ranma - S01E20.mkv"
+            first_sidecar = first.with_suffix(".pipeline.json")
+            second_sidecar = second.with_suffix(".pipeline.json")
+            first.write_text("media", encoding="utf-8")
+            second.write_text("media", encoding="utf-8")
+            first_sidecar.write_text("{}", encoding="utf-8")
+            second_sidecar.write_text("{}", encoding="utf-8")
+
+            plan = plan_rename_paths_for_service(
+                self.service,
+                [first, first_sidecar, second, second_sidecar],
+                mode="tv",
+                show_name="Ranma",
+                season_value="S02",
+                start_episode_value="E01",
+                use_pipeline_naming_preview=False,
+            )
+
+        self.assertEqual([row["source"] for row in plan], [first, second])
+        self.assertEqual([row["target_name"] for row in plan], ["Ranma - S02E01.mkv", "Ranma - S02E02.mkv"])
+        self.assertEqual([row["sidecar_count"] for row in plan], [1, 1])
+        self.assertEqual(plan[0]["sidecar_moves"][0]["source"], str(first_sidecar))
+        self.assertEqual(plan[0]["sidecar_moves"][0]["destination"], str(root / "Ranma - S02E01.pipeline.json"))
+        self.assertEqual(plan[1]["sidecar_moves"][0]["source"], str(second_sidecar))
+        self.assertEqual(plan[1]["sidecar_moves"][0]["destination"], str(root / "Ranma - S02E02.pipeline.json"))
+
     def test_unc_configured_media_root_marks_unc_child_ready_without_share_mutation(self) -> None:
         fields = rename_authority_fields_for_source(
             r"\\media-server\TV\Example\S01E01.mkv",

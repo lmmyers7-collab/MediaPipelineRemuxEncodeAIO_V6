@@ -3,15 +3,15 @@ file: src/mediapipeline/core/rename/facade.py
 pipeline_stage: rename
 token_priority: medium
 owner_domain: rename
-last_modified: 2026-06-18
+last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: a05ba38210f8fb82e5cf03114cc0cda33229cc5d2afa2aa59411c5b4be23f892
+sha256: 982b3324df38a2ee0ffcdb8abf780ff59594a3dccc18e4a645d56d645efacb71
 ---
 # `src/mediapipeline/core/rename/facade.py`
 
 **Purpose:** Rename preview and guarded apply facade adapter.
 
 **Classes:** `RenameFacadeMixin`
-**In-repo imports:** `mediapipeline.core.rename.policy`
+**In-repo imports:** `mediapipeline.core.rename.input_classification`, `mediapipeline.core.rename.policy`
 
 _Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/rename/facade.py`._

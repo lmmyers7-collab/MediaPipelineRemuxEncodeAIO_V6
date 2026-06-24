@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import sys
+import tempfile
 import unittest
 from pathlib import Path
 
@@ -131,6 +132,68 @@ class PathDialogTests(unittest.TestCase):
         self.assertEqual(command[0], r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe")
         self.assertIn("-STA", command)
         self.assertIn("-EncodedCommand", command)
+
+    def test_folder_files_filters_sidecars_and_reports_ignored_counts(self) -> None:
+        def fake_run(command: list[str], **_kwargs: object) -> subprocess.CompletedProcess[bytes]:
+            payload = {
+                "ok": True,
+                "canceled": False,
+                "selection_mode": "folder_files",
+                "paths": [
+                    r"C:\Media\Ranma - S01E19.mkv",
+                    r"C:\Media\Ranma - S01E19.pipeline.json",
+                    r"C:\Media\notes.txt",
+                    r"C:\Media\Ranma - S01E20.mp4",
+                ],
+                "message": "Selected folder with 4 direct child file(s).",
+                "errors": [],
+            }
+            return subprocess.CompletedProcess(command, 0, stdout=json.dumps(payload).encode("utf-8"), stderr=b"")
+
+        with (
+            patch("mediapipeline.desktop.api.path_dialogs.sys.platform", "win32"),
+            patch(
+                "mediapipeline.desktop.api.path_dialogs._select_windows_dialog_host",
+                return_value=r"C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe",
+            ),
+            patch("mediapipeline.desktop.api.path_dialogs.subprocess.run", fake_run),
+        ):
+            result = path_dialogs.select_windows_paths_with_dialog(selection_mode="folder_files")
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["paths"], [r"C:\Media\Ranma - S01E19.mkv", r"C:\Media\Ranma - S01E20.mp4"])
+        self.assertEqual(result["raw_path_count"], 4)
+        self.assertEqual(result["ignored_path_count"], 2)
+        self.assertEqual(result["ignored_sidecar_count"], 1)
+
+    def test_known_dropped_folder_expands_direct_media_children_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            folder = root / "Season 02"
+            nested = folder / "Nested"
+            nested.mkdir(parents=True)
+            media_one = folder / "Ranma - S01E01.mkv"
+            media_two = folder / "Ranma - S01E02.mp4"
+            sidecar = folder / "Ranma - S01E01.pipeline.json"
+            note = folder / "notes.txt"
+            nested_media = nested / "Ranma - S01E03.mkv"
+            for path in (media_one, media_two, sidecar, note, nested_media):
+                path.write_text("fixture", encoding="utf-8")
+
+            result = path_dialogs.select_rename_paths_from_known_paths(
+                [str(folder)],
+                selection_mode="folder_files",
+            )
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["selection_mode"], "folder_files")
+        self.assertEqual(result["paths"], [str(media_one), str(media_two)])
+        self.assertNotIn(str(folder), result["paths"])
+        self.assertNotIn(str(nested_media), result["paths"])
+        self.assertEqual(result["raw_path_count"], 4)
+        self.assertEqual(result["ignored_path_count"], 2)
+        self.assertEqual(result["ignored_sidecar_count"], 1)
+        self.assertEqual(result["ignored_non_media_count"], 1)
 
     def test_select_windows_paths_reports_missing_dialog_host(self) -> None:
         with (

@@ -89,6 +89,7 @@ def pipeline_sidecar_paths_for_destination(
     casefold_path: PathKeyFunc,
 ) -> list[Path]:
     candidates = [
+        destination.with_suffix(".mediapipeline.json"),
         pipeline_sidecar_path(destination),
         Path(str(destination) + ".pipeline.json"),
     ]

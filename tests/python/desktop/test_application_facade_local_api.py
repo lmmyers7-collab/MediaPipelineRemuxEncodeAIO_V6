@@ -91,6 +91,51 @@ class LocalApiServerTests(unittest.TestCase):
         except HTTPError as exc:
             return exc.code, dict(exc.headers.items()), exc.read()
 
+    def test_rename_browse_resolves_dropped_folder_paths_without_dialog(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            folder = root / "Season 02"
+            nested = folder / "Nested"
+            nested.mkdir(parents=True)
+            media_one = folder / "Ranma - S01E01.mkv"
+            media_two = folder / "Ranma - S01E02.mp4"
+            sidecar = folder / "Ranma - S01E01.pipeline.json"
+            note = folder / "notes.txt"
+            nested_media = nested / "Ranma - S01E03.mkv"
+            for path in (media_one, media_two, sidecar, note, nested_media):
+                path.write_text("fixture", encoding="utf-8")
+
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            server = LocalApiServer(facade, token="rename-token")
+
+            def picker_should_not_run(**_kwargs: object) -> dict:
+                raise AssertionError("dropped folder browse should not open the native picker")
+
+            server._rename_path_picker = picker_should_not_run  # type: ignore[attr-defined]
+            try:
+                server.start()
+                status, payload = self._post_json(
+                    f"{server.url}/api/rename/browse",
+                    {"selection_mode": "folder_files", "paths": [str(folder)]},
+                    token="rename-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(payload["command"], "rename.browse")
+        self.assertTrue(payload["ok"])
+        self.assertEqual(payload["data"]["selection_mode"], "folder_files")
+        self.assertEqual(payload["data"]["source"], "dropped_paths")
+        self.assertEqual(payload["data"]["paths"], [str(media_one), str(media_two)])
+        self.assertNotIn(str(folder), payload["data"]["paths"])
+        self.assertNotIn(str(nested_media), payload["data"]["paths"])
+        self.assertEqual(payload["data"]["raw_path_count"], 4)
+        self.assertEqual(payload["data"]["ignored_path_count"], 2)
+        self.assertEqual(payload["data"]["ignored_sidecar_count"], 1)
+
     def _get_raw(self, url: str, extra_headers: dict[str, str] | None = None) -> tuple[int, dict[str, str], bytes]:
         from urllib.error import HTTPError
         from urllib.request import Request, urlopen
@@ -3652,6 +3697,8 @@ class LocalApiServerTests(unittest.TestCase):
 
         self.assertEqual(preview_status, 200)
         self.assertEqual(preview["rows"][0]["path_authority"], "outside_configured_roots")
+        self.assertNotEqual(preview["rows"][0]["status"], "warning")
+        self.assertNotIn("outside configured", " ".join(preview["rows"][0].get("warnings", [])).casefold())
         self.assertEqual(spoofed_apply_status, 400)
         self.assertIn("_configured_media_roots", spoofed_apply["error"])
         self.assertEqual(rejected_status, 200)
@@ -3666,6 +3713,61 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertTrue(undo_manifest_exists)
         self.assertEqual(undo_parent, root / "Scratch" / "State" / "RenameUndo")
         self.assertFalse(spoofed_undo_root.exists())
+
+    def test_local_api_injects_library_profile_roots_for_rename_authority(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            profile_source = root / "ProfileTV"
+            profile_output = root / "ProfileOut"
+            profile_final = root / "ProfileFinal"
+            spoofed = root / "SpoofedRoot"
+            for directory in (profile_source, profile_output, profile_final, spoofed):
+                directory.mkdir()
+            media = profile_final / "Example Movie 2024 1080p BluRay.mkv"
+            media.write_text("media", encoding="utf-8")
+            resolved = _resolved(root)
+            resolved.source_movies = root / "ConfiguredMovies"
+            resolved.source_tv = root / "ConfiguredTV"
+            resolved.config_data = {
+                "SourceMovies": str(root / "ConfiguredMovies"),
+                "SourceTV": str(root / "ConfiguredTV"),
+                "Outsource": str(root / "Outsource"),
+                "LibraryProfiles": [
+                    {
+                        "id": "profile-tv",
+                        "enabled": True,
+                        "source_path": str(profile_source),
+                        "output_path": str(profile_output),
+                        "promotion_enabled": True,
+                        "promotion_destination": str(profile_final),
+                    }
+                ],
+            }
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v6-test")
+            server = LocalApiServer(facade, token="rename-token", resolved_provider=lambda: resolved)
+            try:
+                server.start()
+                preview_status, preview = self._post_json(
+                    f"{server.url}/api/rename/preview",
+                    {
+                        "paths": [str(media)],
+                        "mode": "movie",
+                        "movie_title": "Example Movie",
+                        "movie_year": "2024",
+                        "use_pipeline_naming_preview": False,
+                        "_configured_media_roots": [str(spoofed)],
+                    },
+                    token="rename-token",
+                )
+            finally:
+                server.stop()
+
+        self.assertEqual(preview_status, 200)
+        row = preview["rows"][0]
+        self.assertEqual(row["path_authority"], "configured_media_root")
+        self.assertEqual(row["path_authority_status"], "ready")
+        self.assertNotIn("outside configured", " ".join(row.get("warnings", [])).casefold())
 
     def test_local_api_serves_read_only_web_prototype(self) -> None:
         from urllib.request import urlopen
@@ -4916,6 +5018,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("rename-browse-files-button", html)
         self.assertIn("rename-browse-folder-button", html)
         self.assertIn("rename-clear-paths-button", html)
+        self.assertIn("rename-check-all-button", html)
         self.assertIn("rename-drop-zone", html)
         self.assertIn("rename-stage-mode-heading", html)
         self.assertIn("rename-mode", html)
@@ -4958,6 +5061,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("rename-result-dialog", html[rename_start:launch_start])
         self.assertIn("rename-browse-files-button", html[rename_start:launch_start])
         self.assertIn("rename-clear-paths-button", html[rename_start:launch_start])
+        self.assertIn("rename-check-all-button", html[rename_start:launch_start])
         self.assertIn("log-tail", html)
         self.assertIn("launch-logs", html)
         self.assertIn("diagnostics-close-status", html)
@@ -6495,6 +6599,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("Checked-row apply still rebuilds the plan through the backend", rename_view_js)
         self.assertIn("function getCheckedRenameRows", rename_view_js)
         self.assertIn("function checkApplicableRenameRows", rename_view_js)
+        self.assertIn("function checkAllRenameRows", rename_view_js)
         self.assertIn("function clearCheckedRenameRows", rename_view_js)
         self.assertIn("function moveCheckedRenamePaths", rename_view_js)
         self.assertIn("function naturalSortRenamePaths", rename_view_js)
@@ -6520,6 +6625,7 @@ class LocalApiServerTests(unittest.TestCase):
             "clearRenameBulkOverrides",
             "syncRenameCommandButtons",
             "checkApplicableRenameRows",
+            "checkAllRenameRows",
             "clearCheckedRenameRows",
             "moveCheckedRenamePaths",
             "naturalSortRenamePaths",
@@ -6543,6 +6649,7 @@ class LocalApiServerTests(unittest.TestCase):
         self.assertIn("confirm_apply", rename_view_js)
         self.assertIn("const renameView = window.mediaPipelineRenameView || {}", js)
         self.assertIn("renameView.checkApplicableRenameRows?.()", js)
+        self.assertIn("renameView.checkAllRenameRows?.()", js)
         self.assertIn("renameView.clearCheckedRenameRows?.()", js)
         self.assertIn("renameView.moveCheckedRenamePaths?.(-1)", js)
         self.assertIn("renameView.moveCheckedRenamePaths?.(1)", js)

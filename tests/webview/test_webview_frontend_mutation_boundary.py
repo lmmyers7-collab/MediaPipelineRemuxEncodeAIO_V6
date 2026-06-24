@@ -829,6 +829,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         for snippet in [
             "mediapipeline://backend-lifecycle",
             "mediapipeline:backend-lifecycle",
+            "tauri://drag-drop",
+            "mediapipeline:file-drop",
             "window.__TAURI__",
             "eventApi.listen",
             "window.dispatchEvent(new CustomEvent",
@@ -848,6 +850,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "openPath",
             "writeTextFile",
             "remove",
+            "disable_drag_drop_handler",
         ]:
             with self.subTest(forbidden=forbidden):
                 self.assertNotIn(forbidden, bridge)

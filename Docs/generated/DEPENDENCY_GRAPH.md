@@ -100,12 +100,14 @@ graph LR
   application -->|5| api
   orchestration -->|5| config
   rename -->|5| api
+  rename -->|5| files
   scripts -->|5| diagnostics
   tests -->|5| application
   tests -->|5| kernel
   tests -->|5| orchestration
   tests -->|5| telemetry
   tests -->|5| validation
+  api -->|4| rename
   config -->|4| rename
   contracts -->|4| rename
   diagnostics -->|4| status
@@ -114,11 +116,9 @@ graph LR
   observability -->|4| rename
   observability -->|4| telemetry
   queue -->|4| observability
-  rename -->|4| files
   schedule -->|4| api
   tests -->|4| failures
   tests -->|4| observability
-  api -->|3| rename
   config -->|3| validation
   diagnostics -->|3| kernel
   maintenance -->|3| kernel
@@ -190,6 +190,7 @@ graph LR
   publish -->|1| files
   queue -->|1| files
   queue -->|1| subtitles
+  rename -->|1| validation
   scripts -->|1| rename
   subtitles -->|1| completed
   tests -->|1| library
@@ -257,12 +258,14 @@ graph LR
 | application | api | 5 |
 | orchestration | config | 5 |
 | rename | api | 5 |
+| rename | files | 5 |
 | scripts | diagnostics | 5 |
 | tests | application | 5 |
 | tests | kernel | 5 |
 | tests | orchestration | 5 |
 | tests | telemetry | 5 |
 | tests | validation | 5 |
+| api | rename | 4 |
 | config | rename | 4 |
 | contracts | rename | 4 |
 | diagnostics | status | 4 |
@@ -271,11 +274,9 @@ graph LR
 | observability | rename | 4 |
 | observability | telemetry | 4 |
 | queue | observability | 4 |
-| rename | files | 4 |
 | schedule | api | 4 |
 | tests | failures | 4 |
 | tests | observability | 4 |
-| api | rename | 3 |
 | config | validation | 3 |
 | diagnostics | kernel | 3 |
 | maintenance | kernel | 3 |
@@ -347,6 +348,7 @@ graph LR
 | publish | files | 1 |
 | queue | files | 1 |
 | queue | subtitles | 1 |
+| rename | validation | 1 |
 | scripts | rename | 1 |
 | subtitles | completed | 1 |
 | tests | library | 1 |

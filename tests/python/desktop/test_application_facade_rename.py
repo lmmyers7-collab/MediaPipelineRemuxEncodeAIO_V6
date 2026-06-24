@@ -3,14 +3,16 @@ from __future__ import annotations
 import sys
 import tempfile
 import unittest
+import json
 from pathlib import Path
+from types import SimpleNamespace
 
 from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from mediapipeline.core.rename.policy import OUTSIDE_CONFIGURED_ROOTS_WARNING
+from mediapipeline.core.rename.policy import OUTSIDE_CONFIGURED_ROOTS_WARNING, rename_configured_media_roots_from_resolved
 from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
 
 
@@ -95,7 +97,54 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
             self.assertFalse(renamed_second.exists())
             Path(str(applied.data["undo_manifest"])).unlink(missing_ok=True)
 
-    def test_rename_preview_marks_paths_outside_configured_media_roots(self) -> None:
+    def test_rename_preview_and_apply_treat_sidecar_inputs_as_media_companions(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            media = root / "Ranma - S01E19.mkv"
+            sidecar = media.with_suffix(".pipeline.json")
+            media.write_text("media", encoding="utf-8")
+            sidecar.write_text(
+                json.dumps({"schema_version": "pipeline_sidecar.v1", "output_path": str(media), "output_file": media.name}),
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+            request = {
+                "paths": [str(media), str(sidecar)],
+                "_configured_media_roots": [str(root)],
+                "mode": "tv",
+                "show_name": "Ranma",
+                "season": "S02",
+                "start_episode": "E01",
+                "selected_sources": [str(media)],
+                "use_pipeline_naming_preview": False,
+            }
+
+            preview = facade.get_rename_preview(request).to_mapping()
+            applied = facade.apply_rename_selection({**request, "confirm_apply": True})
+            renamed_media = root / "Ranma - S02E01.mkv"
+            renamed_sidecar = root / "Ranma - S02E01.pipeline.json"
+
+            self.assertEqual(preview["counts"]["total"], 1)
+            self.assertEqual(preview["input_counts"]["raw"], 2)
+            self.assertEqual(preview["input_counts"]["media"], 1)
+            self.assertEqual(preview["input_counts"]["ignored_sidecar"], 1)
+            self.assertIn("sidecar", " ".join(preview["warnings"]))
+            self.assertEqual(preview["rows"][0]["source"], str(media))
+            self.assertEqual(preview["rows"][0]["target_name"], "Ranma - S02E01.mkv")
+            self.assertEqual(preview["rows"][0]["sidecar_count"], 1)
+            self.assertTrue(applied.ok)
+            self.assertEqual(applied.data["media_operations"], 1)
+            self.assertEqual(applied.data["sidecar_operations"], 1)
+            self.assertTrue(renamed_media.exists())
+            self.assertTrue(renamed_sidecar.exists())
+            self.assertFalse(media.exists())
+            self.assertFalse(sidecar.exists())
+            data = json.loads(renamed_sidecar.read_text(encoding="utf-8"))
+            self.assertEqual(data["output_file"], renamed_media.name)
+            self.assertEqual(data["output_path"], str(renamed_media))
+            Path(str(applied.data["undo_manifest"])).unlink(missing_ok=True)
+
+    def test_rename_preview_keeps_outside_configured_media_roots_advisory(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             configured = root / "ConfiguredMovies"
@@ -120,9 +169,70 @@ class ApplicationFacadeRenameTests(unittest.TestCase):
         row = preview["rows"][0]
         self.assertEqual(row["path_authority"], "outside_configured_roots")
         self.assertEqual(row["path_authority_status"], "review")
-        self.assertEqual(row["status"], "warning")
-        self.assertEqual(row["confidence"], "review")
-        self.assertIn(OUTSIDE_CONFIGURED_ROOTS_WARNING, row["warnings"])
+        self.assertNotEqual(row["status"], "warning")
+        self.assertNotIn(OUTSIDE_CONFIGURED_ROOTS_WARNING, row.get("warnings") or [])
+        self.assertNotIn(
+            "outside configured media roots",
+            " ".join(str(item) for item in row.get("confidence_reasons") or []).casefold(),
+        )
+
+    def test_rename_preview_accepts_enabled_library_profile_roots(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            profile_source = root / "AnimeSource"
+            profile_output = root / "AnimeOutput"
+            profile_final = root / "AnimeFinal"
+            disabled_source = root / "DisabledSource"
+            for directory in (profile_source, profile_output, profile_final, disabled_source):
+                directory.mkdir()
+            media = profile_final / "Example Movie 2024 1080p BluRay.mkv"
+            media.write_text("media", encoding="utf-8")
+            resolved = SimpleNamespace(
+                source_movies=None,
+                source_tv=None,
+                config_data={
+                    "SourceMovies": str(root / "ConfiguredMovies"),
+                    "SourceTV": str(root / "ConfiguredTV"),
+                    "Outsource": str(root / "Outsource"),
+                    "LibraryProfiles": [
+                        {
+                            "id": "anime",
+                            "enabled": True,
+                            "source_path": str(profile_source),
+                            "output_path": str(profile_output),
+                            "promotion_enabled": True,
+                            "promotion_destination": str(profile_final),
+                        },
+                        {
+                            "id": "disabled-anime",
+                            "enabled": False,
+                            "source_path": str(disabled_source),
+                        },
+                    ],
+                },
+            )
+            roots = rename_configured_media_roots_from_resolved(resolved)
+            facade = MediaPipelineApplicationFacade(DummyWorkflowFacadeService(root))
+
+            preview = facade.get_rename_preview(
+                {
+                    "paths": [str(media)],
+                    "_configured_media_roots": roots,
+                    "mode": "movie",
+                    "movie_title": "Example Movie",
+                    "movie_year": "2024",
+                    "use_pipeline_naming_preview": False,
+                }
+            ).to_mapping()
+
+        row = preview["rows"][0]
+        self.assertIn(str(profile_source), roots)
+        self.assertIn(str(profile_output), roots)
+        self.assertIn(str(profile_final), roots)
+        self.assertNotIn(str(disabled_source), roots)
+        self.assertEqual(row["path_authority"], "configured_media_root")
+        self.assertEqual(row["path_authority_status"], "ready")
+        self.assertNotIn(OUTSIDE_CONFIGURED_ROOTS_WARNING, row["warnings"])
 
     def test_rename_clean_filename_preview_uses_backend_movie_cleaner(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

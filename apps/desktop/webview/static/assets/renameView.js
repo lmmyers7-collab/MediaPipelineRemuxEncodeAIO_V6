@@ -13,6 +13,9 @@
   const RENAME_FILTER_CATALOG_ROUTE = "/api/rename/cleaning-filters";
   const RENAME_MOVIE_FILTER_CATALOG_ROUTE = "/api/rename/movie-cleaning-filters";
   const RENAME_CLEAN_FILENAME_PREVIEW_ROUTE = "/api/rename/clean-filename-preview";
+  const RENAME_WEBVIEW_FILE_DROP_EVENT = "mediapipeline:file-drop";
+  const RENAME_MEDIA_EXTENSIONS = new Set([".mkv", ".mp4", ".m4v", ".mov", ".avi", ".ts", ".m2ts", ".webm"]);
+  const RENAME_SIDECAR_SUFFIXES = [".mediapipeline.rename.json", ".mediapipeline.json", ".pipeline.json"];
   const RENAME_CLEANING_IDS = {
     removeTerms: ["settings-rename-remove-terms", "rename-remove-terms"],
     tvRemoveTerms: ["settings-rename-tv-remove-terms", "rename-tv-remove-terms"],
@@ -721,6 +724,11 @@
     syncRenameCheckedCount();
   }
 
+  function setRenameRowCheckedFromCheckbox(item, checkbox) {
+    if (!checkbox || checkbox.disabled) return;
+    setRenameRowChecked(item, checkbox.checked);
+  }
+
   function checkApplicableRenameRows() {
     checkedRenameSourceKeys.clear();
     const duplicateTargets = renameDuplicateTargetSet(lastRenameRows);
@@ -742,6 +750,32 @@
     setRenameStatusLine("rename-selection-audit-status", checkedCount ? "Checked ready rows" : "No ready rows checked", checkedCount ? "ready" : "blocked");
     setText("rename-apply-status-hint", message);
     setText("rename-detail", `${message} Warning rows remain manually checkable after review; duplicate, blocked, and existing-destination rows stay out of apply scope.`);
+  }
+
+  function checkAllRenameRows() {
+    checkedRenameSourceKeys.clear();
+    const duplicateTargets = renameDuplicateTargetSet(lastRenameRows);
+    const skipped = {};
+    lastRenameRows.forEach((row) => {
+      let reason = "";
+      if (!renameRowCanApply(row)) reason = "blocked";
+      else if (duplicateTargets.has(renameTargetKey(row))) reason = "duplicate";
+      else if (Boolean(row?.destination_exists) && !row?.matches_target) reason = "existing destination";
+      if (!reason) {
+        checkedRenameSourceKeys.add(renameSourceKey(row));
+      } else {
+        skipped[reason] = (skipped[reason] || 0) + 1;
+      }
+    });
+    renderRenameRows();
+    renderRenameSelectionAudit();
+    renderRenameApplyReadiness();
+    const checkedCount = checkedRenameSourceKeys.size;
+    const skippedText = Object.keys(skipped).sort().map((key) => `${key}=${skipped[key]}`).join(", ");
+    const message = `Checked ${checkedCount} selectable row${checkedCount === 1 ? "" : "s"}; skipped ${lastRenameRows.length - checkedCount}${skippedText ? ` (${skippedText})` : ""}.`;
+    setRenameStatusLine("rename-selection-audit-status", checkedCount ? "Checked selectable rows" : "No selectable rows checked", checkedCount ? "ready" : "blocked");
+    setText("rename-apply-status-hint", message);
+    setText("rename-detail", `${message} Review warnings before apply; duplicate, blocked, and existing-destination rows stay out of apply scope.`);
   }
 
   function clearCheckedRenameRows() {
@@ -954,6 +988,155 @@
     return renamePathLines().map((line) => line.trim()).filter(Boolean);
   }
 
+  function renamePathLeaf(value) {
+    const parts = String(value || "").trim().split(/[\\/]+/).filter(Boolean);
+    return parts.length ? parts[parts.length - 1] : "";
+  }
+
+  function renamePathExtension(value) {
+    const leaf = renamePathLeaf(value);
+    const index = leaf.lastIndexOf(".");
+    return index >= 0 ? leaf.slice(index).toLowerCase() : "";
+  }
+
+  function renameIsSidecarPath(value) {
+    const leaf = renamePathLeaf(value).toLowerCase();
+    return RENAME_SIDECAR_SUFFIXES.some((suffix) => leaf.endsWith(suffix));
+  }
+
+  function classifyRenamePathValues(paths = renameCurrentPathValues()) {
+    const seenMedia = new Set();
+    const media = [];
+    const sidecars = [];
+    const nonMedia = [];
+    const duplicates = [];
+    paths.forEach((path) => {
+      const text = String(path || "").trim();
+      if (!text) return;
+      if (RENAME_MEDIA_EXTENSIONS.has(renamePathExtension(text))) {
+        const key = text.toLowerCase();
+        if (seenMedia.has(key)) {
+          duplicates.push(text);
+          return;
+        }
+        seenMedia.add(key);
+        media.push(text);
+      } else if (renameIsSidecarPath(text)) {
+        sidecars.push(text);
+      } else {
+        nonMedia.push(text);
+      }
+    });
+    return {
+      raw: paths.length,
+      media,
+      sidecars,
+      nonMedia,
+      duplicates,
+      ignored: sidecars.length + nonMedia.length + duplicates.length,
+    };
+  }
+
+  function renameLooksLikeAbsolutePath(value) {
+    const text = String(value || "").trim();
+    return Boolean(
+      /^[a-zA-Z]:[\\/]/.test(text)
+      || /^\\\\[^\\]+\\[^\\]+/.test(text)
+      || /^\/[^/]/.test(text)
+    );
+  }
+
+  function normalizeRenameDroppedPathValues(values) {
+    const seen = new Set();
+    const paths = [];
+    (Array.isArray(values) ? values : []).forEach((value) => {
+      const text = String(value || "").trim();
+      const key = text.toLowerCase();
+      if (!text || !renameLooksLikeAbsolutePath(text) || seen.has(key)) return;
+      seen.add(key);
+      paths.push(text);
+    });
+    return paths;
+  }
+
+  function renameDroppedPathFromFile(file) {
+    if (!file || typeof file !== "object") return "";
+    const candidates = [file.path, file.fullPath, file.webkitRelativePath];
+    for (const candidate of candidates) {
+      const text = String(candidate || "").trim();
+      if (renameLooksLikeAbsolutePath(text)) return text;
+    }
+    return "";
+  }
+
+  function renameDroppedPathValuesFromDataTransfer(dataTransfer) {
+    return normalizeRenameDroppedPathValues(
+      Array.from(dataTransfer?.files || []).map(renameDroppedPathFromFile)
+    );
+  }
+
+  function renameDroppedPathValuesFromBridgeDetail(detail) {
+    if (!detail || typeof detail !== "object") return [];
+    return normalizeRenameDroppedPathValues(Array.isArray(detail.paths) ? detail.paths : []);
+  }
+
+  async function handleRenameDroppedPaths(paths, sourceLabel = "Drag and drop") {
+    const normalized = normalizeRenameDroppedPathValues(paths);
+    if (!normalized.length) {
+      renderRenameFileSourceSummary("Drop did not expose full filesystem paths. Use Browse Files / Add files from folder, or paste the full path manually.");
+      return 0;
+    }
+    if (renameBrowseInFlight || renamePreviewInFlight || renameApplyInFlight) {
+      renderRenameFileSourceSummary("Rename path browser is busy. Wait for the current Rename command to finish.");
+      return 0;
+    }
+    renameBrowseInFlight = true;
+    syncRenameCommandButtons();
+    renderRenameFileSourceSummary(`${sourceLabel || "Drag and drop"} resolving dropped files/folders...`);
+    try {
+      const result = await apiPost("/api/rename/browse", {
+        selection_mode: "folder_files",
+        paths: normalized,
+        source: "drop",
+      });
+      appendCommandResult(result);
+      const data = result?.data && typeof result.data === "object" ? result.data : {};
+      const resolved = Array.isArray(data.paths) ? data.paths : [];
+      if (!result?.ok) {
+        renderRenameFileSourceSummary(result?.message || "Dropped path resolution failed.");
+        return 0;
+      }
+      if (!resolved.length) {
+        const suffix = renameIgnoredPathSuffix(data);
+        renderRenameFileSourceSummary(`${sourceLabel || "Drag and drop"} found no media files to stage.${suffix ? ` ${suffix}` : ""}`);
+        return 0;
+      }
+      return appendResolvedRenameBrowsePaths(data, sourceLabel, "drop");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      appendCommandResult({
+        command: "rename.browse",
+        ok: false,
+        severity: "error",
+        message: `Dropped path resolution failed:\n${message}`,
+      });
+      const classified = classifyRenamePathValues(normalized);
+      if (classified.media.length) {
+        return appendRenamePaths(classified.media, sourceLabel, "drop", "Backend dropped-folder expansion failed; staged dropped media files only.");
+      }
+      renderRenameFileSourceSummary(`Dropped path resolution failed:\n${message}`);
+      return 0;
+    } finally {
+      renameBrowseInFlight = false;
+      syncRenameCommandButtons();
+    }
+  }
+
+  function renameDropZoneIsVisible(zone) {
+    const page = zone?.closest?.('[data-page-panel="rename"]');
+    return !page || page.classList?.contains("is-visible");
+  }
+
   function renamePathOriginKey(path) {
     return String(path || "").trim().toLowerCase();
   }
@@ -993,6 +1176,7 @@
 
   function renderRenameFileSourceSummary(message = "") {
     const paths = renameCurrentPathValues();
+    const classified = classifyRenamePathValues(paths);
     pruneRenamePathOrigins(paths);
     const queueRows = typeof window.getLastQueueRows === "function"
       ? window.getLastQueueRows()
@@ -1001,18 +1185,28 @@
       ? window.getSelectedQueueRow()
       : (window.mediaPipelineQueueView?.getSelectedQueueRow?.() || null);
     const selectedPath = renameSourcePathFromRow(selectedQueue);
-    setRenameStatusLine("rename-file-source-status", paths.length ? `${paths.length} path${paths.length === 1 ? "" : "s"}` : "No paths", paths.length ? "ready" : "empty");
+    const mediaCount = classified.media.length;
+    setRenameStatusLine(
+      "rename-file-source-status",
+      paths.length ? `${mediaCount} media / ${paths.length} path${paths.length === 1 ? "" : "s"}` : "No paths",
+      mediaCount ? "ready" : paths.length ? "warning" : "empty"
+    );
     setText("rename-file-source-summary", [
       message,
       paths.length ? `Source paths staged: ${paths.length}` : "No source paths staged.",
+      paths.length ? `Media paths eligible for preview/apply: ${mediaCount}` : "",
+      classified.ignored
+        ? `Ignored by preview/apply: ${classified.ignored} (${classified.sidecars.length} sidecar, ${classified.nonMedia.length} non-media, ${classified.duplicates.length} duplicate media)`
+        : "",
       paths.length ? renamePathOriginSummary(paths) : "",
       `Loaded Queue rows: ${Array.isArray(queueRows) ? queueRows.length : 0}`,
       `Selected Queue source: ${selectedPath || "(none)"}`,
       paths.length ? `First staged path: ${paths[0]}` : "",
+      mediaCount ? `First media path: ${classified.media[0]}` : "",
     ].filter(Boolean).join("\n"));
   }
 
-  function appendRenamePaths(paths, sourceLabel, origin = "") {
+  function appendRenamePaths(paths, sourceLabel, origin = "", messageSuffix = "") {
     const input = byId("rename-paths");
     if (!input) return 0;
     const current = renameCurrentPathValues();
@@ -1025,15 +1219,28 @@
       seen.add(key);
       additions.push(text);
     });
+    const suffix = messageSuffix ? ` ${messageSuffix}` : "";
     if (!additions.length) {
-      renderRenameFileSourceSummary(`${sourceLabel || "Source"} added no new paths.`);
+      renderRenameFileSourceSummary(`${sourceLabel || "Source"} added no new paths.${suffix}`);
       return 0;
     }
     input.value = [...current, ...additions].join("\n");
     rememberRenamePathOrigins(additions, origin || "manual");
-    renderRenameFileSourceSummary(`${sourceLabel || "Source"} added ${additions.length} path${additions.length === 1 ? "" : "s"}.`);
+    renderRenameFileSourceSummary(`${sourceLabel || "Source"} added ${additions.length} path${additions.length === 1 ? "" : "s"}.${suffix}`);
     syncRenameCommandButtons();
     return additions.length;
+  }
+
+  function renameIgnoredPathSuffix(data = {}) {
+    const ignored = Number(data.ignored_path_count || 0);
+    const ignoredSidecars = Number(data.ignored_sidecar_count || 0);
+    if (!ignored) return "";
+    return `Ignored ${ignored} non-media path${ignored === 1 ? "" : "s"}${ignoredSidecars ? ` including ${ignoredSidecars} sidecar path${ignoredSidecars === 1 ? "" : "s"}` : ""}.`;
+  }
+
+  function appendResolvedRenameBrowsePaths(data, sourceLabel, origin) {
+    const paths = Array.isArray(data?.paths) ? data.paths : [];
+    return appendRenamePaths(paths, sourceLabel, origin, renameIgnoredPathSuffix(data));
   }
 
   function addRenamePathFromInput() {
@@ -1076,7 +1283,7 @@
         return;
       }
       const folderMode = mode === "folder" || mode === "folder_files";
-      appendRenamePaths(paths, folderMode ? "Windows folder browser" : "Windows file browser", folderMode ? "folder" : "browse");
+      appendResolvedRenameBrowsePaths(data, folderMode ? "Windows folder browser" : "Windows file browser", folderMode ? "folder" : "browse");
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const routeMissing = String(message || "").trim().toLowerCase() === "not found";
@@ -1606,9 +1813,18 @@
       checkbox.title = checkbox.disabled
         ? `Blocked rename rows cannot be checked for apply${isDuplicateTarget ? ": duplicate target in staged preview" : isExistingCollision ? ": existing destination path" : rowReason ? `: ${rowReason}` : "."}`
         : "Check this row for backend selected_sources apply.";
-      checkbox.addEventListener("click", (event) => event.stopPropagation());
-      checkbox.addEventListener("change", () => setRenameRowChecked(item, checkbox.checked));
+      checkbox.addEventListener("click", (event) => {
+        event.stopPropagation();
+        setRenameRowCheckedFromCheckbox(item, checkbox);
+      });
+      checkbox.addEventListener("change", () => setRenameRowCheckedFromCheckbox(item, checkbox));
       checkCell.appendChild(checkbox);
+      checkCell.addEventListener("click", (event) => {
+        if (event.target === checkbox || checkbox.disabled) return;
+        event.stopPropagation();
+        checkbox.checked = !checkbox.checked;
+        setRenameRowCheckedFromCheckbox(item, checkbox);
+      });
       row.appendChild(checkCell);
       appendCells(row, [
         item.source_name || item.source || "",
@@ -1696,6 +1912,8 @@
     if (clearPathsButton) clearPathsButton.disabled = commandBusy || !renamePathLines().some((line) => line.trim());
     const checkButton = byId("rename-check-applicable-button");
     if (checkButton) checkButton.disabled = commandBusy || !lastRenameRows.length;
+    const checkAllButton = byId("rename-check-all-button");
+    if (checkAllButton) checkAllButton.disabled = commandBusy || !lastRenameRows.length;
     const clearButton = byId("rename-clear-checks-button");
     if (clearButton) clearButton.disabled = renameBrowseInFlight || renameApplyInFlight || checkedRenameSourceKeys.size === 0;
     const moveUpButton = byId("rename-move-checked-up-button");
@@ -1838,6 +2056,7 @@
     renameRowCanApply,
     setRenameRowChecked,
     checkApplicableRenameRows,
+    checkAllRenameRows,
     clearCheckedRenameRows,
     moveCheckedRenamePaths,
     naturalSortRenamePaths,
@@ -1872,6 +2091,12 @@
     renameApplyHistoryLine,
     renderRenameApplyHistory,
     applyRenameWorkbench,
+    classifyRenamePathValues,
+    normalizeRenameDroppedPathValues,
+    renameDroppedPathFromFile,
+    renameDroppedPathValuesFromDataTransfer,
+    renameDroppedPathValuesFromBridgeDetail,
+    handleRenameDroppedPaths,
     renameApplicablePreviewRows,
     renameOpenConfirmDialog,
     renameOpenResultDialog,
@@ -2166,23 +2391,29 @@
       event.preventDefault();
       event.stopPropagation();
       zone.classList.remove("is-dragging");
-      const files = Array.from(event.dataTransfer?.files || []);
-      const collected = [];
-      files.forEach((file) => {
-        // Tauri / WebView2 may expose .path on the File object for OS files.
-        const path = file && (file.path || file.fullPath || file.name);
-        if (path) collected.push(String(path));
-      });
-      if (collected.length) {
-        appendRenamePaths(collected, "Drag and drop", "drop");
-      } else {
-        renderRenameFileSourceSummary("Drop captured 0 paths. On browsers without OS file path access, use Browse Files / Add files from folder instead.");
+      void handleRenameDroppedPaths(renameDroppedPathValuesFromDataTransfer(event.dataTransfer), "Drag and drop");
+    };
+    const onTauriFileDrop = (event) => {
+      if (!renameDropZoneIsVisible(zone)) return;
+      const detail = event?.detail || {};
+      const kind = String(detail.kind || "").toLowerCase();
+      if (kind === "enter" || kind === "over") {
+        zone.classList.add("is-dragging");
+        return;
       }
+      if (kind === "leave") {
+        zone.classList.remove("is-dragging");
+        return;
+      }
+      if (kind !== "drop") return;
+      zone.classList.remove("is-dragging");
+      void handleRenameDroppedPaths(renameDroppedPathValuesFromBridgeDetail(detail), "Tauri drag and drop");
     };
     zone.addEventListener("dragenter", onDragOver);
     zone.addEventListener("dragover", onDragOver);
     zone.addEventListener("dragleave", onDragLeave);
     zone.addEventListener("drop", onDrop);
+    window.addEventListener(RENAME_WEBVIEW_FILE_DROP_EVENT, onTauriFileDrop);
   }
 
   function renameInitWorkbenchEvents() {

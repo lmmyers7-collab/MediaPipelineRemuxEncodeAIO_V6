@@ -29,7 +29,7 @@ class TauriLifecycleBridgeReplayTests(unittest.TestCase):
             const vm = require("node:vm");
             const source = fs.readFileSync(__BRIDGE_PATH__, "utf8");
             const listeners = new Map();
-            let tauriCallback = null;
+            const tauriCallbacks = new Map();
 
             function CustomEvent(type, options = {}) {
               this.type = type;
@@ -40,10 +40,7 @@ class TauriLifecycleBridgeReplayTests(unittest.TestCase):
               __TAURI__: {
                 event: {
                   listen: async (name, callback) => {
-                    if (name !== "mediapipeline://backend-lifecycle") {
-                      throw new Error("unexpected Tauri event name: " + name);
-                    }
-                    tauriCallback = callback;
+                    tauriCallbacks.set(name, callback);
                     return () => {};
                   },
                 },
@@ -72,8 +69,22 @@ class TauriLifecycleBridgeReplayTests(unittest.TestCase):
               vm.runInNewContext(source, { window, document, console, CustomEvent }, {
                 filename: "tauriLifecycleBridge.js",
               });
-              await Promise.resolve();
-              await Promise.resolve();
+              for (let index = 0; index < 30; index += 1) {
+                await Promise.resolve();
+              }
+              const expectedTauriEvents = [
+                "mediapipeline://backend-lifecycle",
+                "tauri://drag-enter",
+                "tauri://drag-over",
+                "tauri://drag-drop",
+                "tauri://drag-leave",
+              ];
+              for (const name of expectedTauriEvents) {
+                if (typeof tauriCallbacks.get(name) !== "function") {
+                  throw new Error("Tauri listener was not registered for " + name);
+                }
+              }
+              const tauriCallback = tauriCallbacks.get("mediapipeline://backend-lifecycle");
               if (typeof tauriCallback !== "function") {
                 throw new Error("Tauri lifecycle listener was not registered.");
               }
@@ -91,6 +102,9 @@ class TauriLifecycleBridgeReplayTests(unittest.TestCase):
               if (bridge.eventName !== "mediapipeline:backend-lifecycle") {
                 throw new Error("Lifecycle bridge exposes the wrong WebView event name.");
               }
+              if (bridge.fileDropEventName !== "mediapipeline:file-drop") {
+                throw new Error("Lifecycle bridge exposes the wrong file drop WebView event name.");
+              }
               if (bridge.replayLatestBackendLifecycleEvent() !== true) {
                 throw new Error("Expected replay to report a retained lifecycle event.");
               }
@@ -99,6 +113,23 @@ class TauriLifecycleBridgeReplayTests(unittest.TestCase):
               }
               if (!received.payload || received.payload.runId !== "early-event") {
                 throw new Error("Replay did not deliver the retained lifecycle payload.");
+              }
+
+              let dropped = null;
+              window.addEventListener("mediapipeline:file-drop", (event) => {
+                dropped = event.detail;
+              });
+              tauriCallbacks.get("tauri://drag-drop")({
+                payload: {
+                  paths: ["C:/Drop/Show - S01E01.mkv", "C:/Drop/Show - S01E01.pipeline.json"],
+                  position: { x: 20, y: 40 },
+                },
+              });
+              if (!dropped || dropped.kind !== "drop" || dropped.source !== "tauri://drag-drop") {
+                throw new Error("File drop event was not re-dispatched with source/kind detail: " + JSON.stringify(dropped));
+              }
+              if (!Array.isArray(dropped.paths) || dropped.paths.length !== 2 || dropped.paths[0] !== "C:/Drop/Show - S01E01.mkv") {
+                throw new Error("File drop event did not carry dropped paths: " + JSON.stringify(dropped));
               }
             })().catch((error) => {
               console.error(error && error.stack ? error.stack : error);

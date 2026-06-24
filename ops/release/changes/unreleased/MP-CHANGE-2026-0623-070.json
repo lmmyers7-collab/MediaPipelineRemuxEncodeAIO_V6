@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0623-070",
+  "title": "Add rename check all control",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Added a Check All control to the Rename preview/apply toolbar and fixed manual checkbox selection so the checkbox input and its cell reliably toggle selectable preview rows. Selection still keeps blocked, duplicate-target, and existing-destination rows out of apply scope.",
+  "reason": "Operators could clear all checked rename rows but had no symmetric control for checking all selectable rows after preview. The row checkbox path also needed explicit click handling so manual selection works in the WebView table.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Rename preview offered Check Applicable and Clear Checks only. Check Applicable selected ready/match rows and skipped warning/review rows, so operators had to manually check those rows one at a time.",
+  "behavior_after": "Rename preview offers Check All next to Check Applicable. Check All selects all rows that can be applied, reports skipped blockers, updates apply readiness, and preserves backend-owned apply planning. Manual checkbox clicks and checkbox-cell clicks now update the checked-row apply scope.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/renameView.js",
+    "apps/desktop/webview/static/partials/page-rename.html",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/renameView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-rename.html.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-070.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_tauri_shell_scaffold.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_rename_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_rename_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-070.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_tauri_shell_scaffold.py",
+    "tests/webview/test_webview_browser_rename_smoke.py",
+    "tests/webview/test_webview_rename_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "Updated backend-served WebView and Tauri scaffold tests to assert the button/export wiring.",
+    "Updated tests/webview/test_webview_browser_rename_smoke.py to click the Check All button and manual row checkbox controls in a real browser-backed Rename smoke.",
+    "Updated tests/webview/test_webview_rename_readiness_smoke.py to cover Check All selection of ready plus warning rows and manual checkbox/cell toggling."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_rename_readiness_smoke tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_webview_browser_rename_smoke_uses_browser_without_backend_mutation -q",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserRenameSmoke.ps1",
+    ".\\ops\\scripts\\smoke\\Test-WebViewRenameReadinessSmoke.ps1",
+    "git diff --check",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths apps/desktop/webview/static/assets/renameView.js tests/webview/test_webview_rename_readiness_smoke.py tests/webview/test_webview_browser_rename_smoke.py Docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json ops/release/changes/unreleased/MP-CHANGE-2026-0623-070.json",
+    "node --check apps\\desktop\\webview\\static\\assets\\app.js",
+    "node --check apps\\desktop\\webview\\static\\assets\\renameView.js",
+    "npm run webview:check",
+    "npm run webview:contract:check",
+    "2026-06-24 targeted combined Rename lane validation passed: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_service_rename_planner tests.python.desktop.test_service_rename_apply tests.python.desktop.test_application_facade_rename tests.python.desktop.test_api_path_dialogs tests.python.desktop.test_api_contract_payload selected LocalApiServer rename tests selected Tauri Rename smoke bounds tests tests.webview.test_webview_frontend_mutation_boundary tests.webview.test_webview_rename_readiness_smoke tests.webview.test_webview_browser_rename_smoke -q (94 tests OK). Packaged Rename smoke wrappers also passed."
+  ],
+  "rollback_plan": "Remove the Check All button and app.js binding, remove checkAllRenameRows and the explicit checkbox/cell selection handler from the Rename view, regenerate the WebView public contract/summaries, and revert the Check All/manual checkbox smoke assertions.",
+  "related_changes": [],
+  "notes": "No real media paths were touched; validation used static assets and temporary smoke fixtures only.\nWebView public contract baseline was regenerated after adding the checkAllRenameRows export and the internal checkbox helper symbol.\nAdd Check All button to Rename preview controls.\nImplement Check All selection logic for selectable rename rows.\nFix manual checkbox selection by updating checked-row state on the checkbox click path and making the checkbox cell toggle the row.\nWire Check All button to Rename view namespace.\nCover Check All behavior in Node WebView rename smoke.\nCover manual checkbox and checkbox-cell toggling in Node and browser-backed Rename smokes.\nCover Check All behavior in browser-backed rename smoke.\nAssert backend-served WebView exposes the Check All control and namespace export.\nAssert rename browser smoke covers Check All and align stale static blocker checks.\nRefresh WebView public contract for the Check All button and export.\nRefresh generated summary for Rename partial.\nRefresh generated summary for Rename view asset.\nRefresh generated summary for app event wiring.\nRefresh generated summary for Rename readiness smoke.\nRefresh generated summary for browser Rename smoke.\nRefresh generated summary for local API facade tests.\nRefresh generated summary for Tauri scaffold tests.\nRefresh generated summary for WebView contract baseline.\nRefresh generated summary for the Check All change packet."
+}

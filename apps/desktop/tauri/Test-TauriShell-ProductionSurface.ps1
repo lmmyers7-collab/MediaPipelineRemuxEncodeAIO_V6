@@ -18,10 +18,24 @@ $desktopRoot = Split-Path -Parent $TauriRoot
 $webAssets = Join-Path $desktopRoot 'webview\static\assets'
 $webIndex = Join-Path $desktopRoot 'webview\static\index.html'
 $configPath = Join-Path $TauriRoot 'src-tauri\tauri.conf.json'
+$capabilityPath = Join-Path $TauriRoot 'src-tauri\capabilities\default.json'
 
 $config = Get-Content -LiteralPath $configPath -Raw | ConvertFrom-Json
+$capability = Get-Content -LiteralPath $capabilityPath -Raw | ConvertFrom-Json
 if (@($config.app.windows).Count -ne 0) {
     Add-Failure $failures 'tauri.conf.json must keep app.windows empty; lib.rs owns the single dynamic main window.'
+}
+if ($config.app.withGlobalTauri -ne $true) {
+    Add-Failure $failures 'tauri.conf.json must enable withGlobalTauri so the read-only WebView event bridge can receive Tauri lifecycle and drag/drop events.'
+}
+$remoteUrls = @($capability.remote.urls)
+foreach ($requiredRemoteUrl in @('http://127.0.0.1:*', 'http://localhost:*')) {
+    if ($remoteUrls -notcontains $requiredRemoteUrl) {
+        Add-Failure $failures "default Tauri capability must allow the local API loopback origin for the read-only event bridge: $requiredRemoteUrl"
+    }
+}
+if (@($capability.permissions) -ne 'core:default') {
+    Add-Failure $failures 'default Tauri capability must stay scoped to core:default.'
 }
 $csp = [string]$config.app.security.csp
 if ([string]::IsNullOrWhiteSpace($csp)) {
@@ -76,6 +90,8 @@ $bridge = Get-Content -LiteralPath $bridgePath -Raw
 foreach ($required in @(
     'mediapipeline://backend-lifecycle',
     'mediapipeline:backend-lifecycle',
+    'tauri://drag-drop',
+    'mediapipeline:file-drop',
     'window.__TAURI__',
     'eventApi.listen',
     'window.dispatchEvent(new CustomEvent'

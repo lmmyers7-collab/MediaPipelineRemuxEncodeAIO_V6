@@ -94,10 +94,18 @@ class TauriShellScaffoldTests(unittest.TestCase):
 
     def test_tauri_config_points_at_static_frontend_and_dynamic_window(self) -> None:
         config = json.loads((TAURI_ROOT / "src-tauri" / "tauri.conf.json").read_text(encoding="utf-8"))
+        capability = json.loads((TAURI_ROOT / "src-tauri" / "capabilities" / "default.json").read_text(encoding="utf-8"))
 
         self.assertEqual(config["productName"], "MediaPipelineRemuxEncodeAIO")
         self.assertEqual(config["build"]["frontendDist"], "../frontend")
         self.assertEqual(config["app"]["windows"], [])
+        self.assertIs(config["app"]["withGlobalTauri"], True)
+        self.assertEqual(capability["windows"], ["main"])
+        self.assertEqual(
+            capability["remote"]["urls"],
+            ["http://127.0.0.1:*", "http://localhost:*"],
+        )
+        self.assertEqual(capability["permissions"], ["core:default"])
         csp = config["app"]["security"]["csp"]
         self.assertIsInstance(csp, str)
         self.assertIn("default-src 'self'", csp)
@@ -225,6 +233,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Another MediaPipeline Tauri/WebView2 shell instance is already running", source)
         self.assertIn('/assets/tauriLifecycleBridge.js', index)
         self.assertIn("mediapipeline://backend-lifecycle", bridge)
+        self.assertIn("mediapipeline:file-drop", bridge)
         self.assertIn("eventApi.listen", bridge)
         self.assertIn("window.dispatchEvent(new CustomEvent", bridge)
         self.assertIn('window.addEventListener("mediapipeline:backend-lifecycle", handleTauriBackendLifecycleEvent)', app_js)
@@ -1684,9 +1693,12 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("largeRows", source)
         self.assertIn("Render cap visibility", source)
         self.assertIn("rename-check-applicable-button", source)
+        self.assertIn("rename-check-all-button", source)
         self.assertIn("rename-apply-button", source)
-        self.assertIn("Blocked by readiness", source)
-        self.assertIn("duplicate destination target", source)
+        self.assertIn("Resolve blockers before apply", source)
+        self.assertIn("blockerHint", source)
+        self.assertIn("Duplicate destinations", source)
+        self.assertIn("duplicate target", source)
         self.assertIn("posted", source)
         self.assertNotIn("playwright", source.casefold())
         self.assertNotIn("puppeteer", source.casefold())

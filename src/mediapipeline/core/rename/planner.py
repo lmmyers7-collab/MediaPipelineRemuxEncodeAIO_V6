@@ -12,6 +12,7 @@ from mediapipeline.core.rename.plan_policy import (
     rename_template_includes_tv_episode_title,
 )
 from mediapipeline.core.rename.contracts import RenamePlannerServiceProtocol
+from mediapipeline.core.rename.input_classification import classify_rename_input_paths
 
 
 def plan_rename_paths_for_service(
@@ -37,6 +38,8 @@ def plan_rename_paths_for_service(
     use_pipeline_naming_preview: bool = True,
     template_preset: str = "",
     ) -> list[dict[str, Any]]:
+    classified_inputs = classify_rename_input_paths(paths)
+    paths = classified_inputs.media_paths
     if not paths:
         return []
     media_mode = str(mode or "tv").strip().casefold()

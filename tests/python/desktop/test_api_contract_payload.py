@@ -568,6 +568,8 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         )
         self.assertIn("allow_outside_configured_roots", routes["/api/rename/apply"]["request_keys"])
         self.assertIn("outside-root confirmation", routes["/api/rename/apply"]["purpose"])
+        self.assertIn("input_counts", routes["/api/rename/preview"]["optional_response_fields"])
+        self.assertIn("media-only", routes["/api/rename/preview"]["purpose"])
         self.assertEqual(routes["/api/rename/filter-cases"]["effect"], "test-fixture-write")
         self.assertEqual(routes["/api/rename/filter-cases"]["data_schema"], "rename_bad_case_corpus_append.v1")
         self.assertIn("confirm_append", routes["/api/rename/filter-cases"]["request_keys"])
@@ -591,6 +593,11 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             routes["/api/rename/browse"]["allowed_selection_modes"],
             ["files", "folder", "folder_files"],
         )
+        self.assertIn("ignored_path_count", routes["/api/rename/browse"]["optional_data_fields"])
+        self.assertIn("ignored_sidecar_count", routes["/api/rename/browse"]["optional_data_fields"])
+        self.assertIn("paths", routes["/api/rename/browse"]["request_keys"])
+        self.assertIn("dropped paths", routes["/api/rename/browse"]["purpose"])
+        self.assertIn("filters sidecars", routes["/api/rename/browse"]["purpose"])
 
     def test_full_contract_keeps_effectful_routes_token_protected(self) -> None:
         known_effects = {

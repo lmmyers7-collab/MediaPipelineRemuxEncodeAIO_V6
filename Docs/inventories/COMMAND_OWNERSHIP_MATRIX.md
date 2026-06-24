@@ -152,7 +152,7 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/rename/preview` | Rename | `renameView.js` | `none` | Predictions only; no files touched |
-| `POST /api/rename/browse` | Rename | `renameView.js` | `shell-dialog` | Allowed selection modes: `files`, `folder`, `folder_files`; stages selected paths only |
+| `POST /api/rename/browse` | Rename | `renameView.js` | `shell-dialog` | Allowed selection modes: `files`, `folder`, `folder_files`; stages selected or dropped media paths only |
 | `POST /api/rename/filter-cases` | Rename | `renameView.js` | `test-fixture-write` | `confirm_append: true` required; appends backend-validated cases to `tests/fixtures/rename/bad_rename_cases.jsonl` only; no media paths are touched |
 | `POST /api/rename/apply` | Rename | `renameView.js` | `filesystem-mutation` | `confirm_apply: true` required; backend rebuilds plan from state; outside configured roots also require `allow_outside_configured_roots: true` |
 

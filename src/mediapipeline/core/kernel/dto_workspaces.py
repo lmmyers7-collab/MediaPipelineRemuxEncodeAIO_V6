@@ -26,6 +26,7 @@ class MaintenanceWorkspaceDto:
 class RenamePreviewDto:
     rows: list[JsonMap] = field(default_factory=list)
     counts: JsonMap = field(default_factory=dict)
+    input_counts: JsonMap = field(default_factory=dict)
     confidence_counts: JsonMap = field(default_factory=dict)
     preview_source_counts: JsonMap = field(default_factory=dict)
     change_kind_counts: JsonMap = field(default_factory=dict)

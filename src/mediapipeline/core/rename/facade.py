@@ -38,6 +38,7 @@ from mediapipeline.core.rename.policy import (
     select_rename_plan_rows,
     selected_rename_sources,
 )
+from mediapipeline.core.rename.input_classification import classify_rename_input_paths
 
 if TYPE_CHECKING:
     from mediapipeline.desktop.application.dto_commands import CommandResult
@@ -62,12 +63,14 @@ class RenameFacadeMixin:
     def get_rename_preview(self, request: dict[str, Any]) -> RenamePreviewDto:
         rows = [_json_safe(dict(row)) for row in self._build_rename_plan_from_request(request)]
         counts = rename_preview_counts(rows)
-        warnings = rename_preview_warnings(rows)
+        input_classification = classify_rename_input_paths(request.get("paths") or [])
+        warnings = sorted(set(rename_preview_warnings(rows) + input_classification.warnings()))
         mode = str(request.get("mode") or "tv")
         active_template = normalize_rename_template_preset(request.get("template_preset"), mode)
         return _rename_preview_dto(
             rows=rows,
             counts=counts,
+            input_counts=input_classification.counts(),
             confidence_counts=rename_preview_confidence_counts(rows),
             preview_source_counts=rename_preview_source_counts(rows),
             change_kind_counts=rename_preview_change_kind_counts(rows),

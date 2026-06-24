@@ -139,7 +139,14 @@ class RenameApplyHelperTests(unittest.TestCase):
             casefold_path=casefold_path,
         )
 
-        self.assertEqual(paths, [Path("Example.pipeline.json"), Path("Example.mkv.pipeline.json")])
+        self.assertEqual(
+            paths,
+            [
+                Path("Example.mediapipeline.json"),
+                Path("Example.pipeline.json"),
+                Path("Example.mkv.pipeline.json"),
+            ],
+        )
 
     def test_write_rename_undo_manifest_reuses_existing_manifest_path(self) -> None:
         with tempfile.TemporaryDirectory() as td:

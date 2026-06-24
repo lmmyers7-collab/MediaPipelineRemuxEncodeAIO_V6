@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0623-069",
+  "title": "Rename respects library profile roots",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Rename configured-root authority now includes SourceMovies/SourceTV config fallbacks and enabled LibraryProfiles source/output/promotion roots, so profile-backed library files are not falsely marked as outside configured roots.",
+  "reason": "Rename preview/apply only considered resolved SourceMovies, resolved SourceTV, and Outsource. Setups that rely on LibraryProfiles or config_data fallbacks could show every otherwise-configured Rename row as outside configured roots.",
+  "affected_areas": [
+    "generated-docs",
+    "generated_docs",
+    "rename",
+    "tests"
+  ],
+  "behavior_before": "Profile-backed media paths could be shown as Warning: outside configured roots even when the active backend configuration contained the relevant library profile root.",
+  "behavior_after": "Rename authority derives media roots from backend-owned resolved/config data, including enabled LibraryProfiles source_path, output_path, and promotion_destination fields, while disabled profiles and client-spoofed root fields remain ignored.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-069.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/rename/path_authority.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_local_api.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_rename.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-069.json",
+    "src/mediapipeline/core/rename/path_authority.py",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_rename.py"
+  ],
+  "tests_added": [
+    "test_local_api_injects_library_profile_roots_for_rename_authority",
+    "test_rename_preview_accepts_enabled_library_profile_roots"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_application_facade_rename -q passed after moving LibraryProfiles root extraction into the Rename domain.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m py_compile src\\mediapipeline\\core\\rename\\path_authority.py tests\\python\\desktop\\test_application_facade_rename.py tests\\python\\desktop\\test_application_facade_local_api.py",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_contract_payload tests.python.desktop.test_api_path_dialogs -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_rename -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_rename.ApplicationFacadeRenameTests.test_rename_preview_accepts_enabled_library_profile_roots tests.python.desktop.test_application_facade_rename.ApplicationFacadeRenameTests.test_rename_preview_marks_paths_outside_configured_media_roots tests.python.desktop.test_application_facade_rename.ApplicationFacadeRenameTests.test_rename_apply_requires_extra_confirmation_for_outside_configured_roots tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_injects_library_profile_roots_for_rename_authority tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_injects_rename_media_roots_and_requires_outside_root_confirmation -q",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage passed.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_dependency_boundaries --max-internal-imports 1 passed with 0 unallowlisted hard findings.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths src/mediapipeline/core/rename/path_authority.py passed.",
+    ".\\ops\\scripts\\smoke\\Test-WebViewRenameReadinessSmoke.ps1",
+    "2026-06-24 targeted combined Rename lane validation passed: .\\apps\\desktop\\runtime\\Python\\python.exe -B -m unittest tests.python.desktop.test_service_rename_planner tests.python.desktop.test_service_rename_apply tests.python.desktop.test_application_facade_rename tests.python.desktop.test_api_path_dialogs tests.python.desktop.test_api_contract_payload selected LocalApiServer rename tests selected Tauri Rename smoke bounds tests tests.webview.test_webview_frontend_mutation_boundary tests.webview.test_webview_rename_readiness_smoke tests.webview.test_webview_browser_rename_smoke -q (94 tests OK). Packaged Rename smoke wrappers also passed."
+  ],
+  "rollback_plan": "Revert the Rename path_authority root collection changes, the two authority regression tests, and refreshed generated summaries in this packet.",
+  "related_changes": [],
+  "notes": "Resolve Rename configured media roots from SourceMovies/SourceTV config fallbacks and enabled LibraryProfiles path fields.\nCovers Rename path authority accepting enabled LibraryProfiles source/output/promotion roots and ignoring disabled profile roots.\nCovers Local API backend injection of LibraryProfiles roots while ignoring client-spoofed root fields.\nRefreshed summary for Rename authority root handling.\nRefreshed summary for Rename facade authority tests.\nRefreshed summary for Local API authority test changes.\nKeep LibraryProfiles root authority inside the rename domain so Rename no longer imports core.config and dependency-boundary checks have no unallowlisted cycle.\nRefresh generated summary after removing Rename path-authority dependency on core.config.\nRefresh generated summary for the updated rename root-authority validation packet."
+}

@@ -41,6 +41,7 @@ def _rename_readiness_runner_source() -> str:
         }
 
         function makeElement(id = "") {
+          const listeners = {};
           const node = {
             id,
             textContent: "",
@@ -62,7 +63,23 @@ def _rename_readiness_runner_source() -> str:
             },
             querySelector() { return null; },
             closest() { return null; },
-            addEventListener() {},
+            addEventListener(type, callback) {
+              if (!listeners[type]) listeners[type] = [];
+              listeners[type].push(callback);
+            },
+            dispatchEvent(event) {
+              const item = event || {};
+              item.target = item.target || this;
+              item.stopPropagation = item.stopPropagation || (() => {});
+              item.preventDefault = item.preventDefault || (() => {});
+              (listeners[item.type] || []).forEach((callback) => callback(item));
+              return true;
+            },
+            click() {
+              if (this.type === "checkbox" && !this.disabled) this.checked = !this.checked;
+              this.dispatchEvent({ type: "click", target: this });
+              if (this.type === "checkbox" && !this.disabled) this.dispatchEvent({ type: "change", target: this });
+            },
             setAttribute(name, value) { this[name] = String(value); },
             scrollIntoView() {},
             focus() {},
@@ -101,7 +118,42 @@ def _rename_readiness_runner_source() -> str:
           querySelector() { return null; },
           addEventListener() {},
         };
-        context.apiPost = async (url) => {
+        context.__renameApplyPosts = [];
+        context.__renameBrowsePosts = [];
+        context.apiPost = async (url, body = {}) => {
+          if (String(url || "") === "/api/rename/browse") {
+            context.__renameBrowsePosts.push({ url: String(url || ""), body });
+            if ((body.paths || []).some((path) => String(path).includes("Season 02"))) {
+              return {
+                command: "rename.browse",
+                ok: true,
+                message: "Resolved dropped path(s) to 2 media files.",
+                data: {
+                  paths: ["C:/Drop/Season 02/Ranma - S01E01.mkv", "C:/Drop/Season 02/Ranma - S01E02.mkv"],
+                  selection_mode: "folder_files",
+                  source: "dropped_paths",
+                  path_count: 2,
+                  raw_path_count: 4,
+                  ignored_path_count: 2,
+                  ignored_sidecar_count: 2,
+                },
+              };
+            }
+            return {
+              command: "rename.browse",
+              ok: true,
+              message: "Resolved dropped path(s) to 1 media file.",
+              data: {
+                paths: ["C:/Drop/Ranma - S01E01.mkv"],
+                selection_mode: "folder_files",
+                source: "dropped_paths",
+                path_count: 1,
+                raw_path_count: 2,
+                ignored_path_count: 1,
+                ignored_sidecar_count: 1,
+              },
+            };
+          }
           context.__renameApplyPosts.push(String(url || ""));
           return { ok: false, message: "mocked" };
         };
@@ -187,15 +239,44 @@ def _rename_readiness_runner_source() -> str:
         setValue("rename-add-path-input", "C:/Manual/Typed Rename Source.mkv");
         context.mediaPipelineRenameView.addRenamePathFromInput();
         requireContains("manual path add", context.document.getElementById("rename-paths").value, ["C:/Manual/Typed Rename Source.mkv"]);
-        requireContains("manual path summary", text("rename-file-source-summary"), ["Manual path added 1 path", "Source paths staged: 1", "Origins: manual=1"]);
+        requireContains("manual path summary", text("rename-file-source-summary"), ["Manual path added 1 path", "Source paths staged: 1", "Media paths eligible for preview/apply: 1", "Origins: manual=1"]);
         context.mediaPipelineRenameView.clearRenamePaths();
         requireContains("clear path summary", text("rename-file-source-summary"), ["Cleared staged rename paths.", "No source paths staged."]);
         context.mediaPipelineRenameView.useSelectedQueueRowForRename();
         requireContains("selected queue import paths", context.document.getElementById("rename-paths").value, ["C:/Queue/Selected Rename Source.mkv"]);
-        requireContains("selected queue import summary", text("rename-file-source-summary"), ["Selected Rename Source.mkv added 1 path", "Source paths staged: 1", "Origins: queue=1"]);
+        requireContains("selected queue import summary", text("rename-file-source-summary"), ["Selected Rename Source.mkv added 1 path", "Source paths staged: 1", "Media paths eligible for preview/apply: 1", "Origins: queue=1"]);
         context.mediaPipelineRenameView.useLoadedQueueRowsForRename();
         requireContains("loaded queue import paths", context.document.getElementById("rename-paths").value, ["C:/Queue/Selected Rename Source.mkv", "C:/Queue/Second Rename Source.mkv"]);
-        requireContains("loaded queue import summary", text("rename-file-source-summary"), ["Loaded Queue rows added 1 path", "Source paths staged: 2", "Origins: queue=2", "Loaded Queue rows: 3"]);
+        requireContains("loaded queue import summary", text("rename-file-source-summary"), ["Loaded Queue rows added 1 path", "Source paths staged: 2", "Media paths eligible for preview/apply: 2", "Origins: queue=2", "Loaded Queue rows: 3"]);
+        context.mediaPipelineRenameView.clearRenamePaths();
+        const tauriDropped = context.mediaPipelineRenameView.renameDroppedPathValuesFromBridgeDetail({
+          kind: "drop",
+          paths: [
+            "C:/Drop/Ranma - S01E01.mkv",
+            "C:/Drop/Ranma - S01E01.pipeline.json",
+            "Ranma - S01E02.mkv",
+          ],
+        });
+        if (tauriDropped.length !== 2 || !tauriDropped.includes("C:/Drop/Ranma - S01E01.mkv") || !tauriDropped.includes("C:/Drop/Ranma - S01E01.pipeline.json")) {
+          throw new Error("Tauri dropped paths were not normalized correctly: " + JSON.stringify(tauriDropped));
+        }
+        if (context.mediaPipelineRenameView.renameDroppedPathFromFile({ name: "Ranma - S01E02.mkv" }) !== "") {
+          throw new Error("bare browser File.name should not be accepted as a filesystem path");
+        }
+        await context.mediaPipelineRenameView.handleRenameDroppedPaths(tauriDropped, "Tauri drag and drop");
+        requireContains("tauri drop summary", text("rename-file-source-summary"), ["Tauri drag and drop added 1 path", "Ignored 1 non-media path including 1 sidecar path", "Source paths staged: 1", "Media paths eligible for preview/apply: 1", "Origins: drop=1"]);
+        if (context.__renameBrowsePosts[0].body.selection_mode !== "folder_files") {
+          throw new Error("drop did not resolve through folder_files browse mode: " + JSON.stringify(context.__renameBrowsePosts[0]));
+        }
+        context.mediaPipelineRenameView.clearRenamePaths();
+        await context.mediaPipelineRenameView.handleRenameDroppedPaths(["C:/Drop/Season 02"], "Drag and drop");
+        requireContains("dropped folder summary", text("rename-file-source-summary"), ["Drag and drop added 2 paths", "Ignored 2 non-media paths including 2 sidecar paths", "Source paths staged: 2", "Media paths eligible for preview/apply: 2", "Origins: drop=2", "Ranma - S01E01.mkv"]);
+        if (context.document.getElementById("rename-paths").value.includes("C:/Drop/Season 02\n") || context.document.getElementById("rename-paths").value === "C:/Drop/Season 02") {
+          throw new Error("dropped folder path was staged instead of direct media children");
+        }
+        context.mediaPipelineRenameView.clearRenamePaths();
+        await context.mediaPipelineRenameView.handleRenameDroppedPaths(["Ranma - S01E02.mkv"], "Drag and drop");
+        requireContains("bare drop summary", text("rename-file-source-summary"), ["Drop did not expose full filesystem paths", "No source paths staged."]);
 
         setValue("rename-mode", "tv");
         setValue("rename-show", "Serial Experiments Lain");
@@ -222,6 +303,24 @@ def _rename_readiness_runner_source() -> str:
           warnings: [],
           errors: [],
         };
+        setValue("rename-paths", [
+          "C:/TV/Season 02/Serial Experiments Lain E01 Weird.mkv",
+          "C:/TV/Season 02/Serial Experiments Lain E01 Weird.pipeline.json",
+        ].join("\n"));
+        context.mediaPipelineRenameView.renderRenameFileSourceSummary("Sidecar classification check.");
+        requireContains("sidecar path summary", text("rename-file-source-summary"), ["Source paths staged: 2", "Media paths eligible for preview/apply: 1", "Ignored by preview/apply: 1 (1 sidecar"]);
+        context.renderRenamePreview({
+          rows: [first],
+          counts: { total: 1, ready: 1 },
+          input_counts: { raw: 2, media: 1, ignored: 1, ignored_sidecar: 1 },
+          confidence_counts: { high: 1 },
+          preview_source_counts: { auto_tv_heuristic: 1 },
+          change_kind_counts: { rename: 1 },
+          warnings: ["Ignored 1 staged rename sidecar path(s); sidecars are attached to media rows automatically."],
+        });
+        requireContains("sidecar preview summary", text("rename-summary"), ["Rows: 1", "Preview warnings: Ignored 1 staged rename sidecar path"]);
+        requireNotContains("sidecar preview rows", previewCellText(), ["pipeline.json"]);
+        setValue("rename-paths", "C:/TV/Season 02/Serial Experiments Lain E01 Weird.mkv");
         context.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
         context.selectRenameRow(first);
         context.renderRenameApplyReadiness();
@@ -256,11 +355,43 @@ def _rename_readiness_runner_source() -> str:
         requireContains("no checked readiness", text("rename-apply-readiness-status"), ["Blocked"]);
         requireContains("unchecked apply button", text("rename-apply-button"), ["Check rows before apply"]);
         requireContains("unchecked apply hint", text("rename-apply-status-hint"), ["No rows checked", "Check Applicable"]);
+        const warningSecond = {
+          ...first,
+          source: "C:/TV/Season 02/Serial Experiments Lain E02 Girls.mkv",
+          source_name: "Serial Experiments Lain E02 Girls.mkv",
+          destination: "C:/TV/Season 02/Serial Experiments Lain - S02E02 - Girls.mkv",
+          target_name: "Serial Experiments Lain - S02E02 - Girls.mkv",
+          pipeline_guess: "Serial Experiments Lain - S02E02 - Girls.mkv",
+          status: "warning",
+          confidence: "review",
+          warnings: ["Manual review needed"],
+        };
+        context.renderRenamePreview({ rows: [first, warningSecond], counts: { total: 2, ready: 1, warning: 1 }, confidence_counts: { high: 1, review: 1 }, preview_source_counts: { auto_tv_heuristic: 2 }, change_kind_counts: { rename: 2 } });
+        const manualFirstCheckbox = context.document.getElementById("rename-rows").children[0].children[0].children[0];
+        manualFirstCheckbox.click();
+        requireContains("manual checkbox count", text("rename-selected-count"), ["1 checked"]);
+        requireContains("manual checkbox apply", text("rename-apply-button"), ["Apply 1 checked rename"]);
+        manualFirstCheckbox.click();
+        requireContains("manual checkbox unchecked count", text("rename-selected-count"), ["0 checked"]);
+        const manualFirstCell = context.document.getElementById("rename-rows").children[0].children[0];
+        manualFirstCell.click();
+        requireContains("manual checkbox cell count", text("rename-selected-count"), ["1 checked"]);
+        context.mediaPipelineRenameView.clearCheckedRenameRows();
         context.mediaPipelineRenameView.checkApplicableRenameRows();
         requireContains("ready status", text("rename-apply-readiness-status"), ["Ready"]);
         requireContains("ready cells", readinessCellText(), ["Apply scope", "checked rows", "Mutation boundary", "/api/rename/apply"]);
         requireContains("checked apply button", text("rename-apply-button"), ["Apply 1 checked rename"]);
-        requireContains("checked apply hint", text("rename-apply-status-hint"), ["Checked 1 ready/match row", "skipped 0"]);
+        requireContains("checked apply hint", text("rename-apply-status-hint"), ["Checked 1 ready/match row", "warning=1"]);
+        context.mediaPipelineRenameView.clearCheckedRenameRows();
+        context.mediaPipelineRenameView.checkAllRenameRows();
+        requireContains("check all status", text("rename-selection-audit-status"), ["Checked selectable rows"]);
+        requireContains("check all count", text("rename-selected-count"), ["2 checked"]);
+        requireContains("check all apply button", text("rename-apply-button"), ["Apply 2 checked renames"]);
+        requireContains("check all hint", text("rename-apply-status-hint"), ["Checked 2 selectable rows", "skipped 0"]);
+        requireContains("check all detail", text("rename-detail"), ["Review warnings before apply"]);
+        context.mediaPipelineRenameView.clearCheckedRenameRows();
+        context.renderRenamePreview({ rows: [first], counts: { total: 1, ready: 1 }, confidence_counts: { high: 1 }, preview_source_counts: { auto_tv_heuristic: 1 }, change_kind_counts: { rename: 1 } });
+        context.mediaPipelineRenameView.checkApplicableRenameRows();
         setValue("rename-show", "Serial Experiments Lain Changed");
         context.mediaPipelineRenameView.syncRenameCommandButtons();
         requireContains("stale apply button", text("rename-apply-button"), ["Preview out of date"]);

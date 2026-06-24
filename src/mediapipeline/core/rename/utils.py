@@ -58,12 +58,17 @@ def pipeline_sidecar_path(media_path: Path) -> Path:
     return media_path.with_suffix(".pipeline.json")
 
 
+def mediapipeline_sidecar_path(media_path: Path) -> Path:
+    return media_path.with_suffix(".mediapipeline.json")
+
+
 def rename_override_sidecar_path(media_path: Path) -> Path:
     return media_path.with_suffix(".mediapipeline.rename.json")
 
 
 def associated_sidecar_candidates(media_path: Path) -> list[tuple[Path, Callable[[Path], Path]]]:
     destination_patterns: tuple[tuple[Path, Callable[[Path], Path]], ...] = (
+        (mediapipeline_sidecar_path(media_path), lambda dest: mediapipeline_sidecar_path(dest)),
         (pipeline_sidecar_path(media_path), lambda dest: pipeline_sidecar_path(dest)),
         (Path(str(media_path) + ".pipeline.json"), lambda dest: Path(str(dest) + ".pipeline.json")),
         (rename_override_sidecar_path(media_path), lambda dest: rename_override_sidecar_path(dest)),
