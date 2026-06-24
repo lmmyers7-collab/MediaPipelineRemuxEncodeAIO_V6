@@ -77,6 +77,12 @@ class SettingsWorkspaceDto:
     tool_path_evidence: JsonMap = field(default_factory=dict)
     encoder_capability_report: JsonMap = field(default_factory=dict)
     path_health: JsonMap = field(default_factory=dict)
+    persistence_authority: str = ""
+    settings_store_status: JsonMap = field(default_factory=dict)
+    projection_status: JsonMap = field(default_factory=dict)
+    migration_journal: list[str] = field(default_factory=list)
+    legacy_extras_count: int = 0
+    psd1_drift_status: str = ""
     errors: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     read_only: bool = True

@@ -149,6 +149,8 @@ class ApiCommandContractsTests(unittest.TestCase):
             },
             "/api/settings/preview-patch": {"changes": {}, "values": {}},
             "/api/settings/save-patch": {"changes": {}, "confirm_save": True, "values": {}},
+            "/api/settings/import-psd1-preview": {"path": r"C:\Media\Movie.mkv"},
+            "/api/settings/import-psd1": {"confirm_import": True, "path": r"C:\Media\Movie.mkv"},
             "/api/settings/wizard/save": {"wizard": {}, "confirm_save": True, "values": {}},
             "/api/schedule/preview": {"enabled": True, "values": {}},
             "/api/schedule/save": {"enabled": True, "confirm_save": True, "values": {}},
@@ -282,6 +284,11 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertEqual(
             validate_api_payload("/api/settings/save-patch", {"changes": {}, "confirm_save": True}),
             {"changes": {}, "confirm_save": True},
+        )
+        self.assertEqual(validate_api_payload("/api/settings/import-psd1-preview", {}), {})
+        self.assertEqual(
+            validate_api_payload("/api/settings/import-psd1", {"confirm_import": True}),
+            {"confirm_import": True},
         )
         self.assertEqual(
             validate_api_payload(
@@ -621,6 +628,7 @@ class ApiCommandContractsTests(unittest.TestCase):
     def test_settings_schedule_and_maintenance_booleans_require_strict_boolean(self) -> None:
         cases = [
             ("/api/settings/save-patch", "confirm_save", {"changes": {}}),
+            ("/api/settings/import-psd1", "confirm_import", {}),
             ("/api/settings/wizard/save", "confirm_save", {"wizard": {}}),
             ("/api/schedule/preview", "enabled", {}),
             ("/api/schedule/save", "enabled", {"confirm_save": True}),

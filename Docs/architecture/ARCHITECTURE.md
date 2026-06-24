@@ -135,8 +135,10 @@ and real-media validation prove the replacement path.
   from `src/mediapipeline/core/`. Orchestrator persists into `events` table (ADR-0005).
 - **Config.** Pydantic in `src/mediapipeline/contracts/config.py` is the contract
   source of truth for generated schemas and Python validation
-  (ADR-0004). PSD1 remains the operator-facing seed/runtime file during
-  this compatibility window.
+  (ADR-0004). The desktop backend persists settings in the versioned JSON
+  authority at `%LOCALAPPDATA%\MediaPipelineRemuxEncodeAIO\settings.v1.json`;
+  PSD1 remains a generated PowerShell compatibility projection validated by
+  `settings_projection.v1.json`.
 
 ## High-risk areas (do not casually change)
 
@@ -164,4 +166,3 @@ Any change touching these requires the validation rung named in
 - Per-file map: `../generated/PROJECT_INDEX.md`, `../../docs/generated/summaries/`
 - Operator boundaries: `docs/operator/NO_TOUCH_BOUNDARY_REGISTER.md`
 - Testing: `docs/testing/VALIDATION_LADDER_RUNBOOK.md`
-

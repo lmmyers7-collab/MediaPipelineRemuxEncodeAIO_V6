@@ -65,7 +65,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/maintenance/productization` | Yes | `none` | `desktop_productization_status.v1` | Maintenance | Reads backend-owned installer/updater/AppData productization readiness, migration posture, release channel, and close-readiness evidence only |
 | `GET /api/schedule` | Yes | `none` | `desktop_schedule_workspace.v1` | Schedule | Reads persisted schedule state; schedule saves use separate backend command routes |
 | `GET /api/watch-folders/status` | Yes | `none` | `desktop_watch_folders.v1` | Schedule | Reads watch-folder manager state, roots, pending-work status, and recent detections; does not scan on demand or mutate queue/process state |
-| `GET /api/settings/workspace` | Yes | `none` | `desktop_settings_workspace.v1` | Settings | Read-only, redacted settings snapshot plus bounded read-only encoder capability report evidence when the diagnostic artifact exists |
+| `GET /api/settings/workspace` | Yes | `none` | `desktop_settings_workspace.v1` | Settings | Read-only, redacted settings snapshot plus JSON-authority, projection, migration, legacy-extra, and PSD1 drift evidence |
 | `GET /api/settings/preset-library` | Yes | `none` | `preset_library.v1` | Settings | Reads backend PresetV2 library State JSON only; no active config save, queue mutation, launch, or media touch |
 | `GET /api/libraries/route-map` | Yes | `none` | `library_route_map.v1` | Libraries | Backend-authored Library Route Map and decision-matrix evidence from config, Library Profile inheritance state, and field metadata; no save, launch, plugin execution, queue mutation, or media touch |
 | `GET /api/libraries/route-map/trace` | Yes | `none` | `library_route_trace.v1` | Libraries | Selected-file dry-run trace from existing Queue, Completed, and Sample Validation row evidence only; no probing or media mutation |
@@ -207,7 +207,9 @@ Metrics commands write only backend Metrics state under `State\Metrics`. Source 
 | `POST /api/settings/preset-library/export` | `none` | `id`, `preset_v2` | None — returns a preset export payload only | Settings |
 | `POST /api/settings/preset-library/apply-preview` | `none` | `id`, `preset_v2` | None — converts PresetV2 to a legacy settings patch and previews through existing settings policy only | Settings |
 | `POST /api/settings/preset-library/apply` | `config-write` | `id`, `preset_v2`, `confirm_apply` | **High** — converts PresetV2 to a legacy settings patch and saves through the existing backend settings save path for future launches | Settings |
-| `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `library_profile_resets`, `confirm_save` | **High** — writes PSD1 config | Settings; Network Worker Mode Settings delegates through Settings view |
+| `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `library_profile_resets`, `confirm_save` | **High** — writes JSON settings authority and generated PSD1 projection together | Settings; Network Worker Mode Settings delegates through Settings view |
+| `POST /api/settings/import-psd1-preview` | `none` | *(none)* | None — previews explicit PSD1 recovery import into JSON authority without writing | Settings |
+| `POST /api/settings/import-psd1` | `config-write` | `confirm_import` | **High** — imports active PSD1 into JSON authority and regenerates the PSD1 projection | Settings |
 | `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | None — validation only | Settings Wizard |
 | `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | None — validation only | Settings Wizard |
 | `POST /api/settings/wizard/probe-hardware` | `none` | `wizard` | None — bounded probe evidence only | Settings Wizard |
@@ -216,7 +218,7 @@ Metrics commands write only backend Metrics state under `State\Metrics`. Source 
 | `POST /api/settings/wizard/save` | `config-write` | `wizard`, `confirm_save` | **High** — writes PSD1 config through the normal backend save path | Settings Wizard |
 | `POST /api/settings/reload` | `none` | *(none)* | None — reloads cached state | Settings |
 
-`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Preset library save writes `State/PresetLibrary/presets.json` only; preset apply uses existing settings preview/save policy and affects future launches only. Settings Wizard validation/preview routes do not write config. `settings/wizard/save`, `save-patch`, and preset apply perform backup, atomic write, and backend state reload. Confirmation must be set for config writes. The Network page's Worker Mode Settings panel delegates to these same backend Settings routes for config preview/save only; lifecycle start/stop uses the separate Network Lifecycle routes below.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save settings, launch work, rewrite queue state, or touch media files. Preset library save writes `State/PresetLibrary/presets.json` only; preset apply uses existing settings preview/save policy and affects future launches only. Settings Wizard validation/preview routes do not write config. `settings/wizard/save`, `save-patch`, explicit `import-psd1`, and preset apply perform backup, atomic write, projection validation, and backend state reload. Confirmation must be set for config writes. The Network page's Worker Mode Settings panel delegates to these same backend Settings routes for config preview/save only; lifecycle start/stop uses the separate Network Lifecycle routes below.
 
 ### Schedule Commands
 
@@ -286,7 +288,7 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 78 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
+| `none` | 79 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
 | `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/maintenance/dependency-atlas/open-folder` | OS open only; no file mutation |
@@ -311,7 +313,7 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `app-state-write` | `POST /api/schedule/save` | Writes desktop app schedule keys only |
 | `secret-transfer` | `POST /api/network/coordinator/join-blob` | Returns an unjournaled setup blob containing the worker auth secret; no media or lifecycle mutation |
 | `preset-library-state-write` | `POST /api/settings/preset-library/save` | Writes PresetV2 library State JSON only |
-| `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/preset-library/apply`, `POST /api/settings/wizard/save`, `POST /api/network/worker/join-cluster` | Writes and reloads PSD1 config |
+| `config-write` | `POST /api/settings/save-patch`, `POST /api/settings/import-psd1`, `POST /api/settings/preset-library/apply`, `POST /api/settings/wizard/save`, `POST /api/network/worker/join-cluster` | Writes and reloads JSON-authoritative settings plus PSD1 projection |
 | `completed-manifest-write` | `POST /api/completed/reconcile-manifest` | Backs up and rewrites existing selected completed manifest rows only |
 | `completed-sidecar-json-write` | `POST /api/completed/repair-sidecar-metadata` | Backs up and rewrites backend-derived sidecar metadata fields only |
 | `pending-manifest-write` | `POST /api/pending-publish/repair-manifest` | Manifest repair route is fingerprint-gated, writes only backend-validated normalization candidates, and blocks incomplete backend evidence |

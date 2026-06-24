@@ -290,6 +290,130 @@ function Test-MediaPipelineConfigPathShape {
     }
 }
 
+function Test-MediaPipelineSettingsProjectionManifest {
+    param([Parameter(Mandatory)] [string] $ConfigPath)
+
+    $errors = [System.Collections.Generic.List[string]]::new()
+    $warnings = [System.Collections.Generic.List[string]]::new()
+    $resolvedConfigPath = ''
+    try {
+        $resolvedConfigPath = (Resolve-Path -LiteralPath $ConfigPath).Path
+    } catch {
+        $errors.Add("Settings projection validation could not resolve config path '$ConfigPath': $_")
+        return [pscustomobject]@{
+            Ok           = $false
+            Status       = 'config_path_unresolved'
+            ManifestPath = ''
+            Errors       = @($errors)
+            Warnings     = @($warnings)
+        }
+    }
+
+    $candidatePaths = [System.Collections.Generic.List[string]]::new()
+    if (-not [string]::IsNullOrWhiteSpace([string]$env:LOCALAPPDATA)) {
+        $candidatePaths.Add((Join-Path (Join-Path $env:LOCALAPPDATA 'MediaPipelineRemuxEncodeAIO') 'settings_projection.v1.json'))
+    }
+    $candidatePaths.Add((Join-Path (Split-Path -Parent $resolvedConfigPath) 'settings_projection.v1.json'))
+
+    $seen = @{}
+    $existingManifestCount = 0
+    foreach ($candidatePath in @($candidatePaths)) {
+        if ([string]::IsNullOrWhiteSpace([string]$candidatePath)) { continue }
+        try {
+            $manifestPath = [System.IO.Path]::GetFullPath([string]$candidatePath)
+        } catch {
+            $warnings.Add("Ignoring invalid settings projection manifest path '$candidatePath': $_")
+            continue
+        }
+        $manifestKey = $manifestPath.ToLowerInvariant()
+        if ($seen.ContainsKey($manifestKey)) { continue }
+        $seen[$manifestKey] = $true
+        if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) { continue }
+        $existingManifestCount++
+
+        try {
+            $manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+        } catch {
+            $errors.Add("Settings projection manifest could not be read: $manifestPath`: $_")
+            continue
+        }
+
+        if ([string]$manifest.schema_version -ne 'desktop_settings_projection.v1') {
+            $errors.Add("Settings projection manifest has unsupported schema_version '$($manifest.schema_version)': $manifestPath")
+            continue
+        }
+
+        $manifestConfigPath = [string]$manifest.psd1_path
+        if ([string]::IsNullOrWhiteSpace($manifestConfigPath)) {
+            $errors.Add("Settings projection manifest is missing psd1_path: $manifestPath")
+            continue
+        }
+        try {
+            $manifestResolvedConfigPath = if (Test-Path -LiteralPath $manifestConfigPath -PathType Leaf) {
+                (Resolve-Path -LiteralPath $manifestConfigPath).Path
+            } else {
+                [System.IO.Path]::GetFullPath($manifestConfigPath)
+            }
+        } catch {
+            $errors.Add("Settings projection manifest psd1_path could not be resolved: $manifestPath`: $_")
+            continue
+        }
+        if (-not [string]::Equals($manifestResolvedConfigPath, $resolvedConfigPath, [System.StringComparison]::OrdinalIgnoreCase)) {
+            $warnings.Add("Ignoring settings projection manifest for another config: $manifestPath")
+            continue
+        }
+
+        $expectedHash = ([string]$manifest.psd1_sha256).Trim().ToLowerInvariant()
+        if ([string]::IsNullOrWhiteSpace($expectedHash)) {
+            $errors.Add("Settings projection manifest is missing psd1_sha256: $manifestPath")
+            continue
+        }
+        try {
+            $actualHash = ((Get-FileHash -Algorithm SHA256 -LiteralPath $resolvedConfigPath).Hash).ToLowerInvariant()
+        } catch {
+            $errors.Add("Settings projection validation could not hash config '$resolvedConfigPath': $_")
+            continue
+        }
+        if ($actualHash -ne $expectedHash) {
+            $errors.Add("Settings PSD1 projection is stale. Regenerate or import settings through backend before launching pipeline. Config: $resolvedConfigPath; manifest: $manifestPath")
+            return [pscustomobject]@{
+                Ok           = $false
+                Status       = 'stale'
+                ManifestPath = $manifestPath
+                Errors       = @($errors)
+                Warnings     = @($warnings)
+            }
+        }
+
+        return [pscustomobject]@{
+            Ok           = $true
+            Status       = 'verified'
+            ManifestPath = $manifestPath
+            Errors       = @()
+            Warnings     = @($warnings)
+        }
+    }
+
+    if ($errors.Count -gt 0) {
+        return [pscustomobject]@{
+            Ok           = $false
+            Status       = 'invalid'
+            ManifestPath = ''
+            Errors       = @($errors)
+            Warnings     = @($warnings)
+        }
+    }
+
+    $status = if ($existingManifestCount -gt 0) { 'not_applicable' } else { 'not_present' }
+    return [pscustomobject]@{
+        Ok           = $true
+        Status       = $status
+        ManifestPath = ''
+        Errors       = @()
+        Warnings     = @($warnings)
+    }
+}
+
 function Test-MediaPipelineConfigSubtitleToggles {
     param(
         [Parameter(Mandatory)] $Config,

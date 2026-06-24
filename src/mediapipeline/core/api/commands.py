@@ -56,6 +56,8 @@ COMMAND_ROUTE_METHODS: dict[str, str] = {
     "/api/settings/preview-patch": "_settings_preview_patch_payload",
     "/api/settings/pipeline-plan-preview": "_settings_pipeline_plan_preview_payload",
     "/api/settings/save-patch": "_settings_save_patch_payload",
+    "/api/settings/import-psd1-preview": "_settings_import_psd1_preview_payload",
+    "/api/settings/import-psd1": "_settings_import_psd1_payload",
     "/api/settings/wizard/validate-paths": "_settings_wizard_validate_paths_payload",
     "/api/settings/wizard/validate-tools": "_settings_wizard_validate_tools_payload",
     "/api/settings/wizard/probe-hardware": "_settings_wizard_probe_hardware_payload",

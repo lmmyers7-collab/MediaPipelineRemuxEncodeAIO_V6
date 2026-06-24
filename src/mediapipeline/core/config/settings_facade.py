@@ -105,8 +105,95 @@ class SettingsFacadeMixin:
             tool_path_evidence=tool_path_evidence,
             encoder_capability_report=settings_encoder_capability_report(resolved),
             path_health=path_health,
+            persistence_authority=str(getattr(resolved, "persistence_authority", "") or "psd1_compatibility"),
+            settings_store_status=dict(getattr(resolved, "settings_store_status", {}) or {}),
+            projection_status=dict(getattr(resolved, "projection_status", {}) or {}),
+            migration_journal=[str(item) for item in getattr(resolved, "migration_journal", []) or []],
+            legacy_extras_count=int(getattr(resolved, "legacy_extras_count", 0) or 0),
+            psd1_drift_status=str(getattr(resolved, "psd1_drift_status", "") or "unknown"),
             errors=errors,
             warnings=warnings,
+        )
+
+    def preview_settings_psd1_import(self, resolved: ResolvedPaths) -> CommandResult:
+        importer = getattr(self.service, "import_psd1_settings_preview", None)
+        if not callable(importer):
+            from mediapipeline.desktop.application.dto_commands import CommandResult
+
+            return CommandResult(
+                command="settings.import_psd1_preview",
+                ok=False,
+                severity="error",
+                message="Settings PSD1 import preview is unavailable in this service.",
+                errors=["settings_store_import_unavailable"],
+                data={"writes_config": False, "writes_store": False},
+            )
+        try:
+            data = importer(resolved)
+        except Exception as exc:
+            from mediapipeline.desktop.application.dto_commands import CommandResult
+
+            return CommandResult(
+                command="settings.import_psd1_preview",
+                ok=False,
+                severity="error",
+                message=f"Settings PSD1 import preview failed: {exc}",
+                errors=[str(exc)],
+                data={"writes_config": False, "writes_store": False},
+            )
+        from mediapipeline.desktop.application.dto_commands import CommandResult
+
+        errors = [str(item) for item in data.get("errors") or []]
+        warnings = [str(item) for item in data.get("warnings") or []]
+        return CommandResult(
+            command="settings.import_psd1_preview",
+            ok=not errors,
+            severity="error" if errors else "warning" if warnings else "info",
+            message="Settings PSD1 import preview is ready." if not errors else "Settings PSD1 import preview found blocking errors.",
+            errors=errors,
+            warnings=warnings,
+            data=data,
+        )
+
+    def import_settings_psd1(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        from mediapipeline.desktop.application.dto_commands import CommandResult
+
+        if request.get("confirm_import") is not True:
+            return CommandResult(
+                command="settings.import_psd1",
+                ok=False,
+                severity="warning",
+                message="Settings PSD1 import requires explicit confirmation.",
+                warnings=["confirm_import must be true."],
+                data={"writes_config": False, "writes_store": False},
+            )
+        importer = getattr(self.service, "import_psd1_settings", None)
+        if not callable(importer):
+            return CommandResult(
+                command="settings.import_psd1",
+                ok=False,
+                severity="error",
+                message="Settings PSD1 import is unavailable in this service.",
+                errors=["settings_store_import_unavailable"],
+                data={"writes_config": False, "writes_store": False},
+            )
+        try:
+            data = importer(resolved)
+        except Exception as exc:
+            return CommandResult(
+                command="settings.import_psd1",
+                ok=False,
+                severity="error",
+                message=f"Settings PSD1 import failed: {exc}",
+                errors=[str(exc)],
+                data={"writes_config": False, "writes_store": False},
+            )
+        return CommandResult(
+            command="settings.import_psd1",
+            ok=True,
+            severity="info",
+            message="Settings PSD1 imported into JSON authority.",
+            data=data,
         )
 
     def validate_settings_values(self, request: dict[str, Any]) -> CommandResult:

@@ -190,6 +190,50 @@ Most contracts are Python dataclasses. All timestamps use ISO 8601 strings. Sche
 
 ---
 
+## SettingsStore
+
+**Contract file**: `src/mediapipeline/core/config/settings_store.py`
+**Authority artifact**: `%LOCALAPPDATA%\MediaPipelineRemuxEncodeAIO\settings.v1.json`
+**Projection artifact**: `%LOCALAPPDATA%\MediaPipelineRemuxEncodeAIO\settings_projection.v1.json`
+**Diagnostic mirrors**: `LocalBase\State\Config\settings.v1.json` and `LocalBase\State\Config\settings_projection.v1.json`
+**Schema versions**: `desktop_settings_store.v1`, `desktop_settings_projection.v1`
+
+### `settings.v1.json` Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | Yes | Must be `"desktop_settings_store.v1"` |
+| `config_schema_version` | `int` | Yes | Active desktop config contract version |
+| `settings` | `dict` | Yes | Full canonical known-key settings dictionary validated through the Python config contract |
+| `legacy_extras` | `dict` | Yes | Unknown imported PSD1 keys preserved for projection/recovery only; not runtime policy authority |
+| `migrations_applied` | `list[str]` | Yes | Import and alias migration journal |
+| `source_psd1_path` | `str` | Yes | PSD1 path used during initial or explicit import |
+| `source_psd1_sha256` | `str` | Yes | SHA-256 of the source PSD1 at import/save time |
+| `updated_at_utc` | `str` | Yes | ISO 8601 UTC timestamp |
+
+### `settings_projection.v1.json` Fields
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `schema_version` | `str` | Yes | Must be `"desktop_settings_projection.v1"` |
+| `settings_store_path` | `str` | Yes | Authoritative JSON store path |
+| `settings_store_sha256` | `str` | Yes | SHA-256 of the JSON store text |
+| `psd1_path` | `str` | Yes | Generated PSD1 projection path consumed by PowerShell |
+| `psd1_sha256` | `str` | Yes | SHA-256 of the generated PSD1 projection text |
+| `generated_at_utc` | `str` | Yes | ISO 8601 UTC timestamp |
+| `config_schema_version` | `int` | Yes | Config contract version represented by the projection |
+| `known_key_count` | `int` | Yes | Count of canonical settings keys in the projection |
+| `legacy_extras_count` | `int` | Yes | Count of inert legacy extras preserved in the projection |
+
+### Notes
+
+- After `settings.v1.json` exists, the Python backend treats it as the settings authority and regenerates/verifies the PSD1 projection instead of silently importing later manual PSD1 edits.
+- If the JSON authority is invalid, the backend restores the verified last-good JSON when available; otherwise settings save and launch paths fail closed.
+- PowerShell still reads the PSD1 for runtime compatibility, but `MediaPipeline.ps1` validates the projection manifest hash before importing the PSD1 when a matching manifest is present.
+- LocalBase mirrors are diagnostics/recovery snapshots only. They are not authoritative and should not be edited by operators or tests as runtime policy input.
+
+---
+
 ## QueuePlanSnapshot
 
 **Contract file**: `src/mediapipeline/desktop/contracts/queue_snapshot.py`

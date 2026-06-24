@@ -9,6 +9,7 @@ from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
+from mediapipeline.desktop.models import ConfigSaveResult
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
 from tests.python.desktop.test_service_config_validation import (
@@ -17,6 +18,57 @@ from tests.python.desktop.test_service_config_validation import (
     _valid_config_values,
     validate_config_values,
 )
+
+
+class AuthoritySaveService(DummyFacadeService):
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self.authority_save_calls: list[dict[str, object]] = []
+
+    def save_settings_authority(self, resolved, candidate_settings: dict[str, object]) -> ConfigSaveResult:
+        self.authority_save_calls.append(
+            {
+                "config_path": resolved.config_path,
+                "candidate_settings": dict(candidate_settings),
+            }
+        )
+        return ConfigSaveResult(output_path=resolved.config_path, backup_path=None)
+
+
+class ImportSettingsService(DummyFacadeService):
+    def __init__(self, root: Path) -> None:
+        super().__init__(root)
+        self.import_calls = 0
+
+    def import_psd1_settings_preview(self, resolved) -> dict[str, object]:
+        return {
+            "schema_version": "desktop_settings_import_psd1_preview.v1",
+            "source_psd1_path": str(resolved.config_path),
+            "settings": {"RoutingProfile": "plex_direct_stream"},
+            "legacy_extras": {},
+            "legacy_extras_count": 0,
+            "migrations_applied": [],
+            "errors": [],
+            "warnings": [],
+            "can_import": True,
+            "writes_config": False,
+            "writes_store": False,
+        }
+
+    def import_psd1_settings(self, resolved) -> dict[str, object]:
+        self.import_calls += 1
+        return {
+            "schema_version": "desktop_settings_import_psd1_result.v1",
+            "source_psd1_path": str(resolved.config_path),
+            "settings_store_path": str(resolved.workspace_root / "settings.v1.json"),
+            "projection_path": str(resolved.workspace_root / "settings_projection.v1.json"),
+            "config_path": str(resolved.config_path),
+            "backup_path": "",
+            "legacy_extras_count": 0,
+            "migrations_applied": [],
+            "writes_config": True,
+            "writes_store": True,
+        }
 
 
 class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
@@ -75,6 +127,46 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertEqual(preview.data["risk_summary"]["total_count"], 0)
         self.assertFalse(rejected.ok)
         self.assertIn("redacted display placeholder", "\n".join(rejected.errors))
+
+    def test_settings_save_patch_uses_json_authority_when_available(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = AuthoritySaveService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "RoutingProfile": "plex_direct_stream",
+                "SizeGuardMode": "advisory",
+            }
+
+            saved = facade.save_settings_patch(
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+            )
+
+        self.assertTrue(saved.ok)
+        self.assertEqual(len(service.authority_save_calls), 1)
+        self.assertEqual(service.authority_save_calls[0]["candidate_settings"]["RoutingProfile"], "plex_direct_play")
+        self.assertEqual(service.saved_config_calls, [])
+
+    def test_settings_psd1_import_preview_is_read_only_and_apply_requires_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = ImportSettingsService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            preview = facade.preview_settings_psd1_import(resolved)
+            denied = facade.import_settings_psd1(resolved, {"confirm_import": "true"})
+            applied = facade.import_settings_psd1(resolved, {"confirm_import": True})
+
+        self.assertTrue(preview.ok)
+        self.assertFalse(preview.data["writes_config"])
+        self.assertFalse(denied.ok)
+        self.assertIn("confirm_import must be true", "\n".join(denied.warnings))
+        self.assertTrue(applied.ok)
+        self.assertTrue(applied.data["writes_store"])
+        self.assertEqual(service.import_calls, 1)
 
     def test_settings_patch_rejects_noncanonical_known_key_spelling(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -36,6 +36,19 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
             resolved.failed_markers_path = root / "State" / "FailedMarkers"
             resolved.audit_reports_path = root / "AuditReports"
             resolved.completed_manifest_path = root / "State" / "completed_jobs.jsonl"
+            resolved.persistence_authority = "json_store"
+            resolved.settings_store_status = {
+                "schema_version": "desktop_settings_store_status.v1",
+                "status": "loaded",
+                "status_state": "ready",
+            }
+            resolved.projection_status = {
+                "schema_version": "desktop_settings_projection_status.v1",
+                "status": "regenerated",
+            }
+            resolved.migration_journal = ["imported_psd1_to_json_store"]
+            resolved.legacy_extras_count = 2
+            resolved.psd1_drift_status = "in_sync"
             bdpgs_tool = root / "ops" / "pipeline" / "tools" / "PgsToSrt" / "PgsToSrt.exe"
             bdpgs_tessdata = root / "ops" / "pipeline" / "tools" / "PgsToSrt" / "tessdata"
             bdpgs_tool.parent.mkdir(parents=True)
@@ -56,6 +69,12 @@ class ApplicationFacadeSettingsWorkspaceTests(unittest.TestCase):
             settings = facade.get_settings_workspace(resolved).to_mapping()
 
         self.assertEqual(settings["schema_version"], "desktop_settings_workspace.v1")
+        self.assertEqual(settings["persistence_authority"], "json_store")
+        self.assertEqual(settings["settings_store_status"]["status"], "loaded")
+        self.assertEqual(settings["projection_status"]["status"], "regenerated")
+        self.assertEqual(settings["migration_journal"], ["imported_psd1_to_json_store"])
+        self.assertEqual(settings["legacy_extras_count"], 2)
+        self.assertEqual(settings["psd1_drift_status"], "in_sync")
         self.assertEqual(settings["config"]["WorkerAuthToken"], "<redacted>")
         self.assertEqual(settings["config"]["RoutingProfile"], "plex_direct_stream")
         self.assertEqual(settings["risk_summary"]["schema_version"], "settings_current_risk_summary.v1")

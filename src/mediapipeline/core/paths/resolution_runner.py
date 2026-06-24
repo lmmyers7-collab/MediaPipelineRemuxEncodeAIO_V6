@@ -22,6 +22,24 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
 
     config_data = service.load_config_data(resolved.config_path, resolved.powershell_host)
     resolved.config_data = config_data
+    metadata_getter = getattr(service, "settings_store_metadata", None)
+    if callable(metadata_getter):
+        try:
+            store_metadata = dict(metadata_getter(resolved.config_path) or {})
+            resolved.persistence_authority = str(store_metadata.get("persistence_authority") or "")
+            resolved.settings_store_status = dict(store_metadata.get("settings_store_status") or {})
+            resolved.projection_status = dict(store_metadata.get("projection_status") or {})
+            resolved.migration_journal = [str(item) for item in store_metadata.get("migration_journal") or []]
+            resolved.legacy_extras_count = int(store_metadata.get("legacy_extras_count") or 0)
+            resolved.psd1_drift_status = str(store_metadata.get("psd1_drift_status") or "")
+        except Exception as exc:
+            resolved.settings_store_status = {
+                "schema_version": "desktop_settings_store_status.v1",
+                "status": "metadata_error",
+                "status_state": "warning",
+                "errors": [],
+                "warnings": [str(exc)],
+            }
     resolved.config_identity = build_config_identity(
         resolved.config_path,
         config_data,

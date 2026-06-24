@@ -186,18 +186,22 @@ class SettingsPatchFacadeMixin:
                 return settings_save_validation_error_result(errors, warnings)
             if not changed_keys and not removed_keys:
                 return settings_save_no_changes_result(warnings)
+            authority_saver = getattr(self.service, "save_settings_authority", None)
             serializer = getattr(self.service, "serialize_psd1_document", None)
             saver = getattr(self.service, "save_config_document", None)
-            if not callable(serializer) or not callable(saver):
+            if callable(authority_saver):
+                result = authority_saver(resolved, dict(patch["merged"]))
+            elif callable(serializer) and callable(saver):
+                document_text = str(serializer(patch["merged"]))
+                result = saver(
+                    resolved.config_path,
+                    document_text,
+                    True,
+                    config_values=dict(patch["merged"]),
+                    powershell_host=resolved.powershell_host,
+                )
+            else:
                 return settings_save_service_unavailable_result()
-            document_text = str(serializer(patch["merged"]))
-            result = saver(
-                resolved.config_path,
-                document_text,
-                True,
-                config_values=dict(patch["merged"]),
-                powershell_host=resolved.powershell_host,
-            )
         except Exception as exc:
             return settings_save_exception_result(exc, warnings)
         finally:

@@ -143,6 +143,14 @@ class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
     confirm_save: StrictBool | None = None
 
 
+class SettingsImportPsd1PreviewCommandPayload(StrictApiCommandPayload):
+    pass
+
+
+class SettingsImportPsd1CommandPayload(StrictApiCommandPayload):
+    confirm_import: StrictBool | None = None
+
+
 class SettingsPipelinePlanPreviewCommandPayload(StrictApiCommandPayload):
     source_media: SourceMediaInfo
     changes: dict[str, Any] = Field(default_factory=dict)
@@ -571,6 +579,8 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/settings/preview-patch": SettingsPreviewPatchCommandPayload,
     "/api/settings/pipeline-plan-preview": SettingsPipelinePlanPreviewCommandPayload,
     "/api/settings/save-patch": SettingsSavePatchCommandPayload,
+    "/api/settings/import-psd1-preview": SettingsImportPsd1PreviewCommandPayload,
+    "/api/settings/import-psd1": SettingsImportPsd1CommandPayload,
     "/api/settings/wizard/validate-paths": SettingsWizardCommandPayload,
     "/api/settings/wizard/validate-tools": SettingsWizardCommandPayload,
     "/api/settings/wizard/probe-hardware": SettingsWizardCommandPayload,

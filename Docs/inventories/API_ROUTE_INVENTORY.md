@@ -213,7 +213,7 @@ Metrics source and backfill commands are backend-owned. Source registry updates 
 
 `rename/browse` is a non-mutating path-selection helper: the backend opens the Windows file/folder browser or resolves already-known dropped paths and returns media paths for staging. In `folder_files` mode it returns only media-extension paths and reports `raw_path_count`, `ignored_path_count`, and `ignored_sidecar_count` when sidecars or other non-media files are present. It does not preview, apply, rename, move, delete, or touch media files. `rename/filter-cases` appends only to `tests/fixtures/rename/bad_rename_cases.jsonl` after `confirm_append: true`; it does not inspect or mutate media files. `rename/apply` requires `confirm_apply: true`. Backend rebuilds the rename plan from its own state, not from the frontend-submitted plan, and preview/apply canonicalize staged input to media rows before sidecar companion moves are planned. If selected paths are outside backend-injected configured media roots, the backend also requires `allow_outside_configured_roots: true` after explicit operator review.
 
-### Settings Commands (19 routes)
+### Settings Commands (21 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -228,7 +228,9 @@ Metrics source and backfill commands are backend-owned. Source registry updates 
 | `POST /api/settings/preset-library/export` | `none` | `id`, `preset_v2` | Settings | None — returns a preset export payload only | `test_preset_library.py`, `test_api_command_contracts.py` |
 | `POST /api/settings/preset-library/apply-preview` | `none` | `id`, `preset_v2` | Settings | None — converts PresetV2 to a legacy settings patch and previews through existing settings policy only | `test_preset_library.py`, `test_api_command_contracts.py` |
 | `POST /api/settings/preset-library/apply` | `config-write` | `id`, `preset_v2`, `confirm_apply` | Settings | **High** — converts PresetV2 to a legacy settings patch and saves through the existing backend settings save path for future launches | `test_preset_library.py`, `test_api_command_contracts.py` |
-| `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `library_profile_resets`, `confirm_save` | Settings; Network Worker Mode Settings delegates through Settings view | **High** — writes PSD1 config | `test_facade_settings_patch_policy.py`, `test_service_config_save_runner.py` |
+| `POST /api/settings/save-patch` | `config-write` | `changes`, `remove_keys`, `library_profile_resets`, `confirm_save` | Settings; Network Worker Mode Settings delegates through Settings view | **High** — writes JSON settings authority and generated PSD1 projection together | `test_facade_settings_patch_policy.py`, `test_application_facade_settings_patch.py`, `test_settings_store.py`, `test_service_config_save_runner.py` |
+| `POST /api/settings/import-psd1-preview` | `none` | *(none)* | Settings | None — previews explicit PSD1 recovery import into JSON authority without writing | `test_api_command_contracts.py`, `test_settings_store.py` |
+| `POST /api/settings/import-psd1` | `config-write` | `confirm_import` | Settings | **High** — imports active PSD1 into JSON authority, preserves legacy extras inertly, and regenerates PSD1 projection | `test_api_command_contracts.py`, `test_settings_store.py` |
 | `POST /api/settings/wizard/validate-paths` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
 | `POST /api/settings/wizard/validate-tools` | `none` | `wizard` | Settings Wizard | None — validation only | `test_api_command_contracts.py` |
 | `POST /api/settings/wizard/probe-hardware` | `none` | `wizard` | Settings Wizard | None — bounded probe evidence only | `test_api_command_contracts.py` |
@@ -237,7 +239,7 @@ Metrics source and backfill commands are backend-owned. Source registry updates 
 | `POST /api/settings/wizard/save` | `config-write` | `wizard`, `confirm_save` | Settings Wizard | **High** — writes PSD1 config through the normal backend save path | `test_api_command_contracts.py` |
 | `POST /api/settings/reload` | `none` | *(none)* | Settings | None — reloads cached state | `test_facade_settings_policy.py` |
 
-`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save the PSD1, launch work, rewrite queue state, or touch media files. Preset library save writes `State/PresetLibrary/presets.json` only; preset apply uses the existing settings preview/save policy and affects future launches only. Settings Wizard validation/preview routes share the same backend policy without writing config. `settings/wizard/save`, `save-patch`, and preset apply require confirmation; backend backs up current config before writing. Frontend cannot write the PSD1 file directly. The Network page's Worker Mode Settings panel uses the same Settings preview/save routes for config only; it does not create Network lifecycle command routes or start/stop coordinator or worker runtime.
+`browse-path` opens only the backend-owned Windows folder browser for allowlisted Settings path fields (`SourceMovies`, `SourceTV`, `Outsource`, `LocalBase`, `FinalLibraryPromotionRuleSourceRoot`, `FinalLibraryPromotionRuleDestinationRoot`) and returns selected-folder validation evidence for WebView staging. It does not save settings, launch work, rewrite queue state, or touch media files. Preset library save writes `State/PresetLibrary/presets.json` only; preset apply uses the existing settings preview/save policy and affects future launches only. Settings Wizard validation/preview routes share the same backend policy without writing config. `settings/wizard/save`, `save-patch`, explicit `import-psd1`, and preset apply require confirmation; backend backs up current config before writing. Frontend cannot write the JSON settings store or generated PSD1 projection directly. The Network page's Worker Mode Settings panel uses the same Settings preview/save routes for config only; it does not create Network lifecycle command routes or start/stop coordinator or worker runtime.
 
 ### Schedule Commands (2 routes)
 
@@ -332,7 +334,7 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `app-state-write` | 1 | `POST /api/schedule/save` |
 | `secret-transfer` | 1 | `POST /api/network/coordinator/join-blob` |
 | `preset-library-state-write` | 1 | `POST /api/settings/preset-library/save` |
-| `config-write` | 4 | `POST /api/settings/save-patch`, `settings/preset-library/apply`, `settings/wizard/save`, `network/worker/join-cluster` |
+| `config-write` | 5 | `POST /api/settings/save-patch`, `settings/import-psd1`, `settings/preset-library/apply`, `settings/wizard/save`, `network/worker/join-cluster` |
 | `completed-manifest-write` | 1 | `POST /api/completed/reconcile-manifest` |
 | `completed-sidecar-json-write` | 1 | `POST /api/completed/repair-sidecar-metadata` |
 | `pending-manifest-write` | 1 | `POST /api/pending-publish/repair-manifest` |

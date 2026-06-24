@@ -23,6 +23,13 @@ from mediapipeline.core.config.save_runner import (
     save_config_document_for_service,
     save_config_profile_for_service,
 )
+from mediapipeline.core.config.settings_store import (
+    import_psd1_settings_for_service,
+    import_psd1_settings_preview_for_service,
+    load_settings_authority_for_service,
+    save_settings_authority_for_service,
+    settings_store_metadata_for_service,
+)
 from mediapipeline.core.config.validation import (
     config_path_overlap_warning,
     split_list_input as split_config_list_input,
@@ -37,11 +44,16 @@ from mediapipeline.desktop.subprocess_runner import run_capture
 
 class ConfigProfileServiceMixin:
     def load_config_data(self, config_path: Path, powershell_host: str | None) -> dict[str, Any]:
-        return load_config_data_for_service(
+        return load_settings_authority_for_service(
             self,
             config_path,
             powershell_host,
-            run_capture_func=run_capture,
+            psd1_loader=lambda path, host: load_config_data_for_service(
+                self,
+                path,
+                host,
+                run_capture_func=run_capture,
+            ),
         )
 
     def split_list_input(self, raw: str) -> list[str]:
@@ -107,6 +119,46 @@ class ConfigProfileServiceMixin:
             config_values=config_values,
             powershell_host=powershell_host,
         )
+
+    def save_settings_authority(self, resolved: ResolvedPaths, candidate_settings: dict[str, Any]) -> ConfigSaveResult:
+        return save_settings_authority_for_service(
+            self,
+            resolved,
+            candidate_settings,
+            psd1_loader=lambda path, host: load_config_data_for_service(
+                self,
+                path,
+                host,
+                run_capture_func=run_capture,
+            ),
+        )
+
+    def import_psd1_settings_preview(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        return import_psd1_settings_preview_for_service(
+            self,
+            resolved,
+            psd1_loader=lambda path, host: load_config_data_for_service(
+                self,
+                path,
+                host,
+                run_capture_func=run_capture,
+            ),
+        )
+
+    def import_psd1_settings(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        return import_psd1_settings_for_service(
+            self,
+            resolved,
+            psd1_loader=lambda path, host: load_config_data_for_service(
+                self,
+                path,
+                host,
+                run_capture_func=run_capture,
+            ),
+        )
+
+    def settings_store_metadata(self, config_path: Path) -> dict[str, Any]:
+        return settings_store_metadata_for_service(self, config_path)
 
     def normalize_profile_name(self, raw_name: str) -> str:
         return normalize_profile_name(raw_name)

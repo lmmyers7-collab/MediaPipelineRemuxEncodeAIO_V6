@@ -72,6 +72,51 @@ function Get-JsonSchemaEnum {
     return @($property.enum)
 }
 
+$projectionTestRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("mp-settings-projection-" + [guid]::NewGuid().ToString('N'))
+$previousLocalAppData = $env:LOCALAPPDATA
+try {
+    New-Item -ItemType Directory -Path $projectionTestRoot -Force | Out-Null
+    $env:LOCALAPPDATA = $projectionTestRoot
+    $projectionConfigPath = Join-Path $projectionTestRoot 'MediaPipeline_config.psd1'
+    $projectionConfigText = @"
+@{
+    ConfigSchemaVersion = 1
+    SourceMovies = 'C:\Media\Movies'
+    SourceTV = 'C:\Media\TV'
+    Outsource = 'D:\MediaOut'
+    LocalBase = 'E:\MediaScratch'
+}
+"@
+    Set-Content -LiteralPath $projectionConfigPath -Value $projectionConfigText -Encoding UTF8
+    $projectionManifestDir = Join-Path $projectionTestRoot 'MediaPipelineRemuxEncodeAIO'
+    New-Item -ItemType Directory -Path $projectionManifestDir -Force | Out-Null
+    $projectionManifestPath = Join-Path $projectionManifestDir 'settings_projection.v1.json'
+    $projectionHash = ((Get-FileHash -Algorithm SHA256 -LiteralPath $projectionConfigPath).Hash).ToLowerInvariant()
+    [ordered]@{
+        schema_version = 'desktop_settings_projection.v1'
+        psd1_path = $projectionConfigPath
+        psd1_sha256 = $projectionHash
+        generated_at_utc = '2026-06-23T00:00:00Z'
+    } | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $projectionManifestPath -Encoding UTF8
+
+    $projectionOk = Test-MediaPipelineSettingsProjectionManifest -ConfigPath $projectionConfigPath
+    if (-not [bool]$projectionOk.Ok -or [string]$projectionOk.Status -ne 'verified') {
+        throw "Settings projection manifest check should verify fresh generated PSD1. Status=$($projectionOk.Status) Errors=$(@($projectionOk.Errors) -join '; ')"
+    }
+
+    Add-Content -LiteralPath $projectionConfigPath -Value '# manual drift'
+    $projectionStale = Test-MediaPipelineSettingsProjectionManifest -ConfigPath $projectionConfigPath
+    $projectionStaleErrors = @($projectionStale.Errors) -join "`n"
+    if ([bool]$projectionStale.Ok -or $projectionStaleErrors -notmatch 'Settings PSD1 projection is stale') {
+        throw 'Settings projection manifest check must fail closed when generated PSD1 hash drifts.'
+    }
+} finally {
+    $env:LOCALAPPDATA = $previousLocalAppData
+    if (Test-Path -LiteralPath $projectionTestRoot) {
+        Remove-Item -LiteralPath $projectionTestRoot -Recurse -Force
+    }
+}
+
 if ($registry.Count -ne $knownKeys.Count) {
     throw "Config-key registry count $($registry.Count) does not match known key count $($knownKeys.Count)."
 }

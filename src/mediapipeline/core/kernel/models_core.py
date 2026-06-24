@@ -53,6 +53,12 @@ class ResolvedPaths:
     config_data: dict[str, Any] = field(default_factory=dict)
     config_identity: dict[str, Any] = field(default_factory=dict)
     config_last_good_snapshot_path: Path | None = None
+    persistence_authority: str = ""
+    settings_store_status: dict[str, Any] = field(default_factory=dict)
+    projection_status: dict[str, Any] = field(default_factory=dict)
+    migration_journal: list[str] = field(default_factory=list)
+    legacy_extras_count: int = 0
+    psd1_drift_status: str = ""
 
 
 @dataclass

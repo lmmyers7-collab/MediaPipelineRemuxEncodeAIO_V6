@@ -8,7 +8,7 @@ Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `src/mediapipeline/core/api/commands.py`, and the WebView `apiPost` call
 inventory.
 
-Total command routes: 91 POST routes across 11 contract groups.
+Total command routes: 93 POST routes across 11 contract groups.
 
 Network lifecycle start/stop now has backend-owned dry-run and confirmed POST
 routes. Confirmed coordinator/worker lifecycle routes are confirmation-gated,
@@ -27,7 +27,7 @@ dry-run fingerprints and backend backups.
 | `LOCAL_API_METRICS_COMMAND_ROUTE_CONTRACT` | metrics/sources, metrics/backfill |
 | `LOCAL_API_DIAGNOSTICS_COMMAND_ROUTE_CONTRACT` | diagnostics/open, diagnostics/tdarr-matrix-audit, diagnostics/tdarr-matrix/evidence/open, diagnostics/tdarr-matrix/rerun |
 | `LOCAL_API_RENAME_COMMAND_ROUTE_CONTRACT` | rename/preview, rename/browse, rename/filter-cases, rename/apply |
-| `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/preset-library/validate, settings/preset-library/compare, settings/preset-library/import-preview, settings/preset-library/save, settings/preset-library/export, settings/preset-library/apply-preview, settings/preset-library/apply, settings/browse-path, settings/preview-patch, settings/pipeline-plan-preview, settings/save-patch, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/wizard/save, settings/reload |
+| `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/preset-library/validate, settings/preset-library/compare, settings/preset-library/import-preview, settings/preset-library/save, settings/preset-library/export, settings/preset-library/apply-preview, settings/preset-library/apply, settings/browse-path, settings/preview-patch, settings/pipeline-plan-preview, settings/save-patch, settings/import-psd1-preview, settings/import-psd1, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/wizard/save, settings/reload |
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
 | `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences |
@@ -171,7 +171,9 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | `POST /api/settings/browse-path` | Settings | `settingsView.js` | `shell-dialog` | Folder-only browser for allowlisted source/output/scratch and final-library promotion root fields; stages selected-folder evidence only |
 | `POST /api/settings/preview-patch` | Settings; Network Worker Mode Settings | `settingsView.js`; `networkView.js` delegates to `window.mediaPipelineSettingsView` | `none` | Returns redacted diff; no config written |
 | `POST /api/settings/pipeline-plan-preview` | Settings | `settingsView.js` | `none` | Strict source facts plus optional staged settings patch; backend-owned dry-run plan only |
-| `POST /api/settings/save-patch` | Settings; Network Worker Mode Settings | `settingsView.js`; `networkView.js` delegates to `window.mediaPipelineSettingsView` | `config-write` | `confirm_save: true` required; backend backs up, writes, and reloads |
+| `POST /api/settings/save-patch` | Settings; Network Worker Mode Settings | `settingsView.js`; `networkView.js` delegates to `window.mediaPipelineSettingsView` | `config-write` | `confirm_save: true` required; backend saves the JSON authority and active PSD1 projection together, backs up, and reloads |
+| `POST /api/settings/import-psd1-preview` | Settings | Backend route; no WebView caller yet | `none` | Previews explicit recovery import of the active PSD1 into JSON authority; reports migrations, legacy extras, and blocking errors without writing |
+| `POST /api/settings/import-psd1` | Settings | Backend route; no WebView caller yet | `config-write` | `confirm_import: true` required; imports active PSD1 into JSON authority, preserves unknown legacy extras as inert projection-only values, regenerates PSD1 projection, and reloads |
 | `POST /api/settings/wizard/validate-paths` | Settings Wizard | `settingsView.js` | `none` | Wizard path validation only |
 | `POST /api/settings/wizard/validate-tools` | Settings Wizard | `settingsView.js` | `none` | Wizard tool-path validation only |
 | `POST /api/settings/wizard/probe-hardware` | Settings Wizard | `settingsView.js` | `none` | Bounded hardware probe evidence only |
@@ -249,7 +251,7 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 
 | Class | Count | Routes |
 |---|---:|---|
-| `none` | 25 | pending-publish/recovery-plan, completed/reconcile-manifest-dry-run, completed/repair-sidecar-metadata-dry-run, pending-publish/repair-manifest-dry-run, pending-publish/reconcile-orphan-payloads-dry-run, startup/reconcile-dry-run, maintenance/retention-dry-run, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview, network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators |
+| `none` | 26 | pending-publish/recovery-plan, completed/reconcile-manifest-dry-run, completed/repair-sidecar-metadata-dry-run, pending-publish/repair-manifest-dry-run, pending-publish/reconcile-orphan-payloads-dry-run, startup/reconcile-dry-run, maintenance/retention-dry-run, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview, network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators |
 | `read-only-preview` | 4 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/folder-preview, subtitle-qa/preview |
 | `shell-open` | 6 | queue/open, completed/open, pending-publish/open, diagnostics/open, diagnostics/tdarr-matrix/evidence/open, maintenance/dependency-atlas/open-folder |
 | `shell-dialog` | 3 | rename/browse, settings/browse-path, pipeline/browse-file |
@@ -263,7 +265,7 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `metrics-state-write` | 1 | metrics/sources |
 | `metrics-backfill-state-write` | 1 | metrics/backfill |
 | `app-state-write` | 1 | schedule/save |
-| `config-write` | 3 | settings/save-patch, settings/wizard/save, network/worker/join-cluster |
+| `config-write` | 4 | settings/save-patch, settings/import-psd1, settings/wizard/save, network/worker/join-cluster |
 | `secret-transfer` | 1 | network/coordinator/join-blob |
 | `filesystem-mutation` | 2 | rename/apply, final-library-promotion/promote-queue |
 | `control-state-write` | 2 | final-library-promotion/pause, final-library-promotion/resume |
@@ -297,6 +299,7 @@ deployment artifacts:
 - `rerun/start`
 - `network/coordinator/start`, `network/coordinator/stop`, `network/worker/start`, `network/worker/stop`
 - `settings/save-patch`
+- `settings/import-psd1`
 - `settings/wizard/save`
 - `network/coordinator/join-blob`
 - `network/worker/join-cluster`
@@ -330,6 +333,7 @@ operator evidence only:
 **Safe** - read-only previews, validations, reloads, and dry-runs:
 
 - All `*/preview`, `*/validate`, and `settings/reload` routes
+- `settings/import-psd1-preview`
 - `settings/pipeline-plan-preview`
 - `pending-publish/recovery-plan`
 - `subtitle-qa/preview`
@@ -349,7 +353,7 @@ The backend contract independently enforces:
 
 - Path resolution for shell-open commands; the frontend passes row keys and allowlisted targets only.
 - Queue source-path scope for priority and file-override writes.
-- Explicit confirmation for rename apply, settings save, schedule save, release build, final-library promotion, folder-rule save, and failure marker clear.
+- Explicit confirmation for rename apply, settings save/import, schedule save, release build, final-library promotion, folder-rule save, and failure marker clear.
 - Launch locks and duplicate-command protection.
 - Mode validation for pipeline start and pipeline control.
 - Diagnostics target allowlist.
@@ -360,6 +364,14 @@ These are backend/API contract requirements, not frontend conventions.
 ---
 
 ## Freshness Review - 2026-06-05 (MDS-005)
+## Freshness Review - 2026-06-23 (MP-CHANGE-2026-0623-067)
+
+Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
+`COMMAND_ROUTE_PAYLOAD_MODELS` after adding JSON-authoritative Settings
+persistence. The matrix now includes `settings/import-psd1-preview` and
+`settings/import-psd1`; `settings/save-patch` writes the JSON authority and
+generated PSD1 projection together.
+
 
 Re-checked `COMMAND_ROUTE_METHODS`, `LOCAL_API_COMMAND_ROUTE_CONTRACT`, and
 `COMMAND_ROUTE_PAYLOAD_MODELS`; all three contain the same POST route set,

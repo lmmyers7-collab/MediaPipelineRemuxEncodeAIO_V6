@@ -51,19 +51,19 @@ graph LR
   verify["verify"]
   watch["watch"]
   webview["webview"]
-  tests -->|708| api
-  tests -->|59| config
+  tests -->|711| api
+  tests -->|61| config
   scripts -->|46| api
   tests -->|33| processes
-  config -->|27| api
+  config -->|28| api
   observability -->|27| status
   contracts -->|26| api
   tests -->|24| rename
   process -->|23| api
   process -->|23| processes
   tests -->|23| queue
+  config -->|22| kernel
   tests -->|20| status
-  config -->|18| kernel
   observability -->|17| api
   tests -->|16| publish
   audit -->|14| api
@@ -96,6 +96,7 @@ graph LR
   publish -->|6| api
   tests -->|6| final_library
   tests -->|6| folder_policy
+  tests -->|6| kernel
   tests -->|6| storage
   application -->|5| api
   orchestration -->|5| config
@@ -103,7 +104,6 @@ graph LR
   rename -->|5| files
   scripts -->|5| diagnostics
   tests -->|5| application
-  tests -->|5| kernel
   tests -->|5| orchestration
   tests -->|5| telemetry
   tests -->|5| validation
@@ -209,19 +209,19 @@ graph LR
 
 | From | To | Edges |
 |---|---|---|
-| tests | api | 708 |
-| tests | config | 59 |
+| tests | api | 711 |
+| tests | config | 61 |
 | scripts | api | 46 |
 | tests | processes | 33 |
-| config | api | 27 |
+| config | api | 28 |
 | observability | status | 27 |
 | contracts | api | 26 |
 | tests | rename | 24 |
 | process | api | 23 |
 | process | processes | 23 |
 | tests | queue | 23 |
+| config | kernel | 22 |
 | tests | status | 20 |
-| config | kernel | 18 |
 | observability | api | 17 |
 | tests | publish | 16 |
 | audit | api | 14 |
@@ -254,6 +254,7 @@ graph LR
 | publish | api | 6 |
 | tests | final_library | 6 |
 | tests | folder_policy | 6 |
+| tests | kernel | 6 |
 | tests | storage | 6 |
 | application | api | 5 |
 | orchestration | config | 5 |
@@ -261,7 +262,6 @@ graph LR
 | rename | files | 5 |
 | scripts | diagnostics | 5 |
 | tests | application | 5 |
-| tests | kernel | 5 |
 | tests | orchestration | 5 |
 | tests | telemetry | 5 |
 | tests | validation | 5 |

@@ -237,12 +237,12 @@ Parked output is media plus sidecars. The backend owns every decision about what
 
 ## 5. Config flow
 
-`MediaPipelineConfig.psd1` is the single config file. Read by:
+Settings persistence is JSON-authoritative. `%LOCALAPPDATA%\MediaPipelineRemuxEncodeAIO\settings.v1.json` is the saved settings authority; `MediaPipeline_config.psd1` is the generated compatibility projection consumed by PowerShell. The projection manifest records the generated PSD1 hash so startup can fail closed if the PSD1 drifts.
 
-1. **PS1 entry** (`MediaPipeline.ps1`) at startup — via PowerShell `Import-PowerShellDataFile`.
-2. **Python backend** at API-resolution time — via the config PSD1 reader in `src/mediapipeline/core/config/` invoking a PS1 helper to read and emit JSON.
+1. **Python backend** at API-resolution time — loads `settings.v1.json` when present, imports the PSD1 only for first-run or explicit recovery import, applies aliases/migrations, and regenerates the PSD1 projection.
+2. **PS1 entry** (`MediaPipeline.ps1`) at startup — validates the projection manifest when present, then reads the generated PSD1 with `Import-PowerShellDataFile`.
 
-Both sides ingest the same keys. **Config-key names are documented in `docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `src/mediapipeline/core/kernel/config_key_groups.py` and related config metadata; PowerShell-side key names are guarded in `ops/pipeline/engine/config/config_keys.ps1`. Drift tests include `tests/python/desktop/test_config_keys.py` and `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
+Both sides ingest the same canonical known keys. Unknown imported PSD1 keys are preserved as inert `legacy_extras` for projection/recovery only and must not affect runtime policy. **Config-key names are documented in `docs/architecture/CONFIG_KEY_GLOSSARY.md`**. Python-side key names are guarded in `src/mediapipeline/core/kernel/config_key_groups.py` and related config metadata; PowerShell-side key names are guarded in `ops/pipeline/engine/config/config_keys.ps1`. Drift tests include `tests/python/desktop/test_config_keys.py`, `tests/python/desktop/test_settings_store.py`, and `ops/pipeline/tests/Unit/Invoke-ConfigKeyRegistryChecks.ps1`.
 
 ---
 

@@ -243,6 +243,15 @@ if (-not $configPath) {
     exit 1
 }
 $configPath = (Resolve-Path -LiteralPath $configPath).Path
+$projectionCheck = Test-MediaPipelineSettingsProjectionManifest -ConfigPath $configPath
+if (-not [bool]$projectionCheck.Ok) {
+    $projectionErrors = @($projectionCheck.Errors)
+    foreach ($errorText in $projectionErrors) {
+        Write-Host "ERROR: $errorText" -ForegroundColor Red
+    }
+    Write-MediaPipelineEarlyWorkerChildFailureResult -Reason ("Settings projection validation failed: " + ($projectionErrors -join '; ')) -ErrorCode 'CONFIG_PROJECTION_STALE' -ExitCode 1
+    exit 1
+}
 try {
     $config = Import-PowerShellDataFile -LiteralPath $configPath
 } catch {

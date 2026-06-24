@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import tempfile
 import threading
 from pathlib import Path
@@ -376,9 +377,38 @@ def run_smoke(
     selected_pipeline = (pipeline_path or service.default_pipeline_path()).resolve()
     if work_root is not None:
         work_root.mkdir(parents=True, exist_ok=True)
-        return _run_smoke_in_root(app_root=app_root, pipeline_path=selected_pipeline, work_root=work_root.resolve())
+        resolved_root = work_root.resolve()
+        return _run_smoke_with_isolated_localappdata(
+            app_root=app_root,
+            pipeline_path=selected_pipeline,
+            work_root=resolved_root,
+        )
     with tempfile.TemporaryDirectory(prefix="mediapipeline-settings-patch-smoke-") as raw_root:
-        return _run_smoke_in_root(app_root=app_root, pipeline_path=selected_pipeline, work_root=Path(raw_root).resolve())
+        resolved_root = Path(raw_root).resolve()
+        return _run_smoke_with_isolated_localappdata(
+            app_root=app_root,
+            pipeline_path=selected_pipeline,
+            work_root=resolved_root,
+        )
+
+
+def _run_smoke_with_isolated_localappdata(
+    *,
+    app_root: Path,
+    pipeline_path: Path,
+    work_root: Path,
+) -> dict[str, Any]:
+    isolated_localappdata = work_root / "AppData" / "Local"
+    isolated_localappdata.mkdir(parents=True, exist_ok=True)
+    previous = os.environ.get("LOCALAPPDATA")
+    os.environ["LOCALAPPDATA"] = str(isolated_localappdata)
+    try:
+        return _run_smoke_in_root(app_root=app_root, pipeline_path=pipeline_path, work_root=work_root)
+    finally:
+        if previous is None:
+            os.environ.pop("LOCALAPPDATA", None)
+        else:
+            os.environ["LOCALAPPDATA"] = previous
 
 
 def _print_summary(summary: dict[str, Any]) -> None:

@@ -266,6 +266,27 @@ class LocalApiSettingsCommandPayloadMixin:
             payload = {**payload, "data": data, "warnings": warnings}
         return payload
 
+    def _settings_import_psd1_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        _ = request
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.import_psd1_preview", "settings")
+        return self.facade.preview_settings_psd1_import(resolved).to_mapping()
+
+    def _settings_import_psd1_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("settings.import_psd1", "settings")
+        payload = self.facade.import_settings_psd1(resolved, request).to_mapping()
+        if payload.get("ok") and self.resolved_reload is not None:
+            try:
+                reloaded = self.resolved_reload()
+                payload = settings_save_reload_success_payload(payload, reloaded)
+            except Exception as exc:
+                self.logger.exception("local API settings PSD1 import reload failed")
+                payload = settings_save_reload_failure_payload(payload, exc)
+        return payload
+
     def _settings_wizard_validate_paths_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         return self.facade.validate_settings_wizard_paths(request).to_mapping()
 
