@@ -1230,6 +1230,7 @@
       "/api/rename/browse",
       "/api/rename/filter-cases",
       "/api/rename/preview",
+      "/api/rename/undo",
       "/api/rerun/start",
       "/api/sample-validation/append",
       "/api/sample-validation/preview",
@@ -1590,9 +1591,11 @@
       "rename-apply-button",
       "rename-apply-outcome-rows",
       "rename-apply-outcome-status",
+      "rename-apply-progress-bars",
       "rename-apply-readiness-rows",
       "rename-apply-selected-button",
       "rename-apply-status-hint",
+      "rename-apply-status-panel",
       "rename-browse-files-button",
       "rename-browse-folder-button",
       "rename-bulk-clear-button",
@@ -1610,6 +1613,7 @@
       "rename-clear-checks-button",
       "rename-clear-override-button",
       "rename-clear-paths-button",
+      "rename-confirm-apply-button",
       "rename-confirm-cancel-button",
       "rename-confirm-count",
       "rename-confirm-list",
@@ -1646,6 +1650,8 @@
       "rename-start",
       "rename-table-legend",
       "rename-template-preset",
+      "rename-undo-button",
+      "rename-undo-status",
       "rename-use-loaded-queue-button",
       "rename-use-selected-queue-button",
       "report-audit-export-rerun-csv-button",
@@ -1833,7 +1839,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3763
+    "top_level_declaration_count": 3799
   },
   "scripts": [
     {
@@ -9253,778 +9259,958 @@
           "kind": "let"
         },
         {
-          "name": "renameBadCaseInFlight",
+          "name": "renameUndoInFlight",
           "line": 41,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterEventsBound",
+          "name": "renameBadCaseInFlight",
           "line": 42,
           "kind": "let"
         },
         {
-          "name": "lastRenamePreviewSignature",
+          "name": "lastRenameApplyHadResult",
           "line": 43,
           "kind": "let"
         },
         {
-          "name": "renamePreviewStale",
+          "name": "lastRenameUndoManifest",
           "line": 44,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterSaveMessage",
+          "name": "lastRenameUndoCompleted",
           "line": 45,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterSaveMessageUntil",
+          "name": "lastRenameApplyResultPayload",
           "line": 46,
           "kind": "let"
         },
         {
-          "name": "checkedRenameSourceKeys",
+          "name": "renameCommandActivityTimer",
           "line": 47,
+          "kind": "let"
+        },
+        {
+          "name": "renameCommandActivityState",
+          "line": 48,
+          "kind": "let"
+        },
+        {
+          "name": "renameCleaningFilterEventsBound",
+          "line": 49,
+          "kind": "let"
+        },
+        {
+          "name": "lastRenamePreviewSignature",
+          "line": 50,
+          "kind": "let"
+        },
+        {
+          "name": "renamePreviewStale",
+          "line": 51,
+          "kind": "let"
+        },
+        {
+          "name": "renameCleaningFilterSaveMessage",
+          "line": 52,
+          "kind": "let"
+        },
+        {
+          "name": "renameCleaningFilterSaveMessageUntil",
+          "line": 53,
+          "kind": "let"
+        },
+        {
+          "name": "checkedRenameSourceKeys",
+          "line": 54,
           "kind": "const"
         },
         {
           "name": "renamePathOrigins",
-          "line": 48,
+          "line": 55,
           "kind": "const"
         },
         {
           "name": "byAnyId",
-          "line": 50,
+          "line": 57,
           "kind": "function"
         },
         {
           "name": "renameCleaningNode",
-          "line": 58,
+          "line": 65,
           "kind": "function"
         },
         {
           "name": "collectRenameRequest",
-          "line": 62,
+          "line": 69,
           "kind": "function"
         },
         {
           "name": "renameRequestSignatureFromRequest",
-          "line": 84,
+          "line": 91,
           "kind": "function"
         },
         {
           "name": "renameCurrentRequestSignature",
-          "line": 88,
+          "line": 95,
           "kind": "function"
         },
         {
           "name": "renamePreviewStatusText",
-          "line": 92,
+          "line": 99,
           "kind": "function"
         },
         {
           "name": "updateRenamePreviewFreshnessState",
-          "line": 96,
+          "line": 103,
           "kind": "function"
         },
         {
           "name": "renameMarkInputChanged",
-          "line": 111,
+          "line": 118,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterTextareas",
-          "line": 116,
+          "line": 123,
           "kind": "function"
         },
         {
           "name": "renameTvFilterTextareas",
-          "line": 120,
+          "line": 127,
           "kind": "function"
         },
         {
           "name": "renameMovieFilterCheckboxes",
-          "line": 124,
+          "line": 131,
           "kind": "function"
         },
         {
           "name": "renameTvFilterCheckboxes",
-          "line": 128,
+          "line": 135,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterOptions",
-          "line": 132,
+          "line": 139,
           "kind": "function"
         },
         {
           "name": "collectRenameTvFilterOptions",
-          "line": 141,
+          "line": 148,
           "kind": "function"
         },
         {
           "name": "parseRenameFilterTerms",
-          "line": 150,
+          "line": 157,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterTermsText",
-          "line": 163,
+          "line": 170,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterTerms",
-          "line": 172,
+          "line": 179,
           "kind": "function"
         },
         {
           "name": "collectRenameTvFilterTermsText",
-          "line": 180,
+          "line": 187,
           "kind": "function"
         },
         {
           "name": "collectRenameTvFilterTerms",
-          "line": 189,
+          "line": 196,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterState",
-          "line": 197,
+          "line": 204,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterConfigPatch",
-          "line": 208,
+          "line": 215,
           "kind": "function"
         },
         {
           "name": "renderRenameCleaningFilterEditor",
-          "line": 219,
+          "line": 226,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFilterDraft",
-          "line": 247,
+          "line": 254,
           "kind": "function"
         },
         {
           "name": "stageRenameCleaningFilterPatch",
-          "line": 261,
+          "line": 268,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFilterState",
-          "line": 286,
+          "line": 293,
           "kind": "function"
         },
         {
           "name": "resetRenameCleaningFilters",
-          "line": 314,
+          "line": 321,
           "kind": "function"
         },
         {
           "name": "loadRenameCleaningFilterState",
-          "line": 337,
+          "line": 344,
           "kind": "function"
         },
         {
           "name": "applyRenameFilterCatalogSection",
-          "line": 381,
+          "line": 388,
           "kind": "function"
         },
         {
           "name": "loadRenameMovieFilterCatalog",
-          "line": 421,
+          "line": 428,
           "kind": "function"
         },
         {
           "name": "renameCleanFilenamePreviewQuery",
-          "line": 450,
+          "line": 457,
           "kind": "function"
         },
         {
           "name": "renderRenameFilterPreviewPayload",
-          "line": 468,
+          "line": 475,
           "kind": "function"
         },
         {
           "name": "updateRenameFilterPreview",
-          "line": 500,
+          "line": 507,
           "kind": "function"
         },
         {
           "name": "initRenameCleaningFilterEditorEvents",
-          "line": 545,
+          "line": 552,
           "kind": "function"
         },
         {
           "name": "renameSourceKey",
-          "line": 595,
+          "line": 602,
           "kind": "function"
         },
         {
           "name": "getSelectedRenameRow",
-          "line": 599,
+          "line": 606,
           "kind": "function"
         },
         {
           "name": "getCheckedRenameRows",
-          "line": 604,
+          "line": 611,
           "kind": "function"
         },
         {
           "name": "renameRenderedRowsCount",
-          "line": 608,
+          "line": 615,
           "kind": "function"
         },
         {
           "name": "renameRenderCapText",
-          "line": 613,
+          "line": 620,
           "kind": "function"
         },
         {
           "name": "renameStatusState",
-          "line": 619,
+          "line": 626,
           "kind": "function"
         },
         {
           "name": "setRenameStatusLine",
-          "line": 629,
+          "line": 636,
           "kind": "function"
         },
         {
           "name": "renameRowStatus",
-          "line": 635,
+          "line": 642,
           "kind": "function"
         },
         {
           "name": "renameRowHasWarnings",
-          "line": 639,
+          "line": 646,
           "kind": "function"
         },
         {
           "name": "renameDuplicateTargetSet",
-          "line": 643,
+          "line": 650,
           "kind": "function"
         },
         {
           "name": "renameTargetKey",
-          "line": 648,
+          "line": 655,
           "kind": "function"
         },
         {
           "name": "renameAutoCheckSkipReason",
-          "line": 652,
+          "line": 659,
           "kind": "function"
         },
         {
           "name": "updateRenameTableLegend",
-          "line": 660,
+          "line": 667,
           "kind": "function"
         },
         {
           "name": "renameCurrentFinalName",
-          "line": 670,
+          "line": 677,
           "kind": "function"
         },
         {
           "name": "renameRowCanApply",
-          "line": 675,
+          "line": 682,
           "kind": "function"
         },
         {
           "name": "renameImportantRowReason",
-          "line": 681,
+          "line": 688,
           "kind": "function"
         },
         {
           "name": "renameRowStatusDisplay",
-          "line": 693,
-          "kind": "function"
-        },
-        {
-          "name": "getRenameApplyScopeRows",
           "line": 700,
           "kind": "function"
         },
         {
+          "name": "getRenameApplyScopeRows",
+          "line": 707,
+          "kind": "function"
+        },
+        {
           "name": "syncRenameCheckedCount",
-          "line": 706,
+          "line": 713,
           "kind": "function"
         },
         {
           "name": "setRenameRowChecked",
-          "line": 719,
+          "line": 726,
           "kind": "function"
         },
         {
           "name": "setRenameRowCheckedFromCheckbox",
-          "line": 727,
+          "line": 734,
           "kind": "function"
         },
         {
           "name": "checkApplicableRenameRows",
-          "line": 732,
+          "line": 739,
           "kind": "function"
         },
         {
           "name": "checkAllRenameRows",
-          "line": 755,
+          "line": 762,
           "kind": "function"
         },
         {
           "name": "clearCheckedRenameRows",
-          "line": 781,
+          "line": 788,
           "kind": "function"
         },
         {
           "name": "renamePathLines",
-          "line": 791,
+          "line": 798,
           "kind": "function"
         },
         {
           "name": "setRenamePathLines",
-          "line": 795,
+          "line": 802,
           "kind": "function"
         },
         {
           "name": "renameSourcePathFromRow",
-          "line": 803,
+          "line": 810,
           "kind": "function"
         },
         {
           "name": "renameSourceLabelFromRow",
-          "line": 807,
+          "line": 814,
           "kind": "function"
         },
         {
           "name": "renamePathSegments",
-          "line": 811,
+          "line": 818,
           "kind": "function"
         },
         {
           "name": "renameFileLeafFromPath",
-          "line": 815,
+          "line": 822,
           "kind": "function"
         },
         {
           "name": "renameParentFolderLeafFromPath",
-          "line": 820,
+          "line": 827,
           "kind": "function"
         },
         {
           "name": "renameFolderLeafFromValue",
-          "line": 825,
+          "line": 832,
           "kind": "function"
         },
         {
           "name": "renameExpectedShowFromName",
-          "line": 830,
+          "line": 837,
           "kind": "function"
         },
         {
           "name": "renameExpectedSeasonFromName",
-          "line": 835,
+          "line": 842,
           "kind": "function"
         },
         {
           "name": "renameSeasonNumberFromWorkbench",
-          "line": 840,
-          "kind": "function"
-        },
-        {
-          "name": "compactRenameNote",
           "line": 847,
           "kind": "function"
         },
         {
+          "name": "compactRenameNote",
+          "line": 854,
+          "kind": "function"
+        },
+        {
           "name": "renameBadCasePayloadFromRow",
-          "line": 851,
+          "line": 858,
           "kind": "function"
         },
         {
           "name": "submitRenameBadCasePayload",
-          "line": 881,
-          "kind": "function"
-        },
-        {
-          "name": "setRenameBadCaseBusy",
           "line": 888,
           "kind": "function"
         },
         {
+          "name": "setRenameBadCaseBusy",
+          "line": 895,
+          "kind": "function"
+        },
+        {
           "name": "renameLogCaseInput",
-          "line": 898,
+          "line": 905,
           "kind": "function"
         },
         {
           "name": "setRenameLogCaseInputValue",
-          "line": 902,
+          "line": 909,
           "kind": "function"
         },
         {
           "name": "renameBadCaseDialogOverrides",
-          "line": 907,
+          "line": 914,
           "kind": "function"
         },
         {
           "name": "syncRenameBadCaseButton",
-          "line": 920,
+          "line": 927,
           "kind": "function"
         },
         {
           "name": "openRenameBadCaseDialog",
-          "line": 931,
+          "line": 938,
           "kind": "function"
         },
         {
           "name": "submitRenameBadCaseDialog",
-          "line": 955,
+          "line": 962,
           "kind": "function"
         },
         {
           "name": "renameCurrentPathValues",
-          "line": 987,
+          "line": 994,
           "kind": "function"
         },
         {
           "name": "renamePathLeaf",
-          "line": 991,
+          "line": 998,
           "kind": "function"
         },
         {
           "name": "renamePathExtension",
-          "line": 996,
+          "line": 1003,
           "kind": "function"
         },
         {
           "name": "renameIsSidecarPath",
-          "line": 1002,
+          "line": 1009,
           "kind": "function"
         },
         {
           "name": "classifyRenamePathValues",
-          "line": 1007,
+          "line": 1014,
           "kind": "function"
         },
         {
           "name": "renameLooksLikeAbsolutePath",
-          "line": 1040,
+          "line": 1047,
           "kind": "function"
         },
         {
           "name": "normalizeRenameDroppedPathValues",
-          "line": 1049,
+          "line": 1056,
           "kind": "function"
         },
         {
           "name": "renameDroppedPathFromFile",
-          "line": 1062,
+          "line": 1069,
           "kind": "function"
         },
         {
           "name": "renameDroppedPathValuesFromDataTransfer",
-          "line": 1072,
+          "line": 1079,
           "kind": "function"
         },
         {
           "name": "renameDroppedPathValuesFromBridgeDetail",
-          "line": 1078,
+          "line": 1085,
           "kind": "function"
         },
         {
           "name": "handleRenameDroppedPaths",
-          "line": 1083,
+          "line": 1090,
           "kind": "function"
         },
         {
           "name": "renameDropZoneIsVisible",
-          "line": 1135,
+          "line": 1142,
           "kind": "function"
         },
         {
           "name": "renamePathOriginKey",
-          "line": 1140,
+          "line": 1147,
           "kind": "function"
         },
         {
           "name": "rememberRenamePathOrigins",
-          "line": 1144,
+          "line": 1151,
           "kind": "function"
         },
         {
           "name": "pruneRenamePathOrigins",
-          "line": 1153,
-          "kind": "function"
-        },
-        {
-          "name": "renamePathOriginCounts",
           "line": 1160,
           "kind": "function"
         },
         {
+          "name": "renamePathOriginCounts",
+          "line": 1167,
+          "kind": "function"
+        },
+        {
           "name": "renamePathOriginSummary",
-          "line": 1169,
+          "line": 1176,
           "kind": "function"
         },
         {
           "name": "renderRenameFileSourceSummary",
-          "line": 1177,
+          "line": 1184,
           "kind": "function"
         },
         {
           "name": "appendRenamePaths",
-          "line": 1209,
+          "line": 1216,
           "kind": "function"
         },
         {
           "name": "renameIgnoredPathSuffix",
-          "line": 1234,
-          "kind": "function"
-        },
-        {
-          "name": "appendResolvedRenameBrowsePaths",
           "line": 1241,
           "kind": "function"
         },
         {
+          "name": "appendResolvedRenameBrowsePaths",
+          "line": 1248,
+          "kind": "function"
+        },
+        {
           "name": "addRenamePathFromInput",
-          "line": 1246,
+          "line": 1253,
           "kind": "function"
         },
         {
           "name": "browseRenamePaths",
-          "line": 1259,
+          "line": 1266,
           "kind": "function"
         },
         {
           "name": "clearRenamePaths",
-          "line": 1306,
+          "line": 1313,
           "kind": "function"
         },
         {
           "name": "useSelectedQueueRowForRename",
-          "line": 1334,
+          "line": 1341,
           "kind": "function"
         },
         {
           "name": "useLoadedQueueRowsForRename",
-          "line": 1346,
+          "line": 1353,
           "kind": "function"
         },
         {
           "name": "renameLineKey",
-          "line": 1358,
+          "line": 1365,
           "kind": "function"
         },
         {
           "name": "checkedOrSelectedRenameKeys",
-          "line": 1362,
+          "line": 1369,
           "kind": "function"
         },
         {
           "name": "moveCheckedRenamePaths",
-          "line": 1367,
+          "line": 1374,
           "kind": "function"
         },
         {
           "name": "naturalCompareText",
-          "line": 1401,
+          "line": 1408,
           "kind": "function"
         },
         {
           "name": "naturalSortRenamePaths",
-          "line": 1416,
+          "line": 1423,
           "kind": "function"
         },
         {
           "name": "syncRenameSelectedInputs",
-          "line": 1425,
+          "line": 1432,
           "kind": "function"
         },
         {
           "name": "captureRenameSelectionScroll",
-          "line": 1433,
+          "line": 1440,
           "kind": "function"
         },
         {
           "name": "restoreRenameSelectionScroll",
-          "line": 1437,
+          "line": 1444,
           "kind": "function"
         },
         {
           "name": "selectRenameRow",
-          "line": 1441,
+          "line": 1448,
           "kind": "function"
         },
         {
           "name": "renamePreviewSlice",
-          "line": 1452,
+          "line": 1459,
           "kind": "const"
         },
         {
           "name": "renameBulkScopeRows",
-          "line": 1482,
+          "line": 1489,
           "kind": "function"
         },
         {
           "name": "renameBulkScopeLabel",
-          "line": 1492,
-          "kind": "function"
-        },
-        {
-          "name": "renameSplitFilename",
           "line": 1499,
           "kind": "function"
         },
         {
-          "name": "renameBulkEditedName",
+          "name": "renameSplitFilename",
           "line": 1506,
           "kind": "function"
         },
         {
+          "name": "renameBulkEditedName",
+          "line": 1513,
+          "kind": "function"
+        },
+        {
           "name": "renameBulkHasEditInput",
-          "line": 1518,
+          "line": 1525,
           "kind": "function"
         },
         {
           "name": "renameNameHasPathSeparator",
-          "line": 1526,
+          "line": 1533,
           "kind": "function"
         },
         {
           "name": "renameSetFinalOverride",
-          "line": 1530,
+          "line": 1537,
           "kind": "function"
         },
         {
           "name": "renderRenameBulkEditor",
-          "line": 1539,
+          "line": 1546,
           "kind": "function"
         },
         {
           "name": "stageRenameBulkEdit",
-          "line": 1557,
+          "line": 1564,
           "kind": "function"
         },
         {
           "name": "usePipelineNamesForRenameScope",
-          "line": 1587,
+          "line": 1594,
           "kind": "function"
         },
         {
           "name": "setRenameBulkForce",
-          "line": 1598,
+          "line": 1605,
           "kind": "function"
         },
         {
           "name": "clearRenameBulkOverrides",
-          "line": 1614,
+          "line": 1621,
           "kind": "function"
         },
         {
           "name": "renameApplyReadinessSlice",
-          "line": 1629,
+          "line": 1636,
           "kind": "const"
         },
         {
           "name": "applyRenameSelectedOverride",
-          "line": 1659,
+          "line": 1666,
           "kind": "function"
         },
         {
           "name": "clearRenameSelectedOverride",
-          "line": 1674,
+          "line": 1681,
           "kind": "function"
         },
         {
           "name": "replaceRenamePathText",
-          "line": 1690,
+          "line": 1697,
           "kind": "function"
         },
         {
           "name": "renameApplyResultSlice",
-          "line": 1714,
+          "line": 1721,
           "kind": "const"
         },
         {
-          "name": "resetRenameApplyEvidence",
-          "line": 1736,
+          "name": "renameApplyPayloadFromResult",
+          "line": 1744,
           "kind": "function"
         },
         {
-          "name": "applySelectedRename",
-          "line": 1745,
-          "kind": "function"
-        },
-        {
-          "name": "renderRenamePreview",
+          "name": "renameUndoManifestFromApplyResult",
           "line": 1749,
           "kind": "function"
         },
         {
+          "name": "renameElapsedText",
+          "line": 1755,
+          "kind": "function"
+        },
+        {
+          "name": "stopRenameCommandActivity",
+          "line": 1763,
+          "kind": "function"
+        },
+        {
+          "name": "scheduleRenameCommandActivityTick",
+          "line": 1771,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameCommandActivity",
+          "line": 1782,
+          "kind": "function"
+        },
+        {
+          "name": "startRenameCommandActivity",
+          "line": 1811,
+          "kind": "function"
+        },
+        {
+          "name": "syncRenameUndoButton",
+          "line": 1832,
+          "kind": "function"
+        },
+        {
+          "name": "syncRenameApplyStatusPanelFromResult",
+          "line": 1852,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameApplyResult",
+          "line": 1870,
+          "kind": "function"
+        },
+        {
+          "name": "renameFiniteNumber",
+          "line": 1891,
+          "kind": "function"
+        },
+        {
+          "name": "renameLastApplyUndoCounts",
+          "line": 1896,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameUndoCompletionProgress",
+          "line": 1911,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameUndoResult",
+          "line": 1943,
+          "kind": "function"
+        },
+        {
+          "name": "resetRenameApplyEvidence",
+          "line": 1982,
+          "kind": "function"
+        },
+        {
+          "name": "applySelectedRename",
+          "line": 1991,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenamePreview",
+          "line": 1995,
+          "kind": "function"
+        },
+        {
           "name": "renderRenameRows",
-          "line": 1774,
+          "line": 2020,
           "kind": "function"
         },
         {
           "name": "setRenamePreviewBusy",
-          "line": 1846,
+          "line": 2092,
           "kind": "function"
         },
         {
           "name": "setRenameApplyBusy",
-          "line": 1851,
+          "line": 2097,
+          "kind": "function"
+        },
+        {
+          "name": "setRenameUndoBusy",
+          "line": 2103,
           "kind": "function"
         },
         {
           "name": "syncRenameCommandButtons",
-          "line": 1856,
+          "line": 2109,
           "kind": "function"
         },
         {
           "name": "refreshRenamePreview",
-          "line": 1939,
+          "line": 2193,
           "kind": "function"
         },
         {
           "name": "renameDialogById",
-          "line": 2121,
+          "line": 2377,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmBasename",
+          "line": 2382,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmSourceName",
+          "line": 2389,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmTargetName",
+          "line": 2393,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmSidecarCount",
+          "line": 2398,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmRowState",
+          "line": 2404,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmStatusToken",
+          "line": 2413,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmSequenceText",
+          "line": 2420,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmCounts",
+          "line": 2429,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmAppendText",
+          "line": 2448,
+          "kind": "function"
+        },
+        {
+          "name": "renameConfirmStatusBadge",
+          "line": 2456,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameConfirmSummary",
+          "line": 2466,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameUndoConfirmSummary",
+          "line": 2560,
           "kind": "function"
         },
         {
           "name": "renameOpenConfirmDialog",
-          "line": 2126,
+          "line": 2600,
+          "kind": "function"
+        },
+        {
+          "name": "renameOpenUndoConfirmDialog",
+          "line": 2648,
           "kind": "function"
         },
         {
           "name": "renameOpenResultDialog",
-          "line": 2201,
+          "line": 2694,
           "kind": "function"
         },
         {
           "name": "renameApplicablePreviewRows",
-          "line": 2302,
+          "line": 2869,
           "kind": "function"
         },
         {
           "name": "applyRenameWorkbench",
-          "line": 2306,
+          "line": 2873,
+          "kind": "function"
+        },
+        {
+          "name": "undoLastRenameApply",
+          "line": 2934,
           "kind": "function"
         },
         {
           "name": "renameSyncModeFieldVisibility",
-          "line": 2364,
+          "line": 2971,
           "kind": "function"
         },
         {
           "name": "renameInitDropZone",
-          "line": 2380,
+          "line": 2987,
           "kind": "function"
         },
         {
           "name": "renameInitWorkbenchEvents",
-          "line": 2419,
+          "line": 3026,
           "kind": "function"
         }
       ],
@@ -10036,13 +10222,16 @@
         "/api/rename/apply",
         "/api/rename/browse",
         "/api/rename/filter-cases",
-        "/api/rename/preview"
+        "/api/rename/preview",
+        "/api/rename/undo"
       ],
       "dom_ids_touched": [
         "rename-add-path-button",
         "rename-add-path-input",
         "rename-apply-button",
+        "rename-apply-progress-bars",
         "rename-apply-status-hint",
+        "rename-apply-status-panel",
         "rename-browse-files-button",
         "rename-browse-folder-button",
         "rename-bulk-find",
@@ -10054,6 +10243,7 @@
         "rename-check-applicable-button",
         "rename-clear-checks-button",
         "rename-clear-paths-button",
+        "rename-confirm-apply-button",
         "rename-confirm-cancel-button",
         "rename-confirm-count",
         "rename-confirm-list",
@@ -10087,6 +10277,8 @@
         "rename-start",
         "rename-table-legend",
         "rename-template-preset",
+        "rename-undo-button",
+        "rename-undo-status",
         "rename-use-loaded-queue-button",
         "rename-use-selected-queue-button",
         "settings-patch-json",

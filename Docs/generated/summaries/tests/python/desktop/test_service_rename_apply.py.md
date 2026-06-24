@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 9da7589d7d0169a2458462b2492632dd48152112cae881b0ac7fad38429542c8
+sha256: 3b9d1ac0b7389b92ba65fbd5e68cbc16c808ccc4b4b547531c9d624e8bc63eae
 ---
 # `tests/python/desktop/test_service_rename_apply.py`
 

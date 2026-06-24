@@ -111,6 +111,7 @@ STAGE_REGISTRY: dict[StageName, StageContract] = {
         IngestResult,
         "pipeline.stage.ingest",
         mutation_capable=True,
+        enabled_in_entrypoint=True,
     ),
     StageName.probe: StageContract(
         ProbePayload,

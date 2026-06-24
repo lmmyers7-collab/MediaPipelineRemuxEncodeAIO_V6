@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from pydantic import Field, model_validator
+from pydantic import Field, StrictBool, model_validator
 
 from .stage_base import MutationIntent, StageContractModel, StageData, StagePayload
 from .stage_decide import DecideResult
@@ -12,12 +12,26 @@ from .stage_decide import DecideResult
 class IngestPayload(StagePayload):
     source_path: str = Field(min_length=1)
     scratch_root: str = Field(min_length=1)
-    intent: Literal["copy_to_scratch"]
+    operation: Literal["copy_to_scratch"] = "copy_to_scratch"
+    intent: MutationIntent
+    confirm_ingest: StrictBool = False
+
+    @model_validator(mode="after")
+    def _require_execute_confirmation(self) -> IngestPayload:
+        if self.intent == "execute" and not self.confirm_ingest:
+            raise ValueError("Ingest execute intent requires confirm_ingest=true.")
+        return self
 
 class IngestResult(StageData):
     scratch_path: str = ""
     size_bytes: int = Field(default=0, ge=0)
     sha256: str = ""
+    source_sha256: str = ""
+    source_unchanged: bool = False
+    evidence_path: str = ""
+    rollback_actions: list[str] = Field(default_factory=list)
+    recovery_actions: list[str] = Field(default_factory=list)
+    boundary_checks: list[str] = Field(default_factory=list)
 
 class TranscodePayload(StagePayload):
     scratch_path: str = Field(min_length=1)
@@ -30,7 +44,7 @@ class TranscodePayload(StagePayload):
     extra_video_flags: list[str] = Field(default_factory=list)
     timeout_seconds: int = Field(default=21600, ge=1)
     intent: MutationIntent
-    confirm_transcode: bool = False
+    confirm_transcode: StrictBool = False
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> TranscodePayload:
@@ -60,7 +74,7 @@ class SubtitleConvertPayload(StagePayload):
     bdpgs_ocr_tool_path: str = ""
     bdpgs_ocr_tessdata_path: str = ""
     intent: MutationIntent
-    confirm_subtitle_convert: bool = False
+    confirm_subtitle_convert: StrictBool = False
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> SubtitleConvertPayload:
@@ -84,7 +98,7 @@ class AudioMixPayload(StagePayload):
     compatible_audio_codecs: list[str] = Field(default_factory=list)
     preferred_default_languages: list[str] = Field(default_factory=list)
     intent: MutationIntent
-    confirm_audio_mix: bool = False
+    confirm_audio_mix: StrictBool = False
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> AudioMixPayload:
@@ -107,7 +121,7 @@ class PublishPayload(StagePayload):
     robocopy_flags: list[str] = Field(default_factory=list)
     min_free_space_gb: int = Field(default=50, ge=0)
     intent: MutationIntent
-    confirm_publish: bool = False
+    confirm_publish: StrictBool = False
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> PublishPayload:
@@ -127,7 +141,7 @@ class DrainPayload(StagePayload):
     allow_overwrite: bool = False
     parallelism: int = Field(default=1, ge=1)
     intent: MutationIntent
-    confirm_drain: bool = False
+    confirm_drain: StrictBool = False
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> DrainPayload:
@@ -147,7 +161,7 @@ class RenamePayload(StagePayload):
     aggressive_episode_parsing: bool = False
     is_tv: bool = False
     intent: MutationIntent
-    confirm_apply: bool = False
+    confirm_apply: StrictBool = False
 
     @model_validator(mode="after")
     def _require_execute_confirmation(self) -> RenamePayload:

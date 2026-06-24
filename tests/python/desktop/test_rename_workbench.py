@@ -120,6 +120,8 @@ class RenameWorkbenchHtmlTests(unittest.TestCase):
         self.assertIn('id="rename-result-dialog"', self.html)
         for counter in ("rename-result-success", "rename-result-unchanged", "rename-result-failed", "rename-result-skipped", "rename-result-protected"):
             self.assertIn(counter, self.html)
+        for label in ("rename-result-success-label", "rename-result-unchanged-label", "rename-result-protected-label"):
+            self.assertIn(label, self.html)
         self.assertIn('id="rename-result-errors"', self.html)
 
     def test_apply_button_lives_in_preview_section(self) -> None:
@@ -239,11 +241,19 @@ class RenameWorkbenchJsTests(unittest.TestCase):
 
     def test_undo_last_apply_button_posts_backend_command(self) -> None:
         self.assertIn("undoLastRenameApply", self.js)
+        self.assertIn("renameOpenUndoConfirmDialog", self.js)
         self.assertIn('apiPost("/api/rename/undo"', self.js)
         self.assertIn("confirm_undo: true", self.js)
         self.assertIn("lastRenameUndoManifest = payload.ok ? renameUndoManifestFromApplyResult(payload) : \"\";", self.js)
         self.assertIn('if (undoButton) undoButton.addEventListener("click", () => undoLastRenameApply());', self.js)
+        self.assertIn("Undo canceled. No rename.undo request was sent.", self.js)
         self.assertIn("syncRenameUndoButton", self.js)
+
+    def test_rename_apply_uses_honest_inflight_activity(self) -> None:
+        self.assertIn("startRenameCommandActivity", self.js)
+        self.assertIn("This is command activity, not row-by-row progress.", self.js)
+        self.assertIn("Undoing last apply... waiting for backend result", self.js)
+        self.assertNotIn("mode: \"indeterminate\"", _read(STATIC_ROOT / "assets" / "rename" / "applyResult.js"))
 
 
 class RenameBackendBrowseModeTests(unittest.TestCase):

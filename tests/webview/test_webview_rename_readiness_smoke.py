@@ -48,13 +48,25 @@ def _rename_readiness_runner_source() -> str:
             value: "",
             checked: false,
             disabled: false,
+            hidden: false,
+            open: false,
+            returnValue: "",
             colSpan: 0,
             dataset: {},
             style: {},
             children: [],
             classList: makeClassList(),
-            appendChild(child) { this.children.push(child); child.parentNode = this; return child; },
-            replaceChildren(...children) { this.children = children; children.forEach((child) => { child.parentNode = this; }); },
+            appendChild(child) {
+              this.children.push(child);
+              child.parentNode = this;
+              this.textContent = this.children.map((item) => item?.textContent || "").join("");
+              return child;
+            },
+            replaceChildren(...children) {
+              this.children = children;
+              children.forEach((child) => { child.parentNode = this; });
+              this.textContent = children.map((item) => item?.textContent || "").join("");
+            },
             querySelectorAll(selector) {
               if (selector === 'tr[data-selectable-row="true"]') {
                 return this.children.filter((child) => child?.dataset?.selectableRow === "true");
@@ -81,6 +93,12 @@ def _rename_readiness_runner_source() -> str:
               if (this.type === "checkbox" && !this.disabled) this.dispatchEvent({ type: "change", target: this });
             },
             setAttribute(name, value) { this[name] = String(value); },
+            showModal() { this.open = true; },
+            close(value = "") {
+              this.returnValue = String(value || "");
+              this.open = false;
+              this.dispatchEvent({ type: "close", target: this });
+            },
             scrollIntoView() {},
             focus() {},
           };
@@ -432,37 +450,56 @@ def _rename_readiness_runner_source() -> str:
           throw new Error("undo button did not expose manifest evidence in its title: " + String(undoButton.title || ""));
         }
         const undoPosts = [];
+        let resolveUndoPost = null;
+        const delayedUndoPost = new Promise((resolve) => { resolveUndoPost = resolve; });
         const undoOriginalApiPost = context.apiPost;
         context.apiPost = async (url, body = {}) => {
           undoPosts.push({ url: String(url || ""), body: JSON.parse(JSON.stringify(body || {})) });
-          if (String(url || "") === "/api/rename/undo") {
-            return {
-              command: "rename.undo",
-              ok: true,
-              message: "Undo completed.",
-              data: {
-                schema_version: "desktop_rename_undo_result.v1",
-                media_operations: 1,
-                sidecar_operations: 1,
-                undone: 2,
-                skipped: 0,
-                failed: 0,
-                undo_manifest: "C:/State/Rename/undo.json",
-                rows: [{ source: first.destination, destination: first.source, status: "undone", kind: "media" }],
-              },
-            };
-          }
+          if (String(url || "") === "/api/rename/undo") return delayedUndoPost;
           if (String(url || "") === "/api/rename/preview") return { rows: [], counts: {} };
           return { command: "unexpected", ok: false, message: "unexpected " + String(url || "") };
         };
-        await context.mediaPipelineRenameView.undoLastRenameApply();
+        const cancelUndo = context.mediaPipelineRenameView.undoLastRenameApply();
+        const confirmDialog = context.document.getElementById("rename-confirm-dialog");
+        if (!confirmDialog.open) throw new Error("undo confirmation dialog did not open before posting");
+        requireContains("undo confirm title", text("rename-confirm-title"), ["Confirm undo rename"]);
+        requireContains("undo confirm count", text("rename-confirm-count"), ["Undo last apply", "2 operations"]);
+        requireContains("undo confirm button", text("rename-confirm-apply-button"), ["Undo Last Apply"]);
+        confirmDialog.close("cancel");
+        await cancelUndo;
+        if (undoPosts.some((entry) => entry.url === "/api/rename/undo")) {
+          throw new Error("canceling undo confirmation still posted /api/rename/undo");
+        }
+        requireContains("undo status after cancel", text("rename-undo-status"), ["Undo available for the last apply"]);
+        const confirmUndo = context.mediaPipelineRenameView.undoLastRenameApply();
+        if (!confirmDialog.open) throw new Error("second undo confirmation dialog did not open");
+        confirmDialog.close("confirm");
+        await Promise.resolve();
+        requireContains("undo activity", text("rename-apply-progress-bars"), ["Undoing last apply... waiting for backend result", "elapsed"]);
+        resolveUndoPost({
+          command: "rename.undo",
+          ok: true,
+          message: "Undo completed.",
+          data: {
+            schema_version: "desktop_rename_undo_result.v1",
+            media_operations: 1,
+            sidecar_operations: 1,
+            undone: 2,
+            skipped: 0,
+            failed: 0,
+            undo_manifest: "C:/State/Rename/undo.json",
+            rows: [{ source: first.destination, destination: first.source, status: "undone", kind: "media" }],
+          },
+        });
+        await confirmUndo;
         context.apiPost = undoOriginalApiPost;
         const undoPost = undoPosts.find((entry) => entry.url === "/api/rename/undo");
         if (!undoPost) throw new Error("undo button flow did not post /api/rename/undo");
         if (undoPost.body.confirm_undo !== true) throw new Error("undo post omitted confirm_undo=true: " + JSON.stringify(undoPost.body));
         if (undoPost.body.undo_manifest !== "C:/State/Rename/undo.json") throw new Error("undo post used wrong manifest: " + JSON.stringify(undoPost.body));
-        requireContains("undo result summary", text("rename-apply-status-summary"), ["2 undone / 0 skipped"]);
+        requireContains("undo result summary", text("rename-apply-status-summary"), ["2 restored / 0 skipped"]);
         requireContains("undo status completed", text("rename-undo-status"), ["Undo completed"]);
+        requireContains("undo progress result", text("rename-apply-progress-bars"), ["Rename undo", "complete", "100%", "2 restored / 0 skipped / 0 failed"]);
         if (!undoButton.disabled) throw new Error("undo button was not disabled after successful undo");
 
         const largeRows = Array.from({ length: 260 }, (_value, index) => {

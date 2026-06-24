@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0623-080",
+  "title": "Rename apply undo confirmation honest progress",
+  "version_target": "2026.06.24.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Added an undo confirmation step, operation-aware undo result messaging, and truthful in-flight command activity for synchronous rename apply/undo commands.",
+  "reason": "Undo was available but posted immediately without the same confirmation affordance as apply, and the in-flight UI reused an indeterminate progress bar that looked like file progress even though the backend command is synchronous.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Undo Last Apply immediately posted /api/rename/undo, undo completion reused apply-oriented result copy, and apply/undo in-flight states could leave or render progress bars that implied row-level progress.",
+  "behavior_after": "Undo Last Apply opens a compact confirmation modal, canceling undo does not post to the backend, confirmed undo shows a command activity state while waiting, and final apply/undo results render only after backend evidence is returned.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/rename/applyResult.js",
+    "apps/desktop/webview/static/assets/renameView.js",
+    "apps/desktop/webview/static/assets/styles.rename.css",
+    "apps/desktop/webview/static/partials/page-rename.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/rename/applyResult.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/renameView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.rename.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-rename.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-080.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_rename_workbench.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_rename_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_rename_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-080.json",
+    "tests/python/desktop/test_rename_workbench.py",
+    "tests/webview/test_webview_browser_rename_smoke.py",
+    "tests/webview/test_webview_rename_readiness_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_rename_workbench.py::RenameWorkbenchJsTests::test_rename_apply_uses_honest_inflight_activity",
+    "tests/webview/test_webview_browser_rename_smoke.py real browser undo confirmation/activity/result assertions",
+    "tests/webview/test_webview_rename_readiness_smoke.py undo confirmation cancel/confirm assertions"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_rename_workbench -q",
+    ".\\ops\\scripts\\smoke\\Test-WebViewBrowserRenameSmoke.ps1",
+    ".\\ops\\scripts\\smoke\\Test-WebViewRenameReadinessSmoke.ps1",
+    "node --check apps\\desktop\\webview\\static\\assets\\renameView.js",
+    "node --check apps\\desktop\\webview\\static\\assets\\rename\\applyResult.js"
+  ],
+  "rollback_plan": "Revert the WebView rename confirmation/activity/result changes and the focused smoke/static test assertions; backend rename apply/undo routes and schemas are unchanged.",
+  "related_changes": [],
+  "notes": "Add undo confirmation, operation-aware result modal, and truthful command activity state for apply/undo.\nRemove misleading indeterminate apply progress bar during synchronous backend apply.\nMake rename result modal labels dynamic for apply versus undo result counts.\nStyle compact command activity state shown while synchronous rename apply/undo calls are pending.\nAssert undo confirmation wiring and absence of fake indeterminate apply progress.\nVerify mocked Rename WebView undo confirmation cancel/confirm paths and undo activity/result evidence.\nVerify real browser undo confirmation, canceled undo non-post, honest activity state, and undo result modal.\nRefresh summary for Rename View undo confirmation and honest activity state.\nRefresh summary for apply result in-flight progress behavior.\nRefresh summary for dynamic rename result modal labels.\nRefresh summary for rename command activity styles.\nRefresh summary for rename workbench static tests.\nRefresh summary for Node rename readiness smoke undo confirmation assertions.\nRefresh summary for browser rename smoke undo UX assertions.\nAdd generated summary for this change packet."
+}

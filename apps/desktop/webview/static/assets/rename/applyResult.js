@@ -304,29 +304,6 @@
 
     function renderRenameApplyInFlight(selectedCount) {
       const planned = Math.max(0, renameApplyOutcomeNumber(selectedCount, 0));
-      if (typeof renderProgressBarsInto === "function") {
-        const updatedAt = new Date().toISOString();
-        renderProgressBarsInto(
-          "rename-apply-progress-bars",
-          [{
-            id: "rename_apply",
-            label: "Rename apply",
-            mode: "indeterminate",
-            status: "active",
-            detail: `${planned} checked rename${planned === 1 ? "" : "s"} submitted; waiting for backend result`,
-            source: "rename.apply",
-            updated_at: updatedAt,
-            stale: false,
-          }],
-          {
-            schema_version: "desktop_rename_apply_progress.v1",
-            status: "active",
-            selected: planned,
-            updated_at: updatedAt,
-          },
-          "No rename apply progress loaded.",
-        );
-      }
       setText("rename-last-apply-status", `Applying ${planned} checked rename${planned === 1 ? "" : "s"}`);
       const lastStatusNode = byId("rename-last-apply-status");
       if (lastStatusNode) lastStatusNode.dataset.state = "active";

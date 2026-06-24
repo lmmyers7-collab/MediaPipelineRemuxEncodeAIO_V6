@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 1e92eefc6785eccc89b5a07b7602b96262f5ff8857372dfcdde159f6c806138e
+sha256: dc39a6e27cfa8932d47fbf7efa23504ca6a471601fc0fac5e87be738f6823230
 ---
 # `tests/python/desktop/test_api_path_dialogs.py`
 

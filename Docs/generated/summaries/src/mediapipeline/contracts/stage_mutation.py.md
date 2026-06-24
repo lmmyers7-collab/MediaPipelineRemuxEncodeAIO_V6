@@ -3,9 +3,9 @@ file: src/mediapipeline/contracts/stage_mutation.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: contracts
-last_modified: 2026-06-19
+last_modified: 2026-06-24
 last_reviewed: 2026-06-04
-sha256: 5a69fee33d142b7f9fdaa1a63f83219fc670ab8e928432acbf1b524ef1b19924
+sha256: f183edf10ae034b8c06f2a18cc5c2a298c27bed89c7839bb7ece176b52adf876
 ---
 # `src/mediapipeline/contracts/stage_mutation.py`
 

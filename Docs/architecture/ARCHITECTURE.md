@@ -106,10 +106,13 @@ explicit `schema_version: "v1"`:
 `../generated/PIPELINE_MAP.md` enumerates each stage with its payload and result
 types. The Phase 3 runner boundary calls
 `ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <payload-json-or-path>`
-per ADR-0002. In the current.x maintenance state, the read-only
-`probe` and `decide` stages are enabled through that dispatcher;
-mutation-capable stages remain modeled but disabled until safety coverage
-and real-media validation prove the replacement path.
+per ADR-0002. In the current.x maintenance state, the read-only `probe` and
+`decide` stages are enabled, and `ingest` is the only enabled
+mutation-capable stage. Guarded ingest may only copy a source file into a
+scratch-root child path with strict execute confirmation and evidence;
+`transcode`, `subtitle-convert`, `audio-mix`, `publish`, `drain`, and
+`rename` remain modeled but disabled until their own safety coverage and
+real-media validation prove the replacement path.
 
 ## State and files
 

@@ -5,7 +5,7 @@ token_priority: high
 owner_domain: webview
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 7a16558d15b05ef38d228adcfaaa802d279f573b6438a00d1739ddcbc5170410
+sha256: 11d2d7d1f68485d1ff420b58e146db58ef82d47db32a4d63ff30c490b68ab4ee
 ---
 # `apps/desktop/webview/static/assets/rename/applyResult.js`
 

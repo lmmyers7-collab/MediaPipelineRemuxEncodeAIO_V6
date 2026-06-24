@@ -26,7 +26,7 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 | # | Stage | Enabled | Mutation | Payload | Data | Payload fields | Data fields | Notes |
 |---|---|---|---|---|---|---|---|---|
-| 1 | `ingest` | no | yes | `IngestPayload` | `IngestResult` | `source_path`, `scratch_root`, `intent` | `scratch_path`, `size_bytes`, `sha256` | Source to scratch copy. Returns scratch path, size, and sha256. |
+| 1 | `ingest` | yes | yes | `IngestPayload` | `IngestResult` | `source_path`, `scratch_root`, `operation`, `intent`, `confirm_ingest` | `scratch_path`, `size_bytes`, `sha256`, `source_sha256`, `source_unchanged`, `evidence_path`, `rollback_actions`, `recovery_actions`, `boundary_checks` | Source to scratch copy. Returns scratch path, size, and sha256. |
 | 2 | `probe` | yes | no | `ProbePayload` | `ProbeResult` | `scratch_path` | `probe_ok`, `probe_error`, `tool_path`, `container`, `duration_seconds`, `bitrate_bps`, `video_codec`, `width`, `height`, `is_hdr`, `color_transfer`, `container_bitrate_mbps`, `estimated_bitrate_mbps`, `size_bytes`, `streams` | ffprobe on scratch. Returns container, duration, and stream summaries. |
 | 3 | `decide` | yes | no | `DecidePayload` | `DecideResult` | `file_size_bytes`, `is_tv`, `duration_seconds`, `video_codec`, `video_height`, `is_hdr`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encode_threshold_gb`, `tv_encode_threshold_gb`, `movie_route_1080p_size_limit_gb`, `movie_route_1440p_size_limit_gb`, `movie_route_4k_size_limit_gb`, `tv_route_1080p_size_limit_gb`, `tv_route_1440p_size_limit_gb`, `tv_route_4k_size_limit_gb`, `movie_route_max_video_bitrate_mbps`, `tv_route_max_video_bitrate_mbps`, `route_1080p_bucket_max_height`, `route_1080p_upper_height_tolerance_percent`, `route_1080p_max_video_bitrate_mbps`, `route_1440p_lower_height_tolerance_percent`, `route_1440p_upper_height_tolerance_percent`, `route_1440p_max_video_bitrate_mbps`, `route_4k_lower_height_tolerance_percent`, `route_4k_bucket_min_height`, `route_4k_max_video_bitrate_mbps`, `allow_h264_remux_if_plex_compatible`, `h264_remux_max_bitrate_mbps`, `h264_remux_max_height`, `route_hints`, `source_media_profile` | `route`, `should_encode`, `reason_code`, `reason`, `display_route`, `source_codec`, `size_gb`, `threshold_gb`, `requires_codec_probe`, `fallback_from_remux`, `estimated_bitrate_mbps`, `bitrate_threshold_mbps`, `size_over_threshold`, `bitrate_over_threshold`, `plex_compatibility_score`, `routing_profile`, `route_threshold_mode`, `size_guard_mode`, `encoder_profile`, `actions`, `decision_trace`, `route_hints`, `source_media_profile` | Remux vs encode vs skip. Returns route and encoder profile. |
 | 4 | `transcode` | no | yes | `TranscodePayload` | `TranscodeResult` | `scratch_path`, `output_path`, `decision`, `video_codec`, `video_preset`, `video_quality`, `output_container`, `extra_video_flags`, `timeout_seconds`, `intent`, `confirm_transcode` | `output_path`, `output_size_bytes`, `attempts` | FFmpeg invocation. Returns output path, size, and attempts. |
@@ -42,11 +42,11 @@ ops/pipeline/engine/entrypoint.ps1 -Stage <stage> -PayloadJson <json-or-path>
 
 - **Payload:** `IngestPayload`
 - **Data:** `IngestResult`
-- **Entrypoint enabled:** no
+- **Entrypoint enabled:** yes
 - **Mutation capable:** yes
 - **Journal event type:** `pipeline.stage.ingest`
-- **Payload fields:** `source_path`, `scratch_root`, `intent`
-- **Data fields:** `scratch_path`, `size_bytes`, `sha256`
+- **Payload fields:** `source_path`, `scratch_root`, `operation`, `intent`, `confirm_ingest`
+- **Data fields:** `scratch_path`, `size_bytes`, `sha256`, `source_sha256`, `source_unchanged`, `evidence_path`, `rollback_actions`, `recovery_actions`, `boundary_checks`
 - **Domain:** src/mediapipeline/core/orchestration/ (stage boundary), ops/pipeline/engine/storage/ (scratch copy)
 - **Note:** Source files are never mutated.
 - **Note:** Scratch copies are hashed before downstream stages consume them.

@@ -24,6 +24,7 @@
     "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1.md",
     "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/startup_filesystem.ps1.md",
     "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/startup_path_validation.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0610-001.json.md",
     "ops/pipeline/entrypoints/MediaPipeline.ps1",
     "ops/pipeline/entrypoints/MediaPipeline/module_loader.ps1",
     "ops/pipeline/entrypoints/MediaPipeline/runtime_paths.ps1",
@@ -52,5 +53,5 @@
   "related_changes": [
     "MP-CHANGE-2026-0605-010"
   ],
-  "notes": "Ollama not used. ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1 self-skips at HEAD because it still points at pre-reorg paths (ops/pipeline/MediaPipeline.ps1 and ops/pipeline/PowerShell-7.6.0-win-x64); pre-existing, not addressed here. PROJECT_INDEX.md and docs/audit/latest.md were absent during this session (degraded mode). A TDARR-matrix worker child (separate LocalBase) was running during validation; all validation used the per-user live config whose LocalBase it does not share."
+  "notes": "Ollama not used. ops/pipeline/tests/Unit/Invoke-RuntimeConfigResolutionChecks.ps1 self-skips at HEAD because it still points at pre-reorg paths (ops/pipeline/MediaPipeline.ps1 and ops/pipeline/PowerShell-7.6.0-win-x64); pre-existing, not addressed here. PROJECT_INDEX.md and docs/audit/latest.md were absent during this session (degraded mode). A TDARR-matrix worker child (separate LocalBase) was running during validation; all validation used the per-user live config whose LocalBase it does not share. Blocked: operator_validation_required remains open for a real -Once or continuous run with at least one parallel-encode worker-child dispatch, mid-run pause/stop confirmation, worker result consumption, and optional ai_guardrail preflight/postflight evidence."
 }

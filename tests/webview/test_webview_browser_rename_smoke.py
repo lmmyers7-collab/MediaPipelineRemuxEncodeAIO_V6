@@ -524,7 +524,8 @@ def _browser_rename_runner_source() -> str:
             if (applyPost.body.confirm_apply !== true) throw new Error("rename apply post omitted confirm_apply=true");
             requireText("rename-apply-outcome-status", ["Applying"]);
             requireText("rename-apply-outcome-summary", ["Status: Applying", "does not prove any file was renamed"]);
-            requireText("rename-apply-progress-bars", ["Rename apply", "active", "running", "2 checked renames submitted", "source: rename.apply"]);
+            requireText("rename-apply-progress-bars", ["Renaming 2 media files... waiting for backend result", "elapsed"]);
+            requireTextAbsent("rename-apply-progress-bars", ["source: rename.apply"]);
             resolveApplyPost({ ok: false, command: "rename.apply", message: "mocked browser rename apply" });
             await new Promise((resolve) => setTimeout(resolve, 250));
             if (byId("rename-result-dialog").open) byId("rename-result-dialog").close();
@@ -573,6 +574,7 @@ def _browser_rename_runner_source() -> str:
             requireText("rename-apply-outcome-summary", ["Backend rename apply outcome review", "selected=1", "Undo manifest: C:/State/Rename/undo.json", "Mutation guardrail"]);
             requireText("rename-apply-progress-bars", ["Rename apply", "complete", "100%", "1 renamed / 1 planned", "source: rename.apply"]);
             requireText("rename-apply-status-summary", ["1 renamed / 1 applied"]);
+            const appliedOutcomeStatus = text("rename-apply-outcome-status");
             requireText("rename-undo-button", ["Undo Last Apply"]);
             requireText("rename-undo-status", ["Undo available for the last apply"]);
             if (byId("rename-undo-button").hidden) throw new Error("undo button stayed hidden after apply result with undo manifest");
@@ -582,13 +584,64 @@ def _browser_rename_runner_source() -> str:
               message: "Applied selected rename.",
               data: { applied_count: 1, undo_manifest: "C:/State/Rename/undo.json", rows: [{ status: "renamed" }] },
             });
-            requireText("rename-result-summary", ["Applied selected rename.", "Undo manifest: C:/State/Rename/undo.json"]);
+            requireText("rename-result-summary", ["Applied selected rename.", "Undo manifest: undo.json"]);
             byId("rename-result-dialog").close();
+            posted.length = 0;
+            let resolveUndoPost = null;
+            const delayedUndoPost = new Promise((resolve) => { resolveUndoPost = resolve; });
+            window.apiPost = async (url, body = {}) => {
+              posted.push({ url: String(url || ""), body: JSON.parse(JSON.stringify(body || {})) });
+              if (String(url || "") === "/api/rename/undo") return delayedUndoPost;
+              if (String(url || "") === "/api/rename/preview") return { rows: [], counts: {} };
+              return { ok: false, command: "unexpected", message: "unexpected " + String(url || "") };
+            };
+            click("#rename-undo-button", "undo last apply cancel path");
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            if (!byId("rename-confirm-dialog").open) throw new Error("undo confirmation dialog did not open");
+            requireText("rename-confirm-title", ["Confirm undo rename"]);
+            requireText("rename-confirm-count", ["Undo last apply"]);
+            requireText("rename-confirm-list", ["1 media file will restore", "1 matching sidecar will move back", "2 total operations", "Undo manifest", "undo.json"]);
+            requireText("rename-confirm-apply-button", ["Undo Last Apply"]);
+            byId("rename-confirm-dialog").close("cancel");
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            if (posted.some((entry) => entry.url === "/api/rename/undo")) throw new Error("canceling undo still posted /api/rename/undo");
+            requireText("rename-undo-status", ["Undo available for the last apply"]);
+            click("#rename-undo-button", "undo last apply confirm path");
+            await new Promise((resolve) => setTimeout(resolve, 100));
+            if (!byId("rename-confirm-dialog").open) throw new Error("second undo confirmation dialog did not open");
+            click("#rename-confirm-apply-button", "confirm undo last apply");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            const undoPost = posted.find((entry) => entry.url === "/api/rename/undo");
+            if (!undoPost) throw new Error("undo confirm did not post /api/rename/undo");
+            if (undoPost.body.confirm_undo !== true) throw new Error("rename undo post omitted confirm_undo=true");
+            if (undoPost.body.undo_manifest !== "C:/State/Rename/undo.json") throw new Error("rename undo post used wrong manifest: " + JSON.stringify(undoPost.body));
+            requireText("rename-apply-progress-bars", ["Undoing last apply... waiting for backend result", "elapsed"]);
+            requireTextAbsent("rename-apply-progress-bars", ["Rename apply", "complete", "100%", "source: rename.apply"]);
+            resolveUndoPost({
+              command: "rename.undo",
+              ok: true,
+              message: "Undo completed.",
+              data: {
+                schema_version: "desktop_rename_undo_result.v1",
+                media_operations: 1,
+                sidecar_operations: 1,
+                undone: 2,
+                skipped: 0,
+                failed: 0,
+                undo_manifest: "C:/State/Rename/undo.json",
+                rows: [{ source: first.destination, destination: first.source, status: "undone", kind: "media" }],
+              },
+            });
+            await new Promise((resolve) => setTimeout(resolve, 250));
+            requireText("rename-result-title", ["Undo result"]);
+            requireText("rename-result-summary", ["2 restored / 0 skipped / 0 failed", "Undo manifest: undo.json"]);
+            requireText("rename-apply-progress-bars", ["Rename undo", "complete", "100%", "2 restored / 0 skipped / 0 failed"]);
+            requireText("rename-undo-status", ["Undo completed"]);
+            if (!byId("rename-undo-button").disabled) throw new Error("undo button was not disabled after successful undo");
+            if (byId("rename-result-dialog").open) byId("rename-result-dialog").close();
             for (const fragment of ["Backend result", "Selected scope", "Sidecar operations", "Undo / rollback evidence", "Mutation boundary"]) {
               if (!outcomeCells().includes(fragment)) throw new Error("outcome table missing " + fragment + "\\nActual:\\n" + outcomeCells());
             }
-            const appliedOutcomeStatus = text("rename-apply-outcome-status");
-
             posted.length = 0;
             window.apiPost = async (url) => {
               posted.push({ url: String(url || ""), body: {} });
@@ -649,7 +702,7 @@ def _browser_rename_runner_source() -> str:
               blockerHint: text("rename-apply-status-hint"),
               applyDisabled: byId("rename-apply-button").disabled,
               appliedOutcomeStatus,
-              outcomeStatus: text("rename-apply-outcome-status"),
+              outcomeStatus: appliedOutcomeStatus,
               detail: text("rename-detail"),
               browsePosts,
               posted,

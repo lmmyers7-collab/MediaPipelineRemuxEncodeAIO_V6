@@ -34,5 +34,5 @@
   "manual_validation": [],
   "rollback_plan": "Revert the WebView settings table, route tolerance derivation logic, and focused WebView test updates. Existing backend config keys and media policy behavior remain unchanged.",
   "related_changes": [],
-  "notes": ""
+  "notes": "Blocked: this packet has no manual_validation evidence and no current dirty implementation paths. Re-run or inspect the route-height bucket UI change and focused WebView validation before marking complete; otherwise explicitly park or revert the stale packet."
 }

@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0623-076",
+  "title": "Queue scan flat export cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed five transitional Queue scan flat window exports while keeping the helpers available through window.mediaPipelineQueueView.",
+  "reason": "Continue the WebView namespace-first flat export cleanup in one Queue WebView slice without changing backend queue mutation behavior, media policy, settings persistence, pending publish, repair/reconcile, or encoder logic.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Queue scan helpers were available both through window.mediaPipelineQueueView and direct flat window aliases.",
+  "behavior_after": "Queue scan helpers remain available through window.mediaPipelineQueueView only; existing internal Queue wiring and the namespace consumer in app/refresh.js are unchanged.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queueView.js",
+    "docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md",
+    "docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md.md",
+    "docs/generated/summaries/docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-076.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_inventory_docs.py.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-076.json",
+    "tests/webview/test_webview_inventory_docs.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_inventory_docs.py::WebViewInventoryDocsTests.test_queue_scan_helpers_are_namespace_only"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_inventory_docs -q - failed before completing this slice because existing rendered DOM inventory drift remains: documented 1817 IDs vs 1829 rendered IDs",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_generated_global_export_manifest_matches_assets -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_global_export_inventory_summary_and_table_match_assets -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_queue_scan_helpers_are_namespace_only -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_webview_namespace_object_exports_have_boundary_jsdoc -q - passed",
+    "npm run webview:check - passed",
+    "npm run webview:contract:check - passed",
+    "npm run webview:map:check - passed",
+    "npm run webview:slices:check - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed on pre-existing generated/report drift and unrelated local-path policy failure in MP-CHANGE-2026-0619-020; current WebView reliability checks and Tauri preview prerequisites passed inside the run",
+    "ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Restore the five Queue scan flat window assignments, regenerate WebView public contract and split map, restore the WebView global export inventory to the prior count, remove the namespace-only Queue scan assertion, and rerun the same focused WebView checks.",
+  "related_changes": [],
+  "notes": "Remove namespace-covered Queue scan flat window aliases.\nAssert Queue scan helpers remain namespace exports without flat aliases.\nReconcile flat export totals and Queue manifest after alias removal.\nRegenerate WebView public contract after Queue flat alias removal; the whole-surface contract also reflects pre-existing dirty Rename WebView changes in the current worktree.\nRegenerate WebView split map after Queue asset edit.\nRefresh generated summaries for this Queue flat-export cleanup slice."
+}

@@ -355,6 +355,24 @@ function Assert-StagePayloadContract {
     )
 
     switch ($StageName) {
+        'ingest' {
+            Assert-AllowedObjectProperties `
+                -Object $Payload `
+                -Allowed @('run_id','job_id','source_path','scratch_root','operation','intent','confirm_ingest') `
+                -Context 'ingest payload'
+            Assert-StageStringField -Payload $Payload -Name 'run_id'
+            Assert-StageStringField -Payload $Payload -Name 'job_id'
+            Assert-StageStringField -Payload $Payload -Name 'source_path' -Required
+            Assert-StageStringField -Payload $Payload -Name 'scratch_root' -Required
+            Assert-StageStringField -Payload $Payload -Name 'operation' -AllowedValues @('copy_to_scratch')
+            Assert-StageStringField -Payload $Payload -Name 'intent' -Required -AllowedValues @('dry_run','execute')
+            Assert-StageBooleanField -Payload $Payload -Name 'confirm_ingest'
+            $intent = [string](Get-ObjectValue -Object $Payload -Name 'intent' -Default '')
+            $confirm = Get-ObjectValue -Object $Payload -Name 'confirm_ingest' -Default $false
+            if ($intent -eq 'execute' -and $confirm -ne $true) {
+                throw "payload field 'confirm_ingest' must be boolean true for ingest execute intent"
+            }
+        }
         'probe' {
             Assert-AllowedObjectProperties `
                 -Object $Payload `
@@ -484,6 +502,7 @@ function New-StageErrorFromException {
     })
 }
 
+. (Join-Path $PSScriptRoot 'ingest\stage.ps1')
 . (Join-Path $PSScriptRoot 'probe\stage.ps1')
 . (Join-Path $PSScriptRoot 'decide\stage.ps1')
 
@@ -504,6 +523,11 @@ try {
     Assert-StagePayloadContract -StageName $stageName -Payload $payload
 
     switch ($stageName) {
+        'ingest' {
+            $data = Invoke-IngestStage -Payload $payload
+            Write-StageResult -StageName $stageName -Ok:$true -StartedAt $startedAt -Data $data
+            exit 0
+        }
         'probe' {
             $data = Invoke-ProbeStage -Payload $payload
             Write-StageResult -StageName $stageName -Ok:$true -StartedAt $startedAt -Data $data

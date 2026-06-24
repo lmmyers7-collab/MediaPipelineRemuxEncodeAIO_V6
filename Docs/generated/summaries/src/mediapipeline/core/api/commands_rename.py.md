@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: api
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 44d6cb19db6a1d3612bd60fc1be3344925fb0f2ce24b53176805fe688a75d306
+sha256: 97d01c4df292c47a81d8064ad21c4f4dbc4554c2b53d3f60acf3d276770cd7e0
 ---
 # `src/mediapipeline/core/api/commands_rename.py`
 

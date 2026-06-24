@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-23
 last_reviewed: 2026-06-02
-sha256: 82b3892ba278e5bd8d1ff1282e8f469db27794d56cae69f6b20c2e73c16733e9
+sha256: af84bbd41f265de541d03ae6a10d975e8f05497e7326745dd6f37fae0a5ae53b
 ---
 # `docs/inventories/RENAME_SAFETY_TEST_INVENTORY.md`
 

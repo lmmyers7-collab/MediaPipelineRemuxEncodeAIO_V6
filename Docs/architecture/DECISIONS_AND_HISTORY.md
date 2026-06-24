@@ -1,6 +1,6 @@
 # Decisions And History
 
-Last updated: 2026-06-02
+Last updated: 2026-06-23
 
 This document preserves durable decisions and historical context without requiring future agents to read every old checklist, audit, or handoff file.
 
@@ -32,6 +32,83 @@ This document preserves durable decisions and historical context without requiri
 - BDPGS/OCR failure should route to manual review instead of silent bad publish.
 - ASS should be preserved unless configured to drop; generated SRT should strip styling according to negative filters when conversion is enabled.
 - TX3G should be preserved where container-compatible; SRT may be added unless drop policy is enabled. Do not misbox incompatible subtitle formats into MP4.
+
+## Deferred Remediation Decisions
+
+These entries resolve deferred remediation choices before any further
+media-policy or pipeline implementation work. They are design authority only;
+behavior changes still require their own high-risk change packet, validation
+evidence, and rollback plan.
+
+### FR-016: Multi-video Stream Policy
+
+Decision: preserve all real video streams. Multi-angle, PiP, or alternate-video
+sources must not be reduced to the first/primary video stream merely because
+the file has more than one real video stream. Attached pictures and cover art
+are not real video streams for this policy.
+
+Rejected alternatives:
+
+- Primary-only-with-evidence would make outputs easier to reason about, but it
+  deliberately discards source content and creates an operator-trust problem
+  for bonus-angle and commentary material.
+- Block/review is safer than silent stream loss, but it over-blocks sources
+  where the command topology can preserve every real video stream and where
+  output proof can verify the result.
+
+Required FFmpeg topology:
+
+- Remux topology must map all real video streams with `-map 0:V`, copy video
+  with `-c:v copy`, preserve eligible audio/subtitle/attachment/chapter/metadata
+  inputs according to the existing policy, and verify source/output real-video
+  stream counts before publish.
+- Encode topology must use the same `-map 0:V` default when no explicit video
+  filter graph is present, apply the selected video encoder flags across the
+  mapped real-video outputs, preserve eligible non-video streams according to
+  the existing audio/subtitle policy, and verify source/output real-video
+  stream counts before publish.
+- Subtitle burn-in on multi-video sources must fail closed unless a future
+  filter graph can prove one filtered output per real source video stream.
+
+Validation implications: any implementation or future change to this policy is
+a high-risk FFmpeg/media-policy change. It needs command-topology tests, output
+real-video count verification, representative real-media or generated-media
+proof for at least a two-real-video source, and the recurring real-media rerun
+gate when broader media behavior changes. The targeted proof should report
+source/remux/encode counts, for example `source=2 remux=2 encode=2`.
+
+### FR-042: CSV Rerun DryRun Semantics
+
+Decision: evidence-writing `-DryRun` is intentional, and a separate no-write
+`-PlanOnly` mode is required. `-DryRun` may create rerun evidence such as
+manifest/staging metadata needed to inspect an executable rerun plan; it must
+not be advertised as a no-write planner. `-PlanOnly` is the only CSV rerun mode
+that may be used when the operator or tests require no `LocalBase`, output,
+stage, park, manifest, temp-config, source, or media writes.
+
+Rejected alternatives:
+
+- Redefining `-DryRun` as no-write would erase the existing evidence-writing
+  contract and risk breaking operator diagnostics that rely on dry-run
+  manifests.
+- Keeping only evidence-writing `-DryRun` would leave no supported way to
+  inspect CSV rerun resolution without creating runtime state.
+
+Required command contract:
+
+- `-DryRun` and `-PlanOnly` are mutually exclusive.
+- `-PlanOnly` must exit before rerun manifest creation, rerun queue/stage
+  directory creation, rerun park/output directory creation, temp config writes,
+  nested pipeline launch, and any source-media movement.
+- Backend and WebView surfaces must carry plan-only intent separately from
+  dry-run intent and must not treat dry-run success as proof that no files were
+  written.
+
+Validation implications: temp-LocalBase tests must prove `-PlanOnly` creates
+no `LocalBase`, `Outsource`, `RerunManifests`, `RerunQueue`, or `RerunParked`
+paths and leaves the representative source path in place. API/WebView launch
+tests must prove plan-only and dry-run request fields stay distinct and reject
+conflicting requests.
 
 ## Rename Decisions
 
@@ -103,4 +180,3 @@ This document preserves durable decisions and historical context without requiri
 - Whether `node_modules` should remain in this working tree.
 - Which raw settings keys deserve structured builder controls versus intentional advanced/raw handling.
 - Whether old Claude transition handoffs still contain work not reflected in active docs.
-

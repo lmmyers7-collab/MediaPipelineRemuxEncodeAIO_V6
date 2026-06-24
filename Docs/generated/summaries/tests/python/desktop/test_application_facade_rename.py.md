@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: tests
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 71e63ad07ab24e735c3d238309731d7260774e0ec6c277b83005863f3824a651
+sha256: 4fb20273f953ebd7e85aba18da6eca8dc25c5238f2af3b650d727e1a8755ac16
 ---
 # `tests/python/desktop/test_application_facade_rename.py`
 

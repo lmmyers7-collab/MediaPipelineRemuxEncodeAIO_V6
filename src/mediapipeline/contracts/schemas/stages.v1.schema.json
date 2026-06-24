@@ -581,10 +581,24 @@
           "title": "Scratch Root",
           "type": "string"
         },
-        "intent": {
+        "operation": {
           "const": "copy_to_scratch",
+          "default": "copy_to_scratch",
+          "title": "Operation",
+          "type": "string"
+        },
+        "intent": {
+          "enum": [
+            "dry_run",
+            "execute"
+          ],
           "title": "Intent",
           "type": "string"
+        },
+        "confirm_ingest": {
+          "default": false,
+          "title": "Confirm Ingest",
+          "type": "boolean"
         }
       },
       "required": [
@@ -613,6 +627,42 @@
           "default": "",
           "title": "Sha256",
           "type": "string"
+        },
+        "source_sha256": {
+          "default": "",
+          "title": "Source Sha256",
+          "type": "string"
+        },
+        "source_unchanged": {
+          "default": false,
+          "title": "Source Unchanged",
+          "type": "boolean"
+        },
+        "evidence_path": {
+          "default": "",
+          "title": "Evidence Path",
+          "type": "string"
+        },
+        "rollback_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Rollback Actions",
+          "type": "array"
+        },
+        "recovery_actions": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Recovery Actions",
+          "type": "array"
+        },
+        "boundary_checks": {
+          "items": {
+            "type": "string"
+          },
+          "title": "Boundary Checks",
+          "type": "array"
         }
       },
       "title": "IngestResult",

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: rename
 last_modified: 2026-06-23
 last_reviewed: 2026-06-23
-sha256: dc0a4651cb7460f23a248340d29be910e1e3aa4a820985e4114ceaba7513b83f
+sha256: 67f7fdd7f93b2bad494baf286b9de1e5c2c003e8893aba131f22f7662f557f4e
 ---
 # `src/mediapipeline/core/rename/undo_runner.py`
 

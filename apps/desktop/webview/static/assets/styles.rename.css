@@ -340,6 +340,62 @@
   gap: var(--space-3);
 }
 
+.rename-command-activity {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-xs);
+  background: var(--grey-850, var(--grey-800));
+}
+
+.rename-command-activity-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  align-items: center;
+  justify-content: space-between;
+}
+
+.rename-command-activity-title {
+  margin: 0;
+  font-weight: 700;
+}
+
+.rename-command-activity-meta,
+.rename-command-activity-detail {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.rename-command-activity-indicator {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.rename-command-activity-indicator::before {
+  width: 0.65rem;
+  height: 0.65rem;
+  border-radius: var(--radius-pill);
+  background: var(--semantic-pending-accent);
+  content: "";
+  animation: rename-command-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes rename-command-pulse {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.85);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
 .rename-stage .panel-subheading {
   margin-top: var(--space-5);
   padding-top: var(--space-5);

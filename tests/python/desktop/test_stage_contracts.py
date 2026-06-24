@@ -37,7 +37,7 @@ VALID_PAYLOADS = {
     StageName.ingest: {
         "source_path": r"C:\media\source.mkv",
         "scratch_root": r"D:\scratch",
-        "intent": "copy_to_scratch",
+        "intent": "dry_run",
     },
     StageName.probe: {"scratch_path": r"D:\scratch\source.mkv"},
     StageName.decide: {
@@ -89,7 +89,17 @@ VALID_PAYLOADS = {
 
 
 VALID_DATA = {
-    StageName.ingest: (IngestResult, {"scratch_path": r"D:\scratch\source.mkv", "size_bytes": 1}),
+    StageName.ingest: (
+        IngestResult,
+        {
+            "scratch_path": r"D:\scratch\source.mkv",
+            "size_bytes": 1,
+            "source_unchanged": True,
+            "rollback_actions": ["delete scratch"],
+            "recovery_actions": ["rerun ingest"],
+            "boundary_checks": ["scratch target is a child of scratch_root"],
+        },
+    ),
     StageName.probe: (ProbeResult, {"probe_ok": True, "tool_path": r"C:\Tools\ffprobe.exe", "video_codec": "hevc"}),
     StageName.decide: (DecideResult, {"route": "remux", "should_encode": False}),
     StageName.transcode: (TranscodeResult, {"output_path": r"D:\scratch\out.mkv", "output_size_bytes": 1}),
@@ -123,6 +133,17 @@ class StageContractTests(unittest.TestCase):
 
     def test_mutation_payloads_require_explicit_intent_and_execute_confirmation(self) -> None:
         with self.assertRaises(ValidationError):
+            build_stage_request(StageName.ingest, {"source_path": "source.mkv", "scratch_root": "D:\\Scratch"})
+        with self.assertRaises(ValidationError):
+            build_stage_request(
+                StageName.ingest,
+                {
+                    "source_path": "source.mkv",
+                    "scratch_root": "D:\\Scratch",
+                    "intent": "execute",
+                },
+            )
+        with self.assertRaises(ValidationError):
             build_stage_request(StageName.publish, {"output_path": "out.mkv", "final_root": "Z:\\Library"})
         with self.assertRaises(ValidationError):
             build_stage_request(
@@ -134,7 +155,39 @@ class StageContractTests(unittest.TestCase):
                 },
             )
 
-    def test_mutation_capable_payloads_use_shared_intent_or_disabled_ingest_exception(self) -> None:
+    def test_execute_confirmations_reject_string_booleans(self) -> None:
+        with self.assertRaises(ValidationError):
+            build_stage_request(
+                StageName.ingest,
+                {
+                    "source_path": "source.mkv",
+                    "scratch_root": "D:\\Scratch",
+                    "intent": "execute",
+                    "confirm_ingest": "true",
+                },
+            )
+        with self.assertRaises(ValidationError):
+            build_stage_request(
+                StageName.rename,
+                {
+                    "target_path": "old.mkv",
+                    "proposed_name": "new.mkv",
+                    "intent": "execute",
+                    "confirm_apply": "true",
+                },
+            )
+        request = build_stage_request(
+            StageName.ingest,
+            {
+                "source_path": "source.mkv",
+                "scratch_root": "D:\\Scratch",
+                "intent": "execute",
+                "confirm_ingest": True,
+            },
+        )
+        self.assertTrue(request.payload.confirm_ingest)
+
+    def test_mutation_capable_payloads_use_shared_intent(self) -> None:
         exceptions: list[StageName] = []
         for stage, contract in STAGE_REGISTRY.items():
             if not contract.mutation_capable:
@@ -145,8 +198,12 @@ class StageContractTests(unittest.TestCase):
                 continue
             exceptions.append(stage)
 
-        self.assertEqual(exceptions, [StageName.ingest])
-        self.assertFalse(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
+        self.assertEqual(exceptions, [])
+        self.assertTrue(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
+        enabled_mutation_stages = [
+            stage for stage, contract in STAGE_REGISTRY.items() if contract.mutation_capable and contract.enabled_in_entrypoint
+        ]
+        self.assertEqual(enabled_mutation_stages, [StageName.ingest])
 
     def test_stage_result_requires_data_or_structured_error(self) -> None:
         now = datetime.now(timezone.utc)
@@ -203,4 +260,3 @@ class StageContractTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

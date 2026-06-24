@@ -18,11 +18,12 @@
   "behavior_before": "The drawer could show 'Override saved' before refresh/finalization finished, allowing follow-up clicks to race disabled command controls.",
   "behavior_after": "The drawer re-enables command controls before publishing the final saved status, so browser smokes and operators see a complete post-save state.",
   "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0618-007.json.md",
     "ops/release/changes/unreleased/MP-CHANGE-2026-0618-007.json"
   ],
   "tests_added": [],
   "manual_validation": [],
   "rollback_plan": "Revert the queue file-overrides drawer status sequencing change, generated summaries, and this change packet.",
   "related_changes": [],
-  "notes": "WebView sequencing only. No backend media policy, queue launch scope, FFmpeg, subtitle, audio, publish/drain, source/scratch/output movement, or settings persistence behavior is intentionally changed."
+  "notes": "WebView sequencing only. No backend media policy, queue launch scope, FFmpeg, subtitle, audio, publish/drain, source/scratch/output movement, or settings persistence behavior is intentionally changed. Blocked: this packet currently records only change-control metadata and no implementation/test file touches or manual validation evidence, so the WebView sequencing change must be reconstructed and validated, explicitly parked, or reverted before completion."
 }

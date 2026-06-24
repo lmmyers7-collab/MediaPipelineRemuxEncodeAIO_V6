@@ -15,6 +15,7 @@ from typing import Any
 
 from mediapipeline.contracts.stages import (
     DecidePayload,
+    IngestPayload,
     ProbePayload,
     StageName,
     StagePayload,
@@ -176,6 +177,24 @@ def _record_journal(options: RunnerOptions, request: StageRequest, result: Stage
     if options.journal_record is None:
         return
     job_id = getattr(request.payload, "job_id", "") or getattr(request.payload, "run_id", "")
+    result_data = result.data if isinstance(result.data, dict) else {}
+    evidence_path = str(result_data.get("evidence_path") or result_data.get("manifest_path") or result_data.get("undo_record_path") or "")
+    journal_data: dict[str, Any] = {
+        "stage": result.stage,
+        "journal_event_type": result.journal_event_type,
+    }
+    for key in (
+        "scratch_path",
+        "evidence_path",
+        "manifest_path",
+        "undo_record_path",
+        "source_unchanged",
+        "rollback_actions",
+        "recovery_actions",
+        "boundary_checks",
+    ):
+        if key in result_data:
+            journal_data[key] = result_data[key]
     payload: dict[str, Any] = {
         "schema_version": COMMAND_RESULT_SCHEMA_VERSION,
         "command": f"stage.{request.stage.value}",
@@ -186,7 +205,8 @@ def _record_journal(options: RunnerOptions, request: StageRequest, result: Stage
         "refresh_hint": "pipeline-stage",
         "warnings": [],
         "errors": [] if result.ok else [result.error.code if result.error else "stage_failed"],
-        "log_paths": {},
+        "log_paths": {"stage_evidence": evidence_path} if evidence_path else {},
+        "data": journal_data,
     }
     try:
         options.journal_record(payload)
@@ -444,6 +464,20 @@ def run_probe_stage(
     return run_stage(StageName.probe, payload, options)
 
 
+def run_ingest_stage(
+    payload: IngestPayload | Mapping[str, Any],
+    options: RunnerOptions | None = None,
+) -> StageResult:
+    """Run the guarded source-to-scratch ingest stage.
+
+    This is intentionally the only mutation-capable compatibility helper in
+    this slice. The stage copies a source into a scratch-root child path and
+    relies on the stage contract/entrypoint for execute confirmation.
+    """
+
+    return run_stage(StageName.ingest, payload, options)
+
+
 __all__ = [
     "RunnerOptions",
     "StageProcessResult",
@@ -451,4 +485,5 @@ __all__ = [
     "run_stage",
     "run_decide_stage",
     "run_probe_stage",
+    "run_ingest_stage",
 ]

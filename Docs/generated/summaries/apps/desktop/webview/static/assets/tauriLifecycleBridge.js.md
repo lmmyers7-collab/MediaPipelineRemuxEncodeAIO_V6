@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: 2bf65d29a5af9a641e2494023bf808ece7ea82a1e8d680a6ecc11255072989ad
+sha256: 44211c730538e133c507b1ed18834995b57dc5b3dfede4b940e4f6e814ec40e9
 ---
 # `apps/desktop/webview/static/assets/tauriLifecycleBridge.js`
 

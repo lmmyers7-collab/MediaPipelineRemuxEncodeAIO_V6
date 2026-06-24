@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-23
 last_reviewed: 2026-05-29
-sha256: 3ae42f28e755c610fb6b2429847e5e6d3a4cc8699f0a6a1dc393d0d3c60ae86a
+sha256: e85650b344ef0f44298ace44247702c8fd7cf9c1299d0595228ed9d939f1034f
 ---
 # `docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md`
 

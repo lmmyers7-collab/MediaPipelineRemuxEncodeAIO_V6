@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: unknown
 last_modified: 2026-06-23
 last_reviewed: 2026-06-02
-sha256: 7debd0fc0ee9a371472dcb0f0b3cb5dadfc24e606f4372c2725c2105dd1a322e
+sha256: de300142dac4d64d24ce419497abdd4252ad1d0fe3b4293a1fbdec955634defd
 ---
 # `docs/architecture/ARCHITECTURE.md`
 

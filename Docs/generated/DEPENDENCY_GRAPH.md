@@ -18,6 +18,7 @@ graph LR
   files["files"]
   final_library["final_library"]
   folder_policy["folder_policy"]
+  ingest["ingest"]
   kernel["kernel"]
   library["library"]
   maintenance["maintenance"]
@@ -128,6 +129,7 @@ graph LR
   paths -->|3| kernel
   process -->|3| kernel
   publish -->|3| kernel
+  rename -->|3| paths
   tests -->|3| files
   tests -->|3| network
   tests -->|3| schedule
@@ -143,7 +145,6 @@ graph LR
   paths -->|2| storage
   queue -->|2| config
   rename -->|2| kernel
-  rename -->|2| paths
   scripts -->|2| processes
   scripts -->|2| publish
   tests -->|2| metrics
@@ -286,6 +287,7 @@ graph LR
 | paths | kernel | 3 |
 | process | kernel | 3 |
 | publish | kernel | 3 |
+| rename | paths | 3 |
 | tests | files | 3 |
 | tests | network | 3 |
 | tests | schedule | 3 |
@@ -301,7 +303,6 @@ graph LR
 | paths | storage | 2 |
 | queue | config | 2 |
 | rename | kernel | 2 |
-| rename | paths | 2 |
 | scripts | processes | 2 |
 | scripts | publish | 2 |
 | tests | metrics | 2 |

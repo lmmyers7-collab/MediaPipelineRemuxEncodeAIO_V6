@@ -12,7 +12,14 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__))))
 
 from mediapipeline.contracts.stages import StageName
-from mediapipeline.core.orchestration.runner import RunnerOptions, StageProcessResult, run_decide_stage, run_probe_stage, run_stage
+from mediapipeline.core.orchestration.runner import (
+    RunnerOptions,
+    StageProcessResult,
+    run_decide_stage,
+    run_ingest_stage,
+    run_probe_stage,
+    run_stage,
+)
 
 
 def _stage_stdout(
@@ -232,6 +239,7 @@ class StageRunnerTests(unittest.TestCase):
         self.assertEqual(journal[0]["schema_version"], "desktop_command_result.v1")
         self.assertEqual(journal[0]["command"], "stage.decide")
         self.assertEqual(journal[0]["job_id"], "job-1")
+        self.assertEqual(journal[0]["data"]["stage"], "decide")
 
     def test_run_probe_stage_uses_probe_stage_boundary(self) -> None:
         def fake_run(args, **kwargs):
@@ -261,7 +269,78 @@ class StageRunnerTests(unittest.TestCase):
         self.assertFalse(result.data["probe_ok"])
         self.assertEqual(result.data["tool_path"], "C:/Tools/ffprobe.exe")
 
+    def test_run_ingest_stage_records_evidence_paths_and_recovery_actions(self) -> None:
+        journal: list[dict[str, Any]] = []
+
+        def fake_run(args, **kwargs):
+            self.assertIn("-Stage", args)
+            self.assertIn("ingest", args)
+            return StageProcessResult(
+                args=args,
+                returncode=0,
+                stdout=_stage_stdout(
+                    stage="ingest",
+                    data={
+                        "scratch_path": "D:/Scratch/stage_ingest_job-1/source.mkv",
+                        "size_bytes": 10,
+                        "sha256": "abc",
+                        "source_sha256": "abc",
+                        "source_unchanged": True,
+                        "evidence_path": "D:/Scratch/stage_ingest_job-1/source.mkv.ingest_evidence.json",
+                        "rollback_actions": ["delete scratch_path"],
+                        "recovery_actions": ["rerun ingest"],
+                        "boundary_checks": ["scratch target is a child of scratch_root"],
+                    },
+                ),
+                stderr="",
+            )
+
+        result = run_ingest_stage(
+            {
+                "source_path": "C:/Media/source.mkv",
+                "scratch_root": "D:/Scratch",
+                "intent": "execute",
+                "confirm_ingest": True,
+                "job_id": "job-1",
+            },
+            RunnerOptions(
+                entrypoint_path=self._existing_entrypoint(),
+                powershell_path="pwsh",
+                run_capture_func=fake_run,
+                journal_record=journal.append,
+            ),
+        )
+
+        self.assertTrue(result.ok)
+        self.assertEqual(journal[0]["command"], "stage.ingest")
+        self.assertEqual(journal[0]["log_paths"]["stage_evidence"], "D:/Scratch/stage_ingest_job-1/source.mkv.ingest_evidence.json")
+        self.assertTrue(journal[0]["data"]["source_unchanged"])
+        self.assertEqual(journal[0]["data"]["rollback_actions"], ["delete scratch_path"])
+        self.assertEqual(journal[0]["data"]["recovery_actions"], ["rerun ingest"])
+        self.assertEqual(journal[0]["data"]["boundary_checks"], ["scratch target is a child of scratch_root"])
+
+    def test_run_ingest_stage_rejects_string_confirmation_before_spawn(self) -> None:
+        called = False
+
+        def fake_run(args, **kwargs):
+            nonlocal called
+            called = True
+            return StageProcessResult(args=args, returncode=0, stdout=_stage_stdout(), stderr="")
+
+        result = run_ingest_stage(
+            {
+                "source_path": "C:/Media/source.mkv",
+                "scratch_root": "D:/Scratch",
+                "intent": "execute",
+                "confirm_ingest": "true",
+            },
+            RunnerOptions(entrypoint_path=self._existing_entrypoint(), powershell_path="pwsh", run_capture_func=fake_run),
+        )
+
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertFalse(called)
+
 
 if __name__ == "__main__":
     unittest.main()
-

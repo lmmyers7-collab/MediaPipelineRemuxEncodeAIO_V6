@@ -1703,11 +1703,6 @@
   window.getLastQueueRows = getLastQueueRows;
   window.queueRowKey = queueRowKey;
   window.requestQueueOpen = requestQueueOpen;
-  window.requestQueueScan = requestQueueScan;
-  window.queueScanIsRunning = queueScanIsRunning;
-  window.queueScanStatusLines = queueScanStatusLines;
-  window.queueSourceInventoryLines = queueSourceInventoryLines;
-  window.renderQueueScanArtifacts = renderQueueScanArtifacts;
   window.isQueueOpenCommand = isQueueOpenCommand;
   window.queueOpenHistoryLine = queueOpenHistoryLine;
   window.renderQueueOpenHistory = renderQueueOpenHistory;

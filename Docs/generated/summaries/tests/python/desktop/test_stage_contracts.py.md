@@ -3,9 +3,9 @@ file: tests/python/desktop/test_stage_contracts.py
 pipeline_stage: contracts
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-11
+last_modified: 2026-06-24
 last_reviewed: 2026-06-04
-sha256: 5423fcf837e09fb230274e4e59d71a0336bae80744922356f8e07ef6b708ca16
+sha256: 730b3431c7c524b6e25d8096e3d28b82c62390828262fba4e3caf917b52eb18d
 ---
 # `tests/python/desktop/test_stage_contracts.py`
 

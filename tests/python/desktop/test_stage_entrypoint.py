@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import hashlib
 import os
 import shutil
 import subprocess
@@ -13,7 +14,7 @@ from mediapipeline.tools.paths import find_repo_root
 
 sys.path.insert(0, str(find_repo_root(Path(__file__))))
 
-from mediapipeline.contracts.stages import DecideResult, ProbeResult, StageResult
+from mediapipeline.contracts.stages import DecideResult, IngestResult, ProbeResult, StageResult
 
 
 PROJECT_ROOT = find_repo_root(Path(__file__))
@@ -32,6 +33,10 @@ def _ffmpeg() -> str | None:
     if BUNDLED_FFMPEG.exists():
         return str(BUNDLED_FFMPEG)
     return shutil.which("ffmpeg")
+
+
+def _sha256(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
 class StageEntrypointTests(unittest.TestCase):
@@ -110,6 +115,219 @@ class StageEntrypointTests(unittest.TestCase):
         self.assertFalse(result.ok)
         self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
         self.assertIn("unknown decide payload field 'unexpected'", result.error.message if result.error else "")
+
+    def test_ingest_stage_rejects_string_boolean_confirmation(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-ingest-confirm-") as tmp:
+            root = Path(tmp)
+            source = root / "source.mkv"
+            scratch_root = root / "Scratch"
+            source.write_bytes(b"source bytes")
+            completed = self.run_entrypoint(
+                "ingest",
+                {
+                    "schema_version": "v1",
+                    "stage": "ingest",
+                    "payload": {
+                        "source_path": str(source),
+                        "scratch_root": str(scratch_root),
+                        "intent": "execute",
+                        "confirm_ingest": "true",
+                    },
+                },
+            )
+
+        self.assertNotEqual(completed.returncode, 0)
+        result = StageResult.model_validate(json.loads(completed.stdout))
+        self.assertFalse(result.ok)
+        self.assertEqual(result.error.code if result.error else "", "stage.invalid_payload")
+        self.assertIn("confirm_ingest", result.error.message if result.error else "")
+
+    def test_ingest_stage_dry_run_does_not_write_scratch(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-ingest-dry-run-") as tmp:
+            root = Path(tmp)
+            source = root / "source.mkv"
+            scratch_root = root / "Scratch"
+            source.write_bytes(b"source bytes")
+            source_hash = _sha256(source)
+
+            completed = self.run_entrypoint(
+                "ingest",
+                {
+                    "schema_version": "v1",
+                    "stage": "ingest",
+                    "payload": {
+                        "source_path": str(source),
+                        "scratch_root": str(scratch_root),
+                        "intent": "dry_run",
+                        "job_id": "job-dry-run",
+                    },
+                },
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            result = StageResult.model_validate(json.loads(completed.stdout))
+            self.assertTrue(result.ok)
+            data = IngestResult.model_validate(result.data)
+            self.assertFalse(Path(data.scratch_path).exists())
+            self.assertFalse(Path(data.evidence_path).exists())
+            self.assertFalse(scratch_root.exists())
+            self.assertEqual(_sha256(source), source_hash)
+            self.assertEqual(data.source_sha256, source_hash)
+            self.assertTrue(data.source_unchanged)
+            self.assertIn("scratch target is a child of scratch_root", data.boundary_checks)
+
+    def test_ingest_stage_execute_copies_to_guarded_scratch_and_writes_evidence(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-ingest-execute-") as tmp:
+            root = Path(tmp)
+            source = root / "source sample.mkv"
+            scratch_root = root / "Scratch"
+            source.write_bytes(b"representative source bytes")
+            source_hash = _sha256(source)
+
+            completed = self.run_entrypoint(
+                "ingest",
+                {
+                    "schema_version": "v1",
+                    "stage": "ingest",
+                    "payload": {
+                        "source_path": str(source),
+                        "scratch_root": str(scratch_root),
+                        "intent": "execute",
+                        "confirm_ingest": True,
+                        "job_id": "job-execute",
+                    },
+                },
+            )
+
+            self.assertEqual(completed.returncode, 0, completed.stderr)
+            result = StageResult.model_validate(json.loads(completed.stdout))
+            self.assertTrue(result.ok)
+            data = IngestResult.model_validate(result.data)
+            scratch_path = Path(data.scratch_path)
+            evidence_path = Path(data.evidence_path)
+
+            self.assertTrue(scratch_path.is_file())
+            self.assertTrue(evidence_path.is_file())
+            self.assertEqual(scratch_path.read_bytes(), source.read_bytes())
+            self.assertEqual(_sha256(source), source_hash)
+            self.assertEqual(data.sha256, source_hash)
+            self.assertEqual(data.source_sha256, source_hash)
+            self.assertTrue(data.source_unchanged)
+            self.assertIn("delete scratch_path", " ".join(data.rollback_actions))
+            self.assertIn("scratch_path without touching source media", " ".join(data.recovery_actions))
+            self.assertTrue(str(scratch_path.resolve()).lower().startswith(str(scratch_root.resolve()).lower()))
+
+            evidence = json.loads(evidence_path.read_text(encoding="utf-8-sig"))
+            self.assertEqual(evidence["schema_version"], "ingest_stage_evidence.v1")
+            self.assertEqual(evidence["source_sha256"], source_hash)
+            self.assertEqual(evidence["sha256"], source_hash)
+            self.assertTrue(evidence["source_unchanged"])
+            self.assertIn("scratch target refuses overwrite", evidence["boundary_checks"])
+
+    def test_ingest_stage_execute_refuses_existing_scratch_payload(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-ingest-overwrite-") as tmp:
+            root = Path(tmp)
+            source = root / "source.mkv"
+            scratch_root = root / "Scratch"
+            target_dir = scratch_root / "stage_ingest_job-existing"
+            scratch_path = target_dir / source.name
+            evidence_path = Path(f"{scratch_path}.ingest_evidence.json")
+            source.write_bytes(b"source bytes")
+            target_dir.mkdir(parents=True)
+            scratch_path.write_bytes(b"existing scratch bytes")
+            source_hash = _sha256(source)
+            scratch_hash = _sha256(scratch_path)
+
+            completed = self.run_entrypoint(
+                "ingest",
+                {
+                    "schema_version": "v1",
+                    "stage": "ingest",
+                    "payload": {
+                        "source_path": str(source),
+                        "scratch_root": str(scratch_root),
+                        "intent": "execute",
+                        "confirm_ingest": True,
+                        "job_id": "job-existing",
+                    },
+                },
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            result = StageResult.model_validate(json.loads(completed.stdout))
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.runtime_error")
+            self.assertIn("scratch target already exists", result.error.message if result.error else "")
+            self.assertEqual(_sha256(source), source_hash)
+            self.assertEqual(_sha256(scratch_path), scratch_hash)
+            self.assertFalse(evidence_path.exists())
+
+    def test_ingest_stage_execute_refuses_existing_evidence_file(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-ingest-evidence-overwrite-") as tmp:
+            root = Path(tmp)
+            source = root / "source.mkv"
+            scratch_root = root / "Scratch"
+            target_dir = scratch_root / "stage_ingest_job-evidence"
+            scratch_path = target_dir / source.name
+            evidence_path = Path(f"{scratch_path}.ingest_evidence.json")
+            source.write_bytes(b"source bytes")
+            target_dir.mkdir(parents=True)
+            evidence_path.write_text("existing evidence", encoding="utf-8")
+            source_hash = _sha256(source)
+            evidence_text = evidence_path.read_text(encoding="utf-8")
+
+            completed = self.run_entrypoint(
+                "ingest",
+                {
+                    "schema_version": "v1",
+                    "stage": "ingest",
+                    "payload": {
+                        "source_path": str(source),
+                        "scratch_root": str(scratch_root),
+                        "intent": "execute",
+                        "confirm_ingest": True,
+                        "job_id": "job-evidence",
+                    },
+                },
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            result = StageResult.model_validate(json.loads(completed.stdout))
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.runtime_error")
+            self.assertIn("evidence target already exists", result.error.message if result.error else "")
+            self.assertEqual(_sha256(source), source_hash)
+            self.assertFalse(scratch_path.exists())
+            self.assertEqual(evidence_path.read_text(encoding="utf-8"), evidence_text)
+
+    def test_ingest_stage_rejects_source_inside_scratch_root(self) -> None:
+        with tempfile.TemporaryDirectory(prefix="mediapipeline-stage-ingest-boundary-") as tmp:
+            root = Path(tmp)
+            scratch_root = root / "Scratch"
+            scratch_root.mkdir()
+            source = scratch_root / "source.mkv"
+            source.write_bytes(b"source bytes")
+            source_hash = _sha256(source)
+
+            completed = self.run_entrypoint(
+                "ingest",
+                {
+                    "schema_version": "v1",
+                    "stage": "ingest",
+                    "payload": {
+                        "source_path": str(source),
+                        "scratch_root": str(scratch_root),
+                        "intent": "dry_run",
+                    },
+                },
+            )
+
+            self.assertNotEqual(completed.returncode, 0)
+            result = StageResult.model_validate(json.loads(completed.stdout))
+            self.assertFalse(result.ok)
+            self.assertEqual(result.error.code if result.error else "", "stage.runtime_error")
+            self.assertIn("source_path must not be inside scratch_root", result.error.message if result.error else "")
+            self.assertEqual(_sha256(source), source_hash)
 
     def test_decide_stage_rejects_string_boolean_payload_fields(self) -> None:
         completed = self.run_entrypoint(
@@ -474,4 +692,3 @@ class StageEntrypointTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: rename
 last_modified: 2026-06-23
 last_reviewed: 2026-06-04
-sha256: c2df78d72f92f9c9362cfa9c42821bf3266df9c8e477cb936f201fae2e2ec74e
+sha256: 7c9b9bd12117836137f01a3f0d5e3bb7f3fb062922d9994cf72026d1d75b0696
 ---
 # `src/mediapipeline/core/rename/path_authority.py`
 
