@@ -1,0 +1,60 @@
+{
+  "id": "MP-CHANGE-2026-0623-064",
+  "title": "Remove Settings patch writer flat export",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "refactor",
+  "risk_level": "low",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-23",
+  "summary": "Removed the transitional window.writeSettingsPatchJson flat export and routed Settings Libraries patch staging through window.mediaPipelineSettingsView.writeSettingsPatchJson.",
+  "reason": "Continue the WebView namespace-first cleanup for the touched Settings domain without restoring compatibility globals or moving settings mutation authority into the frontend.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "SettingsView exported writeSettingsPatchJson both through mediaPipelineSettingsView and as window.writeSettingsPatchJson; Settings Libraries called the flat alias when staging LibraryProfiles and watch-folder patches.",
+  "behavior_after": "SettingsView exposes writeSettingsPatchJson only through mediaPipelineSettingsView. Settings Libraries resolves the Settings namespace once and calls settingsView.writeSettingsPatchJson for staging, while backend Preview/Save remains the authority for persisted settings writes.",
+  "files_touched": [
+    "Docs/CURRENT_PROJECT_STATE.md",
+    "Docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md",
+    "Docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json",
+    "Docs/generated/WEBVIEW_SPLIT_CANDIDATES.json",
+    "Docs/generated/summaries/Docs/CURRENT_PROJECT_STATE.md.md",
+    "Docs/generated/summaries/Docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md.md",
+    "Docs/generated/summaries/Docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json.md",
+    "Docs/generated/summaries/Docs/generated/WEBVIEW_SPLIT_CANDIDATES.json.md",
+    "Docs/generated/summaries/Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries.js.md",
+    "Docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "Docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "Docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "Docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-064.json",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "Added a static guard that settingsView.js keeps writeSettingsPatchJson on mediaPipelineSettingsView without a window.writeSettingsPatchJson flat alias.",
+    "Updated Settings Libraries static coverage to require settingsView.writeSettingsPatchJson calls and reject the flat alias.",
+    "Corrected stale Settings Libraries review-dialog assertions to the current backend-evidence counter rows."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/settingsLibraries.js",
+    "node --check apps/desktop/webview/static/assets/settingsView.js",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_handbrake_settings_ui -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_settings_libraries -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q",
+    "apps/desktop/runtime/Python/python.exe -B -m unittest tests.webview.test_webview_inventory_docs -q",
+    "npm run webview:prework:check",
+    "Clean detached temp worktree at HEAD plus this packet's source/test patch: npm run webview:prework:check passed after regenerating WebView map/contract/slice/check artifacts there.",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <packet source/generated/test paths>"
+  ],
+  "rollback_plan": "Restore window.writeSettingsPatchJson = writeSettingsPatchJson, change Settings Libraries call sites back to window.writeSettingsPatchJson, revert the static assertions, and regenerate the WebView public-contract/split-map/split-candidate artifacts plus generated summaries. This rollback does not touch backend settings persistence, source media, queue state, publish/drain, rename apply, or media policy.",
+  "related_changes": [],
+  "notes": "No backend route, strict confirmation, settings persistence, source/scratch/output movement, publish/drain, FFmpeg/media-policy, or command-journal behavior changed. Generated WebView contract files were produced in a clean detached worktree based on HEAD plus only this packet's Settings patch so unrelated rename-generated drift in the dirty main worktree is not absorbed into this packet."
+}

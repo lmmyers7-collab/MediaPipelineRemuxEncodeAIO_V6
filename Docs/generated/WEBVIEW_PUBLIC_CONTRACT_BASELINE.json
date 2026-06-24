@@ -1181,8 +1181,7 @@
       "showPage",
       "tableStatusFilterLabel",
       "tableStatusMatchesFilter",
-      "updateTableStatusLegend",
-      "writeSettingsPatchJson"
+      "updateTableStatusLegend"
     ],
     "api_routes": [
       "/api/audit/export-rerun-csv",
@@ -1611,6 +1610,7 @@
       "rename-bulk-stage-button",
       "rename-bulk-suffix",
       "rename-bulk-use-pipeline-button",
+      "rename-check-all-button",
       "rename-check-applicable-button",
       "rename-clear-checks-button",
       "rename-clear-override-button",
@@ -1838,7 +1838,7 @@
       "toggle",
       "visibilitychange"
     ],
-    "top_level_declaration_count": 3744
+    "top_level_declaration_count": 3761
   },
   "scripts": [
     {
@@ -9183,768 +9183,848 @@
           "kind": "const"
         },
         {
-          "name": "RENAME_CLEANING_IDS",
+          "name": "RENAME_WEBVIEW_FILE_DROP_EVENT",
           "line": 16,
           "kind": "const"
         },
         {
+          "name": "RENAME_MEDIA_EXTENSIONS",
+          "line": 17,
+          "kind": "const"
+        },
+        {
+          "name": "RENAME_SIDECAR_SUFFIXES",
+          "line": 18,
+          "kind": "const"
+        },
+        {
+          "name": "RENAME_CLEANING_IDS",
+          "line": 19,
+          "kind": "const"
+        },
+        {
           "name": "lastRenameRows",
-          "line": 26,
+          "line": 29,
           "kind": "let"
         },
         {
           "name": "selectedRenameSourceKey",
-          "line": 27,
-          "kind": "let"
-        },
-        {
-          "name": "renameFinalOverrides",
-          "line": 28,
-          "kind": "const"
-        },
-        {
-          "name": "renameForceOverrides",
-          "line": 29,
-          "kind": "const"
-        },
-        {
-          "name": "lastRenameEmptyMessage",
           "line": 30,
           "kind": "let"
         },
         {
-          "name": "renamePreviewRequestId",
+          "name": "renameFinalOverrides",
           "line": 31,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "activeRenamePreviewRequestId",
+          "name": "renameForceOverrides",
           "line": 32,
-          "kind": "let"
+          "kind": "const"
         },
         {
-          "name": "renameFilterPreviewRequestId",
+          "name": "lastRenameEmptyMessage",
           "line": 33,
           "kind": "let"
         },
         {
-          "name": "renameFilterPreviewTimer",
+          "name": "renamePreviewRequestId",
           "line": 34,
           "kind": "let"
         },
         {
-          "name": "renamePreviewInFlight",
+          "name": "activeRenamePreviewRequestId",
           "line": 35,
           "kind": "let"
         },
         {
-          "name": "renameBrowseInFlight",
+          "name": "renameFilterPreviewRequestId",
           "line": 36,
           "kind": "let"
         },
         {
-          "name": "renameApplyInFlight",
+          "name": "renameFilterPreviewTimer",
           "line": 37,
           "kind": "let"
         },
         {
-          "name": "renameBadCaseInFlight",
+          "name": "renamePreviewInFlight",
           "line": 38,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterEventsBound",
+          "name": "renameBrowseInFlight",
           "line": 39,
           "kind": "let"
         },
         {
-          "name": "lastRenamePreviewSignature",
+          "name": "renameApplyInFlight",
           "line": 40,
           "kind": "let"
         },
         {
-          "name": "renamePreviewStale",
+          "name": "renameBadCaseInFlight",
           "line": 41,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterSaveMessage",
+          "name": "renameCleaningFilterEventsBound",
           "line": 42,
           "kind": "let"
         },
         {
-          "name": "renameCleaningFilterSaveMessageUntil",
+          "name": "lastRenamePreviewSignature",
           "line": 43,
           "kind": "let"
         },
         {
-          "name": "checkedRenameSourceKeys",
+          "name": "renamePreviewStale",
           "line": 44,
+          "kind": "let"
+        },
+        {
+          "name": "renameCleaningFilterSaveMessage",
+          "line": 45,
+          "kind": "let"
+        },
+        {
+          "name": "renameCleaningFilterSaveMessageUntil",
+          "line": 46,
+          "kind": "let"
+        },
+        {
+          "name": "checkedRenameSourceKeys",
+          "line": 47,
           "kind": "const"
         },
         {
           "name": "renamePathOrigins",
-          "line": 45,
+          "line": 48,
           "kind": "const"
         },
         {
           "name": "byAnyId",
-          "line": 47,
+          "line": 50,
           "kind": "function"
         },
         {
           "name": "renameCleaningNode",
-          "line": 55,
+          "line": 58,
           "kind": "function"
         },
         {
           "name": "collectRenameRequest",
-          "line": 59,
+          "line": 62,
           "kind": "function"
         },
         {
           "name": "renameRequestSignatureFromRequest",
-          "line": 81,
+          "line": 84,
           "kind": "function"
         },
         {
           "name": "renameCurrentRequestSignature",
-          "line": 85,
+          "line": 88,
           "kind": "function"
         },
         {
           "name": "renamePreviewStatusText",
-          "line": 89,
+          "line": 92,
           "kind": "function"
         },
         {
           "name": "updateRenamePreviewFreshnessState",
-          "line": 93,
+          "line": 96,
           "kind": "function"
         },
         {
           "name": "renameMarkInputChanged",
-          "line": 108,
+          "line": 111,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterTextareas",
-          "line": 113,
+          "line": 116,
           "kind": "function"
         },
         {
           "name": "renameTvFilterTextareas",
-          "line": 117,
+          "line": 120,
           "kind": "function"
         },
         {
           "name": "renameMovieFilterCheckboxes",
-          "line": 121,
+          "line": 124,
           "kind": "function"
         },
         {
           "name": "renameTvFilterCheckboxes",
-          "line": 125,
+          "line": 128,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterOptions",
-          "line": 129,
+          "line": 132,
           "kind": "function"
         },
         {
           "name": "collectRenameTvFilterOptions",
-          "line": 138,
+          "line": 141,
           "kind": "function"
         },
         {
           "name": "parseRenameFilterTerms",
-          "line": 147,
+          "line": 150,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterTermsText",
-          "line": 160,
+          "line": 163,
           "kind": "function"
         },
         {
           "name": "collectRenameMovieFilterTerms",
-          "line": 169,
+          "line": 172,
           "kind": "function"
         },
         {
           "name": "collectRenameTvFilterTermsText",
-          "line": 177,
+          "line": 180,
           "kind": "function"
         },
         {
           "name": "collectRenameTvFilterTerms",
-          "line": 186,
+          "line": 189,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterState",
-          "line": 194,
+          "line": 197,
           "kind": "function"
         },
         {
           "name": "renameCleaningFilterConfigPatch",
-          "line": 205,
+          "line": 208,
           "kind": "function"
         },
         {
           "name": "renderRenameCleaningFilterEditor",
-          "line": 216,
+          "line": 219,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFilterDraft",
-          "line": 244,
+          "line": 247,
           "kind": "function"
         },
         {
           "name": "stageRenameCleaningFilterPatch",
-          "line": 258,
+          "line": 261,
           "kind": "function"
         },
         {
           "name": "saveRenameCleaningFilterState",
-          "line": 283,
+          "line": 286,
           "kind": "function"
         },
         {
           "name": "resetRenameCleaningFilters",
-          "line": 311,
+          "line": 314,
           "kind": "function"
         },
         {
           "name": "loadRenameCleaningFilterState",
-          "line": 334,
+          "line": 337,
           "kind": "function"
         },
         {
           "name": "applyRenameFilterCatalogSection",
-          "line": 378,
+          "line": 381,
           "kind": "function"
         },
         {
           "name": "loadRenameMovieFilterCatalog",
-          "line": 418,
+          "line": 421,
           "kind": "function"
         },
         {
           "name": "renameCleanFilenamePreviewQuery",
-          "line": 447,
+          "line": 450,
           "kind": "function"
         },
         {
           "name": "renderRenameFilterPreviewPayload",
-          "line": 465,
+          "line": 468,
           "kind": "function"
         },
         {
           "name": "updateRenameFilterPreview",
-          "line": 497,
+          "line": 500,
           "kind": "function"
         },
         {
           "name": "initRenameCleaningFilterEditorEvents",
-          "line": 542,
+          "line": 545,
           "kind": "function"
         },
         {
           "name": "renameSourceKey",
-          "line": 592,
+          "line": 595,
           "kind": "function"
         },
         {
           "name": "getSelectedRenameRow",
-          "line": 596,
+          "line": 599,
           "kind": "function"
         },
         {
           "name": "getCheckedRenameRows",
-          "line": 601,
+          "line": 604,
           "kind": "function"
         },
         {
           "name": "renameRenderedRowsCount",
-          "line": 605,
+          "line": 608,
           "kind": "function"
         },
         {
           "name": "renameRenderCapText",
-          "line": 610,
+          "line": 613,
           "kind": "function"
         },
         {
           "name": "renameStatusState",
-          "line": 616,
+          "line": 619,
           "kind": "function"
         },
         {
           "name": "setRenameStatusLine",
-          "line": 626,
+          "line": 629,
           "kind": "function"
         },
         {
           "name": "renameRowStatus",
-          "line": 632,
+          "line": 635,
           "kind": "function"
         },
         {
           "name": "renameRowHasWarnings",
-          "line": 636,
+          "line": 639,
           "kind": "function"
         },
         {
           "name": "renameDuplicateTargetSet",
-          "line": 640,
+          "line": 643,
           "kind": "function"
         },
         {
           "name": "renameTargetKey",
-          "line": 645,
+          "line": 648,
           "kind": "function"
         },
         {
           "name": "renameAutoCheckSkipReason",
-          "line": 649,
+          "line": 652,
           "kind": "function"
         },
         {
           "name": "updateRenameTableLegend",
-          "line": 657,
+          "line": 660,
           "kind": "function"
         },
         {
           "name": "renameCurrentFinalName",
-          "line": 667,
+          "line": 670,
           "kind": "function"
         },
         {
           "name": "renameRowCanApply",
-          "line": 672,
+          "line": 675,
           "kind": "function"
         },
         {
           "name": "renameImportantRowReason",
-          "line": 678,
+          "line": 681,
           "kind": "function"
         },
         {
           "name": "renameRowStatusDisplay",
-          "line": 690,
+          "line": 693,
           "kind": "function"
         },
         {
           "name": "getRenameApplyScopeRows",
-          "line": 697,
+          "line": 700,
           "kind": "function"
         },
         {
           "name": "syncRenameCheckedCount",
-          "line": 703,
+          "line": 706,
           "kind": "function"
         },
         {
           "name": "setRenameRowChecked",
-          "line": 716,
+          "line": 719,
+          "kind": "function"
+        },
+        {
+          "name": "setRenameRowCheckedFromCheckbox",
+          "line": 727,
           "kind": "function"
         },
         {
           "name": "checkApplicableRenameRows",
-          "line": 724,
+          "line": 732,
+          "kind": "function"
+        },
+        {
+          "name": "checkAllRenameRows",
+          "line": 755,
           "kind": "function"
         },
         {
           "name": "clearCheckedRenameRows",
-          "line": 747,
-          "kind": "function"
-        },
-        {
-          "name": "renamePathLines",
-          "line": 757,
-          "kind": "function"
-        },
-        {
-          "name": "setRenamePathLines",
-          "line": 761,
-          "kind": "function"
-        },
-        {
-          "name": "renameSourcePathFromRow",
-          "line": 769,
-          "kind": "function"
-        },
-        {
-          "name": "renameSourceLabelFromRow",
-          "line": 773,
-          "kind": "function"
-        },
-        {
-          "name": "renamePathSegments",
-          "line": 777,
-          "kind": "function"
-        },
-        {
-          "name": "renameFileLeafFromPath",
           "line": 781,
           "kind": "function"
         },
         {
-          "name": "renameParentFolderLeafFromPath",
-          "line": 786,
-          "kind": "function"
-        },
-        {
-          "name": "renameFolderLeafFromValue",
+          "name": "renamePathLines",
           "line": 791,
           "kind": "function"
         },
         {
+          "name": "setRenamePathLines",
+          "line": 795,
+          "kind": "function"
+        },
+        {
+          "name": "renameSourcePathFromRow",
+          "line": 803,
+          "kind": "function"
+        },
+        {
+          "name": "renameSourceLabelFromRow",
+          "line": 807,
+          "kind": "function"
+        },
+        {
+          "name": "renamePathSegments",
+          "line": 811,
+          "kind": "function"
+        },
+        {
+          "name": "renameFileLeafFromPath",
+          "line": 815,
+          "kind": "function"
+        },
+        {
+          "name": "renameParentFolderLeafFromPath",
+          "line": 820,
+          "kind": "function"
+        },
+        {
+          "name": "renameFolderLeafFromValue",
+          "line": 825,
+          "kind": "function"
+        },
+        {
           "name": "renameExpectedShowFromName",
-          "line": 796,
+          "line": 830,
           "kind": "function"
         },
         {
           "name": "renameExpectedSeasonFromName",
-          "line": 801,
+          "line": 835,
           "kind": "function"
         },
         {
           "name": "renameSeasonNumberFromWorkbench",
-          "line": 806,
+          "line": 840,
           "kind": "function"
         },
         {
           "name": "compactRenameNote",
-          "line": 813,
-          "kind": "function"
-        },
-        {
-          "name": "renameBadCasePayloadFromRow",
-          "line": 817,
-          "kind": "function"
-        },
-        {
-          "name": "submitRenameBadCasePayload",
           "line": 847,
           "kind": "function"
         },
         {
+          "name": "renameBadCasePayloadFromRow",
+          "line": 851,
+          "kind": "function"
+        },
+        {
+          "name": "submitRenameBadCasePayload",
+          "line": 881,
+          "kind": "function"
+        },
+        {
           "name": "setRenameBadCaseBusy",
-          "line": 854,
+          "line": 888,
           "kind": "function"
         },
         {
           "name": "renameLogCaseInput",
-          "line": 864,
+          "line": 898,
           "kind": "function"
         },
         {
           "name": "setRenameLogCaseInputValue",
-          "line": 868,
+          "line": 902,
           "kind": "function"
         },
         {
           "name": "renameBadCaseDialogOverrides",
-          "line": 873,
+          "line": 907,
           "kind": "function"
         },
         {
           "name": "syncRenameBadCaseButton",
-          "line": 886,
+          "line": 920,
           "kind": "function"
         },
         {
           "name": "openRenameBadCaseDialog",
-          "line": 897,
+          "line": 931,
           "kind": "function"
         },
         {
           "name": "submitRenameBadCaseDialog",
-          "line": 921,
+          "line": 955,
           "kind": "function"
         },
         {
           "name": "renameCurrentPathValues",
-          "line": 953,
+          "line": 987,
+          "kind": "function"
+        },
+        {
+          "name": "renamePathLeaf",
+          "line": 991,
+          "kind": "function"
+        },
+        {
+          "name": "renamePathExtension",
+          "line": 996,
+          "kind": "function"
+        },
+        {
+          "name": "renameIsSidecarPath",
+          "line": 1002,
+          "kind": "function"
+        },
+        {
+          "name": "classifyRenamePathValues",
+          "line": 1007,
+          "kind": "function"
+        },
+        {
+          "name": "renameLooksLikeAbsolutePath",
+          "line": 1040,
+          "kind": "function"
+        },
+        {
+          "name": "normalizeRenameDroppedPathValues",
+          "line": 1049,
+          "kind": "function"
+        },
+        {
+          "name": "renameDroppedPathFromFile",
+          "line": 1062,
+          "kind": "function"
+        },
+        {
+          "name": "renameDroppedPathValuesFromDataTransfer",
+          "line": 1072,
+          "kind": "function"
+        },
+        {
+          "name": "renameDroppedPathValuesFromBridgeDetail",
+          "line": 1078,
+          "kind": "function"
+        },
+        {
+          "name": "handleRenameDroppedPaths",
+          "line": 1083,
+          "kind": "function"
+        },
+        {
+          "name": "renameDropZoneIsVisible",
+          "line": 1092,
           "kind": "function"
         },
         {
           "name": "renamePathOriginKey",
-          "line": 957,
+          "line": 1097,
           "kind": "function"
         },
         {
           "name": "rememberRenamePathOrigins",
-          "line": 961,
+          "line": 1101,
           "kind": "function"
         },
         {
           "name": "pruneRenamePathOrigins",
-          "line": 970,
+          "line": 1110,
           "kind": "function"
         },
         {
           "name": "renamePathOriginCounts",
-          "line": 977,
+          "line": 1117,
           "kind": "function"
         },
         {
           "name": "renamePathOriginSummary",
-          "line": 986,
+          "line": 1126,
           "kind": "function"
         },
         {
           "name": "renderRenameFileSourceSummary",
-          "line": 994,
+          "line": 1134,
           "kind": "function"
         },
         {
           "name": "appendRenamePaths",
-          "line": 1015,
+          "line": 1166,
           "kind": "function"
         },
         {
           "name": "addRenamePathFromInput",
-          "line": 1039,
+          "line": 1191,
           "kind": "function"
         },
         {
           "name": "browseRenamePaths",
-          "line": 1052,
+          "line": 1204,
           "kind": "function"
         },
         {
           "name": "clearRenamePaths",
-          "line": 1099,
+          "line": 1256,
           "kind": "function"
         },
         {
           "name": "useSelectedQueueRowForRename",
-          "line": 1127,
+          "line": 1284,
           "kind": "function"
         },
         {
           "name": "useLoadedQueueRowsForRename",
-          "line": 1139,
+          "line": 1296,
           "kind": "function"
         },
         {
           "name": "renameLineKey",
-          "line": 1151,
+          "line": 1308,
           "kind": "function"
         },
         {
           "name": "checkedOrSelectedRenameKeys",
-          "line": 1155,
+          "line": 1312,
           "kind": "function"
         },
         {
           "name": "moveCheckedRenamePaths",
-          "line": 1160,
+          "line": 1317,
           "kind": "function"
         },
         {
           "name": "naturalCompareText",
-          "line": 1194,
+          "line": 1351,
           "kind": "function"
         },
         {
           "name": "naturalSortRenamePaths",
-          "line": 1209,
+          "line": 1366,
           "kind": "function"
         },
         {
           "name": "syncRenameSelectedInputs",
-          "line": 1218,
+          "line": 1375,
           "kind": "function"
         },
         {
           "name": "captureRenameSelectionScroll",
-          "line": 1226,
+          "line": 1383,
           "kind": "function"
         },
         {
           "name": "restoreRenameSelectionScroll",
-          "line": 1230,
+          "line": 1387,
           "kind": "function"
         },
         {
           "name": "selectRenameRow",
-          "line": 1234,
-          "kind": "function"
-        },
-        {
-          "name": "renamePreviewSlice",
-          "line": 1245,
-          "kind": "const"
-        },
-        {
-          "name": "renameBulkScopeRows",
-          "line": 1275,
-          "kind": "function"
-        },
-        {
-          "name": "renameBulkScopeLabel",
-          "line": 1285,
-          "kind": "function"
-        },
-        {
-          "name": "renameSplitFilename",
-          "line": 1292,
-          "kind": "function"
-        },
-        {
-          "name": "renameBulkEditedName",
-          "line": 1299,
-          "kind": "function"
-        },
-        {
-          "name": "renameBulkHasEditInput",
-          "line": 1311,
-          "kind": "function"
-        },
-        {
-          "name": "renameNameHasPathSeparator",
-          "line": 1319,
-          "kind": "function"
-        },
-        {
-          "name": "renameSetFinalOverride",
-          "line": 1323,
-          "kind": "function"
-        },
-        {
-          "name": "renderRenameBulkEditor",
-          "line": 1332,
-          "kind": "function"
-        },
-        {
-          "name": "stageRenameBulkEdit",
-          "line": 1350,
-          "kind": "function"
-        },
-        {
-          "name": "usePipelineNamesForRenameScope",
-          "line": 1380,
-          "kind": "function"
-        },
-        {
-          "name": "setRenameBulkForce",
           "line": 1391,
           "kind": "function"
         },
         {
+          "name": "renamePreviewSlice",
+          "line": 1402,
+          "kind": "const"
+        },
+        {
+          "name": "renameBulkScopeRows",
+          "line": 1432,
+          "kind": "function"
+        },
+        {
+          "name": "renameBulkScopeLabel",
+          "line": 1442,
+          "kind": "function"
+        },
+        {
+          "name": "renameSplitFilename",
+          "line": 1449,
+          "kind": "function"
+        },
+        {
+          "name": "renameBulkEditedName",
+          "line": 1456,
+          "kind": "function"
+        },
+        {
+          "name": "renameBulkHasEditInput",
+          "line": 1468,
+          "kind": "function"
+        },
+        {
+          "name": "renameNameHasPathSeparator",
+          "line": 1476,
+          "kind": "function"
+        },
+        {
+          "name": "renameSetFinalOverride",
+          "line": 1480,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameBulkEditor",
+          "line": 1489,
+          "kind": "function"
+        },
+        {
+          "name": "stageRenameBulkEdit",
+          "line": 1507,
+          "kind": "function"
+        },
+        {
+          "name": "usePipelineNamesForRenameScope",
+          "line": 1537,
+          "kind": "function"
+        },
+        {
+          "name": "setRenameBulkForce",
+          "line": 1548,
+          "kind": "function"
+        },
+        {
           "name": "clearRenameBulkOverrides",
-          "line": 1407,
+          "line": 1564,
           "kind": "function"
         },
         {
           "name": "renameApplyReadinessSlice",
-          "line": 1422,
+          "line": 1579,
           "kind": "const"
         },
         {
           "name": "applyRenameSelectedOverride",
-          "line": 1452,
+          "line": 1609,
           "kind": "function"
         },
         {
           "name": "clearRenameSelectedOverride",
-          "line": 1467,
+          "line": 1624,
           "kind": "function"
         },
         {
           "name": "replaceRenamePathText",
-          "line": 1483,
-          "kind": "function"
-        },
-        {
-          "name": "renameApplyResultSlice",
-          "line": 1507,
-          "kind": "const"
-        },
-        {
-          "name": "resetRenameApplyEvidence",
-          "line": 1529,
-          "kind": "function"
-        },
-        {
-          "name": "applySelectedRename",
-          "line": 1538,
-          "kind": "function"
-        },
-        {
-          "name": "renderRenamePreview",
-          "line": 1542,
-          "kind": "function"
-        },
-        {
-          "name": "renderRenameRows",
-          "line": 1567,
-          "kind": "function"
-        },
-        {
-          "name": "setRenamePreviewBusy",
-          "line": 1630,
-          "kind": "function"
-        },
-        {
-          "name": "setRenameApplyBusy",
-          "line": 1635,
-          "kind": "function"
-        },
-        {
-          "name": "syncRenameCommandButtons",
           "line": 1640,
           "kind": "function"
         },
         {
+          "name": "renameApplyResultSlice",
+          "line": 1664,
+          "kind": "const"
+        },
+        {
+          "name": "resetRenameApplyEvidence",
+          "line": 1686,
+          "kind": "function"
+        },
+        {
+          "name": "applySelectedRename",
+          "line": 1695,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenamePreview",
+          "line": 1699,
+          "kind": "function"
+        },
+        {
+          "name": "renderRenameRows",
+          "line": 1724,
+          "kind": "function"
+        },
+        {
+          "name": "setRenamePreviewBusy",
+          "line": 1796,
+          "kind": "function"
+        },
+        {
+          "name": "setRenameApplyBusy",
+          "line": 1801,
+          "kind": "function"
+        },
+        {
+          "name": "syncRenameCommandButtons",
+          "line": 1806,
+          "kind": "function"
+        },
+        {
           "name": "refreshRenamePreview",
-          "line": 1721,
+          "line": 1889,
           "kind": "function"
         },
         {
           "name": "renameDialogById",
-          "line": 1896,
+          "line": 2071,
           "kind": "function"
         },
         {
           "name": "renameOpenConfirmDialog",
-          "line": 1901,
+          "line": 2076,
           "kind": "function"
         },
         {
           "name": "renameOpenResultDialog",
-          "line": 1976,
+          "line": 2151,
           "kind": "function"
         },
         {
           "name": "renameApplicablePreviewRows",
-          "line": 2077,
+          "line": 2252,
           "kind": "function"
         },
         {
           "name": "applyRenameWorkbench",
-          "line": 2081,
+          "line": 2256,
           "kind": "function"
         },
         {
           "name": "renameSyncModeFieldVisibility",
-          "line": 2139,
+          "line": 2314,
           "kind": "function"
         },
         {
           "name": "renameInitDropZone",
-          "line": 2155,
+          "line": 2330,
           "kind": "function"
         },
         {
           "name": "renameInitWorkbenchEvents",
-          "line": 2188,
+          "line": 2369,
           "kind": "function"
         }
       ],
@@ -9970,6 +10050,7 @@
         "rename-bulk-replace",
         "rename-bulk-scope",
         "rename-bulk-suffix",
+        "rename-check-all-button",
         "rename-check-applicable-button",
         "rename-clear-checks-button",
         "rename-clear-paths-button",
@@ -12398,8 +12479,7 @@
         "getLastSettings",
         "initSettingsViewEvents",
         "renderSettings",
-        "renderSettingsRawActionPlan",
-        "writeSettingsPatchJson"
+        "renderSettingsRawActionPlan"
       ],
       "api_routes": [
         "/api/settings/browse-path",
@@ -12451,978 +12531,983 @@
           "kind": "const"
         },
         {
-          "name": "advancedFallbackKeys",
+          "name": "settingsView",
           "line": 5,
           "kind": "const"
         },
         {
-          "name": "staticCompatibilityPresets",
+          "name": "advancedFallbackKeys",
           "line": 6,
           "kind": "const"
         },
         {
-          "name": "pathFields",
-          "line": 9,
+          "name": "staticCompatibilityPresets",
+          "line": 7,
           "kind": "const"
         },
         {
-          "name": "designationValues",
+          "name": "pathFields",
           "line": 10,
           "kind": "const"
         },
         {
-          "name": "routeToleranceKeys",
+          "name": "designationValues",
           "line": 11,
           "kind": "const"
         },
         {
+          "name": "routeToleranceKeys",
+          "line": 12,
+          "kind": "const"
+        },
+        {
           "name": "routeSizeFields",
-          "line": 17,
+          "line": 18,
           "kind": "const"
         },
         {
           "name": "routeBucketDefinitions",
-          "line": 34,
+          "line": 35,
           "kind": "const"
         },
         {
           "name": "overrideGroupTitles",
-          "line": 64,
+          "line": 65,
           "kind": "const"
         },
         {
           "name": "overrideGroupOrder",
-          "line": 70,
-          "kind": "const"
-        },
-        {
-          "name": "fallbackOverrideGroups",
           "line": 71,
           "kind": "const"
         },
         {
+          "name": "fallbackOverrideGroups",
+          "line": 72,
+          "kind": "const"
+        },
+        {
           "name": "overrideLayouts",
-          "line": 82,
+          "line": 83,
           "kind": "const"
         },
         {
           "name": "fallbackGroupByField",
-          "line": 109,
+          "line": 110,
           "kind": "const"
         },
         {
           "name": "lastSettings",
-          "line": 116,
-          "kind": "let"
-        },
-        {
-          "name": "profiles",
           "line": 117,
           "kind": "let"
         },
         {
-          "name": "activeLibraryTabId",
+          "name": "profiles",
           "line": 118,
           "kind": "let"
         },
         {
-          "name": "libraryEditorDirty",
+          "name": "activeLibraryTabId",
           "line": 119,
           "kind": "let"
         },
         {
-          "name": "libraryProfilePatchCurrent",
+          "name": "libraryEditorDirty",
           "line": 120,
           "kind": "let"
         },
         {
-          "name": "libraryProfilePatchSaved",
+          "name": "libraryProfilePatchCurrent",
           "line": 121,
           "kind": "let"
         },
         {
-          "name": "libraryProfileCommandInFlight",
+          "name": "libraryProfilePatchSaved",
           "line": 122,
           "kind": "let"
         },
         {
-          "name": "lastLibraryProfileResetRequest",
+          "name": "libraryProfileCommandInFlight",
           "line": 123,
           "kind": "let"
         },
         {
-          "name": "openOverrideSectionsByLibrary",
+          "name": "lastLibraryProfileResetRequest",
           "line": 124,
+          "kind": "let"
+        },
+        {
+          "name": "openOverrideSectionsByLibrary",
+          "line": 125,
           "kind": "const"
         },
         {
           "name": "byId",
-          "line": 126,
+          "line": 127,
           "kind": "function"
         },
         {
           "name": "setText",
-          "line": 130,
+          "line": 131,
           "kind": "function"
         },
         {
           "name": "setLibraryFeedback",
-          "line": 135,
+          "line": 136,
           "kind": "function"
         },
         {
           "name": "setStateBadge",
-          "line": 143,
+          "line": 144,
           "kind": "function"
         },
         {
           "name": "setLibraryProfileCommandBusy",
-          "line": 150,
+          "line": 151,
           "kind": "function"
         },
         {
           "name": "rejectLibraryProfileCommandWhileBusy",
-          "line": 162,
+          "line": 163,
           "kind": "function"
         },
         {
           "name": "config",
-          "line": 178,
+          "line": 179,
           "kind": "function"
         },
         {
           "name": "fieldDefinitions",
-          "line": 182,
+          "line": 183,
           "kind": "function"
         },
         {
           "name": "libraryProfileStates",
-          "line": 186,
+          "line": 187,
           "kind": "function"
         },
         {
           "name": "libraryCompatibilityPresets",
-          "line": 190,
+          "line": 191,
           "kind": "function"
         },
         {
           "name": "mp4CompatibilityPreset",
-          "line": 197,
+          "line": 198,
           "kind": "function"
         },
         {
           "name": "profileState",
-          "line": 201,
+          "line": 202,
           "kind": "function"
         },
         {
           "name": "fieldDefinition",
-          "line": 206,
+          "line": 207,
           "kind": "function"
         },
         {
           "name": "hasBackendFieldDefinitions",
-          "line": 210,
+          "line": 211,
           "kind": "function"
         },
         {
           "name": "fallbackOverrideGroup",
-          "line": 214,
+          "line": 215,
           "kind": "function"
         },
         {
           "name": "backendOverrideFieldsForGroup",
-          "line": 218,
+          "line": 219,
           "kind": "function"
         },
         {
           "name": "overrideFieldsForGroup",
-          "line": 225,
+          "line": 226,
           "kind": "function"
         },
         {
           "name": "fieldLibraryDesignations",
-          "line": 230,
+          "line": 231,
           "kind": "function"
         },
         {
           "name": "fieldAppliesToProfile",
-          "line": 238,
+          "line": 239,
           "kind": "function"
         },
         {
           "name": "designationScopeText",
-          "line": 246,
+          "line": 247,
           "kind": "function"
         },
         {
           "name": "overrideGroupList",
-          "line": 252,
+          "line": 253,
           "kind": "function"
         },
         {
           "name": "groupForField",
-          "line": 260,
+          "line": 261,
           "kind": "function"
         },
         {
           "name": "overrideStatus",
-          "line": 266,
+          "line": 267,
           "kind": "function"
         },
         {
           "name": "text",
-          "line": 291,
+          "line": 292,
           "kind": "function"
         },
         {
           "name": "escapeHtml",
-          "line": 295,
+          "line": 296,
           "kind": "function"
         },
         {
           "name": "boolValue",
-          "line": 304,
+          "line": 305,
           "kind": "function"
         },
         {
           "name": "slug",
-          "line": 311,
+          "line": 312,
           "kind": "function"
         },
         {
           "name": "emptyOverrides",
-          "line": 316,
+          "line": 317,
           "kind": "function"
         },
         {
           "name": "defaultTracking",
-          "line": 320,
+          "line": 321,
           "kind": "function"
         },
         {
           "name": "normalizeDesignation",
-          "line": 346,
+          "line": 347,
           "kind": "function"
         },
         {
           "name": "fieldDefaultKey",
-          "line": 353,
+          "line": 354,
           "kind": "function"
         },
         {
           "name": "fieldDefaultValue",
-          "line": 363,
+          "line": 364,
           "kind": "function"
         },
         {
           "name": "backendPathEvidence",
-          "line": 369,
+          "line": 370,
           "kind": "function"
         },
         {
           "name": "fallbackPathEvidence",
-          "line": 374,
+          "line": 375,
           "kind": "function"
         },
         {
           "name": "pathEvidence",
-          "line": 386,
+          "line": 387,
           "kind": "function"
         },
         {
           "name": "pathIsInherited",
-          "line": 390,
+          "line": 391,
           "kind": "function"
         },
         {
           "name": "pathCanReset",
-          "line": 395,
+          "line": 396,
           "kind": "function"
         },
         {
           "name": "pathState",
-          "line": 402,
+          "line": 403,
           "kind": "function"
         },
         {
           "name": "pathSourceText",
-          "line": 411,
+          "line": 412,
           "kind": "function"
         },
         {
           "name": "pathStateClass",
-          "line": 421,
+          "line": 422,
           "kind": "function"
         },
         {
           "name": "defaultSettingValue",
-          "line": 428,
+          "line": 429,
           "kind": "function"
         },
         {
           "name": "inheritedSet",
-          "line": 437,
+          "line": 438,
           "kind": "function"
         },
         {
           "name": "normalizeOverrideMap",
-          "line": 444,
+          "line": 445,
           "kind": "function"
         },
         {
           "name": "mergeOverrideGroup",
-          "line": 452,
+          "line": 453,
           "kind": "function"
         },
         {
           "name": "mergeLegacyOverrides",
-          "line": 460,
+          "line": 461,
           "kind": "function"
         },
         {
           "name": "normalizeOverrides",
-          "line": 467,
+          "line": 468,
           "kind": "function"
         },
         {
           "name": "inapplicableOverrideKeys",
-          "line": 477,
+          "line": 478,
           "kind": "function"
         },
         {
           "name": "prunedOverrideWarningLines",
-          "line": 493,
+          "line": 494,
           "kind": "function"
         },
         {
           "name": "mp4CompatibilityConsequences",
-          "line": 508,
+          "line": 509,
           "kind": "function"
         },
         {
           "name": "libraryCardMp4CompatibilityActive",
-          "line": 513,
+          "line": 514,
           "kind": "function"
         },
         {
           "name": "mp4CompatibilityWarningLines",
-          "line": 520,
+          "line": 521,
           "kind": "function"
         },
         {
           "name": "normalizeProfile",
-          "line": 531,
+          "line": 532,
           "kind": "function"
         },
         {
           "name": "markLibraryEditorDirty",
-          "line": 567,
+          "line": 568,
           "kind": "function"
         },
         {
           "name": "stableComparable",
-          "line": 574,
+          "line": 575,
           "kind": "function"
         },
         {
           "name": "comparableTracking",
-          "line": 586,
+          "line": 587,
           "kind": "function"
         },
         {
           "name": "comparableProfile",
-          "line": 603,
+          "line": 604,
           "kind": "function"
         },
         {
           "name": "profilesEquivalent",
-          "line": 618,
+          "line": 619,
           "kind": "function"
         },
         {
           "name": "currentProfilesFromSettings",
-          "line": 624,
+          "line": 625,
           "kind": "function"
         },
         {
           "name": "formatValue",
-          "line": 639,
+          "line": 640,
           "kind": "function"
         },
         {
           "name": "parseListText",
-          "line": 645,
+          "line": 646,
           "kind": "function"
         },
         {
           "name": "libraryWatchConfig",
-          "line": 652,
+          "line": 653,
           "kind": "function"
         },
         {
           "name": "libraryWatchStatusLabel",
-          "line": 667,
+          "line": 668,
           "kind": "function"
         },
         {
           "name": "libraryWatchSummaryLines",
-          "line": 673,
+          "line": 674,
           "kind": "function"
         },
         {
           "name": "libraryWatchHasActiveControl",
-          "line": 687,
+          "line": 688,
           "kind": "function"
         },
         {
           "name": "syncLibraryWatchControlsFromConfig",
-          "line": 693,
+          "line": 694,
           "kind": "function"
         },
         {
           "name": "collectLibraryWatchAutoRunPatch",
-          "line": 705,
+          "line": 706,
           "kind": "function"
         },
         {
           "name": "renderLibraryWatchPatchHandoff",
-          "line": 721,
+          "line": 722,
           "kind": "function"
         },
         {
           "name": "stageLibraryWatchAutoRunPatch",
-          "line": 737,
+          "line": 738,
           "kind": "function"
         },
         {
           "name": "previewLibraryWatchAutoRunPatch",
-          "line": 753,
+          "line": 754,
           "kind": "function"
         },
         {
           "name": "saveLibraryWatchAutoRunPatch",
-          "line": 767,
+          "line": 768,
           "kind": "function"
         },
         {
           "name": "choiceLabel",
-          "line": 781,
+          "line": 782,
           "kind": "function"
         },
         {
           "name": "fieldHelpText",
-          "line": 787,
+          "line": 788,
           "kind": "function"
         },
         {
           "name": "metadataTags",
-          "line": 791,
+          "line": 792,
           "kind": "function"
         },
         {
           "name": "fieldIsAdvanced",
-          "line": 797,
+          "line": 798,
           "kind": "function"
         },
         {
           "name": "choiceValueLabel",
-          "line": 810,
+          "line": 811,
           "kind": "function"
         },
         {
           "name": "inputTypeForField",
-          "line": 815,
+          "line": 816,
           "kind": "function"
         },
         {
           "name": "fieldOwnValue",
-          "line": 822,
+          "line": 823,
           "kind": "function"
         },
         {
           "name": "buildOverrideControl",
-          "line": 828,
+          "line": 829,
           "kind": "function"
         },
         {
           "name": "effectiveOverrideValue",
-          "line": 863,
+          "line": 864,
           "kind": "function"
         },
         {
           "name": "settingOverrideEvidence",
-          "line": 871,
+          "line": 872,
           "kind": "function"
         },
         {
           "name": "overrideValuesEqual",
-          "line": 876,
+          "line": 877,
           "kind": "function"
         },
         {
           "name": "overrideStateText",
-          "line": 880,
+          "line": 881,
           "kind": "function"
         },
         {
           "name": "renderUseDefaultButton",
-          "line": 886,
+          "line": 887,
           "kind": "function"
         },
         {
           "name": "routeNumberValue",
-          "line": 890,
+          "line": 891,
           "kind": "function"
         },
         {
           "name": "routeFormatPercent",
-          "line": 896,
+          "line": 897,
           "kind": "function"
         },
         {
           "name": "routeFormatHeight",
-          "line": 903,
+          "line": 904,
           "kind": "function"
         },
         {
           "name": "routeSafeIdPart",
-          "line": 909,
+          "line": 910,
           "kind": "function"
         },
         {
           "name": "routeElementId",
-          "line": 913,
+          "line": 914,
           "kind": "function"
         },
         {
           "name": "routeValueAvailable",
-          "line": 917,
+          "line": 918,
           "kind": "function"
         },
         {
           "name": "routeValueFromBackendSource",
-          "line": 921,
+          "line": 922,
           "kind": "function"
         },
         {
           "name": "routeMetadataMissingKeys",
-          "line": 928,
+          "line": 929,
           "kind": "function"
         },
         {
           "name": "routeSourceSummary",
-          "line": 936,
+          "line": 937,
           "kind": "function"
         },
         {
           "name": "routeValuesFromObject",
-          "line": 946,
+          "line": 947,
           "kind": "function"
         },
         {
           "name": "routeBoundariesFromValues",
-          "line": 953,
+          "line": 954,
           "kind": "function"
         },
         {
           "name": "routeRailPercentages",
-          "line": 964,
+          "line": 965,
           "kind": "function"
         },
         {
           "name": "routeValuesFromProfile",
-          "line": 976,
+          "line": 977,
           "kind": "function"
         },
         {
           "name": "routeValuesFromCard",
-          "line": 983,
+          "line": 984,
           "kind": "function"
         },
         {
           "name": "effectiveLibraryOverrideValue",
-          "line": 991,
+          "line": 992,
           "kind": "function"
         },
         {
           "name": "routeTriggerSummary",
-          "line": 999,
+          "line": 1000,
           "kind": "function"
         },
         {
           "name": "routeHeightPixelSummary",
-          "line": 1004,
+          "line": 1005,
           "kind": "function"
         },
         {
           "name": "routeConsequenceSummary",
-          "line": 1009,
+          "line": 1010,
           "kind": "function"
         },
         {
           "name": "routeUnknownHeightSummary",
-          "line": 1015,
+          "line": 1016,
           "kind": "function"
         },
         {
           "name": "routeEstimatedGb",
-          "line": 1020,
+          "line": 1021,
           "kind": "function"
         },
         {
           "name": "routeFormatEstimatedGb",
-          "line": 1026,
+          "line": 1027,
           "kind": "function"
         },
         {
           "name": "renderLibraryRouteOverrideField",
-          "line": 1033,
+          "line": 1034,
           "kind": "function"
         },
         {
           "name": "renderLibraryRouteRail",
-          "line": 1088,
+          "line": 1089,
           "kind": "function"
         },
         {
           "name": "renderLibraryRouteBoundaryControls",
-          "line": 1112,
+          "line": 1113,
           "kind": "function"
         },
         {
           "name": "renderLibraryRouteBucket",
-          "line": 1140,
+          "line": 1141,
           "kind": "function"
         },
         {
           "name": "renderLibraryRouteSizeLayout",
-          "line": 1187,
+          "line": 1188,
           "kind": "function"
         },
         {
           "name": "renderOverrideField",
-          "line": 1238,
+          "line": 1239,
           "kind": "function"
         },
         {
           "name": "fieldsForGroup",
-          "line": 1304,
+          "line": 1305,
           "kind": "function"
         },
         {
           "name": "renderFieldGrid",
-          "line": 1308,
+          "line": 1309,
           "kind": "function"
         },
         {
           "name": "renderOptionGrid",
-          "line": 1317,
+          "line": 1318,
           "kind": "function"
         },
         {
           "name": "renderFullFields",
-          "line": 1323,
+          "line": 1324,
           "kind": "function"
         },
         {
           "name": "renderNestedOptionPanel",
-          "line": 1327,
+          "line": 1328,
           "kind": "function"
         },
         {
           "name": "renderOverrideLayout",
-          "line": 1343,
+          "line": 1344,
           "kind": "function"
         },
         {
           "name": "renderOverrideSection",
-          "line": 1357,
+          "line": 1358,
           "kind": "function"
         },
         {
           "name": "profileMp4CompatibilityActive",
-          "line": 1372,
+          "line": 1373,
           "kind": "function"
         },
         {
           "name": "renderCompatibilityPresetEditorControl",
-          "line": 1377,
+          "line": 1378,
           "kind": "function"
         },
         {
           "name": "captureOpenOverrideSections",
-          "line": 1393,
+          "line": 1394,
           "kind": "function"
         },
         {
           "name": "renderCard",
-          "line": 1410,
+          "line": 1411,
           "kind": "function"
         },
         {
           "name": "libraryEditorHasActiveControl",
-          "line": 1476,
+          "line": 1477,
           "kind": "function"
         },
         {
           "name": "shouldDeferAutomaticLibraryRender",
-          "line": 1488,
+          "line": 1489,
           "kind": "function"
         },
         {
           "name": "renderSettingsLibraries",
-          "line": 1492,
+          "line": 1493,
           "kind": "function"
         },
         {
           "name": "libraryPaneId",
-          "line": 1517,
+          "line": 1518,
           "kind": "function"
         },
         {
           "name": "storedLibraryTabId",
-          "line": 1521,
+          "line": 1522,
           "kind": "function"
         },
         {
           "name": "activateLibraryTab",
-          "line": 1531,
+          "line": 1532,
           "kind": "function"
         },
         {
           "name": "activateLibraryProfile",
-          "line": 1558,
+          "line": 1559,
           "kind": "function"
         },
         {
           "name": "closeOverrideSections",
-          "line": 1562,
+          "line": 1563,
           "kind": "function"
         },
         {
           "name": "activeLibraryCard",
-          "line": 1571,
+          "line": 1572,
           "kind": "function"
         },
         {
           "name": "activeLibraryProfileId",
-          "line": 1576,
+          "line": 1577,
           "kind": "function"
         },
         {
           "name": "activeLibraryName",
-          "line": 1580,
+          "line": 1581,
           "kind": "function"
         },
         {
           "name": "activeLibraryCanDelete",
-          "line": 1586,
+          "line": 1587,
           "kind": "function"
         },
         {
           "name": "renderActiveLibraryCommandState",
-          "line": 1591,
+          "line": 1592,
           "kind": "function"
         },
         {
           "name": "renderProfileCards",
-          "line": 1618,
+          "line": 1619,
           "kind": "function"
         },
         {
           "name": "rerenderLibraryCard",
-          "line": 1652,
+          "line": 1653,
           "kind": "function"
         },
         {
           "name": "readOverrideControlValue",
-          "line": 1663,
+          "line": 1664,
           "kind": "function"
         },
         {
           "name": "setOverrideControlValue",
-          "line": 1685,
+          "line": 1686,
           "kind": "function"
         },
         {
           "name": "libraryRouteRow",
-          "line": 1705,
+          "line": 1706,
           "kind": "function"
         },
         {
           "name": "setLibraryOverrideValue",
-          "line": 1709,
+          "line": 1710,
           "kind": "function"
         },
         {
           "name": "setLibraryRouteOverrideValue",
-          "line": 1726,
+          "line": 1727,
           "kind": "function"
         },
         {
           "name": "presetReasonForKey",
-          "line": 1730,
+          "line": 1731,
           "kind": "function"
         },
         {
           "name": "syncLibraryCompatibilityAvailability",
-          "line": 1736,
+          "line": 1737,
           "kind": "function"
         },
         {
           "name": "applyLibraryCompatibilityPreset",
-          "line": 1782,
+          "line": 1783,
           "kind": "function"
         },
         {
           "name": "clearLibraryCompatibilityPreset",
-          "line": 1795,
+          "line": 1796,
           "kind": "function"
         },
         {
           "name": "updateLibraryRouteText",
-          "line": 1808,
+          "line": 1809,
           "kind": "function"
         },
         {
           "name": "syncLibraryRouteReadouts",
-          "line": 1813,
+          "line": 1814,
           "kind": "function"
         },
         {
           "name": "applyLibraryRouteBoundary",
-          "line": 1850,
+          "line": 1851,
           "kind": "function"
         },
         {
           "name": "resetLibraryRouteBoundary",
-          "line": 1864,
+          "line": 1865,
           "kind": "function"
         },
         {
           "name": "localInheritedFields",
-          "line": 1874,
+          "line": 1875,
           "kind": "function"
         },
         {
           "name": "setLocalInheritedFields",
-          "line": 1882,
+          "line": 1883,
           "kind": "function"
         },
         {
           "name": "updateOverrideRowState",
-          "line": 1886,
+          "line": 1887,
           "kind": "function"
         },
         {
           "name": "setPathRowState",
-          "line": 1905,
+          "line": 1906,
           "kind": "function"
         },
         {
           "name": "profileFromCard",
-          "line": 1928,
+          "line": 1929,
           "kind": "function"
         },
         {
           "name": "profileCardsFromDom",
-          "line": 1967,
+          "line": 1968,
           "kind": "function"
         },
         {
           "name": "collectProfilesFromDom",
-          "line": 1971,
+          "line": 1972,
           "kind": "function"
         },
         {
           "name": "collectLibraryProfileResetsFromDom",
-          "line": 1975,
+          "line": 1976,
           "kind": "function"
         },
         {
           "name": "currentPatchIncludesLibraryProfiles",
-          "line": 1998,
+          "line": 1999,
           "kind": "function"
         },
         {
           "name": "libraryPatchStateKind",
-          "line": 2008,
+          "line": 2009,
           "kind": "function"
         },
         {
           "name": "renderLibraryStateStrip",
-          "line": 2016,
+          "line": 2017,
           "kind": "function"
         },
         {
           "name": "clearLibraryProfilesPatchJson",
-          "line": 2045,
+          "line": 2046,
           "kind": "function"
         },
         {
           "name": "libraryProfileResetRequest",
-          "line": 2069,
+          "line": 2070,
           "kind": "function"
         },
         {
           "name": "buildPatchFromLibraries",
-          "line": 2075,
+          "line": 2076,
           "kind": "function"
         },
         {
           "name": "currentSettingsPatchKeys",
-          "line": 2102,
+          "line": 2103,
           "kind": "function"
         },
         {
           "name": "renderLibraryPatchHandoff",
-          "line": 2112,
+          "line": 2113,
           "kind": "function"
         },
         {
           "name": "sharedPatchStatus",
-          "line": 2129,
+          "line": 2130,
           "kind": "function"
         },
         {
           "name": "previewLibraryProfiles",
-          "line": 2133,
+          "line": 2134,
           "kind": "function"
         },
         {
           "name": "saveLibraryProfiles",
-          "line": 2166,
+          "line": 2167,
           "kind": "function"
         },
         {
           "name": "renderLibraryWarningSummary",
-          "line": 2202,
+          "line": 2203,
           "kind": "function"
         },
         {
           "name": "addLibraryCard",
-          "line": 2206,
+          "line": 2207,
           "kind": "function"
         },
         {
           "name": "deleteActiveLibrary",
-          "line": 2230,
+          "line": 2231,
           "kind": "function"
         },
         {
           "name": "replaceActiveLibraryValuesWithDefaults",
-          "line": 2263,
+          "line": 2264,
           "kind": "function"
         },
         {
           "name": "resetFromSaved",
-          "line": 2299,
+          "line": 2300,
           "kind": "function"
         },
         {
           "name": "initSettingsLibrariesEvents",
-          "line": 2314,
+          "line": 2315,
           "kind": "function"
         }
       ],
@@ -23825,6 +23910,7 @@
         "rename-bulk-scope",
         "rename-bulk-stage-button",
         "rename-bulk-use-pipeline-button",
+        "rename-check-all-button",
         "rename-check-applicable-button",
         "rename-clear-checks-button",
         "rename-clear-override-button",

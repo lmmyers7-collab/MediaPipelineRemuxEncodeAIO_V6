@@ -592,8 +592,7 @@
         "initSettingsViewEvents",
         "mediaPipelineSettingsView",
         "renderSettings",
-        "renderSettingsRawActionPlan",
-        "writeSettingsPatchJson"
+        "renderSettingsRawActionPlan"
       ],
       "candidate_count": 5,
       "candidates": [
@@ -670,8 +669,7 @@
             "initSettingsViewEvents",
             "mediaPipelineSettingsView",
             "renderSettings",
-            "renderSettingsRawActionPlan",
-            "writeSettingsPatchJson"
+            "renderSettingsRawActionPlan"
           ],
           "api_routes": [
             "/api/settings/browse-path",
@@ -855,8 +853,7 @@
             "initSettingsViewEvents",
             "mediaPipelineSettingsView",
             "renderSettings",
-            "renderSettingsRawActionPlan",
-            "writeSettingsPatchJson"
+            "renderSettingsRawActionPlan"
           ],
           "api_routes": [
             "/api/settings/validate"
@@ -986,8 +983,7 @@
             "initSettingsViewEvents",
             "mediaPipelineSettingsView",
             "renderSettings",
-            "renderSettingsRawActionPlan",
-            "writeSettingsPatchJson"
+            "renderSettingsRawActionPlan"
           ],
           "api_routes": [
             "/api/settings/browse-path",
@@ -1147,8 +1143,7 @@
             "initSettingsViewEvents",
             "mediaPipelineSettingsView",
             "renderSettings",
-            "renderSettingsRawActionPlan",
-            "writeSettingsPatchJson"
+            "renderSettingsRawActionPlan"
           ],
           "api_routes": [],
           "dom_ids_touched": [],
@@ -1287,8 +1282,7 @@
             "initSettingsViewEvents",
             "mediaPipelineSettingsView",
             "renderSettings",
-            "renderSettingsRawActionPlan",
-            "writeSettingsPatchJson"
+            "renderSettingsRawActionPlan"
           ],
           "api_routes": [],
           "dom_ids_touched": [],

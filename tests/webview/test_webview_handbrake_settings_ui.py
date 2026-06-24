@@ -1237,6 +1237,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(helper, settings_js)
             self.assertNotIn(f"window.{helper} =", settings_js)
 
+    def test_settings_patch_writer_helper_is_namespace_only_export(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        patch_writer_flat_alias = "window." + "writeSettingsPatchJson"
+
+        self.assertIn("writeSettingsPatchJson, parseSettingsPatchJson, initSettingsViewEvents,", settings_js)
+        self.assertNotIn(f"{patch_writer_flat_alias} =", settings_js)
+
     def test_phase5_completion_gate_webview_surfaces_backend_errors_without_save_authority(self) -> None:
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
         patch_review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
@@ -1261,11 +1268,13 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "previewLibraryProfiles",
             "saveLibraryProfiles",
             "buildPatchFromLibraries",
-            "window.writeSettingsPatchJson(patch",
+            "settingsView.writeSettingsPatchJson(patch",
             "Previewing staged LibraryProfiles through backend validation.",
             "Saving staged LibraryProfiles through the backend settings route.",
         ):
             self.assertIn(token, libraries_js)
+        patch_writer_flat_alias = "window." + "writeSettingsPatchJson"
+        self.assertNotIn(patch_writer_flat_alias, libraries_js)
 
         for token in (
             'apiPostLocal("/api/settings/wizard/preview", { wizard: collectWizardPayload() })',

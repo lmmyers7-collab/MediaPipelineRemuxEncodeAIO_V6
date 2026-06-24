@@ -2,6 +2,7 @@
   const metadata = window.mediaPipelineSettingsMetadata || {};
   const choiceLabels = metadata.settingsChoiceLabels || {};
   const routeModel = window.mediaPipelineRoutePolicyModel || {};
+  const settingsView = window.mediaPipelineSettingsView || {};
   const advancedFallbackKeys = new Set(metadata.settingsAdvancedFallbackKeys || []);
   const staticCompatibilityPresets = Array.isArray(metadata.settingsLibraryCompatibilityPresets)
     ? metadata.settingsLibraryCompatibilityPresets
@@ -736,12 +737,12 @@
 
   function stageLibraryWatchAutoRunPatch() {
     const patch = collectLibraryWatchAutoRunPatch();
-    if (typeof window.writeSettingsPatchJson !== "function") {
+    if (typeof settingsView.writeSettingsPatchJson !== "function") {
       setText("settings-library-watch-status", "Settings unavailable");
       renderLibraryWatchPatchHandoff("Settings patch controls are not loaded.", patch);
       return null;
     }
-    window.writeSettingsPatchJson(
+    settingsView.writeSettingsPatchJson(
       patch,
       "Library auto-run toggle merged watch-folder keys into Changes JSON. Preview or Save still uses backend validation."
     );
@@ -2080,8 +2081,8 @@
       };
       lastLibraryProfileResetRequest = collectLibraryProfileResetsFromDom();
       libraryProfilePatchSaved = false;
-      if (typeof window.writeSettingsPatchJson === "function") {
-        window.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Save Settings will validate paths, overrides, and mirrored compatibility keys.");
+      if (typeof settingsView.writeSettingsPatchJson === "function") {
+        settingsView.writeSettingsPatchJson(patch, "LibraryProfiles patch built. Save Settings will validate paths, overrides, and mirrored compatibility keys.");
         libraryProfilePatchCurrent = true;
       } else {
         libraryProfilePatchCurrent = false;

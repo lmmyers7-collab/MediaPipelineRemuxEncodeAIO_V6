@@ -387,10 +387,13 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             'data-library-override-key="${escapeHtml(fieldKey)}"',
             'data-library-persisted-key="${escapeHtml(persistedKey)}"',
             "Reset to inherited removes the persisted library override key",
-            "window.writeSettingsPatchJson(patch",
+            "settingsView.writeSettingsPatchJson(patch",
             "libraryProfileResetRequest",
         ):
             self.assertIn(token, libraries_js)
+        self.assertIn("const settingsView = window.mediaPipelineSettingsView || {};", libraries_js)
+        patch_writer_flat_alias = "window." + "writeSettingsPatchJson"
+        self.assertNotIn(patch_writer_flat_alias, libraries_js)
 
     def test_libraries_page_is_main_nav_surface(self) -> None:
         shell_html = (STATIC_ROOT / "partials" / "app-shell-start.html").read_text(encoding="utf-8")
@@ -481,7 +484,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "WatchRespectScheduleWindow: respectSchedule",
             "patch.WatchFolderRoots = [];",
             "patch.WatchDebounceSeconds = watch.debounce;",
-            "window.writeSettingsPatchJson",
+            "settingsView.writeSettingsPatchJson",
             "window.mediaPipelineSettingsView?.previewSettingsPatch",
             "window.mediaPipelineSettingsView?.saveSettingsPatch",
             "Library Profile source roots",
@@ -715,8 +718,11 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "const libraryProfileResetCount = Array.isArray(requestExtras.library_profile_resets) ? requestExtras.library_profile_resets.length : 0;",
             "if (!keys.length && !hasLibraryProfileResets)",
             "if (!changedKeys.length && !hasLibraryProfileResets)",
-            "`Changed keys: ${changedKeys.length}; staged patch keys: ${keys.length}; library profile resets: ${libraryProfileResetCount}.`",
-            "No direct setting key overwrites are staged; backend will apply requested library profile reset(s).",
+            'setText("settings-save-review-dialog-changed", String(changedKeys.length));',
+            'setText("settings-save-review-dialog-submitted", String(keys.length));',
+            'setText("settings-save-review-dialog-resets", String(libraryProfileResetCount));',
+            'appendSettingsSaveReviewCell(row, "Library profile reset");',
+            'appendSettingsSaveReviewCell(row, `${libraryProfileResetCount} reset request(s)`);',
             'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
             'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
             "settingsPatchRequestSignature(changes, requestExtras)",

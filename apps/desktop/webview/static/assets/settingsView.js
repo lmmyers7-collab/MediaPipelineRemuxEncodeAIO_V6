@@ -2158,7 +2158,7 @@ async function reloadSettingsFromDisk() {
   };
   window.renderSettingsRawActionPlan = renderSettingsRawActionPlan;
   window.renderSettings = renderSettings; window.getLastSettings = getLastSettings;
-  window.writeSettingsPatchJson = writeSettingsPatchJson; window.initSettingsViewEvents = initSettingsViewEvents;
+  window.initSettingsViewEvents = initSettingsViewEvents;
 
   (function () {
     const saveBtn = byId("settings-save-header-save-button");
