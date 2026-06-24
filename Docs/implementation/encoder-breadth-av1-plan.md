@@ -15,29 +15,34 @@ probe now threads configured-FFmpeg encoder listings into video-only
 capability reports now also derive bounded `EncodingCapabilityFacts` from
 available descriptor rows, carry those facts through Settings workspace and
 launch preflight read-only evidence, and surface hardware runtime verified/skipped
-plus active-hardware-unverified lists from the same report rows. A dormant global
+plus active-hardware-unverified lists from the same report rows. A global
 `EncoderBackend` config key now round-trips through the PowerShell/Python schema
-surfaces and the WebView video detail settings builder with default `auto`, but
-it feeds only saved settings and the capability diagnostic. The Settings workspace
-now exposes a bounded read-only summary of an existing `encoder_capabilities.json`
-diagnostic artifact when present; normal encode selection still follows
-`VideoCodec`, and the Settings Media Output tab renders those rows as read-only
-encoder/backend availability annotations without filtering saved choices. Hardware
-descriptors are not wired into active encoder selection. A synthetic SDR/HDR10
-runtime-topology matrix executes available CPU descriptor rows, proves HDR flag
-topology plus HDR-capable hardware topology before opt-in hardware skips,
-asserts HDR-unsafe hardware descriptors fail closed, and reports hardware rows
-as opt-in skips by default. A pure
-descriptor selection resolver now returns primary/fallback descriptors plus trace
-evidence, including family-consistent CPU fallback candidates. Encode attempt plans
-now expose descriptor-selection evidence for current HEVC/libx265 parity paths and
-explicitly mark dormant AV1 selection as not yet active, but new families are not
-wired into the active `Do-Encode` ladder.
-Fallback wiring, host-hardware runtime execution, real-media HDR validation, and
-new encoder enablement remain incomplete. Settings and Launch preflight now
-surface the existing descriptor capability report plus derived validation facts
-and hardware runtime proof-gap lists as non-blocking read-only evidence without
-activating hardware families.
+surfaces and the WebView video detail settings builder with default `auto`;
+`EncoderBackend=cpu` is now the only backend override wired into active
+`Do-Encode` selection. That path resolves the configured `VideoCodec` family to
+its CPU descriptor, skips the hardware ladder, and uses the existing CPU
+fallback attempt shape and evidence. The Settings workspace now exposes a
+bounded read-only summary of an existing `encoder_capabilities.json` diagnostic
+artifact when present; normal `auto` selection still follows `VideoCodec`, and
+the Settings Media Output tab renders those rows as read-only encoder/backend
+availability annotations without filtering saved choices. Hardware backend
+overrides are not newly wired into active encoder selection: explicit
+`EncoderBackend=nvenc` preserves only existing literal HEVC/H.264 NVENC
+selections, while AV1/NVENC, QSV, and AMF remain fail-closed. A synthetic
+SDR/HDR10 runtime-topology matrix executes available CPU descriptor rows, proves
+HDR flag topology plus HDR-capable hardware topology before opt-in hardware
+skips, asserts HDR-unsafe hardware descriptors fail closed, and reports hardware
+rows as opt-in skips by default. A pure descriptor selection resolver now
+returns primary/fallback descriptors plus trace evidence, including
+family-consistent CPU fallback candidates. Encode attempt plans now expose
+descriptor-selection evidence for current HEVC/libx265 parity paths and active
+CPU family paths, including AV1/libaom through `EncoderBackend=cpu`.
+Host-hardware runtime execution, real-media HDR validation, launch-preflight
+capability threading for backend activation, and new hardware encoder enablement
+remain incomplete. Settings and Launch preflight now surface the existing
+descriptor capability report plus derived validation facts and hardware runtime
+proof-gap lists as non-blocking read-only evidence without activating hardware
+families.
 Implementing agent: Codex
 Risk class: AGENTS.md section 7 — "FFmpeg command generation and stream mapping" (highest-risk area)
 Validation rung: AGENTS.md section 5 media row — release gate plus real-media validation per encoder

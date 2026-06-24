@@ -468,16 +468,20 @@ function Do-Encode {
             }
         }
 
-        $encoderReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec ([string]$VideoCodec) -IsHDR:$isHDR
+        $normalizedEncoderBackend = if ($EncoderBackend) { ([string]$EncoderBackend).Trim().ToLowerInvariant() } else { 'auto' }
+        if ([string]::IsNullOrWhiteSpace($normalizedEncoderBackend)) { $normalizedEncoderBackend = 'auto' }
+        $forceCpuBackendEncode = $normalizedEncoderBackend -eq 'cpu'
+        $encoderReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec ([string]$VideoCodec) -EncoderBackend $normalizedEncoderBackend -UseCpuFallback:$forceCpuBackendEncode -IsHDR:$isHDR
         if (-not [bool]$encoderReadiness.ok) {
             $readinessErrorCode = if ([string]::IsNullOrWhiteSpace([string]$encoderReadiness.error_code)) { 'ENCODE_ENCODER_UNSUPPORTED' } else { [string]$encoderReadiness.error_code }
             Write-PipelineEvent -EventType 'encoder_activation_policy' -Stage 'encode_prepare' -Route 'encode' -Status 'blocked' -SourcePath $file.FullName -Data $encoderReadiness | Out-Null
             $failureProperties = [ordered]@{
                 encoder_activation = $encoderReadiness
                 video_codec        = [string]$VideoCodec
+                encoder_backend    = $normalizedEncoderBackend
                 is_hdr             = [bool]$isHDR
             }
-            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason ([string]$encoderReadiness.reason) -Stage 'encode-policy' -ErrorCode $readinessErrorCode -SuggestedAction 'Choose an active descriptor-backed encoder such as hevc_nvenc or h264_nvenc for SDR sources, or wait until this encoder family has descriptor-owned flags, fallback policy, command topology tests, and real-media validation.' -AdditionalProperties $failureProperties
+            $null = Register-SourceFailure -SourceFile $file -ScratchPath $localIn -Classification 'operator_required' -Reason ([string]$encoderReadiness.reason) -Stage 'encode-policy' -ErrorCode $readinessErrorCode -SuggestedAction 'Choose an active descriptor-backed encoder such as hevc_nvenc, h264_nvenc for SDR sources, libx264, libaom-av1, or EncoderBackend=cpu; hardware AV1/NVENC, QSV, and AMF remain blocked until runtime and real-media validation are complete.' -AdditionalProperties $failureProperties
             Write-Log "ENCODE POLICY: $($encoderReadiness.reason)" "ERROR"
             $localIn = $null
             return $false
@@ -796,7 +800,7 @@ function Do-Encode {
         # attempts entirely. Saves ~10–60 s per file on a no-GPU machine.
         $cpuFallbackTarget = Resolve-MediaEncoderCpuFallbackDescriptor -VideoCodec ([string]$VideoCodec) -IsHDR:$isHDR
         $cpuFallbackEncoderName = if ([bool]$cpuFallbackTarget.Resolved) { [string]$cpuFallbackTarget.EncoderName } else { Get-MediaVideoCodecLibx265Name }
-        $skipGpuDueToProbe = if ($dynamicHdrForceCpuEncode) { $true } else { -not (Test-NvencProbeReportsAvailable) }
+        $skipGpuDueToProbe = if ($dynamicHdrForceCpuEncode -or $forceCpuBackendEncode) { $true } else { -not (Test-NvencProbeReportsAvailable) }
         if ($dynamicHdrForceCpuEncode) {
             $cpuFallbackEncoderName = Get-MediaVideoCodecLibx265Name
             Write-Log "ENCODE: Dynamic HDR preservation requires CPU/libx265; skipping GPU-first ladder" "WARN"
@@ -807,6 +811,17 @@ function Do-Encode {
                 trigger      = 'dynamic_hdr_preserve_encode'
                 cpu_preset   = [string]$script:CpuEncodePreset
                 is_hdr       = [bool]$isHDR
+            } | Out-Null
+        } elseif ($forceCpuBackendEncode) {
+            Write-Log "ENCODE: EncoderBackend=cpu selected; skipping hardware ladder and using $cpuFallbackEncoderName" "WARN"
+            Write-PipelineEvent -EventType 'encoder_fallback_started' -Stage 'encode_cpu' -Route 'encode' -Status 'warn' -SourcePath $file.FullName -Data @{
+                from_encoder    = [string]$VideoCodec
+                to_encoder      = $cpuFallbackEncoderName
+                reason          = 'EncoderBackend=cpu selected'
+                trigger         = 'encoder_backend_cpu_selected'
+                encoder_backend = $normalizedEncoderBackend
+                cpu_preset      = [string]$script:CpuEncodePreset
+                is_hdr          = [bool]$isHDR
             } | Out-Null
         } elseif ($skipGpuDueToProbe) {
             $probeReason = if ($script:NvencAvailableProbe -and $script:NvencAvailableProbe.Reason) { [string]$script:NvencAvailableProbe.Reason } else { 'NVENC probe cache reports unavailable' }
@@ -838,6 +853,7 @@ function Do-Encode {
             -VideoQuality $VideoQuality `
             -ExtraVideoFlags $ExtraVideoFlags `
             -FallbackCpuQuality $script:FallbackCpuQuality `
+            -EncoderBackend $normalizedEncoderBackend `
             -EncodeLadder $script:EncodeLadder `
             -CpuPreset $script:CpuEncodePreset `
                 -CpuMaxThreads $script:CpuEncodeMaxThreads `
@@ -890,7 +906,7 @@ function Do-Encode {
             # synthesize the failure state so the existing fallback
             # branch fires and falls into the CPU path below.
             $success = $false
-            $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; primary GPU attempt skipped' } else { 'NVENC probe cache reports unavailable; primary GPU attempt skipped' }
+            $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; primary GPU attempt skipped' } elseif ($forceCpuBackendEncode) { 'EncoderBackend=cpu selected; primary hardware attempt skipped' } else { 'NVENC probe cache reports unavailable; primary GPU attempt skipped' }
             $script:LastFFmpegExit = 1
         } else {
             $success = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -OutputPath $tempOut -WasteGuardContext $wasteGuardContext
@@ -945,6 +961,7 @@ function Do-Encode {
                     -VideoQuality $VideoQuality `
                     -ExtraVideoFlags $ExtraVideoFlags `
                     -FallbackCpuQuality $script:FallbackCpuQuality `
+                    -EncoderBackend $normalizedEncoderBackend `
                     -EncodeLadder $script:EncodeLadder `
                     -CpuPreset $script:CpuEncodePreset `
                     -CpuMaxThreads $script:CpuEncodeMaxThreads `
@@ -957,11 +974,11 @@ function Do-Encode {
                 $success    = Invoke-FFmpegWithProgress $ffArgs $encodePlan.Label $localIn -TimeoutSeconds $script:FFmpegEncodeTimeoutSeconds -ProgressStage $encodePlan.ProgressStage -ProgressRoute $encodePlan.ProgressRoute -ReproStage $encodePlan.ReproStage -OutputPath $tempOut -WasteGuardContext $wasteGuardContext
                 & $recordEncodeAttempt $encodePlan ([bool]$success)
             } else {
-                # GPU is already known unavailable; don't even build the
-                # safe-retry plan. Force the inner gate to fall straight
-                # into the CPU branch.
+                # Hardware is already skipped; don't even build the safe-retry
+                # plan. Force the inner gate to fall straight into the CPU
+                # branch.
                 $success = $false
-                $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; safe-retry skipped' } else { 'NVENC probe cache reports unavailable; safe-retry skipped' }
+                $script:LastFFmpegStderr = if ($dynamicHdrForceCpuEncode) { 'Dynamic HDR preservation requires CPU/libx265; safe-retry skipped' } elseif ($forceCpuBackendEncode) { 'EncoderBackend=cpu selected; hardware safe-retry skipped' } else { 'NVENC probe cache reports unavailable; safe-retry skipped' }
                 $script:LastFFmpegExit = 1
             }
             if (-not $success -and [string]$script:LastFFmpegAbortCode -eq 'ENCODE_WASTE_GUARD_PROJECTED_OVERSIZE') {
@@ -1022,6 +1039,8 @@ function Do-Encode {
                     cpu_process_priority = [string]$script:CpuEncodeProcessPriority
                     is_hdr               = [bool]$isHDR
                     dynamic_hdr          = [bool]$dynamicHdrForceCpuEncode
+                    encoder_backend      = $normalizedEncoderBackend
+                    trigger              = if ($forceCpuBackendEncode) { 'encoder_backend_cpu_selected' } elseif ($skipGpuDueToProbe) { 'nvenc_probe_unavailable' } else { 'hardware_encoder_failure' }
                 } | Out-Null
                 if (Test-Path -LiteralPath $tempOut) {
                     Remove-Item -LiteralPath $tempOut -Force -ErrorAction SilentlyContinue
@@ -1055,6 +1074,7 @@ function Do-Encode {
                     -VideoQuality $VideoQuality `
                     -ExtraVideoFlags $ExtraVideoFlags `
                     -FallbackCpuQuality $script:FallbackCpuQuality `
+                    -EncoderBackend $normalizedEncoderBackend `
                     -EncodeLadder $script:EncodeLadder `
                     -CpuPreset $script:CpuEncodePreset `
                     -CpuMaxThreads $script:CpuEncodeMaxThreads `
@@ -1118,6 +1138,9 @@ function Do-Encode {
                         $script:CurrentRouteReasonCode = 'dynamic_hdr_preserve_cpu_encode'
                         $script:CurrentRouteReason     = "Dynamic HDR preservation required CPU/libx265 encode: $($script:CurrentDynamicHdrEvidence.summary)"
                         $script:CurrentDynamicHdrEvidence.outcome = 'preserved_encode'
+                    } elseif ($forceCpuBackendEncode) {
+                        $script:CurrentRouteReasonCode = 'encoder_backend_cpu_selected'
+                        $script:CurrentRouteReason     = "EncoderBackend=cpu selected; CPU descriptor '$cpuFallbackEncoderName' used without a hardware attempt"
                     } elseif ($skipGpuDueToProbe) {
                         $script:CurrentRouteReasonCode = 'gpu_unavailable_cpu_only'
                         $script:CurrentRouteReason     = 'NVENC unavailable per cached probe; CPU encode without trying GPU'
@@ -1148,6 +1171,7 @@ function Do-Encode {
                         cpu_preset      = [string]$encodePlan.CpuPreset
                         cpu_quality_crf = [int]$script:FallbackCpuQuality
                         dynamic_hdr     = [bool]$dynamicHdrForceCpuEncode
+                        encoder_backend = $normalizedEncoderBackend
                     } | Out-Null
                 }
             }

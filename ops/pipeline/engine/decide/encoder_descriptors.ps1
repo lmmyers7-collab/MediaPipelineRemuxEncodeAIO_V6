@@ -3,9 +3,10 @@
 # ==============================================================================
 # Data-first encoder descriptors. The active resolver intentionally routes only
 # the existing HEVC/NVENC path, libx265 CPU fallback, H.264/NVENC primary,
-# libx264 primary/fallback, and libaom AV1 CPU primary/fallback paths through
-# the descriptor builder. Dormant descriptors may describe future supported
-# pairs before route selection is allowed to activate them.
+# libx264 primary/fallback, libaom AV1 CPU primary/fallback paths, and explicit
+# CPU backend overrides through the descriptor builder. Dormant descriptors may
+# describe future supported pairs before route selection is allowed to activate
+# them.
 # ==============================================================================
 
 function Get-MediaEncoderDescriptor {
@@ -292,10 +293,13 @@ function Get-MediaEncoderDescriptor {
 function Resolve-MediaEncoderDescriptorForFlags {
     param(
         [string] $VideoCodec = '',
-        [bool] $UseCpuFallback = $false
+        [bool] $UseCpuFallback = $false,
+        [string] $EncoderBackend = 'auto'
     )
 
     $codec = if ($VideoCodec) { $VideoCodec.Trim().ToLowerInvariant() } else { '' }
+    $backend = if ($EncoderBackend) { $EncoderBackend.Trim().ToLowerInvariant() } else { 'auto' }
+    if ([string]::IsNullOrWhiteSpace($backend)) { $backend = 'auto' }
     $libx265Name = if (Get-Command -Name Get-MediaVideoCodecLibx265Name -ErrorAction SilentlyContinue) {
         (Get-MediaVideoCodecLibx265Name).Trim().ToLowerInvariant()
     } else {
@@ -312,6 +316,26 @@ function Resolve-MediaEncoderDescriptorForFlags {
         if ($codec -in @('av1_nvenc', 'libaom-av1')) {
             return Get-MediaEncoderDescriptor -Family 'av1' -Backend 'cpu'
         }
+        return $null
+    }
+
+    if ($backend -eq 'cpu') {
+        $family = Resolve-MediaEncoderFamilyForCodec -VideoCodec $codec
+        if ([string]::IsNullOrWhiteSpace($family)) { return $null }
+        return Get-MediaEncoderDescriptor -Family $family -Backend 'cpu'
+    }
+
+    if ($backend -eq 'nvenc') {
+        if ($codec -eq 'hevc_nvenc') {
+            return Get-MediaEncoderDescriptor -Family 'hevc' -Backend 'nvenc'
+        }
+        if ($codec -eq 'h264_nvenc') {
+            return Get-MediaEncoderDescriptor -Family 'h264' -Backend 'nvenc'
+        }
+        return $null
+    }
+
+    if ($backend -ne 'auto') {
         return $null
     }
 
@@ -586,7 +610,8 @@ function Get-MediaEncoderDescriptorActivationEvidence {
     param(
         [Parameter(Mandatory)] $Descriptor,
         [AllowEmptyCollection()] [array] $Roles = @(),
-        [string] $VideoCodec = ''
+        [string] $VideoCodec = '',
+        [string] $EncoderBackend = 'auto'
     )
 
     $activationRows = @()
@@ -606,7 +631,7 @@ function Get-MediaEncoderDescriptorActivationEvidence {
             continue
         }
 
-        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$useCpuFallback
+        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$useCpuFallback -EncoderBackend $EncoderBackend
         if ($null -eq $activeFlagsDescriptor) {
             $activationRows += [pscustomobject][ordered]@{
                 role                      = $role
@@ -937,7 +962,8 @@ function New-MediaEncoderCapabilityReport {
         $activationEvidence = Get-MediaEncoderDescriptorActivationEvidence `
             -Descriptor $descriptor `
             -Roles @($entry['Roles']) `
-            -VideoCodec $VideoCodec
+            -VideoCodec $VideoCodec `
+            -EncoderBackend $EncoderBackend
         $backendInvalidated = if ($probe.PSObject.Properties['BackendInvalidated']) { [bool]$probe.BackendInvalidated } else { $false }
         $row = [ordered]@{
             encoder_name          = [string]$descriptor.EncoderName

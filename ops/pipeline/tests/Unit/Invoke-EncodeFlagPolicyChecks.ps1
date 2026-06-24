@@ -68,6 +68,7 @@ function New-PlanFromCase {
         VideoFilterArgs      = @()
         OutputPath           = 'out.mkv'
         VideoCodec           = 'hevc_nvenc'
+        EncoderBackend       = 'auto'
         VideoPreset          = 'p7'
         VideoQuality         = 22
         ExtraVideoFlags      = @()
@@ -503,21 +504,39 @@ Assert-Equal ([string]$h264FallbackReadiness.descriptor_encoder) 'libx264' 'H.26
 $h264HdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'h264_nvenc' -IsHDR:$true
 Assert-Equal ([bool]$h264HdrReadiness.ok) $false 'H.264/NVENC HDR should fail closed before FFmpeg plan construction.'
 Assert-Equal ([string]$h264HdrReadiness.error_code) 'ENCODE_ENCODER_HDR_UNSUPPORTED' 'H.264/NVENC HDR readiness error code mismatch.'
+$hevcExplicitNvencReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'hevc_nvenc' -EncoderBackend 'nvenc'
+Assert-Equal ([bool]$hevcExplicitNvencReadiness.ok) $true 'Explicit NVENC backend should preserve active HEVC/NVENC literal selection.'
+Assert-Equal ([string]$hevcExplicitNvencReadiness.descriptor_encoder) 'hevc_nvenc' 'Explicit HEVC/NVENC readiness descriptor mismatch.'
+$libx265ExplicitNvencReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'libx265' -EncoderBackend 'nvenc'
+Assert-Equal ([bool]$libx265ExplicitNvencReadiness.ok) $false 'Explicit NVENC backend must not newly activate libx265-to-NVENC override selection.'
+Assert-Equal ([string]$libx265ExplicitNvencReadiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'Explicit libx265-to-NVENC inactive error code mismatch.'
 $av1Readiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc'
 Assert-Equal ([bool]$av1Readiness.ok) $false 'AV1/NVENC should remain inactive until descriptor activation and validation.'
 Assert-Equal ([string]$av1Readiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'AV1/NVENC inactive readiness error code mismatch.'
+$av1ExplicitNvencReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc' -EncoderBackend 'nvenc'
+Assert-Equal ([bool]$av1ExplicitNvencReadiness.ok) $false 'Explicit AV1/NVENC backend must remain inactive until hardware validation gates are complete.'
+Assert-Equal ([string]$av1ExplicitNvencReadiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'Explicit AV1/NVENC inactive readiness error code mismatch.'
 $libaomReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'libaom-av1'
 Assert-Equal ([bool]$libaomReadiness.ok) $true 'libaom AV1 primary should be active for descriptor-owned AV1 CPU flags.'
 Assert-Equal ([string]$libaomReadiness.descriptor_encoder) 'libaom-av1' 'libaom AV1 primary readiness descriptor mismatch.'
 $av1FallbackReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc' -UseCpuFallback:$true
 Assert-Equal ([bool]$av1FallbackReadiness.ok) $true 'AV1/NVENC CPU fallback should be active for descriptor-owned libaom flags.'
 Assert-Equal ([string]$av1FallbackReadiness.descriptor_encoder) 'libaom-av1' 'AV1/NVENC CPU fallback readiness descriptor mismatch.'
+$av1CpuBackendReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc' -EncoderBackend 'cpu' -UseCpuFallback:$true
+Assert-Equal ([bool]$av1CpuBackendReadiness.ok) $true 'EncoderBackend=cpu should activate the AV1 family CPU descriptor.'
+Assert-Equal ([string]$av1CpuBackendReadiness.encoder_backend) 'cpu' 'CPU backend readiness should retain backend evidence.'
+Assert-Equal ([string]$av1CpuBackendReadiness.descriptor_encoder) 'libaom-av1' 'CPU backend AV1 readiness descriptor mismatch.'
+$av1QsvReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'av1_nvenc' -EncoderBackend 'qsv'
+Assert-Equal ([bool]$av1QsvReadiness.ok) $false 'AV1/QSV backend override must stay fail-closed until validation gates are complete.'
+Assert-Equal ([string]$av1QsvReadiness.error_code) 'ENCODE_ENCODER_NOT_ACTIVE' 'AV1/QSV inactive readiness error code mismatch.'
 $unknownReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'vp9_nvenc'
 Assert-Equal ([bool]$unknownReadiness.ok) $false 'Unknown encoder readiness must fail closed.'
 Assert-Equal ([string]$unknownReadiness.error_code) 'ENCODE_ENCODER_UNSUPPORTED' 'Unknown encoder readiness error code mismatch.'
 
 $encodeEntryText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
 Assert-True ($encodeEntryText -match 'Resolve-MediaEncoderActivationReadiness') 'Do-Encode must check encoder activation before FFmpeg plan construction.'
+Assert-True ($encodeEntryText -match '-EncoderBackend \$normalizedEncoderBackend') 'Do-Encode must thread the saved EncoderBackend into activation and attempt planning.'
+Assert-True ($encodeEntryText -match 'encoder_backend_cpu_selected') 'Do-Encode must expose EncoderBackend=cpu CPU-only routing evidence.'
 Assert-True ($encodeEntryText -match "encoder_activation_policy") 'Do-Encode must emit encoder activation policy evidence.'
 Assert-True ($encodeEntryText -match 'Register-SourceFailure[\s\S]+-Stage ''encode-policy''[\s\S]+-ErrorCode \$readinessErrorCode') 'Do-Encode must register inactive encoder selections as encode-policy failures.'
 
@@ -710,6 +729,11 @@ Assert-Equal ([bool]$av1AutoSelection.Resolved) $true 'AV1 auto selection should
 Assert-Equal ([string]$av1AutoSelection.PrimaryDescriptor.EncoderName) 'av1_nvenc' 'AV1 auto primary descriptor mismatch.'
 Assert-Equal ([string]$av1AutoSelection.CpuFallbackDescriptor.EncoderName) 'libaom-av1' 'AV1 auto fallback descriptor mismatch.'
 
+$av1CpuBackendSelection = Resolve-MediaEncoderSelection -VideoCodec 'av1_nvenc' -EncoderBackend 'cpu'
+Assert-Equal ([bool]$av1CpuBackendSelection.Resolved) $true 'AV1 CPU backend selection should resolve.'
+Assert-Equal ([string]$av1CpuBackendSelection.PrimaryDescriptor.EncoderName) 'libaom-av1' 'AV1 CPU backend primary descriptor mismatch.'
+Assert-Equal ([string]$av1CpuBackendSelection.CpuFallbackDescriptor.EncoderName) 'libaom-av1' 'AV1 CPU backend fallback descriptor mismatch.'
+
 $av1HdrSelection = Resolve-MediaEncoderSelection -VideoCodec 'av1_nvenc' -IsHDR:$true
 Assert-Equal ([bool]$av1HdrSelection.Resolved) $true 'AV1/NVENC HDR selection should resolve while CPU fallback stays blocked.'
 Assert-Equal ([string]$av1HdrSelection.PrimaryDescriptor.EncoderName) 'av1_nvenc' 'AV1/NVENC HDR primary descriptor mismatch.'
@@ -739,6 +763,13 @@ $av1CpuFlags = @(New-EncoderVideoFlags `
     -CpuMaxThreads 8)
 Assert-Equal (@($av1CpuFlags) -join '|') '-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8' 'Dormant AV1/CPU descriptor flags mismatch.'
 Assert-Throws { New-EncoderVideoFlags -Descriptor $av1CpuDescriptor -IsHDR:$true -VideoCodec 'libaom-av1' -VideoPreset 'p7' -VideoQuality 22 | Out-Null } 'AV1/CPU HDR use must fail closed until HDR preservation is proven.'
+
+$av1CpuBackendPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'av1_nvenc'; EncoderBackend = 'cpu'; CpuMaxThreads = 8 }
+Assert-Equal ([string]$av1CpuBackendPlan.Attempt) 'cpu_fallback' 'EncoderBackend=cpu should use the existing CPU fallback attempt shape.'
+Assert-Equal ([string]$av1CpuBackendPlan.SelectedEncoder) 'libaom-av1' 'EncoderBackend=cpu should select the AV1 family CPU descriptor.'
+Assert-Equal ([bool]$av1CpuBackendPlan.DescriptorSelection.Active) $true 'EncoderBackend=cpu descriptor selection should be active.'
+Assert-Equal ([string]$av1CpuBackendPlan.DescriptorSelection.EncoderBackend) 'cpu' 'EncoderBackend=cpu attempt evidence should retain backend evidence.'
+Assert-Equal (@($av1CpuBackendPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'EncoderBackend=cpu AV1 command topology mismatch.'
 
 $qsvDescriptorCases = @(
     @{ Family = 'hevc'; Codec = 'hevc_qsv'; Preset = 'p7'; ExpectedPreset = 'veryslow'; Expected = '-c:v|hevc_qsv|-preset|veryslow|-global_quality|24' },

@@ -108,6 +108,22 @@ Assert-True ($av1FallbackActivation.Count -eq 1) 'AV1 CPU fallback report should
 Assert-Equal ([bool]$av1PrimaryActivation[0].active) $false 'AV1/NVENC primary activation evidence must remain inactive.'
 Assert-Equal ([bool]$av1FallbackActivation[0].active) $true 'AV1 CPU fallback activation evidence must be active.'
 
+$av1CpuBackendReport = New-MediaEncoderCapabilityReport `
+    -VideoCodec 'av1_nvenc' `
+    -EncoderBackend 'cpu' `
+    -FfmpegPath $ffmpegPath `
+    -Force
+$av1CpuBackendRows = @{}
+foreach ($row in @($av1CpuBackendReport.encoders)) {
+    $av1CpuBackendRows[[string]$row.encoder_name] = $row
+}
+Assert-True ($av1CpuBackendRows.ContainsKey('libaom-av1')) 'EncoderBackend=cpu report should include the AV1 CPU descriptor row.'
+Assert-Equal ([bool]$av1CpuBackendRows['libaom-av1'].descriptor_flags_active) $true 'EncoderBackend=cpu AV1 row should report active descriptor-owned flags.'
+$av1CpuBackendPrimaryActivation = @($av1CpuBackendRows['libaom-av1'].activation | Where-Object { [string]$_.role -eq 'primary' } | Select-Object -First 1)
+Assert-True ($av1CpuBackendPrimaryActivation.Count -eq 1) 'EncoderBackend=cpu AV1 report should include primary activation evidence.'
+Assert-Equal ([bool]$av1CpuBackendPrimaryActivation[0].active) $true 'EncoderBackend=cpu primary activation evidence should be active for libaom-av1.'
+Assert-Equal ([string]$av1CpuBackendPrimaryActivation[0].active_descriptor_encoder) 'libaom-av1' 'EncoderBackend=cpu primary active encoder mismatch.'
+
 $script:ProbeInvalidationEvents = @()
 $script:ProbeInvalidationLogs = @()
 function Write-PipelineEvent {

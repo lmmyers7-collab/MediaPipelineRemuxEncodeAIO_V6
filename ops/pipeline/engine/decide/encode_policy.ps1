@@ -138,6 +138,7 @@ function New-EncodeVideoFlags {
         [Parameter(Mandatory)] [int] $VideoQuality,
         [array] $ExtraVideoFlags = @(),
         [int] $FallbackCpuQuality = 20,
+        [string] $EncoderBackend = 'auto',
         [string] $EncodeLadder = 'auto',
         [string] $CpuPreset = 'medium',
         # E8 — caller's max thread budget for libx265. 0 = libav default
@@ -165,7 +166,7 @@ function New-EncodeVideoFlags {
         throw 'Dynamic HDR x265 parameters require an HDR encode plan.'
     }
 
-    $descriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback
+    $descriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback -EncoderBackend $EncoderBackend
     if ($null -ne $descriptor) {
         return @(New-EncoderVideoFlags `
             -Descriptor $descriptor `
@@ -433,6 +434,7 @@ function Get-EncodeSelectedGpuDevice {
 function New-EncodeAttemptDescriptorSelectionEvidence {
     param(
         [string] $VideoCodec = '',
+        [string] $EncoderBackend = 'auto',
         [bool] $UseCpuFallback = $false,
         [bool] $IsHDR = $false,
         [string] $SelectedEncoder = ''
@@ -444,6 +446,7 @@ function New-EncodeAttemptDescriptorSelectionEvidence {
         Resolved           = $false
         Role               = $role
         VideoCodec         = [string]$VideoCodec
+        EncoderBackend     = [string]$EncoderBackend
         SelectedEncoder    = [string]$SelectedEncoder
         Family             = ''
         PrimaryEncoder     = ''
@@ -459,7 +462,7 @@ function New-EncodeAttemptDescriptorSelectionEvidence {
         return [pscustomobject]$evidence
     }
 
-    $selection = Resolve-MediaEncoderSelection -VideoCodec $VideoCodec -IsHDR:$IsHDR
+    $selection = Resolve-MediaEncoderSelection -VideoCodec $VideoCodec -EncoderBackend $EncoderBackend -IsHDR:$IsHDR
     $evidence.Resolved = [bool]$selection.Resolved
     $evidence.Family = [string]$selection.Family
     $evidence.Reason = [string]$selection.Reason
@@ -484,7 +487,7 @@ function New-EncodeAttemptDescriptorSelectionEvidence {
 
     $activeFlagsDescriptor = $null
     if (Get-Command -Name Resolve-MediaEncoderDescriptorForFlags -ErrorAction SilentlyContinue) {
-        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback
+        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback -EncoderBackend $EncoderBackend
     }
     if ($null -eq $activeFlagsDescriptor) {
         $evidence.Reason = "descriptor flags are not active for $role attempt"
@@ -507,6 +510,7 @@ function New-EncodeAttemptDescriptorSelectionEvidence {
 function Resolve-MediaEncoderActivationReadiness {
     param(
         [string] $VideoCodec = '',
+        [string] $EncoderBackend = 'auto',
         [bool] $UseCpuFallback = $false,
         [bool] $IsHDR = $false
     )
@@ -516,6 +520,7 @@ function Resolve-MediaEncoderActivationReadiness {
         ok                    = $false
         schema_version        = 'encoder_activation_readiness.v1'
         video_codec           = [string]$VideoCodec
+        encoder_backend       = [string]$EncoderBackend
         role                  = $role
         is_hdr                = [bool]$IsHDR
         family                = ''
@@ -535,7 +540,7 @@ function Resolve-MediaEncoderActivationReadiness {
         return [pscustomobject]$result
     }
 
-    $selection = Resolve-MediaEncoderSelection -VideoCodec $VideoCodec -IsHDR:$IsHDR
+    $selection = Resolve-MediaEncoderSelection -VideoCodec $VideoCodec -EncoderBackend $EncoderBackend -IsHDR:$IsHDR
     $result.family = [string]$selection.Family
     $result.resolution_trace = @($selection.ResolutionTrace)
     if ($selection.PrimaryDescriptor) {
@@ -569,7 +574,7 @@ function Resolve-MediaEncoderActivationReadiness {
 
     $activeFlagsDescriptor = $null
     if (Get-Command -Name Resolve-MediaEncoderDescriptorForFlags -ErrorAction SilentlyContinue) {
-        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback
+        $activeFlagsDescriptor = Resolve-MediaEncoderDescriptorForFlags -VideoCodec $VideoCodec -UseCpuFallback:$UseCpuFallback -EncoderBackend $EncoderBackend
     }
     if ($null -eq $activeFlagsDescriptor) {
         $result.reason = "encoder '$VideoCodec' is cataloged as $($attemptDescriptor.Family)/$($attemptDescriptor.Backend), but descriptor-owned flags are not active for $role encode attempts"
@@ -609,6 +614,7 @@ function New-EncodeAttemptPlan {
         [Parameter(Mandatory)] [int] $VideoQuality,
         [array] $ExtraVideoFlags = @(),
         [int] $FallbackCpuQuality = 20,
+        [string] $EncoderBackend = 'auto',
         [string] $EncodeLadder = 'auto',
         [string] $CpuPreset = 'medium',
         [int] $CpuMaxThreads = 0,
@@ -628,17 +634,21 @@ function New-EncodeAttemptPlan {
         [string] $Hdr10PlusJsonPath = ''
     )
 
+    $normalizedEncoderBackend = if ($EncoderBackend) { $EncoderBackend.Trim().ToLowerInvariant() } else { 'auto' }
+    if ([string]::IsNullOrWhiteSpace($normalizedEncoderBackend)) { $normalizedEncoderBackend = 'auto' }
+    $effectiveUseCpuFallback = [bool]$UseCpuFallback -or ($normalizedEncoderBackend -eq 'cpu')
     $ladderProfile = Get-MediaEncodeLadderProfile -Ladder $EncodeLadder -IsTV:$IsTV
     $videoFlags = New-EncodeVideoFlags `
         -IsHDR:$IsHDR `
         -IsTV:$IsTV `
-        -UseCpuFallback:$UseCpuFallback `
+        -UseCpuFallback:$effectiveUseCpuFallback `
         -UseSafeHardwareRetry:$UseSafeHardwareRetry `
         -VideoCodec $VideoCodec `
         -VideoPreset $VideoPreset `
         -VideoQuality $VideoQuality `
         -ExtraVideoFlags $ExtraVideoFlags `
         -FallbackCpuQuality $FallbackCpuQuality `
+        -EncoderBackend $normalizedEncoderBackend `
         -EncodeLadder $EncodeLadder `
         -CpuPreset $CpuPreset `
         -CpuMaxThreads $CpuMaxThreads `
@@ -660,16 +670,17 @@ function New-EncodeAttemptPlan {
 
     $selectedEncoder = Get-EncodeArgumentValue -Arguments $videoFlags -Name '-c:v'
     if ([string]::IsNullOrWhiteSpace($selectedEncoder)) {
-        $selectedEncoder = if ($UseCpuFallback) { Get-MediaVideoCodecLibx265Name } else { $VideoCodec }
+        $selectedEncoder = if ($effectiveUseCpuFallback) { Get-MediaVideoCodecLibx265Name } else { $VideoCodec }
     }
-    $encoderKind = Get-EncodeEncoderKind -Encoder $selectedEncoder -UseCpuFallback:$UseCpuFallback
+    $encoderKind = Get-EncodeEncoderKind -Encoder $selectedEncoder -UseCpuFallback:$effectiveUseCpuFallback
     # CPU encodes never bind to a GPU device. Force-clear so sidecar telemetry
     # does not falsely attribute a CPU encode to GPU 0 when an earlier hardware
     # attempt left -gpu/-hwaccel_device tokens in argv parsers' memory.
-    $selectedGpuDevice = if ($UseCpuFallback) { '' } else { Get-EncodeSelectedGpuDevice -VideoFlags $videoFlags }
+    $selectedGpuDevice = if ($effectiveUseCpuFallback) { '' } else { Get-EncodeSelectedGpuDevice -VideoFlags $videoFlags }
     $descriptorSelection = New-EncodeAttemptDescriptorSelectionEvidence `
         -VideoCodec $VideoCodec `
-        -UseCpuFallback:$UseCpuFallback `
+        -EncoderBackend $normalizedEncoderBackend `
+        -UseCpuFallback:$effectiveUseCpuFallback `
         -IsHDR:$IsHDR `
         -SelectedEncoder $selectedEncoder
     $resolvedCpuPreset = if (Get-Command -Name Resolve-MediaPipelineCpuEncodePreset -ErrorAction SilentlyContinue) {
@@ -678,7 +689,7 @@ function New-EncodeAttemptPlan {
         $CpuPreset
     }
 
-    if ($UseCpuFallback) {
+    if ($effectiveUseCpuFallback) {
         return [pscustomobject]@{
             Attempt        = 'cpu_fallback'
             UseCpuFallback = $true

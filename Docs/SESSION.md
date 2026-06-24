@@ -6,6 +6,27 @@ Operator-approved scope (chat, 2026-06-02): execute ADR-0013 Wave 1 step 1,
 Wave 2 (steps 2-3), Wave 3 (steps 4-5), Wave 4 (step 6), then Wave 5
 (steps 7-8) on follow-up approval ("just continue").
 
+## Encoder CPU backend activation 2026-06-23
+
+Scope: continue the encoder breadth/AV1 remediation stream by activating only
+descriptor-backed `EncoderBackend=cpu` selection in the encode entrypoint.
+Packet `ops/release/changes/unreleased/MP-CHANGE-2026-0623-074.json`.
+
+In scope:
+- Thread saved `EncoderBackend` into encoder activation readiness, descriptor
+  capability evidence, and encode attempt planning.
+- Resolve `EncoderBackend=cpu` to the configured codec family's CPU descriptor
+  and route it through the existing CPU-fallback attempt shape.
+- Preserve literal HEVC/H.264 NVENC activation behavior and keep AV1/NVENC,
+  QSV, and AMF backend overrides fail-closed.
+- Add focused PowerShell policy/probe assertions for CPU backend evidence and
+  hardware backend blocking.
+
+Out of scope: hardware AV1/NVENC, QSV, or AMF activation; launch preflight
+capability blocking; real-media validation; source/scratch/output movement;
+pending publish; repair/reconcile; rename apply; Python stage-dispatcher
+behavior; or frontend settings behavior.
+
 ## Encoder runtime matrix HDR coverage 2026-06-21
 
 Scope: continue the encoder breadth/AV1 remediation stream by extending the

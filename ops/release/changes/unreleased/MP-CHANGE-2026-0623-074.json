@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0623-074",
+  "title": "Activate CPU encoder backend descriptor selection",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-23",
+  "date_completed": "2026-06-24",
+  "summary": "Activated only descriptor-backed EncoderBackend=cpu selection for encode attempts while leaving hardware AV1/NVENC, QSV, and AMF backend overrides fail-closed.",
+  "reason": "Encoder breadth remediation needed a narrowly bounded backend activation step that can use existing validated CPU fallback mechanics without prematurely enabling unvalidated hardware backends.",
+  "affected_areas": [
+    "docs",
+    "generated-docs",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "EncoderBackend round-tripped through settings and diagnostic reports, but normal encode activation still ignored it. AV1/NVENC primary stayed inactive, while AV1 CPU behavior was reachable only through explicit CPU fallback or CPU-primary libaom selection.",
+  "behavior_after": "EncoderBackend=cpu now resolves the configured VideoCodec family to its CPU descriptor, passes readiness and attempt evidence through descriptor activation, skips the hardware ladder in Do-Encode, and uses the existing CPU fallback attempt shape. Explicit EncoderBackend=nvenc preserves only literal active HEVC/H.264 NVENC selections; AV1/NVENC, QSV, AMF, and codec-family override activations remain blocked.",
+  "files_touched": [
+    "docs/CURRENT_PROJECT_STATE.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/SESSION.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encode_policy.ps1.md",
+    "docs/generated/summaries/ops/pipeline/engine/decide/encoder_descriptors.ps1.md",
+    "docs/generated/summaries/ops/pipeline/entrypoints/MediaPipeline/encode.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-074.json.md",
+    "docs/implementation/encoder-breadth-av1-plan.md",
+    "ops/pipeline/engine/decide/encode_policy.ps1",
+    "ops/pipeline/engine/decide/encoder_descriptors.ps1",
+    "ops/pipeline/entrypoints/MediaPipeline/encode.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0623-074.json"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 covers EncoderBackend=cpu readiness/plan behavior plus NVENC/QSV fail-closed assertions.",
+    "ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 covers EncoderBackend=cpu descriptor activation evidence in capability reports."
+  ],
+  "manual_validation": [
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-EncodeFlagPolicyChecks.ps1 - passed; snapshot count 23",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-EncoderCapabilityProbeChecks.ps1 - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-EncoderRuntimeMatrixChecks.ps1 - passed; 4 rows passed, 11 hardware rows skipped by default, 7 hardware HDR-blocked rows",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1 - failed at repo hygiene only because root generated log MediaPipelineRemuxEncodeAIO_DesktopApp.log exists; earlier media safety, pending publish, route, queue, and policy checks in the wrapper passed before that unrelated blocker",
+    "refresh_summaries --paths for the scoped source/test/docs/change-packet paths - passed; 7 summaries written, 0 unchanged",
+    "git diff --check for the scoped source, test, docs, generated-summary, and change-packet paths - passed with LF-to-CRLF warnings only",
+    "validate_changes - passed; 681 packet(s) valid",
+    "validate_changes --require-worktree-coverage - failed only because unrelated docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-067.json.md and docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0623-078.json.md are not covered by any unreleased packet"
+  ],
+  "rollback_plan": "Revert the encoder descriptor, encode policy, encode entrypoint, targeted PowerShell tests, current-state/checklist/session/implementation-plan docs, generated summaries, and this change packet. This restores EncoderBackend to diagnostics-only behavior and leaves existing literal encoder activation unchanged.",
+  "related_changes": [],
+  "notes": "Thread EncoderBackend into descriptor activation and keep hardware overrides fail-closed.\nApply CPU backend normalization to video flags, readiness, and attempt-plan evidence.\nRoute EncoderBackend=cpu through the existing CPU fallback ladder while preserving hardware fail-closed behavior.\nCover CPU backend activation and hardware backend fail-closed readiness/plan assertions.\nCover CPU backend descriptor activation evidence in capability reports.\nDocument CPU-only backend activation and remaining hardware proof gates.\nUpdate encoder breadth backlog status for CPU backend activation and hardware blockers.\nRefresh encoder breadth plan header for the CPU backend slice.\nRecord session scope and explicit out-of-scope boundaries.\nRefresh generated summary for this encoder backend slice."
+}
