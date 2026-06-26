@@ -36,7 +36,7 @@ VALID_PAYLOADS = {
     StageName.ingest: {
         "source_path": r"C:\media\source.mkv",
         "scratch_root": r"D:\scratch",
-        "intent": "copy_to_scratch",
+        "intent": "dry_run",
     },
     StageName.probe: {"scratch_path": r"D:\scratch\source.mkv"},
     StageName.decide: {
@@ -113,7 +113,7 @@ class StageContractTests(unittest.TestCase):
         with self.assertRaises(ValidationError):
             StageRequest.model_validate({"stage": "probe", "payload": VALID_PAYLOADS[StageName.decide]})
 
-    def test_mutation_capable_payloads_use_shared_intent_or_disabled_ingest_exception(self) -> None:
+    def test_mutation_capable_payloads_use_shared_intent(self) -> None:
         exceptions: list[StageName] = []
         for stage, contract in STAGE_REGISTRY.items():
             if not contract.mutation_capable:
@@ -124,8 +124,8 @@ class StageContractTests(unittest.TestCase):
                 continue
             exceptions.append(stage)
 
-        self.assertEqual(exceptions, [StageName.ingest])
-        self.assertFalse(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
+        self.assertEqual(exceptions, [])
+        self.assertTrue(STAGE_REGISTRY[StageName.ingest].enabled_in_entrypoint)
 
     def test_stage_result_requires_structured_error_on_failure(self) -> None:
         now = datetime.now(timezone.utc).isoformat()

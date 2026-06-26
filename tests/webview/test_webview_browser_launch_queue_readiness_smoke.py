@@ -147,6 +147,20 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                 if (!actual.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actual);
               }
             }
+            function requireCompactGate(id, status, fragments) {
+              const gate = byId(id);
+              if (!gate) throw new Error("missing compact gate " + id);
+              const actualStatus = gate.dataset.status || "";
+              const actualText = gate.textContent || "";
+              const ariaLabel = gate.getAttribute("aria-label") || "";
+              if (actualStatus !== status) {
+                throw new Error(id + " expected status " + status + ", got " + actualStatus + "\\nText:\\n" + actualText + "\\nAria:\\n" + ariaLabel);
+              }
+              if (!ariaLabel.includes("gate:")) throw new Error(id + " missing compact gate aria label: " + ariaLabel);
+              for (const fragment of fragments) {
+                if (!actualText.includes(fragment)) throw new Error(id + " missing " + fragment + "\\nActual:\\n" + actualText);
+              }
+            }
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
@@ -159,6 +173,9 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             }
             function activeLaunchTab() {
               return document.querySelector('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab][aria-selected="true"]')?.dataset.launchTab || "";
+            }
+            function activeDiagnosticsTab() {
+              return document.querySelector('[data-page-panel="diagnostics"] .settings-tab-btn[data-diag-tab][aria-selected="true"]')?.dataset.diagTab || "";
             }
             function requireLaunchTab(tabId) {
               const active = activeLaunchTab();
@@ -174,6 +191,14 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               if (!button) throw new Error("missing Launch tab button " + tabId);
               window.mediaPipelineLaunchView.activateLaunchTab(tabId, { persist: false });
               requireLaunchTab(tabId);
+            }
+            function requireDiagnosticsReadinessTab() {
+              const pageVisible = document.querySelector('[data-page-panel="diagnostics"]')?.classList.contains("is-visible");
+              if (!pageVisible) throw new Error("Diagnostics page is not visible");
+              const active = activeDiagnosticsTab();
+              if (active !== "readiness") throw new Error("expected Diagnostics readiness tab, got " + active);
+              const panel = document.querySelector('[data-page-panel="diagnostics"] .settings-tab-pane[data-diag-tab="readiness"]');
+              if (!panel?.classList.contains("is-active")) throw new Error("Diagnostics readiness panel is not active");
             }
             async function waitFor(predicate, label) {
               const deadline = Date.now() + 20000;
@@ -246,14 +271,14 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             if (typeof window.mediaPipelineLaunchView?.activateLaunchTab !== "function") throw new Error("missing mediaPipelineLaunchView.activateLaunchTab");
             const launchTabLabels = Array.from(document.querySelectorAll('[data-page-panel="launch"] .settings-tab-btn[data-launch-tab]'))
               .map((button) => button.textContent.trim());
-            const expectedLaunchTabs = ["Pipeline Processor", "CSV Rerun", "History", "Readiness"];
+            const expectedLaunchTabs = ["Pipeline Processor", "CSV Rerun", "History"];
             if (JSON.stringify(launchTabLabels) !== JSON.stringify(expectedLaunchTabs)) {
               throw new Error("unexpected Launch tab order: " + JSON.stringify(launchTabLabels));
             }
             const launchPanelOrder = Array.from(document.querySelectorAll('[data-page-panel="launch"] > .launch-tab-panel[data-launch-tab-panel]'))
               .map((panel) => panel.dataset.launchTabPanel)
               .filter((tabId, index, all) => all.indexOf(tabId) === index);
-            const expectedPanelOrder = ["pipeline", "rerun", "history", "readiness"];
+            const expectedPanelOrder = ["pipeline", "rerun", "history"];
             if (JSON.stringify(launchPanelOrder) !== JSON.stringify(expectedPanelOrder)) {
               throw new Error("unexpected Launch panel DOM order: " + JSON.stringify(launchPanelOrder));
             }
@@ -281,25 +306,23 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               if (!gate) throw new Error("missing compact gate " + id);
               if (gate.tagName !== "BUTTON") throw new Error(id + " is not a button");
               const ariaLabel = gate.getAttribute("aria-label") || "";
-              if (!ariaLabel.includes("gate:") || !/(OK|Review|Blocked|Active)/.test(gate.textContent || "")) {
+              if (!ariaLabel.includes("gate:") || !/(OK|Needs Evidence|At Risk|Will Fail|Active)/.test(gate.textContent || "")) {
                 throw new Error(id + " missing visible/audible state; aria=" + ariaLabel + "; text=" + gate.textContent);
               }
             });
             byId("pipeline-gate-backend").click();
-            requireText("pipeline-compact-gate-detail", ["Backend:", "Opened Launch > Readiness > Backend Preflight", "Backend start remains authoritative."]);
-            if (!document.querySelector('[data-launch-tab-panel="readiness"]')?.classList.contains("is-active")) {
-              throw new Error("Backend compact gate did not open the Launch readiness tab");
-            }
+            requireText("pipeline-compact-gate-detail", ["Backend:", "Opened Diagnostics > Readiness > Backend Preflight", "Backend start remains authoritative."]);
+            requireDiagnosticsReadinessTab();
             if (!document.querySelector("#launch-backend-preflight-refresh-button.is-attention-target, #launch-backend-preflight-rows tr.is-attention-target")) {
               throw new Error("Backend compact gate did not highlight backend preflight evidence");
             }
+            window.showPage("launch");
             clickLaunchTab("pipeline");
             byId("pipeline-gate-settings").click();
-            requireText("pipeline-compact-gate-detail", ["Settings:", "Opened Launch > Readiness > Settings Check", "Backend start remains authoritative."]);
-            if (!document.querySelector('[data-launch-tab-panel="readiness"]')?.classList.contains("is-active")) {
-              throw new Error("Settings compact gate did not open the Launch readiness tab");
-            }
-            clickLaunchTab("readiness");
+            requireText("pipeline-compact-gate-detail", ["Settings:", "Opened Diagnostics > Readiness > Settings Check", "Backend start remains authoritative."]);
+            requireDiagnosticsReadinessTab();
+            window.showPage("launch");
+            clickLaunchTab("pipeline");
             const singleFileRequest = window.mediaPipelineLaunchView.collectPipelineStartRequest();
             if (singleFileRequest.single_file !== "E:\\\\Videos\\\\Scratch\\\\Encoded\\\\TV\\\\Sample Pilot.mkv") {
               throw new Error("Launch single-file request was not collected correctly: " + JSON.stringify(singleFileRequest));
@@ -314,6 +337,8 @@ def _browser_launch_queue_readiness_runner_source() -> str:
                 && text("launch-scope-reconciliation-summary").includes("Launch scope reconciliation:")
                 && text("launch-start-decision-summary").includes("Launch start decision summary:")
                 && text("launch-real-media-proof-summary").includes("Launch real-media sample proof handoff:")
+                && text("launch-real-media-proof-summary").includes("matches=1")
+                && text("launch-real-media-proof-summary").includes("historical accepted category records=1")
                 && text("launch-sample-execution-summary").includes("Launch sample execution checklist:")
                 && text("launch-pilot-readiness-summary").includes("Launch pilot run readiness:")
                 && text("launch-backend-preflight-summary").includes("backend preflight")
@@ -651,12 +676,67 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             }
             requireText("pipeline-start-disabled-reason", ["Refresh Backend Preflight"]);
             window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            requireCompactGate("pipeline-gate-backend", "unknown", ["Backend", "Needs Evidence", "Refresh"]);
             byId("pipeline-gate-backend").click();
             requireText("pipeline-compact-gate-detail", ["Backend", "Refresh Backend Preflight"]);
             setInput("pipeline-start-mode", "continuous");
+            const reviewPipelinePreflight = {
+              ...originalPipelinePreflight,
+              status: "review",
+              can_request_start: true,
+              request: window.mediaPipelineLaunchView.collectPipelineStartRequest(),
+              checks: [
+                {
+                  key: "browser-smoke-risk",
+                  label: "Browser smoke risk",
+                  status: "review",
+                  evidence: "Injected cached Backend Preflight review for UI gate smoke.",
+                  action: "Review injected Backend Preflight risk.",
+                },
+              ],
+            };
+            const reviewPreflightPayloads = [
+              reviewPipelinePreflight,
+              ...originalBackendPreflightPayloads.filter((payload) => String(payload?.target || "").toLowerCase() !== "pipeline"),
+            ];
+            window.mediaPipelineLaunchView.renderLaunchBackendPreflight(reviewPreflightPayloads);
+            window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(idleSnapshot, idleCloseReadiness);
+            window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            requireCompactGate("pipeline-gate-backend", "warning", ["Backend", "At Risk"]);
+            byId("pipeline-gate-backend").click();
+            requireDiagnosticsReadinessTab();
+            requireText("launch-backend-preflight-detail", [
+              "Browser smoke risk",
+              "Injected cached Backend Preflight review",
+              "Review injected Backend Preflight risk.",
+            ]);
+            const readyPipelinePreflight = {
+              ...originalPipelinePreflight,
+              status: "ready",
+              can_request_start: true,
+              request: window.mediaPipelineLaunchView.collectPipelineStartRequest(),
+              checks: [
+                {
+                  key: "browser-smoke-ready",
+                  label: "Browser smoke ready",
+                  status: "ready",
+                  evidence: "Injected cached Backend Preflight ready check for UI gate smoke.",
+                  action: "No action.",
+                },
+              ],
+            };
+            const readyPreflightPayloads = [
+              readyPipelinePreflight,
+              ...originalBackendPreflightPayloads.filter((payload) => String(payload?.target || "").toLowerCase() !== "pipeline"),
+            ];
+            window.mediaPipelineLaunchView.renderLaunchBackendPreflight(readyPreflightPayloads);
+            window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(idleSnapshot, idleCloseReadiness);
+            window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            requireCompactGate("pipeline-gate-backend", "ready", ["Backend", "OK"]);
             const blockedPipelinePreflight = {
               ...originalPipelinePreflight,
               status: "blocked",
+              can_request_start: false,
               request: window.mediaPipelineLaunchView.collectPipelineStartRequest(),
               checks: [
                 {
@@ -675,10 +755,12 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             window.mediaPipelineLaunchView.renderLaunchBackendPreflight(blockedPreflightPayloads);
             window.mediaPipelineLaunchView.updateLaunchCommandButtonStates(idleSnapshot, idleCloseReadiness);
             window.mediaPipelineLaunchView.renderLaunchCompactGate();
-            requireText("pipeline-gate-backend", ["Backend", "Blocked"]);
+            requireText("pipeline-compact-gate-status", ["Will Fail"]);
+            requireCompactGate("pipeline-gate-backend", "blocked", ["Backend", "Will Fail", "Blocked"]);
             requireText("pipeline-compact-gate-detail", ["Backend", "Backend start remains authoritative."]);
             byId("pipeline-gate-backend").click();
-            requireText("pipeline-compact-gate-detail", ["Backend", "Opened Launch > Readiness > Backend Preflight", "Backend start remains authoritative."]);
+            requireText("pipeline-compact-gate-detail", ["Backend", "Opened Diagnostics > Readiness > Backend Preflight", "Backend start remains authoritative."]);
+            requireDiagnosticsReadinessTab();
             requireText("launch-backend-preflight-detail", [
               "Browser smoke blocker",
               "Injected cached Backend Preflight blocker",
@@ -808,7 +890,10 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "previous backend snapshot",
               "No media mutation has been submitted",
             ]);
-            requireText("queue-table-legend", ["Queue refresh in progress", "previous backend snapshot", "Backend Launch scope is unchanged"]);
+            const queueTableLegend = byId("queue-table-legend");
+            if (!queueTableLegend || !queueTableLegend.hidden || queueTableLegend.textContent.trim()) {
+              throw new Error("Queue table legend should stay hidden during Scan Sources: " + (queueTableLegend?.textContent || ""));
+            }
             const loadingRowsText = tableText("queue-rows");
             if (!loadingRowsText.includes("Serial Experiments Lain") || loadingRowsText.includes("Current queue rows are hidden")) {
               throw new Error("Queue table body did not keep previous backend rows visible during loading: " + loadingRowsText);
@@ -884,6 +969,7 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               scheduleGuidance: text("schedule-guidance"),
               commandReview: text("launch-command-review-summary"),
               launchActiveTab: activeLaunchTab(),
+              diagnosticsActiveTab: activeDiagnosticsTab(),
               historyOwner: owner,
             };
           })()
@@ -1045,7 +1131,8 @@ class WebViewBrowserLaunchQueueReadinessSmoke(unittest.TestCase):
                 "Single-file launch: WebView submits the path only",
                 browser_result["launchPreflight"],
             )
-            self.assertEqual(browser_result["launchActiveTab"], "readiness")
+            self.assertEqual(browser_result["launchActiveTab"], "pipeline")
+            self.assertEqual(browser_result["diagnosticsActiveTab"], "readiness")
             self.assertEqual(browser_result["historyOwner"], "Launch")
             self.assertIn("Launch scope reconciliation:", browser_result["scopeReconciliation"])
             self.assertIn("Launch start decision summary:", browser_result["startDecision"])

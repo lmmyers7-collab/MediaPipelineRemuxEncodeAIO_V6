@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import hmac
+import json
+from collections.abc import Mapping
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -20,6 +24,9 @@ SETTINGS_PATCH_CHANGES_ERROR = "Missing changes object."
 SETTINGS_PATCH_REMOVE_KEYS_ERROR = "remove_keys must be a JSON array."
 SETTINGS_SAVE_BUSY_MESSAGE = "Settings patch save blocked because another settings save command is already in progress."
 SETTINGS_SAVE_PROGRESS_SCHEMA_VERSION = "desktop_settings_save_reload_progress.v1"
+SETTINGS_REVIEW_ENTRIES_SCHEMA_VERSION = "desktop_settings_patch_review_entries.v1"
+SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION = "desktop_settings_save_review_confirmation.v1"
+SETTINGS_SAVE_VERIFICATION_SCHEMA_VERSION = "desktop_settings_save_verification.v1"
 SETTINGS_SAVE_PROGRESS_STEPS = [
     ("preview", "Preview patch"),
     ("write_backup", "Write backup"),
@@ -36,6 +43,158 @@ def _command_result(**fields: Any) -> "CommandResult":
 
 def sorted_patch_keys(keys: list[str]) -> list[str]:
     return sorted(set(keys), key=str.casefold)
+
+
+def _settings_review_json_safe(value: Any) -> Any:
+    from mediapipeline.core.kernel.dto_base import json_safe
+
+    return json_safe(value)
+
+
+def settings_review_digest(value: Any) -> str:
+    canonical = json.dumps(
+        _settings_review_json_safe(value),
+        ensure_ascii=True,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def settings_config_digest(config: Any) -> str:
+    return settings_review_digest(config or {})
+
+
+def settings_reload_verification_projection(
+    config: dict[str, Any],
+    changed_keys: list[str],
+    removed_keys: list[str],
+) -> dict[str, Any]:
+    keys = sorted_patch_keys([*changed_keys, *removed_keys])
+    return {
+        "keys": keys,
+        "values": {
+            key: _settings_review_json_safe(config.get(key)) if key in config else {"__missing__": True}
+            for key in keys
+        },
+    }
+
+
+def settings_reload_verification_digest(
+    config: dict[str, Any],
+    changed_keys: list[str],
+    removed_keys: list[str],
+) -> str:
+    return settings_review_digest(settings_reload_verification_projection(config, changed_keys, removed_keys))
+
+
+def settings_save_review_confirmation(patch: dict[str, Any]) -> dict[str, Any]:
+    changed_keys = sorted_patch_keys(list(patch.get("changed_keys", [])))
+    removed_keys = sorted_patch_keys(list(patch.get("removed_keys", [])))
+    request_digest = settings_review_digest(patch.get("request_evidence", {}))
+    base_config_digest = settings_config_digest(patch.get("base_config", {}))
+    candidate_config_digest = settings_config_digest(patch.get("merged", {}))
+    review_entries_digest = settings_review_digest(
+        {
+            "schema_version": SETTINGS_REVIEW_ENTRIES_SCHEMA_VERSION,
+            "entries": list(patch.get("review_entries", [])),
+        }
+    )
+    preview_id = settings_review_digest(
+        {
+            "schema_version": SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION,
+            "request_digest": request_digest,
+            "base_config_digest": base_config_digest,
+            "candidate_config_digest": candidate_config_digest,
+            "review_entries_digest": review_entries_digest,
+            "changed_keys": changed_keys,
+            "removed_keys": removed_keys,
+        }
+    )
+    return {
+        "schema_version": SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION,
+        "preview_id": preview_id,
+        "request_digest": request_digest,
+        "base_config_digest": base_config_digest,
+        "candidate_config_digest": candidate_config_digest,
+        "review_entries_digest": review_entries_digest,
+        "changed_keys": changed_keys,
+        "removed_keys": removed_keys,
+    }
+
+
+def _submitted_confirmation_preview_id(value: Any) -> str:
+    if not isinstance(value, Mapping):
+        return ""
+    return str(value.get("preview_id") or "")
+
+
+def settings_save_review_confirmation_required_result(
+    *,
+    expected: dict[str, Any] | None = None,
+    submitted: Any = None,
+    reason: str = "",
+) -> CommandResult:
+    message = reason or "Settings patch save requires review_confirmation from the latest backend preview."
+    data: dict[str, Any] = {
+        "writes_config": False,
+        "review_confirmation_required": True,
+        "review_confirmation_schema_version": SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION,
+    }
+    if expected:
+        data["expected_review_preview_id"] = str(expected.get("preview_id") or "")
+    submitted_preview_id = _submitted_confirmation_preview_id(submitted)
+    if submitted_preview_id:
+        data["submitted_review_preview_id"] = submitted_preview_id
+    return _command_result(
+        command=SETTINGS_SAVE_PATCH_COMMAND,
+        ok=False,
+        message=message,
+        severity="warning",
+        warnings=[message],
+        refresh_hint=SETTINGS_REFRESH_HINT,
+        data=data,
+    )
+
+
+def settings_save_review_confirmation_error(
+    request: dict[str, Any],
+    patch: dict[str, Any],
+) -> CommandResult | None:
+    expected = settings_save_review_confirmation(patch)
+    submitted = request.get("review_confirmation")
+    if not isinstance(submitted, Mapping):
+        return settings_save_review_confirmation_required_result(
+            expected=expected,
+            submitted=submitted,
+            reason="Settings patch save requires review_confirmation from the backend preview that was reviewed.",
+        )
+    for key in (
+        "schema_version",
+        "preview_id",
+        "request_digest",
+        "base_config_digest",
+        "candidate_config_digest",
+        "review_entries_digest",
+    ):
+        if not hmac.compare_digest(str(submitted.get(key) or ""), str(expected.get(key) or "")):
+            return settings_save_review_confirmation_required_result(
+                expected=expected,
+                submitted=submitted,
+                reason=(
+                    "Settings patch save review_confirmation does not match the latest backend preview "
+                    f"for this patch ({key} mismatch)."
+                ),
+            )
+    submitted_changed = [str(item) for item in list(submitted.get("changed_keys") or [])]
+    submitted_removed = [str(item) for item in list(submitted.get("removed_keys") or [])]
+    if submitted_changed != expected["changed_keys"] or submitted_removed != expected["removed_keys"]:
+        return settings_save_review_confirmation_required_result(
+            expected=expected,
+            submitted=submitted,
+            reason="Settings patch save review_confirmation does not match the preview changed/removed key set.",
+        )
+    return None
 
 
 def truncated_diff_lines(diff_lines: list[str]) -> list[str]:
@@ -257,6 +416,9 @@ def settings_patch_preview_result(resolved: ResolvedPaths, patch: dict[str, Any]
             "preview_key_count": len(patch["merged"]),
             "redacted_diff_lines": truncated_diff_lines(diff_lines),
             "diff_truncated": settings_diff_truncated(diff_lines),
+            "review_entries_schema_version": SETTINGS_REVIEW_ENTRIES_SCHEMA_VERSION,
+            "review_entries": list(patch.get("review_entries", [])),
+            "review_confirmation": settings_save_review_confirmation(patch),
             "risk_summary": patch["risk_summary"],
             "library_profile_state": patch.get("library_profile_state", []),
             "preserved_unknown_keys": sorted_patch_keys(patch.get("preserved_unknown_keys", [])),
@@ -352,6 +514,21 @@ def settings_save_success_result(result: object, patch: dict[str, Any], warnings
     backup_path = getattr(result, "backup_path", None)
     diff_lines = patch["diff_lines"]
     progress = settings_save_written_progress_payload(result, patch)
+    review_confirmation = settings_save_review_confirmation(patch)
+    verification = {
+        "schema_version": SETTINGS_SAVE_VERIFICATION_SCHEMA_VERSION,
+        "config_digest_before": review_confirmation["base_config_digest"],
+        "config_digest_written": review_confirmation["candidate_config_digest"],
+        "reload_verification_digest_written": settings_reload_verification_digest(
+            dict(patch["merged"]),
+            list(patch["changed_keys"]),
+            list(patch["removed_keys"]),
+        ),
+        "reload_config_digest": "",
+        "reload_verification_digest": "",
+        "verified_from_reload": False,
+        "verified_at": "",
+    }
     return _command_result(
         command=SETTINGS_SAVE_PATCH_COMMAND,
         ok=True,
@@ -367,6 +544,13 @@ def settings_save_success_result(result: object, patch: dict[str, Any], warnings
             "key_count": len(patch["merged"]),
             "redacted_diff_lines": truncated_diff_lines(diff_lines),
             "diff_truncated": settings_diff_truncated(diff_lines),
+            "review_entries_schema_version": SETTINGS_REVIEW_ENTRIES_SCHEMA_VERSION,
+            "review_entries": list(patch.get("review_entries", [])),
+            "review_confirmation": review_confirmation,
+            "config_digest_before": review_confirmation["base_config_digest"],
+            "config_digest_written": review_confirmation["candidate_config_digest"],
+            "reload_verification_digest_written": verification["reload_verification_digest_written"],
+            "save_verification": verification,
             "risk_summary": patch["risk_summary"],
             "library_profile_state": patch.get("library_profile_state", []),
             "preserved_unknown_keys": sorted_patch_keys(patch.get("preserved_unknown_keys", [])),
@@ -385,8 +569,18 @@ __all__ = [
     "SETTINGS_PATCH_REMOVE_KEYS_ERROR",
     "SETTINGS_SAVE_BUSY_MESSAGE",
     "SETTINGS_SAVE_PROGRESS_SCHEMA_VERSION",
+    "SETTINGS_REVIEW_ENTRIES_SCHEMA_VERSION",
+    "SETTINGS_SAVE_REVIEW_CONFIRMATION_SCHEMA_VERSION",
+    "SETTINGS_SAVE_VERIFICATION_SCHEMA_VERSION",
     "SETTINGS_SAVE_PROGRESS_STEPS",
     "sorted_patch_keys",
+    "settings_review_digest",
+    "settings_config_digest",
+    "settings_reload_verification_projection",
+    "settings_reload_verification_digest",
+    "settings_save_review_confirmation",
+    "settings_save_review_confirmation_required_result",
+    "settings_save_review_confirmation_error",
     "truncated_diff_lines",
     "settings_diff_truncated",
     "settings_save_progress_step_status_counts",

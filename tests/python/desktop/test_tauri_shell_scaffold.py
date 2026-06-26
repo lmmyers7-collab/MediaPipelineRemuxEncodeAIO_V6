@@ -100,7 +100,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertEqual(config["build"]["frontendDist"], "../frontend")
         self.assertEqual(config["app"]["windows"], [])
         self.assertIs(config["app"]["withGlobalTauri"], True)
-        self.assertEqual(capability["windows"], ["main"])
+        self.assertEqual(capability["windows"], ["main", "pipeline-log"])
         self.assertEqual(
             capability["remote"]["urls"],
             ["http://127.0.0.1:*", "http://localhost:*"],
@@ -246,6 +246,32 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Get-ChildItem -LiteralPath $srcRoot -Filter '*.rs' -Recurse -File", audit)
         self.assertIn("read-only Tauri lifecycle event bridge", audit)
 
+    def test_tauri_shell_registers_native_pipeline_log_window_command(self) -> None:
+        source = _tauri_rust_source()
+        lib_source = (TAURI_SRC_ROOT / "lib.rs").read_text(encoding="utf-8")
+
+        self.assertIn("fn open_pipeline_log_window(app: AppHandle) -> Result<(), String>", lib_source)
+        self.assertIn(".invoke_handler(tauri::generate_handler![open_pipeline_log_window])", lib_source)
+        self.assertIn('PIPELINE_LOG_WINDOW_LABEL: &str = "pipeline-log"', lib_source)
+        self.assertIn('PIPELINE_LOG_WINDOW_PATH: &str = "/assets/pipelineLogWindow.html"', lib_source)
+        self.assertIn("app.get_webview_window(PIPELINE_LOG_WINDOW_LABEL)", lib_source)
+        self.assertIn(".show()", lib_source)
+        self.assertIn(".unminimize()", lib_source)
+        self.assertIn(".set_focus()", lib_source)
+        self.assertIn(
+            "WebviewWindowBuilder::new(&app, PIPELINE_LOG_WINDOW_LABEL, WebviewUrl::External(url))",
+            lib_source,
+        )
+        self.assertIn(".initialization_script(tauri_bootstrap_initialization_script(", lib_source)
+        self.assertIn("backend.token().to_string()", lib_source)
+        self.assertIn("backend.startup_warnings().to_vec()", lib_source)
+        self.assertIn('if window.label() != "main"', lib_source)
+        self.assertIn("WindowEvent::CloseRequested", lib_source)
+        self.assertIn("WindowEvent::Destroyed", lib_source)
+        self.assertIn("pipeline log browser open", source)
+        self.assertIn("floating pipeline log namespace", source)
+        self.assertIn("pipeline log window script", source)
+
     def test_tauri_shell_startup_errors_include_bounded_operator_context(self) -> None:
         source = _tauri_rust_source()
 
@@ -330,6 +356,10 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Any failure means the shell cannot safely trust the UI surface.", source)
         self.assertNotIn("assert!(!web_ui_validation_error_is_fatal", source)
         self.assertIn('"/assets/app.js"', source)
+        self.assertIn('"/assets/floatingPipelineLog.js"', source)
+        self.assertIn('"/assets/pipelineLogWindowBridge.js"', source)
+        self.assertIn('"/assets/pipelineLogWindow.html"', source)
+        self.assertIn('"/assets/pipelineLogWindow.js"', source)
         self.assertIn('"/assets/crossPageContextView.js"', source)
         self.assertIn('"/assets/crossPageContextView.conflict.js"', source)
         self.assertIn('"/assets/crossPageContextView.sample.js"', source)
@@ -727,6 +757,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Test-WebViewBrowserNetworkSmoke.ps1", source)
         self.assertIn("ops/scripts/smoke WebView browser telemetry smoke", source)
         self.assertIn("Test-WebViewBrowserTelemetrySmoke.ps1", source)
+        self.assertIn("ops/scripts/smoke WebView browser LibraryProfiles save smoke", source)
+        self.assertIn("Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1", source)
         self.assertIn("ops/scripts/smoke WebView browser Maintenance/Reports smoke", source)
         self.assertIn("Test-WebViewBrowserMaintenanceReportsSmoke.ps1", source)
         self.assertIn("ops/scripts/smoke WebView browser Sample Validation smoke", source)
@@ -1077,6 +1109,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Test-WebViewBrowserHomeLiveStateSmoke.ps1", readme)
         self.assertIn("Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1", readme)
         self.assertIn("Test-WebViewBrowserLayoutManagerSmoke.ps1", readme)
+        self.assertIn("Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1", readme)
         self.assertIn("Test-WebViewSettingsLaunchPolicySmoke.ps1", readme)
         self.assertIn("Test-WebViewSettingsLaunchLiveConfigSmoke.ps1", readme)
         self.assertIn("Test-TauriShell-Launch.ps1 -TimeoutSeconds 180 -CloseTimeoutSeconds 30", readme)
@@ -1085,7 +1118,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Test-TauriShell-Launch.ps1 -Mode Packaged -TimeoutSeconds 180 -CloseTimeoutSeconds 30", readme)
         self.assertIn("ops\\scripts\\release\\build.ps1 -DestinationRoot C:\\Temp\\MediaPipelineRemuxEncodeAIO_PG3 -IncludeTauriPreviewBinary", readme)
         self.assertIn("dev-mode `npm run dev` launch path", readme)
-        self.assertIn("Passing the fixture, command-evidence, row-detail, schedule, browser schedule, browser backend lifecycle, local API Maintenance dry-run, local API sample validation, browser high-risk, browser diagnostics handoff, pending drain guard, completed pending proof, large-table, browser Maintenance/Reports, browser Sample Validation, browser Home live-state, browser Launch/Queue readiness, browser layout manager, settings/launch policy, live-config handoff, settings patch evidence, or preview launch smoke does not prove FFmpeg", readme)
+        self.assertIn("Passing the fixture, command-evidence, row-detail, schedule, browser schedule, browser backend lifecycle, local API Maintenance dry-run, local API sample validation, browser high-risk, browser diagnostics handoff, pending drain guard, completed pending proof, large-table, browser Maintenance/Reports, browser Sample Validation, browser Home live-state, browser Launch/Queue readiness, browser layout manager, browser LibraryProfiles save, settings/launch policy, live-config handoff, settings patch evidence, or preview launch smoke does not prove FFmpeg", readme)
 
     def test_api_browser_launcher_keeps_token_auth_enabled_by_default(self) -> None:
         root_launcher = PROJECT_ROOT / "Start-MediaPipelineRemuxEncodeAIO-ApiAndBrowser.bat"
@@ -1718,7 +1751,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("backend-owned network lifecycle controls", source)
         self.assertIn("lifecycle handoff", source)
         self.assertIn("persisted worker rows", source)
-        self.assertIn("filters warn when active/problem worker rows are hidden", source)
+        self.assertIn("filters warn when active/problem/review worker rows are hidden", source)
         self.assertIn("confirmed network lifecycle commands are not executed", source)
         self.assertIn("Distributed Mode Settings save is not exercised by this smoke", source)
         self.assertIn("does not process media", source)
@@ -1744,8 +1777,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("network-lifecycle-summary", source)
         self.assertIn("renderNetworkLifecycleHandoff", source)
         self.assertIn("network-worker-status-filter", source)
-        self.assertIn("No active/problem worker rows are hidden", source)
-        self.assertIn("active/problem worker rows are hidden", source)
+        self.assertIn("No active/problem/review rows hidden", source)
+        self.assertIn("active/problem/review hidden", source)
         self.assertIn("Lifecycle controls remain backend-owned", source)
         self.assertIn("Mutation guardrail", source)
         self.assertIn("/api/network/workers", source)
@@ -1789,7 +1822,7 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Chrome or Edge is required", source)
         self.assertIn("test_real_browser_keeps_zero_percent_nvenc_visible", source)
         self.assertIn("telemetryVisibleGpuRows", source)
-        self.assertIn("GPU video encoder telemetry available.", source)
+        self.assertIn("GPU video encoder is idle at 0%.", source)
         self.assertIn("redundant idle wording", source)
         self.assertIn("top-level zero-percent GPU telemetry did not synthesize a visible GPU row", source)
         self.assertIn("CPU/RAM only", source)
@@ -1908,7 +1941,8 @@ class TauriShellScaffoldTests(unittest.TestCase):
         self.assertIn("Chrome/Edge headless", source)
         self.assertIn("Maintenance and Reports pages", source)
         self.assertIn("Maintenance health, dry-run result rendering, dry-run history, Reports failure/audit triage", source)
-        self.assertIn("Reports failure-marker clear remains confined to /api/failures/clear", source)
+        self.assertIn("grouped failure resolution, More actions, lifecycle journal preview/confirm, marker clear preview/confirm, and evidence archive preview/confirm", source)
+        self.assertIn("Reports failure-marker clear remains confined to /api/failures/clear, lifecycle journal state remains confined to /api/failures/lifecycle", source)
         self.assertIn("all other backend mutation routes stay blocked", source)
         self.assertIn("does not process media", source)
         self.assertIn("launch pipeline commands", source)

@@ -28,6 +28,7 @@ class WebViewDiagnosticsDrilldownStaticTests(unittest.TestCase):
             [(tab_id, label) for tab_id, _selected, label in tabs],
             [
                 ("triage", "Overview"),
+                ("readiness", "Readiness"),
                 ("investigation", "Investigation"),
                 ("logs", "Logs"),
                 ("progress", "State"),
@@ -36,7 +37,9 @@ class WebViewDiagnosticsDrilldownStaticTests(unittest.TestCase):
         )
         self.assertEqual(tabs[0][1], "true")
         self.assertTrue(any(tab_id == "logs" and selected == "false" for tab_id, selected, _label in tabs))
+        self.assertTrue(any(tab_id == "readiness" and selected == "false" for tab_id, selected, _label in tabs))
         self.assertIn('<div class="settings-tab-pane is-active" data-diag-tab="triage">', html)
+        self.assertIn('<div class="settings-tab-pane" data-diag-tab="readiness">', html)
         self.assertNotIn('<div class="settings-tab-pane is-active" data-diag-tab="logs">', html)
 
     def test_diagnostics_overview_starts_with_first_response(self) -> None:
@@ -96,7 +99,7 @@ class WebViewDiagnosticsDrilldownStaticTests(unittest.TestCase):
             diagnostics_view_js,
         )
         self.assertIn("if (openTarget) {", diagnostics_view_js)
-        self.assertIn("requestDiagnosticsOpen(openTarget)", diagnostics_view_js)
+        self.assertIn("requestDiagnosticsOpen(openTarget, button)", diagnostics_view_js)
         self.assertNotIn("requestDiagnosticsOpen(artifact.target)", diagnostics_view_js)
         self.assertIn(
             'artifact.target || "none; use row guidance"',

@@ -434,7 +434,9 @@ class ChangeControlWorkflowStaticTests(unittest.TestCase):
         text = workflow.read_text(encoding="utf-8")
 
         self.assertIn("Check change packet coverage", text)
-        self.assertIn('mediapipeline.tools.change_control.validate_changes --require-diff-coverage "origin/${{ github.base_ref }}"', text)
+        self.assertIn("Unsafe pull request base ref", text)
+        self.assertIn('git fetch origin "$baseRef`:$remoteRef" --depth=1', text)
+        self.assertIn("mediapipeline.tools.change_control.validate_changes --require-diff-coverage $remoteRef", text)
         self.assertIn("python -m mediapipeline.tools.change_control.validate_changes", text)
 
 

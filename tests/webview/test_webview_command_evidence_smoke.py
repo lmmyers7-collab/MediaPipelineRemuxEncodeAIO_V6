@@ -86,6 +86,16 @@ COMMAND_EVIDENCE_ASSETS = [
     "diagnosticsView.log.js",
     "diagnosticsView.investigation.js",
     "diagnosticsView.js",
+    "reports/state.js",
+    "reports/shared.js",
+    "reports/shell.js",
+    "reports/failureModel.js",
+    "reports/failureCommands.js",
+    "reports/failureView.js",
+    "reports/auditModel.js",
+    "reports/auditView.js",
+    "reports/auditCommands.js",
+    "reports/triage.js",
     "reportsView.js",
     "networkView.js",
     "maintenanceView.js",
@@ -330,6 +340,12 @@ def _node_runner_source() -> str:
         context.setText = (id, value) => {
           texts[id] = String(value ?? "");
           context.document.getElementById(id).textContent = texts[id];
+        };
+        context.setTextState = (id, value, state) => {
+          const node = context.document.getElementById(id);
+          texts[id] = String(value ?? "");
+          node.textContent = texts[id];
+          node.dataset.state = String(state || "");
         };
         context.clearRows = (tbody, columns, message) => {
           if (tbody) tbody.replaceChildren(makeElement());

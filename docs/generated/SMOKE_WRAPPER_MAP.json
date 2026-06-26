@@ -1,0 +1,1005 @@
+{
+  "drift_findings": [],
+  "generated_by": "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.generate_smoke_wrapper_map",
+  "schema_version": 1,
+  "source_paths": {
+    "release_script": "ops/scripts/release/test.ps1",
+    "smoke_inventory": "docs/inventories/SMOKE_TEST_INVENTORY.md",
+    "smoke_root": "ops/scripts/smoke",
+    "webview_catalog": "docs/testing/WEBVIEW_SMOKE_TEST_CATALOG.md"
+  },
+  "summary": {
+    "drift_finding_count": 0,
+    "proof_tiers": {
+      "browser_smoke": 21,
+      "local_api_contract_smoke": 4,
+      "webview_non_browser_smoke": 8
+    },
+    "shared_support_files": [
+      "ops/scripts/smoke/webview_browser_smoke_common.ps1"
+    ],
+    "wrapper_count": 33
+  },
+  "wrappers": [
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts temporary token-protected local API instances against generated temporary state.",
+        "Boundary: validates /api/backend/close-readiness safe and continuous schedule-stop watcher blocked payloads.",
+        "Boundary: validates /api/backend/shutdown token enforcement, safe info result, and watcher-blocked failure result.",
+        "Boundary: does not open a browser, process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: direct backend shutdown POST is exercised only against temporary test backends."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": false
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-LocalApiLifecycleContractSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-LocalApiLifecycleContractSmoke.ps1",
+      "proof_tier": "local_api_contract_smoke",
+      "python_module": "tests.python.desktop",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.python.desktop.test_local_api_lifecycle_contract_smoke",
+      "test_selectors": [
+        "tests.python.desktop.test_local_api_lifecycle_contract_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts a temporary token-protected local API against generated temporary state.",
+        "Boundary: executes only /api/maintenance/release-dry-run, /api/maintenance/completed-backfill-dry-run, and /api/maintenance/retention-dry-run backend dry-run POST routes.",
+        "Boundary: validates token enforcement, command history, release dry-run no-manifest/no-zip evidence, completed-manifest backfill dry-run no-manifest-write evidence, and retention dry-run no-delete/no-move evidence.",
+        "Boundary: command journal and RunLogs evidence are written only inside temporary test state.",
+        "Boundary: does not open a browser, process media, launch pipeline commands, run audit, run CSV rerun, publish, rename files, save settings, mutate queue state, drain pending publish, or modify source/output/scratch media.",
+        "Boundary: does not create a release package, write a release manifest, write a zip package, rewrite completed manifests, or delete/move/archive retention candidates."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": false
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-LocalApiMaintenanceDryRunContractSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-LocalApiMaintenanceDryRunContractSmoke.ps1",
+      "proof_tier": "local_api_contract_smoke",
+      "python_module": "tests.python.desktop",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.python.desktop.test_local_api_maintenance_dry_run_contract_smoke",
+      "test_selectors": [
+        "tests.python.desktop.test_local_api_maintenance_dry_run_contract_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts only temporary token-protected local API fixtures through Python tests.",
+        "Boundary: validates completed and pending-publish backend dry-run POST routes with effect=none.",
+        "Boundary: verifies strict request fields, required dry-run schema fields, command-journal suppression, and no file mutation for fixture manifests, sidecars, payloads, outputs, and sources.",
+        "Boundary: does not add WebView controls, write manifests or sidecars, move/delete parked payloads, drain pending publish, publish outputs, rerun media, or touch source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": false
+      },
+      "invocation_kind": "pytest",
+      "name": "Test-LocalApiRepairReconcileDryRunContractSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-LocalApiRepairReconcileDryRunContractSmoke.ps1",
+      "proof_tier": "local_api_contract_smoke",
+      "python_module": "pytest",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests/python/desktop/test_repair_reconcile_dry_run.py, tests/python/desktop/test_api_command_contracts.py, tests/python/desktop/test_api_contract_payload.py, tests/webview/test_webview_frontend_mutation_boundary.py",
+      "test_selectors": [
+        "tests/python/desktop/test_repair_reconcile_dry_run.py",
+        "tests/python/desktop/test_api_command_contracts.py",
+        "tests/python/desktop/test_api_contract_payload.py",
+        "tests/webview/test_webview_frontend_mutation_boundary.py"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts temporary token-protected local API instances against generated temporary state.",
+        "Boundary: executes only /api/sample-validation/preview and /api/sample-validation/append validation-evidence routes plus read-only sample-validation and diagnostics reads.",
+        "Boundary: validates token enforcement, strict JSON record validation, current-backend-evidence preview, command history, diagnostics tail allowlist, and validation-log readback.",
+        "Boundary: writes sample_validation_log.jsonl only inside temporary test state.",
+        "Boundary: does not open a browser, process media, launch pipeline commands, run audit, run CSV rerun, publish, rename files, save settings, mutate queue state, drain pending publish, or modify source/output/scratch media.",
+        "Boundary: does not accept outputs, clear failures, rewrite completed manifests, rewrite sidecars, probe FFmpeg/ffprobe, or scan arbitrary media shares."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": false
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-LocalApiSampleValidationContractSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-LocalApiSampleValidationContractSmoke.ps1",
+      "proof_tier": "local_api_contract_smoke",
+      "python_module": "tests.python.desktop",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.python.desktop.test_sample_validation_api",
+      "test_selectors": [
+        "tests.python.desktop.test_sample_validation_api"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives the real backend-served Completed/Pending proof board.",
+        "Boundary: verifies the Completed Real-Media Output Proof ladder, including route/size/media, saved-policy reconciliation, Sample Validation handoff, and missing-output blocker detail.",
+        "Boundary: verifies exact completed-output to pending-destination overlap and missing-output-without-proof detail.",
+        "Boundary: verifies selected Pending row Completed Manifest correlation remains read-only.",
+        "Boundary: verifies same-leaf proof wording remains a duplicate-title hint, not publish proof.",
+        "Boundary: does not append validation records, does not process media, launch pipeline commands, drain pending publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserCompletedPendingProofSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_completed_pending_proof_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_completed_pending_proof_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_completed_pending_proof_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView diagnostics handoff controls.",
+        "Boundary: clicks actual Queue, Completed, and Pending Publish table rows before exercising read-only diagnostics bridge, tail, and allowlisted open controls.",
+        "Boundary: verifies selected-row investigation signals, current-filter visibility, clear-filter buttons, and text/status/investigation guardrails before launch, rerun, cleanup, or publish decisions.",
+        "Boundary: verifies Diagnostics Go To Owner Row navigation for Queue, Completed, and Pending Publish without backend commands.",
+        "Boundary: renders Diagnostics State Artifact Summary, selects backend read-order/artifact rows, then validates bounded backend tail output and diagnostics.open command-result feedback.",
+        "Boundary: renders Diagnostics ActiveJobs detail rows, including active and malformed records, plus stale runtime-progress guidance.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_diagnostics_handoff_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_diagnostics_handoff_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_diagnostics_handoff_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives the real backend-served WebView page through Chrome DevTools Protocol.",
+        "Boundary: validates injected and backend-produced blocked Queue, broken Completed, and do-not-drain Pending Publish selected-row guidance.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserHighRiskSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserHighRiskSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_high_risk_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_high_risk_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_high_risk_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state and a generated command journal.",
+        "Boundary: launches installed Chrome/Edge headless and renders real backend-served WebView Home panels.",
+        "Boundary: verifies Daily-Driver Checklist, Operator Readiness, Active Work, Live Progress Details/Evidence, Diagnostics runtime progress, Command Results, Sample Validation posture, and Real-Media Validation Worksheet handoff.",
+        "Boundary: verifies no POST routes are sent during Home live-state rendering.",
+        "Boundary: does not append validation records, does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserHomeLiveStateSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserHomeLiveStateSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_home_live_state_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_home_live_state_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_home_live_state_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Queue, Completed, and Pending Publish tables.",
+        "Boundary: verifies 260-row payloads disclose the 250-row render cap, filter warnings, and hidden selected-row detail.",
+        "Boundary: verifies no backend mutation routes are posted.",
+        "Boundary: does not process media, launch pipeline commands, drain pending publish, publish, rerun, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserLargeTableSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_large_table_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_large_table_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_large_table_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state, a generated launch command journal, and a temporary sample-validation record.",
+        "Boundary: launches installed Chrome/Edge headless and renders real backend-served WebView Launch, Queue, and Schedule readiness panels.",
+        "Boundary: verifies Launch preflight, Queue-to-Launch handoff, Schedule guidance, close-readiness, and launch command-review evidence align.",
+        "Boundary: verifies Launch real-media sample proof handoff mirrors Home worksheet evidence without starting work.",
+        "Boundary: verifies Launch Sample Validation record evidence mirrors Home record/reconciliation evidence without appending records.",
+        "Boundary: verifies Pilot category coverage is visible at Launch without turning category evidence into acceptance state.",
+        "Boundary: verifies saved policy vs Queue route evidence is visible at Launch without changing Start scope or media policy.",
+        "Boundary: verifies Launch sample execution checklist mirrors Home sample-validation execution guidance without starting work.",
+        "Boundary: verifies no POST routes are sent while reading launch readiness evidence.",
+        "Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_launch_queue_readiness_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_launch_queue_readiness_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_launch_queue_readiness_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives the real backend-served Layout Editor drawer.",
+        "Boundary: verifies Queue, Completed, Settings, Diagnostics, Launch, and Reports tab/subtab/subsection boxes are listed in the drawer.",
+        "Boundary: verifies inactive Settings-family subtabs stay hidden while the drawer is open.",
+        "Boundary: verifies no backend mutation routes are posted and media/sidecar/manifest fixture artifacts stay unchanged.",
+        "Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserLayoutManagerSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserLayoutManagerSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_layout_manager_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_layout_manager_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_layout_manager_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: uses a temporary config and browser fixture; does not process media, launch pipeline commands, publish, rename files, mutate queue state, drain pending publish, or modify source/output/scratch media."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_library_profiles_save_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_library_profiles_save_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_library_profiles_save_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts temporary local API instances against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Diagnostics backend lifecycle controls.",
+        "Boundary: validates close-readiness blocked shutdown rejection while the continuous schedule-stop watcher is armed.",
+        "Boundary: validates terminal stop-requested watcher evidence stays visible without blocking safe close.",
+        "Boundary: validates safe close-readiness posts exactly through backend-owned /api/backend/shutdown after confirmation.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserLifecycleSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserLifecycleSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_lifecycle_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_lifecycle_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_lifecycle_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives the backend-served WebView Maintenance tab.",
+        "Boundary: verifies ledger rows, selected detail, filters, empty state, hygiene copy, and read-only GET usage.",
+        "Boundary: verifies no media, queue, settings, pending-publish, rename, or other mutation POST is issued.",
+        "Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserMaintenanceChangeLedgerSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_maintenance_change_ledger_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_maintenance_change_ledger_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_maintenance_change_ledger_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Maintenance and Reports pages.",
+        "Boundary: verifies Maintenance health, dry-run result rendering, dry-run history, Reports failure/audit triage, grouped failure resolution, More actions, lifecycle journal preview/confirm, marker clear preview/confirm, and evidence archive preview/confirm.",
+        "Boundary: verifies Reports failure-marker clear remains confined to /api/failures/clear, lifecycle journal state remains confined to /api/failures/lifecycle, evidence archive remains confined to /api/failures/archive-evidence, and all other backend mutation routes stay blocked.",
+        "Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserMaintenanceReportsSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserMaintenanceReportsSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_maintenance_reports_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_maintenance_reports_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_maintenance_reports_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Network controls.",
+        "Boundary: validates backend-owned network lifecycle controls, runtime readiness, lifecycle handoff, runtime state-file evidence, persisted worker rows, worker detail, and local worker filters.",
+        "Boundary: verifies filters warn when active/problem/review worker rows are hidden.",
+        "Boundary: verifies confirmed network lifecycle commands are not executed; Distributed Mode Settings save is not exercised by this smoke.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, confirm start/stop coordinator/workers, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserNetworkSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_network_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_network_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_network_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives the real backend-served Pending Publish page.",
+        "Boundary: verifies active Pending Publish display filters are disclosed as local-only and do not narrow backend drain scope.",
+        "Boundary: injects a backend-shaped blocked recovery dry-run result and verifies Publish Button Guard refreshes immediately.",
+        "Boundary: verifies a blocked Publish Parked Outputs click records local frontend_guard evidence without posting /api/pipeline/start.",
+        "Boundary: does not process media, launch pipeline commands, drain pending publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserPendingDrainGuardSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_pending_drain_guard_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_pending_drain_guard_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_pending_drain_guard_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and captures every primary page and named subtab.",
+        "Boundary: saves screenshots and a manifest under LocalBase\\UiScreenshots\\prose-box-cleanup-<mode>-<timestamp>.",
+        "Boundary: inventories visible prose/status/diagnostic text boxes and fails after cleanup if any visible prose box is not explicitly defended.",
+        "Boundary: verifies no backend mutation routes are posted and media/sidecar/manifest fixture artifacts stay unchanged.",
+        "Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserProseBoxAudit.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserProseBoxAudit.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_prose_box_audit",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_prose_box_audit",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_prose_box_audit"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives the real backend-served Queue File Settings drawer.",
+        "Boundary: verifies action/status feedback, dirty-state discard guard, clear_fields save payload, full clear confirmation, and failed-save alert tone.",
+        "Boundary: intercepts file-overrides POST routes in the browser harness and does not persist queue/file override mutations.",
+        "Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserQueueFileOverridesSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserQueueFileOverridesSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_queue_file_overrides_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_queue_file_overrides_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_queue_file_overrides_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Rename controls.",
+        "Boundary: clicks actual Rename preview rows and Check Applicable Rows, then verifies Apply Readiness, Pipeline Handoff, and duplicate-target blocking.",
+        "Boundary: verifies large-preview render cap text without calling rename.apply.",
+        "Boundary: verifies blocked duplicate-target scope does not call rename.apply.",
+        "Boundary: does not process media, launch pipeline commands, publish, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserRenameSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserRenameSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_rename_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_rename_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_rename_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Home Sample Validation controls.",
+        "Boundary: verifies real-media pilot-plan rendering and sample-validation preview result rendering.",
+        "Boundary: permits only /api/sample-validation/preview and verifies no append or mutation routes are posted.",
+        "Boundary: does not append validation records, does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserSampleValidationSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserSampleValidationSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_sample_validation_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_sample_validation_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_sample_validation_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Schedule and Launch controls.",
+        "Boundary: validates Schedule Editor preview/save routing, confirmed backend app-state write, command history ownership, and refreshed Launch timing trust.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserScheduleSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserScheduleSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_schedule_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_schedule_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_schedule_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Settings and Launch controls.",
+        "Boundary: validates unsaved Settings changes handoff, Settings-to-Launch intent status, and backend Save result visibility.",
+        "Boundary: validates Launch Active Media Policy Boundary separates saved launch-active policy from staged subtitle/audio/pending-publish candidates.",
+        "Boundary: validates selectable Launch Risk Handoff proof-chain detail for saved-settings risk rows.",
+        "Boundary: verifies the Save Settings review dialog, cancelled Save Settings remains visible, and Save Settings is not posted by the browser smoke.",
+        "Boundary: does not save settings, process media, launch pipeline commands, publish, rename files, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserSettingsLaunchSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserSettingsLaunchSmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_settings_launch_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_settings_launch_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_settings_launch_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and drives real backend-served WebView Live telemetry rendering.",
+        "Boundary: validates zero-percent NVENC remains visible without duplicate idle wording and synthesizes a GPU detail row when only top-level GPU telemetry is present.",
+        "Boundary: validates CPU/RAM-only fallback wording keeps the GPU graph area explicit instead of empty.",
+        "Boundary: does not collect live GPU telemetry, process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserTelemetrySmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserTelemetrySmoke.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_telemetry_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_telemetry_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_telemetry_smoke"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": true,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: launches installed Chrome/Edge headless and captures every primary page and named subtab.",
+        "Boundary: saves screenshots and a manifest under LocalBase\\UiScreenshots\\validation-clutter-cleanup-<timestamp>.",
+        "Boundary: checks desktop screenshots plus 390px and 768px visible evidence-prose clutter and horizontal overflow.",
+        "Boundary: verifies no backend mutation routes are posted and media/sidecar/manifest fixture artifacts stay unchanged.",
+        "Boundary: does not process media, launch pipeline commands, run audit, run CSV rerun, drain pending publish, publish, rename, save settings, mutate queue state, or modify source/output/scratch media.",
+        "Boundary: fails when Node.js or Chrome/Edge prerequisites are missing unless -AllowSkippedTests is explicit."
+      ],
+      "browser_backed": true,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewBrowserVisualClutterScreenshots.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewBrowserVisualClutterScreenshots.ps1",
+      "proof_tier": "browser_smoke",
+      "python_module": "tests.webview.test_webview_browser_visual_clutter_screenshots",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_browser_visual_clutter_screenshots",
+      "test_selectors": [
+        "tests.webview.test_webview_browser_visual_clutter_screenshots"
+      ],
+      "uses_shared_browser_support": true
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: evaluates backend-served WebView JavaScript with mocked DOM state and fixture command history.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewCommandEvidenceSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewCommandEvidenceSmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "tests.webview.test_webview_command_evidence_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_command_evidence_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_command_evidence_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, or modify source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewRealMediaEvidenceSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewRealMediaEvidenceSmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "tests.webview.test_webview_real_media_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_real_media_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_real_media_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: evaluates WebView Rename assets in Node with mocked DOM state.",
+        "Boundary: verifies Apply Readiness and Pipeline Handoff for a ready single-row scope and a blocked duplicate-target scope.",
+        "Boundary: verifies large-preview render cap text without calling rename.apply.",
+        "Boundary: verifies duplicate-target blocking does not call rename.apply.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename files, save settings, mutate queue state, or touch source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewRenameReadinessSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewRenameReadinessSmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "tests.webview.test_webview_rename_readiness_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_rename_readiness_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_rename_readiness_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: evaluates backend-served WebView JavaScript with mocked DOM selected-row state.",
+        "Boundary: validates Queue, Completed, and Pending Publish row details plus diagnostics handoff text.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, mutate queue state, or modify source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewRowDetailSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewRowDetailSmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "tests.webview.test_webview_row_detail_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_row_detail_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_row_detail_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: evaluates WebView Schedule assets in Node with mocked DOM state.",
+        "Boundary: verifies Schedule Coverage Review, selected day detail, table status legend, Schedule Editor preview/save routing, and app-state-write result copy.",
+        "Boundary: does not start pipeline commands, override schedule gates, mutate queue state, touch media files, or write app state from frontend code."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewScheduleSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewScheduleSmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "tests.webview.test_webview_schedule_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_schedule_smoke",
+      "test_selectors": [
+        "tests.webview.test_webview_schedule_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API using the current saved config.",
+        "Boundary: validates read-only Settings and Launch policy handoff visibility against live config data.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, or modify source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "python_module",
+      "name": "Test-WebViewSettingsLaunchLiveConfigSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewSettingsLaunchLiveConfigSmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "mediapipeline.desktop.webview_settings_live_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "mediapipeline.desktop.webview_settings_live_smoke",
+      "test_selectors": [
+        "mediapipeline.desktop.webview_settings_live_smoke"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against generated temporary state.",
+        "Boundary: validates read-only Settings and Launch policy handoff visibility.",
+        "Boundary: does not process media, launch pipeline commands, publish, rename, save settings, or modify source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "unittest",
+      "name": "Test-WebViewSettingsLaunchPolicySmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewSettingsLaunchPolicySmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "tests.webview.test_webview_real_media_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "tests.webview.test_webview_real_media_smoke.WebViewRealMediaSmoke.test_backend_served_webview_fixture_has_settings_launch_policy_handoff",
+      "test_selectors": [
+        "tests.webview.test_webview_real_media_smoke.WebViewRealMediaSmoke.test_backend_served_webview_fixture_has_settings_launch_policy_handoff"
+      ],
+      "uses_shared_browser_support": false
+    },
+    {
+      "allows_skipped_tests": false,
+      "boundary_lines": [
+        "Boundary: starts a temporary local API against a generated temporary config.",
+        "Boundary: exercises backend-owned Save review dialog, denied Save Settings, confirmed Save Settings, reload, and command-history evidence.",
+        "Boundary: does not use the current saved config and does not process media, launch pipeline commands, publish, rename, mutate queue state, or modify source/output/scratch media."
+      ],
+      "browser_backed": false,
+      "docs": {
+        "listed_in_smoke_inventory": true,
+        "listed_in_webview_catalog": true,
+        "webview_catalog_required": true
+      },
+      "invocation_kind": "python_module",
+      "name": "Test-WebViewSettingsPatchEvidenceSmoke.ps1",
+      "path": "ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1",
+      "proof_tier": "webview_non_browser_smoke",
+      "python_module": "mediapipeline.desktop.webview_settings_patch_smoke",
+      "release": {
+        "listed_in_release_layout": true
+      },
+      "test_selector": "mediapipeline.desktop.webview_settings_patch_smoke",
+      "test_selectors": [
+        "mediapipeline.desktop.webview_settings_patch_smoke"
+      ],
+      "uses_shared_browser_support": false
+    }
+  ]
+}

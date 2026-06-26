@@ -302,11 +302,11 @@ def _browser_layout_manager_runner_source() -> str:
             await requireStaleRemoteRefreshDoesNotRevertSharedPreference();
             const required = {
               queue: ["Queue Decision", "Attention Required", "Queue Rows", "Backend Launch Scope Boundary", "Queue-to-Launch Handoff", "Queue Readiness Checklist"],
-              completed: ["Output Trust Decision", "Output Files", "Current Output Status", "Completed History Summary", "File And Size Proof", "Publish And Pending Proof", "Integrity Check", "Diagnostics Links"],
-              settings: ["Staged Changes", "Active Policy", "Save Status", "Launch Impact", "Save Result"],
+              completed: ["Overview", "Output Trust Decision", "Current Output Status", "Completed History Summary", "File And Size Proof", "Publish And Pending Proof", "Integrity Check", "Diagnostics Links"],
+              settings: ["Current Changes", "Active Policy", "Save Status", "Launch Impact", "Save Result"],
               diagnostics: ["Recovery Steps", "Read Order", "Impact Summary", "Related Evidence", "Contract Review"],
-              launch: ["Readiness", "Settings Check", "Pipeline Processor", "Start Evidence", "Start Decision Summary", "Command Review"],
-              reports: ["Failure Review Board", "Marker Cleanup", "Audit Entries"],
+              launch: ["Pipeline Processor", "Start Evidence", "Start Decision Summary", "Rerun from CSV", "Command History", "Command Review"],
+              reports: ["Report Triage", "Failure Resolution Center", "Audit Entries"],
             };
             const keys = {};
             for (const [page, headings] of Object.entries(required)) {
@@ -327,7 +327,7 @@ def _browser_layout_manager_runner_source() -> str:
             const completedPaneKeys = completedPanes.map((pane) => pane.dataset.completedTab).sort().join("|");
             if (completedPaneKeys !== "evidence|history|overview") throw new Error("Completed tab panes were not merged to one container per tab: " + completedPaneKeys);
             if (document.querySelector('[data-page-panel="completed"] section.panel.settings-tab-pane')) throw new Error("Completed tab panes should be containers, not draggable panels");
-            requireDrawerGroups("launch", ["Pipeline Processor", "Audit", "CSV Rerun", "History", "Readiness"]);
+            requireDrawerGroups("launch", ["Pipeline Processor", "CSV Rerun", "History"]);
             requireDrawerGroups("reports", ["Failures", "Audit", "Locations"]);
             requireDrawerHeadings(
               "pending",
@@ -339,6 +339,7 @@ def _browser_layout_manager_runner_source() -> str:
                 "Pending Publish Checklist",
                 "Flagged Items",
                 "Recovery Preview",
+                "Manifest Repair",
                 "Pending Rows",
                 "Selected Item",
                 "Diagnostics Links",
@@ -381,9 +382,13 @@ def _browser_layout_manager_runner_source() -> str:
             if (nestedCompletedPanels.length) throw new Error("Completed layout still has nested managed panels: " + nestedCompletedPanels.map(headingText).join(" | "));
             const overviewPane = document.querySelector('[data-page-panel="completed"] .settings-tab-pane[data-completed-tab="overview"]');
             const overviewHeadings = panelOrderIn(overviewPane);
-            ["Output Files", "Final Library Promotion", "Why This Output Looks Different", "Current Output Status"].forEach((heading) => {
+            ["Overview", "Final Library Promotion", "Why This Output Looks Different", "Current Output Status"].forEach((heading) => {
               if (!overviewHeadings.includes(heading)) throw new Error("Completed Overview missing movable sibling panel " + heading + "; found " + overviewHeadings.join(" | "));
             });
+            const completedOverviewPanel = Array.from(overviewPane.querySelectorAll(":scope > section.panel[data-panel-key]")).find((panel) => headingText(panel) === "Overview");
+            if (!completedOverviewPanel || !text(completedOverviewPanel).includes("Output Files")) {
+              throw new Error("Completed Overview generated panel lost Output Files content");
+            }
             window.showPage("queue");
             openDrawer();
             const beforeQueueOrder = panelOrder("queue");
@@ -407,6 +412,25 @@ def _browser_layout_manager_runner_source() -> str:
             await requireStaleRemoteRefreshDoesNotRevertLayoutToggle(queueSummaryPanel);
             requireDrawerPanel("queue", "Queue Summary").querySelectorAll(".layout-editor-toggle-button")[1].click();
             if (queueSummaryPanel.hasAttribute("data-panel-advanced")) throw new Error("drawer Advanced toggle did not restore Queue Summary");
+            const excludedRow = requireDrawerPanel("queue", "Backend-Excluded Source Files");
+            const excludedPanel = panelForDrawerRow(excludedRow);
+            const excludedPanelKey = excludedPanel.dataset.panelKey || "";
+            if (excludedPanel.dataset.panelType !== "interactive") throw new Error("Backend-Excluded Source Files should start as interactive");
+            const excludedToggleButtons = excludedRow.querySelectorAll(".layout-editor-toggle-button");
+            if (excludedToggleButtons.length < 3) throw new Error("missing drawer Evidence toggle for Backend-Excluded Source Files");
+            if (text(excludedToggleButtons[2]) !== "Evidence") throw new Error("third drawer toggle should be Evidence");
+            excludedToggleButtons[2].click();
+            if (excludedPanel.dataset.panelType !== "evidence") throw new Error("drawer Evidence toggle did not mark Backend-Excluded Source Files as evidence");
+            if (storedLayoutState()[excludedPanelKey]?.panelType !== "evidence") throw new Error("drawer Evidence toggle did not persist panelType evidence");
+            if (!text(document.getElementById("layout-editor-status")).includes("marked as evidence")) throw new Error("drawer status did not explain evidence panel type");
+            const evidenceButtonActive = requireDrawerPanel("queue", "Backend-Excluded Source Files").querySelectorAll(".layout-editor-toggle-button")[2];
+            if (!evidenceButtonActive.classList.contains("is-active")) throw new Error("Evidence toggle did not render active after marking evidence");
+            window.applyEvidenceHiddenPreference(true);
+            if (getComputedStyle(excludedPanel).display !== "none") throw new Error("custom evidence panel did not follow Hide Evidence");
+            window.applyEvidenceHiddenPreference(false);
+            requireDrawerPanel("queue", "Backend-Excluded Source Files").querySelectorAll(".layout-editor-toggle-button")[2].click();
+            if (excludedPanel.dataset.panelType !== "interactive") throw new Error("drawer Evidence toggle did not restore authored panel type");
+            if (storedLayoutState()[excludedPanelKey]?.panelType === "evidence") throw new Error("restored panel type should clear persisted evidence override");
             window.showPage("completed");
             openDrawer();
             const sizeEvidenceRow = requireDrawerPanel("completed", "File And Size Proof");

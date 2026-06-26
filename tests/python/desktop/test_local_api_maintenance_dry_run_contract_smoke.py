@@ -17,10 +17,10 @@ from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
 
 try:  # unittest discovery can import tests as top-level modules or package modules.
-    from .test_application_facade import DummyWorkflowFacadeService
+    from .application_facade_test_support import DummyWorkflowFacadeService
     from .test_webview_real_media_smoke import _write_fixture_state
 except ImportError:  # pragma: no cover - fallback for direct test execution
-    from test_application_facade import DummyWorkflowFacadeService
+    from application_facade_test_support import DummyWorkflowFacadeService
     from test_webview_real_media_smoke import _write_fixture_state
 
 

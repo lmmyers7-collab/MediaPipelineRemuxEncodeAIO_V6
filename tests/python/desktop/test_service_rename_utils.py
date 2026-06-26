@@ -10,6 +10,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.rename.utils import (
     associated_sidecar_candidates,
+    mediapipeline_sidecar_path,
     natural_sort_key,
     normalize_plex_filename_component,
     parse_rename_number,
@@ -44,10 +45,11 @@ class RenameServiceUtilsTests(unittest.TestCase):
         media = Path(r"C:\Media\Movie.mkv")
         candidates = associated_sidecar_candidates(media)
 
-        self.assertEqual(candidates[0][0], pipeline_sidecar_path(media))
-        self.assertEqual(candidates[1][0], Path(str(media) + ".pipeline.json"))
-        self.assertEqual(candidates[2][0], rename_override_sidecar_path(media))
-        self.assertEqual(candidates[0][1](Path(r"C:\Out\Movie Renamed.mkv")), Path(r"C:\Out\Movie Renamed.pipeline.json"))
+        self.assertEqual(candidates[0][0], mediapipeline_sidecar_path(media))
+        self.assertEqual(candidates[1][0], pipeline_sidecar_path(media))
+        self.assertEqual(candidates[2][0], Path(str(media) + ".pipeline.json"))
+        self.assertEqual(candidates[3][0], rename_override_sidecar_path(media))
+        self.assertEqual(candidates[0][1](Path(r"C:\Out\Movie Renamed.mkv")), Path(r"C:\Out\Movie Renamed.mediapipeline.json"))
 
     def test_sort_suffix_and_priority_helpers_match_rename_expectations(self) -> None:
         paths = [Path("Show.10.mkv"), Path("Show.2.mkv"), Path("Show.01.mkv")]

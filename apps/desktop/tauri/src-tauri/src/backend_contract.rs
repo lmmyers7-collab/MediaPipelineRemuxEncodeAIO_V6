@@ -213,10 +213,154 @@ pub(crate) fn validate_backend_web_ui(backend_url: &str, token: &str) -> ShellRe
             "external dependency digest evidence",
             "function externalDependencyRows",
         ),
+        (
+            "floating pipeline log init",
+            "initFloatingPipelineLogEvents",
+        ),
+        (
+            "floating pipeline log refresh handoff",
+            "renderFloatingPipelineLog?.(values.diagnostics)",
+        ),
     ] {
         if !app_script.contains(fragment) {
             return Err(shell_error(format!(
                 "Backend WebView app script is missing required fragment '{label}'."
+            )));
+        }
+    }
+
+    let floating_pipeline_log_script = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/floatingPipelineLog.js",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "floating pipeline log diagnostics route",
+            "/api/diagnostics",
+        ),
+        (
+            "floating pipeline log refresh interval",
+            "const REFRESH_INTERVAL_MS = 2000",
+        ),
+        (
+            "floating pipeline log namespace",
+            "window.mediaPipelineFloatingPipelineLog",
+        ),
+        (
+            "floating pipeline log renderer",
+            "function renderFloatingPipelineLog",
+        ),
+        (
+            "floating pipeline log topbar button",
+            "pipeline-log-window-button",
+        ),
+    ] {
+        if !floating_pipeline_log_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView floating pipeline log script is missing required fragment '{label}'."
+            )));
+        }
+    }
+
+    let pipeline_log_bridge_script = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/pipelineLogWindowBridge.js",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "pipeline log read-only window path",
+            "/assets/pipelineLogWindow.html?surface=pipeline-log",
+        ),
+        (
+            "pipeline log browser open",
+            "window.open",
+        ),
+        (
+            "pipeline log browser fallback",
+            "function showDiagnosticsLogsFallback",
+        ),
+        (
+            "pipeline log diagnostics fallback status",
+            "diagnostics-pipeline-log-status",
+        ),
+    ] {
+        if !pipeline_log_bridge_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView pipeline log bridge script is missing required fragment '{label}'."
+            )));
+        }
+    }
+
+    let pipeline_log_window = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/pipelineLogWindow.html",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "pipeline log status",
+            "id=\"pipeline-log-window-status\"",
+        ),
+        (
+            "pipeline log follow toggle",
+            "id=\"pipeline-log-window-follow\"",
+        ),
+        (
+            "pipeline log refresh button",
+            "id=\"pipeline-log-window-refresh-button\"",
+        ),
+        (
+            "pipeline log API client",
+            "src=\"/assets/apiClient.js\"",
+        ),
+        (
+            "pipeline log window script",
+            "src=\"/assets/pipelineLogWindow.js\"",
+        ),
+    ] {
+        if !pipeline_log_window.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView pipeline log window is missing required fragment '{label}'."
+            )));
+        }
+    }
+
+    let pipeline_log_window_script = request_backend_json(
+        backend_url,
+        "GET",
+        "/assets/pipelineLogWindow.js",
+        token,
+        "",
+    )?;
+    for (label, fragment) in [
+        (
+            "pipeline log diagnostics route",
+            "/api/diagnostics",
+        ),
+        (
+            "pipeline log refresh interval",
+            "const REFRESH_INTERVAL_MS = 2000",
+        ),
+        (
+            "pipeline log namespace",
+            "window.mediaPipelinePipelineLogWindow",
+        ),
+        (
+            "pipeline log renderer",
+            "function renderPipelineLogWindow",
+        ),
+    ] {
+        if !pipeline_log_window_script.contains(fragment) {
+            return Err(shell_error(format!(
+                "Backend WebView pipeline log window script is missing required fragment '{label}'."
             )));
         }
     }

@@ -401,7 +401,7 @@ class StageEntrypointTests(unittest.TestCase):
         tv_payload = json.loads(json.dumps(base_payload))
         tv_payload["payload"]["is_tv"] = True
         tv_payload["payload"]["video_height"] = 0
-        tv_payload["payload"]["tv_route_max_video_bitrate_mbps"] = 60
+        tv_payload["payload"]["route_1080p_max_video_bitrate_mbps"] = 60
         tv_under = self.run_entrypoint("decide", tv_payload)
         self.assertEqual(tv_under.returncode, 0, tv_under.stderr)
         tv_data = DecideResult.model_validate(StageResult.model_validate(json.loads(tv_under.stdout)).data)

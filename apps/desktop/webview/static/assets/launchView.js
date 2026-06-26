@@ -199,7 +199,7 @@
   } = launchCommandButtons;
 
   function launchTabIds() {
-    return ["pipeline", "rerun", "history", "readiness"];
+    return ["pipeline", "rerun", "history"];
   }
 
   function activateLaunchTab(tabId, options = {}) {
@@ -747,10 +747,9 @@
   }
 
   function initLaunchRecoveryActionEvents() {
-    const page = document.querySelector('[data-page-panel="launch"]') || document;
-    if (!page || page.__launchRecoveryEventsBound === true) return;
-    page.__launchRecoveryEventsBound = true;
-    page.addEventListener("click", async (event) => {
+    if (!document || document.__launchRecoveryEventsBound === true) return;
+    document.__launchRecoveryEventsBound = true;
+    document.addEventListener("click", async (event) => {
       const button = event.target?.closest?.("[data-launch-recovery-action]");
       if (!button) return;
       event.preventDefault();

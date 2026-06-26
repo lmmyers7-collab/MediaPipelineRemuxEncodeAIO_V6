@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 import subprocess
 import unittest
@@ -20,6 +21,23 @@ def _powershell() -> str:
     return shell
 
 
+def _repository_for_static_preflight() -> str:
+    result = subprocess.run(
+        ["git", "remote", "get-url", "origin"],
+        cwd=REPO_ROOT,
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return "owner/repo"
+    remote_url = result.stdout.strip()
+    match = re.search(r"github\.com[:/](?P<owner>[^/\s]+)/(?P<repo>[^/\s]+?)(?:\.git)?$", remote_url)
+    if not match:
+        return "owner/repo"
+    return f"{match.group('owner')}/{match.group('repo')}"
+
+
 class PrivateBetaGitHubSetupTests(unittest.TestCase):
     def test_static_setup_preflight_validates_workflow_without_github_account(self) -> None:
         result = subprocess.run(
@@ -32,7 +50,7 @@ class PrivateBetaGitHubSetupTests(unittest.TestCase):
                 "-File",
                 str(SCRIPT),
                 "-Repository",
-                "owner/repo",
+                _repository_for_static_preflight(),
                 "-StaticOnly",
                 "-AsJson",
             ],

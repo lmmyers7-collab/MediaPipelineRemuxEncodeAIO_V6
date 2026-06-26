@@ -58,7 +58,6 @@ def _browser_visual_clutter_runner_source() -> str:
               ["audit", "Audit"],
               ["rerun", "CSV Rerun"],
               ["history", "History"],
-              ["readiness", "Readiness"],
             ],
           },
           { page: "live", label: "Telemetry" },
@@ -117,6 +116,7 @@ def _browser_visual_clutter_runner_source() -> str:
             label: "Diagnostics",
             tabs: [
               ["triage", "Overview"],
+              ["readiness", "Readiness"],
               ["investigation", "Investigation"],
               ["logs", "Logs"],
               ["progress", "State"],
@@ -258,6 +258,9 @@ def _browser_visual_clutter_runner_source() -> str:
             (() => {
               function visible(node) {
                 if (!node || !node.getClientRects) return false;
+                if (node.closest("[hidden], [inert], [aria-hidden='true']")) return false;
+                const closedDetails = node.closest("details:not([open])");
+                if (closedDetails && node !== closedDetails.querySelector(":scope > summary") && !node.closest("summary")) return false;
                 const style = getComputedStyle(node);
                 if (style.display === "none" || style.visibility === "hidden" || Number(style.opacity) === 0) return false;
                 return node.getClientRects().length > 0;
@@ -294,24 +297,31 @@ def _browser_visual_clutter_runner_source() -> str:
                   panel: entry.node.closest(".panel")?.querySelector(".panel-heading h2, .panel-heading h3")?.textContent?.trim() || "",
                   text: text(entry.node),
                 }));
-              const pageOverflow = document.documentElement.scrollWidth > window.innerWidth + 2;
-              const overflowNodes = pageOverflow
-                ? Array.from(document.body.querySelectorAll("*"))
-                  .filter(visible)
-                  .filter((node) => !node.closest(".table-wrap"))
-                  .map((node) => ({ node, rect: node.getBoundingClientRect() }))
-                  .filter((entry) => entry.rect.right > window.innerWidth + 2 || entry.rect.left < -2)
-                  .slice(0, 8)
-                  .map((entry) => ({
-                    tag: entry.node.tagName.toLowerCase(),
-                    id: entry.node.id || "",
-                    classes: String(entry.node.className || "").slice(0, 160),
-                    left: Math.round(entry.rect.left),
-                    right: Math.round(entry.rect.right),
-                    width: Math.round(entry.rect.width),
-                    text: text(entry.node),
-                  }))
-                : [];
+              function isBoundedHorizontalScroller(node) {
+                const scroller = node.closest(".nav, .settings-tab-bar, .table-wrap, .table-scroll, .progress-track, .schedule-editor-grid, [data-visual-horizontal-scroll]");
+                if (!scroller) return false;
+                const style = getComputedStyle(scroller);
+                if (!/(auto|scroll|hidden|clip)/.test(style.overflowX || "")) return false;
+                const rect = scroller.getBoundingClientRect();
+                return rect.left >= -2 && rect.right <= window.innerWidth + 2;
+              }
+              const overflowEntries = Array.from(document.body.querySelectorAll("*"))
+                .filter(visible)
+                .filter((node) => !isBoundedHorizontalScroller(node))
+                .map((node) => ({ node, rect: node.getBoundingClientRect() }))
+                .filter((entry) => entry.rect.right > window.innerWidth + 2 || entry.rect.left < -2);
+              const overflowNodes = overflowEntries
+                .slice(0, 8)
+                .map((entry) => ({
+                  tag: entry.node.tagName.toLowerCase(),
+                  id: entry.node.id || "",
+                  classes: String(entry.node.className || "").slice(0, 160),
+                  left: Math.round(entry.rect.left),
+                  right: Math.round(entry.rect.right),
+                  width: Math.round(entry.rect.width),
+                  text: text(entry.node),
+                }));
+              const pageOverflow = overflowNodes.length > 0;
               return {
                 page: page.dataset.pagePanel,
                 offenders,

@@ -16,7 +16,9 @@ COMMAND_BUTTONS_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets"
 CONTROLLER_STATE_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "controllerState.js"
 LAUNCH_READINESS_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchReadinessView.js"
 LAUNCH_VIEW_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchView.js"
+LAUNCH_SCOPE_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchView.scope.js"
 PAGE_LAUNCH_HTML = ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-launch.html"
+PAGE_DIAGNOSTICS_HTML = ROOT / "apps" / "desktop" / "webview" / "static" / "partials" / "page-diagnostics.html"
 PREFLIGHT_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launchView.preflight.js"
 START_REQUEST_JS = ROOT / "apps" / "desktop" / "webview" / "static" / "assets" / "launch" / "startRequest.js"
 
@@ -392,7 +394,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
               checks: [{{ key: "csv_path", label: "CSV path", status: "blocked", evidence: "missing", action: "Stage a CSV." }}],
             }},
           ];
-          const alertPayloads = [
+          const activeWorkAlertPayloads = [
             {{
               target: "pipeline",
               _frontend_target_label: "Pipeline",
@@ -401,6 +403,19 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
               status: "blocked",
               can_request_start: false,
               checks: [{{ key: "active_work", label: "Active work guard", status: "blocked", evidence: "active worker is running", action: "Wait for active work to finish." }}],
+            }},
+          ];
+          emptyCsvModule.renderLaunchBackendPreflight(activeWorkAlertPayloads);
+          const activeWorkAlertSuppressed = !domNodes[".launch-preflight-startup-alert"];
+          const alertPayloads = [
+            {{
+              target: "pipeline",
+              _frontend_target_label: "Pipeline",
+              _frontend_preflight_active: true,
+              _frontend_preflight_included: true,
+              status: "blocked",
+              can_request_start: false,
+              checks: [{{ key: "config_identity", label: "Active config identity", status: "blocked", evidence: "config is not verified", action: "Restore a verified operator PSD1." }}],
             }},
           ];
           emptyCsvModule.renderLaunchBackendPreflight(alertPayloads);
@@ -428,6 +443,7 @@ def _run_launch_preflight_smoke() -> dict[str, object]:
             poisonStatus: emptyCsvModule.launchBackendPreflightOverallStatus(poisonPayloads),
             poisonRows: emptyCsvModule.launchBackendPreflightRows(poisonPayloads).map((row) => row.targetLabel + ":" + row.posture),
             poisonScopeLabel: emptyCsvModule.launchBackendPreflightScopeLabel(poisonPayloads),
+            activeWorkAlertSuppressed,
             blockedAlertText,
             blockedAlertState,
             blockedAlertRole,
@@ -503,6 +519,154 @@ def _run_launch_controller_state_smoke() -> dict[str, object]:
     if result.returncode != 0:
         raise AssertionError(
             "Launch controller state smoke failed.\n"
+            f"returncode={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
+        )
+    return json.loads(result.stdout)
+
+
+def _run_launch_compact_gate_smoke() -> dict[str, object]:
+    node = shutil.which("node")
+    if not node:
+        raise unittest.SkipTest("Node.js is required for the launch compact gate smoke.")
+
+    script = textwrap.dedent(
+        f"""
+        const fs = require("fs");
+        const vm = require("vm");
+
+        const source = fs.readFileSync({str(LAUNCH_SCOPE_JS)!r}, "utf8");
+        const context = {{
+          window: {{}},
+          document: {{ querySelectorAll() {{ return []; }} }},
+        }};
+        context.window.window = context.window;
+        context.window.document = context.document;
+        vm.createContext(context);
+        vm.runInContext(source, context);
+
+        const factory = context.window.__launchViewScopeModule.createLaunchScopeModule;
+        const activePreflight = {{
+          target: "pipeline",
+          status: "blocked",
+          can_request_start: false,
+          checks: [
+            {{
+              key: "active_work",
+              label: "Active work guard",
+              status: "blocked",
+              evidence: "A normal run is already active.",
+              action: "Wait for active work to finish.",
+            }},
+          ],
+        }};
+        const hardBlockPreflight = {{
+          target: "pipeline",
+          status: "blocked",
+          can_request_start: false,
+          checks: [
+            {{
+              key: "config_identity",
+              label: "Active config identity",
+              status: "blocked",
+              evidence: "Config is not verified.",
+              action: "Restore a verified operator PSD1.",
+            }},
+          ],
+        }};
+        let currentPreflight = activePreflight;
+
+        function preflightRows(items) {{
+          return (Array.isArray(items) ? items : []).flatMap((payload) => {{
+            const target = payload.target || "pipeline";
+            return (Array.isArray(payload.checks) ? payload.checks : []).map((check, index) => ({{
+              key: `${{target}}:${{check.key || check.label || index}}`,
+              target,
+              targetLabel: "Pipeline",
+              checkKey: check.key || "",
+              check: check.label || check.key || "Check",
+              posture: check.status || "unknown",
+              evidence: check.evidence || "",
+              action: check.action || "",
+              detail: [],
+              payload,
+            }}));
+          }});
+        }}
+
+        const launchScopeModule = factory({{
+          collectPipelineStartRequest() {{ return {{ mode: "once", schedule_override: "" }}; }},
+          getCommandHistory() {{ return [{{ command: "pipeline.start", ok: true, result: "ok", message: "Started" }}]; }},
+          getLastQueueRows() {{ return [{{ source_path: "C:/Source/Movie.mkv", route_decision_summary: "Remux", status: "ready" }}]; }},
+          getLastQueuePayload() {{ return {{ schema_version: "queue.v1", blocked_row_count: 0, invalid_row_count: 0 }}; }},
+          getLastLaunchBackendPreflightRefreshInfo() {{ return {{ fetch_failure_count: 0 }}; }},
+          isLaunchCommand(entry) {{ return String(entry?.command || "") === "pipeline.start"; }},
+          launchBackendPreflightPayloadForTarget(target) {{ return String(target || "").toLowerCase() === "pipeline" ? currentPreflight : null; }},
+          launchBackendPreflightRows: preflightRows,
+          launchBackendPreflightOverallStatus(items) {{
+            return (Array.isArray(items) ? items : []).some((item) => String(item.status || "").toLowerCase() === "blocked") ? "Blocked" : "Ready";
+          }},
+          launchBackendPreflightSummaryLines() {{ return ["Backend preflight summary."]; }},
+          launchCommandReviewRows() {{ return [{{ posture: "ready" }}]; }},
+          launchCommandReviewStatus() {{ return "Ready"; }},
+          launchCommandReviewSummaryLines() {{ return []; }},
+          launchPolicyBoundaryRows() {{ return []; }},
+          launchPolicyBoundarySummaryLines() {{ return []; }},
+          launchReadinessLines() {{ return ["Launch readiness lines."]; }},
+          launchSettingsIntentPayload(payload) {{ return payload && typeof payload === "object" ? payload : {{}}; }},
+          launchSettingsIntentRows() {{ return [{{ key: "saved-settings", posture: "ready" }}]; }},
+          launchSettingsIntentSummaryLines() {{ return ["Settings ready."]; }},
+          launchSettingsWorkspace() {{ return {{ schema_version: "settings.v1" }}; }},
+          launchTimingStatus(payload) {{ return payload?.closeReadiness?.active_work ? "Active work" : "Ready"; }},
+          launchTimingTrustLines() {{ return ["Timing lines."]; }},
+          queueLaunchDecisionRows() {{ return [{{ key: "backend-launch-preflight", posture: "Blocked" }}]; }},
+          queueLaunchDecisionStatus() {{ return "Do not launch"; }},
+          queueLaunchDecisionSummaryLines() {{ return ["Queue decision summary."]; }},
+        }});
+
+        const activeContext = {{
+          closeReadiness: {{ safe_to_close: false, active_work: true }},
+          snapshot: {{ pipeline_state: "running" }},
+          schedule: {{ enabled: false }},
+        }};
+        const activeRows = launchScopeModule.launchCompactGateRows({{ mode: "once", schedule_override: "" }}, activeContext);
+        const activeMap = Object.fromEntries(activeRows.map((row) => [row.key, row]));
+
+        currentPreflight = hardBlockPreflight;
+        const blockedContext = {{
+          closeReadiness: {{ safe_to_close: true, active_work: false }},
+          snapshot: {{ pipeline_state: "idle" }},
+          schedule: {{ enabled: false }},
+        }};
+        const blockedRows = launchScopeModule.launchCompactGateRows({{ mode: "once", schedule_override: "" }}, blockedContext);
+        const blockedMap = Object.fromEntries(blockedRows.map((row) => [row.key, row]));
+
+        process.stdout.write(JSON.stringify({{
+          activeOverall: launchScopeModule.launchCompactGateOverallStatus(activeRows),
+          activeBackendStatus: activeMap.backend?.status,
+          activeBackendValue: activeMap.backend?.value,
+          activeQueueStatus: activeMap.queue?.status,
+          activeScheduleStatus: activeMap.schedule?.status,
+          activeWorkStatus: activeMap.active?.status,
+          blockedOverall: launchScopeModule.launchCompactGateOverallStatus(blockedRows),
+          blockedBackendStatus: blockedMap.backend?.status,
+          blockedBackendValue: blockedMap.backend?.value,
+        }}));
+        """
+    )
+    with tempfile.TemporaryDirectory() as raw_tmp:
+        runner = Path(raw_tmp) / "launch-compact-gate-smoke.cjs"
+        runner.write_text(script, encoding="utf-8")
+        result = subprocess.run(
+            [node, str(runner)],
+            text=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=20,
+            check=False,
+        )
+    if result.returncode != 0:
+        raise AssertionError(
+            "Launch compact gate smoke failed.\n"
             f"returncode={result.returncode}\nstdout={result.stdout}\nstderr={result.stderr}"
         )
     return json.loads(result.stdout)
@@ -711,14 +875,28 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["poisonStatus"], "Ready")
         self.assertEqual(result["poisonRows"], ["Pipeline:ready"])
         self.assertEqual(result["poisonScopeLabel"], "Pipeline backend preflight")
+        self.assertTrue(result["activeWorkAlertSuppressed"])
         self.assertIn("Pipeline launch blocked by backend preflight", result["blockedAlertText"])
-        self.assertIn("Active work guard", result["blockedAlertText"])
-        self.assertIn("active worker is running", result["blockedAlertText"])
-        self.assertIn("Wait for active work to finish.", result["blockedAlertText"])
+        self.assertIn("Active config identity", result["blockedAlertText"])
+        self.assertIn("config is not verified", result["blockedAlertText"])
+        self.assertIn("Restore a verified operator PSD1.", result["blockedAlertText"])
         self.assertEqual(result["blockedAlertState"], "blocked")
         self.assertEqual(result["blockedAlertRole"], "alert")
         self.assertEqual(result["blockedAlertLive"], "assertive")
         self.assertTrue(result["alertClearedByReadyPipeline"])
+
+    def test_active_work_compact_gate_renders_active_instead_of_will_fail(self) -> None:
+        result = _run_launch_compact_gate_smoke()
+
+        self.assertEqual(result["activeOverall"], "Active")
+        self.assertEqual(result["activeBackendStatus"], "running")
+        self.assertEqual(result["activeBackendValue"], "Active")
+        self.assertEqual(result["activeQueueStatus"], "running")
+        self.assertEqual(result["activeScheduleStatus"], "running")
+        self.assertEqual(result["activeWorkStatus"], "running")
+        self.assertEqual(result["blockedOverall"], "Will Fail")
+        self.assertEqual(result["blockedBackendStatus"], "blocked")
+        self.assertEqual(result["blockedBackendValue"], "Will Fail")
 
     def test_stale_progress_does_not_count_as_stuck_without_backend_stuck_signal(self) -> None:
         result = _run_launch_controller_state_smoke()
@@ -746,14 +924,15 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
     def test_launch_recovery_archive_button_posts_allowlisted_backend_route(self) -> None:
         launch_source = LAUNCH_VIEW_JS.read_text(encoding="utf-8")
         readiness_source = LAUNCH_READINESS_JS.read_text(encoding="utf-8")
-        page_source = PAGE_LAUNCH_HTML.read_text(encoding="utf-8")
+        diagnostics_source = PAGE_DIAGNOSTICS_HTML.read_text(encoding="utf-8")
 
         self.assertIn("[data-launch-recovery-action]", launch_source)
+        self.assertIn('document.addEventListener("click"', launch_source)
         self.assertIn("/api/maintenance/archive-state-journals", launch_source)
         self.assertIn("confirm_archive: true", launch_source)
         self.assertIn("archive_state_journals", readiness_source)
         self.assertIn("launchRecoveryAction", readiness_source)
-        self.assertIn("launch-readiness-actions", page_source)
+        self.assertIn("launch-readiness-actions", diagnostics_source)
 
 
 if __name__ == "__main__":

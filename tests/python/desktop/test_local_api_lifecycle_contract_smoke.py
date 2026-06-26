@@ -18,10 +18,10 @@ from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 
 try:  # unittest discovery can import tests as top-level modules or package modules.
-    from .test_application_facade import DummyProc, DummyWorkflowFacadeService
+    from .application_facade_test_support import DummyProc, DummyWorkflowFacadeService
     from .test_webview_real_media_smoke import _write_fixture_state
 except ImportError:  # pragma: no cover - fallback for direct test execution
-    from test_application_facade import DummyProc, DummyWorkflowFacadeService
+    from application_facade_test_support import DummyProc, DummyWorkflowFacadeService
     from test_webview_real_media_smoke import _write_fixture_state
 
 

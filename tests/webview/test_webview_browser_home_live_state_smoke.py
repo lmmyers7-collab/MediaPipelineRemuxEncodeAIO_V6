@@ -366,15 +366,24 @@ def _browser_home_live_state_runner_source() -> str:
             }
             clickListItem("home-next-queue-list", "Serial Experiments Lain");
             requireText("home-next-queue-detail", [
-              "Selected queue item:",
-              "Serial Experiments Lain S02E01",
-              "Safe next step:",
+              "Route:",
+              "REMUX",
+              "Status:",
+              "Ready",
+              "Queue:",
+              "1/1",
+              "Output:",
+              "Open Queue for full row evidence",
             ]);
             requireSingleSelected("#home-recent-completed-tbody tr[data-selectable-row='true']", "Recently Completed");
             requireText("home-recent-completed-detail", [
               "Selected completed output:",
               "Safe next step:",
             ]);
+            const completedDetail = byId("home-recent-completed-detail");
+            if (!completedDetail || !completedDetail.hidden || window.getComputedStyle(completedDetail).display !== "none") {
+              throw new Error("Recent completed detail text should stay hidden on Home.");
+            }
             [
               ["home-readiness-status", ["warning", "ready", "blocked", "neutral"]],
               ["home-next-queue-status", ["ready", "warning", "empty", "neutral"]],
@@ -713,7 +722,8 @@ def _browser_home_live_state_runner_source() -> str:
             if (text("pipeline-state").includes("_")) {
               throw new Error("Home pipeline state still contains underscores: " + text("pipeline-state"));
             }
-            if (posts.length) throw new Error("Home live-state render posted unexpected routes: " + JSON.stringify(posts));
+            const unexpectedPosts = posts.filter((post) => post.path !== "/api/ui-preferences");
+            if (unexpectedPosts.length) throw new Error("Home live-state render posted unexpected routes: " + JSON.stringify(unexpectedPosts));
             window.apiPost = originalApiPost;
             return {
               ok: true,
@@ -952,7 +962,10 @@ class WebViewBrowserHomeLiveStateSmoke(unittest.TestCase):
 
             self.assertTrue(result["ok"])
             browser_result = result["result"]
-            self.assertEqual(browser_result["posts"], [])
+            unexpected_posts = [
+                post for post in browser_result["posts"] if post["path"] != "/api/ui-preferences"
+            ]
+            self.assertEqual(unexpected_posts, [])
             self.assertEqual(browser_result["queueCount"], "2 / 5")
             self.assertIn("Rows:", browser_result["queueSnapshot"])
             self.assertIn("Runnable:", browser_result["queueSnapshot"])

@@ -26,6 +26,30 @@ API_POST_LITERAL_RE = re.compile(
     r"(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(\s*(?P<quote>[\"'])(?P<route>/api/[^\"']+)(?P=quote)"
 )
 API_POST_CALL_RE = re.compile(r"(?<!function\s)(?<![\w$])(?:\w+\.)?apiPost(?:Local)?\s*\(")
+NETWORK_CHILD_ASSET_NAMES = (
+    "network/state.js",
+    "network/shared.js",
+    "network/config.js",
+    "network/contract.js",
+    "network/status.js",
+    "network/readiness.js",
+    "network/lifecycle.model.js",
+    "network/lifecycle.view.js",
+    "network/lifecycle.commands.js",
+    "network/setup.commands.js",
+    "network/settingsHandoff.js",
+    "network/openHistory.js",
+    "network/stateFiles.js",
+    "network/workers.model.js",
+    "network/workers.view.js",
+    "network/roleDashboard.js",
+)
+NETWORK_ASSET_NAMES = (*NETWORK_CHILD_ASSET_NAMES, "networkView.js")
+NETWORK_DYNAMIC_DISPATCH_ASSETS = {
+    "networkView.js",
+    "network/lifecycle.commands.js",
+    "network/setup.commands.js",
+}
 
 EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/backend/shutdown": {"app.js"},
@@ -33,11 +57,12 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pipeline/control": {"launchView.js"},
     "/api/pipeline/browse-file": {"launchView.js"},
     "/api/pipeline/start": {"launchView.js"},
-    "/api/audit/start": {"reportsView.js"},
+    "/api/audit/start": {"reports/auditCommands.js"},
+    "/api/audit/stop": {"reports/auditCommands.js"},
     "/api/rerun/start": {"launchView.js"},
-    "/api/audit/score-policy": {"reportsView.js"},
-    "/api/audit/ignore": {"reportsView.js"},
-    "/api/audit/export-rerun-csv": {"reportsView.js"},
+    "/api/audit/score-policy": {"reports/auditCommands.js"},
+    "/api/audit/ignore": {"reports/auditCommands.js"},
+    "/api/audit/export-rerun-csv": {"reports/auditCommands.js"},
     "/api/completed/open": {"completed/openActions.js"},
     "/api/final-library-promotion/promote-queue": {"completed/promotionCommands.js"},
     "/api/final-library-promotion/pause": {"completed/promotionCommands.js"},
@@ -72,12 +97,17 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/queue/file-overrides/route-preview": {"queue/fileOverrides.routePreview.js"},
     "/api/queue/file-overrides/series-preview": {"queue/fileOverrides.drawer.series.js"},
     "/api/queue/file-overrides/series-apply": {"queue/fileOverrides.drawer.series.js"},
+    "/api/queue/file-overrides/series-clear-preview": {"queue/fileOverrides.drawer.series.js"},
+    "/api/queue/file-overrides/series-clear-apply": {"queue/fileOverrides.drawer.series.js"},
     "/api/queue/file-overrides/remux-pilot-promote": {"queue/fileOverrides.drawer.series.js"},
-    "/api/failures/clear": {"reportsView.js"},
+    "/api/failures/clear": {"reports/failureCommands.js"},
+    "/api/failures/archive-evidence": {"reports/failureCommands.js"},
+    "/api/failures/lifecycle": {"reports/failureCommands.js"},
     "/api/rename/apply": {"renameView.js"},
     "/api/rename/browse": {"renameView.js"},
     "/api/rename/filter-cases": {"renameView.js"},
     "/api/rename/preview": {"renameView.js"},
+    "/api/rename/undo": {"renameView.js"},
     "/api/schedule/preview": {"scheduleView.js"},
     "/api/schedule/save": {"scheduleView.js"},
     "/api/settings/validate": {"settingsView.js"},
@@ -101,6 +131,34 @@ def _asset_sources() -> dict[str, str]:
         path.relative_to(ASSET_ROOT).as_posix(): path.read_text(encoding="utf-8")
         for path in sorted(ASSET_ROOT.rglob("*.js"))
     }
+
+
+def _network_asset_source(sources: dict[str, str] | None = None) -> str:
+    loaded_sources = sources if sources is not None else _asset_sources()
+    return "\n".join(
+        loaded_sources[name]
+        for name in NETWORK_ASSET_NAMES
+        if name in loaded_sources
+    )
+
+
+def _is_network_contract_dynamic_dispatch(name: str, source: str, dynamic_call_count: int) -> bool:
+    has_lifecycle_guards = (
+        "network_lifecycle_contracts" in source
+        and "confirm_start" in source
+        and "confirm_stop" in source
+    )
+    has_setup_guards = (
+        "networkCommandRouteByDataSchema" in source
+        and "confirm_create" in source
+        and "confirm_import" in source
+    )
+    return (
+        name in NETWORK_DYNAMIC_DISPATCH_ASSETS
+        and dynamic_call_count == 1
+        and "apiPost(route, request)" in source
+        and (has_lifecycle_guards or has_setup_guards)
+    )
 
 
 def _launch_risk_source(sources: dict[str, str] | None = None) -> str:
@@ -161,12 +219,8 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             literal_matches = list(API_POST_LITERAL_RE.finditer(source))
             all_calls = list(API_POST_CALL_RE.finditer(source))
             if len(literal_matches) != len(all_calls):
-                if (
-                    name == "networkView.js"
-                    and len(all_calls) - len(literal_matches) == 1
-                    and "function postNetworkLifecycleRoute" in source
-                    and "apiPost(route, request)" in source
-                ):
+                dynamic_call_count = len(all_calls) - len(literal_matches)
+                if _is_network_contract_dynamic_dispatch(name, source, dynamic_call_count):
                     continue
                 unexpected.append(f"{name}: apiPost call must use a literal documented route")
                 continue
@@ -181,7 +235,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertEqual(_literal_api_post_owners(), EXPECTED_API_POST_OWNERS)
 
     def test_network_lifecycle_dispatch_uses_backend_contract_routes_and_confirmation_prompt(self) -> None:
-        source = _asset_sources()["networkView.js"]
+        source = _network_asset_source()
         lifecycle_paths = (
             "/api/network/coordinator/start-dry-run",
             "/api/network/coordinator/stop-dry-run",
@@ -390,13 +444,18 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
     def test_write_routes_keep_explicit_confirmation_payloads(self) -> None:
         self.assertIn("confirm_apply = true", _asset_sources()["renameView.js"])
         self.assertIn('apiPost("/api/rename/apply", request)', _asset_sources()["renameView.js"])
-        reports_view_js = _asset_sources()["reportsView.js"]
-        self.assertIn('apiPost("/api/failures/clear", payload)', reports_view_js)
-        self.assertIn('const apiScope = scope === "all" ? "all_markers" : scope;', reports_view_js)
-        self.assertIn("scope: request.scope", reports_view_js)
-        self.assertIn("if (!request.all_markers) payload.marker_paths = request.marker_paths;", reports_view_js)
-        self.assertIn("confirm_clear: !dryRun", reports_view_js)
-        self.assertIn('apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })', _asset_sources()["settingsView.js"])
+        reports_failure_commands_js = _asset_sources()["reports/failureCommands.js"]
+        self.assertIn('apiPost("/api/failures/clear", payload)', reports_failure_commands_js)
+        self.assertIn('const apiScope = clearAll ? "all_markers" : normalizedScope === "selected_group" ? "selected" : normalizedScope;', reports_failure_commands_js)
+        self.assertIn("scope: request.scope", reports_failure_commands_js)
+        self.assertIn("if (!request.all_markers) payload.marker_paths = request.marker_paths;", reports_failure_commands_js)
+        self.assertIn("confirm_clear: !dryRun", reports_failure_commands_js)
+        self.assertIn('apiPost("/api/failures/archive-evidence", request)', reports_failure_commands_js)
+        self.assertIn("confirm_archive: !dryRun", reports_failure_commands_js)
+        settings_js = _asset_sources()["settingsView.js"]
+        self.assertIn('"/api/settings/save-patch"', settings_js)
+        self.assertIn("review_confirmation: reviewConfirmation", settings_js)
+        self.assertIn("confirm_save: true", settings_js)
         self.assertIn('apiPostLocal("/api/settings/wizard/save", { wizard: collectWizardPayload(), confirm_save: true })', _asset_sources()["settingsWizard.js"])
         self.assertIn('apiPost("/api/schedule/save", { ...request, confirm_save: true })', _asset_sources()["scheduleView.js"])
         maintenance_js = _asset_sources()["maintenanceView.js"]
@@ -449,9 +508,13 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "Save gathers these rename-filter values",
             "Browser storage is local draft recovery only; filesystem changes still require backend rename apply confirmation",
             "Save Settings",
-            "Rename Filter Case Log",
-            "This writes a test fixture only; it does not rename files, save settings, or touch media.",
-            "settings-rename-log-case-submit-button",
+            "Rename Filter Case Workbench",
+            "stage new filter terms into the Settings draft",
+            "Retest With Staged Filters",
+            "Save New Filters",
+            "settings-rename-workbench-save-case-button",
+            "settings-rename-workbench-stage-suggestions-button",
+            "settings-rename-workbench-save-filters-button",
             "Guided setup prepares the same PSD1-backed settings used by the manual editor.",
             "Save goes through backend validation",
         ]:

@@ -34,7 +34,7 @@ from mediapipeline.desktop.api.routes import GET_ROUTE_HANDLERS, POST_ROUTE_HAND
 from mediapipeline.desktop.api.static_files import local_api_bootstrap, read_static_asset, render_index
 from mediapipeline.desktop.application import CommandResult, MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 from tests.python.desktop.test_service_config_validation import _valid_config_values
 
 
@@ -501,11 +501,12 @@ class ApplicationFacadeCoreContractTests(unittest.TestCase):
                         "Origin": "tauri://localhost",
                     },
                 )
+                save_request_payload = facade.settings_patch_request_with_review_confirmation(
+                    resolved,
+                    {"changes": {"RoutingProfile": "plex_direct_play"}},
+                )
                 save_body = json.dumps(
-                    {
-                        "changes": {"RoutingProfile": "plex_direct_play"},
-                        "confirm_save": True,
-                    },
+                    {**save_request_payload, "confirm_save": True},
                     ensure_ascii=False,
                 ).encode("utf-8")
                 save_request = Request(
