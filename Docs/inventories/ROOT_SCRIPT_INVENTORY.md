@@ -8,10 +8,10 @@ Concise inventory of supported script entrypoints. Root launcher shims have been
 
 | Type | Count |
 | --- | --- |
-| `scripts/**/*.ps1` operator/release tools | 4 |
+| `scripts/**/*.ps1` operator/release/dev tools | 6 |
 | `scripts/**/*.bat` launcher wrappers | 6 |
 | `ops/scripts/smoke/*.ps1` files | 26 |
-| **Canonical script total** | **10** |
+| **Canonical script total** | **12** |
 
 ## Release And Validation Tools (`.ps1`)
 
@@ -21,6 +21,8 @@ Concise inventory of supported script entrypoints. Root launcher shims have been
 | `ops\scripts\release\test.ps1` | Release self-test. Checks layout, parses scripts, verifies web assets, and runs selected gates. | Yes | No | No | No | Moderate to long |
 | `ops\scripts\operator\New-RealMediaValidationWorksheet.ps1` | Creates a timestamped real-media validation worksheet. | Yes | Yes, creates one `.md` worksheet | No | No | Fast |
 | `ops\scripts\dev\verify-env.ps1` | Verifies runtime/tool layout: PowerShell, Python, FFmpeg, MKVToolNix, PgsToSrt. | Yes | No | No | No | Fast |
+| `ops\scripts\dev\check-github-audit-spine.ps1` | Validates local GitHub audit-spine files, labels, workflows, and AI templates. | Yes | No | No | No | Fast |
+| `ops\scripts\dev\bootstrap-github-audit-spine.ps1` | Dry-runs or applies GitHub audit labels from `.github\audit-labels.json`. | Yes in dry-run; caution with `-Apply` | No local file mutation; `-Apply` mutates GitHub labels | No | No | Fast |
 
 ## Launchers (`.bat`)
 
@@ -59,6 +61,5 @@ See `docs/inventories/SMOKE_TEST_INVENTORY.md` for the complete list, purpose, u
 | `ops\scripts\release\build.ps1` without `-DryRun` | Medium | Copies a full release folder. |
 | `ops\scripts\dev\start-api-and-browser.bat` | Medium | Starts the live API/WebView surface with live config; backend commands can write state/logs. |
 | Smoke wrappers under `ops/scripts/smoke/` | Low | Bounded validation wrappers; generated/temp state unless documented otherwise. |
+| `ops\scripts\dev\bootstrap-github-audit-spine.ps1 -Apply` | Low | Mutates GitHub labels in the selected remote repository; dry-run is read-only. |
 | Other canonical scripts | Low | Read-only or bounded setup/preview actions. |
-
-

@@ -1,0 +1,62 @@
+version: 2
+
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "10:00"
+      timezone: America/Indianapolis
+    labels:
+      - source:dependabot
+      - area:ci
+      - risk:low
+
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "10:20"
+      timezone: America/Indianapolis
+    labels:
+      - source:dependabot
+      - area:webview
+      - risk:low
+
+  - package-ecosystem: npm
+    directory: /apps/desktop/tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: "10:40"
+      timezone: America/Indianapolis
+    labels:
+      - source:dependabot
+      - area:tauri
+      - risk:low
+
+  - package-ecosystem: cargo
+    directory: /apps/desktop/tauri/src-tauri
+    schedule:
+      interval: weekly
+      day: monday
+      time: "11:00"
+      timezone: America/Indianapolis
+    labels:
+      - source:dependabot
+      - area:tauri
+      - risk:medium
+
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: "11:20"
+      timezone: America/Indianapolis
+    labels:
+      - source:dependabot
+      - area:python
+      - risk:low

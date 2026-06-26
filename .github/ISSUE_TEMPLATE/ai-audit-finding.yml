@@ -1,0 +1,104 @@
+name: AI audit finding
+description: Track a scanner, review, or AI-audit finding before it is ready to fix.
+title: "[audit]: "
+labels:
+  - audit
+  - needs-triage
+body:
+  - type: input
+    id: finding_id
+    attributes:
+      label: Finding ID or source
+      description: Use the Code Scanning alert ID, Dependabot alert, audit ledger ID, or a short stable local ID.
+      placeholder: "codeql-123, semgrep-20260625-001, manual-audit-001"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - P0 - release blocker
+        - P1 - high risk
+        - P2 - medium risk
+        - P3 - low risk
+    validations:
+      required: true
+
+  - type: dropdown
+    id: confidence
+    attributes:
+      label: Confidence
+      options:
+        - High - directly reproducible or tool-backed
+        - Medium - strong evidence but needs confirmation
+        - Low - hypothesis or noisy scanner result
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - CI / GitHub automation
+        - Python backend
+        - WebView frontend
+        - Tauri shell
+        - PowerShell pipeline
+        - Release / packaging
+        - Documentation
+        - Media policy / high-risk boundary
+        - Unknown / needs triage
+    validations:
+      required: true
+
+  - type: textarea
+    id: suspected_files
+    attributes:
+      label: Suspected files
+      description: List repo-relative paths and line numbers when known.
+      placeholder: "src/mediapipeline/core/example.py:42"
+    validations:
+      required: true
+
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence
+      description: Paste the scanner summary, review note, or observed behavior. Do not paste secrets, tokens, private paths, or full logs with personal data.
+    validations:
+      required: true
+
+  - type: textarea
+    id: repro
+    attributes:
+      label: Reproduction or verification path
+      description: Include commands, UI steps, or explain why the finding is currently non-reproducible.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Expected validation for a fix
+      description: Name the smallest relevant validation rung, focused tests, or smoke checks.
+    validations:
+      required: true
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety and authority boundary notes
+      description: Call out source media, pending publish, strict JSON, command journal, close-readiness, secret, or filesystem mutation risk.
+
+  - type: checkboxes
+    id: triage_ready
+    attributes:
+      label: Triage readiness
+      options:
+        - label: I checked whether this is already covered by Code Scanning, Dependabot, or another open issue.
+          required: true
+        - label: This issue is not asking an agent to mutate source media, secrets, or local operator state.
+          required: true

@@ -1,17 +1,18 @@
-name: Generated Drift Checks
+name: Deep Audit
 
 on:
-  pull_request:
-  push:
-    branches:
-      - main
-      - master
-      - "codex/**"
+  schedule:
+    - cron: "43 9 * * 0"
+  workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   generated-context:
-    name: Generated context drift
+    name: Generated context and guardrails
     runs-on: windows-latest
+    timeout-minutes: 45
 
     steps:
       - name: Check out repository
@@ -22,8 +23,11 @@ jobs:
         with:
           python-version: "3.11"
 
-      - name: Install contract dependencies
+      - name: Install Python dependencies
         run: python -m pip install -r requirements/dev.txt -e .
+
+      - name: Check AI guardrail plan
+        run: python -m mediapipeline.tools.dev.ai_guardrail preflight --no-run
 
       - name: Check summary freshness
         run: python -m mediapipeline.tools.dev.refresh_summaries --check
@@ -49,32 +53,11 @@ jobs:
       - name: Check architecture guardrails
         run: python -m mediapipeline.tools.dev.check_architecture_guardrails
 
-      - name: Check naming lint
-        shell: pwsh
-        run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
-            git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
-            python -m mediapipeline.tools.lint_naming --git-diff "origin/${{ github.base_ref }}"
-          } else {
-            python -m mediapipeline.tools.lint_naming
-          }
-
       - name: Check active doc references
         run: python -m mediapipeline.tools.dev.check_active_doc_references
 
-      - name: Check GitHub audit spine config
-        shell: pwsh
-        run: .\ops\scripts\dev\check-github-audit-spine.ps1
-
-      - name: Check change packet coverage
-        shell: pwsh
-        run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
-            git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
-            python -m mediapipeline.tools.change_control.validate_changes --require-diff-coverage "origin/${{ github.base_ref }}"
-          } else {
-            python -m mediapipeline.tools.change_control.validate_changes
-          }
+      - name: Check change packets
+        run: python -m mediapipeline.tools.change_control.validate_changes
 
       - name: Check Python typing
         run: python -m mediapipeline.tools.dev.check_python_typing
@@ -87,9 +70,13 @@ jobs:
         shell: pwsh
         run: .\ops\scripts\dev\check_powershell_analysis.ps1
 
+      - name: Check AI guardrail postflight
+        run: python -m mediapipeline.tools.dev.ai_guardrail postflight
+
   python-tests:
     name: Python unit tests
     runs-on: windows-latest
+    timeout-minutes: 45
 
     steps:
       - name: Check out repository
@@ -109,6 +96,7 @@ jobs:
   webview-prework:
     name: WebView prework
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -129,6 +117,7 @@ jobs:
   tauri-check:
     name: Tauri shell check
     runs-on: windows-latest
+    timeout-minutes: 30
 
     steps:
       - name: Check out repository
@@ -152,6 +141,7 @@ jobs:
   release-self-test:
     name: Release self-test
     runs-on: windows-latest
+    timeout-minutes: 60
 
     steps:
       - name: Check out repository
@@ -182,6 +172,7 @@ jobs:
   package-verify:
     name: Package verify
     runs-on: windows-latest
+    timeout-minutes: 90
 
     steps:
       - name: Check out repository

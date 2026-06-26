@@ -1,0 +1,117 @@
+[
+  {
+    "name": "audit",
+    "color": "5319e7",
+    "description": "Finding originated from audit, scanner, review, or AI-assisted analysis."
+  },
+  {
+    "name": "ai-ready",
+    "color": "0e8a16",
+    "description": "Issue is implementation-ready for an AI/code agent."
+  },
+  {
+    "name": "needs-triage",
+    "color": "fbca04",
+    "description": "Needs human triage before fix work starts."
+  },
+  {
+    "name": "needs-repro",
+    "color": "d4c5f9",
+    "description": "Needs reproduction evidence or a sharper failing case."
+  },
+  {
+    "name": "validation-needed",
+    "color": "c2e0c6",
+    "description": "Fix requires explicit validation evidence before completion."
+  },
+  {
+    "name": "risk:low",
+    "color": "c2e0c6",
+    "description": "Low-risk scoped change."
+  },
+  {
+    "name": "risk:medium",
+    "color": "fbca04",
+    "description": "Medium-risk behavior, tooling, or dependency change."
+  },
+  {
+    "name": "risk:high",
+    "color": "d93f0b",
+    "description": "High-risk behavior or boundary-sensitive change."
+  },
+  {
+    "name": "risk:critical",
+    "color": "b60205",
+    "description": "Release blocker or source/media safety risk."
+  },
+  {
+    "name": "area:ci",
+    "color": "1d76db",
+    "description": "GitHub Actions, scanners, or automation."
+  },
+  {
+    "name": "area:github",
+    "color": "1d76db",
+    "description": "GitHub issue, PR, label, project, MCP, or repo settings surface."
+  },
+  {
+    "name": "area:python",
+    "color": "1d76db",
+    "description": "Python backend, contracts, tests, or tooling."
+  },
+  {
+    "name": "area:webview",
+    "color": "1d76db",
+    "description": "Backend-served WebView HTML, CSS, or JavaScript."
+  },
+  {
+    "name": "area:tauri",
+    "color": "1d76db",
+    "description": "Tauri/WebView2 shell or Rust lifecycle surface."
+  },
+  {
+    "name": "area:powershell",
+    "color": "1d76db",
+    "description": "PowerShell pipeline engine, entrypoints, or smoke wrappers."
+  },
+  {
+    "name": "area:docs",
+    "color": "1d76db",
+    "description": "Documentation, runbooks, or generated docs."
+  },
+  {
+    "name": "area:release",
+    "color": "1d76db",
+    "description": "Release, packaging, installer, updater, or productization flow."
+  },
+  {
+    "name": "area:media-policy",
+    "color": "1d76db",
+    "description": "FFmpeg, subtitle, audio, source movement, pending publish, or high-risk media policy."
+  },
+  {
+    "name": "source:codeql",
+    "color": "bfdadc",
+    "description": "Finding came from GitHub CodeQL."
+  },
+  {
+    "name": "source:dependabot",
+    "color": "bfdadc",
+    "description": "Finding or PR came from Dependabot."
+  },
+  {
+    "name": "source:sarif",
+    "color": "bfdadc",
+    "description": "Finding came from an uploaded SARIF scanner."
+  },
+  {
+    "name": "source:manual-audit",
+    "color": "bfdadc",
+    "description": "Finding came from a human review or manual audit."
+  },
+  {
+    "name": "source:ai-audit",
+    "color": "bfdadc",
+    "description": "Finding came from an AI-assisted audit pass."
+  }
+]

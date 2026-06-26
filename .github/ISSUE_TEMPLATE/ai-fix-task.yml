@@ -1,0 +1,75 @@
+name: AI fix task
+description: Hand an implementation-ready bug or audit finding to an AI/code agent.
+title: "[ai-fix]: "
+labels:
+  - ai-ready
+  - validation-needed
+body:
+  - type: input
+    id: parent_finding
+    attributes:
+      label: Parent finding or issue
+      description: Link the audit finding, Code Scanning alert, Dependabot alert, or parent issue.
+      placeholder: "#123 or Code Scanning alert URL"
+    validations:
+      required: true
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: State the exact behavior to change or defect to fix.
+    validations:
+      required: true
+
+  - type: textarea
+    id: in_scope
+    attributes:
+      label: In scope
+      description: List the files, modules, or behaviors the agent may change.
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: List adjacent behaviors the agent must not refactor or reinterpret.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: Include observable behavior, tests, docs, and change-packet expectations.
+    validations:
+      required: true
+
+  - type: textarea
+    id: validation
+    attributes:
+      label: Required validation
+      description: Name exact commands or the validation ladder rung to run.
+    validations:
+      required: true
+
+  - type: textarea
+    id: safety
+    attributes:
+      label: Safety constraints
+      description: Include source media, pending publish, filesystem mutation, strict confirmation, or secret handling constraints.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: agent_readiness
+    attributes:
+      label: Agent readiness
+      options:
+        - label: The task has enough context for an agent to start without repo-wide guessing.
+          required: true
+        - label: The task requires a new or updated change packet.
+          required: true
+        - label: The task does not require live GitHub write access unless explicitly stated above.
+          required: true
