@@ -1,6 +1,14 @@
 name: Audit SARIF
 
 on:
+  push:
+    branches:
+      - main
+      - master
+      - "codex/**"
+      - "refactor/**"
+    paths:
+      - ".github/workflows/audit-sarif.yml"
   schedule:
     - cron: "17 7 * * *"
   workflow_dispatch:

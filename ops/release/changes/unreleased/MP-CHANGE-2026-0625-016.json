@@ -7,7 +7,7 @@
   "risk_level": "low",
   "date_started": "2026-06-25",
   "date_completed": "2026-06-25",
-  "summary": "Adds a local-first GitHub audit spine with Dependabot, CodeQL, nightly SARIF scans, weekly deep-audit workflow, AI-ready issue/PR templates, Copilot guidance, audit labels, and dry-run-first GitHub label bootstrap tooling.",
+  "summary": "Adds a local-first GitHub audit spine with Dependabot, CodeQL, nightly SARIF scans, weekly deep-audit workflow, AI-ready issue/PR templates, Copilot guidance, audit labels, dry-run-first GitHub label bootstrap tooling, and path-limited push activation for schedule/manual workflows.",
   "reason": "Give GitHub and AI-assisted agents structured scanner outputs, triage surfaces, validation expectations, and bootstrap instructions without requiring a live GitHub remote in this checkout.",
   "affected_areas": [
     "ci",
@@ -44,6 +44,7 @@
     "PowerShell parser check for bootstrap-github-audit-spine.ps1 and check-github-audit-spine.ps1 - passed",
     "change packet marked complete after targeted audit-spine validation",
     "mediapipeline.tools.change_control.validate_changes - passed; 757 packet(s) valid",
+    "GitHub activation follow-up: added path-limited push triggers to audit-sarif.yml and deep-audit.yml so GitHub registers the schedule/manual workflows on push",
     "mediapipeline.tools.dev.ai_guardrail preflight --no-run - passed; reported existing unrelated dirty worktree context",
     "mediapipeline.tools.dev.check_active_doc_references - failed on unrelated docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md:15 DOC005",
     "mediapipeline.tools.dev.check_architecture_guardrails - passed",
@@ -52,5 +53,5 @@
   ],
   "rollback_plan": "Remove the new GitHub audit workflows, Dependabot config, issue templates, PR template, Copilot instructions, audit label JSON, bootstrap runbook, and dev helper scripts; remove the audit-spine check from phase1-drift.yml; restore ROOT_SCRIPT_INVENTORY counts and rows; delete this change packet.",
   "related_changes": [],
-  "notes": "Dependabot update groups for Actions, npm, Cargo, and Python manifests.\nCodeQL code scanning workflow for Python, JavaScript/TypeScript, Rust, and GitHub Actions.\nNightly/manual Ruff and Semgrep SARIF uploads.\nWeekly/manual deep validation workflow using existing repo guardrails.\nAdds audit-spine config check to existing drift workflow.\nStructured AI/scanner audit finding intake form.\nImplementation-ready AI fix task issue form.\nPR checklist for change packet, validation, safety, and scanner impact.\nAI-agent repo guidance for Copilot and GitHub MCP use.\nMachine-readable audit label set for local-first bootstrap.\nRunbook for labels and project setup after a GitHub remote exists.\nDry-run-first GitHub label bootstrap helper.\nLocal audit-spine config validator used by CI.\nDocuments new dev script command surfaces.\nNo live GitHub API calls were made; label bootstrap validation used dry-run mode only.\nGenerated summaries were not refreshed because the checkout already has hundreds of unrelated dirty/generated paths, so --changed would absorb unrelated work."
+  "notes": "Dependabot update groups for Actions, npm, Cargo, and Python manifests.\nCodeQL code scanning workflow for Python, JavaScript/TypeScript, Rust, and GitHub Actions.\nNightly/manual Ruff and Semgrep SARIF uploads.\nWeekly/manual deep validation workflow using existing repo guardrails.\nAudit SARIF and Deep Audit include path-limited push triggers for their own workflow files so GitHub registers them on setup pushes without running heavy scans on ordinary code pushes.\nAdds audit-spine config check to existing drift workflow.\nStructured AI/scanner audit finding intake form.\nImplementation-ready AI fix task issue form.\nPR checklist for change packet, validation, safety, and scanner impact.\nAI-agent repo guidance for Copilot and GitHub MCP use.\nMachine-readable audit label set for local-first bootstrap.\nRunbook for labels and project setup after a GitHub remote exists.\nDry-run-first GitHub label bootstrap helper.\nLocal audit-spine config validator used by CI.\nDocuments new dev script command surfaces.\nNo live GitHub API calls were made; label bootstrap validation used dry-run mode only.\nGenerated summaries were not refreshed because the checkout already has hundreds of unrelated dirty/generated paths, so --changed would absorb unrelated work."
 }

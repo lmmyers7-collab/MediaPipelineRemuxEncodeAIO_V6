@@ -1,6 +1,14 @@
 name: Deep Audit
 
 on:
+  push:
+    branches:
+      - main
+      - master
+      - "codex/**"
+      - "refactor/**"
+    paths:
+      - ".github/workflows/deep-audit.yml"
   schedule:
     - cron: "43 9 * * 0"
   workflow_dispatch:
