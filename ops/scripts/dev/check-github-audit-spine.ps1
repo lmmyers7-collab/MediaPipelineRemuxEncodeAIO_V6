@@ -47,6 +47,11 @@ foreach ($RequiredPrefix in @("risk:", "area:", "source:")) {
     }
 }
 
+$DependabotConfig = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/dependabot.yml") -Raw
+if ($DependabotConfig -notmatch "package-ecosystem:\s+pip[\s\S]*?directory:\s+/requirements") {
+    throw "Dependabot pip updates must target /requirements so the dependency graph job does not scan an unsupported repo-root manifest."
+}
+
 $CodeqlWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/codeql.yml") -Raw
 foreach ($Expected in @("python", "javascript-typescript", "rust", "actions", "security-events: write")) {
     if ($CodeqlWorkflow -notmatch [regex]::Escape($Expected)) {
