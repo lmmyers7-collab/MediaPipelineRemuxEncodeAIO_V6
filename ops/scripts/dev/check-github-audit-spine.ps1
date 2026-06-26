@@ -55,7 +55,7 @@ foreach ($Expected in @("python", "javascript-typescript", "rust", "actions", "s
 }
 
 $SarifWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/audit-sarif.yml") -Raw
-foreach ($Expected in @("ruff", "semgrep", "upload-sarif", "security-events: write")) {
+foreach ($Expected in @("ruff", "semgrep", "upload-sarif", "upload-artifact", "GITHUB_STEP_SUMMARY", "security-events: write")) {
     if ($SarifWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "Audit SARIF workflow is missing expected token: $Expected"
     }
