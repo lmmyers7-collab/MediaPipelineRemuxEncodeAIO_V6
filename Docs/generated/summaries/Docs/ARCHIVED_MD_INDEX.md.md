@@ -3,9 +3,9 @@ file: docs/ARCHIVED_MD_INDEX.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-05
+last_modified: 2026-06-25
 last_reviewed: 2026-06-04
-sha256: abbb05f59193624f9865ec19c4fb9c79a66015d6cb3502fd261e74bf3a18b713
+sha256: cfecc09f0eab18e4c55246d85673f3cfc8e7669c171d4153c6d36299fd6cc84e
 ---
 # `docs/ARCHIVED_MD_INDEX.md`
 

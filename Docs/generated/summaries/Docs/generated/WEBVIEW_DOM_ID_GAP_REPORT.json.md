@@ -3,9 +3,9 @@ file: docs/generated/WEBVIEW_DOM_ID_GAP_REPORT.json
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-22
+last_modified: 2026-06-26
 last_reviewed: 2026-06-02
-sha256: 678aeb4434a46b62ce80061ac57c9ddb1f913a34271e16fb3f5c287883c4f716
+sha256: c9d4dc453a9cdc80dab1dc29e45d5b0aea4863c06a28446e67a2f36e78c254ac
 ---
 # `docs/generated/WEBVIEW_DOM_ID_GAP_REPORT.json`
 

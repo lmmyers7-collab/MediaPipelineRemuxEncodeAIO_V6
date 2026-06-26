@@ -6,28 +6,28 @@
   "ok": true,
   "violations": [],
   "summary": {
-    "scripts": 138,
-    "controls": 441,
-    "route_usages": 86,
+    "scripts": 150,
+    "controls": 464,
+    "route_usages": 96,
     "dynamic_api_posts": 1,
-    "route_contracts": 142,
-    "high_risk_route_usages": 47,
+    "route_contracts": 148,
+    "high_risk_route_usages": 50,
     "unclassified_high_risk_controls": 0,
     "controls_by_classification": {
-      "backend-contract-dynamic-route": 8,
-      "backend-owned-route": 141,
+      "backend-contract-dynamic-route": 4,
+      "backend-owned-route": 151,
       "disabled-future-network-control": 5,
       "local-copy": 2,
-      "local-display-state": 74,
-      "local-form-staging": 2,
+      "local-display-state": 71,
+      "local-form-staging": 3,
       "local-guided-setup": 8,
-      "local-launch-intent-staging": 6,
-      "local-navigation": 32,
+      "local-launch-intent-staging": 8,
+      "local-navigation": 33,
       "local-network-staging": 1,
-      "local-or-read-only": 48,
+      "local-or-read-only": 60,
       "local-queue-order-staging": 1,
-      "local-read-navigation": 34,
-      "local-rename-staging": 4,
+      "local-read-navigation": 37,
+      "local-rename-staging": 5,
       "local-sample-validation-staging": 2,
       "local-schedule-staging": 3,
       "local-settings-staging": 36,
@@ -253,6 +253,24 @@
     {
       "page": "app-shell",
       "tag": "button",
+      "id": "floating-pipeline-log-close-button",
+      "text": "Close",
+      "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "app-shell",
+      "tag": "button",
+      "id": "floating-pipeline-log-refresh-button",
+      "text": "Refresh",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "app-shell",
+      "tag": "button",
       "id": "layout-editor-done",
       "text": "Done",
       "classification": "local-display-state",
@@ -283,6 +301,15 @@
       "id": "layout-editor-reset-subtab",
       "text": "Reset Current Subtab",
       "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "app-shell",
+      "tag": "button",
+      "id": "pipeline-log-window-button",
+      "text": "Log",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {}
     },
@@ -337,55 +364,55 @@
       "page": "completed",
       "tag": "button",
       "id": "",
+      "text": "Bitrate",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-completed-size-column-mode": "bitrate"
+      }
+    },
+    {
+      "page": "completed",
+      "tag": "button",
+      "id": "",
+      "text": "Bitrate",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-completed-size-column-mode": "bitrate"
+      }
+    },
+    {
+      "page": "completed",
+      "tag": "button",
+      "id": "",
+      "text": "Size",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-completed-size-column-mode": "size"
+      }
+    },
+    {
+      "page": "completed",
+      "tag": "button",
+      "id": "",
+      "text": "Size",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {
+        "data-completed-size-column-mode": "size"
+      }
+    },
+    {
+      "page": "completed",
+      "tag": "button",
+      "id": "",
       "text": "Refresh Output",
       "classification": "local-read-navigation",
       "route": "",
       "data_attrs": {
         "data-page-refresh-button": "completed"
-      }
-    },
-    {
-      "page": "completed",
-      "tag": "button",
-      "id": "",
-      "text": "Bitrate",
-      "classification": "local-display-state",
-      "route": "",
-      "data_attrs": {
-        "data-completed-size-column-mode": "bitrate"
-      }
-    },
-    {
-      "page": "completed",
-      "tag": "button",
-      "id": "",
-      "text": "Bitrate",
-      "classification": "local-display-state",
-      "route": "",
-      "data_attrs": {
-        "data-completed-size-column-mode": "bitrate"
-      }
-    },
-    {
-      "page": "completed",
-      "tag": "button",
-      "id": "",
-      "text": "Size",
-      "classification": "local-display-state",
-      "route": "",
-      "data_attrs": {
-        "data-completed-size-column-mode": "size"
-      }
-    },
-    {
-      "page": "completed",
-      "tag": "button",
-      "id": "",
-      "text": "Size",
-      "classification": "local-display-state",
-      "route": "",
-      "data_attrs": {
-        "data-completed-size-column-mode": "size"
       }
     },
     {
@@ -985,6 +1012,17 @@
       "page": "diagnostics",
       "tag": "button",
       "id": "",
+      "text": "Readiness",
+      "classification": "local-tab-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-diag-tab": "readiness"
+      }
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "",
       "text": "Overview",
       "classification": "local-tab-navigation",
       "route": "",
@@ -1007,6 +1045,24 @@
       "id": "diagnostics-tail-refresh-button",
       "text": "Read Tail",
       "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "launch-backend-preflight-refresh-button",
+      "text": "Refresh Backend Preflight",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "diagnostics",
+      "tag": "button",
+      "id": "launch-evidence-toggle",
+      "text": "Collapse",
+      "classification": "local-display-state",
       "route": "",
       "data_attrs": {}
     },
@@ -1556,17 +1612,6 @@
       "page": "launch",
       "tag": "button",
       "id": "",
-      "text": "Readiness",
-      "classification": "local-tab-navigation",
-      "route": "",
-      "data_attrs": {
-        "data-launch-tab": "readiness"
-      }
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "",
       "text": "CSV Rerun",
       "classification": "local-tab-navigation",
       "route": "",
@@ -1577,18 +1622,9 @@
     {
       "page": "launch",
       "tag": "button",
-      "id": "launch-backend-preflight-refresh-button",
-      "text": "Refresh Backend Preflight",
-      "classification": "local-read-navigation",
-      "route": "",
-      "data_attrs": {}
-    },
-    {
-      "page": "launch",
-      "tag": "button",
-      "id": "launch-evidence-toggle",
-      "text": "Collapse",
-      "classification": "local-display-state",
+      "id": "launch-open-pipeline-log-window-button",
+      "text": "Open Log Window",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {}
     },
@@ -1605,8 +1641,8 @@
       "page": "launch",
       "tag": "button",
       "id": "pipeline-gate-active",
-      "text": "Active Review Review State",
-      "classification": "local-read-navigation",
+      "text": "Active Needs Evidence Not loaded",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {
         "data-status": "unknown"
@@ -1616,8 +1652,8 @@
       "page": "launch",
       "tag": "button",
       "id": "pipeline-gate-backend",
-      "text": "Backend Review Refresh",
-      "classification": "local-read-navigation",
+      "text": "Backend Needs Evidence Refresh",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {
         "data-status": "unknown"
@@ -1627,8 +1663,8 @@
       "page": "launch",
       "tag": "button",
       "id": "pipeline-gate-last",
-      "text": "Last Review No history",
-      "classification": "local-read-navigation",
+      "text": "Last Needs Evidence No history",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {
         "data-status": "unknown"
@@ -1638,8 +1674,8 @@
       "page": "launch",
       "tag": "button",
       "id": "pipeline-gate-queue",
-      "text": "Queue Review Review Queue",
-      "classification": "local-read-navigation",
+      "text": "Queue Needs Evidence Not loaded",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {
         "data-status": "unknown"
@@ -1649,8 +1685,8 @@
       "page": "launch",
       "tag": "button",
       "id": "pipeline-gate-schedule",
-      "text": "Schedule Review Review Schedule",
-      "classification": "local-read-navigation",
+      "text": "Schedule Needs Evidence Not loaded",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {
         "data-status": "unknown"
@@ -1660,8 +1696,8 @@
       "page": "launch",
       "tag": "button",
       "id": "pipeline-gate-settings",
-      "text": "Settings Review Review Settings",
-      "classification": "local-read-navigation",
+      "text": "Settings Needs Evidence Not loaded",
+      "classification": "local-or-read-only",
       "route": "",
       "data_attrs": {
         "data-status": "unknown"
@@ -1702,6 +1738,18 @@
       "classification": "backend-owned-route",
       "route": "/api/rerun/start",
       "data_attrs": {}
+    },
+    {
+      "page": "launch",
+      "tag": "button",
+      "id": "rerun-open-audit-tool-button",
+      "text": "Open Reports Audit",
+      "classification": "local-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-cross-page-reports-tab": "audit",
+        "data-cross-page-target": "reports"
+      }
     },
     {
       "page": "launch",
@@ -1980,11 +2028,12 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Start coordinator",
+      "text": "Check & Start Coordinator",
       "classification": "backend-contract-dynamic-route",
       "route": "contract:/api/network/* lifecycle",
       "data_attrs": {
         "data-network-lifecycle-action": "start",
+        "data-network-lifecycle-guided": "true",
         "data-network-lifecycle-role": "coordinator"
       }
     },
@@ -1992,11 +2041,12 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Start worker polling",
+      "text": "Check & Start Worker",
       "classification": "backend-contract-dynamic-route",
       "route": "contract:/api/network/* lifecycle",
       "data_attrs": {
         "data-network-lifecycle-action": "start",
+        "data-network-lifecycle-guided": "true",
         "data-network-lifecycle-role": "worker"
       }
     },
@@ -2004,9 +2054,9 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Test worker connection",
-      "classification": "local-or-read-only",
-      "route": "",
+      "text": "Test Connection",
+      "classification": "backend-owned-route",
+      "route": "/api/network/worker/test-connection",
       "data_attrs": {}
     },
     {
@@ -2079,12 +2129,12 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Check coordinator start",
+      "text": "Request Coordinator Stop",
       "classification": "backend-contract-dynamic-route",
       "route": "contract:/api/network/* lifecycle",
       "data_attrs": {
-        "data-network-lifecycle-action": "start",
-        "data-network-lifecycle-dry-run": "true",
+        "data-network-lifecycle-action": "stop",
+        "data-network-lifecycle-guided": "true",
         "data-network-lifecycle-role": "coordinator"
       }
     },
@@ -2092,37 +2142,12 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Check coordinator stop",
+      "text": "Request Worker Stop",
       "classification": "backend-contract-dynamic-route",
       "route": "contract:/api/network/* lifecycle",
       "data_attrs": {
         "data-network-lifecycle-action": "stop",
-        "data-network-lifecycle-dry-run": "true",
-        "data-network-lifecycle-role": "coordinator"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
-      "text": "Request coordinator stop",
-      "classification": "backend-contract-dynamic-route",
-      "route": "contract:/api/network/* lifecycle",
-      "data_attrs": {
-        "data-network-lifecycle-action": "stop",
-        "data-network-lifecycle-role": "coordinator"
-      }
-    },
-    {
-      "page": "network",
-      "tag": "button",
-      "id": "",
-      "text": "Check worker start",
-      "classification": "backend-contract-dynamic-route",
-      "route": "contract:/api/network/* lifecycle",
-      "data_attrs": {
-        "data-network-lifecycle-action": "start",
-        "data-network-lifecycle-dry-run": "true",
+        "data-network-lifecycle-guided": "true",
         "data-network-lifecycle-role": "worker"
       }
     },
@@ -2130,25 +2155,99 @@
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Check worker stop",
-      "classification": "backend-contract-dynamic-route",
-      "route": "contract:/api/network/* lifecycle",
+      "text": "Configure",
+      "classification": "local-or-read-only",
+      "route": "",
       "data_attrs": {
-        "data-network-lifecycle-action": "stop",
-        "data-network-lifecycle-dry-run": "true",
-        "data-network-lifecycle-role": "worker"
+        "data-network-open-drawer": "network-settings-drawer"
       }
     },
     {
       "page": "network",
       "tag": "button",
       "id": "",
-      "text": "Request worker stop",
-      "classification": "backend-contract-dynamic-route",
-      "route": "contract:/api/network/* lifecycle",
+      "text": "Configure",
+      "classification": "local-or-read-only",
+      "route": "",
       "data_attrs": {
-        "data-network-lifecycle-action": "stop",
-        "data-network-lifecycle-role": "worker"
+        "data-network-open-drawer": "network-settings-drawer"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Configure Distributed Mode",
+      "classification": "local-or-read-only",
+      "route": "",
+      "data_attrs": {
+        "data-network-open-drawer": "network-settings-drawer"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "All",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-network-worker-view": ""
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Active Work",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-network-worker-view": "active"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Needs Attention",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-network-worker-view": "attention"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Idle",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-network-worker-view": "idle"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Path/Auth",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-network-worker-view": "path-auth"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Stale/Failed",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-network-worker-view": "stale"
       }
     },
     {
@@ -2177,11 +2276,44 @@
       "page": "network",
       "tag": "button",
       "id": "",
+      "text": "Open Cluster Log",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "cluster_log"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
       "text": "Open Config",
       "classification": "backend-owned-route",
       "route": "/api/diagnostics/open",
       "data_attrs": {
         "data-open-diagnostics": "config"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Open Logs",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "run_logs"
+      }
+    },
+    {
+      "page": "network",
+      "tag": "button",
+      "id": "",
+      "text": "Open Logs",
+      "classification": "backend-owned-route",
+      "route": "/api/diagnostics/open",
+      "data_attrs": {
+        "data-open-diagnostics": "run_logs"
       }
     },
     {
@@ -2864,6 +2996,15 @@
     {
       "page": "queue",
       "tag": "button",
+      "id": "fo-series-clear-open",
+      "text": "Clear Series Overrides",
+      "classification": "backend-owned-route",
+      "route": "/api/queue/file-overrides",
+      "data_attrs": {}
+    },
+    {
+      "page": "queue",
+      "tag": "button",
       "id": "fo-series-modal-close",
       "text": "Close",
       "classification": "local-or-read-only",
@@ -3080,8 +3221,8 @@
       "page": "rename",
       "tag": "form",
       "id": "",
-      "text": "Confirm filesystem rename Renaming 0 file(s). Preview is read-only. Apply filesystem rename sends the checked source paths to backend rename.apply and can rename files on disk. Cancel Apply filesystem rename",
-      "classification": "local-read-navigation",
+      "text": "Confirm filesystem rename Renaming 0 file(s). Backend rename.apply will rename the checked media and matching sidecars. Cancel Apply Renames",
+      "classification": "local-form-staging",
       "route": "",
       "data_attrs": {}
     },
@@ -3098,7 +3239,7 @@
       "page": "rename",
       "tag": "form",
       "id": "",
-      "text": "Rename result Renamed: 0 Unchanged: 0 Skipped: 0 Protected: 0 Failed: 0 Open Log Folder Close",
+      "text": "Rename result Renamed : 0 Unchanged : 0 Skipped : 0 Protected : 0 Failed : 0 Open Log Folder Close",
       "classification": "local-form-staging",
       "route": "",
       "data_attrs": {}
@@ -3137,6 +3278,15 @@
       "text": "Add files from folder",
       "classification": "backend-owned-route",
       "route": "/api/rename/browse",
+      "data_attrs": {}
+    },
+    {
+      "page": "rename",
+      "tag": "button",
+      "id": "rename-check-all-button",
+      "text": "Check All",
+      "classification": "local-rename-staging",
+      "route": "",
       "data_attrs": {}
     },
     {
@@ -3182,6 +3332,15 @@
       "text": "Preview Rename Plan",
       "classification": "backend-owned-route",
       "route": "/api/rename/preview",
+      "data_attrs": {}
+    },
+    {
+      "page": "rename",
+      "tag": "button",
+      "id": "rename-undo-button",
+      "text": "Undo Last Apply",
+      "classification": "backend-owned-route",
+      "route": "/api/rename/undo",
       "data_attrs": {}
     },
     {
@@ -3276,6 +3435,39 @@
       "page": "reports",
       "tag": "button",
       "id": "",
+      "text": "Clear Selection",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-audit-selection-action": "clear"
+      }
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "",
+      "text": "Select Score or Higher",
+      "classification": "backend-owned-route",
+      "route": "/api/audit/score-policy",
+      "data_attrs": {
+        "data-audit-selection-action": "select-score-at-least"
+      }
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "",
+      "text": "Select All",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {
+        "data-audit-selection-action": "select-visible"
+      }
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "",
       "text": "All",
       "classification": "local-display-state",
       "route": "",
@@ -3287,88 +3479,55 @@
       "page": "reports",
       "tag": "button",
       "id": "",
-      "text": "Audio",
+      "text": "Needs action",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-failure-filter-chip": "audio"
+        "data-failure-filter-chip": "needs_action"
       }
     },
     {
       "page": "reports",
       "tag": "button",
       "id": "",
-      "text": "Blocked",
-      "classification": "local-display-state",
-      "route": "",
+      "text": "Ready to clear",
+      "classification": "backend-owned-route",
+      "route": "/api/failures/clear",
       "data_attrs": {
-        "data-failure-filter-chip": "blocked"
+        "data-failure-filter-chip": "ready_to_clear"
       }
     },
     {
       "page": "reports",
       "tag": "button",
       "id": "",
-      "text": "Needs operator",
+      "text": "Resolved recently",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-failure-filter-chip": "needs_operator"
+        "data-failure-filter-chip": "resolved_recently"
       }
     },
     {
       "page": "reports",
       "tag": "button",
       "id": "",
-      "text": "Publish",
+      "text": "Waiting retry",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-failure-filter-chip": "publish"
+        "data-failure-filter-chip": "waiting_retry"
       }
     },
     {
       "page": "reports",
       "tag": "button",
       "id": "",
-      "text": "Queue",
+      "text": "Working",
       "classification": "local-display-state",
       "route": "",
       "data_attrs": {
-        "data-failure-filter-chip": "queue"
-      }
-    },
-    {
-      "page": "reports",
-      "tag": "button",
-      "id": "",
-      "text": "Subtitle",
-      "classification": "local-display-state",
-      "route": "",
-      "data_attrs": {
-        "data-failure-filter-chip": "subtitle"
-      }
-    },
-    {
-      "page": "reports",
-      "tag": "button",
-      "id": "",
-      "text": "Warnings",
-      "classification": "local-display-state",
-      "route": "",
-      "data_attrs": {
-        "data-failure-filter-chip": "warnings"
-      }
-    },
-    {
-      "page": "reports",
-      "tag": "button",
-      "id": "",
-      "text": "Will retry",
-      "classification": "local-display-state",
-      "route": "",
-      "data_attrs": {
-        "data-failure-filter-chip": "will_retry"
+        "data-failure-filter-chip": "working"
       }
     },
     {
@@ -3407,8 +3566,26 @@
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-clear-all-button",
-      "text": "Clear All Backend Markers",
+      "id": "failure-archive-confirm-button",
+      "text": "Archive evidence",
+      "classification": "local-display-state",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "failure-archive-preview-button",
+      "text": "Preview archive",
+      "classification": "local-read-navigation",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "failure-clear-confirm-button",
+      "text": "Clear markers",
       "classification": "backend-owned-route",
       "route": "/api/failures/clear",
       "data_attrs": {}
@@ -3416,8 +3593,8 @@
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-clear-selected-button",
-      "text": "Clear Selected",
+      "id": "failure-clear-preview-button",
+      "text": "Preview marker clear",
       "classification": "backend-owned-route",
       "route": "/api/failures/clear",
       "data_attrs": {}
@@ -3425,37 +3602,64 @@
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-clear-visible-button",
-      "text": "Clear Visible",
+      "id": "failure-lifecycle-ack-button",
+      "text": "Acknowledge",
       "classification": "backend-owned-route",
-      "route": "/api/failures/clear",
+      "route": "/api/failures/lifecycle",
       "data_attrs": {}
     },
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-preview-all-clear-button",
-      "text": "Preview All Backend Markers",
+      "id": "failure-lifecycle-reopen-confirm-button",
+      "text": "Reopen",
       "classification": "backend-owned-route",
-      "route": "/api/failures/clear",
+      "route": "/api/failures/lifecycle",
       "data_attrs": {}
     },
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-preview-selected-clear-button",
-      "text": "Preview Selected",
+      "id": "failure-lifecycle-reopen-preview-button",
+      "text": "Preview reopen",
       "classification": "backend-owned-route",
-      "route": "/api/failures/clear",
+      "route": "/api/failures/lifecycle",
       "data_attrs": {}
     },
     {
       "page": "reports",
       "tag": "button",
-      "id": "failure-preview-visible-clear-button",
-      "text": "Preview Visible",
+      "id": "failure-lifecycle-resolve-confirm-button",
+      "text": "Mark resolved",
       "classification": "backend-owned-route",
-      "route": "/api/failures/clear",
+      "route": "/api/failures/lifecycle",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "failure-lifecycle-resolve-preview-button",
+      "text": "Preview resolve",
+      "classification": "backend-owned-route",
+      "route": "/api/failures/lifecycle",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "failure-lifecycle-start-button",
+      "text": "Start work",
+      "classification": "backend-owned-route",
+      "route": "/api/failures/lifecycle",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "failure-primary-action-button",
+      "text": "Load failures",
+      "classification": "local-or-read-only",
+      "route": "",
       "data_attrs": {}
     },
     {
@@ -3474,6 +3678,24 @@
       "text": "Ignore Selected",
       "classification": "backend-owned-route",
       "route": "/api/audit/ignore",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "report-audit-remove-location-button",
+      "text": "Remove Saved",
+      "classification": "local-launch-intent-staging",
+      "route": "",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "report-audit-save-location-button",
+      "text": "Save Location",
+      "classification": "local-launch-intent-staging",
+      "route": "",
       "data_attrs": {}
     },
     {
@@ -3501,6 +3723,15 @@
       "text": "Start Audit",
       "classification": "backend-owned-route",
       "route": "/api/audit/start",
+      "data_attrs": {}
+    },
+    {
+      "page": "reports",
+      "tag": "button",
+      "id": "report-audit-stop-button",
+      "text": "Stop Audit",
+      "classification": "backend-owned-route",
+      "route": "/api/audit/stop",
       "data_attrs": {}
     },
     {
@@ -4225,24 +4456,6 @@
     },
     {
       "page": "settings",
-      "tag": "form",
-      "id": "settings-rename-log-case-form",
-      "text": "Source folder Source file Season number Expected name Expected show Expected season Status Pending Active Notes Append Filter Case Waiting for case details.",
-      "classification": "backend-owned-route",
-      "route": "/api/rename/filter-cases",
-      "data_attrs": {}
-    },
-    {
-      "page": "settings",
-      "tag": "button",
-      "id": "settings-rename-preview-button",
-      "text": "Test Filename",
-      "classification": "backend-owned-route",
-      "route": "/api/rename/preview",
-      "data_attrs": {}
-    },
-    {
-      "page": "settings",
       "tag": "textarea",
       "id": "settings-rename-remove-terms",
       "text": "Custom negative terms are added to the backend rename planner. Built-in movie scrub filters below handle common ops/release/metadata/source/audio/edition tags; this field is for local terms you want removed from preview names.",
@@ -4334,6 +4547,15 @@
       "data_attrs": {
         "data-default-terms": "sample, trailer, extras, featurette, deleted scenes, behind the scenes"
       }
+    },
+    {
+      "page": "settings",
+      "tag": "form",
+      "id": "settings-rename-workbench-form",
+      "text": "Case input Media type Movie TV series Source file/title Source folder Expected output TV format Show - SxxEyy - Episode Title Show - SxxEyy Expected show title Expected season Expected episode Expected episode title Expected movie title Expected year Notes Backend comparison Run a test before Save Settings. Test Current Filters Stage Selected Suggestions Retest With Staged Filters Save New Filters Save Regression Case Waiting for case details. New terms to stage Only destinations for the selected media type are offered. Stage Term Destination Reason Run a test to load new filter suggestions.",
+      "classification": "backend-owned-route",
+      "route": "/api/settings/save-patch",
+      "data_attrs": {}
     },
     {
       "page": "settings",
@@ -4552,8 +4774,8 @@
       "route": "/api/audit/export-rerun-csv",
       "normalized_route": "/api/audit/export-rerun-csv",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2469,
+      "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "line": 789,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4568,8 +4790,8 @@
       "route": "/api/audit/ignore",
       "normalized_route": "/api/audit/ignore",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2429,
+      "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "line": 749,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4584,8 +4806,8 @@
       "route": "/api/audit/score-policy",
       "normalized_route": "/api/audit/score-policy",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2385,
+      "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "line": 705,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
@@ -4600,14 +4822,30 @@
       "route": "/api/audit/start",
       "normalized_route": "/api/audit/start",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 2351,
+      "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "line": 580,
       "script_owner": "Reports",
       "allowed_owners": [
         "Launch",
         "Reports"
       ],
       "contract_effect": "process-launch",
+      "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/audit/stop",
+      "normalized_route": "/api/audit/stop",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "line": 661,
+      "script_owner": "Reports",
+      "allowed_owners": [
+        "Launch",
+        "Reports"
+      ],
+      "contract_effect": "process-control",
       "high_risk_effect": true,
       "contract_found": true,
       "owner_ok": true
@@ -4629,11 +4867,11 @@
       "owner_ok": true
     },
     {
-      "route": "/api/completed?limit=all&force_refresh=true&proof=live",
+      "route": "/api/completed?limit=500&force_refresh=true&proof=bounded",
       "normalized_route": "/api/completed",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/app/refresh.js",
-      "line": 64,
+      "line": 103,
       "script_owner": "App Shell",
       "allowed_owners": [
         "Completed"
@@ -4779,11 +5017,26 @@
       "owner_ok": true
     },
     {
+      "route": "/api/diagnostics",
+      "normalized_route": "/api/diagnostics",
+      "method": "GET",
+      "file": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
+      "line": 218,
+      "script_owner": "Shared",
+      "allowed_owners": [
+        "Shared"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/diagnostics/open",
       "normalized_route": "/api/diagnostics/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2151,
+      "line": 2203,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4798,7 +5051,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix-audit",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2094,
+      "line": 2146,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4813,7 +5066,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/evidence/open",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 1982,
+      "line": 2034,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4828,7 +5081,7 @@
       "normalized_route": "/api/diagnostics/tdarr-matrix/rerun",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/diagnosticsView.js",
-      "line": 2009,
+      "line": 2061,
       "script_owner": "Diagnostics",
       "allowed_owners": [
         "Diagnostics"
@@ -4839,17 +5092,47 @@
       "owner_ok": true
     },
     {
+      "route": "/api/failures/archive-evidence",
+      "normalized_route": "/api/failures/archive-evidence",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "line": 703,
+      "script_owner": "Reports",
+      "allowed_owners": [
+        "Reports"
+      ],
+      "contract_effect": "failure-evidence-archive",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/failures/clear",
       "normalized_route": "/api/failures/clear",
       "method": "POST",
-      "file": "apps/desktop/webview/static/assets/reportsView.js",
-      "line": 1182,
+      "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "line": 518,
       "script_owner": "Reports",
       "allowed_owners": [
         "Reports"
       ],
       "contract_effect": "failure-marker-write",
       "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/failures/lifecycle",
+      "normalized_route": "/api/failures/lifecycle",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "line": 295,
+      "script_owner": "Reports",
+      "allowed_owners": [
+        "Reports"
+      ],
+      "contract_effect": "failure-resolution-journal-write",
+      "high_risk_effect": false,
       "contract_found": true,
       "owner_ok": true
     },
@@ -4903,7 +5186,7 @@
       "normalized_route": "/api/final-library-promotion/status",
       "method": "GET",
       "file": "apps/desktop/webview/static/assets/app/refresh.js",
-      "line": 66,
+      "line": 105,
       "script_owner": "App Shell",
       "allowed_owners": [
         "Completed"
@@ -4933,7 +5216,7 @@
       "normalized_route": "/api/maintenance/archive-state-journals",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1111,
+      "line": 1110,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5189,7 +5472,7 @@
       "normalized_route": "/api/pipeline/browse-file",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 841,
+      "line": 840,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5205,7 +5488,7 @@
       "normalized_route": "/api/pipeline/control",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 803,
+      "line": 802,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5221,7 +5504,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1041,
+      "line": 1040,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5237,7 +5520,7 @@
       "normalized_route": "/api/pipeline/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 943,
+      "line": 942,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5328,7 +5611,7 @@
       "normalized_route": "/api/queue/file-overrides/remux-pilot-promote",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 320,
+      "line": 363,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5358,7 +5641,7 @@
       "normalized_route": "/api/queue/file-overrides/series-apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 409,
+      "line": 535,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5369,11 +5652,41 @@
       "owner_ok": true
     },
     {
+      "route": "/api/queue/file-overrides/series-clear-apply",
+      "normalized_route": "/api/queue/file-overrides/series-clear-apply",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
+      "line": 481,
+      "script_owner": "Queue",
+      "allowed_owners": [
+        "Queue"
+      ],
+      "contract_effect": "queue-state-write",
+      "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/queue/file-overrides/series-clear-preview",
+      "normalized_route": "/api/queue/file-overrides/series-clear-preview",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
+      "line": 442,
+      "script_owner": "Queue",
+      "allowed_owners": [
+        "Queue"
+      ],
+      "contract_effect": "read-only-preview",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/queue/file-overrides/series-preview",
       "normalized_route": "/api/queue/file-overrides/series-preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
-      "line": 363,
+      "line": 406,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5403,7 +5716,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1941,
+      "line": 2137,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5418,7 +5731,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1966,
+      "line": 2162,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5433,7 +5746,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2031,
+      "line": 2227,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5448,7 +5761,7 @@
       "normalized_route": "/api/queue/priority",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2228,
+      "line": 2424,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5463,7 +5776,7 @@
       "normalized_route": "/api/queue/scan",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 1481,
+      "line": 1682,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5478,7 +5791,7 @@
       "normalized_route": "/api/queue/strategy",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/queueView.js",
-      "line": 2662,
+      "line": 2858,
       "script_owner": "Queue",
       "allowed_owners": [
         "Queue"
@@ -5493,7 +5806,7 @@
       "normalized_route": "/api/rename/apply",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 2253,
+      "line": 3387,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -5509,7 +5822,23 @@
       "normalized_route": "/api/rename/browse",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1187,
+      "line": 1576,
+      "script_owner": "Rename",
+      "allowed_owners": [
+        "Rename",
+        "Settings"
+      ],
+      "contract_effect": "shell-dialog",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/rename/browse",
+      "normalized_route": "/api/rename/browse",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/renameView.js",
+      "line": 1752,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -5525,7 +5854,7 @@
       "normalized_route": "/api/rename/filter-cases",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 852,
+      "line": 1362,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -5541,7 +5870,7 @@
       "normalized_route": "/api/rename/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/renameView.js",
-      "line": 1877,
+      "line": 2695,
       "script_owner": "Rename",
       "allowed_owners": [
         "Rename",
@@ -5553,11 +5882,27 @@
       "owner_ok": true
     },
     {
+      "route": "/api/rename/undo",
+      "normalized_route": "/api/rename/undo",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/renameView.js",
+      "line": 3421,
+      "script_owner": "Rename",
+      "allowed_owners": [
+        "Rename",
+        "Settings"
+      ],
+      "contract_effect": "filesystem-mutation",
+      "high_risk_effect": true,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
       "route": "/api/rerun/start",
       "normalized_route": "/api/rerun/start",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/launchView.js",
-      "line": 1202,
+      "line": 1201,
       "script_owner": "Launch",
       "allowed_owners": [
         "Launch",
@@ -5605,7 +5950,7 @@
       "normalized_route": "/api/schedule/preview",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/scheduleView.js",
-      "line": 1365,
+      "line": 1488,
       "script_owner": "Schedule",
       "allowed_owners": [
         "Schedule"
@@ -5620,7 +5965,7 @@
       "normalized_route": "/api/schedule/save",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/scheduleView.js",
-      "line": 1423,
+      "line": 1546,
       "script_owner": "Schedule",
       "allowed_owners": [
         "Schedule"
@@ -5635,7 +5980,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2076,
+      "line": 2812,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5652,7 +5997,7 @@
       "normalized_route": "/api/settings/browse-path",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 733,
+      "line": 783,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5669,7 +6014,7 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1734,
+      "line": 2379,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5686,7 +6031,41 @@
       "normalized_route": "/api/settings/preview-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 785,
+      "line": 2527,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preview-patch",
+      "normalized_route": "/api/settings/preview-patch",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settingsView.js",
+      "line": 851,
+      "script_owner": "Settings",
+      "allowed_owners": [
+        "Settings",
+        "Settings Wizard",
+        "Network"
+      ],
+      "contract_effect": "none",
+      "high_risk_effect": false,
+      "contract_found": true,
+      "owner_ok": true
+    },
+    {
+      "route": "/api/settings/preview-patch",
+      "normalized_route": "/api/settings/preview-patch",
+      "method": "POST",
+      "file": "apps/desktop/webview/static/assets/settingsView.js",
+      "line": 923,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5703,7 +6082,7 @@
       "normalized_route": "/api/settings/reload",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 2002,
+      "line": 2738,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5720,7 +6099,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1919,
+      "line": 2643,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5737,7 +6116,7 @@
       "normalized_route": "/api/settings/save-patch",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 857,
+      "line": 938,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5754,7 +6133,7 @@
       "normalized_route": "/api/settings/validate",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/settingsView.js",
-      "line": 1284,
+      "line": 1416,
       "script_owner": "Settings",
       "allowed_owners": [
         "Settings",
@@ -5873,7 +6252,7 @@
       "normalized_route": "/api/ui-preferences",
       "method": "POST",
       "file": "apps/desktop/webview/static/assets/app.js",
-      "line": 1106,
+      "line": 1132,
       "script_owner": "App Shell",
       "allowed_owners": [
         "App Shell"
@@ -5887,7 +6266,7 @@
   "dynamic_api_posts": [
     {
       "file": "apps/desktop/webview/static/assets/networkView.js",
-      "line": 2016,
+      "line": 2306,
       "allowed": true,
       "reason": "contract-driven Network lifecycle dispatch"
     }
@@ -6443,6 +6822,19 @@
     },
     {
       "method": "POST",
+      "path": "/api/audit/stop",
+      "effect": "process-control",
+      "owner": "",
+      "requires_confirmation": true,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_stop",
+        "reason"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/backend/shutdown",
       "effect": "backend-lifecycle",
       "owner": "",
@@ -6586,6 +6978,25 @@
     },
     {
       "method": "POST",
+      "path": "/api/failures/archive-evidence",
+      "effect": "failure-evidence-archive",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_archive",
+        "dry_run",
+        "dry_run_fingerprint",
+        "include_markers",
+        "include_reports",
+        "journal_key",
+        "reason",
+        "scope"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/failures/clear",
       "effect": "failure-marker-write",
       "owner": "",
@@ -6595,10 +7006,30 @@
       "request_keys": [
         "confirm_clear",
         "dry_run",
+        "journal_key",
         "marker_path",
         "marker_paths",
         "scope",
         "source_json"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/failures/lifecycle",
+      "effect": "failure-resolution-journal-write",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_transition",
+        "dry_run",
+        "dry_run_fingerprint",
+        "journal_key",
+        "operator_note",
+        "reason",
+        "step_id",
+        "transition"
       ]
     },
     {
@@ -7167,6 +7598,32 @@
     },
     {
       "method": "POST",
+      "path": "/api/queue/file-overrides/series-clear-apply",
+      "effect": "queue-state-write",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_apply",
+        "path",
+        "preview_fingerprint"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/queue/file-overrides/series-clear-preview",
+      "effect": "read-only-preview",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "path"
+      ]
+    },
+    {
+      "method": "POST",
       "path": "/api/queue/file-overrides/series-preview",
       "effect": "read-only-preview",
       "owner": "",
@@ -7279,6 +7736,7 @@
       "network_lifecycle": false,
       "request_keys": [
         "initial_path",
+        "paths",
         "selection_mode"
       ]
     },
@@ -7294,14 +7752,20 @@
         "case_id",
         "confirm_append",
         "expected_clean_folder",
+        "expected_episode",
+        "expected_episode_title",
+        "expected_movie_title",
         "expected_name",
         "expected_season",
         "expected_show",
+        "expected_year",
+        "kind",
         "notes",
         "season_number",
         "source_file",
         "source_folder",
-        "status"
+        "status",
+        "template_preset"
       ]
     },
     {
@@ -7320,6 +7784,19 @@
         "season",
         "show_name",
         "start_episode"
+      ]
+    },
+    {
+      "method": "POST",
+      "path": "/api/rename/undo",
+      "effect": "filesystem-mutation",
+      "owner": "",
+      "requires_confirmation": null,
+      "frontend_exposed": null,
+      "network_lifecycle": false,
+      "request_keys": [
+        "confirm_undo",
+        "undo_manifest"
       ]
     },
     {

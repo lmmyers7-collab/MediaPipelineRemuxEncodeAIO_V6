@@ -5,7 +5,7 @@ token_priority: medium
 owner_domain: webview
 last_modified: 2026-06-26
 last_reviewed: 2026-06-25
-sha256: c9423079f9758f2a6dd933cf4e8aa83858dc46c5ca3895226f26bbacae30df6a
+sha256: 084d1bd312a6cd45b7142c44a71507e8936ba1eafbaa0370354b945a4e974dc6
 ---
 # `apps/desktop/webview/static/assets/styles/pages/rename-adjacent.css`
 
