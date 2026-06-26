@@ -1,0 +1,32 @@
+{
+  "id": "MP-CHANGE-2026-0625-019",
+  "title": "CodeQL artifact fallback",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "low",
+  "date_started": "2026-06-25",
+  "date_completed": "2026-06-25",
+  "summary": "Adds CodeQL SARIF artifact and job-summary output while making Code Scanning upload opt-in.",
+  "reason": "CodeQL analysis was generating SARIF but failing when uploading because Code Scanning is disabled for the private repository without GitHub Code Security/GHAS.",
+  "affected_areas": [
+    "ci",
+    "tooling"
+  ],
+  "behavior_before": "CodeQL always attempted Code Scanning upload, so private-repo runs failed after analysis even when SARIF was produced.",
+  "behavior_after": "CodeQL writes SARIF under codeql-results, uploads it as an Actions artifact, summarizes finding counts, and only uploads to Code Scanning when CODEQL_UPLOAD_MODE is set.",
+  "files_touched": [
+    ".github/workflows/codeql.yml",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0625-019.json",
+    "ops/scripts/dev/check-github-audit-spine.ps1"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "npx --yes js-yaml .github\\workflows\\codeql.yml - passed",
+    ".\\ops\\scripts\\dev\\check-github-audit-spine.ps1 - passed",
+    "mediapipeline.tools.change_control.validate_changes - passed; 760 packet(s) valid"
+  ],
+  "rollback_plan": "Remove the CodeQL artifact and summary steps, remove the CODEQL_UPLOAD_MODE upload override, remove the guard tokens, and delete this change packet.",
+  "related_changes": [],
+  "notes": "Preserve CodeQL SARIF as artifacts and make Code Scanning upload opt-in via CODEQL_UPLOAD_MODE."
+}

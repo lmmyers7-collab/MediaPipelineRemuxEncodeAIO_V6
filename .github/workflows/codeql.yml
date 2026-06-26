@@ -46,6 +46,36 @@ jobs:
           queries: +security-extended,security-and-quality
 
       - name: Perform CodeQL analysis
+        id: analyze
         uses: github/codeql-action/analyze@v4
         with:
           category: /language:${{ matrix.language }}
+          output: codeql-results
+          upload: ${{ vars.CODEQL_UPLOAD_MODE || 'never' }}
+
+      - name: Summarize CodeQL SARIF
+        if: always() && hashFiles('codeql-results/*.sarif') != ''
+        run: |
+          python - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          from pathlib import Path
+
+          sarif_files = sorted(Path("codeql-results").glob("*.sarif"))
+          count = 0
+          for sarif_path in sarif_files:
+              data = json.loads(sarif_path.read_text(encoding="utf-8"))
+              count += sum(len(run.get("results", [])) for run in data.get("runs", []))
+
+          print(f"### CodeQL {Path('${{ matrix.language }}').name}")
+          print(f"SARIF files: {len(sarif_files)}")
+          print(f"Findings: {count}")
+          print("Code Scanning upload mode: ${{ vars.CODEQL_UPLOAD_MODE || 'never' }}")
+          PY
+
+      - name: Upload CodeQL SARIF artifact
+        if: always() && hashFiles('codeql-results/*.sarif') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-${{ matrix.language }}-sarif
+          path: codeql-results/*.sarif
+          if-no-files-found: error

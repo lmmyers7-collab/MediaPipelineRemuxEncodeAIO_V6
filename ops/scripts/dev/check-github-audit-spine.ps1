@@ -53,7 +53,7 @@ if ($DependabotConfig -notmatch "package-ecosystem:\s+pip[\s\S]*?directory:\s+/r
 }
 
 $CodeqlWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/codeql.yml") -Raw
-foreach ($Expected in @("python", "javascript-typescript", "rust", "actions", "security-events: write")) {
+foreach ($Expected in @("python", "javascript-typescript", "rust", "actions", "security-events: write", "CODEQL_UPLOAD_MODE", "codeql-results", "upload-artifact", "GITHUB_STEP_SUMMARY")) {
     if ($CodeqlWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "CodeQL workflow is missing expected token: $Expected"
     }
