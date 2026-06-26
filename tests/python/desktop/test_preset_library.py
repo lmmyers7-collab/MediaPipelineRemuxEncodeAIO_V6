@@ -15,7 +15,7 @@ from mediapipeline.core.config.preset_policy import PresetV2
 from mediapipeline.core.validation.boundary import ValidationFailure, validate_api_payload
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
 def _preset(name: str = "Archive Quality") -> dict[str, object]:

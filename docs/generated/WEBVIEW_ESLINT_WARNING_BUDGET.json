@@ -1,0 +1,849 @@
+{
+  "schema_version": "webview_eslint_warning_budget.v1",
+  "generated_by": "ops/scripts/dev/check-webview-lint-budget.mjs",
+  "target": "apps/desktop/webview/static/assets/**/*.js",
+  "budget_policy": "Future checks fail on any ESLint error or on warning counts above this baseline by total or rule.",
+  "total_warnings": 624,
+  "total_errors": 0,
+  "by_rule": {
+    "complexity": {
+      "warnings": 115,
+      "errors": 0
+    },
+    "max-lines-per-function": {
+      "warnings": 46,
+      "errors": 0
+    },
+    "no-extra-boolean-cast": {
+      "warnings": 1,
+      "errors": 0
+    },
+    "no-undef": {
+      "warnings": 268,
+      "errors": 0
+    },
+    "no-unused-vars": {
+      "warnings": 192,
+      "errors": 0
+    },
+    "parse-error": {
+      "warnings": 2,
+      "errors": 0
+    }
+  },
+  "files": [
+    {
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "warnings": 31,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 2,
+        "no-undef": 26,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/home.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "warnings": 26,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "no-undef": 24
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnostics.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1,
+        "parse-error": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/commandHistory/formatters.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-undef": 1,
+        "parse-error": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/filters.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/integrity.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/review/reviewRows.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-undef": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/selection.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completed/table.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.evidence.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "warnings": 39,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "no-undef": 11,
+        "no-unused-vars": 25
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
+      "warnings": 13,
+      "errors": 0,
+      "rules": {
+        "complexity": 4,
+        "max-lines-per-function": 1,
+        "no-undef": 8
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.repair.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/completedView.review.js",
+      "warnings": 11,
+      "errors": 0,
+      "rules": {
+        "complexity": 5,
+        "max-lines-per-function": 1,
+        "no-undef": 1,
+        "no-unused-vars": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/contractView.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
+      "warnings": 59,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-undef": 2,
+        "no-unused-vars": 56
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
+      "warnings": 5,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "no-undef": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "no-undef": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+      "warnings": 13,
+      "errors": 0,
+      "rules": {
+        "no-undef": 13
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-undef": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
+      "warnings": 16,
+      "errors": 0,
+      "rules": {
+        "complexity": 5,
+        "no-undef": 8,
+        "no-unused-vars": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/dom/status.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/domHelpers.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/commandButtons.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/risk/policyBoundary.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/scopeControls.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launch/statusRender.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "warnings": 8,
+      "errors": 0,
+      "rules": {
+        "no-undef": 8
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchReadinessView.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "warnings": 41,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "no-undef": 39
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.realmedia.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.risk.js",
+      "warnings": 7,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/launchView.scope.js",
+      "warnings": 7,
+      "errors": 0,
+      "rules": {
+        "complexity": 4,
+        "max-lines-per-function": 2,
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/maintenanceView.js",
+      "warnings": 7,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "no-undef": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/metricsView.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "warnings": 12,
+      "errors": 0,
+      "rules": {
+        "complexity": 4,
+        "no-undef": 7,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublish/details.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublish/filters.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublish/summary.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+      "warnings": 5,
+      "errors": 0,
+      "rules": {
+        "complexity": 4,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "warnings": 47,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "no-undef": 39,
+        "no-unused-vars": 5
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.repair.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/progressView.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 4,
+        "no-undef": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.detail.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "warnings": 42,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "no-undef": 15,
+        "no-unused-vars": 25
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-undef": 4
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.review.js",
+      "warnings": 8,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1,
+        "no-undef": 6
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/queueView.summary.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/applyReadiness.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/rename/applyResult.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "no-undef": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/renameView.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 3
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/auditView.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "warnings": 8,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 5
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/failureModel.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/failureView.js",
+      "warnings": 12,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 9
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/shell.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reports/triage.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "warnings": 45,
+      "errors": 0,
+      "rules": {
+        "no-undef": 7,
+        "no-unused-vars": 38
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/scheduleView.js",
+      "warnings": 4,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "no-extra-boolean-cast": 1,
+        "no-undef": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/backendResult.js",
+      "warnings": 3,
+      "errors": 0,
+      "rules": {
+        "complexity": 2,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
+      "warnings": 5,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
+      "warnings": 6,
+      "errors": 0,
+      "rules": {
+        "complexity": 4,
+        "max-lines-per-function": 1,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsCommandHistory.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 2
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsOverview.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "no-undef": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.file_safety.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.network.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
+      "warnings": 2,
+      "errors": 0,
+      "rules": {
+        "complexity": 1,
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
+      "warnings": 15,
+      "errors": 0,
+      "rules": {
+        "complexity": 3,
+        "max-lines-per-function": 1,
+        "no-undef": 10,
+        "no-unused-vars": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/settingsView.rawTriage.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "max-lines-per-function": 1
+      }
+    },
+    {
+      "path": "apps/desktop/webview/static/assets/telemetryView.js",
+      "warnings": 1,
+      "errors": 0,
+      "rules": {
+        "complexity": 1
+      }
+    }
+  ]
+}

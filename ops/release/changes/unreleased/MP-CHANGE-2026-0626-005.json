@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0626-005",
+  "title": "Rename workbench layout review implementation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Restructures the Settings rename filter workbench so the operator moves vertically from case input to expected output to backend comparison, stages only actionable new suggestions, retests staged draft filters, and saves new filters through the existing Save Settings path.",
+  "reason": "The previous stacked layout made the source title and fail-stage-retest sequence easy to miss, already-filtered suggestions competed visually with genuinely new terms, and the operator-facing case status plus required badges added unnecessary form noise.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The naming tab opened with the raw rename filter editor before the workbench, workbench fields were a flat form, new and already-covered suggestions shared one table, and Save Settings readiness was only implied by status text.",
+  "behavior_after": "The workbench is the primary naming-tab surface, source and expected fields are grouped by task, notes sit below expected output, backend comparison sits directly below expected output, case status is automatic, required fields keep only the color/left-border emphasis, the suggestions table shows only actionable new terms, already-covered terms are not rendered in the operator flow, and Save New Filters opens the existing Save Settings review after staged filters pass retest.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/renameView.js",
+    "apps/desktop/webview/static/assets/styles/pages/rename-adjacent.css",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/renameView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0626-005.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_rename_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-005.json",
+    "tests/python/desktop/test_application_facade_web_static_rename.py",
+    "tests/webview/test_webview_browser_rename_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static_rename.py: pins the revised workbench landmarks, suggestion split, and save-state DOM ID",
+    "tests/webview/test_webview_browser_rename_smoke.py: asserts Save New Filters unlocks after staged filters pass retest",
+    "tests/webview/test_webview_frontend_mutation_boundary.py: updates the static mutation-boundary assertion for the revised fail-stage-retest copy"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_rename tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save tests.webview.test_webview_browser_rename_smoke -q -- OK, 8 tests",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_rename tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save tests.webview.test_webview_browser_rename_smoke -q -- OK, 8 tests after actionable-suggestions-only and Save New Filters update",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_rename tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save tests.webview.test_webview_browser_rename_smoke -q -- OK, 8 tests after moving backend comparison below expected output",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_rename tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_rename_filter_staging_uses_settings_patch_not_direct_psd1_save tests.webview.test_webview_browser_rename_smoke -q -- OK, 8 tests after notes/status/badge refinement",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -- failed because unrelated MP-CHANGE-2026-0626-010.json has invalid status 'completed' and 11 unrelated generated dependency-atlas/summary files are changed without packet coverage",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed -- OK, 3 summaries written",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/styles/pages/rename-adjacent.css tests/python/desktop/test_application_facade_web_static_rename.py -- OK, 2 summaries written with no additional Git delta",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-settings.html apps/desktop/webview/static/assets/renameView.js apps/desktop/webview/static/assets/styles/pages/rename-adjacent.css tests/python/desktop/test_application_facade_web_static_rename.py ops/release/changes/unreleased/MP-CHANGE-2026-0626-005.json -- OK, 5 summaries written",
+    "node --check apps/desktop/webview/static/assets/renameView.js -- OK",
+    "node --check apps/desktop/webview/static/assets/renameView.js -- OK after actionable-suggestions-only and Save New Filters update",
+    "node --check apps/desktop/webview/static/assets/renameView.js -- OK after moving backend comparison below expected output",
+    "node --check apps/desktop/webview/static/assets/renameView.js -- OK after notes/status/badge refinement"
+  ],
+  "rollback_plan": "Revert the Settings partial layout, renameView workbench suggestion/save-state changes, rename-adjacent CSS additions, and matching static test updates; then rerun the focused WebView rename validation set.",
+  "related_changes": [],
+  "notes": "Reordered the rename settings tab around the case workbench flow.\nSplit workbench suggestions and added save-readiness state copy.\nAdded workbench layout, suggestion grouping, and filter-editor disclosure styles.\nPinned static expectations for the revised workbench UI structure.\nUpdated mutation-boundary static expectations for revised workbench copy.\nRefreshed generated summary after Settings workbench markup changes.\nRefreshed generated summary after rename workbench JavaScript changes.\nRefreshed generated summary after mutation-boundary test expectation update.\nMoved workbench notes under expected output, removed operator case status, and removed the required badge pseudo-element.\nRefreshed generated summary for the change packet metadata.\nMoved backend comparison directly below expected output and pinned the top-to-bottom workbench order.\nShow only actionable new suggestions, remove already-covered suggestions from the workbench UI, and add Save New Filters as a primary shortcut into Save Settings after staged retest passes.\nAssert Save New Filters unlocks after staged rename filters pass retest.\nRefreshed generated summary after Save New Filters browser smoke assertion."
+}

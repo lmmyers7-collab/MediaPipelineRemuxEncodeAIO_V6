@@ -31,214 +31,68 @@ from mediapipeline.desktop.api.handler import build_local_api_handler_class
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.local_api_main import BOOTSTRAP_SCHEMA_VERSION, bootstrap_payload, build_backend
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
-from tests.python.desktop.test_application_facade import (
+from tests.css_import_resolver import resolve_css_imports, resolved_css_asset_bundle
+from tests.python.desktop.application_facade_test_support import (
     DummyFacadeService,
     DummyProc,
     DummyWorkflowFacadeService,
+    assert_namespace_export as _assert_namespace_export,
+    _read_command_history_asset_bundle,
+    _read_completed_asset_bundle,
+    _read_completed_evidence_asset_bundle,
+    _read_completed_review_asset_bundle,
+    _read_diagnostics_asset_bundle,
+    _read_dom_helpers_asset_bundle,
+    _read_launch_risk_asset_bundle,
+    _read_launch_view_asset_bundle,
+    _read_pending_publish_asset_bundle,
+    _read_queue_asset_bundle,
+    _read_queue_file_overrides_asset_bundle,
+    _read_rename_asset_bundle,
+    _read_settings_asset_bundle,
     _render_static_index_html,
     _resolved,
 )
 
 
-def _read_queue_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "queueView.summary.js",
-            "queueView.review.js",
-            "queueView.detail.js",
-            "queueView.launch.js",
-            "queue/selection.js",
-            "queue/openActions.js",
-            "queue/table.js",
-            "queueView.js",
-        ]
-    )
+def _read_components_css(assets_root: Path) -> str:
+    return resolve_css_imports(assets_root / "styles.components.css", assets_root)
 
 
-def _read_queue_file_overrides_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "queueView.js",
-            "queue/fileOverrides.routePreview.js",
-            "queue/fileOverrides.drawer.state.js",
-            "queue/fileOverrides.drawer.form.js",
-            "queue/fileOverrides.drawer.series.js",
-            "queue/fileOverrides.drawer.tracks.js",
-            "queue/fileOverrides.drawer.api.js",
-            "queue/fileOverrides.drawer.focus.js",
-            "queue/fileOverrides.drawer.js",
-        ]
-    )
+def _read_queue_css(assets_root: Path) -> str:
+    return resolve_css_imports(assets_root / "styles.queue.css", assets_root)
 
 
-def _read_diagnostics_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "diagnosticsView.activejobs.js",
-            "diagnosticsView.log.js",
-            "diagnosticsView.investigation.js",
-            "diagnosticsView.js",
-        ]
-    )
+NETWORK_ASSET_NAMES = (
+    "network/state.js",
+    "network/shared.js",
+    "network/config.js",
+    "network/contract.js",
+    "network/status.js",
+    "network/readiness.js",
+    "network/lifecycle.model.js",
+    "network/lifecycle.view.js",
+    "network/lifecycle.commands.js",
+    "network/setup.commands.js",
+    "network/settingsHandoff.js",
+    "network/openHistory.js",
+    "network/stateFiles.js",
+    "network/workers.model.js",
+    "network/workers.view.js",
+    "network/roleDashboard.js",
+    "networkView.js",
+)
 
 
-def _read_command_history_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "commandHistory/formatters.js",
-            "commandHistory/diagnostics.js",
-            "commandHistory.js",
-        ]
-    )
-
-
-def _read_dom_helpers_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "dom/query.js",
-            "dom/text.js",
-            "dom/status.js",
-            "dom/filtering.js",
-            "dom/table.js",
-            "domHelpers.js",
-        ]
-    )
-
-
-def _read_completed_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "completed/evidence/commands.js",
-            "completed/evidence/filterScope.js",
-            "completed/evidence/acceptance.js",
-            "completed/evidence/routeAgreement.js",
-            "completedView.evidence.js",
-            "completedView.proof.js",
-            "completed/review/integrity.js",
-            "completed/review/sizeReview.js",
-            "completed/review/healthSignals.js",
-            "completed/review/reviewRows.js",
-            "completed/review/investigationFilters.js",
-            "completedView.review.js",
-            "completedView.diagnostics.js",
-            "completed/statusBoards.js",
-            "completed/promotionCommands.js",
-            "completed/openActions.js",
-            "completed/selection.js",
-            "completed/filters.js",
-            "completed/table.js",
-            "completedView.js",
-        ]
-    )
-
-
-def _read_completed_evidence_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "completed/evidence/commands.js",
-            "completed/evidence/filterScope.js",
-            "completed/evidence/acceptance.js",
-            "completed/evidence/routeAgreement.js",
-            "completedView.evidence.js",
-        ]
-    )
-
-
-def _read_completed_review_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "completed/review/integrity.js",
-            "completed/review/sizeReview.js",
-            "completed/review/healthSignals.js",
-            "completed/review/reviewRows.js",
-            "completed/review/investigationFilters.js",
-            "completedView.review.js",
-        ]
-    )
-
-
-def _read_pending_publish_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "pendingPublish/details.js",
-            "pendingPublish/summary.js",
-            "pendingPublishView.drain.js",
-            "pendingPublishView.confidence.js",
-            "pendingPublishView.recovery.js",
-            "pendingPublishView.js",
-        ]
-    )
-
-
-def _read_settings_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "settings/metadataFields.js",
-            "settings/builderControls.js",
-            "settings/backendResult.js",
-            "settings/patchReview.js",
-            "settings/policyImpact.js",
-            "settingsView.rawTriage.js",
-            "settingsView.js",
-        ]
-    )
-
-
-def _read_launch_risk_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "launch/risk/settingsAccess.js",
-            "launch/risk/mediaPolicyValues.js",
-            "launch/risk/riskRows.js",
-            "launch/risk/policyPatch.js",
-            "launch/risk/policyBoundary.js",
-            "launchView.risk.js",
-        ]
-    )
-
-
-def _read_launch_view_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "launch/controllerState.js",
-            "launch/statusRender.js",
-            "launch/startRequest.js",
-            "launch/scopeControls.js",
-            "launch/commandButtons.js",
-            "launchView.js",
-        ]
-    )
-
-
-def _read_rename_asset_bundle(assets_root: Path) -> str:
-    return "\n".join(
-        (assets_root / name).read_text(encoding="utf-8")
-        for name in [
-            "rename/preview.js",
-            "rename/applyReadiness.js",
-            "rename/applyResult.js",
-            "renameView.js",
-        ]
-    )
-
-
-def _assert_namespace_export(testcase: unittest.TestCase, source: str, namespace: str, symbol: str) -> None:
-    testcase.assertRegex(
-        source,
-        rf"window\.{re.escape(namespace)}\s*=\s*\{{[\s\S]*?\b{re.escape(symbol)}\b\s*(?:,|:|\n\s*\}})",
-    )
+def _read_network_asset_bundle(assets_root: Path) -> str:
+    parts: list[str] = []
+    for name in NETWORK_ASSET_NAMES:
+        path = assets_root / name
+        if path.exists():
+            parts.append(path.read_text(encoding="utf-8"))
+    if not parts or "window.mediaPipelineNetworkView" not in parts[-1]:
+        raise AssertionError("networkView.js must remain the public Network facade")
+    return "\n".join(parts)
 
 
 class ApplicationFacadeWebStaticTests(unittest.TestCase):
@@ -295,7 +149,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         pending_html = (static_root / "partials" / "page-pending.html").read_text(encoding="utf-8")
         pending_publish_view_js = (assets_root / "pendingPublishView.js").read_text(encoding="utf-8")
         pending_publish_filters_js = (assets_root / "pendingPublish" / "filters.js").read_text(encoding="utf-8")
-        styles_css = (assets_root / "styles.components.css").read_text(encoding="utf-8")
+        styles_css = _read_components_css(assets_root)
 
         self.assertIn("<h2>Pending Publish Action Center</h2>", pending_html)
         self.assertIn('id="pending-action-drain-button"', pending_html)
@@ -881,6 +735,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             }
             const elements = {
               "home-next-queue-list": makeElement("ol"),
+              "home-next-queue-detail": makeElement("p"),
               "home-next-queue-status": makeElement("strong"),
             };
             const context = {
@@ -931,6 +786,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             if (elements["home-next-queue-status"].textContent !== "5 ready") {
               throw new Error(`Unexpected status: ${elements["home-next-queue-status"].textContent}`);
             }
+            const detail = elements["home-next-queue-detail"].textContent;
+            for (const expected of ["Route:", "REMUX", "Status:", "Ready", "Queue:", "1/9", "Source:", "Season 02", "Output:", "Not loaded", "Open Queue for full row evidence"]) {
+              if (!detail.includes(expected)) throw new Error(`Missing detail ${expected}: ${detail}`);
+            }
+            if (detail.includes("Selected queue item:") || detail.includes("Safe next step:")) {
+              throw new Error(`Old verbose detail text is still rendered: ${detail}`);
+            }
             """
         )
         result = subprocess.run(
@@ -962,6 +824,16 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "/api/diagnostics/tdarr-matrix/runs",
             "/api/queue/file-overrides/folder-preview",
             "/api/queue/file-overrides/folder-rule",
+            "/api/settings/preset-library",
+            "/api/settings/preset-library/validate",
+            "/api/settings/preset-library/compare",
+            "/api/settings/preset-library/import-preview",
+            "/api/settings/preset-library/save",
+            "/api/settings/preset-library/export",
+            "/api/settings/preset-library/apply-preview",
+            "/api/settings/preset-library/apply",
+            "/api/settings/import-psd1-preview",
+            "/api/settings/import-psd1",
             "/api/subtitle-qa/summary",
             "/api/subtitle-qa/item",
             "/api/subtitle-qa/preview",
@@ -984,6 +856,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
         app_row_open_js = (static_root / "assets" / "app" / "rowOpenActions.js").read_text(encoding="utf-8")
         reports_js = (static_root / "assets" / "reportsView.js").read_text(encoding="utf-8")
+        reports_shell_js = (static_root / "assets" / "reports" / "shell.js").read_text(encoding="utf-8")
         command_routes = {str(route["path"]): route for route in LOCAL_API_COMMAND_ROUTE_CONTRACT}
 
         def row_open_targets(scope: str) -> set[str]:
@@ -998,7 +871,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             return set(re.findall(r'target:\s*"([^"]+)"', match.group(1)))
 
         diagnostics_targets = set(re.findall(r'data-open-diagnostics="([^"]+)"', html))
-        report_target_match = re.search(r"function reportOpenTarget\(key\).*?const targets = \{(.*?)\};", reports_js, re.S)
+        report_target_match = re.search(r"function reportOpenTarget\(key\).*?const targets = \{(.*?)\};", reports_shell_js, re.S)
         self.assertIsNotNone(report_target_match)
         diagnostics_targets.update(re.findall(r':\s*"([^"]+)"', report_target_match.group(1)))
         self.assertEqual(set(command_routes["/api/diagnostics/open"]["allowed_targets"]) - diagnostics_targets, set())
@@ -1044,7 +917,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         html = _render_static_index_html(static_root)
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
         topbar_js = (static_root / "assets" / "app" / "topbar.js").read_text(encoding="utf-8")
-        components_css = (static_root / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        components_css = _read_components_css(static_root / "assets")
 
         self.assertIn('id="pipeline-state" class="pipeline-state-value"', html)
         self.assertIn('class="pipeline-state-main"', html)
@@ -1153,7 +1026,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         launch_js = _read_launch_view_asset_bundle(static_root / "assets")
         launch_scope_js = (static_root / "assets" / "launchView.scope.js").read_text(encoding="utf-8")
         app_js = (static_root / "assets" / "app.js").read_text(encoding="utf-8")
-        styles_css = (static_root / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        app_lifecycle_js = (static_root / "assets" / "app" / "lifecycle.js").read_text(encoding="utf-8")
+        styles_css = _read_components_css(static_root / "assets")
         controls_css = (static_root / "assets" / "styles.controls.css").read_text(encoding="utf-8")
 
         self.assertIn('class="danger-button emergency-button topbar-emergency-control"', html)
@@ -1163,10 +1037,18 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function launchButtonGate", launch_js)
         self.assertIn("launchBackendPreflightPayloadForTarget", launch_js)
         self.assertIn("launchStartDecisionGate", launch_js)
-        self.assertIn('return ["pipeline", "rerun", "history", "readiness"];', launch_js)
+        self.assertIn("await launchView.refreshLaunchBackendPreflight();", app_js)
+        self.assertIn('document.querySelector(".launch-preflight-startup-alert")', app_js)
+        self.assertIn("!refreshOptions.automatic || launchVisible || launchAlertVisible", app_js)
+        self.assertIn("launchView.updateLaunchCommandButtonStates?.(", app_js)
+        self.assertIn('return ["pipeline", "rerun", "history"];', launch_js)
         self.assertIn('data-launch-tab="pipeline">Pipeline Processor</button>', html)
         self.assertNotIn('data-launch-tab="audit">Audit</button>', html)
         self.assertNotIn('data-launch-tab-panel="audit"', html)
+        self.assertIn('id="rerun-open-audit-tool-button"', html)
+        self.assertIn('data-cross-page-target="reports" data-cross-page-reports-tab="audit"', html)
+        self.assertIn("function activateCrossPageTarget", app_lifecycle_js)
+        self.assertIn("activateReportsTab?.(button.dataset.crossPageReportsTab)", app_lifecycle_js)
         self.assertIn('id="pipeline-compact-gate-strip"', html)
         self.assertIn('id="pipeline-compact-gate-detail"', html)
         self.assertIn('id="pipeline-compact-gate-refresh-button"', html)
@@ -1187,17 +1069,17 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("function activateLaunchTab(tabId, options = {})", launch_js)
         self.assertIn("const persist = options?.persist !== false;", launch_js)
         self.assertIn("launchCompactGateOpenTarget(item)", launch_scope_js)
-        self.assertIn('activateLaunchTab(target.tab, { persist: false })', launch_scope_js)
+        self.assertIn("function launchCompactGateActivateTargetTab", launch_scope_js)
         self.assertIn("is-attention-reveal", launch_scope_js)
         self.assertIn(
             'showPage: typeof showPage === "function" ? showPage : window.showPage,\n'
             "      activateLaunchTab: (...args) => activateLaunchTab(...args),",
             launch_js,
         )
-        self.assertIn("Opened Launch > Readiness > Backend Preflight", launch_scope_js)
+        self.assertIn("Opened Diagnostics > Readiness > Backend Preflight", launch_scope_js)
         self.assertIn("Opened Queue > Queue-to-Launch handoff", launch_scope_js)
-        self.assertIn("Opened Launch > Readiness > Settings Check", launch_scope_js)
-        self.assertIn("Opened Launch > Readiness > Schedule Alignment", launch_scope_js)
+        self.assertIn("Opened Diagnostics > Readiness > Settings Check", launch_scope_js)
+        self.assertIn("Opened Diagnostics > Readiness > Schedule Alignment", launch_scope_js)
         self.assertIn(".is-attention-target", styles_css)
         self.assertIn(".is-attention-reveal", styles_css)
         self.assertIn(".is-attention-reveal", controls_css)
@@ -1229,12 +1111,20 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         launch_js = _read_launch_view_asset_bundle(assets_root)
         helpers_js = _read_dom_helpers_asset_bundle(assets_root)
 
-        self.assertIn('setText("settings-patch-status", result.ok ? "Saved" : result.severity || "Save failed")', settings_js)
+        self.assertIn('setText("settings-patch-status", settingsResultStatusLabel(result, "Saved", "Save failed"))', settings_js)
         self.assertIn("lastSettingsPatchSaveEvidence = {", settings_js)
         self.assertIn("signature,", settings_js)
         self.assertIn("result,", settings_js)
         self.assertIn("if (result.ok) {", settings_js)
-        self.assertIn("await refreshAll();", settings_js)
+        self.assertIn("function scheduleSettingsPostSaveRefresh()", settings_js)
+        save_block = settings_js[
+            settings_js.index("async function saveSettingsPatch()") :
+            settings_js.index("async function reloadSettingsFromDisk()")
+        ]
+        self.assertIn("clearSettingsPatchCandidate();\n      resetSettingsBuilderSyncState();", save_block)
+        self.assertIn("if (result.ok) {\n      scheduleSettingsPostSaveRefresh();", save_block)
+        self.assertLess(save_block.index("clearSettingsPatchCandidate();"), save_block.index("scheduleSettingsPostSaveRefresh();"))
+        self.assertNotIn("await refreshAll();", save_block)
         self.assertNotIn('setText("settings-patch-status", "Saved")', settings_js)
 
         self.assertIn('if (result.ok) return result.severity === "warning" ? "Warning" : successLabel;', launch_js)
@@ -1383,6 +1273,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
                     self.panels.append(panel)
                     return
                 if tag == "button" and self.panel_stack:
+                    if "data-network-future-control" in attr_map and "disabled" in attr_map:
+                        return
                     self.panel_stack[-1]["buttons"].append(attr_map)  # type: ignore[index, union-attr]
 
             def handle_endtag(self, tag: str) -> None:
@@ -1549,7 +1441,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         launch_view_js = (static_root / "launchView.js").read_text(encoding="utf-8")
         diagnostics_view_js = _read_diagnostics_asset_bundle(static_root)
         reports_view_js = (static_root / "reportsView.js").read_text(encoding="utf-8")
-        network_view_js = (static_root / "networkView.js").read_text(encoding="utf-8")
+        reports_shell_js = (static_root / "reports" / "shell.js").read_text(encoding="utf-8")
+        network_view_js = _read_network_asset_bundle(static_root)
         app_js = (static_root / "app.js").read_text(encoding="utf-8")
 
         self.assertIn("const COMMAND_RESULT_LIST_LIMIT = 5", command_history_js)
@@ -1589,14 +1482,18 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("commandHistoryCompactEvidenceLine(entry", queue_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", completed_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", diagnostics_view_js)
-        self.assertIn("commandHistoryCompactEvidenceLine(entry", reports_view_js)
+        self.assertIn(
+            'commandHistoryCompactEvidenceLine: typeof commandHistoryCompactEvidenceLine === "function" ? commandHistoryCompactEvidenceLine : null',
+            reports_view_js,
+        )
+        self.assertIn("commandHistoryCompactEvidenceLine(entry", reports_shell_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", network_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(item", maintenance_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", launch_preflight_view_js)
         self.assertIn("commandHistoryCompactEvidenceLine(entry", app_js)
         self.assertIn("renderCompactCommandHistoryBlock({", settings_command_history_js)
-        self.assertIn("renderCompactCommandHistoryBlock({", launch_history_view_js)
-        self.assertIn("renderCompactCommandHistoryBlock({", reports_view_js)
+        self.assertIn("commandHistoryCompactEvidenceLine(entry", launch_history_view_js)
+        self.assertIn("renderCompactCommandHistoryBlock({", reports_shell_js)
         self.assertIn("renderCompactCommandHistoryBlock({", maintenance_view_js)
         self.assertIn("renderCompactCommandHistoryBlock({", pending_publish_drain_js)
         self.assertIn("renderCompactCommandHistoryBlock: window.mediaPipelineCommandHistory?.renderCompactCommandHistoryBlock", pending_publish_view_js)
@@ -1691,7 +1588,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         html = _render_static_index_html(static_root)
         assets_root = static_root / "assets"
         dom_helpers_js = _read_dom_helpers_asset_bundle(assets_root)
-        styles_css = "\n".join(path.read_text(encoding="utf-8") for path in sorted(assets_root.glob("styles*.css")))
+        styles_css = resolved_css_asset_bundle(assets_root)
         queue_view_js = _read_queue_asset_bundle(assets_root)
         completed_view_evidence_js = _read_completed_evidence_asset_bundle(assets_root)
         completed_view_review_js = _read_completed_review_asset_bundle(assets_root)
@@ -1703,9 +1600,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         command_history_js = _read_command_history_asset_bundle(assets_root)
         diagnostics_bridge_js = (assets_root / "diagnosticsBridge.js").read_text(encoding="utf-8")
         reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
+        reports_audit_view_js = (assets_root / "reports" / "auditView.js").read_text(encoding="utf-8")
+        reports_failure_view_js = (assets_root / "reports" / "failureView.js").read_text(encoding="utf-8")
         diagnostics_view_js = _read_diagnostics_asset_bundle(assets_root)
         diagnostics_state_js = (assets_root / "diagnosticsStateSummaryView.js").read_text(encoding="utf-8")
-        network_view_js = (assets_root / "networkView.js").read_text(encoding="utf-8")
+        network_view_js = _read_network_asset_bundle(assets_root)
         contract_view_js = (assets_root / "contractView.js").read_text(encoding="utf-8")
         launch_view_risk_js = _read_launch_risk_asset_bundle(assets_root)
         launch_view_scope_js = (assets_root / "launchView.scope.js").read_text(encoding="utf-8")
@@ -1747,6 +1646,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             "api-contract-table-legend",
         ]:
             self.assertIn(f'id="{node_id}"', html)
+        self.assertIn('id="queue-table-legend" class="note table-legend" hidden aria-hidden="true"></p>', html)
 
         self.assertIn("function makeRowSelectable", dom_helpers_js)
         self.assertIn('row.dataset.selectableRow = "true"', dom_helpers_js)
@@ -1849,7 +1749,6 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('.completed-table tr[data-status="changed"] td', styles_css)
 
         for view_js, legend_id in [
-            (queue_view_js, "queue-table-legend"),
             (queue_view_js, "queue-excluded-table-legend"),
             (queue_view_js, "queue-backend-scope-legend"),
             (queue_view_js, "queue-launch-decision-legend"),
@@ -1865,8 +1764,8 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             (pending_view_confidence_js, "pending-drain-decision-legend"),
             (rename_view_js, "rename-table-legend"),
             (command_history_js, "command-table-legend"),
-            (reports_view_js, "failure-table-legend"),
-            (reports_view_js, "audit-preview-table-legend"),
+            (reports_failure_view_js, "failure-table-legend"),
+            (reports_audit_view_js, "audit-preview-table-legend"),
             (network_view_js, "network-worker-table-legend"),
             (diagnostics_view_js, "diagnostics-first-response-legend"),
             (diagnostics_state_js, "diagnostics-state-summary-table-legend"),
@@ -1965,7 +1864,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
         queue_table_js = (assets_root / "queue" / "table.js").read_text(encoding="utf-8")
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
 
         for element_id in [
             "queue-manual-save-order-btn",
@@ -2022,7 +1921,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         assets_root = static_root / "assets"
         queue_table_js = (assets_root / "queue" / "table.js").read_text(encoding="utf-8")
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
 
         self.assertIn('openFileSettingsDrawer(item, { trigger: button });', queue_table_js)
         self.assertIn('aria-describedby="fo-inherited-settings-status fo-drawer-status"', html)
@@ -2093,7 +1992,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         html = _render_static_index_html(static_root)
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
         index_html = (static_root / "index.html").read_text(encoding="utf-8")
 
         field_paths = {
@@ -2201,7 +2100,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         html = _render_static_index_html(static_root)
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
 
         self.assertIn('id="fo-processing-route-section" class="fo-section fo-route-section" hidden', html)
         self.assertIn("These settings can change whether this file is remuxed or fully transcoded.", html)
@@ -2268,7 +2167,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         html = _render_static_index_html(static_root)
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
 
         self.assertIn('id="fo-series-preview-open"', html)
         self.assertIn('id="fo-series-auto-detect" checked', html)
@@ -2314,7 +2213,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         html = _render_static_index_html(static_root)
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
 
         self.assertIn('id="fo-source-info-section" class="fo-section fo-source-info-section"', html)
         self.assertIn("Detected file info", html)
@@ -2375,7 +2274,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
 
         self.assertIn("function createTrackActionControl(track, kind, resolvedAction)", queue_view_js)
         self.assertIn('select.dataset.foTrackAction = "true";', queue_view_js)
@@ -2424,7 +2323,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         html = _render_static_index_html(static_root)
         assets_root = static_root / "assets"
         queue_view_js = _read_queue_file_overrides_asset_bundle(assets_root)
-        queue_css = (assets_root / "styles.queue.css").read_text(encoding="utf-8")
+        queue_css = _read_queue_css(assets_root)
         index_html = (static_root / "index.html").read_text(encoding="utf-8")
 
         removed_markup = [
@@ -2478,7 +2377,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         contract_view_js = (assets_root / "contractView.js").read_text(encoding="utf-8")
         app_js = (assets_root / "app.js").read_text(encoding="utf-8")
         diagnostics_html = (static_root / "partials" / "page-diagnostics.html").read_text(encoding="utf-8")
-        styles_css = "\n".join(path.read_text(encoding="utf-8") for path in sorted(assets_root.glob("styles*.css")))
+        styles_css = resolved_css_asset_bundle(assets_root)
 
         for symbol in [
             "function setPanelStatus",
@@ -2544,6 +2443,11 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         completed_view_js = _read_completed_asset_bundle(assets_root)
         pending_view_js = _read_pending_publish_asset_bundle(assets_root)
         reports_view_js = (assets_root / "reportsView.js").read_text(encoding="utf-8")
+        reports_shell_js = (assets_root / "reports" / "shell.js").read_text(encoding="utf-8")
+        reports_audit_model_js = (assets_root / "reports" / "auditModel.js").read_text(encoding="utf-8")
+        reports_audit_view_js = (assets_root / "reports" / "auditView.js").read_text(encoding="utf-8")
+        reports_failure_model_js = (assets_root / "reports" / "failureModel.js").read_text(encoding="utf-8")
+        reports_failure_view_js = (assets_root / "reports" / "failureView.js").read_text(encoding="utf-8")
         command_history_js = _read_command_history_asset_bundle(assets_root)
         diagnostics_view_js = (assets_root / "diagnosticsView.js").read_text(encoding="utf-8")
         diagnostics_view_investigation_js = (assets_root / "diagnosticsView.investigation.js").read_text(encoding="utf-8")
@@ -2575,13 +2479,13 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('diagnosticsBridgeHandoffLines("Completed selected row"', completed_view_js)
         self.assertIn('diagnosticsBridgeHandoffLines("Pending Publish selected row"', pending_view_js)
 
-        self.assertIn("function failureDiagnosticsActionsForRow", reports_view_js)
-        self.assertIn("function auditDiagnosticsActionsForRow", reports_view_js)
-        self.assertIn("function renderReportDiagnosticsActions", reports_view_js)
-        self.assertIn('diagnosticsBridgeHandoffLines("Reports failure selected row"', reports_view_js)
-        self.assertIn('diagnosticsBridgeHandoffLines("Reports audit selected row"', reports_view_js)
-        self.assertIn("button.dataset.reportDiagnosticsTarget = action.target", reports_view_js)
-        self.assertIn("appendDiagnosticsBridgeButton(container, actions, sourceLabel)", reports_view_js)
+        self.assertIn("function failureDiagnosticsActionsForRow", reports_failure_model_js)
+        self.assertIn("function auditDiagnosticsActionsForRow", reports_audit_model_js)
+        self.assertIn("function renderReportDiagnosticsActions", reports_shell_js)
+        self.assertIn('renderReportDiagnosticsActions("failure-diagnostics-actions", failureDiagnosticsActionsForGroup(current), "Reports failure selected group")', reports_failure_view_js)
+        self.assertIn('diagnosticsBridgeHandoffLines("Reports audit selected row"', reports_audit_view_js)
+        self.assertIn("button.dataset.reportDiagnosticsTarget = action.target", reports_shell_js)
+        self.assertIn("bridge.appendDiagnosticsBridgeButton(container, actions, sourceLabel)", reports_shell_js)
 
         self.assertIn("function commandHistoryDiagnosticsActions", command_history_js)
         self.assertIn("commandHistoryDiagnosticsActions,", command_history_js)

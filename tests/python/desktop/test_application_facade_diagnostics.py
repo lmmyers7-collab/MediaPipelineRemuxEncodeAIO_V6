@@ -14,7 +14,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
@@ -165,7 +165,7 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(payload["counts"]["warning"], 1)
         self.assertGreaterEqual(payload["counts"]["missing"], 1)
 
-    def test_facade_diagnostics_state_summary_recent_entries_scan_full_large_directory(self) -> None:
+    def test_facade_diagnostics_state_summary_caps_large_directory_recent_entries(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             service = DummyFacadeService(root)
@@ -190,9 +190,35 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
 
         rows = {row["target"]: row for row in payload["targets"]}
         pending_entries = rows["pending_publish"]["recent_entries"]
-        self.assertEqual(pending_entries[0]["name"], "zz-newest.json")
         self.assertEqual(len(pending_entries), 3)
-        self.assertIn("selected from the full scan", "\n".join(rows["pending_publish"]["warnings"]))
+        self.assertIn("scan stopped after 5 entries", "\n".join(rows["pending_publish"]["warnings"]))
+        self.assertIn("Files scanned: 5", "\n".join(rows["pending_publish"]["facts"]))
+
+    def test_facade_diagnostics_state_summary_uses_bounded_pending_publish_scan(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            calls: list[dict[str, object]] = []
+            original_scan = service.scan_pending_publish
+
+            def wrapped_scan(resolved: ResolvedPaths, **kwargs: object) -> dict[str, object]:
+                calls.append(dict(kwargs))
+                return original_scan(resolved, **kwargs)
+
+            service.scan_pending_publish = wrapped_scan  # type: ignore[method-assign]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.pending_push_path = root / "State" / "PendingPublish"
+            resolved.pending_push_path.mkdir(parents=True)
+            for index in range(10):
+                (resolved.pending_push_path / f"movie-{index:04d}.mkv.manifest.json").write_text("{}", encoding="utf-8")
+
+            payload = facade.read_diagnostics_state_summary(resolved)
+
+        self.assertEqual(payload["schema_version"], "desktop_diagnostics_state_summary.v1")
+        self.assertTrue(calls)
+        self.assertEqual(calls[-1]["manifest_limit"], 500)
+        self.assertFalse(calls[-1]["include_orphan_rows"])
 
     def test_facade_diagnostics_state_summary_surfaces_blocked_bdpgs_ocr_paths(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -247,12 +273,29 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
                     "share": "Video",
                     "status": "blocked",
                     "operator_status": "blocked",
+                    "health_code": "path_missing_or_unreachable",
                     "exists": False,
                     "path_kind": "missing",
                     "can_list": False,
                     "elapsed_ms": 1500,
+                    "probe_attempts": [
+                        {
+                            "attempt": 1,
+                            "timeout_seconds": 5.0,
+                            "timed_out": False,
+                            "elapsed_ms": 1500,
+                            "status_hint": "missing",
+                        }
+                    ],
+                    "phase_timings_ms": {"dns": 5, "tcp_445": 1495},
                     "server_probe": {"dns_status": "blocked", "tcp_445_status": "blocked"},
                     "path_probe": {"exists": False, "path_kind": "missing", "can_list": False},
+                    "storage_status": "not_checked",
+                    "storage_probe": {"status": "not_checked", "capacity_source": "not_checked"},
+                    "capacity_source": "not_checked",
+                    "capacity_path": "",
+                    "capacity_error": "",
+                    "last_successful_capacity": {"free_space_gb": 109.2, "evidence_only": True},
                     "message": "SourceMovies root does not exist or is not reachable from this Windows session.",
                     "safe_next_action": "Log back into Windows/server share, then refresh path health.",
                 }
@@ -278,7 +321,13 @@ class ApplicationFacadeDiagnosticsTests(unittest.TestCase):
         self.assertEqual(issue["recovery_stage"], "configured_server_folder_health")
         self.assertIn("server/share", issue["operator_guidance"].casefold())
         self.assertIn("scan, copy, remux", issue["unsafe_if_ignored"])
-        self.assertIn("SMB TCP 445: blocked", "\n".join(issue["facts"]))
+        facts = "\n".join(issue["facts"])
+        self.assertIn("SMB TCP 445: blocked", facts)
+        self.assertIn("Health code: path_missing_or_unreachable", facts)
+        self.assertIn("Probe attempts: 1", facts)
+        self.assertIn("Phase timings: dns=5ms, tcp_445=1495ms", facts)
+        self.assertIn("Capacity source: not_checked", facts)
+        self.assertIn("Last successful capacity: 109.2 GB; evidence-only=yes", facts)
         self.assertEqual(payload["triage"][0]["target"], "configured_path_health_source_movies")
 
     def test_diagnostics_path_lookup_failures_are_logged(self) -> None:

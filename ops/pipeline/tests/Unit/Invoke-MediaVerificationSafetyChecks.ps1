@@ -121,6 +121,16 @@ Assert-True ([bool]$multiVideoPolicy.Allowed) "Multiple real video streams shoul
 Assert-Equal ([string]$multiVideoPolicy.ErrorCode) '' 'Multi-video policy should not use the historical unvetted-stream error code after FR-016 preserve-all.'
 Assert-Equal ([int]$multiVideoPolicy.Inventory.RealVideoStreamCount) 2 'Multi-video inventory should exclude attached pictures from real video count.'
 Assert-Equal ([int]$multiVideoPolicy.Inventory.AttachedPicCount) 1 'Attached pictures should be counted separately from real video streams.'
+$multiVideoEvidence = ConvertTo-VideoStreamFailureEvidence -SourceInventory $multiVideoPolicy.Inventory -Route 'encode' -Reason 'fixture multi-video proof' -ErrorCode 'SOURCE_VIDEO_STREAMS_UNVETTED'
+Assert-Equal ([string]$multiVideoEvidence.schema_version) 'pipeline_failure_video_stream_evidence.v1' 'Video stream failure evidence schema mismatch.'
+Assert-Equal ([int]$multiVideoEvidence.source_real_video_stream_count) 2 'Video evidence source real-video count mismatch.'
+Assert-Equal ([int]$multiVideoEvidence.source_attached_picture_stream_count) 1 'Video evidence attached-picture count mismatch.'
+Assert-Equal (@($multiVideoEvidence.source_streams).Count) 3 'Video evidence should list real video streams plus attached pictures.'
+Assert-Equal ([int]$multiVideoEvidence.source_streams[0].index) 0 'Video evidence should preserve first stream index.'
+Assert-Equal ([string]$multiVideoEvidence.source_streams[0].codec) 'hevc' 'Video evidence should preserve first stream codec.'
+Assert-Equal ([int]$multiVideoEvidence.source_streams[1].index) 2 'Video evidence should preserve second real stream index.'
+Assert-True ([bool]$multiVideoEvidence.source_streams[2].attached_picture) 'Video evidence should mark attached pictures.'
+Assert-True ((@($multiVideoEvidence.summary_lines) -join "`n") -match 'source real=2, attached=1') 'Video evidence should summarize source counts.'
 
 $script:VideoInventoryProbeCase = 'tagged-cover'
 $taggedCoverPolicy = Test-SourceVideoStreamPublishPolicy -FilePath 'tagged-cover.mkv' -Route 'encode'
@@ -157,6 +167,10 @@ Assert-True (-not [bool]$mismatchedOutput.Allowed) 'Output missing a secondary r
 Assert-Equal ([string]$mismatchedOutput.ErrorCode) 'OUTPUT_VIDEO_STREAM_COUNT_MISMATCH' 'Mismatched output should use the output-count error code.'
 Assert-Equal ([int]$mismatchedOutput.SourceCount) 2 'Mismatched-output source count mismatch.'
 Assert-Equal ([int]$mismatchedOutput.OutputCount) 1 'Mismatched-output output count mismatch.'
+$mismatchEvidence = ConvertTo-VideoStreamFailureEvidence -SourceInventory $mismatchedOutput.SourceInventory -OutputInventory $mismatchedOutput.OutputInventory -Route 'remux' -Reason ([string]$mismatchedOutput.Reason) -ErrorCode ([string]$mismatchedOutput.ErrorCode)
+Assert-Equal ([int]$mismatchEvidence.source_real_video_stream_count) 2 'Mismatch evidence source count mismatch.'
+Assert-Equal ([int]$mismatchEvidence.output_real_video_stream_count) 1 'Mismatch evidence output count mismatch.'
+Assert-True ((@($mismatchEvidence.summary_lines) -join "`n") -match 'output real=1') 'Mismatch evidence should summarize output counts.'
 
 $script:VideoInventoryProbeByPath = @{
     'source-single.mkv' = 'single'
@@ -189,8 +203,37 @@ try {
     Remove-Item -LiteralPath $tempDir -Recurse -Force -ErrorAction SilentlyContinue
 }
 
-$remuxText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\remux.ps1') -Raw
-$encodeText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+$remuxPaths = @(
+    'ops\pipeline\entrypoints\MediaPipeline\remux.ps1',
+    'ops\pipeline\engine\process\remux_context.ps1',
+    'ops\pipeline\engine\process\remux_preflight.ps1',
+    'ops\pipeline\engine\process\remux_subtitle_plan.ps1',
+    'ops\pipeline\engine\process\remux_ffmpeg_av_stage.ps1',
+    'ops\pipeline\engine\process\remux_mkvmerge_args.ps1',
+    'ops\pipeline\engine\process\remux_mkvmerge_stage.ps1',
+    'ops\pipeline\engine\process\remux_verification.ps1',
+    'ops\pipeline\engine\process\remux_publish.ps1',
+    'ops\pipeline\engine\process\remux_orchestrator.ps1'
+)
+$remuxText = ($remuxPaths | ForEach-Object {
+        Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw
+    }) -join "`n"
+$encodePaths = @(
+    'ops\pipeline\entrypoints\MediaPipeline\encode.ps1',
+    'ops\pipeline\engine\process\encode_context.ps1',
+    'ops\pipeline\engine\process\encode_preflight.ps1',
+    'ops\pipeline\engine\process\encode_attempt_plan.ps1',
+    'ops\pipeline\engine\process\encode_command_builder.ps1',
+    'ops\pipeline\engine\process\encode_execution.ps1',
+    'ops\pipeline\engine\process\encode_fallback.ps1',
+    'ops\pipeline\engine\process\encode_verification.ps1',
+    'ops\pipeline\engine\process\encode_size_guard.ps1',
+    'ops\pipeline\engine\process\encode_publish.ps1',
+    'ops\pipeline\engine\process\encode_orchestrator.ps1'
+)
+$encodeText = ($encodePaths | ForEach-Object {
+        Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw
+    }) -join "`n"
 Assert-True ($remuxText -match '\$script:LastPublishResult\s*=\s*New-ExistingOutputPublishResult') 'Remux existing-output branch must set LastPublishResult.'
 Assert-True ($encodeText -match '\$script:LastPublishResult\s*=\s*New-ExistingOutputPublishResult') 'Encode existing-output branch must set LastPublishResult.'
 Assert-True ($remuxText -match 'Test-SourceVideoStreamPublishPolicy') 'Remux must run source video stream policy before FFmpeg/mkvmerge publish.'

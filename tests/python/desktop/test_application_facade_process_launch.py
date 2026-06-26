@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import sys
 import tempfile
@@ -17,7 +17,14 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.application.network_lifecycle_provider import _NetworkRuntimeApp
-from tests.python.desktop.test_application_facade import DummyProc, DummyWorkflowFacadeService, _resolved
+from mediapipeline.core.kernel.runtime.subprocess_runner import CapturedCommandResult
+from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
+from mediapipeline.core.processes.preflight_facade import LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS
+from tests.python.desktop.application_facade_test_support import DummyProc, DummyWorkflowFacadeService, _resolved
+
+
+def _fresh_generated_at() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")
 
 
 class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
@@ -1029,6 +1036,72 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertIn("still running from this bundle", duplicate_audit["message"])
         self.assertFalse(hasattr(service_with_audit, "started_audit"))
 
+    def test_audit_stop_requires_confirmation_and_marks_progress_stopped(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.audit_reports_path = root / "AuditReports"
+            resolved.audit_reports_path.mkdir(parents=True)
+            progress_path = resolved.audit_reports_path / "audit_progress.json"
+            progress_path.write_text(
+                json.dumps(
+                    {
+                        "status": "scanning",
+                        "completed": False,
+                        "failed": False,
+                        "processed_files": 2371,
+                        "total_files": 2973,
+                        "percent_complete": 79.8,
+                        "last_update": "2026-06-24T05:21:51Z",
+                        "current_operation": "Scanning 2372 / 2973",
+                    }
+                ),
+                encoding="utf-8",
+            )
+            calls: list[tuple[str, set[str] | None]] = []
+
+            def kill_active_spawned_processes(*, job_kinds: set[str] | None = None) -> list[str]:
+                calls.append(("active", job_kinds))
+                return ["Force-killed audit process tree (PID 24681)."]
+
+            def kill_related_pipeline_processes(
+                _resolved: object,
+                *,
+                job_kinds: set[str] | None = None,
+            ) -> list[str]:
+                calls.append(("related", job_kinds))
+                return ["Force-killed related MediaPipeline audit process tree (PID 25002)."]
+
+            service.kill_active_spawned_processes = kill_active_spawned_processes  # type: ignore[method-assign]
+            service.kill_related_pipeline_processes = kill_related_pipeline_processes  # type: ignore[method-assign]
+
+            missing_confirm = facade.stop_audit_process(resolved, {}).to_mapping()
+            stopped = facade.stop_audit_process(
+                resolved,
+                {"confirm_stop": True, "reason": "operator requested stop"},
+            ).to_mapping()
+            progress = json.loads(progress_path.read_text(encoding="utf-8"))
+
+        self.assertFalse(missing_confirm["ok"])
+        self.assertEqual(missing_confirm["command"], "audit.stop")
+        self.assertIn("confirm_stop=true", missing_confirm["message"])
+        self.assertTrue(stopped["ok"])
+        self.assertEqual(stopped["command"], "audit.stop")
+        self.assertEqual(stopped["data"]["requested_scope"], "audit")
+        self.assertEqual(stopped["data"]["job_kinds"], ["audit"])
+        self.assertEqual(stopped["data"]["stopped_process_tree_count"], 2)
+        self.assertEqual(calls, [("active", {"audit"}), ("related", {"audit"})])
+        self.assertEqual(progress["status"], "stopped")
+        self.assertFalse(progress["completed"])
+        self.assertFalse(progress["failed"])
+        self.assertEqual(progress["processed_files"], 2371)
+        self.assertEqual(progress["total_files"], 2973)
+        self.assertTrue(progress["stop_requested"])
+        self.assertEqual(progress["stop_reason"], "operator requested stop")
+        self.assertIn("Stopped by operator", progress["current_operation"])
+
     def test_rerun_start_uses_existing_service_launch_path(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -1275,7 +1348,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(pipeline["operator_readiness"]["display_status"], "Review")
         self.assertIn("Launch readiness (backend-authored):", pipeline["operator_readiness"]["summary_lines"])
         self.assertTrue(any("Backend launch locking and gating remain the source of truth." in line for line in pipeline["operator_readiness"]["summary_lines"]))
-        self.assertTrue(any(row["key"] == "runtime_prep_boundary" for row in pipeline["checks"]))
+        self.assertTrue(any(row["key"] == "runtime_prep_boundary" and row["status"] == "ready" for row in pipeline["checks"]))
         self.assertTrue(any(row["key"] == "encoder_capability_report" for row in pipeline["checks"]))
         self.assertTrue(any(row["key"] == "single_file_scope" and row["status"] == "ready" for row in pipeline["checks"]))
         self.assertTrue(pipeline["request"]["single_file_validation"]["ok"])
@@ -1289,6 +1362,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(audit["target"], "audit")
         self.assertEqual(audit["start_route"], "/api/audit/start")
         self.assertEqual(audit["request"]["library_root"], str(root / "Outsource"))
+        self.assertTrue(any(row["key"] == "runtime_prep_boundary" and row["status"] == "ready" for row in audit["checks"]))
         self.assertEqual(rerun["target"], "rerun")
         self.assertEqual(rerun["start_route"], "/api/rerun/start")
         self.assertEqual(rerun["request"]["stage_mode"], "copy")
@@ -1334,6 +1408,60 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertEqual(rows["autonomy_health"]["status"], "blocked")
         self.assertIn("can_start_new_work=no", rows["autonomy_health"]["evidence"])
 
+    def test_launch_preflight_uses_network_tolerant_path_health_timeout(self) -> None:
+        health = {
+            "schema_version": "desktop_configured_path_health.v1",
+            "read_only": True,
+            "operator_status": "ready",
+            "operator_summary": "Configured media/storage roots are reachable and listable.",
+            "rows": [
+                {
+                    "key": "source_movies",
+                    "label": "SourceMovies root",
+                    "role": "source",
+                    "status": "ready",
+                    "storage_status": "not_checked",
+                    "message": "SourceMovies root exists and the backend can list the root.",
+                }
+            ],
+            "summary_lines": ["Configured path health: ready."],
+        }
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {"NetworkRole": "standalone", "SourceMovies": r"\\LAYNE-SERVER\Video\Movies"}
+
+            with patch("mediapipeline.core.processes.preflight_facade.configured_path_health", return_value=health) as path_health:
+                preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        self.assertTrue(preflight["can_request_start"])
+        path_health.assert_called_once()
+        self.assertEqual(LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS, LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS)
+        self.assertEqual(path_health.call_args.kwargs["timeout_seconds"], LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS)
+
+    def test_pipeline_start_uses_launch_path_health_before_autonomy_gate(self) -> None:
+        health = {
+            "schema_version": "desktop_configured_path_health.v1",
+            "read_only": True,
+            "operator_status": "ready",
+            "operator_summary": "Configured media/storage roots are reachable and listable.",
+            "rows": [],
+            "summary_lines": ["Configured path health: ready."],
+        }
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            with patch.object(facade, "_launch_path_health_for_resolved", return_value=health) as path_health:
+                result = facade.start_pipeline_process(resolved, {"mode": "validate"}).to_mapping()
+
+        self.assertTrue(result["ok"])
+        path_health.assert_called_once_with(resolved)
+
     def test_launch_preflight_surfaces_missing_encoder_capability_report_without_blocking_start(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -1350,11 +1478,99 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertTrue(preflight["can_request_start"])
         self.assertEqual(report["status"], "review")
         self.assertIn("exists=no", report["evidence"])
+        self.assertIn("refresh=skipped", report["evidence"])
         self.assertIn("read_only=yes", report["evidence"])
         self.assertEqual(report["detail"][0]["schema_version"], "settings_encoder_capability_report.v1")
         self.assertTrue(report["detail"][0]["read_only"])
         self.assertEqual(report["detail"][0]["operator_status_state"], "missing")
         self.assertEqual(report["detail"][0]["source"], "-DumpEncoderCapabilitiesPath")
+        self.assertTrue(report["detail"][0]["refresh_needed"])
+        self.assertEqual(report["detail"][0]["auto_refresh"]["reason"], "missing")
+        self.assertFalse(report["detail"][0]["auto_refresh"]["attempted"])
+
+    def test_launch_preflight_auto_refreshes_stale_encoder_capability_report(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            report_path = root / "State" / "Progress" / "encoder_capabilities.json"
+            report_path.parent.mkdir(parents=True)
+            report_path.write_text(
+                json.dumps(
+                    {
+                        "schema": "mediapipeline.encoder_capabilities.v1",
+                        "generated_at": "2000-01-01T00:00:00Z",
+                        "video_codec": "hevc_nvenc",
+                        "encoder_backend": "auto",
+                        "selection": {"resolved": True, "reason": "old", "family": "hevc"},
+                        "encoders": [
+                            {
+                                "encoder_name": "hevc_nvenc",
+                                "family": "hevc",
+                                "backend": "nvenc",
+                                "roles": ["primary"],
+                                "descriptor_flags_active": True,
+                                "available": True,
+                                "runtime_ok": True,
+                                "runtime_probe_skipped": False,
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.pipeline_path.write_text("pipeline", encoding="utf-8")
+            resolved.config_path.write_text("@{}", encoding="utf-8")
+            Path(resolved.powershell_host).write_text("pwsh", encoding="utf-8")
+            resolved.config_data = {"NetworkRole": "standalone"}
+            calls: list[list[str]] = []
+
+            def fake_run_capture(args: list[str], **kwargs: object) -> CapturedCommandResult:
+                calls.append([str(item) for item in args])
+                target = Path(args[args.index("-DumpEncoderCapabilitiesPath") + 1])
+                target.write_text(
+                    json.dumps(
+                        {
+                            "schema": "mediapipeline.encoder_capabilities.v1",
+                            "generated_at": _fresh_generated_at(),
+                            "video_codec": "hevc_nvenc",
+                            "encoder_backend": "auto",
+                            "selection": {"resolved": True, "reason": "refreshed", "family": "hevc"},
+                            "encoders": [
+                                {
+                                    "encoder_name": "hevc_nvenc",
+                                    "family": "hevc",
+                                    "backend": "nvenc",
+                                    "roles": ["primary"],
+                                    "descriptor_flags_active": True,
+                                    "available": True,
+                                    "runtime_ok": True,
+                                    "runtime_probe_skipped": False,
+                                }
+                            ],
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+                return CapturedCommandResult(args=args, returncode=0, stdout="dumped", stderr="")
+
+            with patch("mediapipeline.core.processes.preflight_facade.run_capture", side_effect=fake_run_capture):
+                preflight = facade.get_launch_preflight(resolved, {"target": "pipeline", "mode": "validate"})
+
+        rows = {row["key"]: row for row in preflight["checks"]}
+        report = rows["encoder_capability_report"]
+        self.assertEqual(len(calls), 1)
+        self.assertIn("-DumpEncoderCapabilitiesPath", calls[0])
+        self.assertEqual(report["status"], "ready")
+        self.assertIn("refresh=ok", report["evidence"])
+        self.assertFalse(report["detail"][0]["refresh_needed"])
+        self.assertFalse(report["detail"][0]["stale"])
+        self.assertTrue(report["detail"][0]["auto_refresh"]["attempted"])
+        self.assertEqual(report["detail"][0]["auto_refresh"]["reason"], "stale")
+        self.assertEqual(report["detail"][0]["operator_status_state"], "ready")
+        self.assertEqual(report["detail"][0]["selection"]["reason"], "refreshed")
 
     def test_launch_preflight_surfaces_existing_encoder_capability_report_evidence(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -1365,7 +1581,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 json.dumps(
                     {
                         "schema": "mediapipeline.encoder_capabilities.v1",
-                        "generated_at": "2026-06-21T12:30:00Z",
+                        "generated_at": _fresh_generated_at(),
                         "video_codec": "h264_nvenc",
                         "encoder_backend": "auto",
                         "selection": {"resolved": True, "reason": "auto", "family": "h264"},
@@ -1439,7 +1655,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 json.dumps(
                     {
                         "schema": "mediapipeline.encoder_capabilities.v1",
-                        "generated_at": "2026-06-22T12:30:00Z",
+                        "generated_at": _fresh_generated_at(),
                         "video_codec": "av1_nvenc",
                         "encoder_backend": "auto",
                         "selection": {"resolved": True, "reason": "resolved primary descriptor 'av1/nvenc'", "family": "av1"},
@@ -1526,7 +1742,7 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
                 json.dumps(
                     {
                         "schema": "mediapipeline.encoder_capabilities.v1",
-                        "generated_at": "2026-06-23T12:30:00Z",
+                        "generated_at": _fresh_generated_at(),
                         "video_codec": "hevc_nvenc",
                         "encoder_backend": "auto",
                         "selection": {"resolved": True, "reason": "resolved primary descriptor 'hevc/nvenc'", "family": "hevc"},

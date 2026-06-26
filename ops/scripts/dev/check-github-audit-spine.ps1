@@ -15,12 +15,15 @@ $RequiredFiles = @(
     ".github/workflows/codeql.yml",
     ".github/workflows/audit-sarif.yml",
     ".github/workflows/deep-audit.yml",
+    ".github/workflows/phase1-drift.yml",
+    ".github/workflows/private-beta-windows.yml",
     ".github/ISSUE_TEMPLATE/ai-audit-finding.yml",
     ".github/ISSUE_TEMPLATE/ai-fix-task.yml",
     ".github/pull_request_template.md",
     ".github/copilot-instructions.md",
     ".github/audit-labels.json",
     ".github/GITHUB_AUDIT_BOOTSTRAP.md",
+    "ops/scripts/release/Initialize-CiPythonRuntime.ps1",
     "ops/scripts/dev/bootstrap-github-audit-spine.ps1"
 )
 
@@ -58,6 +61,11 @@ foreach ($Expected in @("python", "javascript-typescript", "rust", "actions", "s
         throw "CodeQL workflow is missing expected token: $Expected"
     }
 }
+foreach ($Forbidden in @('Path(''${{ matrix.language }}'')', 'upload mode: ${{ vars.CODEQL_UPLOAD_MODE')) {
+    if ($CodeqlWorkflow -match [regex]::Escape($Forbidden)) {
+        throw "CodeQL workflow still interpolates GitHub expressions inside a run block: $Forbidden"
+    }
+}
 
 $SarifWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/audit-sarif.yml") -Raw
 foreach ($Expected in @("ruff", "semgrep", "upload-sarif", "upload-artifact", "GITHUB_STEP_SUMMARY", "security-events: write")) {
@@ -73,6 +81,35 @@ $DeepAuditWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/work
 foreach ($Expected in @("ai_guardrail", "unittest discover", "webview:prework:check", "npm run check", "build.ps1")) {
     if ($DeepAuditWorkflow -notmatch [regex]::Escape($Expected)) {
         throw "Deep audit workflow is missing expected token: $Expected"
+    }
+}
+foreach ($Expected in @("permissions:", "contents: read", "Initialize-CiPythonRuntime.ps1")) {
+    if ($DeepAuditWorkflow -notmatch [regex]::Escape($Expected)) {
+        throw "Deep audit workflow is missing expected hardening token: $Expected"
+    }
+}
+
+$Phase1Workflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/phase1-drift.yml") -Raw
+foreach ($Expected in @("permissions:", "contents: read", "MP_GITHUB_BASE_REF", "Initialize-CiPythonRuntime.ps1")) {
+    if ($Phase1Workflow -notmatch [regex]::Escape($Expected)) {
+        throw "Generated drift workflow is missing expected hardening token: $Expected"
+    }
+}
+foreach ($Forbidden in @('${{ github.event_name }}" -eq', 'git fetch origin "${{ github.base_ref }}')) {
+    if ($Phase1Workflow -match [regex]::Escape($Forbidden)) {
+        throw "Generated drift workflow still interpolates GitHub expressions inside a run block: $Forbidden"
+    }
+}
+
+$PrivateBetaWorkflow = Get-Content -LiteralPath (Join-Path $RepoRoot ".github/workflows/private-beta-windows.yml") -Raw
+foreach ($Expected in @("actions: read", "contents: write", "Validate workflow inputs", "MEDIAPIPELINE_RELEASE_REPOSITORY", "Initialize-CiPythonRuntime.ps1")) {
+    if ($PrivateBetaWorkflow -notmatch [regex]::Escape($Expected)) {
+        throw "Private beta workflow is missing expected hardening token: $Expected"
+    }
+}
+foreach ($Forbidden in @('-Channel ''${{ inputs.channel }}''', '-Repository ''${{ github.repository }}''', '$tag = ''${{ inputs.release_tag }}''')) {
+    if ($PrivateBetaWorkflow -match [regex]::Escape($Forbidden)) {
+        throw "Private beta workflow still interpolates GitHub expressions inside a run block: $Forbidden"
     }
 }
 

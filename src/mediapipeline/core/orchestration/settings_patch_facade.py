@@ -15,6 +15,7 @@ from mediapipeline.core.config.settings_patch_policy import (
     settings_save_confirmation_required_result,
     settings_save_exception_result,
     settings_save_no_changes_result,
+    settings_save_review_confirmation_error,
     settings_save_service_unavailable_result,
     settings_save_success_result,
     settings_save_validation_error_result,
@@ -52,6 +53,19 @@ class SettingsPatchFacadeMixin:
         if patch["fatal_result"] is not None:
             return patch["fatal_result"]
         return settings_patch_preview_result(resolved, patch)
+
+    def settings_patch_request_with_review_confirmation(
+        self,
+        resolved: ResolvedPaths,
+        request: dict[str, Any],
+    ) -> dict[str, Any]:
+        """Return a save request bound to the current backend preview candidate."""
+        preview = self.preview_settings_patch(resolved, request)
+        data = preview.data if isinstance(preview.data, dict) else {}
+        confirmed_request = dict(request)
+        if isinstance(data.get("review_confirmation"), dict):
+            confirmed_request["review_confirmation"] = dict(data["review_confirmation"])
+        return confirmed_request
 
     def preview_settings_pipeline_plan(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         """Preview the Python planner result from strict source facts without saving settings."""
@@ -186,6 +200,9 @@ class SettingsPatchFacadeMixin:
                 return settings_save_validation_error_result(errors, warnings)
             if not changed_keys and not removed_keys:
                 return settings_save_no_changes_result(warnings)
+            review_confirmation_error = settings_save_review_confirmation_error(request, patch)
+            if review_confirmation_error is not None:
+                return review_confirmation_error
             authority_saver = getattr(self.service, "save_settings_authority", None)
             serializer = getattr(self.service, "serialize_psd1_document", None)
             saver = getattr(self.service, "save_config_document", None)

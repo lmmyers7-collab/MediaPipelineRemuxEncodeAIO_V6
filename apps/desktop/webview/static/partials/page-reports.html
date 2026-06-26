@@ -23,33 +23,36 @@
             <h2>Report Triage</h2>
             <strong id="report-triage-band-status">Waiting</strong>
           </div>
-          <div class="metric-grid">
-            <section class="metric">
-              <span class="metric-label">Next Action</span>
-              <strong id="report-triage-next-action">Load reports</strong>
-            </section>
-            <section class="metric">
-              <span class="metric-label">Action Owner</span>
-              <strong id="report-triage-action-owner">Reports</strong>
-            </section>
-            <section class="metric">
-              <span class="metric-label">Failure Review</span>
-              <strong id="report-triage-failure-count">0</strong>
-            </section>
-            <section class="metric">
-              <span class="metric-label">Audit Review</span>
-              <strong id="report-triage-audit-count">0</strong>
-            </section>
-            <section class="metric">
-              <span class="metric-label">Warnings</span>
-              <strong id="report-triage-warning-count">0</strong>
-            </section>
-            <section class="metric">
-              <span class="metric-label">Latest Reports</span>
-              <strong id="report-triage-report-state">Not loaded</strong>
-            </section>
-          </div>
-          <pre id="report-triage-band-detail" class="prose-block">No report triage loaded.</pre>
+          <details class="settings-advanced-disclosure report-triage-evidence-disclosure">
+            <summary>Report triage evidence</summary>
+            <div class="metric-grid">
+              <section class="metric">
+                <span class="metric-label">Next Action</span>
+                <strong id="report-triage-next-action">Load reports</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Action Owner</span>
+                <strong id="report-triage-action-owner">Reports</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Failure Review</span>
+                <strong id="report-triage-failure-count">0</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Audit Review</span>
+                <strong id="report-triage-audit-count">0</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Warnings</span>
+                <strong id="report-triage-warning-count">0</strong>
+              </section>
+              <section class="metric">
+                <span class="metric-label">Latest Reports</span>
+                <strong id="report-triage-report-state">Not loaded</strong>
+              </section>
+            </div>
+            <pre id="report-triage-band-detail" class="prose-block">No report triage loaded.</pre>
+          </details>
         </section>
         <div class="settings-tab-bar reports-tab-bar" role="tablist" aria-label="Reports sections">
           <button type="button" class="settings-tab-btn" role="tab" data-reports-tab="failures" aria-selected="true">Failures</button>
@@ -59,24 +62,46 @@
 
 <section class="panel settings-tab-pane is-active reports-tab-panel" data-reports-tab-panel="failures" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Failures</h2>
+            <h2>Failure Resolution Center</h2>
             <strong id="failure-status">No rows</strong>
           </div>
-          <pre id="failure-summary" class="prose-block">No failure preview loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Failure Review Board</h3>
-            <strong id="failure-review-status">Not loaded</strong>
-          </div>
-          <div id="failure-review-board" class="review-tile-board" aria-live="polite">
-            <section class="review-tile" data-tone="muted">
-              <span class="review-tile-label">Review State</span>
-              <strong class="review-tile-value">Not loaded</strong>
-              <span class="review-tile-detail">No failure preview has loaded.</span>
+          <div id="failure-resolution-summary-strip" class="failure-resolution-summary-strip" aria-live="polite">
+            <section class="metric">
+              <span class="metric-label">Posture</span>
+              <strong id="failure-resolution-posture">Not loaded</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Lifecycle</span>
+              <strong id="failure-resolution-lifecycle-counts">0 active</strong>
+            </section>
+            <section class="metric failure-resolution-primary-metric">
+              <span class="metric-label">Primary action</span>
+              <strong id="failure-resolution-primary-action">Load failures</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Blocking</span>
+              <strong id="failure-resolution-blocking-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Will retry</span>
+              <strong id="failure-resolution-retry-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Working</span>
+              <strong id="failure-resolution-working-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Clearable markers</span>
+              <strong id="failure-resolution-clearable-count">0</strong>
+            </section>
+            <section class="metric">
+              <span class="metric-label">Source mode</span>
+              <strong id="failure-resolution-source-mode">Latest JSON</strong>
             </section>
           </div>
-          <details class="review-board-detail-disclosure">
-            <summary>Full failure review detail</summary>
-            <pre id="failure-review-board-detail" class="prose-block compact-text-block">No failure review board loaded.</pre>
+          <details class="settings-advanced-disclosure failure-source-evidence-disclosure">
+            <summary>Source evidence</summary>
+            <pre id="failure-summary" class="prose-block compact-text-block">No failure preview loaded.</pre>
           </details>
           <label class="filter-field">
             Filter failures
@@ -84,59 +109,188 @@
           </label>
           <div class="action-row action-row-left wrap-actions report-filter-chips" role="toolbar" aria-label="Failure report filters">
             <button type="button" class="secondary-button" data-failure-filter-chip="all" aria-pressed="true">All</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="needs_operator" aria-pressed="false">Needs operator</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="will_retry" aria-pressed="false">Will retry</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="blocked" aria-pressed="false">Blocked</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="publish" aria-pressed="false">Publish</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="queue" aria-pressed="false">Queue</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="subtitle" aria-pressed="false">Subtitle</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="audio" aria-pressed="false">Audio</button>
-            <button type="button" class="secondary-button" data-failure-filter-chip="warnings" aria-pressed="false">Warnings</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="needs_action" aria-pressed="false">Needs action</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="working" aria-pressed="false">Working</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="waiting_retry" aria-pressed="false">Waiting retry</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="ready_to_clear" aria-pressed="false">Ready to clear</button>
+            <button type="button" class="secondary-button" data-failure-filter-chip="resolved_recently" aria-pressed="false">Resolved recently</button>
           </div>
           <div class="option-grid option-grid-compact">
-            <label class="check-row"><input id="failure-source-markers" type="checkbox"> Use failure markers</label>
+            <label class="check-row"><input id="failure-source-markers" type="checkbox" checked> Use failure markers</label>
           </div>
-          <div class="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Select</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">File</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Suggested fix</th>
-                  <th scope="col">Owner</th>
-                  <th scope="col">Actions</th>
-                </tr>
-              </thead>
-              <tbody id="failure-rows">
-                <tr><td colspan="7">No failure rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No failures</span>
-            <span class="empty-state-hint">Pipeline failures appear here after a run completes. No rows means no failures recorded.</span>
+
+          <div class="failure-resolution-layout">
+            <section class="failure-resolution-groups-pane" aria-labelledby="failure-resolution-group-heading">
+              <div class="panel-heading panel-subheading">
+                <h3 id="failure-resolution-group-heading">Grouped issues</h3>
+                <strong id="failure-resolution-group-status">No groups</strong>
+              </div>
+              <div id="failure-resolution-groups" class="failure-resolution-groups" role="list" aria-live="polite">
+                <p class="note">No grouped failure issues loaded.</p>
+              </div>
+            </section>
+            <section class="failure-resolution-detail-pane" aria-labelledby="failure-resolution-detail-heading">
+              <div class="panel-heading panel-subheading">
+                <h3 id="failure-resolution-detail-heading">Selected issue</h3>
+                <strong id="failure-resolution-detail-status">No selection</strong>
+              </div>
+              <div class="action-row action-row-left wrap-actions failure-resolution-primary-actions">
+                <button type="button" id="failure-primary-action-button" class="primary-button">Load failures</button>
+                <details id="failure-more-actions" class="compact-menu-disclosure">
+                  <summary>More evidence</summary>
+                  <div id="failure-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
+                </details>
+              </div>
+              <pre id="failure-detail" class="prose-block" data-visual-keep="operator-resolution-detail">No failure issue selected.</pre>
+            </section>
           </div>
-          </div>
-          <p id="failure-table-legend" class="note table-legend">Failure rows: no selectable rows.</p>
-          <pre id="failure-detail" class="prose-block">No failure row selected.</pre>
-          <div id="failure-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
-          <div class="panel-heading panel-subheading">
-            <h3>Marker Cleanup</h3>
-            <strong id="failure-clear-status">No clear action</strong>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="failure-preview-selected-clear-button" class="secondary-button">Preview Selected</button>
-            <button type="button" id="failure-clear-selected-button" class="danger-button">Clear Selected</button>
-            <button type="button" id="failure-preview-visible-clear-button" class="secondary-button">Preview Visible</button>
-            <button type="button" id="failure-clear-visible-button" class="danger-button">Clear Visible</button>
-            <button type="button" id="failure-preview-all-clear-button" class="secondary-button">Preview All Backend Markers</button>
-            <button type="button" id="failure-clear-all-button" class="danger-button">Clear All Backend Markers</button>
-          </div>
-          <pre id="failure-clear-summary" class="prose-block">Select rows with active failure markers to preview or clear selected/visible errors. Clear All Backend Markers clears all backend failure markers immediately through the backend. This moves marker JSON out of the active marker folder only; it does not delete media, logs, reports, manifests, source files, or output files.</pre>
+
+          <section id="failure-all-records-disclosure" class="failure-records-panel" aria-label="All error reports">
+            <div class="panel-heading panel-subheading">
+              <h3>All error reports</h3>
+              <strong>Visible evidence</strong>
+            </div>
+            <div class="table-wrap failure-records-table-wrap">
+              <table class="failure-records-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Select</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">File</th>
+                    <th scope="col">Evidence</th>
+                    <th scope="col">Suggested fix</th>
+                    <th scope="col">Owner</th>
+                  </tr>
+                </thead>
+                <tbody id="failure-rows">
+                  <tr><td colspan="6">No failure rows loaded.</td></tr>
+                </tbody>
+              </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No failures</span>
+                <span class="empty-state-hint">Pipeline failures appear here after a run completes. No rows means no failures recorded.</span>
+              </div>
+            </div>
+            <p id="failure-table-legend" class="note table-legend">Failure rows: no selectable rows.</p>
+            <div class="failure-records-actions" aria-label="Marker cleanup">
+              <div class="panel-heading panel-subheading">
+                <h3>Clear markers</h3>
+                <strong id="failure-clear-status">No clear action</strong>
+              </div>
+              <div class="guided-action-row">
+                <label>
+                  Scope
+                  <select id="failure-clear-scope">
+                    <option value="selected_group">Selected group</option>
+                    <option value="selected_files">Selected files</option>
+                    <option value="visible">Visible filtered rows</option>
+                    <option value="all_markers">All active markers</option>
+                  </select>
+                </label>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="failure-clear-preview-button" class="secondary-button">Preview marker clear</button>
+                  <button type="button" id="failure-clear-confirm-button" class="danger-button" disabled>Clear markers</button>
+                </div>
+              </div>
+              <pre id="failure-clear-summary" class="prose-block">Preview marker clear before confirming. This moves marker JSON out of the active marker folder only; it does not delete media, logs, reports, manifests, source files, or output files.</pre>
+
+              <details id="failure-archive-disclosure" class="settings-advanced-disclosure">
+                <summary>Advanced evidence archive</summary>
+                <div class="panel-heading panel-subheading">
+                  <h3>Archive evidence</h3>
+                  <strong id="failure-archive-status">No archive action</strong>
+                </div>
+                <div class="option-grid option-grid-compact">
+                  <label class="check-row"><input id="failure-archive-include-markers" type="checkbox" checked> Include active markers</label>
+                  <label class="check-row"><input id="failure-archive-include-reports" type="checkbox" checked> Include round failure reports</label>
+                </div>
+                <label class="filter-field">
+                  Reason
+                  <input id="failure-archive-reason" type="text" autocomplete="off" placeholder="Why this evidence is being archived">
+                </label>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="failure-archive-preview-button" class="secondary-button">Preview archive</button>
+                  <button type="button" id="failure-archive-confirm-button" class="danger-button" disabled>Archive evidence</button>
+                </div>
+                <pre id="failure-archive-summary" class="prose-block">Advanced archive is preview-first and requires a reason plus matching fingerprint. It moves active markers and round failure reports into a manifest-backed evidence archive.</pre>
+              </details>
+            </div>
+          </section>
+
+          <section class="failure-resolution-workflow" aria-label="Resolution workflow">
+            <div id="failure-lifecycle-strip" class="failure-lifecycle-strip" aria-live="polite">
+              <section class="failure-lifecycle-chip" data-state="new">
+                <span>State</span>
+                <strong id="failure-lifecycle-state">Not loaded</strong>
+              </section>
+              <section class="failure-lifecycle-chip">
+                <span>Last action</span>
+                <strong id="failure-lifecycle-last-transition">None</strong>
+              </section>
+              <section class="failure-lifecycle-chip">
+                <span>Resolution check</span>
+                <strong id="failure-lifecycle-verification-state">Not checked</strong>
+              </section>
+            </div>
+            <div class="guided-action-row failure-lifecycle-command-row">
+              <div class="action-row action-row-left wrap-actions">
+                <button type="button" id="failure-lifecycle-ack-button" class="secondary-button">Acknowledge</button>
+                <button type="button" id="failure-lifecycle-start-button" class="secondary-button">Start work</button>
+                <button type="button" id="failure-lifecycle-resolve-preview-button" class="secondary-button">Preview resolve</button>
+                <button type="button" id="failure-lifecycle-resolve-confirm-button" class="primary-button" disabled>Mark resolved</button>
+                <button type="button" id="failure-lifecycle-reopen-preview-button" class="secondary-button">Preview reopen</button>
+                <button type="button" id="failure-lifecycle-reopen-confirm-button" class="secondary-button" disabled>Reopen</button>
+              </div>
+            </div>
+            <pre id="failure-lifecycle-result" class="prose-block compact-text-block">No lifecycle command submitted.</pre>
+            <div class="failure-operator-panels">
+              <section class="failure-operator-panel">
+                <div class="panel-heading panel-subheading">
+                  <h3>Resolve</h3>
+                  <strong id="failure-playbook-status">No playbook</strong>
+                </div>
+                <ol id="failure-playbook-steps" class="failure-playbook-steps">
+                  <li>No playbook loaded.</li>
+                </ol>
+              </section>
+              <section class="failure-operator-panel">
+                <div class="panel-heading panel-subheading">
+                  <h3>Verification</h3>
+                  <strong id="failure-verification-status">Not checked</strong>
+                </div>
+                <div id="failure-verification-panel" class="failure-verification-panel">
+                  <p class="note">No verification loaded.</p>
+                </div>
+              </section>
+              <section class="failure-operator-panel">
+                <div class="panel-heading panel-subheading">
+                  <h3>Timeline</h3>
+                  <strong id="failure-timeline-status">No events</strong>
+                </div>
+                <ol id="failure-timeline" class="failure-timeline">
+                  <li>No lifecycle events recorded.</li>
+                </ol>
+              </section>
+            </div>
+            <details class="review-board-detail-disclosure">
+              <summary>Review board evidence</summary>
+              <div class="panel-heading panel-subheading">
+                <h3>Review board</h3>
+                <strong id="failure-review-status">Not loaded</strong>
+              </div>
+              <div id="failure-review-board" class="review-tile-board" aria-live="polite">
+                <section class="review-tile" data-tone="muted">
+                  <span class="review-tile-label">Review State</span>
+                  <strong class="review-tile-value">Not loaded</strong>
+                  <span class="review-tile-detail">No failure preview has loaded.</span>
+                </section>
+              </div>
+              <pre id="failure-review-board-detail" class="prose-block compact-text-block">No failure review board loaded.</pre>
+            </details>
+          </section>
         </section>
 
-        <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="evidence">
+        <section class="panel settings-tab-pane reports-tab-panel" data-reports-tab-panel="audit" data-panel-type="status">
           <div class="panel-heading">
             <h2>Audit Progress</h2>
             <strong id="report-progress-status">Not loaded</strong>
@@ -157,12 +311,22 @@
               Library Root
               <input id="report-audit-start-library-root" type="text" autocomplete="off">
             </label>
+            <label>
+              Saved Locations
+              <select id="report-audit-saved-location-select"></select>
+            </label>
             <label class="check-row launch-check-row"><input id="report-audit-start-include-sidecars" type="checkbox" checked> Include Sidecars</label>
             <label class="check-row launch-check-row"><input id="report-audit-start-show-console" type="checkbox"> Show Console</label>
           </div>
+          <div class="action-row action-row-left wrap-actions">
+            <button type="button" id="report-audit-save-location-button" class="secondary-button">Save Location</button>
+            <button type="button" id="report-audit-remove-location-button" class="secondary-button">Remove Saved</button>
+          </div>
+          <pre id="report-audit-location-summary" class="prose-block">No saved audit locations.</pre>
           <pre id="report-audit-launch-preflight" class="prose-block">No audit start request staged.</pre>
           <div class="action-row action-row-left">
             <button type="button" id="report-audit-start-button" class="primary-button">Start Audit</button>
+            <button type="button" id="report-audit-stop-button" class="danger-button" disabled>Stop Audit</button>
           </div>
           <pre id="report-audit-launch-detail" class="prose-block">No audit launch result.</pre>
         </section>
@@ -189,6 +353,16 @@
           </div>
           <div class="option-grid option-grid-compact">
             <label class="check-row"><input id="audit-preview-priority-only" type="checkbox"> Use latest priority CSV</label>
+          </div>
+          <div class="action-row action-row-left wrap-actions" role="toolbar" aria-label="Audit row selection">
+            <span class="action-group-label">Selection</span>
+            <button type="button" class="secondary-button" data-audit-selection-action="select-visible">Select All</button>
+            <label class="audit-selection-score-field">
+              Minimum score
+              <input type="number" min="0" step="1" inputmode="numeric" placeholder="200" data-audit-score-threshold-input>
+            </label>
+            <button type="button" class="secondary-button" data-audit-selection-action="select-score-at-least">Select Score or Higher</button>
+            <button type="button" class="secondary-button" data-audit-selection-action="clear">Clear Selection</button>
           </div>
           <div class="table-wrap">
             <table>

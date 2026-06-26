@@ -769,39 +769,103 @@
   }
 
   function launchCompactGateState(posture) {
-    const normalized = String(posture || "").toLowerCase();
-    if (normalized === "blocked" || normalized === "failed" || normalized === "error") return "blocked";
-    if (normalized === "running" || normalized === "active") return "running";
-    if (normalized === "ready" || normalized === "ok" || normalized === "match") return "ready";
-    if (normalized === "unknown") return "unknown";
+    const normalized = String(posture || "").trim().toLowerCase();
+    if (normalized === "blocked" || normalized === "failed" || normalized === "error" || normalized === "will fail" || normalized === "forced") return "blocked";
+    if (normalized === "running" || normalized === "active" || normalized === "active work") return "running";
+    if (normalized === "ready" || normalized === "ok" || normalized === "match" || normalized === "normal" || normalized === "all clear") return "ready";
+    if (
+      normalized === "unknown"
+      || normalized === "neutral"
+      || normalized === "not loaded"
+      || normalized === "needs evidence"
+      || normalized === "evidence incomplete"
+      || normalized === "no history"
+      || normalized === "no command history"
+      || normalized === "loading"
+      || normalized === "stale"
+      || normalized === "stale evidence"
+    ) return "unknown";
     return "warning";
   }
 
   function launchCompactGateValue(status) {
     const normalized = String(status || "").toLowerCase();
     if (normalized === "ready") return "OK";
+    if (normalized === "blocked") return "Will Fail";
+    if (normalized === "running") return "Active";
+    if (normalized === "unknown") return "Needs Evidence";
+    return "At Risk";
+  }
+
+  function launchCompactGateDefaultNote(status) {
+    const normalized = String(status || "").toLowerCase();
+    if (normalized === "ready") return "Clear";
     if (normalized === "blocked") return "Blocked";
     if (normalized === "running") return "Active";
-    return "Review";
+    if (normalized === "unknown") return "Not loaded";
+    return "At Risk";
   }
 
   function launchCompactGateRow(key, label, status, note, summary, detail = [], target = {}) {
     const stateValue = launchCompactGateState(status);
+    const safeTarget = target && typeof target === "object" ? target : {};
     return {
       key,
       label,
       status: stateValue,
       value: launchCompactGateValue(stateValue),
-      note: note || (stateValue === "ready" ? "OK" : stateValue === "blocked" ? "Blocked" : "Review"),
+      note: note || launchCompactGateDefaultNote(stateValue),
       summary,
       detail: Array.isArray(detail) ? detail.filter(Boolean) : [],
-      target: target && typeof target === "object" ? target : {},
+      target: safeTarget,
+      required: safeTarget.required !== false,
     };
+  }
+
+  function launchCompactGateRequiredRows(rows = []) {
+    return (Array.isArray(rows) ? rows : []).filter((row) => row?.required !== false);
+  }
+
+  function launchCompactGateHeaderState(status) {
+    return launchCompactGateState(status);
   }
 
   function launchCompactGateActionLabel(row) {
     const target = row?.target || {};
     return target.label || "Select this gate to open and highlight its owner evidence.";
+  }
+
+  function launchCompactGateActivateTargetTab(pageId, tabId) {
+    if (!tabId) return;
+    if (pageId === "launch" && typeof activateLaunchTab === "function") {
+      activateLaunchTab(tabId, { persist: false });
+      return;
+    }
+    const page = Array.from(document.querySelectorAll("[data-page-panel]"))
+      .find((node) => node.dataset?.pagePanel === pageId);
+    if (!page) return;
+    const tabDatasetKey = pageId === "diagnostics" ? "diagTab" : "";
+    if (!tabDatasetKey) return;
+    if (pageId === "diagnostics") {
+      const buttons = Array.from(page.querySelectorAll(".settings-tab-btn[data-diag-tab]"));
+      const panels = Array.from(page.querySelectorAll(".settings-tab-pane[data-diag-tab]"));
+      if (!buttons.length || !panels.length) return;
+      const selected = buttons.some((button) => button.dataset.diagTab === tabId) ? tabId : "triage";
+      buttons.forEach((button) => {
+        const active = button.dataset.diagTab === selected;
+        button.setAttribute("aria-selected", String(active));
+      });
+      panels.forEach((panel) => {
+        panel.classList.toggle("is-active", panel.dataset.diagTab === selected);
+      });
+      try { localStorage.setItem("mediapipeline-diag-tab", selected); } catch (_) {}
+      if (typeof window.mediaPipelineAppLifecycle?.syncTabAccessibility === "function") window.mediaPipelineAppLifecycle.syncTabAccessibility();
+      if (typeof updatePagePanelEmptyStates === "function") updatePagePanelEmptyStates();
+      return;
+    }
+    const button = Array.from(page.querySelectorAll(".settings-tab-btn"))
+      .find((node) => node.dataset?.[tabDatasetKey] === tabId);
+    if (button && typeof button.click === "function") button.click();
   }
 
   function launchCompactGateQueryTarget(target = {}) {
@@ -865,8 +929,9 @@
 
   function launchCompactGateOpenTarget(row) {
     const target = row?.target || {};
-    if (target.page && typeof showPage === "function") showPage(target.page);
-    if (target.tab && typeof activateLaunchTab === "function") activateLaunchTab(target.tab, { persist: false });
+    const showPageFn = typeof showPage === "function" ? showPage : window.showPage;
+    if (target.page && typeof showPageFn === "function") showPageFn(target.page);
+    launchCompactGateActivateTargetTab(target.page || "", target.tab || "");
     let node = launchCompactGateQueryTarget(target);
     launchCompactGateRevealTarget(node);
     if (node?.matches?.("tr[data-selectable-row='true']")) {
@@ -878,7 +943,7 @@
       launchCompactGateHighlightTarget(node);
       setText("pipeline-compact-gate-detail", `${row.label}: ${row.value}. ${row.summary} ${launchCompactGateActionLabel(row)} Backend start remains authoritative.`);
     } else {
-      setText("pipeline-compact-gate-detail", `${row?.label || "Gate"}: ${row?.value || "Review"}. Target evidence is not rendered yet. Refresh and retry this gate. Backend start remains authoritative.`);
+      setText("pipeline-compact-gate-detail", `${row?.label || "Gate"}: ${row?.value || "Needs Evidence"}. Target evidence is not rendered yet. Refresh and retry this gate. Backend start remains authoritative.`);
     }
   }
 
@@ -909,6 +974,38 @@
     return launchStartDecisionWorstPosture([...settingsPostures, ...policyPostures]);
   }
 
+  function launchCompactGateBackendActiveWorkBlock(row) {
+    const tokens = [
+      row?.checkKey,
+      row?.key,
+      row?.check,
+    ].map((item) => String(item || "").trim().toLowerCase()).filter(Boolean);
+    return tokens.some((token) => (
+      token === "active_work"
+      || token.endsWith(":active_work")
+      || token === "process_launch_lock"
+      || token.endsWith(":process_launch_lock")
+      || token.includes("active work")
+      || token.includes("launch lock")
+    ));
+  }
+
+  function launchCompactGateBackendActiveWorkOnly(rows = []) {
+    const blockedRows = (Array.isArray(rows) ? rows : []).filter((row) => launchCompactGateState(row?.posture) === "blocked");
+    return blockedRows.length > 0 && blockedRows.every(launchCompactGateBackendActiveWorkBlock);
+  }
+
+  function launchCompactGateQueueBlockedOnlyByActiveWork(queueRows = [], backendRows = []) {
+    const blockedRows = (Array.isArray(queueRows) ? queueRows : []).filter((row) => {
+      const posture = typeof queueLaunchDecisionPostureStatus === "function"
+        ? queueLaunchDecisionPostureStatus(row?.posture)
+        : String(row?.posture || "").toLowerCase();
+      return launchCompactGateState(posture) === "blocked";
+    });
+    if (!blockedRows.length || !launchCompactGateBackendActiveWorkOnly(backendRows)) return false;
+    return blockedRows.every((row) => String(row?.key || "").toLowerCase() === "backend-launch-preflight");
+  }
+
   function launchCompactGateRows(request = collectPipelineStartRequest(), payload = launchSettingsIntentPayload()) {
     const context = launchSettingsIntentPayload(payload);
     const history = typeof getCommandHistory === "function" ? getCommandHistory() : [];
@@ -917,7 +1014,6 @@
     const pipelineBackendPreflight = launchBackendPreflightPayloadForTarget("pipeline");
     const pipelineBackendPayloads = pipelineBackendPreflight ? [pipelineBackendPreflight] : [];
     const backendRows = launchBackendPreflightRows(pipelineBackendPayloads);
-    const backendNonReady = backendRows.filter((row) => String(row?.posture || "").toLowerCase() !== "ready");
     const backendFetchFailures = getLastLaunchBackendPreflightRefreshInfo().fetch_failure_count || 0;
 
     const rows = [];
@@ -930,30 +1026,52 @@
         "Refresh Backend Preflight before submitting normal start modes.",
         ["No cached Pipeline backend preflight is loaded for the current form state."],
         {
-          page: "launch",
+          page: "diagnostics",
           tab: "readiness",
           selector: "#launch-backend-preflight-refresh-button",
           fallbackSelector: "#launch-backend-preflight-summary",
-          label: "Opened Launch > Readiness > Backend Preflight. Refresh the backend preflight checks.",
+          label: "Opened Diagnostics > Readiness > Backend Preflight. Refresh the backend preflight checks.",
         },
       ));
     } else {
       const backendStatus = launchBackendPreflightOverallStatus(pipelineBackendPayloads);
+      const backendActiveWorkOnly = launchCompactGateBackendActiveWorkOnly(backendRows);
+      const backendBlocked = !backendActiveWorkOnly && (pipelineBackendPreflight?.can_request_start === false
+        || String(pipelineBackendPreflight?.status || "").toLowerCase() === "blocked"
+        || backendRows.some((row) => launchCompactGateState(row?.posture) === "blocked"));
+      const backendReviewRows = backendRows.filter((row) => launchCompactGateState(row?.posture) === "warning");
+      const backendUnknownRows = backendRows.filter((row) => launchCompactGateState(row?.posture) === "unknown");
+      const backendGateStatus = backendActiveWorkOnly && !backendReviewRows.length && !backendUnknownRows.length
+        ? "running"
+        : backendBlocked
+        ? "blocked"
+        : (backendReviewRows.length ? "warning" : launchStartDecisionPostureFromStatus(backendStatus));
+      const backendGateState = launchCompactGateState(backendGateStatus);
       rows.push(launchCompactGateRow(
         "backend",
         "Backend",
-        launchStartDecisionPostureFromStatus(backendStatus),
-        backendNonReady.length ? `Warn ${backendNonReady.length}` : `${backendRows.length || 0} checks`,
-        backendNonReady.length
-          ? "Backend preflight has non-ready checks; normal Start Pipeline remains blocked by existing backend gate logic if any check is blocked."
-          : "Backend preflight is ready-looking; backend start still re-checks state at submission time.",
+        backendGateStatus,
+        backendGateState === "running"
+          ? "Active"
+          : backendBlocked
+          ? "Blocked"
+          : (backendGateState === "warning" ? `At Risk ${backendReviewRows.length || 1}` : (backendGateState === "unknown" ? "Needs Evidence" : `${backendRows.length || 0} checks`)),
+        backendGateState === "running"
+          ? "Backend preflight is blocking duplicate starts because active work is already running; this is expected during normal processing."
+          : backendBlocked
+          ? "Backend preflight would reject normal Start Pipeline now; backend start remains authoritative."
+          : (backendGateState === "warning"
+            ? "Backend preflight has review checks that may affect launch; backend start remains authoritative."
+            : (backendGateState === "unknown" || backendUnknownRows.length
+              ? "Backend preflight evidence is incomplete; refresh before trusting the cached posture."
+              : "Backend preflight is ready-looking; backend start still re-checks state at submission time.")),
         launchBackendPreflightSummaryLines(pipelineBackendPayloads),
         {
-          page: "launch",
+          page: "diagnostics",
           tab: "readiness",
           rowSelector: "#launch-backend-preflight-rows tr[data-selectable-row='true']:not([data-status='match'])",
           fallbackSelector: "#launch-backend-preflight-summary",
-          label: "Opened Launch > Readiness > Backend Preflight and selected the first non-ready check.",
+          label: "Opened Diagnostics > Readiness > Backend Preflight and selected the first non-ready check.",
         },
       ));
     }
@@ -968,13 +1086,41 @@
         : String(row.posture || "").toLowerCase();
       return !["ready", "normal", "match"].includes(posture);
     });
+    const queueNonReadyStates = queueNonReady.map((row) => {
+      const posture = typeof queueLaunchDecisionPostureStatus === "function"
+        ? queueLaunchDecisionPostureStatus(row.posture)
+        : row.posture;
+      return launchCompactGateState(posture);
+    });
+    const queueBlocked = queueNonReadyStates.includes("blocked");
+    const queueAtRisk = queueNonReadyStates.includes("warning");
+    const queueNeedsEvidence = !queueRows.length || queueNonReadyStates.includes("unknown");
+    const queueActiveWorkOnly = queueBlocked
+      && !queueAtRisk
+      && !queueNeedsEvidence
+      && launchCompactGateQueueBlockedOnlyByActiveWork(queueNonReady, backendRows);
+    const queueGateStatus = !queueRows.length
+      ? "unknown"
+      : (queueActiveWorkOnly ? "running" : (queueBlocked ? "blocked" : (queueAtRisk ? "warning" : (queueNeedsEvidence ? "unknown" : launchStartDecisionPostureFromStatus(queueStatus)))));
+    const queueGateState = launchCompactGateState(queueGateStatus);
+    const queueIssueCount = queueNonReady.length || 1;
     rows.push(launchCompactGateRow(
       "queue",
       "Queue",
-      launchStartDecisionPostureFromStatus(queueStatus),
-      queueRows.length ? `Queue ${queueRows.length}` : "Review Queue",
+      queueGateStatus,
       queueRows.length
-        ? (queueNonReady.length ? `Queue has ${queueNonReady.length} launch handoff item(s) to review.` : "Queue handoff is ready-looking; backend owns actual launch scope.")
+        ? (queueGateState === "running" ? "Active" : (queueGateState === "blocked" ? "Blocked" : (queueGateState === "warning" ? `At Risk ${queueIssueCount}` : (queueGateState === "unknown" ? "Needs Evidence" : `Queue ${queueRows.length}`))))
+        : "Not loaded",
+      queueRows.length
+        ? (queueGateState === "running"
+          ? "Queue launch handoff is paused by active backend work; no queue-specific compact blocker is indicated."
+          : (queueGateState === "blocked"
+          ? `Queue has ${queueIssueCount} launch handoff item(s) that would block this launch scope.`
+          : (queueGateState === "warning"
+            ? `Queue has ${queueIssueCount} launch handoff item(s) likely to affect this start.`
+            : (queueGateState === "unknown"
+              ? "Queue handoff evidence is incomplete; refresh before trusting visible launch scope."
+              : "Queue handoff is ready-looking; backend owns actual launch scope."))))
         : "Queue evidence is not loaded in this view. Use Refresh to update backend evidence before trusting visible launch scope.",
       typeof queueLaunchDecisionSummaryLines === "function" ? queueLaunchDecisionSummaryLines(queuePayload, queueRows, history) : [],
       {
@@ -990,42 +1136,57 @@
     const policyRows = launchPolicyBoundaryRows();
     const settingsPosture = launchCompactGateSettingsPosture(compactSettingsRows, policyRows);
     const settingsNonReady = launchCompactGateNonReadyCount(compactSettingsRows) + launchCompactGateNonReadyCount(policyRows);
+    const settingsLoaded = Boolean(launchSettingsWorkspace()?.schema_version);
+    const settingsGateState = settingsLoaded ? launchCompactGateState(settingsPosture) : "unknown";
     rows.push(launchCompactGateRow(
       "settings",
       "Settings",
-      settingsPosture,
-      settingsNonReady ? `Warn ${settingsNonReady}` : (launchSettingsWorkspace()?.schema_version ? "Saved" : "Review Settings"),
-      settingsNonReady
-        ? "Saved settings or policy posture needs review before unattended starts."
-        : (launchSettingsWorkspace()?.schema_version ? "Saved settings and policy posture are ready-looking; backend start remains authoritative." : "Saved settings evidence is not loaded in this view. Use Refresh before trusting settings posture."),
+      settingsGateState,
+      settingsLoaded
+        ? (settingsGateState === "blocked" ? "Blocked" : (settingsGateState === "unknown" ? "Needs Evidence" : (settingsGateState === "warning" ? `At Risk ${settingsNonReady || 1}` : "Saved")))
+        : "Not loaded",
+      settingsLoaded
+        ? (settingsGateState === "blocked"
+          ? "Saved settings or policy posture would block this start path."
+          : (settingsGateState === "warning"
+            ? "Saved settings or policy posture has review evidence likely to affect unattended starts."
+            : (settingsGateState === "unknown"
+              ? "Saved settings or policy posture evidence is incomplete; refresh before trusting settings posture."
+              : "Saved settings and policy posture are ready-looking; backend start remains authoritative.")))
+        : "Saved settings evidence is not loaded in this view. Use Refresh before trusting settings posture.",
       [
         ...launchSettingsIntentSummaryLines(compactSettingsRows),
         ...launchPolicyBoundarySummaryLines(policyRows),
       ],
       {
-        page: "launch",
+        page: "diagnostics",
         tab: "readiness",
         rowSelector: "#launch-settings-risk-rows tr[data-selectable-row='true'][data-status='blocked'], #launch-settings-risk-rows tr[data-selectable-row='true'][data-status='warning'], #launch-settings-intent-rows tr[data-selectable-row='true']:not([data-status='match']), #launch-policy-boundary-rows tr[data-selectable-row='true']:not([data-status='match'])",
         fallbackSelector: "#launch-settings-risk-summary",
-        label: "Opened Launch > Readiness > Settings Check and selected the first non-ready settings row.",
+        label: "Opened Diagnostics > Readiness > Settings Check and selected the first non-ready settings row.",
       },
     ));
 
     const timingStatus = typeof launchTimingStatus === "function" ? launchTimingStatus(context, request) : "Unknown";
-    const timingPosture = launchStartDecisionAdvisoryPosture(launchStartDecisionPostureFromStatus(timingStatus));
+    const timingPosture = String(timingStatus || "").toLowerCase().includes("active work")
+      ? "running"
+      : launchStartDecisionPostureFromStatus(timingStatus);
+    const timingState = launchCompactGateState(timingPosture);
     rows.push(launchCompactGateRow(
       "schedule",
       "Schedule",
       timingPosture,
-      request?.schedule_override ? "Override" : (context.schedule ? "Window" : "Review Schedule"),
+      request?.schedule_override
+        ? "Override"
+        : (timingState === "running" ? "Active" : (timingState === "ready" ? "Window" : (timingState === "blocked" ? "Blocked" : (timingState === "unknown" ? "Not loaded" : "At Risk")))),
       `Schedule status is ${timingStatus}; override=${request?.schedule_override || "none"}.`,
       typeof launchTimingTrustLines === "function" ? launchTimingTrustLines(context, request) : [],
       {
-        page: "launch",
+        page: "diagnostics",
         tab: "readiness",
         selector: "#launch-timing",
         fallbackSelector: "#pipeline-start-schedule-override",
-        label: "Opened Launch > Readiness > Schedule Alignment. Use the schedule evidence, wait for the window, or choose an intentional override.",
+        label: "Opened Diagnostics > Readiness > Schedule Alignment. Use the schedule evidence, wait for the window, or choose an intentional override.",
       },
     ));
 
@@ -1038,9 +1199,9 @@
       "active",
       "Active",
       active ? "running" : (closeReadiness || snapshot ? "ready" : "unknown"),
-      active ? "Active" : (closeReadiness || snapshot ? "Idle" : "Review State"),
+      active ? "Active" : (closeReadiness || snapshot ? "Idle" : "Not loaded"),
       active
-        ? "Active backend work is reported; Start controls are disabled by existing close-readiness logic."
+        ? "Active backend work is in progress; Start controls remain disabled to prevent duplicate pipeline starts."
         : (closeReadiness || snapshot ? "No active backend work is visible in the latest loaded state." : "Backend state evidence is not loaded in this view. Use Refresh before starting work."),
       typeof launchReadinessLines === "function"
         ? launchReadinessLines({ snapshot, closeReadiness, schedule: context.schedule || {}, settings: launchSettingsWorkspace(), backendPreflight: pipelineBackendPreflight })
@@ -1073,14 +1234,15 @@
         rowSelector: "#launch-command-review-rows tr[data-selectable-row='true']:not([data-status='match'])",
         fallbackSelector: latestLaunch ? "#launch-history" : "#launch-latest-command-evidence",
         label: latestLaunch ? "Opened Launch > History and selected the first command-review issue." : "Opened Launch command history; no prior launch command issue is available.",
+        required: false,
       },
     ));
 
     if (backendFetchFailures) {
       const backend = rows.find((row) => row.key === "backend");
       if (backend && backend.status === "ready") {
-        backend.status = "warning";
-        backend.value = "Review";
+        backend.status = "unknown";
+        backend.value = launchCompactGateValue("unknown");
       }
       if (backend) {
         backend.note = `Fetch ${backendFetchFailures}`;
@@ -1091,12 +1253,13 @@
   }
 
   function launchCompactGateOverallStatus(rows = launchCompactGateRows()) {
-    const source = Array.isArray(rows) ? rows : [];
-    if (!source.length) return "Review";
-    if (source.some((row) => row.status === "blocked")) return "Blocked";
+    const source = launchCompactGateRequiredRows(rows);
+    if (!source.length) return "Needs Evidence";
+    if (source.some((row) => row.status === "blocked")) return "Will Fail";
     if (source.some((row) => row.status === "running")) return "Active";
-    if (source.some((row) => row.status === "warning" || row.status === "unknown")) return "Review";
-    return "Ready";
+    if (source.some((row) => row.status === "warning")) return "At Risk";
+    if (source.some((row) => row.status === "unknown")) return "Needs Evidence";
+    return "All Clear";
   }
 
   function selectedLaunchCompactGateRow(rows = []) {
@@ -1104,7 +1267,8 @@
     return source.find((row) => row.key === state.selectedLaunchCompactGateKey)
       || source.find((row) => row.status === "blocked")
       || source.find((row) => row.status === "running")
-      || source.find((row) => row.status === "warning" || row.status === "unknown")
+      || source.find((row) => row.status === "warning")
+      || source.find((row) => row.required !== false && row.status === "unknown")
       || source[0]
       || null;
   }
@@ -1123,7 +1287,7 @@
     const overall = launchCompactGateOverallStatus(rows);
     setText("pipeline-compact-gate-status", overall);
     const statusNode = byId("pipeline-compact-gate-status");
-    if (statusNode) statusNode.dataset.state = launchBackendPreflightStatusState(overall);
+    if (statusNode) statusNode.dataset.state = launchCompactGateHeaderState(overall);
     rows.forEach((item) => {
       const button = byId(`pipeline-gate-${item.key}`);
       if (!button) return;

@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0624-013",
+  "title": "Remove home completed detail prose",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Hide the Home page Recent Completed detail prose while keeping the completed-row selection hook available for existing WebView state handling.",
+  "reason": "The selected completed output text was redundant next to the Review Completed action and added visual clutter to the Home page.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Selecting or loading a recent completed output displayed a multi-line note under the Recent Completed table on Home.",
+  "behavior_after": "The Home page keeps the selected-row detail node populated but hidden, so the visual white detail text no longer appears.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-home.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-home.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_home_live_state_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-013.json",
+    "tests/webview/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "manual_validation": [
+    "Select-String hidden check for apps/desktop/webview/static/partials/page-home.html - passed",
+    "apps/desktop/runtime/Python/python.exe -m py_compile tests/webview/test_webview_browser_home_live_state_smoke.py - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_home_live_state_smoke -q - failed before validating this change because the dirty worktree currently makes /api/queue raise QueuePreviewDto.__init__() got an unexpected keyword argument 'total_row_count'",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-home.html tests/webview/test_webview_browser_home_live_state_smoke.py - passed (2 written)",
+    "packet fields updated; static checks passed; browser Home smoke blocked by unrelated /api/queue QueuePreviewDto total_row_count error"
+  ],
+  "rollback_plan": "Remove the hidden attribute from home-recent-completed-detail and revert the matching Home live-state smoke assertion.",
+  "related_changes": [],
+  "notes": "Hide recent completed detail prose from the Home page while retaining the DOM hook.\nAssert the Home recent completed detail remains hidden while selection text stays populated.\nRefresh generated summary after Home live-state smoke assertion update.\nRefresh generated summary after hiding Home recent completed detail prose."
+}

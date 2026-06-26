@@ -143,6 +143,7 @@
     const saveBtn = ctx.byId("fo-drawer-save");
     const clearBtn = ctx.byId("fo-drawer-clear");
     const seriesBtn = ctx.byId("fo-series-preview-open");
+    const seriesClearBtn = ctx.byId("fo-series-clear-open");
     const remuxPilotBtn = ctx.byId("fo-remux-pilot-promote");
     const seriesApplyBtn = ctx.byId("fo-series-apply");
     const seriesCloseBtn = ctx.byId("fo-series-modal-close");
@@ -156,6 +157,7 @@
     if (saveBtn) saveBtn.addEventListener("click", ctx.api.saveFileOverrideForPath);
     if (clearBtn) clearBtn.addEventListener("click", ctx.api.clearFileOverrideForPath);
     if (seriesBtn) seriesBtn.addEventListener("click", ctx.series.requestSeriesPreview);
+    if (seriesClearBtn) seriesClearBtn.addEventListener("click", ctx.series.requestSeriesClearPreview);
     if (remuxPilotBtn) remuxPilotBtn.addEventListener("click", ctx.series.requestRemuxPilotPromotion);
     if (seriesApplyBtn) seriesApplyBtn.addEventListener("click", ctx.series.applySeriesPreview);
     if (seriesCloseBtn) seriesCloseBtn.addEventListener("click", () => ctx.focus.closeSeriesModal());

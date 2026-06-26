@@ -37,6 +37,19 @@ def build_current_work(
     }
 
 
+def build_stale_current_work() -> dict[str, str]:
+    return {
+        "schema_version": CURRENT_WORK_SCHEMA_VERSION,
+        "item_label": "Stale progress from previous run",
+        "phase_label": "Review stale progress",
+        "library_label": "",
+        "queue_label": "",
+        "queue_position_label": "",
+        "route_label": "",
+        "percent_label": "",
+    }
+
+
 def display_current_file(current_file: str) -> str:
     current_file = (current_file or "").strip()
     if not current_file:
@@ -94,6 +107,7 @@ def display_current_file_from_progress(progress: dict[str, Any]) -> str:
 __all__ = [
     "CURRENT_WORK_SCHEMA_VERSION",
     "build_current_work",
+    "build_stale_current_work",
     "display_current_file",
     "display_current_file_from_progress",
 ]

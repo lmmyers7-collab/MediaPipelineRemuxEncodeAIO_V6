@@ -8,6 +8,8 @@
   function noop() {}
 
   const COMPLETED_TABLE_COLUMN_COUNT = 7;
+  const COMPLETED_CURRENT_RENDER_LIMIT = 250;
+  const COMPLETED_HISTORY_RENDER_LIMIT = 500;
 
   function normalizeDeps(deps = {}) {
     return {
@@ -20,8 +22,13 @@
       completedFilteredRows: typeof deps.completedFilteredRows === "function" ? deps.completedFilteredRows : function (rows) { return Array.isArray(rows) ? rows : []; },
       completedInvestigationFilterLabel: typeof deps.completedInvestigationFilterLabel === "function" ? deps.completedInvestigationFilterLabel : function () { return ""; },
       completedLibraryFilterLabel: typeof deps.completedLibraryFilterLabel === "function" ? deps.completedLibraryFilterLabel : function () { return "all libraries"; },
+      completedMetricCounts: typeof deps.completedMetricCounts === "function" ? deps.completedMetricCounts : function (rows) {
+        const currentRows = Array.isArray(rows) ? rows : [];
+        return { current: currentRows.length, encoded: 0, remuxed: 0, missing: 0 };
+      },
       completedOutputPlacement: typeof deps.completedOutputPlacement === "function" ? deps.completedOutputPlacement : function () { return { label: "Current", state: "ok", key: "current" }; },
       completedRiskStatusLine: typeof deps.completedRiskStatusLine === "function" ? deps.completedRiskStatusLine : function () { return "No current output blockers"; },
+      completedReviewRows: typeof deps.completedReviewRows === "function" ? deps.completedReviewRows : function () { return []; },
       completedRowsStatusLine: typeof deps.completedRowsStatusLine === "function" ? deps.completedRowsStatusLine : function (visibleRows, renderedRows, totalRows) {
         return `${visibleRows || renderedRows || 0} / ${totalRows || 0} rows`;
       },
@@ -435,6 +442,113 @@
     return lines;
   }
 
+  function completedCurrentStatusFilterLabel(value) {
+    const normalized = String(value || "all").trim().toLowerCase() || "all";
+    if (normalized === "review") return "review only";
+    if (normalized === "blocked") return "blocked only";
+    if (normalized === "warning") return "warnings only";
+    if (normalized === "ready") return "healthy only";
+    return "all current outputs";
+  }
+
+  function completedCurrentFilterActive(filterText, statusFilter, investigationFilter, libraryFilter) {
+    return Boolean(String(filterText || "").trim())
+      || String(statusFilter || "all").trim().toLowerCase() !== "all"
+      || String(investigationFilter || "all").trim().toLowerCase() !== "all"
+      || normalizedCompletedLibraryFilter(libraryFilter) !== "all";
+  }
+
+  function completedCurrentReviewCount(ctx, currentRows) {
+    const reviewRows = ctx.completedReviewRows(ctx.state.lastCompletedPayload || {}, currentRows);
+    if (Array.isArray(reviewRows)) return reviewRows.length;
+    return (Array.isArray(currentRows) ? currentRows : []).filter((row) => {
+      const status = String(ctx.completedDisplayRowStatus(row) || "").trim().toLowerCase();
+      return ["blocked", "failed", "warning", "unknown"].includes(status);
+    }).length;
+  }
+
+  function completedMetricNumber(value) {
+    const numberValue = Number(value);
+    return Number.isFinite(numberValue) ? numberValue : 0;
+  }
+
+  function appendCompletedCurrentMetric(container, label, value, state, detail = "") {
+    const metric = document.createElement("span");
+    metric.className = "completed-current-metric";
+    metric.dataset.state = state || "empty";
+    const labelNode = document.createElement("span");
+    labelNode.className = "completed-current-metric-label";
+    labelNode.textContent = label;
+    const valueNode = document.createElement("strong");
+    valueNode.className = "completed-current-metric-value";
+    valueNode.textContent = value;
+    metric.append(labelNode, valueNode);
+    if (detail) {
+      const detailNode = document.createElement("span");
+      detailNode.className = "completed-current-metric-detail";
+      detailNode.textContent = detail;
+      metric.appendChild(detailNode);
+    }
+    container.appendChild(metric);
+  }
+
+  function completedCurrentFilterText(ctx, options) {
+    const filterParts = [];
+    const filterText = String(options.filterText || "").trim();
+    const statusLabel = completedCurrentStatusFilterLabel(options.statusFilter);
+    const investigationLabel = ctx.completedInvestigationFilterLabel(options.investigationFilter);
+    const libraryFilter = normalizedCompletedLibraryFilter(options.libraryFilter);
+    const libraryLabel = libraryFilter === "all" ? "all libraries" : ctx.completedLibraryFilterLabel(libraryFilter);
+    if (filterText) filterParts.push(`text="${filterText}"`);
+    if (statusLabel !== "all current outputs") filterParts.push(`status=${statusLabel}`);
+    if (String(options.investigationFilter || "all").trim().toLowerCase() !== "all") {
+      filterParts.push(`view=${investigationLabel}`);
+    }
+    if (libraryFilter !== "all") filterParts.push(`library=${libraryLabel}`);
+    return filterParts.length ? filterParts.join("; ") : "none";
+  }
+
+  function renderCompletedCurrentAtAGlance(ctx, options) {
+    const currentRows = Array.isArray(options.currentRows) ? options.currentRows : [];
+    const visibleRows = Array.isArray(options.visibleRows) ? options.visibleRows : [];
+    const metricCounts = ctx.completedMetricCounts(ctx.state.lastCompletedRows || currentRows) || {};
+    const reviewCount = completedCurrentReviewCount(ctx, currentRows);
+    const hiddenReviewRows = completedHiddenReviewRows(ctx, currentRows, visibleRows);
+    const filterActive = completedCurrentFilterActive(
+      options.filterText,
+      options.statusFilter,
+      options.investigationFilter,
+      options.libraryFilter,
+    );
+    const encoded = completedMetricNumber(metricCounts.encoded);
+    const remuxed = completedMetricNumber(metricCounts.remuxed);
+    const missing = completedMetricNumber(metricCounts.missing);
+    const filterValue = filterActive ? `${visibleRows.length}/${currentRows.length}` : "none";
+    const filterState = hiddenReviewRows > 0 ? "warning" : (filterActive ? "active" : "ok");
+
+    const atAGlance = ctx.byId("completed-current-at-a-glance");
+    if (atAGlance) {
+      atAGlance.replaceChildren();
+      appendCompletedCurrentMetric(atAGlance, "Review", String(reviewCount), reviewCount > 0 ? "warning" : "ok", "current outputs");
+      appendCompletedCurrentMetric(atAGlance, "Present", String(currentRows.length), currentRows.length ? "ok" : "empty", "expected destination");
+      appendCompletedCurrentMetric(atAGlance, "Filters", filterValue, filterState, hiddenReviewRows > 0 ? `${hiddenReviewRows} review hidden` : "");
+      const meta = document.createElement("span");
+      meta.className = "completed-current-meta";
+      meta.textContent = `Route mix: ${encoded} encode / ${remuxed} remux · History not currently present: ${missing}`;
+      atAGlance.appendChild(meta);
+    }
+
+    const filterLine = ctx.byId("completed-current-filter-line");
+    if (filterLine) {
+      const hiddenText = hiddenReviewRows > 0 ? ` · Hidden review/blocker rows: ${hiddenReviewRows}` : "";
+      filterLine.textContent = [
+        `Filters: ${completedCurrentFilterText(ctx, options)}`,
+        `Showing ${visibleRows.length} of ${currentRows.length} current outputs${hiddenText}`,
+      ].join(" · ");
+      filterLine.dataset.state = filterState;
+    }
+  }
+
   function renderCurrentFilterSummary(ctx, currentRows, rows, filterText, statusFilter, investigationFilter, libraryFilter) {
     if (typeof ctx.filterResultSummaryLines !== "function") return;
     ctx.setText("completed-filter-summary", completedSummaryLinesWithLibrary(ctx, {
@@ -447,7 +561,7 @@
       libraryFilter,
       investigationLabel: ctx.completedInvestigationFilterLabel(investigationFilter),
       statusOf: ctx.completedDisplayRowStatus,
-      limit: 250,
+      limit: COMPLETED_CURRENT_RENDER_LIMIT,
       decisionName: "rerun, cleanup, or library",
       guardrail: "Mutation guardrail: filtering Current Output Status does not mark outputs accepted, reconcile sidecars, rerun files, delete files, or change backend manifests.",
     }).join("\n"));
@@ -464,7 +578,7 @@
       investigationFilter,
       investigationLabel: ctx.completedInvestigationFilterLabel(investigationFilter),
       statusOf: ctx.completedDisplayRowStatus,
-      limit: 250,
+      limit: COMPLETED_HISTORY_RENDER_LIMIT,
       decisionName: "rerun, cleanup, or library",
       guardrail: "Mutation guardrail: filtering Completed history does not mark outputs accepted, reconcile sidecars, rerun files, delete files, or change backend manifests.",
     }).join("\n"));
@@ -480,13 +594,21 @@
     const libraryFilter = ctx.syncCompletedLibraryFilterOptions(currentRows);
     const filteredRows = ctx.completedFilteredRows(currentRows, filterText, statusFilter, investigationFilter, libraryFilter);
     const rows = Array.isArray(filteredRows) ? filteredRows : [];
-    const renderLimit = 250;
+    const renderLimit = COMPLETED_CURRENT_RENDER_LIMIT;
     const renderedCount = Math.min(rows.length, renderLimit);
     const riskStatus = ctx.completedRiskStatusLine(ctx.state.lastCompletedPayload, lastCompletedRows);
     const rowsStatus = ctx.completedRowsStatusLine(rows.length, renderedCount, currentRows.length, renderLimit);
     ctx.setText("completed-status", `${riskStatus} / ${rowsStatus}`);
     ctx.setText("completed-current-status", rowsStatus);
     renderCurrentFilterSummary(ctx, currentRows, rows, filterText, statusFilter, investigationFilter, libraryFilter);
+    renderCompletedCurrentAtAGlance(ctx, {
+      currentRows,
+      visibleRows: rows,
+      filterText,
+      statusFilter,
+      investigationFilter,
+      libraryFilter,
+    });
     ctx.renderCompletedTrustDecision({
       payload: ctx.state.lastCompletedPayload,
       allRows: lastCompletedRows,
@@ -521,7 +643,7 @@
     const statusFilter = ctx.byId("completed-history-status-filter")?.value || "all";
     const investigationFilter = ctx.byId("completed-history-investigation-filter")?.value || "all";
     const rows = ctx.completedFilteredRows(lastCompletedRows, filterText, statusFilter, investigationFilter);
-    const renderLimit = 250;
+    const renderLimit = COMPLETED_HISTORY_RENDER_LIMIT;
     const renderedCount = Math.min(rows.length, renderLimit);
     const rowsStatus = ctx.completedRowsStatusLine(rows.length, renderedCount, lastCompletedRows.length, renderLimit);
     ctx.setText("completed-history-status", rowsStatus);

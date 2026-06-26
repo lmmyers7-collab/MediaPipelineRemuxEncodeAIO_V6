@@ -3,9 +3,9 @@ file: docs/change_control/CURRENT_VERSION.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-26
 last_reviewed: 2026-06-04
-sha256: 30582cdb28c539a50ee74b8dd46955dfa5ed1ee728c37995d937e543ea36ac73
+sha256: 826deb2f1cd6326fc7f2de8c6a4157f04c0a21907e5bb255cb5398fec0d85652
 ---
 # `docs/change_control/CURRENT_VERSION.md`
 

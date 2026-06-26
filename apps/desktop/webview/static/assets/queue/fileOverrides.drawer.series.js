@@ -34,6 +34,7 @@
     function loadFileOverrideEffectiveForPath(path, item) { return ctx.api.loadFileOverrideEffectiveForPath(path, item); }
     function closeFileSettingsDrawer() { return ctx.closeFileSettingsDrawer(); }
     function markDrawerClean() { return ctx.form.markDrawerClean(); }
+    function confirmDiscardDrawerChanges(action) { return ctx.form.confirmDiscardDrawerChanges(action); }
 
   function buildSeriesProposedOverridePayload() {
     const payload = buildOverridePayload();
@@ -54,7 +55,26 @@
     el.setAttribute("aria-live", resolvedTone === "error" ? "assertive" : "polite");
   }
 
-  function resetSeriesPreviewState() {
+  function seriesPreviewOperation(payload) {
+    const operation = String(payload?.operation || state.foSeriesPreviewOperation || "apply").trim();
+    return operation === "clear" ? "clear" : "apply";
+  }
+
+  function setSeriesModalMode(operation) {
+    const mode = operation === "clear" ? "clear" : "apply";
+    state.foSeriesPreviewOperation = mode;
+    const title = byId("fo-series-modal-title");
+    const applyButton = byId("fo-series-apply");
+    const updateFilter = document.querySelector('[data-fo-series-filter="will_update"]');
+    const protectedFilter = document.querySelector('[data-fo-series-filter="protected"]');
+    if (title) title.textContent = mode === "clear" ? "Clear Series Overrides" : "Apply Override to Series";
+    if (applyButton) applyButton.textContent = mode === "clear" ? "Clear From Series" : "Apply to Series";
+    if (updateFilter) updateFilter.textContent = mode === "clear" ? "Will clear" : "Will update";
+    if (protectedFilter) protectedFilter.textContent = mode === "clear" ? "Unchanged" : "Protected";
+  }
+
+  function resetSeriesPreviewState(operation = "apply") {
+    setSeriesModalMode(operation);
     state.foSeriesPreviewPayload = null;
     state.foSeriesFilter = "all";
     document.querySelectorAll("[data-fo-series-filter]").forEach((button) => {
@@ -117,6 +137,10 @@
       will_update: "Will update",
       replace_prior_batch: "Replace batch",
       protected_manual: "Protected",
+      clear_batch: "Clear batch",
+      clear_manual: "Clear manual",
+      inherited: "Inherited",
+      no_override: "No exact override",
       skipped: "Skipped",
       issue: "Issue",
     };
@@ -124,9 +148,10 @@
   }
 
   function seriesActionTone(action) {
-    if (action === "protected_manual") return "warning";
+    if (action === "protected_manual" || action === "inherited") return "warning";
     if (action === "issue") return "error";
     if (action === "skipped") return "warning";
+    if (action === "no_override") return "";
     return "success";
   }
 
@@ -140,8 +165,10 @@
   function seriesRowVisible(row) {
     const action = String(row?.action || "");
     if (state.foSeriesFilter === "all") return true;
-    if (state.foSeriesFilter === "will_update") return action === "will_update" || action === "replace_prior_batch";
-    if (state.foSeriesFilter === "protected") return action === "protected_manual";
+    if (state.foSeriesFilter === "will_update") {
+      return ["will_update", "replace_prior_batch", "clear_batch", "clear_manual"].includes(action);
+    }
+    if (state.foSeriesFilter === "protected") return ["protected_manual", "inherited", "no_override"].includes(action);
     if (state.foSeriesFilter === "issues") return action === "issue";
     return true;
   }
@@ -204,6 +231,9 @@
     const data = isPlainObject(payload) ? payload : {};
     const counts = isPlainObject(data.counts) ? data.counts : {};
     const detected = isPlainObject(data.detected) ? data.detected : {};
+    const operation = seriesPreviewOperation(data);
+    const isClear = operation === "clear";
+    setSeriesModalMode(operation);
 
     if (summary) summary.textContent = String(data.message || "Series preview loaded.");
     [detectedEl, fieldsEl, countsEl, issuesEl].forEach((el) => { if (el) el.replaceChildren(); });
@@ -213,15 +243,25 @@
     appendSeriesChip(detectedEl, `Confidence: ${detected.confidence || "unknown"}`);
 
     const proposedFields = Array.isArray(data.proposed_fields) ? data.proposed_fields : [];
-    if (proposedFields.length) {
+    if (isClear) {
+      appendSeriesChip(fieldsEl, "Exact file override entries");
+      appendSeriesChip(fieldsEl, "Folder and inherited rules stay unchanged", "warning");
+    } else if (proposedFields.length) {
       proposedFields.forEach((field) => appendSeriesChip(fieldsEl, fieldPathLabel(field)));
     } else {
       appendSeriesChip(fieldsEl, "No proposed fields", "warning");
     }
 
-    appendSeriesChip(countsEl, `Will update: ${counts.will_update || 0}`);
-    appendSeriesChip(countsEl, `Replace batch: ${counts.replace_prior_batch || 0}`);
-    appendSeriesChip(countsEl, `Protected: ${counts.protected_manual || 0}`, counts.protected_manual ? "warning" : "");
+    if (isClear) {
+      appendSeriesChip(countsEl, `Clear batch: ${counts.clear_batch || 0}`);
+      appendSeriesChip(countsEl, `Clear manual: ${counts.clear_manual || 0}`);
+      appendSeriesChip(countsEl, `Inherited: ${counts.inherited || 0}`, counts.inherited ? "warning" : "");
+      appendSeriesChip(countsEl, `No exact override: ${counts.no_override || 0}`);
+    } else {
+      appendSeriesChip(countsEl, `Will update: ${counts.will_update || 0}`);
+      appendSeriesChip(countsEl, `Replace batch: ${counts.replace_prior_batch || 0}`);
+      appendSeriesChip(countsEl, `Protected: ${counts.protected_manual || 0}`, counts.protected_manual ? "warning" : "");
+    }
     appendSeriesChip(countsEl, `Skipped: ${counts.skipped || 0}`, counts.skipped ? "warning" : "");
     appendSeriesChip(countsEl, `Issues: ${counts.issue || 0}`, counts.issue ? "error" : "");
 
@@ -235,7 +275,10 @@
     if (applyButton) {
       applyButton.disabled = state.foCommandInFlight || !data.ok || blockers.length > 0 || !String(data.preview_fingerprint || "").trim();
     }
-    setSeriesStatus(data.ok ? "Review the affected rows before applying." : "Preview has blockers.", data.ok ? "info" : "error");
+    setSeriesStatus(
+      data.ok ? `Review the affected rows before ${isClear ? "clearing" : "applying"}.` : "Preview has blockers.",
+      data.ok ? "info" : "error",
+    );
   }
 
   function selectedPilotSourcePaths() {
@@ -382,7 +425,90 @@
     }
   }
 
+  async function requestSeriesClearPreview() {
+    if (state.foCommandInFlight) { setStatus("File override command already in progress."); return; }
+    if (!state.foCurrentPath) { setStatus("No file selected."); return; }
+    if (!byId("fo-series-auto-detect")?.checked) {
+      setStatus("Enable Auto-detect series scope before previewing a series clear.", "warning");
+      return;
+    }
+    if (!confirmDiscardDrawerChanges("preview clearing series overrides")) return;
+
+    resetSeriesPreviewState("clear");
+    state.foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
+    setStatus("Previewing series override clear...");
+    try {
+      const result = await apiPost("/api/queue/file-overrides/series-clear-preview", {
+        path: state.foCurrentPath,
+      });
+      state.foSeriesPreviewPayload = result;
+      renderSeriesPreview(result);
+      openSeriesModal(byId("fo-series-clear-open"));
+      if (result && result.ok) {
+        setStatus("Series clear preview loaded.");
+      } else {
+        setStatus("Error: " + backendErrorMessage(result, "Series clear preview failed."), "error");
+      }
+    } catch (err) {
+      setStatus("Error previewing series clear: " + (err.message || err), "error");
+      setSeriesStatus("Error previewing series clear: " + (err.message || err), "error");
+    } finally {
+      state.foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+      if (state.foSeriesPreviewPayload) renderSeriesPreview(state.foSeriesPreviewPayload);
+    }
+  }
+
+  async function applySeriesClearPreview() {
+    if (state.foCommandInFlight) { setSeriesStatus("File override command already in progress.", "warning"); return; }
+    if (!state.foCurrentPath) { setSeriesStatus("No file selected.", "error"); return; }
+    if (!state.foSeriesPreviewPayload || !state.foSeriesPreviewPayload.ok) {
+      setSeriesStatus("Preview the series before clearing.", "warning");
+      return;
+    }
+    const fingerprint = String(state.foSeriesPreviewPayload.preview_fingerprint || "").trim();
+    if (!fingerprint) {
+      setSeriesStatus("Preview fingerprint is missing; preview again.", "error");
+      return;
+    }
+
+    state.foCommandInFlight = true;
+    setDrawerCommandButtonsDisabled(true);
+    setSeriesStatus("Clearing series overrides...");
+    setStatus("Clearing series overrides...");
+    try {
+      const result = await apiPost("/api/queue/file-overrides/series-clear-apply", {
+        path: state.foCurrentPath,
+        confirm_apply: true,
+        preview_fingerprint: fingerprint,
+      });
+      if (!(result && result.ok)) {
+        setSeriesStatus("Error: " + backendErrorMessage(result, "Series clear failed."), "error");
+        setStatus("Error: " + backendErrorMessage(result, "Series clear failed."), "error");
+        return;
+      }
+      appendCommandResultFn(result);
+      await refreshAllFn();
+      await loadFileOverrideEffectiveForPath(state.foCurrentPath, state.foCurrentItem);
+      markDrawerClean();
+      setStatus(result.message || "Series overrides cleared.");
+      closeSeriesModal({ restoreFocus: false, restoreDrawer: false });
+      closeFileSettingsDrawer();
+    } catch (err) {
+      setSeriesStatus("Error clearing series overrides: " + (err.message || err), "error");
+      setStatus("Error clearing series overrides: " + (err.message || err), "error");
+    } finally {
+      state.foCommandInFlight = false;
+      setDrawerCommandButtonsDisabled(false);
+    }
+  }
+
   async function applySeriesPreview() {
+    if (seriesPreviewOperation(state.foSeriesPreviewPayload) === "clear") {
+      await applySeriesClearPreview();
+      return;
+    }
     if (state.foCommandInFlight) { setSeriesStatus("File override command already in progress.", "warning"); return; }
     if (!state.foCurrentPath) { setSeriesStatus("No file selected.", "error"); return; }
     if (!state.foSeriesPreviewPayload || !state.foSeriesPreviewPayload.ok) {
@@ -443,6 +569,7 @@
       renderRemuxPilotPromotionResult,
       syncRemuxPilotPromotionState,
       requestSeriesPreview,
+      requestSeriesClearPreview,
       applySeriesPreview,
       requestRemuxPilotPromotion,
     };

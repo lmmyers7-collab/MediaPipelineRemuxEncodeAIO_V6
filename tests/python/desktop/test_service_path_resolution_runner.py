@@ -44,6 +44,16 @@ class DummyPathResolutionService:
         return first_existing(*paths)
 
 
+class DummyAuthorityPathResolutionService(DummyPathResolutionService):
+    def __init__(self, app_root: Path, config_data: dict[str, Any]) -> None:
+        super().__init__(app_root, config_data)
+        self.loaded_authority_request: tuple[Path, str | None] | None = None
+
+    def load_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, Any]:
+        self.loaded_authority_request = (config_path, powershell_host)
+        return dict(self.config_data)
+
+
 class ServicePathResolutionRunnerTests(unittest.TestCase):
     def test_resolve_paths_without_local_base_uses_app_audit_fallback_and_priority_markers(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
@@ -100,6 +110,28 @@ class ServicePathResolutionRunnerTests(unittest.TestCase):
             self.assertEqual(resolved.queue_snapshot_path, local_base / "State" / "Progress" / "queue_snapshot.json")
             self.assertEqual(resolved.completed_manifest_path, local_base / "State" / "Completed" / "completed_jobs.jsonl")
             self.assertEqual(resolved.priority_markers, ["!", "[NOW]"])
+
+    def test_resolve_paths_prefers_settings_authority_for_active_config(self) -> None:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            root = Path(temp_dir)
+            app_root = root / "DesktopApp"
+            app_root.mkdir()
+            local_base = root / "Scratch"
+            service = DummyAuthorityPathResolutionService(
+                app_root,
+                {
+                    "LocalBase": str(local_base),
+                    "SourceMovies": str(root / "Movies"),
+                    "SourceTV": str(root / "TV"),
+                },
+            )
+            config_path = root / "Config.psd1"
+
+            resolved = resolve_paths_for_service(service, str(root / "Pipeline.ps1"), str(config_path))
+
+            self.assertEqual(resolved.local_base, local_base)
+            self.assertEqual(service.loaded_authority_request, (config_path, "pwsh-test"))
+            self.assertIsNone(service.loaded_config_request)
 
 
 if __name__ == "__main__":

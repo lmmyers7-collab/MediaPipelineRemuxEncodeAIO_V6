@@ -406,6 +406,14 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             "_file_overrides_series_apply_payload",
         )
         self.assertEqual(
+            POST_ROUTE_HANDLERS["/api/queue/file-overrides/series-clear-preview"].method_name,
+            "_file_overrides_series_clear_preview_payload",
+        )
+        self.assertEqual(
+            POST_ROUTE_HANDLERS["/api/queue/file-overrides/series-clear-apply"].method_name,
+            "_file_overrides_series_clear_apply_payload",
+        )
+        self.assertEqual(
             POST_ROUTE_HANDLERS["/api/queue/file-overrides/remux-pilot-promote"].method_name,
             "_file_overrides_remux_pilot_promote_payload",
         )
@@ -490,6 +498,81 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertIn(FILE_OVERRIDE_BATCH_METADATA_KEY, special_entry)
         self.assertNotIn(FILE_OVERRIDE_BATCH_METADATA_KEY, manual_entry)
         self.assertNotEqual(special_entry[FILE_OVERRIDE_BATCH_METADATA_KEY]["batch_id"], "series-old")
+
+    def test_series_clear_preview_and_apply_clear_exact_current_series_entries_only(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            tv_root = resolved.source_tv  # type: ignore[assignment]
+            alt_tv_root = root / "AltTV"
+            rows = [
+                _tv_snapshot_row(tv_root, "Example Show", "Season 01", "Example.Show.S01E01.mkv", season_number=1, episode_number=1),
+                _tv_snapshot_row(tv_root, "Example Show", "Season 01", "Example.Show.S01E02.mkv", season_number=1, episode_number=2),
+                _tv_snapshot_row(tv_root, "Example Show", "Specials", "Example.Show.S00E01.mkv", season_number=0, episode_number=1),
+                _tv_snapshot_row(alt_tv_root, "Example Show", "Season 01", "Example.Show.S01E03.mkv", root_path=alt_tv_root, season_number=1, episode_number=3),
+                _tv_snapshot_row(tv_root, "Other Show", "Season 01", "Other.Show.S01E01.mkv", season_number=1, episode_number=1),
+            ]
+            _write_queue_snapshot(resolved, rows)
+            harness = _TrackMetadataHarness(resolved)
+            selected = Path(rows[0]["source_path"])
+            manual = Path(rows[1]["source_path"])
+            special = Path(rows[2]["source_path"])
+            other = Path(rows[4]["source_path"])
+            show_folder = tv_root / "Example Show"
+
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                show_folder,
+                {"subtitles": {"keepTracks": [{"language": "eng"}]}},
+            )
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                manual,
+                {"audio": {"maxChannels": 6}},
+            )
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                special,
+                {"audio": {"maxChannels": 8}},
+                batch_metadata={"origin": "series_batch", "batch_id": "series-old"},
+                replace_existing=True,
+            )
+            set_file_override_entry(
+                resolved.file_overrides_path,  # type: ignore[arg-type]
+                other,
+                {"routing": {"profile": "encode"}},
+            )
+
+            preview = harness._file_overrides_series_clear_preview_payload({"path": str(selected)})
+            cleared = harness._file_overrides_series_clear_apply_payload(
+                {
+                    "path": str(selected),
+                    "confirm_apply": True,
+                    "preview_fingerprint": preview["preview_fingerprint"],
+                }
+            )
+            manifest = read_file_overrides(resolved.file_overrides_path)  # type: ignore[arg-type]
+            entries = manifest["entries"]
+
+        self.assertTrue(preview["ok"])
+        self.assertEqual(preview["schema_version"], "queue_file_override_series_clear_preview.v1")
+        self.assertEqual(preview["detected"]["show_name"], "Example Show")
+        self.assertEqual(preview["counts"]["clear_manual"], 1)
+        self.assertEqual(preview["counts"]["clear_batch"], 1)
+        self.assertEqual(preview["counts"]["inherited"], 1)
+        self.assertEqual(preview["counts"]["skipped"], 1)
+        self.assertEqual(preview["counts"]["eligible_clear_count"], 2)
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S01E01.mkv"), "inherited")
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S01E02.mkv"), "clear_manual")
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S00E01.mkv"), "clear_batch")
+        self.assertEqual(_series_action_by_file(preview, "Example.Show.S01E03.mkv"), "skipped")
+
+        self.assertTrue(cleared["ok"])
+        self.assertEqual(cleared["command"], "queue.file_overrides.series_clear_apply")
+        self.assertIn(normalize_file_override_path(show_folder), entries)
+        self.assertIn(normalize_file_override_path(other), entries)
+        self.assertNotIn(normalize_file_override_path(manual), entries)
+        self.assertNotIn(normalize_file_override_path(special), entries)
 
     def test_series_preview_blocks_exact_track_selectors_that_do_not_validate_for_every_row(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -667,6 +750,14 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
             non_tv = harness._file_overrides_series_preview_payload(
                 {"path": str(movie), "proposed_override": {"audio": {"maxChannels": 2}}}
             )
+            clear_blocked = harness._file_overrides_series_clear_preview_payload({"path": str(stale_selected)})
+            clear_missing_confirm = harness._file_overrides_series_clear_apply_payload(
+                {"path": str(selected), "preview_fingerprint": "unused"}
+            )
+            clear_stale = harness._file_overrides_series_clear_apply_payload(
+                {"path": str(selected), "confirm_apply": True, "preview_fingerprint": "stale"}
+            )
+            clear_non_tv = harness._file_overrides_series_clear_preview_payload({"path": str(movie)})
 
         self.assertFalse(blocked_preview["ok"])
         self.assertIn("No eligible current queue rows", "\n".join(item["message"] for item in blocked_preview["blockers"]))
@@ -678,6 +769,14 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertIn("maxChannels", "\n".join(invalid["errors"]))
         self.assertFalse(non_tv["ok"])
         self.assertIn("only for TV", non_tv["message"])
+        self.assertFalse(clear_blocked["ok"])
+        self.assertIn("No exact current queue file overrides", "\n".join(item["message"] for item in clear_blocked["blockers"]))
+        self.assertFalse(clear_missing_confirm["ok"])
+        self.assertIn("confirm_apply", "\n".join(clear_missing_confirm["errors"]))
+        self.assertFalse(clear_stale["ok"])
+        self.assertIn("stale", "\n".join(clear_stale["errors"]).lower())
+        self.assertFalse(clear_non_tv["ok"])
+        self.assertIn("only for TV", clear_non_tv["message"])
 
     def test_remux_pilot_promote_applies_current_queue_only_and_protects_manual_overrides(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -1895,22 +1994,116 @@ class FileOverrideTrackMetadataTests(unittest.TestCase):
         self.assertEqual(subtitle_dropped["label"], "Resolved: drop by folder override")
 
     def test_effective_payload_resolved_actions_report_subtitle_language_policy_drop(self) -> None:
+        track_payload = _track_payload()
+        track_payload["subtitle_tracks"].extend(
+            [
+                {
+                    "stream_index": 15,
+                    "language": "ger",
+                    "title": "German SDH",
+                    "codec": "hdmv_pgs_subtitle",
+                    "default": False,
+                    "forced": False,
+                    "hearing_impaired": True,
+                    "image_based": True,
+                },
+                {
+                    "stream_index": 20,
+                    "language": "ita",
+                    "title": "Italian SDH",
+                    "codec": "hdmv_pgs_subtitle",
+                    "default": False,
+                    "forced": False,
+                    "hearing_impaired": True,
+                    "image_based": True,
+                },
+                {
+                    "stream_index": 35,
+                    "language": "ger",
+                    "title": "German SDH Commentary",
+                    "codec": "hdmv_pgs_subtitle",
+                    "default": False,
+                    "forced": False,
+                    "hearing_impaired": True,
+                    "image_based": True,
+                },
+                {
+                    "stream_index": 36,
+                    "language": "jpn",
+                    "title": "Japanese Forced ASS",
+                    "codec": "ass",
+                    "default": False,
+                    "forced": True,
+                    "image_based": False,
+                },
+                {
+                    "stream_index": 37,
+                    "language": "jpn",
+                    "title": "Japanese SDH TX3G",
+                    "codec": "mov_text",
+                    "default": False,
+                    "forced": True,
+                    "hearing_impaired": True,
+                    "image_based": False,
+                },
+                {
+                    "stream_index": 38,
+                    "language": "ita",
+                    "title": "Italian SDH VobSub",
+                    "codec": "dvd_subtitle",
+                    "default": False,
+                    "forced": True,
+                    "hearing_impaired": True,
+                    "image_based": True,
+                },
+            ]
+        )
         payload = _effective_payload(
             r"C:\Media\Movie.mkv",
             {},
-            config={"SubKeepLanguages": ["eng"], "ConvertBdpgsToSrt": True},
+            config={
+                "SubKeepLanguages": ["eng"],
+                "Tx3gExtractLanguages": ["eng", "en", "und"],
+                "BdpgsExtractLanguages": ["eng", "en", "und"],
+                "VobSubExtractLanguages": ["eng", "en", "und"],
+                "ConvertBdpgsToSrt": True,
+                "ConvertTx3gToSrt": True,
+                "ConvertVobSubToSrt": True,
+            },
+            track_payload=track_payload,
         )
 
         spanish = _resolved_track(payload, "subtitle", 6)
         english_pgs = _resolved_track(payload, "subtitle", 4)
+        german_sdh_pgs = _resolved_track(payload, "subtitle", 15)
+        italian_sdh_pgs = _resolved_track(payload, "subtitle", 20)
+        german_sdh_commentary_pgs = _resolved_track(payload, "subtitle", 35)
+        japanese_forced_ass = _resolved_track(payload, "subtitle", 36)
+        japanese_sdh_tx3g = _resolved_track(payload, "subtitle", 37)
+        italian_sdh_vobsub = _resolved_track(payload, "subtitle", 38)
         self.assertEqual(spanish["action"], "drop")
         self.assertEqual(spanish["source"], "global_default")
         self.assertEqual(spanish["field"], "SubKeepLanguages")
         self.assertEqual(spanish["label"], "Resolved: drop by normal subtitle policy")
-        self.assertIn("outside saved subtitle keep languages", spanish["reason"])
+        self.assertIn("outside saved SubKeepLanguages policy", spanish["reason"])
         self.assertEqual(english_pgs["action"], "convert")
         self.assertEqual(english_pgs["field"], "ConvertBdpgsToSrt")
         self.assertEqual(english_pgs["label"], "Resolved: convert by normal subtitle policy")
+        for resolved in (german_sdh_pgs, italian_sdh_pgs, german_sdh_commentary_pgs):
+            self.assertEqual(resolved["action"], "drop")
+            self.assertEqual(resolved["source"], "global_default")
+            self.assertEqual(resolved["field"], "BdpgsExtractLanguages")
+            self.assertEqual(resolved["label"], "Resolved: drop by normal subtitle policy")
+            self.assertIn("outside saved BdpgsExtractLanguages policy", resolved["reason"])
+        self.assertEqual(japanese_forced_ass["action"], "drop")
+        self.assertEqual(japanese_forced_ass["field"], "SubKeepLanguages")
+        self.assertIn("outside saved SubKeepLanguages policy", japanese_forced_ass["reason"])
+        self.assertEqual(japanese_sdh_tx3g["action"], "drop")
+        self.assertEqual(japanese_sdh_tx3g["field"], "Tx3gExtractLanguages")
+        self.assertIn("outside saved Tx3gExtractLanguages policy", japanese_sdh_tx3g["reason"])
+        self.assertEqual(italian_sdh_vobsub["action"], "drop")
+        self.assertEqual(italian_sdh_vobsub["field"], "VobSubExtractLanguages")
+        self.assertIn("outside saved VobSubExtractLanguages policy", italian_sdh_vobsub["reason"])
 
 
 if __name__ == "__main__":

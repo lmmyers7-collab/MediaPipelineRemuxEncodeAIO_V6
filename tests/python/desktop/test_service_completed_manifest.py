@@ -6,6 +6,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
 
@@ -86,6 +87,26 @@ class CompletedManifestHelperTests(unittest.TestCase):
 
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0].payload["output_file"], "new.mkv")
+
+    def test_read_completed_manifest_records_limit_uses_bounded_tail_reader(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            manifest = Path(td) / "completed_jobs.jsonl"
+            manifest.write_text(
+                "\n".join(json.dumps({"output_file": f"movie-{index:04d}.mkv"}) for index in range(1000)) + "\n",
+                encoding="utf-8",
+            )
+
+            with patch.object(Path, "read_text", side_effect=AssertionError("limited read should not read the whole manifest")):
+                rows = read_completed_manifest_records(
+                    manifest,
+                    limit=500,
+                    logger=self._logger(),
+                    proof_mode="summary",
+                )
+
+        self.assertEqual(len(rows), 500)
+        self.assertEqual(rows[0].payload["output_file"], "movie-0999.mkv")
+        self.assertEqual(rows[-1].payload["output_file"], "movie-0500.mkv")
 
     def test_read_completed_manifest_records_accepts_no_limit_for_full_history(self) -> None:
         with tempfile.TemporaryDirectory() as td:

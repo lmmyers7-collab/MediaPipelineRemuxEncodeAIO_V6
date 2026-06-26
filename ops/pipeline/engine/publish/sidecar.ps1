@@ -265,8 +265,8 @@ function Write-Sidecar {
 # Append one JSON line to the local completed-jobs manifest. Best-effort:
 # any failure is logged and swallowed because the outsource-side sidecar is
 # the source of truth and manifest-write failure must not abort the pipeline.
-# Safe against concurrent writers because pipeline runs are serialized by
-# the Global\MediaPipelineSingleInstance mutex.
+# Use the cross-process JSONL mutex because local worker slots can mirror
+# completed sidecars concurrently under the same run.
 function Add-CompletedJobsManifestEntry {
     param(
         [Parameter(Mandatory)] [string]$OutputPath,
@@ -291,9 +291,28 @@ function Add-CompletedJobsManifestEntry {
         if (-not $entry.Contains('created_at')) { $entry['created_at'] = $loggedAt }
         # S1 — match the sidecar's depth so the manifest mirror doesn't
         # truncate fields that the disk sidecar already preserves.
-        Write-JsonLineAppend -Path $CompletedJobsManifest -Payload $entry -Depth 10 | Out-Null
+        $written = Write-JsonLineAppend -Path $CompletedJobsManifest -Payload $entry -Depth 10 -UseLogLock
+        if (-not [bool]$written) {
+            Write-Log "Completed-jobs manifest append failed for $OutputPath : JSONL append lock unavailable or write failed" "WARN"
+            if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+                Write-PipelineEvent -EventType 'completed_manifest_append_failed' -Stage 'completed_manifest' -Status 'warning' -SourcePath $OutputPath -Data @{
+                    manifest_path = [string]$CompletedJobsManifest
+                    output_path   = [string]$OutputPath
+                    job_id        = [string]$entry['job_id']
+                    correlation_id = [string]$entry['correlation_id']
+                    reason        = 'jsonl_append_failed'
+                } | Out-Null
+            }
+        }
     } catch {
         Write-Log "Completed-jobs manifest append failed for $OutputPath : $_" "WARN"
+        if (Get-Command -Name Write-PipelineEvent -ErrorAction SilentlyContinue) {
+            Write-PipelineEvent -EventType 'completed_manifest_append_failed' -Stage 'completed_manifest' -Status 'warning' -SourcePath $OutputPath -Data @{
+                manifest_path = [string]$CompletedJobsManifest
+                output_path   = [string]$OutputPath
+                reason        = [string]$_
+            } | Out-Null
+        }
     }
 }
 

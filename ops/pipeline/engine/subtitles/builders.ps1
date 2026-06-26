@@ -634,6 +634,14 @@ function Build-SubtitleArgsForFFmpeg {
                 SrtPath = $null
                 Codec   = "copy"
             }
+            if (-not $entry.IsSupplemental) {
+                if ([bool]$decision.IsPreferredDefaultCandidate -and -not [bool]$defaultState.DefaultSet) {
+                    Set-SubtitleBuilderFfmpegDefaultDisposition -Track $keptAssTrack
+                    $defaultState.DefaultSet = $true
+                } else {
+                    Add-SubtitleBuilderFallbackDefaultCandidate -DefaultState $defaultState -Decision $decision -Track $keptAssTrack
+                }
+            }
             $allTracks.Add($keptAssTrack)
         }
 
@@ -654,9 +662,15 @@ function Build-SubtitleArgsForFFmpeg {
         $srtPath = $ass.Path
         $tempFiles.Add($srtPath)
 
-        # FIX: only update $defaultSet AFTER the SRT is confirmed to exist.
-        $disp = Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
-        $entry.IsDefault = ($disp -eq 'default' -or $disp -eq 'default+forced')
+        # Original ASS carries presentation intent; converted SRT is embedded
+        # as a compatibility fallback unless the original ASS is intentionally
+        # dropped by policy.
+        $disp = if ($keptAssTrack) {
+            if ([bool]$decision.IsForced) { 'forced' } else { '0' }
+        } else {
+            Get-SubtitleBuilderFfmpegConvertedDisposition -Decision $decision -DefaultState $defaultState
+        }
+        $entry.IsDefault = (($keptAssTrack -and ([string]$keptAssTrack.Disp -match 'default')) -or $disp -eq 'default' -or $disp -eq 'default+forced')
 
         $track = @{
             MapArg  = $null       # assigned below when SRT inputs are numbered

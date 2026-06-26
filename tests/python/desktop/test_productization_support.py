@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
 import sys
 import tempfile
 import unittest
 from pathlib import Path
+from logging.handlers import RotatingFileHandler
 from unittest.mock import patch
 
 from mediapipeline.tools.paths import find_repo_root
@@ -25,6 +27,11 @@ from mediapipeline.core.validation.boundary import ValidationFailure, validate_a
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT  # noqa: E402
 from mediapipeline.desktop.api.routes_read import GET_ROUTE_HANDLERS  # noqa: E402
 from mediapipeline.desktop.models import ResolvedPaths  # noqa: E402
+from mediapipeline.desktop.services import (  # noqa: E402
+    DESKTOP_LOG_BACKUP_COUNT,
+    DESKTOP_LOG_MAX_BYTES,
+    DesktopAppService,
+)
 
 
 class DummyProductizationService:
@@ -158,6 +165,32 @@ class ProductizationSupportTests(unittest.TestCase):
         self.assertIn("<redacted>", payload_text)
         self.assertFalse(payload["media_safety"]["support_export_writes_media"])
         self.assertFalse(payload["media_safety"]["support_export_deletes_media"])
+
+    def test_desktop_api_logger_uses_bounded_rotation(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = object.__new__(DesktopAppService)
+            service.app_root = root
+            service.desktop_log_path = root / "RunLogs" / "desktop.log"
+            logger = logging.getLogger("mediapipeline.desktop")
+            old_handlers = list(logger.handlers)
+            for handler in old_handlers:
+                logger.removeHandler(handler)
+            try:
+                configured = service._create_logger()
+                handlers = list(configured.handlers)
+            finally:
+                for handler in list(logger.handlers):
+                    logger.removeHandler(handler)
+                    handler.close()
+                for handler in old_handlers:
+                    logger.addHandler(handler)
+
+        self.assertEqual(len(handlers), 1)
+        handler = handlers[0]
+        self.assertIsInstance(handler, RotatingFileHandler)
+        self.assertEqual(handler.maxBytes, DESKTOP_LOG_MAX_BYTES)
+        self.assertEqual(handler.backupCount, DESKTOP_LOG_BACKUP_COUNT)
 
 
 if __name__ == "__main__":

@@ -85,6 +85,50 @@ try {
     Assert-Equal ([int]$payload.PendingDrainProgress.remaining_count) 2 'Pending drain remaining count mismatch.'
     Assert-True ([bool]($payload.PSObject.Properties.Name -contains 'AudioProgress')) 'AudioProgress field was not serialized.'
     Assert-True ([bool]($payload.PSObject.Properties.Name -contains 'PendingDrainProgress')) 'PendingDrainProgress field was not serialized.'
+
+    $script:ProgressSaveRetryDelaysMs = @(25, 50, 100, 200, 400)
+    $lockMarker = Join-Path $root 'progress-reader-lock.ready'
+    $lockJob = $null
+    try {
+        $lockJob = Start-Job -ScriptBlock {
+            param($Path, $Marker)
+            $stream = [System.IO.File]::Open(
+                $Path,
+                [System.IO.FileMode]::Open,
+                [System.IO.FileAccess]::Read,
+                [System.IO.FileShare]::Read
+            )
+            try {
+                [System.IO.File]::WriteAllText($Marker, 'ready')
+                Start-Sleep -Milliseconds 300
+            } finally {
+                $stream.Dispose()
+            }
+        } -ArgumentList $ProgressFile, $lockMarker
+
+        $deadline = (Get-Date).AddSeconds(5)
+        while (-not (Test-Path -LiteralPath $lockMarker -ErrorAction SilentlyContinue) -and (Get-Date) -lt $deadline) {
+            Start-Sleep -Milliseconds 10
+        }
+        Assert-True (Test-Path -LiteralPath $lockMarker -ErrorAction SilentlyContinue) 'Reader-lock test did not acquire the progress file lock.'
+
+        $savedAfterReaderLock = Save-Progress 'Processing after reader lock'
+        Assert-True ([bool]$savedAfterReaderLock) 'Save-Progress should retry through a transient reader lock.'
+        Assert-Equal ([int]$script:ProgressWriteFailures) 0 'Reader-lock retry should not increment progress write failures.'
+        Assert-True ([bool]$script:ProgressPersistenceHealthy) 'Reader-lock retry should leave progress persistence healthy.'
+
+        $payloadAfterReaderLock = Get-Content -LiteralPath $ProgressFile -Raw | ConvertFrom-Json -ErrorAction Stop
+        Assert-Equal $payloadAfterReaderLock.Status 'Processing after reader lock' 'Save-Progress did not persist the post-lock status.'
+    } finally {
+        if ($lockJob) {
+            Wait-Job $lockJob -Timeout 5 | Out-Null
+            if ($lockJob.State -eq 'Running') {
+                Stop-Job $lockJob -ErrorAction SilentlyContinue
+            }
+            Receive-Job $lockJob -ErrorAction SilentlyContinue | Out-Null
+            Remove-Job $lockJob -Force -ErrorAction SilentlyContinue
+        }
+    }
 } finally {
     if (Test-Path -LiteralPath $root -ErrorAction SilentlyContinue) {
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue

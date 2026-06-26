@@ -23,10 +23,14 @@ from mediapipeline.core.kernel.config_keys import (
 
 CONFIGURED_PATH_HEALTH_SCHEMA_VERSION = "desktop_configured_path_health.v1"
 DEFAULT_PATH_HEALTH_TIMEOUT_SECONDS = 1.0
+LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS = 5.0
+PATH_HEALTH_UNC_RETRY_TIMEOUT_SECONDS = 2.0
+PATH_HEALTH_UNC_RETRY_DELAY_SECONDS = 0.2
 DEFAULT_PATH_HEALTH_CACHE_TTL_SECONDS = 30.0
 
 PathProbeRunner = Callable[[str, float], Mapping[str, Any]]
 _PATH_HEALTH_CACHE: dict[tuple[str, float], tuple[float, dict[str, Any]]] = {}
+_PATH_HEALTH_CAPACITY_CACHE: dict[str, dict[str, Any]] = {}
 _PATH_HEALTH_PROBE_SCRIPT = r"""
 import json
 from pathlib import Path
@@ -51,6 +55,25 @@ def unc_parts(path_text):
     return server, share
 
 
+def unc_share_root(path_text):
+    server, share = unc_parts(path_text)
+    if not server or not share:
+        return ""
+    return "\\\\" + server + "\\" + share
+
+
+def elapsed_ms(started):
+    return int((time.monotonic() - started) * 1000)
+
+
+def run_phase(result, name, func):
+    phase_started = time.monotonic()
+    try:
+        return func()
+    finally:
+        result["phase_timings_ms"][name] = elapsed_ms(phase_started)
+
+
 path_text = sys.argv[1] if len(sys.argv) > 1 else ""
 try:
     timeout_seconds = max(0.2, float(sys.argv[2] if len(sys.argv) > 2 else "2.0"))
@@ -58,6 +81,7 @@ except ValueError:
     timeout_seconds = 2.0
 started = time.monotonic()
 server, share = unc_parts(path_text)
+share_root = unc_share_root(path_text)
 result = {
     "path": path_text,
     "server": server,
@@ -70,54 +94,101 @@ result = {
     "path_error": "",
     "list_error": "",
     "disk_error": "",
+    "capacity_error": "",
+    "capacity_source": "not_checked",
+    "capacity_path": "",
     "total_bytes": None,
     "used_bytes": None,
     "free_bytes": None,
+    "phase_timings_ms": {},
     "elapsed_ms": 0,
 }
 if server:
-    try:
-        socket.setdefaulttimeout(min(1.0, timeout_seconds))
-        socket.getaddrinfo(server, 445)
-        result["dns_status"] = "ready"
-    except OSError as exc:
-        result["dns_status"] = "blocked"
-        result["dns_error"] = str(exc)
-    try:
-        with socket.create_connection((server, 445), timeout=min(1.0, timeout_seconds)):
-            result["tcp_445_status"] = "ready"
-    except OSError as exc:
-        result["tcp_445_status"] = "blocked"
-        result["tcp_445_error"] = str(exc)
+    def check_dns():
+        try:
+            socket.setdefaulttimeout(min(1.0, timeout_seconds))
+            socket.getaddrinfo(server, 445)
+            result["dns_status"] = "ready"
+        except OSError as exc:
+            result["dns_status"] = "blocked"
+            result["dns_error"] = str(exc)
+
+    def check_tcp():
+        try:
+            with socket.create_connection((server, 445), timeout=min(1.0, timeout_seconds)):
+                result["tcp_445_status"] = "ready"
+        except OSError as exc:
+            result["tcp_445_status"] = "blocked"
+            result["tcp_445_error"] = str(exc)
+
+    run_phase(result, "dns", check_dns)
+    run_phase(result, "tcp_445", check_tcp)
 try:
     path = Path(path_text)
-    if path.exists():
-        result["exists"] = True
-        if path.is_dir():
-            result["path_kind"] = "directory"
-            try:
-                iterator = path.iterdir()
-                next(iterator, None)
-                result["can_list"] = True
-            except OSError as exc:
-                result["list_error"] = str(exc)
-            try:
-                usage = shutil.disk_usage(str(path))
-                result["total_bytes"] = int(usage.total)
-                result["used_bytes"] = int(usage.used)
-                result["free_bytes"] = int(usage.free)
-            except OSError as exc:
-                result["disk_error"] = str(exc)
-        elif path.is_file():
-            result["path_kind"] = "file"
+    def check_path():
+        if path.exists():
+            result["exists"] = True
+            if path.is_dir():
+                result["path_kind"] = "directory"
+            elif path.is_file():
+                result["path_kind"] = "file"
+            else:
+                result["path_kind"] = "other"
+
+    run_phase(result, "path", check_path)
+    if result["exists"]:
+        if result["path_kind"] == "directory":
+            def check_list():
+                try:
+                    iterator = path.iterdir()
+                    next(iterator, None)
+                    result["can_list"] = True
+                except OSError as exc:
+                    result["list_error"] = str(exc)
+
+            def check_disk_configured():
+                result["capacity_source"] = "configured_path"
+                result["capacity_path"] = path_text
+                try:
+                    usage = shutil.disk_usage(str(path))
+                    result["total_bytes"] = int(usage.total)
+                    result["used_bytes"] = int(usage.used)
+                    result["free_bytes"] = int(usage.free)
+                except OSError as exc:
+                    message = str(exc)
+                    result["disk_error"] = message
+                    result["capacity_error"] = message
+
+            run_phase(result, "list", check_list)
+            if result["can_list"]:
+                run_phase(result, "disk_usage", check_disk_configured)
+                if result["free_bytes"] is None and share_root and share_root.rstrip("\\").casefold() != path_text.rstrip("\\").casefold():
+                    def check_disk_share_root():
+                        try:
+                            usage = shutil.disk_usage(share_root)
+                            result["total_bytes"] = int(usage.total)
+                            result["used_bytes"] = int(usage.used)
+                            result["free_bytes"] = int(usage.free)
+                            result["capacity_source"] = "share_root_fallback"
+                            result["capacity_path"] = share_root
+                        except OSError as exc:
+                            fallback_message = str(exc)
+                            if result["capacity_error"]:
+                                result["capacity_error"] = result["capacity_error"] + "; share root fallback failed: " + fallback_message
+                            else:
+                                result["capacity_error"] = fallback_message
+                        if result["free_bytes"] is None and not result["capacity_path"]:
+                            result["capacity_path"] = share_root
+
+                    run_phase(result, "disk_usage_share_root", check_disk_share_root)
+        elif result["path_kind"] == "file":
             result["can_list"] = True
         else:
-            result["path_kind"] = "other"
             result["can_list"] = True
 except OSError as exc:
     result["path_error"] = str(exc)
 finally:
-    result["elapsed_ms"] = int((time.monotonic() - started) * 1000)
+    result["elapsed_ms"] = elapsed_ms(started)
 print(json.dumps(result, ensure_ascii=False))
 """
 
@@ -357,14 +428,19 @@ def path_health_warning_lines(payload: Mapping[str, Any] | None) -> list[str]:
         if not isinstance(row, Mapping):
             continue
         status = str(row.get("status") or "").casefold()
-        if status not in {"blocked", "review", "unknown"}:
+        storage_status = str(row.get("storage_status") or "").casefold()
+        if status not in {"blocked", "review", "unknown"} and storage_status not in {"blocked", "low", "unknown"}:
             continue
         label = str(row.get("label") or row.get("key") or "Configured path").strip()
         path = str(row.get("path") or "").strip()
-        message = str(row.get("message") or "needs review").strip()
+        storage_probe = row.get("storage_probe") if isinstance(row.get("storage_probe"), Mapping) else {}
+        message = str(storage_probe.get("message") or row.get("message") or "needs review").strip()
         action = str(row.get("safe_next_action") or "").strip()
         suffix = f" {action}" if action else ""
-        lines.append(f"{label} path health {status}: {message} ({path}).{suffix}")
+        health_code = str(row.get("health_code") or "").strip()
+        display_status = status if status != "ready" else f"storage {storage_status}"
+        code_suffix = f"; code={health_code}" if health_code else ""
+        lines.append(f"{label} path health {display_status}{code_suffix}: {message} ({path}).{suffix}")
     return lines[:8]
 
 
@@ -388,6 +464,10 @@ def _path_health_row(
         probe = {"path": path_text, "probe_error": str(exc), "elapsed_ms": 0}
     status = _probe_status(spec, probe)
     storage_probe = _storage_probe_fields(spec, probe, status)
+    if _int_or_none(storage_probe.get("free_bytes")) is not None:
+        _record_successful_capacity(path_text, storage_probe)
+    last_successful_capacity = _last_successful_capacity(path_text)
+    health_code = _health_code(spec, probe, status, storage_probe)
     message = _probe_message(spec, probe, status)
     safe_next_action = _safe_next_action(spec, probe, status)
     return {
@@ -405,6 +485,7 @@ def _path_health_row(
         "server": server,
         "share": share,
         "status": status,
+        "health_code": health_code,
         "operator_status": status,
         "operator_status_state": _path_health_status_state(status),
         "exists": bool(probe.get("exists")),
@@ -412,6 +493,8 @@ def _path_health_row(
         "can_list": bool(probe.get("can_list")),
         "timed_out": bool(probe.get("timed_out")),
         "elapsed_ms": int(probe.get("elapsed_ms") or 0),
+        "probe_attempts": _probe_attempts(probe),
+        "phase_timings_ms": _phase_timings(probe),
         "server_probe": {
             "dns_status": str(probe.get("dns_status") or "not_applicable"),
             "dns_error": str(probe.get("dns_error") or ""),
@@ -432,6 +515,10 @@ def _path_health_row(
         "free_space_gb": storage_probe.get("free_gb"),
         "total_space_gb": storage_probe.get("total_gb"),
         "meets_space_reserve": storage_probe.get("meets_reserve"),
+        "capacity_source": storage_probe.get("capacity_source"),
+        "capacity_path": storage_probe.get("capacity_path"),
+        "capacity_error": storage_probe.get("capacity_error"),
+        "last_successful_capacity": last_successful_capacity,
         "write_probe": {
             "status": "not_checked",
             "reason": "Read-only health check; write capability is verified by backend copy/publish stages when work actually runs.",
@@ -448,16 +535,110 @@ def _cached_path_probe(
     cache_ttl_seconds: float,
     probe_runner: PathProbeRunner | None,
 ) -> dict[str, Any]:
-    if probe_runner is not None:
-        return dict(probe_runner(path_text, timeout_seconds))
     key = (path_text, float(timeout_seconds))
     now = time.monotonic()
-    cached = _PATH_HEALTH_CACHE.get(key)
-    if cached is not None and now - cached[0] <= cache_ttl_seconds:
-        return deepcopy(cached[1])
-    result = _run_path_probe(path_text, timeout_seconds=timeout_seconds)
-    _PATH_HEALTH_CACHE[key] = (now, deepcopy(result))
+    if cache_ttl_seconds > 0:
+        cached = _PATH_HEALTH_CACHE.get(key)
+        if cached is not None and now - cached[0] <= cache_ttl_seconds:
+            return deepcopy(cached[1])
+    result = _run_path_probe_with_retries(
+        path_text,
+        timeout_seconds=timeout_seconds,
+        probe_runner=probe_runner,
+    )
+    if cache_ttl_seconds > 0:
+        _PATH_HEALTH_CACHE[key] = (now, deepcopy(result))
     return result
+
+
+def _run_path_probe_with_retries(
+    path_text: str,
+    *,
+    timeout_seconds: float,
+    probe_runner: PathProbeRunner | None,
+) -> dict[str, Any]:
+    attempts: list[dict[str, Any]] = []
+    first = _single_path_probe_attempt(path_text, timeout_seconds=timeout_seconds, probe_runner=probe_runner)
+    attempts.append(_probe_attempt_summary(first, attempt=1, timeout_seconds=timeout_seconds))
+    result = first
+    if _should_retry_path_probe(path_text, first):
+        if PATH_HEALTH_UNC_RETRY_DELAY_SECONDS > 0:
+            time.sleep(PATH_HEALTH_UNC_RETRY_DELAY_SECONDS)
+        retry = _single_path_probe_attempt(
+            path_text,
+            timeout_seconds=PATH_HEALTH_UNC_RETRY_TIMEOUT_SECONDS,
+            probe_runner=probe_runner,
+        )
+        attempts.append(
+            _probe_attempt_summary(
+                retry,
+                attempt=2,
+                timeout_seconds=PATH_HEALTH_UNC_RETRY_TIMEOUT_SECONDS,
+            )
+        )
+        result = retry
+    payload = dict(result)
+    payload["probe_attempts"] = attempts
+    payload["attempt_count"] = len(attempts)
+    payload.setdefault("phase_timings_ms", {})
+    return payload
+
+
+def _single_path_probe_attempt(
+    path_text: str,
+    *,
+    timeout_seconds: float,
+    probe_runner: PathProbeRunner | None,
+) -> dict[str, Any]:
+    if probe_runner is not None:
+        payload = dict(probe_runner(path_text, timeout_seconds))
+    else:
+        payload = _run_path_probe(path_text, timeout_seconds=timeout_seconds)
+    payload.setdefault("path", path_text)
+    payload.setdefault("elapsed_ms", 0)
+    payload.setdefault("phase_timings_ms", {})
+    return payload
+
+
+def _should_retry_path_probe(path_text: str, probe: Mapping[str, Any]) -> bool:
+    return bool(_unc_server_share(path_text)[0]) and _probe_timeout_like(probe)
+
+
+def _probe_timeout_like(probe: Mapping[str, Any]) -> bool:
+    if bool(probe.get("timed_out")):
+        return True
+    text = " ".join(
+        str(probe.get(key) or "")
+        for key in ("path_error", "probe_error", "list_error", "disk_error", "capacity_error")
+    ).casefold()
+    return "timed out" in text or "timeout" in text or "exceeded" in text
+
+
+def _probe_attempt_summary(probe: Mapping[str, Any], *, attempt: int, timeout_seconds: float) -> dict[str, Any]:
+    return {
+        "attempt": attempt,
+        "timeout_seconds": float(timeout_seconds),
+        "timed_out": bool(probe.get("timed_out")),
+        "elapsed_ms": int(probe.get("elapsed_ms") or 0),
+        "status_hint": _probe_status_hint(probe),
+        "path_error": str(probe.get("path_error") or probe.get("probe_error") or ""),
+    }
+
+
+def _probe_status_hint(probe: Mapping[str, Any]) -> str:
+    if _probe_timeout_like(probe):
+        return "timeout"
+    if str(probe.get("probe_error") or probe.get("path_error") or "").strip():
+        return "error"
+    if not bool(probe.get("exists")):
+        return "missing"
+    if str(probe.get("path_kind") or "").casefold() != "directory":
+        return "wrong_kind"
+    if not bool(probe.get("can_list")) or str(probe.get("list_error") or "").strip():
+        return "not_listable"
+    if _int_or_none(probe.get("free_bytes")) is None:
+        return "capacity_unknown"
+    return "ready"
 
 
 def _run_path_probe(path_text: str, *, timeout_seconds: float) -> dict[str, Any]:
@@ -480,6 +661,7 @@ def _run_path_probe(path_text: str, *, timeout_seconds: float) -> dict[str, Any]
             "timed_out": True,
             "elapsed_ms": int((time.monotonic() - started) * 1000),
             "path_error": f"Path health probe exceeded {timeout_seconds:g} seconds.",
+            "phase_timings_ms": {},
         }
     stdout = (completed.stdout or "").strip()
     if stdout:
@@ -493,6 +675,7 @@ def _run_path_probe(path_text: str, *, timeout_seconds: float) -> dict[str, Any]
         payload = {}
     payload.setdefault("path", path_text)
     payload.setdefault("elapsed_ms", int((time.monotonic() - started) * 1000))
+    payload.setdefault("phase_timings_ms", {})
     if completed.returncode != 0:
         payload["probe_error"] = (completed.stderr or "").strip() or f"Probe exited with code {completed.returncode}."
     return payload
@@ -557,10 +740,44 @@ def _server_probe_has_issue(probe: Mapping[str, Any]) -> bool:
     return "blocked" in statuses
 
 
+def _health_code(
+    spec: Mapping[str, Any],
+    probe: Mapping[str, Any],
+    path_status: str,
+    storage_probe: Mapping[str, Any],
+) -> str:
+    if _probe_timeout_like(probe):
+        return "path_timeout"
+    if str(probe.get("probe_error") or probe.get("path_error") or "").strip():
+        return "path_error"
+    if not bool(probe.get("exists")):
+        return "path_missing_or_unreachable"
+    if str(probe.get("path_kind") or "").casefold() != "directory":
+        return "path_not_directory"
+    if not bool(probe.get("can_list")) or str(probe.get("list_error") or "").strip():
+        return "path_not_listable"
+    storage_status = str(storage_probe.get("status") or "").casefold()
+    if storage_status == "low":
+        return "free_space_low"
+    if storage_status == "unknown":
+        return "free_space_unknown"
+    if path_status == "review" and _server_probe_has_issue(probe):
+        return "server_probe_review"
+    role = str(spec.get("role") or "").casefold()
+    if role in {"scratch", "output"} and storage_status == "ready":
+        return "ready_with_capacity"
+    if path_status == "ready":
+        return "path_ready"
+    return path_status or "unknown"
+
+
 def _storage_probe_fields(spec: Mapping[str, Any], probe: Mapping[str, Any], path_status: str) -> dict[str, Any]:
     role = str(spec.get("role") or "").casefold()
     reserve_gb = _reserve_gb(spec.get("reserve_gb"))
     reserve_key = str(spec.get("reserve_key") or "")
+    capacity_source = str(probe.get("capacity_source") or "").strip()
+    capacity_path = str(probe.get("capacity_path") or "").strip()
+    capacity_error = str(probe.get("capacity_error") or probe.get("disk_error") or "").strip()
     if role not in {"scratch", "output"}:
         return {
             "status": "not_checked",
@@ -575,12 +792,17 @@ def _storage_probe_fields(spec: Mapping[str, Any], probe: Mapping[str, Any], pat
             "total_bytes": None,
             "used_bytes": None,
             "meets_reserve": None,
+            "capacity_source": "not_checked",
+            "capacity_path": "",
+            "capacity_error": "",
             "message": "Free-space reserve is not tracked for source roots.",
         }
     if path_status != "ready":
         status = "blocked"
         message = "Path must be reachable and listable before free space can be trusted."
         free_bytes = total_bytes = used_bytes = None
+        capacity_source = capacity_source or "not_trusted"
+        capacity_error = capacity_error or message
     else:
         free_bytes = _int_or_none(probe.get("free_bytes"))
         total_bytes = _int_or_none(probe.get("total_bytes"))
@@ -588,8 +810,12 @@ def _storage_probe_fields(spec: Mapping[str, Any], probe: Mapping[str, Any], pat
         disk_error = str(probe.get("disk_error") or "").strip()
         if free_bytes is None:
             status = "unknown"
-            message = disk_error or "Free space could not be determined by the bounded read-only probe."
+            capacity_source = capacity_source or "unavailable"
+            capacity_error = capacity_error or disk_error
+            message = capacity_error or "Free space could not be determined by the bounded read-only probe."
         else:
+            capacity_source = capacity_source or "configured_path"
+            capacity_path = capacity_path or str(probe.get("path") or "")
             free_gb = free_bytes / (1024**3)
             if free_gb < reserve_gb:
                 status = "low"
@@ -611,8 +837,60 @@ def _storage_probe_fields(spec: Mapping[str, Any], probe: Mapping[str, Any], pat
         "total_bytes": total_bytes,
         "used_bytes": used_bytes,
         "meets_reserve": None if free_gb_value is None else free_gb_value >= reserve_gb,
+        "capacity_source": capacity_source,
+        "capacity_path": capacity_path,
+        "capacity_error": capacity_error,
         "message": message,
     }
+
+
+def _probe_attempts(probe: Mapping[str, Any]) -> list[dict[str, Any]]:
+    attempts = probe.get("probe_attempts")
+    if not isinstance(attempts, list):
+        return []
+    return [dict(item) for item in attempts if isinstance(item, Mapping)]
+
+
+def _phase_timings(probe: Mapping[str, Any]) -> dict[str, int]:
+    timings = probe.get("phase_timings_ms")
+    if not isinstance(timings, Mapping):
+        return {}
+    result: dict[str, int] = {}
+    for key, value in timings.items():
+        try:
+            result[str(key)] = max(0, int(value))
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _record_successful_capacity(path_text: str, storage_probe: Mapping[str, Any]) -> None:
+    key = _dedupe_path_key(path_text)
+    if not key:
+        return
+    free_bytes = _int_or_none(storage_probe.get("free_bytes"))
+    total_bytes = _int_or_none(storage_probe.get("total_bytes"))
+    used_bytes = _int_or_none(storage_probe.get("used_bytes"))
+    if free_bytes is None:
+        return
+    _PATH_HEALTH_CAPACITY_CACHE[key] = {
+        "checked_at_utc": _utc_now_text(),
+        "free_space_gb": _bytes_to_gb(free_bytes),
+        "total_space_gb": _bytes_to_gb(total_bytes),
+        "used_space_gb": _bytes_to_gb(used_bytes),
+        "free_bytes": free_bytes,
+        "total_bytes": total_bytes,
+        "used_bytes": used_bytes,
+        "reserve_gb": storage_probe.get("reserve_gb"),
+        "capacity_source": storage_probe.get("capacity_source") or "",
+        "capacity_path": storage_probe.get("capacity_path") or "",
+        "evidence_only": True,
+    }
+
+
+def _last_successful_capacity(path_text: str) -> dict[str, Any] | None:
+    cached = _PATH_HEALTH_CAPACITY_CACHE.get(_dedupe_path_key(path_text))
+    return deepcopy(cached) if cached is not None else None
 
 
 def _storage_status_state(status: str) -> str:
@@ -658,9 +936,24 @@ def _path_health_summary_lines(
         ),
         "Probe scope: configured roots only; no recursive scan, no write probe, no media mutation.",
     ]
-    issue_rows = [row for row in rows if str(row.get("status") or "").casefold() != "ready"]
+    issue_rows = [
+        row
+        for row in rows
+        if str(row.get("status") or "").casefold() != "ready"
+        or str(row.get("storage_status") or "").casefold() in {"blocked", "low", "unknown"}
+    ]
     for row in issue_rows[:6]:
-        lines.append(f"{row.get('label')}: {row.get('status')}; {row.get('message')}")
+        storage_probe = row.get("storage_probe") if isinstance(row.get("storage_probe"), Mapping) else {}
+        storage_status = str(row.get("storage_status") or storage_probe.get("status") or "not_checked")
+        storage_message = str(storage_probe.get("message") or "").strip()
+        capacity_source = str(row.get("capacity_source") or storage_probe.get("capacity_source") or "").strip()
+        capacity_suffix = f"; capacity_source={capacity_source}" if capacity_source else ""
+        storage_suffix = f"; storage={storage_status}" if storage_status and storage_status != "not_checked" else ""
+        message = storage_message or str(row.get("message") or "").strip()
+        lines.append(
+            f"{row.get('label')}: path={row.get('status')}; code={row.get('health_code') or 'unknown'}"
+            f"{storage_suffix}{capacity_suffix}; {message}"
+        )
     if len(issue_rows) > 6:
         lines.append(f"{len(issue_rows) - 6} more configured path issue(s) are hidden from this summary.")
     return lines
@@ -752,6 +1045,9 @@ __all__ = [
     "CONFIGURED_PATH_HEALTH_SCHEMA_VERSION",
     "DEFAULT_PATH_HEALTH_CACHE_TTL_SECONDS",
     "DEFAULT_PATH_HEALTH_TIMEOUT_SECONDS",
+    "LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS",
+    "PATH_HEALTH_UNC_RETRY_DELAY_SECONDS",
+    "PATH_HEALTH_UNC_RETRY_TIMEOUT_SECONDS",
     "configured_path_health",
     "configured_path_specs",
     "is_unc_path",

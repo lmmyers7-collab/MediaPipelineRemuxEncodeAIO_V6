@@ -639,19 +639,81 @@
     ].filter(Boolean).map(formatProgressValue).join(" · ");
   }
 
-  function homeQueueDetailLines(item = {}) {
-    const route = homeQueueRoute(item) || "route not reported";
-    const status = formatProgressValue(item.operator_status || item.status || item.decision || "unknown");
-    const source = homeCompactShortValue(item.source_path || item.path || item.input_path || item.file || "", 120) || "source path not loaded";
-    const output = homeCompactShortValue(item.output_path || item.library_output_root || item.destination_path || "", 120) || "output evidence not loaded";
-    const label = homeQueueDisplayLabel(item);
+  function homeQueuePosition(item = {}) {
+    return formatProgressValue(
+      item.queue_position || (item.queue_index || item.queue_total ? `${item.queue_index || "?"}/${item.queue_total || "?"}` : "")
+    );
+  }
+
+  function homeQueueSourceLocation(item = {}) {
+    const source = item.source_path || item.path || item.input_path || item.file || item.relative_path || "";
+    const segments = homeQueuePathSegments(source);
+    if (segments.length >= 2) return segments[segments.length - 2];
+    return homeQueueLeaf(source);
+  }
+
+  function homeQueueOutputEvidence(item = {}) {
+    const output = item.output_path || item.destination_path || "";
+    if (output) return homeCompactShortValue(homeQueueLeaf(output), 36);
+    if (item.library_output_root) return "Root loaded";
+    return "Not loaded";
+  }
+
+  function homeQueueDetailItems(item = {}) {
     return [
-      `Selected queue item: ${label.accessibleText || "Untitled queue item"}`,
-      `Route/status: ${route}; ${status}.`,
-      `Source: ${source}`,
-      `Output evidence: ${output}`,
-      "Safe next step: open Queue for full backend-owned row evidence before launching or rerunning.",
+      { label: "Route", value: homeQueueRoute(item) || "Not reported", state: "route" },
+      { label: "Status", value: formatProgressValue(item.operator_status || item.status || item.decision || "Unknown"), state: "status" },
+      { label: "Queue", value: homeQueuePosition(item) || "Unknown", state: "queue" },
+      { label: "Source", value: homeQueueSourceLocation(item) || "Not loaded", state: "source" },
+      { label: "Output", value: homeQueueOutputEvidence(item), state: "output" },
     ];
+  }
+
+  function renderHomeQueueDetail(item = {}) {
+    const container = byId("home-next-queue-detail");
+    if (!container) return;
+    const label = homeQueueDisplayLabel(item);
+    const items = homeQueueDetailItems(item);
+    container.classList.add("home-next-queue-detail");
+    container.setAttribute(
+      "aria-label",
+      [
+        `Selected queue item: ${label.accessibleText || "Untitled queue item"}.`,
+        items.map((entry) => `${entry.label}: ${entry.value}`).join(". "),
+        "Open Queue for full backend-owned row evidence before launch or rerun.",
+      ].join(" ")
+    );
+    const strip = document.createElement("span");
+    strip.className = "home-next-queue-detail-strip";
+    items.forEach((entry) => {
+      const chip = document.createElement("span");
+      chip.className = "home-next-queue-detail-chip";
+      chip.dataset.detail = entry.state || "";
+      chip.title = `${entry.label}: ${entry.value}`;
+      const chipLabel = document.createElement("span");
+      chipLabel.className = "home-next-queue-detail-label";
+      chipLabel.textContent = `${entry.label}:`;
+      const chipValue = document.createElement("strong");
+      chipValue.className = "home-next-queue-detail-value";
+      chipValue.textContent = entry.value;
+      chip.append(chipLabel, chipValue);
+      strip.appendChild(chip);
+    });
+    const handoff = document.createElement("span");
+    handoff.className = "home-next-queue-detail-handoff";
+    handoff.textContent = "Open Queue for full row evidence before launch or rerun.";
+    container.replaceChildren(strip, handoff);
+  }
+
+  function renderHomeQueueDetailMessage(message) {
+    const container = byId("home-next-queue-detail");
+    if (!container) {
+      setText("home-next-queue-detail", message);
+      return;
+    }
+    container.classList.add("home-next-queue-detail");
+    container.setAttribute("aria-label", message);
+    container.textContent = message;
   }
 
   function homeQueueRowIsRunnable(item = {}) {
@@ -822,13 +884,48 @@
     return `${number.toFixed(number % 1 ? 1 : 0)} GB`;
   }
 
+  function homeStorageCapacitySource(row = {}) {
+    const probe = row?.storage_probe && typeof row.storage_probe === "object" ? row.storage_probe : {};
+    return String(row.capacity_source || probe.capacity_source || "").trim();
+  }
+
+  function homeStorageCapacitySourceText(row = {}) {
+    const source = homeStorageCapacitySource(row).toLowerCase();
+    if (!source || source === "configured_path" || source === "not_checked") return "";
+    if (source === "share_root_fallback") return "via share root";
+    if (source === "not_trusted") return "capacity not trusted";
+    if (source === "unavailable") return "capacity unavailable";
+    return `via ${source.replace(/_/g, " ")}`;
+  }
+
+  function homeStoragePhaseTimingText(row = {}) {
+    const timings = row?.phase_timings_ms && typeof row.phase_timings_ms === "object" ? row.phase_timings_ms : {};
+    const entries = Object.entries(timings)
+      .filter(([, value]) => Number.isFinite(Number(value)))
+      .map(([key, value]) => `${key}=${Number(value)}ms`);
+    return entries.length ? `phase_timings=${entries.join(", ")}` : "";
+  }
+
+  function homeStorageLastCapacityText(row = {}) {
+    const last = row?.last_successful_capacity && typeof row.last_successful_capacity === "object"
+      ? row.last_successful_capacity
+      : null;
+    if (!last) return "";
+    const free = homeStorageGbText(last.free_space_gb);
+    const source = String(last.capacity_source || "").trim();
+    const sourceText = source ? ` via ${source.replace(/_/g, " ")}` : "";
+    return free ? `last_successful_capacity=${free}${sourceText}; evidence_only=yes` : "last_successful_capacity=evidence_only";
+  }
+
   function homeStorageDetail(row = {}) {
     const probe = row?.storage_probe && typeof row.storage_probe === "object" ? row.storage_probe : {};
     const free = homeStorageGbText(row.free_space_gb ?? probe.free_gb);
     const reserve = homeStorageGbText(row.reserve_gb ?? probe.reserve_gb);
     const message = String(probe.message || row.message || "").trim();
-    if (free && reserve) return `${free} free / ${reserve} reserve`;
-    if (free) return `${free} free`;
+    const sourceText = homeStorageCapacitySourceText(row);
+    const suffix = sourceText ? ` (${sourceText})` : "";
+    if (free && reserve) return `${free} free / ${reserve} reserve${suffix}`;
+    if (free) return `${free} free${suffix}`;
     return message || "No free-space evidence loaded.";
   }
 
@@ -837,11 +934,20 @@
     setTextState(statusId, status.text, status.state);
     const detail = byId(detailId);
     if (!detail) return;
+    const probe = row?.storage_probe && typeof row.storage_probe === "object" ? row.storage_probe : {};
+    const attempts = Array.isArray(row.probe_attempts) ? row.probe_attempts : [];
     detail.textContent = homeStorageDetail(row);
     detail.title = [
       row.label || "",
       homeStoragePath(row) || "",
-      row?.storage_probe?.message || row.message || "",
+      row.health_code ? `health_code=${row.health_code}` : "",
+      homeStorageCapacitySource(row) ? `capacity_source=${homeStorageCapacitySource(row)}` : "",
+      row.capacity_path || probe.capacity_path ? `capacity_path=${row.capacity_path || probe.capacity_path}` : "",
+      row.capacity_error || probe.capacity_error ? `capacity_error=${row.capacity_error || probe.capacity_error}` : "",
+      attempts.length ? `probe_attempts=${attempts.length}` : "",
+      homeStoragePhaseTimingText(row),
+      homeStorageLastCapacityText(row),
+      probe.message || row.message || "",
     ].filter(Boolean).join("\n");
   }
 
@@ -1237,7 +1343,7 @@
       const empty = document.createElement("li");
       empty.textContent = "No runnable queue items loaded.";
       list.appendChild(empty);
-      setText("home-next-queue-detail", "No runnable queue items loaded. Open Queue for the full backend-owned snapshot.");
+      renderHomeQueueDetailMessage("No runnable queue items loaded. Open Queue for the full backend-owned snapshot.");
       return;
     }
     rows.forEach((item, index) => {
@@ -1267,7 +1373,7 @@
       li.append(title, meta);
       const activate = () => {
         selectHomeListItem(li);
-        setText("home-next-queue-detail", homeQueueDetailLines(item).join("\n"));
+        renderHomeQueueDetail(item);
       };
       li.addEventListener("click", activate);
       li.addEventListener("keydown", (event) => {
@@ -1278,7 +1384,7 @@
       });
       list.appendChild(li);
     });
-    setText("home-next-queue-detail", homeQueueDetailLines(rows[0]).join("\n"));
+    renderHomeQueueDetail(rows[0]);
   }
   function renderDailyDriverReadiness(context = {}) {
     const rows = dailyDriverRows(context);

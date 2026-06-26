@@ -65,7 +65,7 @@ function Clear-OldTempFiles {
     $cutoff = (Get-Date).AddHours(-24)
     Get-ChildItem -Path $script:processingDir -File -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -lt $cutoff -and
-                       $_.Name -match '^(sub_|temp_av_|ffmpeg_stderr_|encode_temp_|sub_ass_|sub_final_|sub_bdpgs_)' } |
+                       $_.Name -match '^(sub_|temp_av_|ffmpeg_stderr_|encode_temp_|encode_mux_|sub_ass_|sub_final_|sub_bdpgs_)' } |
         ForEach-Object { Remove-TempCleanupCandidate -Item $_ }
     Get-ChildItem -Path $script:processingDir -Directory -Filter 'src_*' -ErrorAction SilentlyContinue |
         Where-Object { $_.LastWriteTime -lt $cutoff } |

@@ -173,6 +173,25 @@ class SummaryIntegrityTests(unittest.TestCase):
             )
         )
 
+    def test_docs_path_casing_is_canonicalized_for_summaries(self) -> None:
+        self.assertEqual(
+            refresh_summaries.canonical_repo_relative_posix("Docs/ARCHIVED_MD_INDEX.md"),
+            "docs/ARCHIVED_MD_INDEX.md",
+        )
+        self.assertTrue(
+            refresh_summaries.is_volatile_generated_summary_source(
+                "Docs/generated/PROJECT_INDEX.md"
+            )
+        )
+        summary_path = refresh_summaries.summary_path_for_source(
+            Path("Docs/generated/FILE_SUMMARIES.md"),
+            ".md",
+        )
+        self.assertEqual(
+            summary_path.relative_to(refresh_summaries.SUMMARY_ROOT).as_posix(),
+            "docs/generated/FILE_SUMMARIES.md.md",
+        )
+
     def test_existing_nonstandard_extension_summary_can_be_refreshed_explicitly(self) -> None:
         with tempfile.TemporaryDirectory() as temp_dir:
             root = Path(temp_dir)

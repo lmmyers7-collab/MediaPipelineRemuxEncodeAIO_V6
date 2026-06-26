@@ -19,6 +19,25 @@ class DummyPendingPublishService(PendingPublishServiceMixin):
     pass
 
 
+class CountingPendingPublishService(PendingPublishServiceMixin):
+    def __init__(self) -> None:
+        self.manifest_rows_read: list[Path] = []
+
+    def _pending_manifest_row(self, manifest_path: Path) -> dict[str, object]:
+        self.manifest_rows_read.append(manifest_path)
+        return {
+            "schema_version": "pending_push_manifest.v1",
+            "manifest_path": str(manifest_path),
+            "local_file": "",
+            "sidecar_paths": [],
+            "server_out": str(manifest_path.with_suffix(".mkv")),
+            "route": "remux",
+            "state": "parked",
+            "error": "",
+            "output_size": 1,
+        }
+
+
 class PendingPublishServiceTests(unittest.TestCase):
     def _resolved(self, pending_root: Path) -> ResolvedPaths:
         return ResolvedPaths(
@@ -221,6 +240,33 @@ class PendingPublishServiceTests(unittest.TestCase):
         errors = "\n".join(str(row.get("error") or "") for row in result["health_rows"])
         self.assertIn("Duplicate pending publish local payload", errors)
         self.assertIn("Duplicate pending publish server destination", errors)
+
+    def test_large_pending_publish_scan_can_cap_manifest_reads_for_normal_diagnostics(self) -> None:
+        service = CountingPendingPublishService()
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            for index in range(1000):
+                (root / f"movie-{index:04d}.mkv.manifest.json").write_text("{}", encoding="utf-8")
+
+            bounded = service.scan_pending_publish(
+                self._resolved(root),
+                manifest_limit=25,
+                include_orphan_rows=False,
+            )
+            bounded_read_count = len(service.manifest_rows_read)
+            service.manifest_rows_read.clear()
+            deep = service.scan_pending_publish(self._resolved(root), manifest_limit=None)
+
+        self.assertEqual(bounded["count"], 1000)
+        self.assertEqual(bounded["manifest_rows_read"], 25)
+        self.assertEqual(bounded_read_count, 25)
+        self.assertTrue(bounded["scan_limited"])
+        self.assertTrue(bounded["rows_truncated"])
+        self.assertIn("capped", " ".join(bounded["warnings"]))
+        self.assertEqual(bounded["file_inventory"]["status"], "sampled")
+        self.assertFalse(bounded["file_inventory"]["references_complete"])
+        self.assertEqual(deep["manifest_rows_read"], 1000)
+        self.assertFalse(deep["scan_limited"])
 
     def test_retry_exhausted_manifest_is_dead_letter_review_and_not_drain_ready(self) -> None:
         service = DummyPendingPublishService()

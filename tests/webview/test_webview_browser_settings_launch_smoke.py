@@ -124,7 +124,7 @@ def _browser_settings_launch_runner_source() -> str:
               }
               clickSettingsTab("status");
             }
-            function requireLibraryProfileDesignationFiltering() {
+            async function requireLibraryProfileDesignationFiltering() {
               function libraryCard(id) {
                 const card = document.querySelector('[data-library-id="' + id + '"]');
                 if (!card) throw new Error("missing library card " + id);
@@ -234,6 +234,11 @@ def _browser_settings_launch_runner_source() -> str:
               if (overrideRow(tvCard, "MovieRoute1080pTargetSizeGB")) {
                 throw new Error("TV profile kept Movie 1080p target visible after switching back from Auto");
               }
+              const sizeGuardRow = requireRow(tvCard, "SizeGuardMode");
+              setOverrideValue(sizeGuardRow, "fallback_remux");
+              if (sizeGuardRow.dataset.libraryOverride !== "true") {
+                throw new Error("Edited SizeGuardMode did not become an explicit TV LibraryProfiles override");
+              }
               const patch = window.mediaPipelineSettingsLibraries.buildPatchFromLibraries();
               const tvProfile = patch && Array.isArray(patch.LibraryProfiles)
                 ? patch.LibraryProfiles.find((profile) => profile.id === "tv")
@@ -242,9 +247,42 @@ def _browser_settings_launch_runner_source() -> str:
               if (Object.prototype.hasOwnProperty.call(tvEditorOverrides, "MovieRoute1080pTargetSizeGB")) {
                 throw new Error("TV LibraryProfiles patch kept hidden Movie 1080p override");
               }
+              if (tvEditorOverrides.SizeGuardMode !== "fallback_remux") {
+                throw new Error("TV LibraryProfiles patch did not include SizeGuardMode fallback_remux: " + JSON.stringify(tvEditorOverrides));
+              }
               const warning = text("settings-library-warning-summary");
               if (!warning.includes("omitted designation-specific override")) {
                 throw new Error("missing designation-prune warning after staging TV LibraryProfiles patch: " + warning);
+              }
+              const libraryDialog = byId("settings-save-review-dialog");
+              if (!libraryDialog) throw new Error("missing shared settings save review dialog");
+              click("settings-library-save-button");
+              await waitFor(() => Boolean(libraryDialog.open), "library save review dialog");
+              if (libraryDialog.closest(".page:not(.is-visible)")) {
+                throw new Error("Library save review dialog is still nested inside a hidden page");
+              }
+              const libraryDialogRect = libraryDialog.getBoundingClientRect();
+              if (!(libraryDialogRect.width > 0 && libraryDialogRect.height > 0)) {
+                throw new Error("Library save review dialog opened without a visible bounding rect");
+              }
+              requireText("settings-save-review-dialog", ["Review Settings Changes", "Changed", "Submitted", "Save Settings", "Library Profiles", "SizeGuardMode", "fallback_remux", "LibraryProfiles change detail"]);
+              if (text("settings-save-review-dialog").includes("[object Object]")) {
+                throw new Error("Library save review dialog rendered object values as [object Object]: " + text("settings-save-review-dialog"));
+              }
+              click("settings-save-review-cancel-button");
+              await waitFor(() => !libraryDialog.open, "library save review dialog closed");
+              await waitFor(() => [
+                "settings-library-build-patch-button",
+                "settings-library-preview-button",
+                "settings-library-save-button",
+              ].every((id) => !byId(id)?.disabled), "library command buttons re-enabled after cancel");
+              const libraryStageButton = byId("settings-library-build-patch-button");
+              let libraryStageClickReached = false;
+              const libraryStageProbe = () => { libraryStageClickReached = true; };
+              libraryStageButton.addEventListener("click", libraryStageProbe, { once: true });
+              libraryStageButton.click();
+              if (!libraryStageClickReached) {
+                throw new Error("Libraries page did not accept clicks after cancelling the save review dialog");
               }
               localStorage.setItem("mediapipeline-library-profile", "movies");
               byId("settings-library-add-button").click();
@@ -426,7 +464,7 @@ def _browser_settings_launch_runner_source() -> str:
             window.renderSettings(payload.settings);
             window.showPage("settings");
             requireDefaultVisibleAssSsaCheckboxes();
-            requireLibraryProfileDesignationFiltering();
+            await requireLibraryProfileDesignationFiltering();
             await requireLibraryRouteMapEvidence();
             requireText("settings-raw-action-plan-summary", [
               "Settings raw-key action plan:",
@@ -479,8 +517,8 @@ def _browser_settings_launch_runner_source() -> str:
             stagedPolicyTrustRow.click();
             requireText("settings-effective-policy-detail", ["Checkpoint: Current WebView changes", "Effective changes: 7", "Use Save Settings", "Mutation guardrail"]);
             requireText("settings-launch-impact-summary", ["Settings-to-launch handoff:", "Launch uses saved backend settings, not unsaved edits"]);
-            requireText("settings-backend-result-summary", ["Backend save handoff:", "Dry run: not run", "Save: not saved"]);
-            requireText("settings-backend-result-detail", ["Backend save result detail:", "Signal: Dry-run risk output", "Save candidate identity:", "Evidence matches current JSON: no"]);
+            requireText("settings-backend-result-summary", ["Backend save handoff:", "Dry run: previous preview", "Save: not saved"]);
+            requireText("settings-backend-result-detail", ["Backend save result detail:", "Signal: Save confirmation boundary", "Save candidate identity:", "Evidence matches current JSON: no"]);
 
             window.showPage("launch");
             window.mediaPipelineLaunchView.renderAllLaunchPreflights();
@@ -542,7 +580,7 @@ def _browser_settings_launch_runner_source() -> str:
             requireText("launch-settings-intent-detail", [
               "Queue display filter / backend launch scope",
               "hidden blocked rows:",
-              "hidden review rows: 1",
+              "hidden review rows:",
               "Backend launch scope: unchanged",
             ]);
             const stagedSettingsIntentRow = Array.from(document.querySelectorAll("#launch-settings-intent-rows tr"))
@@ -553,11 +591,16 @@ def _browser_settings_launch_runner_source() -> str:
 
             window.showPage("settings");
             const historyBeforeCancel = window.getCommandHistory();
+            const previewCountBeforeCancel = historyBeforeCancel.filter((entry) => {
+              const raw = entry.raw || {};
+              return entry.command === "settings.preview_patch" || raw.command === "settings.preview_patch";
+            }).length;
+            const saveCountBeforeCancel = historyBeforeCancel.filter((entry) => {
+              const raw = entry.raw || {};
+              return entry.command === "settings.save_patch" || raw.command === "settings.save_patch";
+            }).length;
             click("settings-save-patch-button");
-            await new Promise((resolve) => setTimeout(resolve, 150));
-            if (!document.getElementById("settings-save-review-dialog")?.open) {
-              throw new Error("Save Settings review dialog did not open");
-            }
+            await waitFor(() => Boolean(document.getElementById("settings-save-review-dialog")?.open), "settings save review dialog");
             requireText("settings-save-review-dialog", ["Review Settings Changes", "Changed", "Submitted", "Save Settings"]);
             click("settings-save-review-cancel-button");
             await new Promise((resolve) => setTimeout(resolve, 150));
@@ -572,10 +615,18 @@ def _browser_settings_launch_runner_source() -> str:
             requireText("launch-settings-intent-summary", ["Recent command evidence", "saved backend settings"]);
 
             const history = window.getCommandHistory();
-            if (history.length !== historyBeforeCancel.length) {
-              throw new Error("cancelled Save Settings changed command history length from " + historyBeforeCancel.length + " to " + history.length);
+            const previewCountAfterCancel = history.filter((entry) => {
+              const raw = entry.raw || {};
+              return entry.command === "settings.preview_patch" || raw.command === "settings.preview_patch";
+            }).length;
+            const saveCountAfterCancel = history.filter((entry) => {
+              const raw = entry.raw || {};
+              return entry.command === "settings.save_patch" || raw.command === "settings.save_patch";
+            }).length;
+            if (previewCountAfterCancel !== previewCountBeforeCancel + 1) {
+              throw new Error("cancelled Save Settings did not record exactly one backend preview; before=" + previewCountBeforeCancel + " after=" + previewCountAfterCancel);
             }
-            if (history.some((entry) => entry.command === "settings.save_patch" || entry.raw?.command === "settings.save_patch")) {
+            if (saveCountAfterCancel !== saveCountBeforeCancel) {
               throw new Error("settings save command was unexpectedly invoked by the browser smoke");
             }
 
@@ -591,6 +642,10 @@ def _browser_settings_launch_runner_source() -> str:
               policyBoundarySummary: text("launch-policy-boundary-summary"),
               policyBoundaryDetail: text("launch-policy-boundary-detail"),
               saveReviewOpened: true,
+              previewCountBeforeCancel,
+              previewCountAfterCancel,
+              saveCountBeforeCancel,
+              saveCountAfterCancel,
               commandHistoryCount: history.length,
               commandHistory: history.map((entry) => entry.command || entry.raw?.command || ""),
             };
@@ -775,6 +830,8 @@ class WebViewBrowserSettingsLaunchSmoke(unittest.TestCase):
         self.assertIn("Remux / encode size posture", browser_result["launchRiskDetail"])
         self.assertIn("Launch active media-policy boundary:", browser_result["policyBoundarySummary"])
         self.assertIn("Staged publish/source candidate", browser_result["policyBoundaryDetail"])
-        self.assertNotIn("settings.preview_patch", browser_result["commandHistory"])
+        self.assertEqual(browser_result["previewCountAfterCancel"], browser_result["previewCountBeforeCancel"] + 1)
+        self.assertEqual(browser_result["saveCountAfterCancel"], browser_result["saveCountBeforeCancel"])
+        self.assertIn("settings.preview_patch", browser_result["commandHistory"])
         self.assertNotIn("settings.save_patch", browser_result["commandHistory"])
         self.assertTrue(browser_result["saveReviewOpened"])

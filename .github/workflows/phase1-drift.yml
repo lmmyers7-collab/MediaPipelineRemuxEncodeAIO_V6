@@ -8,6 +8,9 @@ on:
       - master
       - "codex/**"
 
+permissions:
+  contents: read
+
 jobs:
   generated-context:
     name: Generated context drift
@@ -51,10 +54,19 @@ jobs:
 
       - name: Check naming lint
         shell: pwsh
+        env:
+          MP_GITHUB_EVENT_NAME: ${{ github.event_name }}
+          MP_GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
-            git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
-            python -m mediapipeline.tools.lint_naming --git-diff "origin/${{ github.base_ref }}"
+          $eventName = $env:MP_GITHUB_EVENT_NAME
+          $baseRef = $env:MP_GITHUB_BASE_REF
+          if ($eventName -eq "pull_request") {
+            if ([string]::IsNullOrWhiteSpace($baseRef) -or $baseRef -notmatch '^[A-Za-z0-9._/-]+$' -or $baseRef.Contains('..') -or $baseRef.StartsWith('/') -or $baseRef.EndsWith('/')) {
+              throw "Unsafe pull request base ref: $baseRef"
+            }
+            $remoteRef = "refs/remotes/origin/$baseRef"
+            git fetch origin "$baseRef`:$remoteRef" --depth=1
+            python -m mediapipeline.tools.lint_naming --git-diff $remoteRef
           } else {
             python -m mediapipeline.tools.lint_naming
           }
@@ -68,10 +80,19 @@ jobs:
 
       - name: Check change packet coverage
         shell: pwsh
+        env:
+          MP_GITHUB_EVENT_NAME: ${{ github.event_name }}
+          MP_GITHUB_BASE_REF: ${{ github.base_ref }}
         run: |
-          if ("${{ github.event_name }}" -eq "pull_request") {
-            git fetch origin "${{ github.base_ref }}:refs/remotes/origin/${{ github.base_ref }}" --depth=1
-            python -m mediapipeline.tools.change_control.validate_changes --require-diff-coverage "origin/${{ github.base_ref }}"
+          $eventName = $env:MP_GITHUB_EVENT_NAME
+          $baseRef = $env:MP_GITHUB_BASE_REF
+          if ($eventName -eq "pull_request") {
+            if ([string]::IsNullOrWhiteSpace($baseRef) -or $baseRef -notmatch '^[A-Za-z0-9._/-]+$' -or $baseRef.Contains('..') -or $baseRef.StartsWith('/') -or $baseRef.EndsWith('/')) {
+              throw "Unsafe pull request base ref: $baseRef"
+            }
+            $remoteRef = "refs/remotes/origin/$baseRef"
+            git fetch origin "$baseRef`:$remoteRef" --depth=1
+            python -m mediapipeline.tools.change_control.validate_changes --require-diff-coverage $remoteRef
           } else {
             python -m mediapipeline.tools.change_control.validate_changes
           }
@@ -168,6 +189,10 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1
+
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -197,6 +222,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1
 
       - name: Install dependencies
         shell: pwsh

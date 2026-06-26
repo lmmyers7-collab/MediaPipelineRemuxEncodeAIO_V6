@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0624-034",
+  "title": "Default failure reports to active markers",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": null,
+  "summary": "Reports failure triage now opens in active marker mode by default while preserving latest JSON as an opt-out view.",
+  "reason": "Cleared historical failure-report rows were reappearing as actionable failures because the Reports page defaulted to latest failure JSON instead of active marker evidence.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Reports > Failures opened with Use failure markers unchecked, so refreshes requested /api/failures?limit=100 and showed latest historical JSON rows by default.",
+  "behavior_after": "Reports > Failures opens with Use failure markers checked, so refreshes request /api/failures?limit=100&source=markers by default; unchecking the control still requests latest JSON.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-reports.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-034.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-034.json",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static -q - passed (12 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q - passed (1 test)",
+    "ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed due pre-existing smoke wrapper map freshness drift, duplicate test-name report drift, and MP-CHANGE-2026-0619-020 local workstation path",
+    "ops/scripts/smoke/Test-WebViewBrowserMaintenanceReportsSmoke.ps1 - passed",
+    "validate_changes --require-worktree-coverage - failed; this change is covered, but 10 unrelated pre-existing worktree files are uncovered"
+  ],
+  "rollback_plan": "Remove the checked attribute from the failure-source-markers checkbox and revert the test expectations for marker-default refresh behavior.",
+  "related_changes": [],
+  "notes": "Default Reports failure source checkbox to active markers.\nStatic guard for marker-source default and failure query contract.\nBrowser smoke verifies checked marker-source refresh and unchecked latest-JSON refresh.\nRefreshed generated summaries for changed Reports UI, tests, and packet.\nRecorded Git-tracked generated summary paths with repository casing."
+}

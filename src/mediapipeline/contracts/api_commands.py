@@ -37,6 +37,34 @@ class OpenLocationCommandPayload(ApiCommandPayload):
     manifest_path: Any = None
 
 
+class PendingPublishOpenCommandPayload(StrictApiCommandPayload):
+    row_key: Any = None
+    target: Literal["play_local_file", "local_file", "manifest", "destination_folder", "source_folder"] | None = None
+
+    @model_validator(mode="after")
+    def require_row_key_and_target(self) -> PendingPublishOpenCommandPayload:
+        if self.row_key is None or (isinstance(self.row_key, str) and not self.row_key.strip()):
+            raise ValueError("row_key is required")
+        if self.target is None:
+            raise ValueError("target is required")
+        return self
+
+
+class PendingPublishRecoveryPlanCommandPayload(StrictApiCommandPayload):
+    scope: Literal["all", "selected"] | None = None
+    row_key: Any = None
+
+    @model_validator(mode="after")
+    def require_row_key_for_selected_scope(self) -> PendingPublishRecoveryPlanCommandPayload:
+        if self.scope is None:
+            raise ValueError("scope is required")
+        if self.scope == "selected" and (
+            self.row_key is None or (isinstance(self.row_key, str) and not self.row_key.strip())
+        ):
+            raise ValueError("row_key is required when scope is selected")
+        return self
+
+
 class DiagnosticsTdarrMatrixAuditCommandPayload(StrictApiCommandPayload):
     action: Any = None
     confirm_delete_full_matrix: StrictBool | None = None
@@ -102,6 +130,16 @@ class QueueFileOverridesSeriesApplyCommandPayload(StrictApiCommandPayload):
     preview_fingerprint: Any = None
 
 
+class QueueFileOverridesSeriesClearPreviewCommandPayload(StrictApiCommandPayload):
+    path: Any = None
+
+
+class QueueFileOverridesSeriesClearApplyCommandPayload(StrictApiCommandPayload):
+    path: Any = None
+    confirm_apply: StrictBool | None = None
+    preview_fingerprint: Any = None
+
+
 class QueueFileOverridesRemuxPilotPromoteCommandPayload(StrictApiCommandPayload):
     pilot_source_paths: Any = None
     confirm_apply: StrictBool | None = None
@@ -140,6 +178,7 @@ class SettingsSavePatchCommandPayload(StrictApiCommandPayload):
     changes: Any = None
     remove_keys: Any = None
     library_profile_resets: Any = None
+    review_confirmation: Any = None
     confirm_save: StrictBool | None = None
 
 
@@ -412,6 +451,17 @@ class PipelineStartCommandPayload(StrictApiCommandPayload):
     schedule_override: Any = None
 
 
+class AuditStopCommandPayload(StrictApiCommandPayload):
+    confirm_stop: StrictBool | None = None
+    reason: Any = None
+
+    @model_validator(mode="after")
+    def require_confirm_stop(self) -> AuditStopCommandPayload:
+        if self.confirm_stop is not True:
+            raise ValueError("confirm_stop must be true")
+        return self
+
+
 class BackendShutdownCommandPayload(StrictApiCommandPayload):
     reason: Any = None
     force_active_work_shutdown: StrictBool | None = None
@@ -531,6 +581,29 @@ class FailureCommandPayload(StrictApiCommandPayload):
     marker_path: Any = None
     marker_paths: Any = None
     source_json: Any = None
+    journal_key: Any = None
+
+
+class FailureArchiveEvidenceCommandPayload(StrictApiCommandPayload):
+    scope: Any = None
+    include_markers: StrictBool | None = None
+    include_reports: StrictBool | None = None
+    dry_run: StrictBool | None = None
+    dry_run_fingerprint: Any = None
+    confirm_archive: StrictBool | None = None
+    reason: Any = None
+    journal_key: Any = None
+
+
+class FailureLifecycleCommandPayload(StrictApiCommandPayload):
+    journal_key: Any = None
+    transition: Any = None
+    step_id: Any = None
+    operator_note: Any = None
+    reason: Any = None
+    dry_run: StrictBool | None = None
+    dry_run_fingerprint: Any = None
+    confirm_transition: StrictBool | None = None
 
 
 class FinalLibraryPromoteQueueCommandPayload(StrictApiCommandPayload):
@@ -560,12 +633,16 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/queue/file-overrides/route-preview": QueueFileOverridesRoutePreviewCommandPayload,
     "/api/queue/file-overrides/series-preview": QueueFileOverridesSeriesPreviewCommandPayload,
     "/api/queue/file-overrides/series-apply": QueueFileOverridesSeriesApplyCommandPayload,
+    "/api/queue/file-overrides/series-clear-preview": QueueFileOverridesSeriesClearPreviewCommandPayload,
+    "/api/queue/file-overrides/series-clear-apply": QueueFileOverridesSeriesClearApplyCommandPayload,
     "/api/queue/file-overrides/remux-pilot-promote": QueueFileOverridesRemuxPilotPromoteCommandPayload,
     "/api/queue/file-overrides/folder-preview": QueueFileOverridesFolderPreviewCommandPayload,
     "/api/queue/file-overrides/folder-rule": QueueFileOverridesFolderRuleCommandPayload,
     "/api/failures/clear": FailureCommandPayload,
-    "/api/pending-publish/open": OpenLocationCommandPayload,
-    "/api/pending-publish/recovery-plan": OpenLocationCommandPayload,
+    "/api/failures/archive-evidence": FailureArchiveEvidenceCommandPayload,
+    "/api/failures/lifecycle": FailureLifecycleCommandPayload,
+    "/api/pending-publish/open": PendingPublishOpenCommandPayload,
+    "/api/pending-publish/recovery-plan": PendingPublishRecoveryPlanCommandPayload,
     "/api/pending-publish/repair-manifest-dry-run": RepairReconcileDryRunCommandPayload,
     "/api/pending-publish/repair-manifest": RepairReconcileApplyCommandPayload,
     "/api/pending-publish/reconcile-orphan-payloads-dry-run": RepairReconcileDryRunCommandPayload,
@@ -628,6 +705,7 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/pipeline/browse-file": PipelineBrowseFileCommandPayload,
     "/api/pipeline/start": PipelineStartCommandPayload,
     "/api/audit/start": ProcessControlCommandPayload,
+    "/api/audit/stop": AuditStopCommandPayload,
     "/api/audit/score-policy": AuditScorePolicyCommandPayload,
     "/api/audit/ignore": AuditIgnoreCommandPayload,
     "/api/audit/export-rerun-csv": AuditExportRerunCsvCommandPayload,

@@ -77,6 +77,28 @@ def _browser_rename_runner_source() -> str:
                 if (actual.includes(fragment)) throw new Error(id + " unexpectedly included " + fragment + "\\nActual:\\n" + actual);
               }
             }
+            async function waitFor(condition, label, timeoutMs = 3000) {
+              const deadline = Date.now() + timeoutMs;
+              let lastError = null;
+              while (Date.now() < deadline) {
+                try {
+                  if (condition()) return;
+                } catch (error) {
+                  lastError = error;
+                }
+                await new Promise((resolve) => setTimeout(resolve, 50));
+              }
+              throw new Error("timed out waiting for " + label + (lastError ? ": " + lastError.message : ""));
+            }
+            function requireNoVisibleProseSummary(id) {
+              const node = byId(id);
+              if (!node) throw new Error("missing hidden summary " + id);
+              const previous = node.previousElementSibling;
+              if (previous?.classList?.contains("prose-box-summary-strip")) {
+                throw new Error(id + " rendered a visible prose summary strip");
+              }
+              if (!node.hidden) throw new Error(id + " should stay hidden");
+            }
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
@@ -161,10 +183,13 @@ def _browser_rename_runner_source() -> str:
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', false);
             setCheckedBySelector('[data-rename-tv-filter="release_groups"]', false);
             click("#settings-save-header-save-button", "main settings save");
-            await new Promise((resolve) => setTimeout(resolve, 150));
+            await waitFor(() => byId("settings-save-review-dialog").open, "initial save review dialog");
             requireText("settings-save-review-dialog", ["Review Settings Changes", "Save Settings"]);
             byId("settings-save-review-dialog").close("cancel");
-            await new Promise((resolve) => setTimeout(resolve, 150));
+            await waitFor(
+              () => !byId("settings-save-review-dialog").open && !byId("settings-save-header-save-button").disabled,
+              "initial save cancellation"
+            );
             const storedRenameFilters = JSON.parse(localStorage.getItem("mediapipeline.rename.cleaningFilters.v1") || "null");
             if (Object.prototype.hasOwnProperty.call(storedRenameFilters || {}, "use_editable_filters")) {
               throw new Error("removed editable rename filter toggle was saved");
@@ -202,13 +227,67 @@ def _browser_rename_runner_source() -> str:
               throw new Error("TV release-group terms did not reload from browser storage: " + byId("settings-rename-tv-filter-release-groups").value);
             }
             requireText("settings-rename-cleaning-filter-summary", ["Unsaved cleaning filter draft loaded from browser storage", "release groups=4", "Browser storage is local draft recovery only"]);
+            requireNoVisibleProseSummary("settings-rename-cleaning-filter-summary");
             const savedReleaseGroups = byId("settings-rename-filter-release-groups").value;
 
+            function cloneValue(value) {
+              return JSON.parse(JSON.stringify(value));
+            }
+            function currentRenameReviewValue(key, nextValue) {
+              const current = cloneValue(nextValue);
+              if (key === "RenameMovieFilterOptions" || key === "RenameTVFilterOptions") {
+                current.release_groups = true;
+                return current;
+              }
+              if (key === "RenameMovieFilterTerms") {
+                current.release_groups = ["rarbg", "yify"];
+                current.languages_subs_dubs = ["eng", "ita", "sub", "dub"];
+                return current;
+              }
+              if (key === "RenameTVFilterTerms") {
+                current.release_groups = ["chotab", "ttga"];
+                return current;
+              }
+              return current;
+            }
             const originalSettingsApiPost = window.apiPost;
             const settingsPosts = [];
             window.apiPost = async (url, body) => {
               if (String(url || "").startsWith("/api/settings/")) {
                 settingsPosts.push({ url: String(url || ""), body: body || {} });
+                if (String(url || "") === "/api/settings/preview-patch") {
+                  const changedKeys = Object.keys(body?.changes || {});
+                  return {
+                    command: "settings.preview_patch",
+                    ok: true,
+                    message: "Settings patch preview produced backend-confirmed changes.",
+                    data: {
+                      writes_config: false,
+                      changed_keys: changedKeys,
+                      removed_keys: [],
+                      review_entries_schema_version: "desktop_settings_patch_review_entries.v1",
+                      review_entries: changedKeys.map((key) => ({
+                        key,
+                        status: "changed",
+                        source: "submitted",
+                        current_exists: true,
+                        new_exists: true,
+                        current_value: currentRenameReviewValue(key, body?.changes?.[key]),
+                        new_value: body?.changes?.[key],
+                      })),
+                      review_confirmation: {
+                        schema_version: "desktop_settings_save_review_confirmation.v1",
+                        preview_id: "rename-smoke-preview",
+                        request_digest: "request",
+                        base_config_digest: "base",
+                        candidate_config_digest: "candidate",
+                        review_entries_digest: "review",
+                        changed_keys: changedKeys,
+                        removed_keys: [],
+                      },
+                    },
+                  };
+                }
                 if (String(url || "") === "/api/settings/save-patch") {
                   return {
                     command: "settings.save_patch",
@@ -228,9 +307,14 @@ def _browser_rename_runner_source() -> str:
               return originalSettingsApiPost(url, body);
             };
             const renameFilterSavePromise = window.mediaPipelineSettingsView.saveSettingsPatch();
-            await new Promise((resolve) => setTimeout(resolve, 250));
-            if (settingsPosts.length !== 0) {
-              throw new Error("settings save review called backend settings routes before confirmation: " + JSON.stringify(settingsPosts));
+            await waitFor(
+              () => settingsPosts.filter((entry) => entry.url === "/api/settings/preview-patch").length === 1,
+              "settings save preview before confirmation"
+            );
+            const previewPostsBeforeConfirm = settingsPosts.filter((entry) => entry.url === "/api/settings/preview-patch");
+            const savePostsBeforeConfirm = settingsPosts.filter((entry) => entry.url === "/api/settings/save-patch");
+            if (previewPostsBeforeConfirm.length !== 1 || savePostsBeforeConfirm.length !== 0) {
+              throw new Error("settings save review did not limit pre-confirmation backend work to one preview: " + JSON.stringify(settingsPosts));
             }
             const stagedChanges = JSON.parse(byId("settings-patch-json").value || "{}");
             if (!stagedChanges.RenameMovieFilterOptions || !stagedChanges.RenameMovieFilterTerms || !stagedChanges.RenameMovieRemoveTerms || !stagedChanges.RenameTVFilterOptions || !stagedChanges.RenameTVFilterTerms || !stagedChanges.RenameTVRemoveTerms) {
@@ -249,33 +333,61 @@ def _browser_rename_runner_source() -> str:
               throw new Error("settings save review should retain browser draft storage");
             }
             requireText("settings-rename-cleaning-filter-summary", ["Rename filters are included in the current Save Settings review.", "Next step: press Save Settings.", "Browser storage is local draft recovery only"]);
+            requireNoVisibleProseSummary("settings-rename-cleaning-filter-summary");
             requireText("settings-save-review-dialog", ["Review Settings Changes", "RenameMovieFilterOptions", "RenameMovieFilterTerms", "RenameMovieRemoveTerms", "RenameTVFilterOptions", "RenameTVFilterTerms", "RenameTVRemoveTerms"]);
+            requireText("settings-save-review-dialog", ["Changed toggles: release groups: on -> off", "Added terms:", "codexrg", "neonoir", "multisub", "codextv", "Unchanged terms hidden"]);
+            requireTextAbsent("settings-save-review-dialog", ["audio_channels", "atmos"]);
             byId("settings-save-review-dialog").close("confirm");
             await renameFilterSavePromise;
             await new Promise((resolve) => setTimeout(resolve, 250));
-            if (settingsPosts.length !== 1 || settingsPosts[0].url !== "/api/settings/save-patch") {
-              throw new Error("rename filters were not saved through settings save route: " + JSON.stringify(settingsPosts));
+            const previewPost = settingsPosts.find((entry) => entry.url === "/api/settings/preview-patch");
+            const savePost = settingsPosts.find((entry) => entry.url === "/api/settings/save-patch");
+            if (settingsPosts.length !== 2 || !previewPost || !savePost) {
+              throw new Error("rename filters were not previewed and saved through settings routes: " + JSON.stringify(settingsPosts));
             }
-            const saveChanges = settingsPosts[0].body?.changes || {};
-            if (!saveChanges.RenameMovieFilterOptions || !saveChanges.RenameMovieFilterTerms || !saveChanges.RenameMovieRemoveTerms || !saveChanges.RenameTVFilterOptions || !saveChanges.RenameTVFilterTerms || !saveChanges.RenameTVRemoveTerms || settingsPosts[0].body?.confirm_save !== true) {
-              throw new Error("settings save did not submit rename filter persisted keys with confirmation: " + JSON.stringify(settingsPosts[0]));
+            const saveChanges = savePost.body?.changes || {};
+            if (!saveChanges.RenameMovieFilterOptions || !saveChanges.RenameMovieFilterTerms || !saveChanges.RenameMovieRemoveTerms || !saveChanges.RenameTVFilterOptions || !saveChanges.RenameTVFilterTerms || !saveChanges.RenameTVRemoveTerms || savePost.body?.confirm_save !== true || !savePost.body?.review_confirmation?.preview_id) {
+              throw new Error("settings save did not submit rename filter persisted keys with confirmation: " + JSON.stringify(savePost));
             }
             requireText("settings-patch-status", ["Saved"]);
             window.apiPost = originalSettingsApiPost;
 
+            setCheckedBySelector('[data-rename-movie-filter="video_source"]', false);
             setCheckedBySelector('[data-rename-movie-filter="release_groups"]', true);
-            setValue("settings-rename-preview-input", "Together.2025.1080p.WEBRip.10Bit.DDP5.1.x265-NeoNoir.mkv");
-            click("#settings-rename-preview-button", "backend filename cleaner test");
+            setValue("settings-rename-workbench-mode", "movie");
+            setValue("settings-rename-workbench-source-file", "Scary Movie 2026 1080p DCPRip x264-FS.mkv");
+            setValue("settings-rename-workbench-expected-movie-title", "Scary Movie");
+            setValue("settings-rename-workbench-expected-year", "2026");
+            click("#settings-rename-workbench-test-button", "backend filename cleaner workbench test");
             await new Promise((resolve) => setTimeout(resolve, 600));
-            requireText("settings-rename-preview-output", ["Together (2025).mkv", "Movie filter policy: staged.", "Source: backend clean_pipeline_movie_name."]);
-            requireText("settings-rename-preview-status", ["Backend clean preview complete"]);
-            setValue("settings-rename-preview-mode", "tv");
-            setValue("settings-rename-preview-source-folder", "The Web S01 1080p WEB-DL-codextv");
-            setValue("settings-rename-preview-input", "S01E01-Pilot.1080p.WEB-DL-codextv.mkv");
+            requireText("settings-rename-workbench-output", ["Actual: Scary Movie 1080p DCPRip X264-FS (2026).mkv", "Expected: Scary Movie (2026).mkv", "Result: Needs review", "Source: backend rename cleaner"]);
+            requireText("settings-rename-workbench-status", ["Needs review"]);
+            requireText("settings-rename-workbench-suggestions", ["1080p", "DCPRip", "movie filter category is off"]);
+            click("#settings-rename-workbench-stage-suggestions-button", "stage backend workbench suggestions");
+            await new Promise((resolve) => setTimeout(resolve, 150));
+            requireText("settings-rename-workbench-message", ["draft only", "Retest"]);
+            click("#settings-rename-workbench-retest-button", "retest staged backend workbench suggestions");
+            await new Promise((resolve) => setTimeout(resolve, 700));
+            requireText("settings-rename-workbench-output", ["Actual: Scary Movie (2026).mkv", "Expected: Scary Movie (2026).mkv", "Result: Pass"]);
+            requireText("settings-rename-workbench-message", ["Retest passed", "Save New Filters"]);
+            if (byId("settings-rename-workbench-save-filters-button").disabled) {
+              throw new Error("Save New Filters should be enabled after staged filters pass retest.");
+            }
+            const workbenchPatch = JSON.parse(byId("settings-patch-json").value || "{}");
+            if (!workbenchPatch.RenameMovieFilterTerms || !String((workbenchPatch.RenameMovieFilterTerms.video_source || []).join(",")).toLowerCase().includes("dcprip")) {
+              throw new Error("workbench retest did not prepare staged movie video/source term for Save Settings: " + JSON.stringify(workbenchPatch));
+            }
+            setValue("settings-rename-workbench-mode", "tv");
+            setValue("settings-rename-workbench-source-folder", "The Web S01 1080p WEB-DL-codextv");
+            setValue("settings-rename-workbench-source-file", "S01E01-Pilot.1080p.WEB-DL-codextv.mkv");
+            setValue("settings-rename-workbench-expected-show", "The Web");
+            setValue("settings-rename-workbench-expected-season", "1");
+            setValue("settings-rename-workbench-expected-episode", "1");
+            setValue("settings-rename-workbench-expected-episode-title", "Pilot");
             setCheckedBySelector('[data-rename-tv-filter="release_groups"]', true);
-            click("#settings-rename-preview-button", "backend TV filename cleaner test");
+            click("#settings-rename-workbench-test-button", "backend TV filename cleaner workbench test");
             await new Promise((resolve) => setTimeout(resolve, 600));
-            requireText("settings-rename-preview-output", ["The Web - S01E01 - Pilot.mkv", "TV filter policy: staged.", "Context guard:", "Source: backend build_auto_tv_rename_name."]);
+            requireText("settings-rename-workbench-output", ["Actual: The Web - S01E01 - Pilot.mkv", "Expected: The Web - S01E01 - Pilot.mkv", "Result: Pass"]);
 
             window.showPage("rename");
             requireText("rename-browse-folder-button", ["Add files from folder"]);

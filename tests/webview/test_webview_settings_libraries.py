@@ -14,9 +14,11 @@ sys.path.insert(0, str(find_repo_root(Path(__file__))))
 from mediapipeline.core.config.library_profiles import LIBRARY_OVERRIDE_KEYS_BY_GROUP
 from mediapipeline.core.config.metadata_parts.field_definitions import CONFIG_FIELD_DEFINITIONS
 from mediapipeline.core.config.preset_migration import LABEL_ONLY_RENAMES
+from tests.css_import_resolver import resolve_css_imports
 
 
 STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
+STYLES_PAGES_CSS = STATIC_ROOT / "assets" / "styles.pages.css"
 VOBSUB_LIBRARY_OVERRIDE_KEYS = {
     "ConvertVobSubToSrt",
     "DropVobSubAfterConversion",
@@ -25,6 +27,23 @@ VOBSUB_LIBRARY_OVERRIDE_KEYS = {
     "VobSubOcrTimeoutSeconds",
     "TreatVobSubSignsSongsAsForced",
 }
+SUBTITLE_ADVANCED_LIBRARY_FIELDS = (
+    "SubSDHTitleKeywords",
+    "SubSupplementalKeywords",
+    "MergeThresholdMs",
+    "SubtitleExtractTimeoutSeconds",
+    "SubtitleProbeTimeoutSeconds",
+    "BdpgsOcrTimeoutSeconds",
+    "VobSubOcrTimeoutSeconds",
+    "ExcludeSubtitleStyles",
+    "IncludeSubtitleStyles",
+)
+
+
+def _read_pages_css() -> str:
+    return resolve_css_imports(STYLES_PAGES_CSS, STATIC_ROOT / "assets")
+
+
 def _backend_library_override_keys() -> set[str]:
     return {key for keys in LIBRARY_OVERRIDE_KEYS_BY_GROUP.values() for key in keys}
 
@@ -102,6 +121,34 @@ def _settings_library_layout_keys() -> set[str]:
 
 
 class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
+    def test_settings_save_review_dialog_is_global_shell_partial(self) -> None:
+        index_html = (STATIC_ROOT / "index.html").read_text(encoding="utf-8")
+        settings_partial = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
+        shared_partial = (
+            STATIC_ROOT / "partials" / "shared-settings-save-review-dialog.html"
+        ).read_text(encoding="utf-8")
+
+        self.assertNotIn('id="settings-save-review-dialog"', settings_partial)
+        self.assertEqual(shared_partial.count('id="settings-save-review-dialog"'), 1)
+        self.assertIn("partials/shared-settings-save-review-dialog.html", index_html)
+        self.assertLess(
+            index_html.index("partials/page-settings.html"),
+            index_html.index("partials/shared-settings-save-review-dialog.html"),
+        )
+        self.assertLess(
+            index_html.index("partials/shared-settings-save-review-dialog.html"),
+            index_html.index("partials/app-shell-end.html"),
+        )
+
+    def test_settings_patch_posts_have_explicit_timeouts(self) -> None:
+        settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
+        calls = re.findall(r'apiPost\(\s*"/api/settings/(?:preview-patch|save-patch)"[\s\S]+?\);', settings_js)
+
+        self.assertGreaterEqual(len(calls), 4)
+        for call in calls:
+            with self.subTest(call=call):
+                self.assertIn("timeoutMs:", call)
+
     def test_settings_metadata_covers_backend_library_override_keys(self) -> None:
         metadata_keys = _settings_metadata_keys()
         backend_keys = _backend_library_override_keys()
@@ -115,6 +162,43 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
         self.assertEqual(sorted(backend_keys - layout_keys), [])
         self.assertLessEqual(VOBSUB_LIBRARY_OVERRIDE_KEYS, layout_keys)
+
+    def test_subtitle_keyword_timeout_and_style_overrides_are_advanced_dropdown(self) -> None:
+        js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        css = _read_pages_css()
+        subtitles_start = js.index("    subtitles: [")
+        tx3g_panel_start = js.index('      { type: "panel", title: "TX3G"', subtitles_start)
+        subtitles_lead = js[subtitles_start:tx3g_panel_start]
+        standard_grid = re.search(r'\{ type: "grid", fields: \[([^\]]*)\] \}', subtitles_lead)
+
+        self.assertIsNotNone(standard_grid)
+        self.assertIn(
+            '{ type: "grid", fields: ["SubKeepLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages", "VobSubExtractLanguages"] }',
+            subtitles_lead,
+        )
+        self.assertIn('{ type: "advanced", title: "Advanced", note: "Keywords, timeouts, styles"', subtitles_lead)
+        for key in SUBTITLE_ADVANCED_LIBRARY_FIELDS:
+            with self.subTest(key=key):
+                self.assertIn(key, subtitles_lead)
+                self.assertNotIn(key, standard_grid.group(1))
+
+        for token in (
+            "function renderAdvancedOverrideDisclosure(profile, groupKey, block)",
+            'if (block.type === "advanced") return renderAdvancedOverrideDisclosure(profile, groupKey, block);',
+            'class="settings-library-advanced-disclosure"',
+            'data-library-advanced-disclosure',
+            'class="settings-library-advanced-summary"',
+            'class="settings-library-advanced-body"',
+        ):
+            self.assertIn(token, js)
+
+        for token in (
+            ".settings-library-advanced-disclosure",
+            ".settings-library-advanced-summary",
+            ".settings-library-advanced-body",
+            ".settings-library-advanced-body .form-grid",
+        ):
+            self.assertIn(token, css)
 
     def test_settings_library_layout_keys_are_backend_known_and_editable(self) -> None:
         metadata = _backend_field_metadata()
@@ -487,7 +571,6 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "settingsView.writeSettingsPatchJson",
             "window.mediaPipelineSettingsView?.previewSettingsPatch",
             "window.mediaPipelineSettingsView?.saveSettingsPatch",
-            "Library Profile source roots",
             "existing gated Run Once path",
             "Runtime boundary: this control only stages settings;",
             "syncLibraryWatchControlsFromConfig(settings, options);",
@@ -498,6 +581,11 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             self.assertIn(token, js)
 
         for token in (
+            "`Roots:",
+            "`Debounce:",
+            "`Schedule gate:",
+            '"Roots: Library Profile source roots"',
+            '"Roots: existing saved roots are preserved while watch folders are disabled."',
             "apiPost(",
             "scan_root",
             "WatchFolderManager",
@@ -614,7 +702,7 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
 
     def test_settings_libraries_asset_tracks_explicit_override_state(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
-        css = (STATIC_ROOT / "assets" / "styles.pages.css").read_text(encoding="utf-8")
+        css = _read_pages_css()
 
         for token in (
             'data-library-override="${isOverride ? "true" : "false"}"',
@@ -708,8 +796,17 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "Reset From Current removed LibraryProfiles from Changes JSON. Saved backend settings were not changed.",
             "libraryPatchStateKind",
             "Patch: stale LibraryProfiles",
+            "function canonicalLibraryProfileId(value, fallback)",
+            'const id = canonicalLibraryProfileId(rawId, `library-${index}`);',
+            'const id = canonicalLibraryProfileId(currentId || fieldValue("name"), `library-${index}`);',
+            "canonicalLibraryProfileId(state?.library_id, \"\") === profileId",
+            "handleSettingsPostSaveRefreshFailure",
+            "data-library-identity readonly",
+            "Library ID",
+            "libraryPatchStateKind",
         ):
             self.assertIn(token, libraries_js)
+        self.assertNotIn('slug(fieldValue("name"), currentId', libraries_js)
 
         for token in (
             "function settingsPatchRequestExtras()",
@@ -717,17 +814,50 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             "library_profile_resets",
             "const libraryProfileResetCount = Array.isArray(requestExtras.library_profile_resets) ? requestExtras.library_profile_resets.length : 0;",
             "if (!keys.length && !hasLibraryProfileResets)",
-            "if (!changedKeys.length && !hasLibraryProfileResets)",
-            'setText("settings-save-review-dialog-changed", String(changedKeys.length));',
+            "const actualChangeKeys = settingsSaveActualKeys(changedKeys, removedKeys);",
+            "if (!actualChangeKeys.length)",
+            "function settingsSaveReviewLibraryProfileSummary(value)",
+            "function settingsSaveReviewLibraryProfileDiffEntries(currentValue, newValue)",
+            "function settingsSaveReviewLibraryProfileDetailLines(currentValue, newValue)",
+            "function settingsSaveReviewBackendEntries(entries = [])",
+            "function settingsSaveReviewEntryCellText(entry, side)",
+            "function settingsSaveReviewCanonicalProfileId(value, fallback)",
+            "function settingsPatchHasStaleLibraryProfiles(changes)",
+            "function blockStaleLibraryProfilesPatch(command)",
+            "Stale LibraryProfiles patch blocked before backend settings save.",
+            "settingsPatchHasStaleLibraryProfiles(changes)",
+            "review_entries",
+            "review_entries_schema_version",
+            "review_confirmation",
+            "mirrored from LibraryProfiles",
+            "entry.current_value",
+            "entry.new_value",
+            "LibraryProfiles change detail:",
+            'setText("settings-save-review-dialog-changed", String(effectiveChangeCount));',
             'setText("settings-save-review-dialog-submitted", String(keys.length));',
             'setText("settings-save-review-dialog-resets", String(libraryProfileResetCount));',
             'appendSettingsSaveReviewCell(row, "Library profile reset");',
             'appendSettingsSaveReviewCell(row, `${libraryProfileResetCount} reset request(s)`);',
-            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
-            'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
+            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS })',
+            "review_confirmation: reviewConfirmation",
+            "confirm_save: true",
+            "Reload verified:",
             "settingsPatchRequestSignature(changes, requestExtras)",
+            "const SETTINGS_PREVIEW_POST_TIMEOUT_MS = 60000;",
+            "const SETTINGS_SAVE_POST_TIMEOUT_MS = 120000;",
+            "function ensureSettingsSaveReviewDialogGlobal(dialog)",
+            'dialog?.closest?.(".page:not(.is-visible)")',
+            "document.body.appendChild(dialog);",
+            "if (settled) return;",
+            "finish(dialog.returnValue === \"confirm\");",
+            "settingsPostErrorMessage(error, \"save\")",
+            "Save status unknown; use Reload From Disk or refresh to verify",
+            "function reportSettingsPostSaveRefreshFailure(error)",
+            'setText("settings-patch-status", "Saved; refresh failed");',
+            "handleSettingsPostSaveRefreshFailure",
         ):
             self.assertIn(token, settings_js)
+        self.assertNotIn("[object Object]", settings_js)
 
         save_start = settings_js.index("async function saveSettingsPatch()")
         self.assertLess(

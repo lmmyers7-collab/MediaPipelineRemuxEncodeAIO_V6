@@ -75,8 +75,12 @@ from .file_overrides.remux_pilot import (
 )
 from .file_overrides.series import (
     file_override_series_apply_payload,
+    file_override_series_clear_apply_payload,
+    file_override_series_clear_preview_payload,
     file_override_series_preview_payload,
     unsupported_series_apply_key_errors,
+    unsupported_series_clear_apply_key_errors,
+    unsupported_series_clear_preview_key_errors,
     unsupported_series_preview_key_errors,
     validate_series_override_payload,
 )
@@ -321,6 +325,73 @@ class LocalApiFileOverridesCommandPayloadMixin:
                 row_source_path,
                 state_db_root=getattr(resolved, "state_root", None),
             ),
+        )
+        return _fo_command_result_payload(payload)
+
+    def _file_overrides_series_clear_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        """POST /api/queue/file-overrides/series-clear-preview — read-only current-series clear preview."""
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("queue.file_overrides.series_clear_preview", "queue")
+
+        def series_clear_preview_error(message: str, errors: list[str] | None = None) -> dict[str, Any]:
+            return {
+                "ok": False,
+                "command": "queue.file_overrides.series_clear_preview",
+                "operation": "clear",
+                "severity": "error",
+                "schema_version": "queue_file_override_series_clear_preview.v1",
+                "message": message,
+                "errors": errors or [message],
+                "blockers": [{"code": "blocked", "message": error} for error in (errors or [message])],
+                "rows": [],
+                "counts": {},
+            }
+
+        top_level_errors = unsupported_series_clear_preview_key_errors(request)
+        if top_level_errors:
+            return series_clear_preview_error("Invalid series clear preview payload.", top_level_errors)
+
+        path_raw = str(request.get("path", "")).strip()
+        source_path, error = validate_queue_source_path(resolved, path_raw)
+        if error:
+            return series_clear_preview_error(error if path_raw else "'path' is required.")
+
+        return file_override_series_clear_preview_payload(
+            resolved=resolved,
+            source_path=source_path or "",
+        )
+
+    def _file_overrides_series_clear_apply_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        """POST /api/queue/file-overrides/series-clear-apply — confirmed current-series override clear."""
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("queue.file_overrides.series_clear_apply", "queue")
+
+        def series_clear_apply_error(message: str, errors: list[str] | None = None) -> dict[str, Any]:
+            return _fo_command_result_payload({
+                "ok":       False,
+                "command":  "queue.file_overrides.series_clear_apply",
+                "severity": "error",
+                "message":  message,
+                "errors":   errors or [message],
+            })
+
+        top_level_errors = unsupported_series_clear_apply_key_errors(request)
+        if top_level_errors:
+            return series_clear_apply_error("Invalid series clear apply payload.", top_level_errors)
+        if request.get("confirm_apply") is not True:
+            return series_clear_apply_error("'confirm_apply' must be true before clearing series overrides.")
+
+        path_raw = str(request.get("path", "")).strip()
+        source_path, error = validate_queue_source_path(resolved, path_raw)
+        if error:
+            return series_clear_apply_error(error if path_raw else "'path' is required.")
+
+        payload = file_override_series_clear_apply_payload(
+            resolved=resolved,
+            source_path=source_path or "",
+            preview_fingerprint=str(request.get("preview_fingerprint") or "").strip(),
         )
         return _fo_command_result_payload(payload)
 

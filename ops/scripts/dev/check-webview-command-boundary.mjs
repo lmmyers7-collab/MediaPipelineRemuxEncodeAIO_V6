@@ -26,6 +26,7 @@ const highRiskEffects = new Set([
   "config-write",
   "control-flag-write",
   "control-state-write",
+  "process-control",
   "deployment-write",
   "diagnostic-process",
   "failure-marker-write",
@@ -43,6 +44,21 @@ const highRiskEffects = new Set([
   "tooling-artifact-write",
   "ui-state-write",
   "validation-log-write",
+]);
+
+const networkLifecycleCommandFiles = [
+  "apps/desktop/webview/static/assets/networkView.js",
+  "apps/desktop/webview/static/assets/network/lifecycle.commands.js",
+];
+
+const networkSetupCommandFiles = [
+  "apps/desktop/webview/static/assets/networkView.js",
+  "apps/desktop/webview/static/assets/network/setup.commands.js",
+];
+
+const networkDynamicCommandFiles = new Set([
+  ...networkLifecycleCommandFiles,
+  ...networkSetupCommandFiles,
 ]);
 
 const routeOwnerRules = [
@@ -79,6 +95,7 @@ const confirmationRules = [
   { route: "/api/schedule/save", confirmation: "confirm_save", pattern: /confirm_save\s*:\s*true/ },
   { route: "/api/failures/clear", confirmation: "confirm_clear", pattern: /confirm_clear\s*:/ },
   { route: "/api/final-library-promotion/promote-queue", confirmation: "confirm_promote", pattern: /confirm_promote\s*:\s*true/ },
+  { route: "/api/audit/stop", confirmation: "confirm_stop", pattern: /confirm_stop\s*:\s*true/ },
   { route: "/api/rename/apply", confirmation: "confirm_apply", pattern: /confirm_apply\s*=\s*true|confirm_apply\s*:\s*true/ },
   { route: "/api/rename/filter-cases", confirmation: "confirm_append", pattern: /confirm_append\s*:\s*true/ },
   { route: "/api/queue/file-overrides/series-apply", confirmation: "confirm_apply", pattern: /confirm_apply\s*:\s*true/ },
@@ -86,13 +103,13 @@ const confirmationRules = [
     route: "/api/network/coordinator/join-blob",
     confirmation: "confirm_create",
     pattern: /confirm_create\s*:\s*true/,
-    evidenceFiles: ["apps/desktop/webview/static/assets/networkView.js"],
+    evidenceFiles: networkSetupCommandFiles,
   },
   {
     route: "/api/network/worker/join-cluster",
     confirmation: "confirm_import",
     pattern: /confirm_import\s*:\s*true/,
-    evidenceFiles: ["apps/desktop/webview/static/assets/networkView.js"],
+    evidenceFiles: networkSetupCommandFiles,
   },
 ];
 
@@ -152,6 +169,7 @@ const localControlRules = [
   { pattern: /rename-(bulk|clear|check|move|natural|use-|add-path|save-override|clear-override|log-case-open|log-case-cancel)/, classification: "local-rename-staging" },
   { pattern: /queue-manual-save-order|save loaded backend order/i, classification: "local-queue-order-staging" },
   { pattern: /sample-validation-.*clear|sample-validation-clear/, classification: "local-sample-validation-staging" },
+  { pattern: /report-audit-(save|remove)-location|saved locations?/i, classification: "local-launch-intent-staging" },
   { pattern: /data-launch-mode=|pipeline-single-file-clear|single file|backend queue|validate|continuous|run once/i, classification: "local-launch-intent-staging" },
   { pattern: /schedule-editor-(load|clear|allow)/, classification: "local-schedule-staging" },
   { pattern: /settings-deployment-|settings-open-wizard|settings-wizard-(back|next|add-library|copy-diagnostics)/, classification: "local-guided-setup" },
@@ -166,6 +184,7 @@ const routeHintRules = [
   { pattern: /pipeline-start-button|pipeline start|start pipeline/i, route: "/api/pipeline/start" },
   { pattern: /pending-drain-button|publish parked|drain/i, route: "/api/pipeline/start" },
   { pattern: /audit-start-button|start audit/i, route: "/api/audit/start" },
+  { pattern: /audit-stop-button|stop audit/i, route: "/api/audit/stop" },
   { pattern: /rerun-(start|dry-run|plan-only)-button|rerun start|start rerun|preview csv rerun|plan csv rerun/i, route: "/api/rerun/start" },
   { pattern: /queue-scan|scan sources/i, route: "/api/queue/scan" },
   { pattern: /queue-priority|priority/i, route: "/api/queue/priority" },
@@ -197,6 +216,7 @@ const routeHintRules = [
   { pattern: /rename-preview|test filename/i, route: "/api/rename/preview" },
   { pattern: /rename-browse|browse files|browse folder/i, route: "/api/rename/browse" },
   { pattern: /rename-apply/i, route: "/api/rename/apply" },
+  { pattern: /rename-undo|undo last apply/i, route: "/api/rename/undo" },
   { pattern: /rename-log-case|append filter case/i, route: "/api/rename/filter-cases" },
   { pattern: /settings-wizard-validate-paths/i, route: "/api/settings/wizard/validate-paths" },
   { pattern: /settings-wizard-detect-tools/i, route: "/api/settings/wizard/validate-tools" },
@@ -221,6 +241,7 @@ const routeHintRules = [
   { pattern: /metrics-backfill|backfill enabled/i, route: "/api/metrics/backfill" },
   { pattern: /metrics-source|metric.*source/i, route: "/api/metrics/sources" },
   { pattern: /failure.*clear|clear failures|clear markers/i, route: "/api/failures/clear" },
+  { pattern: /failure-lifecycle-|failure lifecycle|start work/i, route: "/api/failures/lifecycle" },
   { pattern: /fo-remux-pilot-promote/i, route: "/api/queue/file-overrides/remux-pilot-promote" },
   { pattern: /audit.*score|score-policy/i, route: "/api/audit/score-policy" },
   { pattern: /audit.*ignore|ignore/i, route: "/api/audit/ignore" },
@@ -496,13 +517,17 @@ function collectApiCalls(script) {
 }
 
 function dynamicApiPostAllowed(script, call) {
-  if (script.path !== "apps/desktop/webview/static/assets/networkView.js") return false;
+  if (!networkDynamicCommandFiles.has(script.path)) return false;
   if (call.function !== "apiPost") return false;
-  return script.source.includes("route?.network_lifecycle")
+  const hasLifecycleGuards = script.source.includes("route?.network_lifecycle")
     && script.source.includes("network_lifecycle_contracts")
-    && script.source.includes("apiPost(route, request)")
     && script.source.includes("confirm_start")
     && script.source.includes("confirm_stop");
+  const hasSetupGuards = script.source.includes("networkCommandRouteByDataSchema")
+    && script.source.includes("confirm_create")
+    && script.source.includes("confirm_import");
+  return script.source.includes("apiPost(route, request)")
+    && (hasLifecycleGuards || hasSetupGuards);
 }
 
 function routeSnippet(source, route) {

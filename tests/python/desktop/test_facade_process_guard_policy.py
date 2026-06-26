@@ -63,8 +63,8 @@ class ProcessGuardPolicyTests(unittest.TestCase):
         for stage in ("", "idle", "sleeping", "stopped", "completed"):
             self.assertFalse(pipeline_progress_indicates_active_work({"CurrentStage": stage}))
         self.assertTrue(pipeline_progress_indicates_active_work({"CurrentStage": " encode "}))
-        self.assertFalse(pipeline_progress_indicates_active_work({"CurrentStage": "encode", "StopRequested": True}))
-        self.assertFalse(pipeline_progress_indicates_active_work({"CurrentStage": "encode", "StopRequested": "false"}))
+        self.assertTrue(pipeline_progress_indicates_active_work({"CurrentStage": "encode", "StopRequested": True}))
+        self.assertTrue(pipeline_progress_indicates_active_work({"CurrentStage": "encode", "StopRequested": "false"}))
 
     def test_audit_progress_active_policy_preserves_status_behavior(self) -> None:
         for status in ("", "idle", "completed", "failed", "stopped"):

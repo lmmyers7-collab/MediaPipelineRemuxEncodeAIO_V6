@@ -335,6 +335,71 @@ def _browser_queue_file_overrides_runner_source() -> str:
                   batch: { batch_id: "series-smoke" },
                 };
               }
+              if (rawPath === "/api/queue/file-overrides/series-clear-preview") {
+                return {
+                  ok: true,
+                  command: "queue.file_overrides.series_clear_preview",
+                  operation: "clear",
+                  schema_version: "queue_file_override_series_clear_preview.v1",
+                  message: "Series clear preview ready: 2 exact override rows will clear; 1 row unchanged.",
+                  detected: {
+                    show_name: "Example Show",
+                    show_root: "C:/Smoke/Example Show",
+                    confidence: "high",
+                  },
+                  counts: {
+                    total_rows: 3,
+                    clear_batch: 1,
+                    clear_manual: 1,
+                    inherited: 1,
+                    no_override: 0,
+                    skipped: 0,
+                    issue: 0,
+                    eligible_clear_count: 2,
+                  },
+                  rows: [
+                    {
+                      action: "clear_manual",
+                      display_name: "Queue Drawer Sample S01E01.mkv",
+                      relative_path: "Example Show/Season 01/Queue Drawer Sample S01E01.mkv",
+                      source_path: sourcePath,
+                      season_number: 1,
+                      episode_number: 1,
+                      reason: "Exact manual file override will be cleared.",
+                    },
+                    {
+                      action: "clear_batch",
+                      display_name: "Queue Drawer Sample S01E02.mkv",
+                      relative_path: "Example Show/Season 01/Queue Drawer Sample S01E02.mkv",
+                      source_path: "C:/Smoke/Example Show/Season 01/Queue Drawer Sample S01E02.mkv",
+                      season_number: 1,
+                      episode_number: 2,
+                      reason: "Existing series batch override will be cleared.",
+                    },
+                    {
+                      action: "inherited",
+                      display_name: "Queue Drawer Sample S01E03.mkv",
+                      relative_path: "Example Show/Season 01/Queue Drawer Sample S01E03.mkv",
+                      source_path: "C:/Smoke/Example Show/Season 01/Queue Drawer Sample S01E03.mkv",
+                      season_number: 1,
+                      episode_number: 3,
+                      reason: "Inherited folder override will remain.",
+                    },
+                  ],
+                  warnings: [],
+                  blockers: [],
+                  preview_fingerprint: "series-clear-preview-fingerprint",
+                };
+              }
+              if (rawPath === "/api/queue/file-overrides/series-clear-apply") {
+                require(payload.confirm_apply === true, "series clear did not include confirm_apply=true");
+                require(payload.preview_fingerprint === "series-clear-preview-fingerprint", "series clear fingerprint mismatch");
+                return {
+                  ok: true,
+                  command: "queue.file_overrides.series_clear_apply",
+                  message: "Series overrides cleared from 2 current queue rows; 1 inherited row left unchanged.",
+                };
+              }
               if (rawPath === "/api/queue/file-overrides/remux-pilot-promote") {
                 require(payload.confirm_apply === true, "remux pilot promote did not include confirm_apply=true");
                 require(Array.isArray(payload.pilot_source_paths), "remux pilot promote missing pilot_source_paths");
@@ -570,6 +635,31 @@ def _browser_queue_file_overrides_runner_source() -> str:
             reopenButton.click();
             await waitFor(() => !drawerHidden() && text("fo-drawer-status").includes("Override loaded."), "drawer reload after series apply");
 
+            byId("fo-series-clear-open").click();
+            await waitFor(() => !seriesModalHidden() && text("fo-series-summary").includes("Series clear preview ready"), "series clear preview modal");
+            require(drawerHidden(), "Series clear preview should hide the file override drawer.");
+            require(overlayHidden(), "Series clear preview should hide the drawer backdrop.");
+            requireText("fo-series-modal-title", ["Clear Series Overrides"]);
+            requireText("fo-series-fields", ["Exact file override entries", "Folder and inherited rules stay unchanged"]);
+            requireText("fo-series-counts", ["Clear batch: 1", "Clear manual: 1", "Inherited: 1"]);
+            requireText("fo-series-rows", ["Queue Drawer Sample S01E01.mkv", "Clear manual", "Inherited"]);
+            byId("fo-series-cancel").click();
+            await waitFor(() => seriesModalHidden(), "series clear preview cancel close");
+            require(!posts.some((entry) => entry.path === "/api/queue/file-overrides/series-clear-apply"), "Cancel should not post series clear.");
+
+            byId("fo-series-clear-open").click();
+            await waitFor(() => !seriesModalHidden() && !byId("fo-series-apply").disabled, "series clear apply enabled");
+            require(text("fo-series-apply") === "Clear From Series", "Series clear action button should be labelled for clearing.");
+            byId("fo-series-apply").click();
+            await waitFor(() => seriesModalHidden() && drawerHidden() && overlayHidden(), "series clear closes drawer and modal");
+            const seriesClearPosts = posts.filter((entry) => entry.path === "/api/queue/file-overrides/series-clear-apply");
+            require(seriesClearPosts.length === 1, "Series clear should post exactly once: " + JSON.stringify(seriesClearPosts));
+
+            const reopenAfterSeriesClearButton = document.querySelector(".fo-open-btn");
+            require(reopenAfterSeriesClearButton, "missing Queue file settings button after series clear");
+            reopenAfterSeriesClearButton.click();
+            await waitFor(() => !drawerHidden() && text("fo-drawer-status").includes("Override loaded."), "drawer reload after series clear");
+
             setControlValue("fo-audio-prefer-default-language", "jpn");
             await waitFor(() => !saveDisabled(), "dirty state before close guard");
             byId("fo-overlay").click();
@@ -750,6 +840,8 @@ class WebViewBrowserQueueFileOverridesSmoke(unittest.TestCase):
         browser_result = result["result"]
         posts = browser_result["posts"]
         self.assertTrue(result["ok"])
+        self.assertTrue(any(post["path"] == "/api/queue/file-overrides/series-apply" for post in posts))
+        self.assertTrue(any(post["path"] == "/api/queue/file-overrides/series-clear-apply" for post in posts))
         self.assertTrue(any(post["body"].get("clear_fields") == ["audio.maxChannels"] for post in posts))
         self.assertTrue(any(post["body"].get("clear") is True for post in posts))
         self.assertTrue(any(post["body"].get("routing", {}).get("profile") == "transcode" for post in posts))

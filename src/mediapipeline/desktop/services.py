@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+from logging.handlers import RotatingFileHandler
 import threading
 from pathlib import Path
 
@@ -47,6 +48,8 @@ from mediapipeline.core.telemetry.service import TelemetryServiceMixin
 
 
 LOG_NAME = "MediaPipelineRemuxEncodeAIO_DesktopApp.log"
+DESKTOP_LOG_MAX_BYTES = 50 * 1024 * 1024
+DESKTOP_LOG_BACKUP_COUNT = 3
 
 
 class DesktopAppService(
@@ -137,7 +140,12 @@ class DesktopAppService(
         logger.setLevel(logging.INFO)
         log_path = Path(getattr(self, "desktop_log_path", self.app_root / LOG_NAME))
         log_path.parent.mkdir(parents=True, exist_ok=True)
-        handler = logging.FileHandler(log_path, encoding="utf-8")
+        handler = RotatingFileHandler(
+            log_path,
+            maxBytes=DESKTOP_LOG_MAX_BYTES,
+            backupCount=DESKTOP_LOG_BACKUP_COUNT,
+            encoding="utf-8",
+        )
         handler.setFormatter(logging.Formatter("%(asctime)s [%(levelname)s] %(message)s"))
         logger.addHandler(handler)
         return logger

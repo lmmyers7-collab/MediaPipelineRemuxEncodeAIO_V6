@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0624-021",
+  "title": "Fix autonomy failure infrastructure classification",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Stopped autonomy health from classifying source-media encode failure records as infrastructure failures merely because their structured evidence contains fields such as source_path, artifact_path, reproduction_path, or repro_path.",
+  "reason": "The live readiness blocker was reported as repeated network/share/disk/copy/publish failures, but internal state showed 10 SOURCE_MEDIA_STREAM_UNSUPPORTED NVENC encode failures from Ascendance of a Bookworm S03. The classifier searched field names and values together, so the word path in evidence keys made ordinary source-media failure markers trip the infrastructure launch gate.",
+  "affected_areas": [
+    "diagnostics",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "Failure infrastructure detection searched all scalar key/value pairs together. Structured field names such as source_path and repro_path could make unrelated source-media encode failures count as network/share/disk/copy/publish infrastructure failures and block new launches.",
+  "behavior_after": "Failure infrastructure detection only searches selected evidence values such as reason, error_code, operation, classification, operator_action, and suggested_action. Source/artifact/repro path field names no longer trigger infrastructure classification, while true network-share/publish failures still block after the repeated-failure threshold.",
+  "files_touched": [
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-021.json.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/autonomy_health.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_autonomy_health.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-021.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_autonomy_health.py::AutonomyHealthPayloadTests.test_source_media_failure_paths_do_not_count_as_infrastructure",
+    "tests/python/desktop/test_autonomy_health.py::AutonomyHealthPayloadTests.test_repeated_network_failure_values_still_block"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m py_compile src/mediapipeline/core/diagnostics/autonomy_health.py tests/python/desktop/test_autonomy_health.py - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_autonomy_health -q - passed (17 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch -q - passed (35 tests)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_diagnostics -q - passed (8 tests)",
+    "apps/desktop/runtime/Python/python.exe -m mediapipeline.tools.autonomy_health_gate --paths-json <live E:\\Videos\\Scratch payload> - passed (exit 0; overall=review; can_start_new_work=True; blocked_count=0; failure_artifacts=20; infrastructure_count=0)"
+  ],
+  "rollback_plan": "Revert src/mediapipeline/core/diagnostics/autonomy_health.py and tests/python/desktop/test_autonomy_health.py, refresh the two generated summaries, and delete this change packet. Do not clear runtime failure markers or mutate source media as part of rollback.",
+  "related_changes": [],
+  "notes": "Constrain infrastructure failure classification to evidence values instead of structured path field names.\nAdd regressions for source-media path fields versus true network-share failures.\nRefresh generated summary for autonomy health classifier change.\nRefresh generated summary for autonomy health tests.\nAdd generated summary for the change packet."
+}

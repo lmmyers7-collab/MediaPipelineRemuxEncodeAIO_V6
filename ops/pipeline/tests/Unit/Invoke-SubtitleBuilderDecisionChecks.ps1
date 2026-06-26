@@ -75,17 +75,20 @@ function Test-SubtitleEntryLanguageIsFallbackDefault {
 
 function Test-IsTx3gSubtitleStream {
     param($Stream)
-    return $false
+    $codec = if ($Stream.codec_name) { ([string]$Stream.codec_name).ToLowerInvariant() } else { '' }
+    return ($codec -in @('mov_text', 'tx3g'))
 }
 
 function Test-IsBdpgsSubtitleStream {
     param($Stream)
-    return $false
+    $codec = if ($Stream.codec_name) { ([string]$Stream.codec_name).ToLowerInvariant() } else { '' }
+    return ($codec -in @('hdmv_pgs_subtitle', 'pgs'))
 }
 
 function Test-IsVobSubSubtitleStream {
     param($Stream)
-    return $false
+    $codec = if ($Stream.codec_name) { ([string]$Stream.codec_name).ToLowerInvariant() } else { '' }
+    return ($codec -in @('dvd_subtitle', 'vobsub'))
 }
 
 function Get-SubtitleLanguageDisplayMap {
@@ -368,7 +371,7 @@ try {
     Assert-Equal $nonPolicyForcedAssEntry.RetainReason 'language_or_title_policy' 'Filter entry should carry non-policy ASS drop reason.'
     $nonPolicyForcedAssRoutingDecision = Resolve-SubtitleRoutingDecision -Entry $nonPolicyForcedAssEntry
     Assert-Equal $nonPolicyForcedAssRoutingDecision.Action 'Drop' 'Non-policy forced ASS should not be preserved or converted if it reaches routing.'
-    Assert-ContainsText $nonPolicyForcedAssRoutingDecision.Message 'outside ASS conversion language policy' 'Non-policy forced ASS routing should explain why it was dropped.'
+    Assert-ContainsText $nonPolicyForcedAssRoutingDecision.Message 'outside configured subtitle language policy' 'Non-policy forced ASS routing should explain why it was dropped.'
 
     $script:SubtitleLanguagePolicy = @('und')
     $blankAssPolicy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal 1 -Stream ([pscustomobject]@{
@@ -384,6 +387,41 @@ try {
     $blankAssDecision = Resolve-SubtitleRoutingDecision -Entry (New-SubtitleFilterEntry -Policy $blankAssPolicy)
     Assert-Equal $blankAssDecision.Action 'ConvertAss' 'Blank-language ASS should remain conversion-eligible when und is kept.'
     $script:SubtitleLanguagePolicy = @('eng')
+
+    $script:SubtitleSwitches['ConvertBdpgsToSrt'] = $true
+    $nonPolicyMetadataCases = @(
+        @{ Kind = 'TX3G'; Index = 15; Codec = 'mov_text'; Language = 'jpn'; Title = 'Japanese Forced TX3G'; Forced = 1 },
+        @{ Kind = 'BDPGS'; Index = 16; Codec = 'hdmv_pgs_subtitle'; Language = 'ger'; Title = 'German SDH'; Forced = 1 },
+        @{ Kind = 'VobSub'; Index = 17; Codec = 'dvd_subtitle'; Language = 'ita'; Title = 'Italian SDH'; Forced = 1 }
+    )
+    foreach ($case in $nonPolicyMetadataCases) {
+        $policy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal ([int]$case.Index) -Stream ([pscustomobject]@{
+            index = [int]$case.Index
+            codec_name = [string]$case.Codec
+            codec_tag_string = ''
+            tags = [pscustomobject]@{ language = [string]$case.Language; title = [string]$case.Title }
+            disposition = [pscustomobject]@{ forced = [int]$case.Forced; default = 0 }
+        })
+        Assert-True (-not [bool]$policy.Retain) "Non-policy $($case.Kind) SDH/forced metadata should not bypass configured subtitle languages."
+        Assert-True (-not [bool]$policy.LanguagePolicyMatched) "Non-policy $($case.Kind) should not be marked language-policy matched."
+        Assert-Equal $policy.RetainReason 'language_or_title_policy' "Non-policy $($case.Kind) drop should keep language-policy evidence."
+        $decision = Resolve-SubtitleRoutingDecision -Entry (New-SubtitleFilterEntry -Policy $policy)
+        Assert-Equal $decision.Action 'Drop' "Non-policy $($case.Kind) should not be converted or kept if it reaches routing."
+        Assert-ContainsText $decision.Message 'outside configured subtitle language policy' "Non-policy $($case.Kind) routing should explain the language-policy drop."
+    }
+
+    $policyMatchedBdpgsPolicy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal 3 -Stream ([pscustomobject]@{
+        index = 16
+        codec_name = 'hdmv_pgs_subtitle'
+        codec_tag_string = ''
+        tags = [pscustomobject]@{ language = 'eng'; title = 'English SDH' }
+        disposition = [pscustomobject]@{ forced = 0; default = 0 }
+    })
+    Assert-True ([bool]$policyMatchedBdpgsPolicy.Retain) 'Policy-matched BDPGS should remain eligible for OCR.'
+    Assert-True ([bool]$policyMatchedBdpgsPolicy.LanguagePolicyMatched) 'Policy-matched BDPGS should carry OCR language-policy evidence.'
+    $policyMatchedBdpgsDecision = Resolve-SubtitleRoutingDecision -Entry (New-SubtitleFilterEntry -Policy $policyMatchedBdpgsPolicy)
+    Assert-Equal $policyMatchedBdpgsDecision.Action 'ConvertBdpgs' 'Policy-matched BDPGS should remain conversion-eligible.'
+    [void]$script:SubtitleSwitches.Remove('ConvertBdpgsToSrt')
 
     $filter = @{
         Convert = @(
@@ -569,12 +607,12 @@ try {
         '-c:s:0', 'copy',
         '-metadata:s:s:0', 'title=English ASS [ASS]',
         '-metadata:s:s:0', 'language=eng',
-        '-disposition:s:0', '0',
+        '-disposition:s:0', 'default',
         '-map', '1:s:0',
         '-c:s:1', 'srt',
         '-metadata:s:s:1', 'title=English ASS',
         '-metadata:s:s:1', 'language=eng',
-        '-disposition:s:1', 'default',
+        '-disposition:s:1', '0',
         '-map', '2:s:0',
         '-c:s:2', 'srt',
         '-metadata:s:s:2', 'title=Japanese TX3G',
@@ -596,9 +634,9 @@ try {
     $disp0 = [array]::IndexOf($build.MapArgs, '-disposition:s:0')
     $disp1 = [array]::IndexOf($build.MapArgs, '-disposition:s:1')
     $disp2 = [array]::IndexOf($build.MapArgs, '-disposition:s:2')
-    Assert-Equal $build.MapArgs[$disp0 + 1] '0' 'Preserved ASS should not take default when converted SRT succeeds.'
-    Assert-Equal $build.MapArgs[$disp1 + 1] 'default' 'Converted preferred-language ASS SRT should receive default disposition after success.'
-    Assert-Equal $build.MapArgs[$disp2 + 1] '0' 'Later converted TX3G should not take default after preferred ASS SRT succeeds.'
+    Assert-Equal $build.MapArgs[$disp0 + 1] 'default' 'Preserved ASS should receive default disposition when ASS styling is preserved.'
+    Assert-Equal $build.MapArgs[$disp1 + 1] '0' 'Converted preferred-language ASS SRT should remain an embedded fallback option.'
+    Assert-Equal $build.MapArgs[$disp2 + 1] '0' 'Later converted TX3G should not take default after preferred ASS succeeds.'
 
     $script:ConversionCalls.Clear()
     $script:AssConversionMode = 'fail'

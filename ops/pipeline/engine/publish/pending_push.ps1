@@ -474,14 +474,13 @@ function Invoke-RetryPendingPushes {
         Write-Log "Deferred publish enabled — leaving $($manifests.Count) parked output(s) queued for manual drain" "DEBUG"
         $summary['deferred'] = $true
         $summary['skipped_count'] = [int]$manifests.Count
-        foreach ($m in $manifests) {
-            $manifest = $null
-            $readError = ''
-            try { $manifest = Read-PendingManifestFile -Path $m.FullName } catch { $readError = [string]$_ }
-            $summaryItems.Add((New-PendingDrainSummaryItem -ManifestFile $m -Manifest $manifest -Status 'deferred' -ErrorMessage $readError)) | Out-Null
-        }
+        $summary['status_counts'] = [ordered]@{ deferred = [int]$manifests.Count }
+        $summary['items_omitted_count'] = [int]$manifests.Count
+        $summary['items_omitted_reason'] = 'deferred_publish_fast_path'
+        $summary['items'] = @()
+        $summary['completed_at'] = Get-Date -Format 'o'
         Write-PendingDrainRuntimeProgress -Summary $summary -Status 'Drain deferred; parked outputs remain queued' -Deferred
-        Complete-PendingDrainSummary -Summary $summary -Items $summaryItems
+        Write-PendingDrainSummary -Summary $summary | Out-Null
         return 0
     }
 

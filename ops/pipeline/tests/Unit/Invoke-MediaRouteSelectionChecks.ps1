@@ -13,6 +13,7 @@ if (-not (Test-Path -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine') -Pa
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\routing.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encoder_descriptors.ps1')
 . (Join-Path $repoRoot 'ops\pipeline\engine\decide\encode_policy.ps1')
+. (Join-Path $repoRoot 'ops\pipeline\engine\process\encode_mux.ps1')
 
 function Assert-Equal {
     param(
@@ -565,8 +566,19 @@ $mkvEncodeArgs = @(New-EncodeFfmpegArgumentList `
     -SubtitleMapArgs @() `
     -OutputPath 'output.mkv')
 $mkvEncodeJoined = $mkvEncodeArgs -join ' '
-Assert-True ($mkvEncodeJoined -match '-map 0:t\?') 'MKV encode args should continue preserving attachments/fonts.'
+Assert-True ($mkvEncodeJoined -notmatch '-map 0:t\?') 'MKV encode args must leave attachments/fonts for the attachment-safe mkvmerge mux stage.'
+Assert-True ($mkvEncodeJoined -notmatch '-c:t copy') 'MKV encode args must not copy attachments/fonts through FFmpeg.'
 Assert-True ($mkvEncodeJoined -match '-map_chapters 0') 'MKV encode args should continue preserving chapters.'
 Assert-True ($mkvEncodeJoined -match '-map_metadata 0') 'MKV encode args should continue preserving source/global metadata.'
+
+$mkvMuxArgs = @(New-EncodeMkvAttachmentMuxArgumentList `
+    -EncodedInputPath 'encoded-media.mkv' `
+    -SourcePath 'source-with-fonts.mkv' `
+    -OutputPath 'final-output.mkv' `
+    -GlobalTitle 'Source Title')
+$mkvMuxJoined = $mkvMuxArgs -join ' '
+Assert-True ($mkvMuxJoined -match '--output final-output\.mkv') 'MKV encode mux args should write the final MKV output.'
+Assert-True ($mkvMuxJoined -match '--title Source Title') 'MKV encode mux args should carry the global title.'
+Assert-True ($mkvMuxJoined -match 'encoded-media\.mkv --no-video --no-audio --no-subtitles --no-buttons --no-chapters --no-track-tags --no-global-tags source-with-fonts\.mkv') 'MKV encode mux args should use the source as an attachment-only input.'
 
 Write-Host 'Media route selection checks passed.'

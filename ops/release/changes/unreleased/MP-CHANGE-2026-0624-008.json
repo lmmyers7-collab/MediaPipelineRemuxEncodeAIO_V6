@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0624-008",
+  "title": "Thermostat schedule editor",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Replaced the Schedule page's dense 48-button day editor with a compact thermostat-style 24-hour rail and tuned the editor sizing so all seven days render without the editor table's vertical scroll cap.",
+  "reason": "The previous editor carried large negative space and forced operators to scan many labeled half-hour buttons. A rail communicates daily allowed time windows more directly without changing backend schedule policy.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Each schedule day rendered a multi-row grid of visible half-hour text buttons plus separate current schedule text.",
+  "behavior_after": "Each schedule day renders a single dynamically sized 24-hour rail with 48 snap cells, 3-hour tick labels, compact staged/saved window text, and the existing clear/all/copy/paste day actions; the editor table exposes all seven days without an inner vertical scroller.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/scheduleView.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-schedule.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/scheduleView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-schedule.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-008.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_schedule_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-008.json",
+    "tests/webview/test_webview_schedule_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "FAIL unrelated: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_api_static_files_policy -q fails on generated static index/settings copy expectation.",
+    "FAIL unrelated: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage reports two unrelated docs uncovered: docs/implementation/local-api-test-split/PHASE_1_TEST_HARNESS_AND_SHARED_FIXTURES.md and docs/implementation/local-api-test-split/PRE_WORK_AND_BASELINE.md.",
+    "FAIL unrelated: .\\ops\\scripts\\release\\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke reports repo-wide stale generated artifacts, smoke wrapper map drift, duplicate test-name report drift, and MP-CHANGE-2026-0619-020 local path redaction.",
+    "PASS: .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.webview.test_webview_browser_schedule_smoke -q",
+    "PASS: .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.webview.test_webview_schedule_smoke -q",
+    "PASS: .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+    "PASS: .\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/styles.components.css",
+    "PASS: .\\\\ops\\\\scripts\\\\smoke\\\\Test-WebViewScheduleSmoke.ps1",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_schedule_smoke -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/scheduleView.js apps/desktop/webview/static/assets/styles.components.css apps/desktop/webview/static/partials/page-schedule.html tests/webview/test_webview_schedule_smoke.py",
+    "PASS: .\\ops\\scripts\\smoke\\Test-WebViewScheduleSmoke.ps1",
+    "PASS: git diff --check -- apps/desktop/webview/static/assets/styles.components.css, with CRLF warning only",
+    "PASS: git diff --check for this packet's touched files, with CRLF warnings only"
+  ],
+  "rollback_plan": "Revert the schedule partial header changes, scheduleView.js rail rendering/drag handlers, schedule editor CSS, updated schedule smoke assertions, and the generated summaries listed in files_touched.",
+  "related_changes": [],
+  "notes": "Style schedule editor thermostat rail and responsive stacking.\nRename schedule editor time column for thermostat-style rail.\nRender schedule editor as compact 24-hour rail while preserving day_windows payloads.\nCover thermostat rail rendering and unchanged preview/save contract.\nRefresh generated summary for thermostat schedule editor JavaScript.\nRefresh generated summary for thermostat schedule editor styles.\nRefresh generated summary for schedule editor partial.\nRefresh generated summary for schedule smoke coverage.\nExpanded the schedule editor table and thermostat rail sizing so the full seven-day editor is visible without the editor table's vertical scroll cap.\nResponsive browser smoke verified schedule editor viewport behavior at 375, 768, and 1440 pixels after the sizing adjustment."
+}

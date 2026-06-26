@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0624-023",
+  "title": "Clear false Launch backend preflight blocks",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Refresh the Launch backend-preflight cache during normal app refresh and give launch/start path-health checks the same bounded network-share timeout used by diagnostics.",
+  "reason": "A stale Launch preflight payload or a too-short path-health probe could leave the app showing a backend preflight block after configured storage was actually reachable.",
+  "affected_areas": [
+    "docs",
+    "process",
+    "test",
+    "webview"
+  ],
+  "behavior_before": "Global Refresh updated snapshot, queue, settings, and Launch panel rendering, but it did not re-fetch /api/launch/preflight; launch/start autonomy checks also used the default one-second configured-path probe, which could falsely mark a reachable UNC share blocked.",
+  "behavior_after": "Global Refresh re-fetches the read-only Launch backend preflight on manual refresh and on automatic refresh when Launch is visible or a launch-preflight alert is present. Launch preflight and the start-route autonomy gate now reuse a bounded five-second path-health probe so slow-but-reachable configured storage does not produce a false launch blocker.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/pipeline_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/preflight_facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-023.json",
+    "src/mediapipeline/core/processes/pipeline_facade.py",
+    "src/mediapipeline/core/processes/preflight_facade.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "tests_added": [
+    "Updated ApplicationFacadeWebStaticTests.test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only to assert global refresh re-fetches Launch backend preflight and updates launch button state.",
+    "Added ApplicationFacadeProcessLaunchTests coverage for the launch preflight path-health timeout and start-route autonomy path-health reuse."
+  ],
+  "manual_validation": [
+    "Python facade probe using the redacted active AppData config: pipeline preflight_status=review, can_start=True, configured_path_health=ready, autonomy_health=review with can_start_new_work=yes",
+    "Fresh Tauri instance screenshot under redacted local temp path: Home page shows no Pipeline launch blocked by backend preflight banner and Start / Launch is enabled (shell PID 31348, backend PID 32168).",
+    "Fresh Tauri instance screenshot under redacted local temp path: Launch page shows backend preflight as review/at-risk rather than launch-blocking, and Start Run Once is enabled.",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_launch_preflight_surfaces_configured_path_health_warning tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_launch_preflight_uses_network_tolerant_path_health_timeout tests.python.desktop.test_application_facade_process_launch.ApplicationFacadeProcessLaunchTests.test_pipeline_start_uses_launch_path_health_before_autonomy_gate -q: PASS",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q: FAIL, unrelated pre-existing static assertions in settings/network evidence surfaces",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only -q: PASS"
+  ],
+  "rollback_plan": "Revert the app.js global-refresh Launch preflight block, the launch path-health timeout helper, the start-route autonomy evidence reuse, and the matching regression-test assertions; this restores the prior behavior where only the Launch-specific refresh updates the cache and launch/start checks use the default path-health timeout.",
+  "related_changes": [],
+  "notes": "Refresh Launch backend preflight during global refresh to clear stale blocked startup alerts.\nAssert app refresh re-fetches Launch backend preflight and updates launch button state.\nRefresh generated summary for Launch preflight refresh wiring.\nRefresh generated summary for static regression test.\nUse network-tolerant bounded path-health timeout for launch preflight.\nCover launch path-health timeout and start-route autonomy evidence reuse.\nRefresh generated summary for launch preflight path-health timeout.\nRefresh generated summary for start-route autonomy path-health reuse.\nReuse launch path-health evidence for start-route autonomy gate.\nRefresh generated summary for launch preflight regression tests."
+}

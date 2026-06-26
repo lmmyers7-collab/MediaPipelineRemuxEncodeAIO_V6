@@ -14,7 +14,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.network.path_map import parse_source_path_map
 from mediapipeline.desktop.network.worker import WorkerDispatcher
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 
 
 def _fingerprint(value: str) -> str:

@@ -11,7 +11,9 @@ if TYPE_CHECKING:
 
 
 AUDIT_START_COMMAND = "audit.start"
+AUDIT_STOP_COMMAND = "audit.stop"
 AUDIT_LIBRARY_ROOT_ERROR = "Audit library root is unavailable."
+AUDIT_STOP_CONFIRM_ERROR = "Audit stop requires confirm_stop=true."
 
 
 def _command_result(**kwargs: Any) -> "CommandResult":
@@ -113,9 +115,69 @@ def audit_start_success_result(
     )
 
 
+def audit_stop_confirm_required_result() -> "CommandResult":
+    return _command_result(
+        command=AUDIT_STOP_COMMAND,
+        ok=False,
+        message=AUDIT_STOP_CONFIRM_ERROR,
+        severity="error",
+        errors=[AUDIT_STOP_CONFIRM_ERROR],
+    )
+
+
+def audit_stop_active_work_result(block_message: str) -> "CommandResult":
+    return _command_result(
+        command=AUDIT_STOP_COMMAND,
+        ok=False,
+        message=block_message,
+        severity="warning",
+        warnings=[block_message],
+        refresh_hint="snapshot",
+    )
+
+
+def audit_stop_exception_result(exc: Exception) -> "CommandResult":
+    return _command_result(
+        command=AUDIT_STOP_COMMAND,
+        ok=False,
+        message=f"Audit stop failed: {exc}",
+        severity="error",
+        errors=[str(exc)],
+        refresh_hint="snapshot",
+    )
+
+
+def audit_stop_success_result(
+    *,
+    messages: list[str],
+    progress_reset: str,
+    reason: str,
+) -> "CommandResult":
+    summary = "; ".join(messages) if messages else "No active audit process tree was found."
+    return _command_result(
+        command=AUDIT_STOP_COMMAND,
+        ok=True,
+        message=f"Audit stop recorded. {summary}",
+        severity="info",
+        refresh_hint="snapshot",
+        data={
+            "schema_version": "desktop_audit_stop_result.v1",
+            "requested_scope": "audit",
+            "job_kinds": ["audit"],
+            "stopped_process_tree_count": len(messages),
+            "cleanup_messages": messages,
+            "progress_reset": progress_reset,
+            "audit_progress_status": "stopped",
+            "reason": reason,
+        },
+    )
+
+
 __all__ = [
     "AUDIT_START_COMMAND",
+    "AUDIT_STOP_COMMAND",
     "AUDIT_LIBRARY_ROOT_ERROR",
+    "AUDIT_STOP_CONFIRM_ERROR",
     "resolve_audit_library_root",
     "audit_start_success_message",
     "audit_start_success_data",
@@ -124,4 +186,8 @@ __all__ = [
     "audit_start_config_blocked_result",
     "audit_start_exception_result",
     "audit_start_success_result",
+    "audit_stop_confirm_required_result",
+    "audit_stop_active_work_result",
+    "audit_stop_exception_result",
+    "audit_stop_success_result",
 ]

@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0625-003",
+  "title": "Plan WebView CSS split",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-25",
+  "date_completed": "2026-06-25",
+  "summary": "Added a CSS split planning pack for the three oversized WebView CSS parents and linked it from the active docs index.",
+  "reason": "styles.components.css, styles.pages.css, and styles.queue.css have become difficult to maintain and need one-at-a-time, test-gated split plans that future AI coding agents can execute safely.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "The active docs index did not have a dedicated plan for splitting the oversized WebView CSS parent files.",
+  "behavior_after": "The active docs index links a CSS split planning pack with one plan each for styles.components.css, styles.pages.css, and styles.queue.css, plus shared execution order, validation, rollback, and integrity-review guidance.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/implementation/css-split/README.md",
+    "docs/implementation/css-split/STYLES_COMPONENTS_SPLIT.md",
+    "docs/implementation/css-split/STYLES_PAGES_SPLIT.md",
+    "docs/implementation/css-split/STYLES_QUEUE_SPLIT.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0625-003.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed because unrelated generated atlas/summary files are dirty and not covered by this packet.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.check_active_doc_references - failed on pre-existing unrelated DOC005 in docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md.",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\scripts\\release\\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed on pre-existing unrelated repository gates: smoke wrapper inventory drift, duplicate test-name report drift, active-doc reference DOC005 in docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md, dependency-boundary findings, and older packet MP-CHANGE-2026-0619-020 containing a local workstation path.",
+    "Targeted css split doc path check - passed",
+    "Targeted css split docs trailing-whitespace check - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed: 744 packets valid",
+    "cold review - passed: re-scanned CSS imports and direct test references, then re-read docs/implementation/css-split/README.md, STYLES_COMPONENTS_SPLIT.md, STYLES_PAGES_SPLIT.md, and STYLES_QUEUE_SPLIT.md for executable sequencing and test coverage.",
+    "repo inspection - passed: read AGENTS/DOCS_INDEX/architecture/module/current/testing/change-control docs, inspected generated summaries for the three CSS files, measured current CSS rule/selector families, and searched direct CSS test references."
+  ],
+  "rollback_plan": "Delete docs/implementation/css-split/, remove the four css-split entries from docs/DOCS_INDEX.md, and remove this change packet.",
+  "related_changes": [],
+  "notes": "Add CSS split planning pack overview, execution order, test-helper migration, validation, and final integrity review.\nAdd one-at-a-time plan for splitting styles.components.css with selector families, phases, tests, and rollback notes.\nAdd one-at-a-time plan for splitting styles.pages.css by page ownership with tests and rollback notes.\nAdd one-at-a-time plan for splitting styles.queue.css by queue and File Override drawer ownership.\nLink the CSS split planning pack from the active documentation index.\nNo CSS, frontend runtime, backend, queue, publish, rename, source, scratch, output, or media-policy behavior changed.\nDocs/DOCS_INDEX.md already contained unrelated pre-existing dirty edits; this packet covers only the four css-split entries added under Implementation Plans."
+}

@@ -365,7 +365,7 @@
 .rename-command-activity-meta,
 .rename-command-activity-detail {
   margin: 0;
-  color: var(--text-muted);
+  color: inherit;
 }
 
 .rename-command-activity-indicator {
@@ -386,12 +386,12 @@
 @keyframes rename-command-pulse {
   0%,
   100% {
-    opacity: 0.45;
+    opacity: var(--opacity-rename-activity-dim);
     transform: scale(0.85);
   }
 
   50% {
-    opacity: 1;
+    opacity: var(--opacity-rename-activity-full);
     transform: scale(1);
   }
 }

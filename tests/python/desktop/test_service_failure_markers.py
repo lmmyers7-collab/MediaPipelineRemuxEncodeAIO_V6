@@ -144,6 +144,109 @@ class FailureMarkerHelperTests(unittest.TestCase):
             self.assertTrue(result["errors"])
             self.assertIn("outside failure marker folder", result["errors"][0])
 
+    def test_archive_failure_evidence_dry_run_returns_fingerprint_without_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            service = _FailureCleanupHarness(root)
+            resolved = _failure_cleanup_resolved(root)
+            marker = resolved.failed_markers_path / "marker-1.json"  # type: ignore[operator]
+            report = resolved.failed_reports_path / "round_failures_1.txt"  # type: ignore[operator]
+            marker.parent.mkdir(parents=True)
+            report.parent.mkdir(parents=True)
+            marker.write_text(json.dumps({"source_full_path": str(root / "Movie.mkv")}), encoding="utf-8")
+            report.write_text("failure text", encoding="utf-8")
+
+            result = service.archive_failure_evidence(
+                resolved,
+                scope="all_active",
+                include_markers=True,
+                include_reports=True,
+                dry_run=True,
+            )
+
+            self.assertTrue(marker.exists())
+            self.assertTrue(report.exists())
+            self.assertTrue(result["dry_run"])
+            self.assertEqual(len(result["planned"]), 2)
+            self.assertTrue(result["dry_run_fingerprint"])
+            self.assertFalse(Path(result["manifest_path"]).exists(), "dry run must not write a manifest")
+            self.assertFalse(Path(result["archive_dir"]).exists(), "dry run must not create an archive folder")
+
+    def test_archive_failure_evidence_fingerprint_mismatch_blocks_writes(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            service = _FailureCleanupHarness(root)
+            resolved = _failure_cleanup_resolved(root)
+            marker = resolved.failed_markers_path / "marker-1.json"  # type: ignore[operator]
+            marker.parent.mkdir(parents=True)
+            marker.write_text(json.dumps({"source_full_path": str(root / "Movie.mkv")}), encoding="utf-8")
+
+            result = service.archive_failure_evidence(
+                resolved,
+                scope="all_active",
+                include_markers=True,
+                include_reports=False,
+                dry_run=False,
+                dry_run_fingerprint="wrong",
+                reason="verified stale markers",
+            )
+
+            self.assertTrue(marker.exists())
+            self.assertEqual(result["markers"], 0)
+            self.assertTrue(result["errors"])
+            self.assertIn("fingerprint mismatch", result["errors"][0])
+
+    def test_archive_failure_evidence_moves_only_failure_markers_and_round_reports(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            service = _FailureCleanupHarness(root)
+            resolved = _failure_cleanup_resolved(root)
+            marker = resolved.failed_markers_path / "marker-1.json"  # type: ignore[operator]
+            report_json = resolved.failed_reports_path / "round_failures_1.json"  # type: ignore[operator]
+            report_txt = resolved.failed_reports_path / "round_failures_1.txt"  # type: ignore[operator]
+            unrelated_report = resolved.failed_reports_path / "latest_failure_report.txt"  # type: ignore[operator]
+            media = root / "Movie.mkv"
+            marker.parent.mkdir(parents=True)
+            report_json.parent.mkdir(parents=True)
+            marker.write_text(json.dumps({"source_full_path": str(media)}), encoding="utf-8")
+            report_json.write_text("[]", encoding="utf-8")
+            report_txt.write_text("failure text", encoding="utf-8")
+            unrelated_report.write_text("latest report stays", encoding="utf-8")
+            media.write_text("media placeholder", encoding="utf-8")
+            preview = service.archive_failure_evidence(
+                resolved,
+                scope="all_active",
+                include_markers=True,
+                include_reports=True,
+                dry_run=True,
+            )
+
+            result = service.archive_failure_evidence(
+                resolved,
+                scope="all_active",
+                include_markers=True,
+                include_reports=True,
+                dry_run=False,
+                dry_run_fingerprint=preview["dry_run_fingerprint"],
+                reason="operator verified stale failure evidence",
+            )
+
+            self.assertFalse(marker.exists())
+            self.assertFalse(report_json.exists())
+            self.assertFalse(report_txt.exists())
+            self.assertTrue(unrelated_report.exists(), "archive must not move non-round failure reports")
+            self.assertTrue(media.exists(), "archive must not touch media")
+            self.assertEqual(result["markers"], 1)
+            self.assertEqual(result["reports"], 2)
+            manifest_path = Path(result["manifest_path"])
+            self.assertTrue(manifest_path.exists())
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            self.assertEqual(manifest["operation"], "archive_failure_evidence")
+            self.assertEqual(manifest["status"], "completed")
+            self.assertEqual(manifest["reason"], "operator verified stale failure evidence")
+            self.assertEqual(len(manifest["moved"]), 3)
+            self.assertTrue(all(Path(item["archive_path"]).exists() for item in manifest["moved"]))
+
 
 class _FailureCleanupHarness(FailureCleanupServiceMixin):
     def __init__(self, root: Path) -> None:

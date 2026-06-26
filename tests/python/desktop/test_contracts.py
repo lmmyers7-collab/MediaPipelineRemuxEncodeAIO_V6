@@ -295,6 +295,10 @@ class ContractTests(unittest.TestCase):
             "tv_count_total": 0,
             "priority_count": 0,
             "runnable_count": 1,
+            "total_row_count": 2,
+            "shown_row_count": 1,
+            "row_limit": 500,
+            "rows_truncated": True,
             "excluded_count": 1,
             "excluded_row_limit": 500,
             "excluded_rows_truncated": False,
@@ -348,6 +352,10 @@ class ContractTests(unittest.TestCase):
         snapshot = QueuePlanSnapshot.from_mapping(payload)
 
         self.assertEqual(snapshot.runnable_count, 1)
+        self.assertEqual(snapshot.total_row_count, 2)
+        self.assertEqual(snapshot.shown_row_count, 1)
+        self.assertEqual(snapshot.row_limit, 500)
+        self.assertTrue(snapshot.rows_truncated)
         self.assertEqual(snapshot.rows[0].source_path, r"C:\Media\Source\Movie.mkv")
         self.assertEqual(snapshot.rows[0].route_decision_trace, [{"code": "size_evaluated"}])
         self.assertEqual(snapshot.rows[0].estimated_bitrate_mbps, 12.5)

@@ -24,7 +24,7 @@ from mediapipeline.core.kernel.contracts.pending_publish import (
 from mediapipeline.core.storage.db import CURRENT_SCHEMA_VERSION, STATE_DB_FILENAME
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
 REQUIRED_DRY_RUN_FIELDS = {

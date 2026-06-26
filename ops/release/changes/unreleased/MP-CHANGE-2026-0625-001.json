@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0625-001",
+  "title": "Network view Phase 0 guardrails",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "test",
+  "risk_level": "low",
+  "date_started": "2026-06-25",
+  "date_completed": null,
+  "summary": "Prepared Phase 0 guardrails and baseline evidence for the Network View troubleshooting refactor without moving production Network code.",
+  "reason": "The planned split of networkView.js needs export, caller, route, DOM, and command-owner baselines plus source-only guardrails that can inspect the parent facade and future child assets before extraction starts.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "tooling"
+  ],
+  "behavior_before": "Static guardrails and command-boundary checks assumed protected Network helpers and the one dynamic Network apiPost dispatcher lived only in networkView.js.",
+  "behavior_after": "Phase 0 tests and tooling understand the parent-plus-existing-child Network asset set while networkView.js remains the only public facade and current command owner.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/implementation/network-view-troubleshooting-refactor/PHASE_0_BASELINE.md",
+    "docs/inventories/COMMAND_OWNERSHIP_MATRIX.md",
+    "docs/inventories/WEBVIEW_GLOBAL_EXPORT_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0625-001.json",
+    "ops/scripts/dev/check-webview-command-boundary.mjs",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_command_boundary_audit.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_network_read_only_boundary -q (14 tests).",
+    "FAIL: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary -q; unrelated blockers: untracked pipelineLogWindowBridge.js direct Tauri bridge access, plus extra queue file-overrides routes not in EXPECTED_API_POST_OWNERS.",
+    "FAIL: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_command_boundary_audit -q; command-boundary audit reports untracked pipelineLogWindowBridge.js direct Tauri bridge access and invoke.",
+    "FAIL: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q; unrelated Reports split source assertions fail before Network-specific assertions.",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_command_feedback_preserves_backend_warnings_and_errors -q.",
+    "FAIL: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_tables_share_accessible_selection_helpers -q; unrelated Reports split source assertion failure.",
+    "PASS: node .\\ops\\scripts\\dev\\check-webview-route-ownership.mjs.",
+    "FAIL: node .\\ops\\scripts\\dev\\check-webview-command-boundary.mjs --check; untracked pipelineLogWindowBridge.js direct Tauri bridge access and invoke.",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes.",
+    "FAIL: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage; 11 unrelated generated files are uncovered."
+  ],
+  "rollback_plan": "Revert the Phase 0 guardrail edits, remove docs/implementation/network-view-troubleshooting-refactor/PHASE_0_BASELINE.md, and restore the command-boundary tool to accepting only apps/desktop/webview/static/assets/networkView.js as the dynamic Network dispatcher. No backend rollback is required.",
+  "related_changes": [],
+  "notes": "Phase 0 export ledger, caller baseline, route/DOM baseline, and rollback path.\nIndexed the Phase 0 Network baseline document.\nRecorded Network command-owner split note while current rows remain parent-owned.\nRecorded public namespace preservation rule for planned Network children.\nAllowed the dynamic Network dispatch guard to recognize planned lifecycle/setup command children.\nAdded parent-plus-existing-children Network source helper for read-only boundary assertions.\nAdded parent-plus-existing-children Network source helper and narrowed dynamic dispatch allowance to planned Network command assets.\nAllowed dynamic Network dispatch audit owner to be the parent or planned command children.\nAdded local Network asset bundle helper for broad Web static source assertions.\nValidation is blocked by unrelated dirty-worktree files: untracked pipelineLogWindowBridge.js and unrelated queue/reports split assertions."
+}

@@ -207,16 +207,25 @@ foreach ($case in $fixtureCases) {
         Assert-DoesNotContainText $joined 'libx265' "REMUX fixture $($case.fixture) must not invoke CPU video encode."
         $matched.Add($case.fixture) | Out-Null
     } elseif ([string]$plan.routeSummary -eq 'ENCODE') {
-        Assert-Equal $dryRun.commands.Count 1 "ENCODE fixture $($case.fixture) should produce one ffmpeg command."
+        $isMkvEncode = ([string]$plan.output.container).Trim().ToLowerInvariant() -in @('mkv','matroska')
+        $expectedEncodeCommandCount = if ($isMkvEncode) { 2 } else { 1 }
+        Assert-Equal $dryRun.commands.Count $expectedEncodeCommandCount "ENCODE fixture $($case.fixture) command count mismatch."
         $encode = $dryRun.commands[0]
         Assert-Equal $encode.label 'ENCODE' "Encode command label mismatch for $($case.fixture)."
         Assert-Equal $encode.tool 'ffmpeg' "Encode command tool mismatch for $($case.fixture)."
         Assert-True (@($encode.builtWith) -contains 'New-EncodeAttemptPlan') "Encode fixture $($case.fixture) must use the existing encode attempt builder."
         $joined = $encode.argumentList -join ' '
         Assert-ContainsText $joined '-map 0:V' "Encode fixture $($case.fixture) must keep existing non-attached-picture video map."
-        Assert-ContainsText $joined '-map 0:t?' "Encode fixture $($case.fixture) must preserve attachments like the legacy builder."
-        Assert-ContainsText $joined '-f matroska' "Encode fixture $($case.fixture) must keep the existing Matroska muxer posture."
+        Assert-DoesNotContainText $joined '-map 0:t?' "Encode fixture $($case.fixture) must not copy attachments through FFmpeg."
         Assert-ContainsText $joined '-c:v hevc_nvenc' "Encode fixture $($case.fixture) must use the plan-selected encoder."
+        if ($isMkvEncode) {
+            Assert-ContainsText $joined '-f matroska' "Encode fixture $($case.fixture) must keep the existing Matroska muxer posture for the encoded media temp."
+            $mux = $dryRun.commands[1]
+            Assert-Equal $mux.label 'ENCODE-MUX' "Encode mux command label mismatch for $($case.fixture)."
+            Assert-Equal $mux.tool 'mkvmerge' "Encode mux command tool mismatch for $($case.fixture)."
+            $muxJoined = $mux.argumentList -join ' '
+            Assert-ContainsText $muxJoined '--no-video --no-audio --no-subtitles --no-buttons' "Encode mux fixture $($case.fixture) must use the source as attachment-only input."
+        }
         $matched.Add($case.fixture) | Out-Null
     } elseif ([string]$plan.routeSummary -eq 'COPY') {
         Assert-Equal $dryRun.commands.Count 1 "COPY fixture $($case.fixture) should produce one copy-source dry-run command."

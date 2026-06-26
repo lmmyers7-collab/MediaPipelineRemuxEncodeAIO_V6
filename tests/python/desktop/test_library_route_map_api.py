@@ -15,7 +15,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 
 
 def _route_map_config() -> dict[str, object]:

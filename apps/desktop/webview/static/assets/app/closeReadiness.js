@@ -26,9 +26,9 @@
 
   function closeReadinessRequiresWarning(closeReadiness, snapshot) {
     if (closeReadiness && closeReadiness.safe_to_close === false) return true;
-    const state = String(snapshot?.pipeline_state || "").toLowerCase();
-    return Boolean(state && !["idle", "completed", "failed"].includes(state));
-  }
+  const state = String(snapshot?.pipeline_state || "").toLowerCase();
+  return Boolean(state && !["idle", "completed", "failed", "stale"].includes(state));
+}
 
   function closeReadinessWarningMessage(closeReadiness) {
     return closeReadiness?.reason || "Active MediaPipeline work may still be running. Close anyway?";

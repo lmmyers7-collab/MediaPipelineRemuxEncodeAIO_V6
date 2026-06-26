@@ -161,10 +161,18 @@ try {
     }
 }
 
-$remuxText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\remux.ps1') -Raw
-Assert-True ($remuxText -match '"-fflags",\s*"\+genpts",\s*"-i",\s*\$localIn') 'Production REMUX-AV must synthesize packet timestamps before reading the scratch input.'
+$remuxText = (@(
+        'ops\pipeline\entrypoints\MediaPipeline\remux.ps1',
+        'ops\pipeline\engine\process\remux_ffmpeg_av_stage.ps1'
+    ) | ForEach-Object {
+        Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw
+    }) -join "`n"
+Assert-True ($remuxText -match '"-fflags",\s*"\+genpts",\s*"-i",\s*(\$localIn|\$Context\.LocalIn)') 'Production REMUX-AV must synthesize packet timestamps before reading the scratch input.'
 
-$encodeText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+$encodePaths = @(
+    (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1')
+) + @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process') -Filter 'encode_*.ps1' | ForEach-Object { $_.FullName })
+$encodeText = ($encodePaths | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join "`n"
 Assert-True ($encodeText -match 'Get-MediaPipelineCodeRetryable[\s\S]+-Classification \$failureClassification[\s\S]+Register-SourceFailure') 'Encode failures must classify non-retryable source-media FFmpeg codes as permanent before recording source failure state.'
 
 $processingText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process\pipeline_processing.ps1') -Raw

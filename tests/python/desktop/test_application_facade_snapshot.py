@@ -17,7 +17,7 @@ from mediapipeline.desktop.config_keys import (
     KEY_RENAME_MOVIE_FILTER_TERMS,
     KEY_RENAME_MOVIE_REMOVE_TERMS,
 )
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 
 
 class ApplicationFacadeSnapshotTests(unittest.TestCase):
@@ -159,6 +159,47 @@ class ApplicationFacadeSnapshotTests(unittest.TestCase):
             snapshot = facade.get_snapshot(resolved)
 
         self.assertEqual(snapshot.current_work["item_label"], "Hoppers (2026)")
+
+    def test_snapshot_marks_stale_progress_as_review_not_active_work(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            service = DummyFacadeService(root)
+            service.snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Stale progress from previous run; latest event: ENCODE : 65%",
+                status_summary="Status OK",
+                log_tail="2026-06-25 22:39:43 [INFO] ENCODE : 65%",
+                progress={
+                    "ProgressVersion": 2,
+                    "LastUpdate": "2026-06-25 22:39:43",
+                    "Status": "Processing",
+                    "CurrentStage": "encode",
+                    "CurrentStagePercent": 65,
+                    "CurrentQueueIndex": 3,
+                    "CurrentQueueTotal": 4,
+                    "CurrentRoute": "encode",
+                    "CurrentFileDisplay": "[Movie 3/4] The Hobbit- The Battle of the Five Armies (2014) Extended Cut DV.mkv",
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            snapshot = facade.get_snapshot(resolved)
+
+        self.assertEqual(snapshot.pipeline_state, "stale")
+        self.assertEqual(snapshot.current_work["schema_version"], "desktop_current_work.v1")
+        self.assertEqual(snapshot.current_work["item_label"], "Stale progress from previous run")
+        self.assertEqual(snapshot.current_work["phase_label"], "Review stale progress")
+        self.assertEqual(snapshot.progress["CurrentStage"], "encode")
+        bars = {bar["id"]: bar for bar in snapshot.progress_bars}
+        self.assertEqual(bars["current_stage"]["status"], "warning")
+        self.assertTrue(bars["current_stage"]["stale"])
+        self.assertIn("The Hobbit", bars["current_stage"]["detail"])
+        self.assertTrue(any("stale from a previous run" in warning for warning in snapshot.warnings))
 
     def test_snapshot_progress_bars_include_pipeline_publish_and_audit(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

@@ -4,6 +4,20 @@ from mediapipeline.desktop.models import ResolvedPaths, Snapshot
 from mediapipeline.core.status.contracts import StatusSnapshotServiceProtocol
 
 
+def _pipeline_active_job_messages(service: StatusSnapshotServiceProtocol, resolved: ResolvedPaths) -> list[str]:
+    active_jobs = getattr(service, "active_job_close_block_messages", None)
+    if not callable(active_jobs):
+        return []
+    try:
+        messages = active_jobs(resolved, job_kinds={"pipeline"})
+    except TypeError:
+        messages = active_jobs(resolved)
+    except Exception as exc:
+        service.logger.warning("ActiveJobs freshness check failed: %s", exc)
+        return []
+    return [str(message).strip() for message in messages or [] if str(message).strip()]
+
+
 def build_snapshot_for_service(service: StatusSnapshotServiceProtocol, resolved: ResolvedPaths, audit_root: str) -> Snapshot:
     reconcile = getattr(service, "reconcile_active_job_records", None)
     if callable(reconcile):
@@ -33,6 +47,8 @@ def build_snapshot_for_service(service: StatusSnapshotServiceProtocol, resolved:
         latest_priority_csv=latest_priority_csv,
     )
     progress_is_stale = service.is_progress_stale(progress)
+    if progress_is_stale and _pipeline_active_job_messages(service, resolved):
+        progress_is_stale = False
     current_activity = service._build_current_activity(
         resolved,
         None if progress_is_stale else progress,

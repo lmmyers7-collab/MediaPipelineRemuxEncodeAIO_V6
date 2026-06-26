@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0624-052",
+  "title": "Fix Reports subtab clicks",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Fixed Reports subtab click binding so Failures, Audit, and Locations tabs stay interactive even when Reports tab panes are normalized or temporarily not found during initialization.",
+  "reason": "The Reports tab initializer returned before binding click handlers when pane discovery failed, leaving the visible subtabs inert.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Reports subtab event binding depended on finding direct-child Reports tab panes before attaching button click handlers.",
+  "behavior_after": "Reports subtab buttons are bound as soon as the buttons exist, and pane activation uses a normalized direct-child helper instead of the fragile :scope selector.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reports/shell.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/shell.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-052.json",
+    "tests/python/desktop/test_reports_view_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_reports_view_static.py::ReportsViewStaticTests.test_reports_tab_nav_binds_without_direct_child_panel_selector"
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_reports_view_static.ReportsViewStaticTests.test_reports_tab_nav_binds_without_direct_child_panel_selector -q -> OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_reports_view_static -q -> OK",
+    "Focused temporary browser smoke for Reports subtab clicks -> OK: Audit, Locations, and Failures each became aria-selected=true with one visible active panel",
+    "node --check apps\\desktop\\webview\\static\\assets\\reports\\shell.js -> OK",
+    "node --check apps\\desktop\\webview\\static\\assets\\reportsView.js -> OK",
+    "node --check apps\\desktop\\webview\\static\\assets\\reports\\auditView.js -> OK",
+    "node --check apps\\desktop\\webview\\static\\assets\\reports\\failureView.js -> OK",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q -> FAILED on pre-existing text expectation: failure-rows missing 'Needs operator'; focused Reports tab click smoke passed"
+  ],
+  "rollback_plan": "Revert apps/desktop/webview/static/assets/reports/shell.js, tests/python/desktop/test_reports_view_static.py, the refreshed generated summaries, and this change packet; rerun Reports static and focused browser tab-click validation.",
+  "related_changes": [],
+  "notes": "Bind Reports subtab buttons independently of direct child pane discovery.\nAdd static guard for Reports subtab binding regression.\nRefresh generated summary after Reports shell subtab binding fix.\nRefresh generated summary after Reports static test update.\nThe worktree had an existing Reports split/refactor in progress; this packet records only the targeted tab binding fix on top of that dirty state."
+}

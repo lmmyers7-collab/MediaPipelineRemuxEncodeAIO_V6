@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pipeline Log</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/assets/styles.css">
+</head>
+<body class="pipeline-log-window-body">
+  <main class="pipeline-log-window-shell" aria-labelledby="pipeline-log-window-title">
+    <header class="pipeline-log-window-header">
+      <div class="pipeline-log-window-heading">
+        <span class="pipeline-log-window-eyebrow">Read-only diagnostics</span>
+        <h1 id="pipeline-log-window-title">Pipeline Log</h1>
+        <p id="pipeline-log-window-detail">Source: GET /api/diagnostics log_tail. Refreshes every 2 seconds while this window is open.</p>
+      </div>
+      <strong id="pipeline-log-window-status" class="pipeline-log-window-status" data-state="loading">Loading</strong>
+    </header>
+
+    <div class="pipeline-log-window-controls">
+      <label class="check-row pipeline-log-window-follow-row">
+        <input id="pipeline-log-window-follow" type="checkbox" checked>
+        Follow
+      </label>
+      <button type="button" id="pipeline-log-window-refresh-button" class="secondary-button">Refresh Now</button>
+      <span id="pipeline-log-window-updated" class="pipeline-log-window-updated">Not refreshed yet</span>
+    </div>
+
+    <pre id="pipeline-log-window-text" class="log-block pipeline-log-window-text" aria-live="polite">Loading pipeline log...</pre>
+  </main>
+
+  <script src="/assets/apiClient.js"></script>
+  <script src="/assets/pipelineLogWindow.js"></script>
+</body>
+</html>

@@ -546,6 +546,7 @@
           key: `${payload?._frontend_preflight_key || target}:${check.key || check.label || rows.length}`,
           target,
           targetLabel: payload?._frontend_target_label || launchBackendPreflightTargetLabel(target),
+          checkKey: check.key || "",
           check: check.label || check.key || "Check",
           posture: check.status || "unknown",
           evidence: check.evidence || "",
@@ -557,6 +558,11 @@
       });
     });
     return rows.sort((left, right) => launchBackendPreflightStatusRank(left.posture) - launchBackendPreflightStatusRank(right.posture));
+  }
+
+  function launchBackendPreflightStartupAlertSuppressesRow(row) {
+    const checkKey = String(row?.checkKey || "").toLowerCase();
+    return checkKey === "active_work" || checkKey === "process_launch_lock";
   }
 
   function launchBackendPreflightList(value) {
@@ -636,7 +642,7 @@
     return launchBackendPreflightRows(payloads).filter((row) => {
       const target = String(row?.target || row?.payload?.target || "").toLowerCase();
       const posture = String(row?.posture || "").toLowerCase();
-      return target === "pipeline" && posture === "blocked";
+      return target === "pipeline" && posture === "blocked" && !launchBackendPreflightStartupAlertSuppressesRow(row);
     });
   }
 
@@ -665,8 +671,8 @@
     detail.textContent = `Backend preflight found ${blockers.length} launch-blocking check${blockers.length === 1 ? "" : "s"}. First blocker: ${first.check || "Backend check"} - ${first.evidence || "no evidence text supplied"}.`;
     const hint = document.createElement("span");
     hint.textContent = first.action
-      ? `Open Launch > Readiness > Backend Preflight. Backend action: ${first.action}`
-      : "Open Launch > Readiness > Backend Preflight before starting the media pipeline.";
+      ? `Open Diagnostics > Readiness > Backend Preflight. Backend action: ${first.action}`
+      : "Open Diagnostics > Readiness > Backend Preflight before starting the media pipeline.";
     node.replaceChildren(title, detail, hint);
   }
 

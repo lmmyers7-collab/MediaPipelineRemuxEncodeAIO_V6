@@ -14,7 +14,7 @@ from mediapipeline.desktop.network import mdns
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application.facade import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
-from tests.python.desktop.test_application_facade import DummyFacadeService
+from tests.python.desktop.application_facade_test_support import DummyFacadeService
 
 
 def _resolved(root: Path, config: dict[str, object]) -> ResolvedPaths:

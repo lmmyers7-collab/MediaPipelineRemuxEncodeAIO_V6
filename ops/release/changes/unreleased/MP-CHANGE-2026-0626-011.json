@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0626-011",
+  "title": "Settings Libraries refactor prework baseline",
+  "version_target": "2026.06.04.001",
+  "status": "planned",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": null,
+  "summary": "Added a docs-only baseline for future troubleshooting-oriented refactor work on the WebView Library Profiles surface.",
+  "reason": "Record the current Settings Libraries public facade, Settings handoff points, Library Profile state ownership, DOM IDs, caller baseline, guardrail tests, safe extraction seams, rollback rules, and validation ladder before any runtime code movement.",
+  "affected_areas": [
+    "docs",
+    "release"
+  ],
+  "behavior_before": "The Library Profiles WebView contract was discoverable only by reading settingsLibraries.js, Settings handoff code, inventories, and tests.",
+  "behavior_after": "The current Library Profiles contract and future extraction boundaries are documented without changing runtime code, routes, exports, script order, Library Profile semantics, or UI behavior.",
+  "files_touched": [
+    "docs/implementation/webview-large-file-refactor-prework/settingsLibraries.prework-baseline.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-011.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "git status --short: ran; worktree was broadly dirty before this packet with unrelated modified/deleted/untracked files.",
+    "rg -n \"mediaPipelineSettingsLibraries|settingsLibraries.js|settings-library-|LibraryProfiles|previewSettingsPatch|saveSettingsPatch\" apps tests docs/inventories docs/implementation/library-route-map: ran; results used for the caller, DOM, Settings handoff, inventory, and source-only guardrail ledgers.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_settings_libraries -q: passed, 22 tests.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_library_profiles_save_smoke -q: passed, 1 browser-backed smoke.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q: passed, 1 browser-backed smoke.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_final_library_promotion -q: passed, 35 tests.",
+    "npm run webview:prework:check: failed during webview:lint:budget:check after webview:check passed; current warning counts exceed budget: complexity 115 > 108, max-lines-per-function 46 > 37, no-extra-boolean-cast 1 > 0, no-unused-vars 192 > 143.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes: passed, 774 packet(s) valid.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage: failed because 11 unrelated generated files are not listed in any unreleased change packet."
+  ],
+  "rollback_plan": "Delete docs/implementation/webview-large-file-refactor-prework/settingsLibraries.prework-baseline.md and remove this change packet. No runtime rollback is required because no JS, backend route, config, schema, or UI behavior changed.",
+  "related_changes": [],
+  "notes": "Documented Settings Libraries prework ledgers and extraction guardrails.\nTracked the docs-only Settings Libraries prework packet."
+}

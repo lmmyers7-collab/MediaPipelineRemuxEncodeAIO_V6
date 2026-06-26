@@ -33,7 +33,7 @@ from mediapipeline.core.validation.boundary import ValidationFailure, validate_a
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import CompletedJobRecord
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 from tests.python.desktop.test_repair_reconcile_dry_run import _completed_fixture, _file_state, _pending_fixture, _pending_manifest_payload
 
 

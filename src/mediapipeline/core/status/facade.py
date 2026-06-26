@@ -15,7 +15,7 @@ from mediapipeline.core.rename.policy import rename_cleaning_policy_from_resolve
 from mediapipeline.core.status.active_jobs import worker_progress_payload
 from mediapipeline.core.status.eta import eta_payload
 from mediapipeline.core.status.ffmpeg_progress import ffmpeg_progress_payload
-from mediapipeline.core.status.presentation import build_current_work
+from mediapipeline.core.status.presentation import build_current_work, build_stale_current_work
 from mediapipeline.core.processes.path_evidence import configured_path_health, path_health_warning_lines
 from mediapipeline.desktop.application.dto_status import AppSnapshotDto, HealthDto, TelemetryDto
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot, TelemetrySnapshot
@@ -66,15 +66,23 @@ class StatusFacadeMixin:
         worker_progress = worker_progress_payload(snapshot.resolved.active_jobs_path, progress, snapshot.log_tail)
         warnings = snapshot_warnings(snapshot)
         warnings.extend(path_health_warning_lines(configured_path_health(snapshot.resolved)))
+        stale_progress = pipeline_state == "stale"
+        if stale_progress:
+            warnings.append("Pipeline progress is stale from a previous run; raw progress is retained for review.")
+        current_work = (
+            build_stale_current_work()
+            if stale_progress
+            else build_current_work(
+                progress,
+                movie_cleaning_policy=rename_cleaning_policy_from_resolved(snapshot.resolved),
+            )
+        )
         return AppSnapshotDto(
             app_version=self.app_version,
             activity=str(snapshot.current_activity or ""),
             pipeline_state=pipeline_state,
             status_summary=str(snapshot.status_summary or ""),
-            current_work=build_current_work(
-                progress,
-                movie_cleaning_policy=rename_cleaning_policy_from_resolved(snapshot.resolved),
-            ),
+            current_work=current_work,
             counts=snapshot_counts(progress),
             progress=progress,
             audit_progress=audit_progress,

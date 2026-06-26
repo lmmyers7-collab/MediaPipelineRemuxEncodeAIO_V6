@@ -315,9 +315,28 @@ def diagnostics_path_health_summary_rows(path_health: Mapping[str, Any] | None) 
         share = str(health_row.get("share") or "").strip()
         path_probe = health_row.get("path_probe") if isinstance(health_row.get("path_probe"), Mapping) else {}
         server_probe = health_row.get("server_probe") if isinstance(health_row.get("server_probe"), Mapping) else {}
+        storage_probe = health_row.get("storage_probe") if isinstance(health_row.get("storage_probe"), Mapping) else {}
+        phase_timings = health_row.get("phase_timings_ms") if isinstance(health_row.get("phase_timings_ms"), Mapping) else {}
+        probe_attempts = health_row.get("probe_attempts") if isinstance(health_row.get("probe_attempts"), list) else []
+        last_capacity = (
+            health_row.get("last_successful_capacity")
+            if isinstance(health_row.get("last_successful_capacity"), Mapping)
+            else {}
+        )
         message = str(health_row.get("message") or "Configured path health needs review.").strip()
         safe_next_action = str(health_row.get("safe_next_action") or "Review Settings and Launch before starting work.").strip()
         facts = [
+            f"Health code: {health_row.get('health_code') or 'unknown'}",
+            f"DNS: {server_probe.get('dns_status') or 'not_applicable'}; SMB TCP 445: {server_probe.get('tcp_445_status') or 'not_applicable'}",
+            f"Elapsed: {int(health_row.get('elapsed_ms') or 0)} ms",
+            f"Probe attempts: {len(probe_attempts) or 1}",
+            f"Phase timings: {', '.join(f'{key}={value}ms' for key, value in phase_timings.items()) or 'not reported'}",
+            f"Storage status: {health_row.get('storage_status') or storage_probe.get('status') or 'not_checked'}",
+            f"Free/reserve: {health_row.get('free_space_gb') if health_row.get('free_space_gb') is not None else 'unknown'} GB / {health_row.get('reserve_gb') if health_row.get('reserve_gb') is not None else 'unknown'} GB",
+            f"Capacity source: {health_row.get('capacity_source') or storage_probe.get('capacity_source') or 'not_checked'}",
+            f"Capacity path: {health_row.get('capacity_path') or storage_probe.get('capacity_path') or '(none)'}",
+            f"Capacity error: {health_row.get('capacity_error') or storage_probe.get('capacity_error') or '(none)'}",
+            f"Last successful capacity: {last_capacity.get('free_space_gb') if last_capacity else 'none'} GB; evidence-only=yes",
             f"Role: {health_row.get('role') or 'unknown'}",
             f"Configured key: {health_row.get('configured_key') or 'unknown'}",
             f"UNC path: {'yes' if bool(health_row.get('is_unc')) else 'no'}",
@@ -325,8 +344,6 @@ def diagnostics_path_health_summary_rows(path_health: Mapping[str, Any] | None) 
             f"Path kind: {path_probe.get('path_kind') or health_row.get('path_kind') or 'unknown'}",
             f"Exists: {'yes' if bool(path_probe.get('exists') or health_row.get('exists')) else 'no'}",
             f"Can list root: {'yes' if bool(path_probe.get('can_list') or health_row.get('can_list')) else 'no'}",
-            f"DNS: {server_probe.get('dns_status') or 'not_applicable'}; SMB TCP 445: {server_probe.get('tcp_445_status') or 'not_applicable'}",
-            f"Elapsed: {int(health_row.get('elapsed_ms') or 0)} ms",
             "Write probe: not checked; this Diagnostics row is read-only.",
         ]
         issue_list = [message]
@@ -576,9 +593,10 @@ def _directory_summary(path: Path, label: str) -> dict[str, Any]:
     try:
         iterator = path.iterdir()
         for child in iterator:
-            scanned += 1
-            if scanned > DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT:
+            if scanned >= DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT:
                 large_directory = True
+                break
+            scanned += 1
             try:
                 child_stat = child.stat()
             except OSError as exc:
@@ -616,7 +634,7 @@ def _directory_summary(path: Path, label: str) -> dict[str, Any]:
     )
     if large_directory:
         warnings.append(
-            f"{label} contains more than {DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT} entries; recent-entry list was selected from the full scan."
+            f"{label} scan stopped after {DIAGNOSTICS_STATE_SUMMARY_DIR_SCAN_LIMIT} entries; recent-entry list was selected from sampled entries."
         )
     status = "warning" if warnings else "ok"
     return {

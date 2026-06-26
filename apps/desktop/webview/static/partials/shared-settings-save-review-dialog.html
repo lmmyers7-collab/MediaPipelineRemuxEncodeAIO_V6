@@ -1,0 +1,36 @@
+      <dialog id="settings-save-review-dialog" class="settings-save-review-dialog" aria-labelledby="settings-save-review-title">
+        <form method="dialog" class="settings-save-review-form">
+          <div class="settings-save-review-header">
+            <div>
+              <h2 id="settings-save-review-title">Review Settings Changes</h2>
+              <p id="settings-save-review-summary" class="settings-save-review-summary">No settings changes are queued for save.</p>
+            </div>
+            <button type="submit" value="cancel" class="secondary-button">Close</button>
+          </div>
+          <ul class="settings-save-review-counts" aria-label="Settings save counts">
+            <li><span>Changed</span><strong id="settings-save-review-dialog-changed">0</strong></li>
+            <li><span>Submitted</span><strong id="settings-save-review-dialog-submitted">0</strong></li>
+            <li><span>Resets</span><strong id="settings-save-review-dialog-resets">0</strong></li>
+          </ul>
+          <div class="table-wrap settings-save-review-table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Setting</th>
+                  <th scope="col">Current</th>
+                  <th scope="col">New</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+              <tbody id="settings-save-review-dialog-rows">
+                <tr><td colspan="4">No settings changes to review.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="settings-save-review-dialog-detail" class="prose-block compact-text-block">Backend save will validate, write a backup, persist the PSD1, and reload settings after confirmation.</pre>
+          <div class="action-row action-row-right wrap-actions">
+            <button type="submit" value="cancel" id="settings-save-review-cancel-button" class="secondary-button">Cancel</button>
+            <button type="submit" value="confirm" id="settings-save-review-confirm-button" class="primary-button">Save Settings</button>
+          </div>
+        </form>
+      </dialog>

@@ -1,0 +1,18 @@
+---
+file: tests/python/desktop/test_contracts.py
+pipeline_stage: contracts
+token_priority: medium
+owner_domain: tests
+last_modified: 2026-06-26
+last_reviewed: 2026-06-04
+sha256: 624618bb17ee2d402d1348239030455a086a459b8799825230fc35dbe690431f
+---
+# `tests/python/desktop/test_contracts.py`
+
+**Purpose:** (no module docstring)
+
+**Classes:** `ContractTests`
+**Public functions:** `current_pending_manifest_payload()`
+**In-repo imports:** `mediapipeline.contracts.config`, `mediapipeline.desktop.contracts`, `mediapipeline.tools.paths`
+
+_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_contracts.py`._

@@ -1,0 +1,246 @@
+{
+  "schema_version": "settings_library_profiles_round_trip_cases.v1",
+  "cases": [
+    {
+      "name": "default_movies_tv_explicit_paths",
+      "input_config": {
+        "SourceMovies": "C:\\Media\\Movies",
+        "SourceTV": "C:\\Media\\TV",
+        "Outsource": "D:\\Processed",
+        "LibraryProfiles": [
+          {
+            "id": "movies",
+            "name": "Movies",
+            "enabled": true,
+            "designation": "movie",
+            "source_path": "C:\\Media\\Movies",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {},
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          },
+          {
+            "id": "tv",
+            "name": "TV",
+            "enabled": true,
+            "designation": "tv",
+            "source_path": "C:\\Media\\TV",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {},
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          }
+        ]
+      },
+      "expected_profile_ids": ["movies", "tv"]
+    },
+    {
+      "name": "custom_concerts_explicit_overrides",
+      "input_config": {
+        "SourceMovies": "C:\\Media\\Movies",
+        "SourceTV": "C:\\Media\\TV",
+        "Outsource": "D:\\Processed",
+        "LibraryProfiles": [
+          {
+            "id": "movies",
+            "name": "Movies",
+            "enabled": true,
+            "designation": "movie",
+            "source_path": "C:\\Media\\Movies",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {
+                "RoutingProfile": "plex_direct_play"
+              },
+              "video": {},
+              "subtitles": {},
+              "audio": {
+                "AudioMaxChannels": 8
+              }
+            }
+          },
+          {
+            "id": "tv",
+            "name": "TV",
+            "enabled": true,
+            "designation": "tv",
+            "source_path": "C:\\Media\\TV",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {},
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          },
+          {
+            "id": "concerts",
+            "name": "Concerts",
+            "enabled": true,
+            "designation": "movie",
+            "source_path": "E:\\Concerts",
+            "output_path": "F:\\ConcertsOut",
+            "promotion_enabled": true,
+            "promotion_destination": "G:\\ConcertLibrary",
+            "overrides": {
+              "editor": {
+                "RoutingProfile": "always_encode"
+              },
+              "video": {
+                "VideoPreset": "slow"
+              },
+              "subtitles": {},
+              "audio": {
+                "AudioPassthroughProfile": "compatibility"
+              }
+            }
+          }
+        ]
+      },
+      "expected_profile_ids": ["movies", "tv", "concerts"]
+    },
+    {
+      "name": "alias_defaults_and_new_custom_profile_ids",
+      "input_config": {
+        "SourceMovies": "C:\\Media\\Movies",
+        "SourceTV": "C:\\Media\\TV",
+        "Outsource": "D:\\Processed",
+        "LibraryProfiles": [
+          {
+            "id": "movie",
+            "name": "Movies",
+            "enabled": true,
+            "designation": "movie",
+            "source_path": "C:\\Media\\Movies",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {
+                "SizeGuardMode": "fallback_remux"
+              },
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          },
+          {
+            "id": "show",
+            "name": "TV",
+            "enabled": true,
+            "designation": "tv",
+            "source_path": "C:\\Media\\TV",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {},
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          },
+          {
+            "name": "Anime Specials",
+            "enabled": true,
+            "designation": "tv",
+            "source_path": "E:\\Anime Specials",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {
+                "SizeGuardMode": "fallback_remux"
+              },
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          }
+        ]
+      },
+      "expected_profile_ids": ["movies", "tv", "anime-specials"]
+    },
+    {
+      "name": "custom_output_path_reset_inherits_outsource",
+      "input_config": {
+        "SourceMovies": "C:\\Media\\Movies",
+        "SourceTV": "C:\\Media\\TV",
+        "Outsource": "D:\\Processed",
+        "LibraryProfiles": [
+          {
+            "id": "movies",
+            "name": "Movies",
+            "enabled": true,
+            "designation": "movie",
+            "source_path": "C:\\Media\\Movies",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {},
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          },
+          {
+            "id": "tv",
+            "name": "TV",
+            "enabled": true,
+            "designation": "tv",
+            "source_path": "C:\\Media\\TV",
+            "output_path": "D:\\Processed",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {},
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          },
+          {
+            "id": "concerts",
+            "name": "Concerts",
+            "enabled": true,
+            "designation": "movie",
+            "source_path": "E:\\Concerts",
+            "output_path": "F:\\ConcertsOut",
+            "promotion_enabled": false,
+            "promotion_destination": "",
+            "overrides": {
+              "editor": {},
+              "video": {},
+              "subtitles": {},
+              "audio": {}
+            }
+          }
+        ]
+      },
+      "reset_request": [
+        {
+          "library_id": "concerts",
+          "path_fields": ["output_path"]
+        }
+      ],
+      "expected_inherited_fields": {
+        "concerts": ["output_path"]
+      }
+    }
+  ]
+}

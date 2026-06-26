@@ -128,6 +128,10 @@ class QueuePlanSnapshot:
     tv_count_total: int
     priority_count: int
     runnable_count: int
+    total_row_count: int = 0
+    shown_row_count: int = 0
+    row_limit: int = 0
+    rows_truncated: bool = False
     excluded_count: int = 0
     excluded_row_limit: int = 0
     excluded_rows_truncated: bool = False
@@ -158,6 +162,10 @@ class QueuePlanSnapshot:
             tv_count_total=int_field(data, "tv_count_total"),
             priority_count=int_field(data, "priority_count"),
             runnable_count=int_field(data, "runnable_count"),
+            total_row_count=int_field(data, "total_row_count"),
+            shown_row_count=int_field(data, "shown_row_count"),
+            row_limit=int_field(data, "row_limit"),
+            rows_truncated=bool_field(data, "rows_truncated"),
             excluded_count=int_field(data, "excluded_count"),
             excluded_row_limit=int_field(data, "excluded_row_limit"),
             excluded_rows_truncated=bool_field(data, "excluded_rows_truncated"),

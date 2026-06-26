@@ -1,0 +1,109 @@
+/* =============================================================================
+   S70 — Queue Ordering Strategy Selector (Phase 2)
+   Strategy toolbar (.queue-strategy-toolbar) and strategy <select>.
+   ============================================================================= */
+
+/* --- Strategy toolbar (below priority toolbar, above queue table) --- */
+.queue-strategy-toolbar {
+  margin-bottom: var(--space-1);
+}
+
+.queue-strategy-toolbar .toolbar-label {
+  text-transform: none;
+}
+
+.queue-strategy-select {
+  font-size: var(--text-sm);
+  background: var(--grey-800);
+  color: var(--grey-100);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-xs);
+  padding: var(--space-2) var(--space-4);
+  cursor: pointer;
+  min-width: 14rem;
+  flex: 1 1 auto;
+  max-width: 28rem;
+}
+.queue-strategy-select:focus {
+  outline: 2px solid var(--semantic-focus-outline);
+  outline-offset: 1px;
+}
+
+.queue-strategy-choice-grid {
+  flex: 1 1 100%;
+  grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr));
+  margin-top: var(--space-2);
+}
+
+.queue-strategy-choice {
+  min-height: 5.5rem;
+}
+
+/* Active strategy badge rendered inline after the select */
+.queue-strategy-active-label {
+  font-size: var(--text-xs);
+  color: var(--grey-500);
+  white-space: nowrap;
+}
+.queue-strategy-active-label strong { color: var(--grey-300); }
+
+/* --- Manual-order controls and row drag state --- */
+.queue-manual-order-toolbar {
+  margin-bottom: var(--space-1);
+}
+
+.queue-manual-order-toolbar .icon-button {
+  min-width: 2.25rem;
+  width: 2.25rem;
+  padding-inline: 0;
+  text-align: center;
+}
+
+#queue-manual-order-status {
+  font-size: var(--text-sm);
+  color: var(--grey-300);
+  min-height: 1.2em;
+}
+
+.queue-table-pagination {
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.queue-table-pagination[hidden] {
+  display: none;
+}
+
+#queue-table-page-status {
+  color: var(--grey-300);
+  font-size: var(--text-sm);
+  min-width: 22rem;
+}
+
+.queue-filter-summary {
+  border-left: 3px solid var(--semantic-info-border);
+  white-space: pre-wrap;
+}
+
+.queue-filter-summary[data-tone="warning"] {
+  border-left-color: var(--semantic-warning-border);
+  background: var(--semantic-warning-bg);
+  color: var(--semantic-warning-text);
+}
+
+[data-page-panel="queue"] .queue-table tr.queue-manual-order-row {
+  cursor: grab;
+}
+
+[data-page-panel="queue"] .queue-table tr.queue-manual-order-row:active {
+  cursor: grabbing;
+}
+
+[data-page-panel="queue"] .queue-table tr.is-manual-dragging td {
+  background: var(--grey-900);
+}
+
+[data-page-panel="queue"] .queue-table tr.is-manual-drop-target td {
+  box-shadow: inset 0 2px 0 var(--semantic-selected-border);
+}

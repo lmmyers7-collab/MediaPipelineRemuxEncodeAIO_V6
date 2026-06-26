@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0625-012",
+  "title": "Bound completed output refresh proof",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-25",
+  "date_completed": "2026-06-25",
+  "summary": "Bound the Completed Output current-status refresh to recent bounded proof and skip expensive final-library promotion filesystem probes while promotion is disabled.",
+  "reason": "The active completed manifest recorded the latest jobs, but the WebView current-output refresh requested full live proof for the entire completed history and also evaluated disabled promotion rows against UNC paths, causing the route to exceed the UI timeout.",
+  "affected_areas": [
+    "code",
+    "generated_context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Refresh Current Output Status requested limit=all with live proof and final-library promotion status loaded completed rows with live output proof even when promotion was disabled.",
+  "behavior_after": "Refresh Current Output Status requests the recent 500 completed rows with bounded proof, and disabled promotion status uses summary completed proof without per-row output existence checks.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/refresh.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/refresh.js.md",
+    "docs/generated/summaries/src/mediapipeline/core/final_library/promotion.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/final_library/service.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_final_library_promotion.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0625-012.json",
+    "src/mediapipeline/core/final_library/promotion.py",
+    "src/mediapipeline/core/final_library/service.py",
+    "tests/python/desktop/test_application_facade_web_static_cross_page.py",
+    "tests/python/desktop/test_final_library_promotion.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_web_static_cross_page.py",
+    "tests/python/desktop/test_final_library_promotion.py"
+  ],
+  "manual_validation": [
+    "active-state service check against E:/Videos/Scratch - completed bounded 500 rows in 5.607s, first row Witch Hat Atelier - S01E13.mkv; disabled promotion status in 1.588s",
+    "apps/desktop/runtime/Python/python.exe -m unittest discover -s tests/python/desktop -p test_completed_proof_budget.py -q - blocked by pre-existing circular import through mediapipeline.core.publish.reconciliation_policy",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_cross_page -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_final_library_promotion -q - passed",
+    "change_control.validate_changes - passed",
+    "change_control.validate_changes --require-worktree-coverage - failed due unrelated uncovered dependency-atlas/generated-summary files outside this packet"
+  ],
+  "rollback_plan": "Revert the WebView refresh URL and the final-library promotion proof-mode/output-probe changes, then rerun the targeted completed and final-library promotion tests.",
+  "related_changes": [],
+  "notes": "Avoid output and sidecar filesystem proof while final-library promotion is disabled.\nUse bounded recent completed proof for Refresh Current Output Status instead of full live proof.\nCover disabled promotion proof behavior and summary-proof service loading.\nUpdate static WebView contract for bounded current-output completed refresh.\nLoad final-library promotion status with summary completed proof when promotion is disabled.\nRefresh generated summary for bounded current-output refresh.\nRefresh generated summary for disabled promotion proof optimization.\nRefresh generated summary for promotion status proof-mode loading.\nRefresh generated summary for final-library promotion tests."
+}

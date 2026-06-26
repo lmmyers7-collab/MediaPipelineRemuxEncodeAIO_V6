@@ -1,0 +1,337 @@
+/* Light-mode overrides */
+
+body.light-mode .priority-badge[data-level="high"] { background: var(--semantic-info-bg); color: var(--semantic-info-text); }
+
+body.light-mode .priority-badge[data-level="hold"] { background: var(--semantic-danger-bg); color: var(--semantic-danger-text); }
+
+body.light-mode .priority-badge[data-level="fs"]   { background: var(--semantic-info-bg); color: var(--semantic-info-text); }
+
+body.light-mode .queue-priority-menu {
+  background: var(--grey-100);
+  border-color: var(--grey-400);
+}
+
+body.light-mode .queue-priority-menu button { color: var(--grey-900); }
+
+body.light-mode .queue-priority-menu button:hover { background: var(--grey-200); }
+
+body.light-mode .queue-strategy-select {
+  background: var(--grey-900);
+  color: var(--grey-50);
+  border-color: var(--grey-400);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-table tr.is-manual-drop-target td {
+  box-shadow: inset 0 2px 0 var(--semantic-selected-border);
+}
+
+body.light-mode .queue-state-chip[data-state="ready"] {
+  background: var(--semantic-success-bg);
+  color: var(--semantic-success-text);
+}
+
+body.light-mode .queue-state-chip[data-state="queued"] {
+  background: var(--semantic-pending-bg);
+  color: var(--semantic-pending-text);
+}
+
+body.light-mode .queue-state-chip[data-state="launch-check"] {
+  background: var(--semantic-info-bg);
+  color: var(--semantic-info-text);
+}
+
+body.light-mode .queue-state-chip[data-state="review"] {
+  background: var(--semantic-warning-bg);
+  color: var(--semantic-warning-text);
+}
+
+body.light-mode .queue-state-chip[data-state="blocked"] {
+  background: var(--semantic-danger-bg);
+  color: var(--semantic-danger-text);
+}
+
+body.light-mode .queue-override-chip[data-state="active"] {
+  background: var(--semantic-info-bg);
+  color: var(--semantic-info-text);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="warning"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="validation-needed"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="health-check"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="parked"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="paused"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="retrying"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="unknown"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="empty"] td,
+body.light-mode [data-page-panel="queue"] .queue-table tr[data-status="unavailable"] td {
+  background: transparent;
+}
+
+body.light-mode [data-page-panel="queue"] .queue-table tr.is-selected td {
+  background: var(--semantic-selected-bg);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-tile {
+  background: var(--grey-50);
+  border-color: var(--grey-300);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-tile-label,
+body.light-mode [data-page-panel="queue"] .queue-source-tile-meta,
+body.light-mode [data-page-panel="queue"] .queue-source-tile-detail {
+  color: var(--grey-600);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-tile-value {
+  color: var(--grey-900);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-chip,
+body.light-mode [data-page-panel="queue"] .queue-source-path {
+  color: var(--grey-700);
+  background: var(--grey-100);
+  border-color: var(--grey-300);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-chip[data-tone="success"] {
+  color: var(--semantic-success-text);
+  background: var(--semantic-success-bg);
+  border-color: var(--semantic-success-border);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-chip[data-tone="info"] {
+  color: var(--semantic-info-text);
+  background: var(--semantic-info-bg);
+  border-color: var(--semantic-info-border);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-chip[data-tone="warning"] {
+  color: var(--semantic-warning-text);
+  background: var(--semantic-warning-bg);
+  border-color: var(--semantic-warning-border);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-chip[data-tone="danger"] {
+  color: var(--semantic-danger-text);
+  background: var(--semantic-danger-bg);
+  border-color: var(--semantic-danger-border);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-path strong {
+  color: var(--grey-900);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-meter {
+  background: var(--grey-100);
+  border-color: var(--grey-300);
+}
+
+body.light-mode [data-page-panel="queue"] .queue-source-detail-disclosure > summary {
+  color: var(--grey-700);
+  border-color: var(--grey-300);
+}
+
+body.light-mode .fo-drawer {
+  background: var(--grey-900);
+  border-color: var(--grey-400);
+}
+
+body.light-mode .fo-drawer-footer {
+  background: var(--grey-900);
+  border-color: var(--grey-300);
+}
+
+body.light-mode .fo-drawer-status {
+  border-color: var(--grey-300);
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-drawer-status[data-tone="success"] {
+  background: var(--semantic-success-bg);
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-text);
+}
+
+body.light-mode .fo-drawer-status[data-tone="error"] {
+  background: var(--semantic-danger-bg);
+  border-color: var(--semantic-danger-border);
+  color: var(--semantic-danger-text);
+}
+
+body.light-mode .fo-drawer-status[data-tone="warning"] {
+  background: var(--semantic-warning-bg);
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
+}
+
+body.light-mode .fo-drawer-status[data-tone="working"] {
+  background: var(--semantic-pending-bg);
+  border-color: var(--semantic-pending-border);
+  color: var(--semantic-pending-text);
+}
+
+body.light-mode .fo-series-toggle,
+body.light-mode .fo-series-summary,
+body.light-mode .fo-series-detected,
+body.light-mode .fo-series-fields,
+body.light-mode .fo-series-counts,
+body.light-mode .fo-series-issues,
+body.light-mode .fo-remux-pilot-proof {
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-series-dialog {
+  background: var(--grey-900);
+  border-color: var(--grey-300);
+}
+
+body.light-mode .fo-series-header h3 {
+  color: var(--grey-50);
+}
+
+body.light-mode .fo-series-counts span,
+body.light-mode .fo-series-fields span,
+body.light-mode .fo-series-issues span,
+body.light-mode .fo-remux-pilot-proof span,
+body.light-mode .fo-series-table-wrap {
+  border-color: var(--grey-300);
+}
+
+body.light-mode .fo-section-title { color: var(--grey-600); border-color: var(--grey-300); }
+
+body.light-mode .fo-section-help { color: var(--grey-600); }
+
+body.light-mode .fo-label-text { color: var(--grey-600); }
+
+body.light-mode .fo-use-inherited-button {
+  border-color: var(--grey-400);
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-use-inherited-button:hover {
+  border-color: var(--semantic-interactive-panel-border);
+  color: var(--grey-50);
+}
+
+body.light-mode .fo-use-inherited-button[data-staged-clear="true"] {
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
+}
+
+body.light-mode .fo-inherited-status {
+  border-color: var(--grey-300);
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-inherited-hint { color: var(--grey-600); }
+
+body.light-mode .fo-route-preview-status,
+body.light-mode .fo-route-encode-advisory {
+  border-color: var(--grey-300);
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-route-encode-advisory[data-tone="safe"] {
+  background: var(--semantic-success-bg);
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-text);
+}
+
+body.light-mode .fo-route-encode-advisory[data-tone="warning"] {
+  background: var(--semantic-frontend-advisory-bg);
+  border-color: var(--semantic-frontend-advisory-border);
+  color: var(--semantic-frontend-advisory-text);
+}
+
+body.light-mode .fo-route-encode-advisory[data-tone="info"] {
+  background: var(--semantic-info-bg);
+  border-color: var(--semantic-info-border);
+  color: var(--semantic-info-text);
+}
+
+body.light-mode .fo-source-info-section,
+body.light-mode .fo-source-info-fact,
+body.light-mode .fo-track-group,
+body.light-mode .fo-track-row,
+body.light-mode .fo-track-warning-list {
+  border-color: var(--grey-300);
+}
+
+body.light-mode .fo-source-info-section[data-loading="true"] {
+  border-color: var(--semantic-pending-border);
+  box-shadow: inset 3px 0 0 var(--semantic-pending-accent);
+}
+
+body.light-mode .fo-source-info-status,
+body.light-mode .fo-source-info-label {
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-source-info-section[data-loading="true"] .fo-source-info-status {
+  color: var(--semantic-pending-text);
+}
+
+body.light-mode .fo-source-info-value {
+  color: var(--grey-50);
+}
+
+body.light-mode .fo-source-info-missing {
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-track-group[data-loading="true"] {
+  border-color: var(--semantic-pending-border);
+  box-shadow: inset 3px 0 0 var(--semantic-pending-accent);
+}
+
+body.light-mode .fo-track-group-title,
+body.light-mode .fo-track-summary strong,
+body.light-mode .fo-track-warning-heading {
+  color: var(--grey-50);
+}
+
+body.light-mode .fo-track-count,
+body.light-mode .fo-track-status,
+body.light-mode .fo-track-summary span,
+body.light-mode .fo-track-detail {
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-track-group[data-loading="true"] .fo-track-count,
+body.light-mode .fo-track-group[data-loading="true"] .fo-track-status {
+  color: var(--semantic-pending-text);
+}
+
+body.light-mode .fo-track-group[data-loading="true"] .fo-track-count::before {
+  border-color: var(--semantic-pending-bg);
+  border-top-color: var(--semantic-pending-accent);
+}
+
+body.light-mode .fo-track-badge {
+  border-color: var(--grey-400);
+  color: var(--grey-600);
+}
+
+body.light-mode .fo-track-badge[data-tone="warning"] {
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
+}
+
+body.light-mode .fo-track-badge[data-tone="success"] {
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-text);
+}
+
+body.light-mode .fo-track-badge[data-tone="error"] {
+  border-color: var(--semantic-danger-border);
+  color: var(--semantic-danger-text);
+}
+
+body.light-mode .fo-input,
+body.light-mode .fo-select {
+  background: var(--grey-900);
+  border-color: var(--grey-400);
+  color: var(--grey-50);
+}
+
+body.light-mode .fo-open-btn { border-color: var(--grey-400); color: var(--grey-600); }

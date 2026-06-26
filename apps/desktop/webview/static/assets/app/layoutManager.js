@@ -136,6 +136,27 @@
     try { localStorage.setItem(LAYOUT_STORAGE_KEY, JSON.stringify(state)); } catch (_) {}
   }
 
+  function _layoutSetPanelType(panel, panelType) {
+    const normalized = String(panelType || "").trim();
+    if (normalized) {
+      panel.dataset.panelType = normalized;
+    } else {
+      delete panel.dataset.panelType;
+    }
+  }
+
+  function _layoutDefaultPanelType(panel) {
+    return String(panel?.dataset?.layoutDefaultPanelType || "");
+  }
+
+  function _layoutPanelIsEvidence(panel) {
+    return panel?.dataset?.panelType === "evidence";
+  }
+
+  function _layoutPanelIsAuthoredEvidence(panel) {
+    return _layoutDefaultPanelType(panel) === "evidence";
+  }
+
   function _updateCustomizeBar(panel) {
     const bar = panel.querySelector(".panel-customize-bar");
     if (!bar) return;
@@ -620,6 +641,7 @@
       const defaults = _layoutDefaultPanelState.get(panelKey) || {};
       panel.toggleAttribute("data-panel-advanced", Boolean(defaults.advanced));
       panel.toggleAttribute("data-panel-hidden", false);
+      _layoutSetPanelType(panel, defaults.panelType || "");
       _updateCustomizeBar(panel);
     });
     _syncPanelMoveButtons(container);
@@ -832,12 +854,15 @@
     window.addEventListener("blur", cancel);
   }
 
-  function _layoutCreateDrawerButton(label, className, onClick, disabled = false) {
+  function _layoutCreateDrawerButton(label, className, onClick, disabled = false, options = {}) {
     const button = document.createElement("button");
     button.type = "button";
     button.className = className;
     button.textContent = label;
     button.disabled = Boolean(disabled);
+    if (options.pressed !== undefined) button.setAttribute("aria-pressed", String(Boolean(options.pressed)));
+    if (options.title) button.title = options.title;
+    if (options.ariaLabel) button.setAttribute("aria-label", options.ariaLabel);
     button.addEventListener("click", (event) => {
       event.stopPropagation();
       onClick();
@@ -918,6 +943,8 @@
 
         const actions = document.createElement("div");
         actions.className = "layout-editor-panel-actions";
+        const evidenceActive = _layoutPanelIsEvidence(panel);
+        const evidenceLocked = evidenceActive && _layoutPanelIsAuthoredEvidence(panel);
         actions.append(
           _layoutCreateDrawerButton("Up", "layout-editor-move-button", () => {
             _movePanelByStep(panel, -1);
@@ -951,6 +978,26 @@
               _layoutDrawerSelectedPanelKey = panelKey;
               _layoutRenderDrawer();
               _layoutSetStatus(`${_layoutPanelTitle(panel)} is now ${panel.hasAttribute("data-panel-advanced") ? "behind the Advanced gate" : "normal"}.`);
+            },
+          ),
+          _layoutCreateDrawerButton(
+            "Evidence",
+            evidenceActive ? "layout-editor-toggle-button is-active" : "layout-editor-toggle-button",
+            () => {
+              _togglePanelEvidence(panel);
+              _layoutDrawerSelectedContainerKey = containerKey;
+              _layoutDrawerSelectedPanelKey = panelKey;
+              _layoutRenderDrawer();
+              _layoutSetStatus(`${_layoutPanelTitle(panel)} is now ${_layoutPanelIsEvidence(panel) ? "marked as evidence" : "restored to its authored panel type"}.`);
+            },
+            evidenceLocked,
+            {
+              pressed: evidenceActive,
+              title: evidenceLocked
+                ? "This panel is authored as evidence"
+                : evidenceActive
+                  ? "Restore this panel to its authored panel type"
+                  : "Mark this panel as read-only evidence",
             },
           ),
         );
@@ -1148,6 +1195,24 @@
     state[key].hidden = !wasHid;
     _saveLayout(state);
     panel.toggleAttribute("data-panel-hidden", !wasHid);
+    _updateCustomizeBar(panel);
+    updatePagePanelEmptyStates();
+  }
+
+  function _togglePanelEvidence(panel) {
+    const key = panel.dataset.panelKey;
+    const wasEvidence = _layoutPanelIsEvidence(panel);
+    const defaultType = _layoutDefaultPanelType(panel);
+    const state = _loadLayout();
+    if (!state[key]) state[key] = {};
+    if (wasEvidence && defaultType !== "evidence") {
+      delete state[key].panelType;
+      _layoutSetPanelType(panel, defaultType);
+    } else {
+      state[key].panelType = "evidence";
+      _layoutSetPanelType(panel, "evidence");
+    }
+    _saveLayout(state);
     _updateCustomizeBar(panel);
     updatePagePanelEmptyStates();
   }
@@ -1422,6 +1487,8 @@
   function _applyStoredPanelState(panel, panelState) {
     const defaultAdv = panel.dataset.advancedDefault === "true";
     const isAdv = panelState.advanced !== undefined ? Boolean(panelState.advanced) : defaultAdv;
+    const panelType = panelState.panelType === "evidence" ? "evidence" : _layoutDefaultPanelType(panel);
+    _layoutSetPanelType(panel, panelType);
     panel.toggleAttribute("data-panel-advanced", isAdv);
     panel.toggleAttribute("data-panel-hidden", Boolean(panelState.hidden));
   }
@@ -1488,12 +1555,14 @@
       _keySeen.set(key, seen);
       if (seen > 1) key = `${key}-${seen}`;
       panel.dataset.panelKey = key;
+      panel.dataset.layoutDefaultPanelType = panel.dataset.panelType || "";
       const h = panel.querySelector(".panel-heading h2, .panel-heading h3");
       const title = h ? h.textContent.trim() : key.split("::")[1] || "Panel";
       _applyStoredPanelState(panel, state[key] || {});
       _layoutDefaultPanelState.set(key, {
         advanced: panel.dataset.advancedDefault === "true",
         hidden: false,
+        panelType: panel.dataset.layoutDefaultPanelType || "",
       });
       _injectCustomizeBar(panel, title);
 

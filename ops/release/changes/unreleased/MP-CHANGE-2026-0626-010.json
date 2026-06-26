@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0626-010",
+  "title": "Rename View refactor prework baseline",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Added a docs-only Phase 0 baseline for a troubleshooting-oriented renameView.js refactor, including namespace export, route, DOM, caller, source-only test, mutable-state, seam, rollback, and validation ledgers.",
+  "reason": "A later renameView.js extraction needs a stable public-contract and guardrail baseline before moving code across child modules.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "renameView.js behavior and public namespace were undocumented for the proposed refactor baseline beyond existing inventories and tests.",
+  "behavior_after": "Runtime behavior is unchanged; the current renameView.js contract and extraction guardrails are documented for future work.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/implementation/webview-large-file-refactor-prework/renameView.phase0-baseline.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-010.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: git status --short (baseline captured; final worktree snapshot remains dirty with 549 modified/other, 136 deleted, and 254 untracked paths; scoped touched files are this docs note, Docs/DOCS_INDEX.md, and this change packet).",
+    "PASS: rg -n \"mediaPipelineRenameView|renameView.js|/api/rename|confirm_apply|confirm_undo|confirm_append\" apps tests docs/inventories (baseline search captured; confirms rename routes, strict confirmations, direct callers, and inventories).",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_rename_readiness_smoke -q (1 test).",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_rename_smoke -q (1 test).",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_rename -q (6 tests).",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_rename_workbench -q (26 tests).",
+    "FAIL: npm run webview:prework:check reached webview:lint:budget:check and failed on existing JS warning-budget counts: complexity 115 > 108, max-lines-per-function 46 > 37, no-extra-boolean-cast 1 > 0, no-unused-vars 192 > 143. This change touched docs/change-packet files only.",
+    "PASS: git diff --check -- docs/implementation/webview-large-file-refactor-prework/renameView.phase0-baseline.md docs/DOCS_INDEX.md ops/release/changes/unreleased/MP-CHANGE-2026-0626-010.json.",
+    "FAIL: change_control.validate_changes --require-worktree-coverage found 11 unrelated uncovered generated files already dirty in the worktree; the MP-CHANGE-2026-0626-010 touched files are recorded.",
+    "FAIL: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke failed on pre-existing repository gates: smoke wrapper reference drift for Test-WebViewBrowserProseBoxAudit.ps1 and Test-WebViewBrowserVisualClutterScreenshots.ps1, duplicate test-name report drift, DOC005 active-doc reference violation in docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md, dependency-boundary drift, and release package policy failure from MP-CHANGE-2026-0619-020.json containing a local workstation path."
+  ],
+  "rollback_plan": "Delete docs/implementation/webview-large-file-refactor-prework/renameView.phase0-baseline.md, remove its DOCS_INDEX entry, and remove this change packet.",
+  "related_changes": [],
+  "notes": "Documented renameView Phase 0 public contract, ledgers, guardrails, seams, rollback rules, and validation gate.\nIndexed the renameView Phase 0 baseline planning note."
+}

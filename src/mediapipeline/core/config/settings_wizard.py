@@ -253,9 +253,16 @@ def save_settings_wizard(facade: object, resolved: ResolvedPaths, request: objec
     if _is_missing_initial_config(resolved):
         saved = _save_initial_settings_wizard(facade, resolved, wizard, base_config)
     else:
+        patch_request = _wizard_patch_request(wizard, base_config)
+        confirmation_builder = getattr(facade, "settings_patch_request_with_review_confirmation", None)
+        confirmed_patch_request = (
+            confirmation_builder(resolved, patch_request)
+            if callable(confirmation_builder)
+            else patch_request
+        )
         saved = facade.save_settings_patch(
             resolved,
-            {**_wizard_patch_request(wizard, base_config), "confirm_save": True},
+            {**confirmed_patch_request, "confirm_save": True},
         )
     data = dict(saved.data)
     data["errors"] = list(saved.errors)

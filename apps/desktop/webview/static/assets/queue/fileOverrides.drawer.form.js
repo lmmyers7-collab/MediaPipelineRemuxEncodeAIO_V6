@@ -417,12 +417,14 @@
     const saveButton = byId("fo-drawer-save");
     const clearButton = byId("fo-drawer-clear");
     const seriesButton = byId("fo-series-preview-open");
+    const seriesClearButton = byId("fo-series-clear-open");
     const seriesApplyButton = byId("fo-series-apply");
     const remuxPilotButton = byId("fo-remux-pilot-promote");
     const commandDisabled = Boolean(disabled || state.foDrawerLoading);
     if (saveButton) saveButton.disabled = commandDisabled || !state.foDrawerDirty;
     if (clearButton) clearButton.disabled = commandDisabled;
     if (seriesButton) seriesButton.disabled = commandDisabled || !state.foCurrentPath;
+    if (seriesClearButton) seriesClearButton.disabled = commandDisabled || !state.foCurrentPath;
     if (seriesApplyButton && commandDisabled) seriesApplyButton.disabled = true;
     if (remuxPilotButton && commandDisabled) remuxPilotButton.disabled = true;
     document.querySelectorAll("[data-fo-use-inherited]").forEach((button) => {

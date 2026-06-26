@@ -36,8 +36,17 @@
     return "";
   }
 
+  function queueLaunchCheckEvidenceText(item, routeParts, short) {
+    const candidates = short
+      ? [routeParts?.evidence, item?.route_reason_code, item?.route_decision_summary, item?.route_reason, item?.operator_status]
+      : [routeParts?.evidence, item?.route_reason, item?.route_decision_summary, item?.route_reason_code, item?.operator_status];
+    const evidence = candidates.map(formatQueueEvidenceText).find(Boolean) || "Ready";
+    return evidence.toLowerCase().includes("checks at launch") ? evidence : `${evidence}; checks at launch`;
+  }
+
   function queueEvidenceText(item, routeParts, queueTableRowStatus) {
     const status = queueTableRowStatus(item);
+    if (status === "launch-check") return queueLaunchCheckEvidenceText(item, routeParts, false);
     const candidates = [];
     if (status === "blocked" || status === "failed") {
       candidates.push(item.blocked_reason_code, item.blocked_reason, item.operator_status);
@@ -59,11 +68,12 @@
   }
 
   function queueShortEvidenceText(item, routeParts, queueTableRowStatus) {
+    const status = queueTableRowStatus(item);
+    if (status === "launch-check") return queueLaunchCheckEvidenceText(item, routeParts, true);
     const evidence = queueEvidenceText(item, routeParts, queueTableRowStatus);
     const normalized = evidence.toLowerCase();
     if (normalized.includes("codec check pending")) return "Codec pending";
     if (normalized.includes("codec probe still required")) return "Codec pending";
-    if (item?.runtime_checks_deferred || normalized.includes("runtime checks deferred")) return "Launch checks deferred";
     if (normalized === "size within threshold") return "Size ok";
     return evidence;
   }
@@ -86,6 +96,7 @@
 
   function queueDisplayRowStatus(item, queueTableRowStatus) {
     const status = queueTableRowStatus(item);
+    if (String(status || "").toLowerCase() === "launch-check") return "launch-check";
     return queueIsRunnableWarning(item, status) ? "ready" : status;
   }
 
@@ -94,6 +105,7 @@
     if (item?.blocked_reason || item?.blocked_reason_code) return { label: "Blocked", state: "blocked" };
     if (normalized === "blocked" || normalized === "failed") return { label: "Blocked", state: "blocked" };
     if (normalized === "completed" || normalized === "skipped") return { label: "Done", state: "done" };
+    if (normalized === "launch-check") return { label: "Launch Check", state: "launch-check" };
     if (queueIsRunnableWarning(item, normalized)) return { label: "Review", state: "review" };
     if (["warning", "changed", "validation-needed", "health-check", "parked", "paused", "retrying", "unknown", "empty"].includes(normalized)) {
       return { label: "Review", state: "review" };

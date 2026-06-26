@@ -194,6 +194,11 @@ function Get-CachedSourceFiles {
     $shouldRefresh = $ForceRefresh -or -not $stamp -or $ttl -le 0 -or $age -ge $ttl
     if ($shouldRefresh) {
         $files = @(Get-ChildItemWithRetry $Path)
+        $scanStatus = [string]$script:LastRecursivePathScanStatus
+        if ($scanStatus -in @('timeout', 'stopped', 'error') -and $stamp -and @($cached).Count -gt 0) {
+            Write-Log ("Source scan {0} for {1}; preserving last-good {2} cache with {3} file(s)" -f $scanStatus, $Kind, $Kind, @($cached).Count) "WARN"
+            return @($cached)
+        }
         Set-Variable -Scope Script -Name $cacheProp -Value $files
         Set-Variable -Scope Script -Name $stampProp -Value (Get-Date)
         Write-Log ("Source scan refreshed ({0}): {1} file(s)" -f $Kind, $files.Count) "DEBUG"

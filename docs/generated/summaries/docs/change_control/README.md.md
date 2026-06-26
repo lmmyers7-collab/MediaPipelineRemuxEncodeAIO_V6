@@ -3,9 +3,9 @@ file: docs/change_control/README.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-26
 last_reviewed: 2026-06-03
-sha256: f38db66f12bc0912c356026553bb80df243406f056b164966f58babf439bae87
+sha256: 5c014be73b8e5f64432e2dcca95509117e27118da55fd2874a54641814498a2f
 ---
 # `docs/change_control/README.md`
 

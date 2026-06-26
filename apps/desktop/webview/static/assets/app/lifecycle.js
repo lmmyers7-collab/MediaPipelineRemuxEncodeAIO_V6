@@ -636,6 +636,7 @@
       ["#rerun-plan-only-button", "Plans backend CSV rerun rows without writing manifests, staging files, parking outputs, or touching media."],
       ["#rerun-dry-run-button", "Previews backend CSV rerun as a dry run. Review dry-run evidence before starting a live copy / keep / park rerun."],
       ["#rerun-start-button", "Starts backend CSV rerun with copy / keep / park policy. Review the CSV path and preflight before starting."],
+      ["#rerun-open-audit-tool-button", "Opens Reports > Audit for audit rows, score policy, and backend-owned rerun CSV export controls."],
       ["#pending-drain-button", "Requests backend pending-publish drain. Drain safety remains backend-owned and requires parked payload evidence."],
       ['[data-control-action="pause"]', "Pause or resume the active backend pipeline. Disabled while no active work is reported."],
       ['[data-control-action="rescan"]', "Request a backend queue rescan flag for the running pipeline. Disabled while no active work is reported."],
@@ -776,6 +777,16 @@
     showPage("completed");
   }
 
+  function activateCrossPageTarget(button) {
+    const target = button?.dataset?.crossPageTarget || "";
+    if (!target) return;
+    showPage(target);
+    if (target === "reports" && button.dataset.crossPageReportsTab) {
+      const reportsView = window.mediaPipelineReportsView || {};
+      reportsView.activateReportsTab?.(button.dataset.crossPageReportsTab);
+    }
+  }
+
   function initCompletedTabNav() {
     const page = document.querySelector('[data-page-panel="completed"]');
     if (!page) return;
@@ -800,7 +811,7 @@
       });
     });
     document.querySelectorAll("[data-cross-page-target]").forEach((button) => {
-      button.addEventListener("click", () => showPage(button.dataset.crossPageTarget));
+      button.addEventListener("click", () => activateCrossPageTarget(button));
     });
     syncTabAccessibility();
     // S15: topbar health/readiness buttons navigate to Diagnostics.
@@ -919,6 +930,234 @@
     window.mediaPipelineTelemetryView?.redrawTelemetryCharts?.();
   }
 
+  function lifecycleDisplayText(value, fallback = "Unknown") {
+    const text = formatProgressValue(value || "").trim();
+    return text || fallback;
+  }
+
+  function lifecycleStateToken(value) {
+    const state = String(value || "").trim().toLowerCase();
+    if (["ready", "safe", "ok", "success", "completed"].includes(state)) return "ready";
+    if (["blocked", "error", "failed", "danger"].includes(state)) return "blocked";
+    if (["warning", "review", "stale", "unknown"].includes(state)) return "warning";
+    if (["changed", "running", "requesting", "queued", "pending"].includes(state)) return "changed";
+    return "unknown";
+  }
+
+  function lifecycleFactNode(label, value, state = "unknown") {
+    const node = document.createElement("div");
+    node.className = "lifecycle-fact";
+    node.dataset.state = lifecycleStateToken(state);
+    const term = document.createElement("dt");
+    term.textContent = label;
+    const detail = document.createElement("dd");
+    detail.textContent = lifecycleDisplayText(value);
+    node.appendChild(term);
+    node.appendChild(detail);
+    return node;
+  }
+
+  function renderLifecycleFacts(id, facts = []) {
+    const node = byId(id);
+    if (!node) return;
+    node.replaceChildren(...facts.map((fact) => lifecycleFactNode(fact.label, fact.value, fact.state)));
+  }
+
+  function renderLifecycleCallout(id, state, title, detail) {
+    const node = byId(id);
+    if (!node) return;
+    node.dataset.state = lifecycleStateToken(state);
+    const heading = document.createElement("strong");
+    heading.textContent = lifecycleDisplayText(title);
+    const body = document.createElement("span");
+    body.textContent = lifecycleDisplayText(detail, "No detail reported.");
+    node.replaceChildren(heading, body);
+  }
+
+  function lifecycleWatcherStatus(closeReadiness) {
+    const watcher = closeReadinessWatcherData(closeReadiness);
+    return lifecycleDisplayText(watcher.status, closeReadiness ? "Unknown" : "Not loaded");
+  }
+
+  function lifecycleStopRequestedText(closeReadiness) {
+    if (!closeReadiness) return "Unknown";
+    const watcher = closeReadinessWatcherData(closeReadiness);
+    if (!Object.keys(watcher).length) return "No watcher";
+    return watcher.stop_requested ? "Yes" : "No";
+  }
+
+  function lifecycleGenerationText(closeReadiness) {
+    if (!closeReadiness) return "Unknown";
+    const watcher = closeReadinessWatcherData(closeReadiness);
+    const generation = Number(watcher.generation || 0);
+    return generation > 0 ? String(watcher.generation) : "None";
+  }
+
+  function lifecycleCloseReadinessLabel(closeReadiness) {
+    if (!closeReadiness) return "Not loaded";
+    return closeReadiness.safe_to_close ? "Safe" : "Blocked";
+  }
+
+  function renderDiagnosticsCloseReadinessOverview(closeReadiness = lastCloseReadiness) {
+    const watcher = closeReadinessWatcherData(closeReadiness);
+    const state = lifecycleDisplayText(closeReadiness?.state, closeReadiness ? "Unknown" : "Not loaded");
+    const safe = closeReadiness?.safe_to_close === true;
+    const blocked = closeReadiness?.safe_to_close === false;
+    const watcherArmed = closeReadinessWatcherIsArmed(closeReadiness);
+    let calloutState = "unknown";
+    let title = "Close readiness has not loaded.";
+    let detail = "Refresh Diagnostics before treating shutdown as safe.";
+
+    if (safe) {
+      calloutState = "ready";
+      title = "Close readiness is safe.";
+      detail = closeReadiness.reason || "No active backend work is blocking shutdown.";
+    } else if (watcherArmed) {
+      calloutState = "blocked";
+      title = "Close blocked: schedule watcher armed.";
+      detail = closeReadiness.reason || "Keep the backend alive until the schedule boundary requests Stop, or use backend-owned stop controls first.";
+    } else if (blocked) {
+      calloutState = "blocked";
+      title = `Close blocked: ${state}.`;
+      detail = closeReadiness.reason || "Active work, stale runtime state, or unverifiable close-readiness is blocking shutdown.";
+    }
+
+    renderLifecycleCallout("diagnostics-close-readiness-overview", calloutState, title, detail);
+    renderLifecycleFacts("diagnostics-close-readiness-facts", [
+      { label: "Safe to close", value: safe ? "Yes" : blocked ? "No" : "Unknown", state: safe ? "ready" : blocked ? "blocked" : "unknown" },
+      { label: "State", value: state, state: blocked ? "blocked" : safe ? "ready" : "unknown" },
+      { label: "Active work", value: closeReadiness ? closeReadiness.active_work ? "Yes" : "No" : "Unknown", state: closeReadiness?.active_work ? "blocked" : safe ? "ready" : "unknown" },
+      { label: "Watcher", value: closeReadiness ? closeReadinessWatcherSummary(closeReadiness) : "Not loaded", state: watcherArmed ? "blocked" : safe ? "ready" : "unknown" },
+      { label: "Stop requested", value: lifecycleStopRequestedText(closeReadiness), state: watcher.stop_requested ? "ready" : watcherArmed ? "blocked" : "unknown" },
+      { label: "Reason", value: closeReadiness?.reason || "No reason reported.", state: blocked ? "blocked" : safe ? "ready" : "unknown" },
+    ]);
+  }
+
+  function renderBackendLifecycleOverview(lifecycle, closeReadiness, snapshot, warnings, watcher) {
+    const state = backendShutdownInFlight ? "changed" : lifecycle.state;
+    const pipelineState = lifecycleDisplayText(snapshot?.pipeline_state || closeReadiness?.state);
+    let title = "Backend lifecycle has not loaded.";
+    let detail = "Refresh Diagnostics before requesting backend shutdown.";
+
+    if (backendShutdownInFlight) {
+      title = "Backend shutdown request is in progress.";
+      detail = "The Local API command is running; wait for the backend-owned result before retrying.";
+    } else if (lifecycle.canShutdown) {
+      title = "Backend shutdown can be requested.";
+      detail = "Close-readiness reports safe. Use this only when you are done with the WebView/local backend session.";
+    } else if (closeReadinessWatcherIsArmed(closeReadiness)) {
+      title = "Backend shutdown blocked: watcher armed.";
+      detail = lifecycle.reason;
+    } else if (closeReadiness) {
+      title = "Backend shutdown blocked.";
+      detail = lifecycle.reason;
+    }
+
+    renderLifecycleCallout("backend-lifecycle-callout", state, title, detail);
+    renderLifecycleFacts("backend-lifecycle-facts", [
+      { label: "Request status", value: backendShutdownInFlight ? "Requesting" : lifecycle.label, state },
+      { label: "Close-readiness", value: lifecycleCloseReadinessLabel(closeReadiness), state: closeReadiness?.safe_to_close ? "ready" : closeReadiness ? "blocked" : "unknown" },
+      { label: "Pipeline state", value: pipelineState, state: closeReadiness?.safe_to_close ? "ready" : closeReadiness ? "blocked" : "unknown" },
+      { label: "Watcher", value: lifecycleWatcherStatus(closeReadiness), state: closeReadinessWatcherIsArmed(closeReadiness) ? "blocked" : closeReadiness?.safe_to_close ? "ready" : "unknown" },
+      { label: "Stop requested", value: lifecycleStopRequestedText(closeReadiness), state: watcher.stop_requested ? "ready" : closeReadinessWatcherIsArmed(closeReadiness) ? "blocked" : "unknown" },
+      { label: "Generation", value: lifecycleGenerationText(closeReadiness), state: Number(watcher.generation || 0) > 0 ? "changed" : "unknown" },
+      { label: "Warnings", value: warnings.length ? String(warnings.length) : "None", state: warnings.length ? "warning" : "ready" },
+    ]);
+  }
+
+  function backendLifecycleCommandData(entry) {
+    const raw = entry?.raw && typeof entry.raw === "object" ? entry.raw : {};
+    const data = raw.data && typeof raw.data === "object" ? raw.data : {};
+    const request = raw.request && typeof raw.request === "object"
+      ? raw.request
+      : raw.submitted_request && typeof raw.submitted_request === "object"
+        ? raw.submitted_request
+        : {};
+    return { raw, data, request };
+  }
+
+  function backendLifecycleCommandResultLabel(entry) {
+    const { raw } = backendLifecycleCommandData(entry);
+    const severity = String(entry?.severity || raw.severity || "").trim().toLowerCase();
+    const result = String(entry?.result || raw.result || "").trim();
+    const ok = entry?.ok ?? raw.ok;
+    if (ok === true && severity === "warning") return "OK with warning";
+    if (ok === true) return "OK";
+    if (ok === false && severity === "warning") return "Warning";
+    if (ok === false) return "Error";
+    return result || severity || "Unknown";
+  }
+
+  function backendLifecycleCommandResultState(entry) {
+    const label = backendLifecycleCommandResultLabel(entry).toLowerCase();
+    if (label.includes("warning")) return "warning";
+    if (label.includes("error") || label.includes("blocked") || label.includes("failed")) return "error";
+    if (label === "ok" || label.includes("success")) return "ready";
+    return "unknown";
+  }
+
+  function backendLifecycleCommandTime(entry) {
+    const { raw } = backendLifecycleCommandData(entry);
+    return lifecycleDisplayText(entry?.at || raw.at || entry?.time || raw.time || raw.timestamp || raw.recorded_at, "Unknown");
+  }
+
+  function backendLifecycleCommandSummary(entry) {
+    const { raw, data, request } = backendLifecycleCommandData(entry);
+    const bits = [];
+    if (data.safe_to_close !== undefined) bits.push(`safe_to_close=${data.safe_to_close ? "yes" : "no"}`);
+    if (data.state) bits.push(`state=${data.state}`);
+    if (data.reason) bits.push(`close_reason=${data.reason}`);
+    if (data.continuous_watcher && typeof data.continuous_watcher === "object" && data.continuous_watcher.status) {
+      const watcherBits = [`watcher=${data.continuous_watcher.status}`];
+      if (data.continuous_watcher.pid) watcherBits.push(`pid=${data.continuous_watcher.pid}`);
+      if (data.continuous_watcher.deadline) watcherBits.push(`deadline=${data.continuous_watcher.deadline}`);
+      bits.push(watcherBits.join(" "));
+    }
+    if (request.reason) bits.push(`reason=${request.reason}`);
+    const message = String(entry?.message || raw.message || "").trim() || "No command message reported.";
+    return bits.length ? `${message} (${bits.join("; ")})` : message;
+  }
+
+  function appendLifecycleTableCell(row, child, className = "") {
+    const cell = document.createElement("td");
+    if (className) cell.className = className;
+    if (child && typeof child === "object" && typeof child.nodeType === "number") cell.append(child);
+    else cell.textContent = lifecycleDisplayText(child);
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function lifecycleResultChip(entry) {
+    const chip = document.createElement("span");
+    chip.className = "status-chip lifecycle-result-chip";
+    chip.dataset.status = backendLifecycleCommandResultState(entry);
+    chip.textContent = backendLifecycleCommandResultLabel(entry);
+    return chip;
+  }
+
+  function renderBackendLifecycleHistoryRows(entries = []) {
+    const body = byId("backend-lifecycle-history-rows");
+    if (!body) return;
+    if (!entries.length) {
+      const row = document.createElement("tr");
+      const cell = document.createElement("td");
+      cell.colSpan = 4;
+      cell.textContent = "No backend shutdown command history loaded.";
+      row.appendChild(cell);
+      body.replaceChildren(row);
+      return;
+    }
+    const rows = entries.map((entry) => {
+      const row = document.createElement("tr");
+      appendLifecycleTableCell(row, backendLifecycleCommandTime(entry), "lifecycle-history-time");
+      appendLifecycleTableCell(row, lifecycleResultChip(entry), "lifecycle-history-result");
+      appendLifecycleTableCell(row, "backend.shutdown", "lifecycle-history-command");
+      appendLifecycleTableCell(row, backendLifecycleCommandSummary(entry), "lifecycle-history-summary");
+      return row;
+    });
+    body.replaceChildren(...rows);
+  }
+
   function renderBackendLifecycle(closeReadiness = lastCloseReadiness, snapshot = lastSnapshot) {
     const lifecycle = backendLifecycleState(closeReadiness);
     const status = byId("backend-lifecycle-status");
@@ -928,6 +1167,8 @@
     }
     const warnings = Array.isArray(closeReadiness?.warnings) ? closeReadiness.warnings : [];
     const watcher = closeReadinessWatcherData(closeReadiness);
+    renderDiagnosticsCloseReadinessOverview(closeReadiness);
+    renderBackendLifecycleOverview(lifecycle, closeReadiness, snapshot, warnings, watcher);
     const lines = ["Backend lifecycle handoff:", `Request status: ${backendShutdownInFlight ? "shutdown command in progress" : lifecycle.label}`, `Close-readiness: ${closeReadiness ? closeReadiness.safe_to_close ? "safe" : "blocked" : "not loaded"}`, `Pipeline state: ${snapshot?.pipeline_state || closeReadiness?.state || "unknown"}`, `Reason: ${lifecycle.reason}`, `Continuous watcher: ${closeReadinessWatcherSummary(closeReadiness)}`, `Watcher generation: ${Number(watcher.generation || 0) > 0 ? watcher.generation : "none"}`, `Watcher stop requested: ${watcher.stop_requested ? "yes" : "no"}`, `Warnings: ${warnings.length ? warnings.slice(0, 5).join(" | ") : "none"}`, "", ...startupProgressLines(), ...tauriBackendLifecycleLines(), "", "Guardrail: WebView exposes backend shutdown only when the loaded close-readiness payload reports safe.", "Backend authority: /api/backend/shutdown remains token-protected and performs the actual lifecycle request.", "Scope: this does not launch, pause, stop media, drain pending publish, rename files, save settings, delete files, or touch source/output/scratch media."];
     if (!lifecycle.canShutdown) {
       lines.push("Next step: inspect Close Readiness, ActiveJobs, Progress, Run Logs, and Last Stderr before closing or retrying lifecycle actions.");
@@ -953,9 +1194,7 @@
     });
   }
   function backendLifecycleCommandLine(entry) {
-    const raw = entry?.raw && typeof entry.raw === "object" ? entry.raw : {};
-    const data = raw.data && typeof raw.data === "object" ? raw.data : {};
-    const request = raw.request && typeof raw.request === "object" ? raw.request : raw.submitted_request && typeof raw.submitted_request === "object" ? raw.submitted_request : {};
+    const { raw, data, request } = backendLifecycleCommandData(entry);
     const result = entry?.result || (entry?.ok ? "ok" : entry?.severity || "unknown");
     const bits = [];
     if (data.safe_to_close !== undefined) bits.push(`safe_to_close=${data.safe_to_close ? "yes" : "no"}`);
@@ -979,6 +1218,7 @@
   }
   function renderBackendLifecycleHistory(history = []) {
     const entries = backendLifecycleCommandEntries(history).slice(0, 5);
+    renderBackendLifecycleHistoryRows(entries);
     if (!entries.length) {
       setText("backend-lifecycle-history", "No backend shutdown command history loaded. Safe WebView shutdown requests will appear here after the backend responds.");
       return;

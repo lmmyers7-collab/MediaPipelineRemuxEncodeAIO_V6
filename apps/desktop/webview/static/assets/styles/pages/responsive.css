@@ -1,0 +1,25 @@
+@media (max-width: 900px) {
+  .settings-wizard-readiness-strip {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    position: static;
+  }
+
+  .settings-wizard-shell {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-wizard-steps {
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .settings-wizard-result-row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .settings-library-card-heading,
+  .settings-library-card-actions,
+  .settings-library-path-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+}

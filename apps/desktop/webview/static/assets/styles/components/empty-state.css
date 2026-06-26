@@ -1,0 +1,197 @@
+/* ===== EMPTY STATE — shown inside panels or table wrappers when there is no data ===== */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  padding: var(--space-9) var(--space-7);
+  color: var(--grey-500);
+  font-size: var(--text-sm);
+  text-align: center;
+}
+
+.empty-state-label {
+  display: block;
+  font-weight: 600;
+  font-size: var(--text-base);
+  color: var(--grey-400);
+  margin-bottom: var(--space-3);
+}
+
+.empty-state-hint {
+  display: block;
+  font-size: var(--text-sm);
+  color: var(--grey-500);
+}
+
+.empty-state::before {
+  content: "○";
+  display: block;
+  font-size: var(--text-xl);
+  font-weight: 400;
+  color: var(--grey-600);
+  margin-bottom: var(--space-3);
+  letter-spacing: 0.08em;
+}
+
+.page-panel-empty-window {
+  display: none;
+  margin: var(--space-5) 0;
+  padding: var(--space-6);
+  background: var(--grey-800);
+  border: 1px dashed var(--grey-500);
+  border-left: 4px solid var(--semantic-info-accent);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-1);
+}
+
+.page-panel-empty-window.is-visible {
+  display: block;
+}
+
+.page-panel-empty-window strong {
+  display: block;
+  color: var(--grey-50);
+  font-size: var(--text-lg);
+  line-height: 1.25;
+}
+
+.page-panel-empty-detail {
+  margin: var(--space-3) 0 var(--space-5);
+  color: var(--grey-300);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.page-panel-empty-actions {
+  margin-top: var(--space-3);
+}
+
+body.light-mode .page-panel-empty-window {
+  background: var(--grey-800);
+  border-color: var(--grey-600);
+  border-left-color: var(--semantic-info-border);
+}
+
+.pipeline-log-window-body {
+  background: var(--grey-900);
+  color: var(--grey-100);
+  min-height: 100vh;
+  padding: var(--space-6);
+}
+
+.pipeline-log-window-shell {
+  display: grid;
+  gap: var(--space-5);
+  grid-template-rows: auto auto minmax(0, 1fr);
+  height: calc(100vh - (var(--space-6) * 2));
+  min-height: 0;
+}
+
+.pipeline-log-window-header {
+  align-items: start;
+  background: var(--grey-800);
+  border: 1px solid var(--grey-600);
+  border-radius: var(--radius-sm);
+  display: flex;
+  gap: var(--space-5);
+  justify-content: space-between;
+  min-width: 0;
+  padding: var(--space-6);
+}
+
+.pipeline-log-window-heading {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.pipeline-log-window-eyebrow {
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.pipeline-log-window-heading h1 {
+  color: var(--grey-50);
+  font-size: var(--text-xl);
+  line-height: 1.2;
+  margin: 0;
+}
+
+.pipeline-log-window-heading p {
+  color: var(--grey-300);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-log-window-status {
+  border: 1px solid var(--grey-600);
+  border-radius: var(--radius-pill);
+  color: var(--grey-200);
+  flex: 0 0 auto;
+  font-size: var(--text-xs);
+  line-height: 1;
+  padding: var(--space-3) var(--space-5);
+}
+
+.pipeline-log-window-status[data-state="ok"] {
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-text);
+}
+
+.pipeline-log-window-status[data-state="loading"],
+.pipeline-log-window-status[data-state="empty"] {
+  border-color: var(--semantic-neutral-border);
+  color: var(--semantic-neutral-muted-text);
+}
+
+.pipeline-log-window-status[data-state="stale"] {
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
+}
+
+.pipeline-log-window-status[data-state="error"] {
+  border-color: var(--semantic-danger-border);
+  color: var(--semantic-danger-text);
+}
+
+.pipeline-log-window-controls {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.pipeline-log-window-follow-row {
+  align-items: center;
+  background: var(--grey-800);
+  border: 1px solid var(--grey-600);
+  border-radius: var(--radius-sm);
+  color: var(--grey-100);
+  display: inline-flex;
+  font-size: var(--text-sm);
+  gap: var(--space-3);
+  min-height: 32px;
+  padding: 0 var(--space-4);
+}
+
+.pipeline-log-window-updated {
+  color: var(--grey-300);
+  font-size: var(--text-sm);
+  min-width: 0;
+}
+
+.pipeline-log-window-text {
+  height: 100%;
+  margin: 0;
+  min-height: 0;
+  overflow: auto;
+  white-space: pre-wrap;
+}

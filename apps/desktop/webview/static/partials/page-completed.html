@@ -24,6 +24,22 @@
           <button type="button" class="settings-tab-btn" role="tab" data-completed-tab="evidence" aria-selected="false">Evidence</button>
         </div>
 
+        <section class="panel settings-tab-pane is-active completed-output-strip" data-completed-tab="overview" data-panel-type="interactive" aria-label="Output Files">
+          <div class="completed-output-strip-main">
+            <h2>Output Files</h2>
+            <div id="completed-inventory-progress-bars" class="progress-bar-list completed-output-progress" aria-live="polite">
+              <p class="note">No completed inventory progress loaded.</p>
+            </div>
+            <button class="secondary-button completed-output-refresh" type="button" data-page-refresh-button="completed">Refresh Output</button>
+            <strong id="completed-status" class="completed-output-status">No rows</strong>
+          </div>
+          <details class="completed-output-strip-detail">
+            <summary>Details</summary>
+            <pre id="completed-summary" class="prose-block completed-output-detail-line">No completed history loaded.</pre>
+            <pre id="completed-reconciliation-hint" class="prose-block completed-output-detail-line">Backend publish reconciliation status has not been evaluated for the loaded Output rows.</pre>
+          </details>
+        </section>
+
         <section class="panel settings-tab-pane is-active output-overview-section output-trust-decision-section" data-completed-tab="overview" data-panel-type="evidence" aria-labelledby="completed-trust-decision-heading">
           <div class="panel-heading output-overview-heading">
             <h2 id="completed-trust-decision-heading">Output Trust Decision</h2>
@@ -45,7 +61,22 @@
             <strong id="completed-current-status">Not loaded</strong>
           </div>
           <p class="output-overview-kicker">Files currently present at the expected completed destination. Missing or moved files are excluded here and retained in history below.</p>
-          <pre id="completed-current-summary" class="prose-block" hidden>No current output status loaded.</pre>
+          <div id="completed-current-at-a-glance" class="completed-current-at-a-glance" aria-live="polite">
+            <span class="completed-current-metric" data-state="empty">
+              <span class="completed-current-metric-label">Review</span>
+              <strong class="completed-current-metric-value">--</strong>
+            </span>
+            <span class="completed-current-metric" data-state="empty">
+              <span class="completed-current-metric-label">Present</span>
+              <strong class="completed-current-metric-value">--</strong>
+            </span>
+            <span class="completed-current-metric" data-state="empty">
+              <span class="completed-current-metric-label">Filters</span>
+              <strong class="completed-current-metric-value">none</strong>
+            </span>
+            <span class="completed-current-meta">Route mix: not loaded · History not currently present: not loaded</span>
+          </div>
+          <p id="completed-current-filter-line" class="completed-current-filter-line">Filters: none · Showing 0 of 0 current outputs</p>
           <div class="form-grid launch-form-grid">
             <label>
               Filter current outputs
@@ -89,7 +120,11 @@
               <button id="completed-clear-filters-button" class="secondary-button completed-current-filter-button" type="button">Clear Current Filters</button>
             </div>
           </div>
-          <pre id="completed-filter-summary" class="prose-block">Current output filter inactive. No rows loaded.</pre>
+          <details id="completed-current-details" class="completed-current-details">
+            <summary>Details</summary>
+            <pre id="completed-current-summary" class="completed-current-detail-text">No current output status loaded.</pre>
+            <pre id="completed-filter-summary" class="completed-current-detail-text">Current output filter inactive. No rows loaded.</pre>
+          </details>
           <div class="table-wrap">
             <table class="workflow-table completed-table" aria-label="Current output status rows">
               <thead>
@@ -148,19 +183,6 @@
             <pre id="completed-repair-history" class="prose-block">No Completed repair/reconcile history loaded.</pre>
           </details>
           <p id="completed-repair-legend" class="note table-legend">Completed repair/reconcile is backend-owned: dry-run first, fingerprint-gated apply, no rename, no rerun, no delete, no publish/drain, and no source-media mutation.</p>
-        </section>
-
-        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Output Files</h2>
-            <button class="secondary-button" type="button" data-page-refresh-button="completed">Refresh Output</button>
-            <strong id="completed-status">No rows</strong>
-          </div>
-          <pre id="completed-summary" class="prose-block">No completed history loaded.</pre>
-          <pre id="completed-reconciliation-hint" class="prose-block">Backend publish reconciliation status has not been evaluated for the loaded Output rows.</pre>
-          <div id="completed-inventory-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No completed inventory progress loaded.</p>
-          </div>
         </section>
 
         <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">

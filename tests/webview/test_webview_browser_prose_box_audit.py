@@ -51,7 +51,7 @@ def _browser_prose_box_audit_runner_source() -> str:
 
         const CAPTURE_MATRIX = [
           { page: "home", label: "Home" },
-          { page: "launch", label: "Launch", tabs: [["pipeline", "Pipeline Processor"], ["audit", "Audit"], ["rerun", "CSV Rerun"], ["history", "History"], ["readiness", "Readiness"]] },
+          { page: "launch", label: "Launch", tabs: [["pipeline", "Pipeline Processor"], ["audit", "Audit"], ["rerun", "CSV Rerun"], ["history", "History"]] },
           { page: "live", label: "Telemetry" },
           { page: "metrics", label: "Metrics", tabs: [["overview", "Overview"], ["routes", "Remux vs Encode"], ["storage", "Storage"], ["production", "Production"], ["workers", "Workers"]] },
           { page: "queue", label: "Queue" },
@@ -63,7 +63,7 @@ def _browser_prose_box_audit_runner_source() -> str:
           { page: "libraries", label: "Libraries" },
           { page: "schedule", label: "Schedule" },
           { page: "settings", label: "Settings", tabs: [["status", "Status"], ["guided-setup", "Guided Setup"], ["paths-safety", "Paths & Safety"], ["routing-size", "Routing & Size"], ["media-output", "Media Output"], ["publish-recovery", "Publish & Recovery"], ["naming", "Naming"], ["queue-runtime", "Queue & Runtime"], ["advanced-evidence", "Evidence"]] },
-          { page: "diagnostics", label: "Diagnostics", tabs: [["triage", "Overview"], ["investigation", "Investigation"], ["logs", "Logs"], ["progress", "State"], ["advanced", "Advanced"]] },
+          { page: "diagnostics", label: "Diagnostics", tabs: [["triage", "Overview"], ["readiness", "Readiness"], ["investigation", "Investigation"], ["logs", "Logs"], ["progress", "State"], ["advanced", "Advanced"]] },
           { page: "maintenance", label: "Maintenance" },
         ];
 

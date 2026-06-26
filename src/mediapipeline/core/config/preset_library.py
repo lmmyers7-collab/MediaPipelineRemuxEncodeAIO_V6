@@ -334,7 +334,11 @@ class PresetLibraryFacadeMixin:
                 refresh_hint="settings",
                 data=preview.data,
             )
-        result = save(resolved, {"changes": dict(preview.data.get("legacy_patch") or {}), "remove_keys": [], "confirm_save": True})
+        save_request = {"changes": dict(preview.data.get("legacy_patch") or {}), "remove_keys": []}
+        confirmation_builder = getattr(self, "settings_patch_request_with_review_confirmation", None)
+        if callable(confirmation_builder):
+            save_request = confirmation_builder(resolved, save_request)
+        result = save(resolved, {**save_request, "confirm_save": True})
         data = dict(result.data or {})
         data["preset_library_apply_preview"] = preview.data
         data["affects_future_launches_only"] = True

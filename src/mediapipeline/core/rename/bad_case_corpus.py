@@ -7,6 +7,9 @@ import re
 from pathlib import Path
 from typing import Any
 
+from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
+from mediapipeline.core.rename.movie import clean_pipeline_movie_name
+from mediapipeline.core.rename.plan_policy import normalize_rename_template_preset, rename_template_includes_tv_episode_title
 from mediapipeline.core.rename.tv import (
     build_auto_tv_rename_name,
     clean_pipeline_tv_name_part,
@@ -16,6 +19,7 @@ from mediapipeline.core.rename.tv import (
 DEFAULT_RENAME_BAD_CASE_FIXTURE = Path("tests/fixtures/rename/bad_rename_cases.jsonl")
 RENAME_BAD_CASE_APPEND_SCHEMA_VERSION = "rename_bad_case_corpus_append.v1"
 VALID_RENAME_BAD_CASE_STATUSES = {"active", "pending"}
+VALID_RENAME_BAD_CASE_KINDS = {"tv_auto", "movie_auto"}
 
 
 class RenameBadCaseCorpusError(ValueError):
@@ -63,6 +67,28 @@ def expected_season_from_name(expected_name: str) -> int | None:
     return int(match.group("season")) if match else None
 
 
+def expected_episode_from_name(expected_name: str) -> int | None:
+    match = re.search(r"(?i)\bS\d{2}E(?P<episode>\d{2,3})\b", expected_name)
+    return int(match.group("episode")) if match else None
+
+
+def expected_episode_title_from_name(expected_name: str) -> str:
+    stem = Path(expected_name).stem
+    match = re.match(r"(?i)^.+?\s+-\s+S\d{2}E\d{2,3}\s+-\s+(?P<title>.+)$", stem)
+    return match.group("title").strip() if match else ""
+
+
+def expected_movie_title_from_name(expected_name: str) -> str:
+    stem = Path(expected_name).stem
+    match = re.match(r"^(?P<title>.+?)\s+\((?:19|20)\d{2}\)$", stem)
+    return match.group("title").strip() if match else stem.strip()
+
+
+def expected_movie_year_from_name(expected_name: str) -> str:
+    match = re.search(r"\((?P<year>(?:19|20)\d{2})\)", expected_name)
+    return match.group("year") if match else ""
+
+
 def _text(value: Any) -> str:
     return str(value or "").strip()
 
@@ -104,21 +130,56 @@ def _validate_filename(value: str, field_name: str) -> None:
         raise RenameBadCaseCorpusError(f"{field_name} must be a filename, not a path.")
 
 
+def _suffix_for_source_file(source_file: str) -> str:
+    suffix = Path(source_file).suffix.lower()
+    return suffix if suffix in MEDIA_FILE_SUFFIXES else ""
+
+
+def _expected_movie_name(data: dict[str, Any], source_file: str) -> str:
+    explicit = _text(data.get("expected_name"))
+    if explicit:
+        return explicit
+    title = _text(data.get("expected_movie_title"))
+    year = _text(data.get("expected_year"))
+    if not title:
+        raise RenameBadCaseCorpusError("expected_name or expected_movie_title is required for movie_auto cases.")
+    suffix = _suffix_for_source_file(source_file)
+    return f"{title} ({year}){suffix}" if year else f"{title}{suffix}"
+
+
 def current_tv_auto_result(case: dict[str, Any]) -> tuple[str, str, dict[str, Any] | None]:
     source = Path("TV") / str(case["source_folder"]) / str(case["source_file"])
     remove_terms = case.get("remove_terms") or None
+    template_preset = normalize_rename_template_preset(case.get("template_preset"), "tv")
     cleaned_folder = clean_pipeline_tv_name_part(source.parent.name, remove_terms)
     folder_info = resolve_tv_folder_season_info(source, remove_terms)
     output_name = build_auto_tv_rename_name(
         source,
         season_number=int(case.get("season_number", 1)),
         remove_terms=remove_terms,
+        include_episode_title=rename_template_includes_tv_episode_title(template_preset),
     )
     return cleaned_folder, output_name, folder_info
 
 
+def current_movie_auto_result(case: dict[str, Any]) -> str:
+    source_file = str(case["source_file"])
+    remove_terms = case.get("remove_terms") or None
+    output_title = clean_pipeline_movie_name(source_file, remove_terms)
+    suffix = _suffix_for_source_file(source_file)
+    return f"{output_title}{suffix}" if output_title else ""
+
+
 def validate_active_bad_rename_case(case: dict[str, Any]) -> list[str]:
     errors: list[str] = []
+    if case["kind"] == "movie_auto":
+        try:
+            output_name = current_movie_auto_result(case)
+        except Exception as exc:  # pragma: no cover - surfaced through command/CLI output
+            return [f"Current movie rename helper raised {type(exc).__name__}: {exc}"]
+        if output_name != case["expected_name"]:
+            errors.append(f"expected_name mismatch: current {output_name!r}")
+        return errors
     if case["kind"] != "tv_auto":
         return [f"Unsupported kind for current validation: {case['kind']}"]
     try:
@@ -137,23 +198,60 @@ def validate_active_bad_rename_case(case: dict[str, Any]) -> list[str]:
         errors.append(f"expected_show mismatch: current {None if folder_info is None else folder_info.get('show')!r}")
     if output_name != case["expected_name"]:
         errors.append(f"expected_name mismatch: current {output_name!r}")
+    expected_episode = case.get("expected_episode")
+    if expected_episode is not None:
+        episode_match = re.search(r"(?i)\bS\d{2}E(?P<episode>\d{2,3})\b", output_name)
+        current_episode = int(episode_match.group("episode")) if episode_match else None
+        if current_episode != expected_episode:
+            errors.append(f"expected_episode mismatch: current {current_episode!r}")
+    expected_episode_title = str(case.get("expected_episode_title") or "").strip()
+    if expected_episode_title and expected_episode_title_from_name(output_name) != expected_episode_title:
+        errors.append(f"expected_episode_title mismatch: current {expected_episode_title_from_name(output_name)!r}")
     return errors
 
 
 def build_bad_rename_case(data: dict[str, Any], existing_ids: set[str]) -> dict[str, Any]:
     kind = _text(data.get("kind") or "tv_auto")
-    if kind != "tv_auto":
+    if kind not in VALID_RENAME_BAD_CASE_KINDS:
         raise RenameBadCaseCorpusError(f"Unsupported rename case kind: {kind}")
     status = _text(data.get("status") or "active").lower()
     if status not in VALID_RENAME_BAD_CASE_STATUSES:
         raise RenameBadCaseCorpusError(f"status must be one of: {', '.join(sorted(VALID_RENAME_BAD_CASE_STATUSES))}.")
 
-    source_folder = _require_text(data, "source_folder")
+    if kind == "movie_auto":
+        source_folder = _text(data.get("source_folder")) or "Movies"
+        if "\n" in source_folder or "\r" in source_folder:
+            raise RenameBadCaseCorpusError("source_folder cannot contain newlines.")
+    else:
+        source_folder = _require_text(data, "source_folder")
     source_file = _require_text(data, "source_file")
-    expected_name = _require_text(data, "expected_name")
+    expected_name = _expected_movie_name(data, source_file) if kind == "movie_auto" else _require_text(data, "expected_name")
     _validate_safe_relative_folder(source_folder)
     _validate_filename(source_file, "source_file")
     _validate_filename(expected_name, "expected_name")
+
+    if kind == "movie_auto":
+        expected_movie_title = _text(data.get("expected_movie_title")) or expected_movie_title_from_name(expected_name)
+        expected_year = _text(data.get("expected_year")) or expected_movie_year_from_name(expected_name)
+        explicit_case_id = _text(data.get("case_id") or data.get("id"))
+        if explicit_case_id and explicit_case_id in existing_ids:
+            raise RenameBadCaseCorpusError(f"Case id already exists: {explicit_case_id}")
+        base_id = explicit_case_id or f"{expected_movie_title or Path(source_file).stem}-{expected_year or 'movie'}"
+        case = {
+            "id": explicit_case_id or unique_case_id(base_id, existing_ids),
+            "status": status,
+            "kind": "movie_auto",
+            "source_folder": source_folder,
+            "source_file": source_file,
+            "expected_movie_title": expected_movie_title,
+            "expected_name": expected_name,
+        }
+        if expected_year:
+            case["expected_year"] = expected_year
+        notes = _compact_note(data.get("notes"))
+        if notes:
+            case["notes"] = notes
+        return case
 
     season_number = _optional_int(data.get("season_number"), "season_number") or 1
     if season_number < 1:
@@ -165,6 +263,13 @@ def build_bad_rename_case(data: dict[str, Any], existing_ids: set[str]) -> dict[
         expected_season = expected_season_from_name(expected_name)
     if expected_season is not None and expected_season < 0:
         raise RenameBadCaseCorpusError("expected_season must be 0 or greater.")
+    expected_episode = _optional_int(data.get("expected_episode"), "expected_episode")
+    if expected_episode is None:
+        expected_episode = expected_episode_from_name(expected_name)
+    if expected_episode is not None and expected_episode < 0:
+        raise RenameBadCaseCorpusError("expected_episode must be 0 or greater.")
+    template_preset = normalize_rename_template_preset(data.get("template_preset"), "tv")
+    expected_episode_title = _text(data.get("expected_episode_title")) or expected_episode_title_from_name(expected_name)
 
     explicit_case_id = _text(data.get("case_id") or data.get("id"))
     if explicit_case_id and explicit_case_id in existing_ids:
@@ -178,12 +283,17 @@ def build_bad_rename_case(data: dict[str, Any], existing_ids: set[str]) -> dict[
         "source_folder": source_folder,
         "source_file": source_file,
         "season_number": season_number,
+        "template_preset": template_preset,
         "expected_show": expected_show,
         "expected_clean_folder": expected_clean_folder,
         "expected_name": expected_name,
     }
     if expected_season is not None:
         case["expected_season"] = expected_season
+    if expected_episode is not None:
+        case["expected_episode"] = expected_episode
+    if expected_episode_title:
+        case["expected_episode_title"] = expected_episode_title
     remove_terms = data.get("remove_terms")
     if remove_terms:
         case["remove_terms"] = remove_terms

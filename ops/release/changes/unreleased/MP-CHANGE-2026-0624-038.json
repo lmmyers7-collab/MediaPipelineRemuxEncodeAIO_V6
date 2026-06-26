@@ -1,0 +1,57 @@
+{
+  "id": "MP-CHANGE-2026-0624-038",
+  "title": "Saved audit locations",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Added saved Reports audit locations so operators can keep up to 10 reusable audit roots in the WebView and stage one into the existing audit-start request.",
+  "reason": "Operators need to audit several recurring library locations without retyping paths, while preserving the backend-owned audit launch contract.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "tooling",
+    "webview"
+  ],
+  "behavior_before": "Reports > Start Audit exposed a single Library Root field. Operators had to type or paste each audit root manually before starting an audit.",
+  "behavior_after": "Reports > Start Audit exposes a saved-location selector plus Save Location and Remove Saved controls. The WebView persists up to 10 local saved roots, stages the selected root into the existing Library Root field, and still submits only the existing single library_root payload to /api/audit/start.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reportsView.js",
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reportsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-reports.html.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md.md",
+    "docs/generated/summaries/ops/scripts/dev/check-webview-command-boundary.mjs.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-038.json",
+    "ops/scripts/dev/check-webview-command-boundary.mjs",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "Extended tests.python.desktop.test_reports_view_static to cover Reports audit saved-location controls and guardrails.",
+    "Extended tests.webview.test_webview_browser_maintenance_reports_smoke to exercise saving, selecting, removing, and capping audit locations without extra audit-start posts."
+  ],
+  "manual_validation": [
+    "git diff --check -- scoped saved-audit-location files - passed",
+    "node ops/scripts/dev/check-webview-command-boundary.mjs - passed; refreshed Docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json",
+    "python -m unittest tests.python.desktop.test_reports_view_static -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_prose_box_audit -q - passed",
+    "python -m unittest tests.webview.test_webview_frontend_mutation_boundary -q - passed",
+    "python -m unittest tests.webview.test_webview_command_boundary_audit -q - passed",
+    "refresh_summaries --changed - passed; wrote 18 summaries and left 151 unchanged",
+    "validate_changes --require-worktree-coverage - failed on 15 unrelated uncovered dirty files outside this packet"
+  ],
+  "rollback_plan": "Remove the saved-location controls from page-reports.html, remove the localStorage-backed saved-location helpers and event handlers from reportsView.js, restore the Reports audit static/browser expectations and WebView DOM inventory rows, then refresh generated summaries and the command-boundary audit.",
+  "related_changes": [],
+  "notes": "Added Reports audit saved-location selector and local controls.\nPersisted up to 10 Reports audit locations as UI preference state and staged selected root for existing audit start route.\nRegistered Reports audit saved-location DOM IDs.\nCovered Reports audit saved-location controls and storage guardrails in static checks.\nExtended Reports browser smoke to exercise saved audit locations and cap behavior without extra audit-start posts.\nClassified Reports audit saved-location controls as local launch-intent staging for command-boundary audit.\nKept WebView mutation-boundary route owner expectations aligned with the existing Reports failure lifecycle route uncovered during validation.\nRefresh generated WebView command-boundary audit after classifier updates.\nRegister Reports audit saved-location DOM IDs with tracked Docs casing.\nRefresh generated command-boundary audit after Reports audit and lifecycle classifier updates.\nRefresh generated summary for WebView DOM ID inventory.\nRefresh generated summary for Reports view script.\nRefresh generated summary for Reports partial.\nRefresh generated summary for command-boundary checker.\nRefresh generated summary for Reports static test.\nRefresh generated summary for Reports browser smoke.\nRefresh generated summary for mutation-boundary test.\nNo backend audit route, PowerShell media engine, source movement, publish, subtitle, audio, or FFmpeg policy behavior changed; real-media validation is not required for this UI-only staging change.\nStrict worktree coverage remains blocked by unrelated dirty/untracked files that are not part of this packet."
+}

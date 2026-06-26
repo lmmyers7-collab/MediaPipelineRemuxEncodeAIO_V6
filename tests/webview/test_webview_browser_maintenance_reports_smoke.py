@@ -46,13 +46,104 @@ def _browser_maintenance_reports_runner_source() -> str:
           return `
           (async () => {
             const posts = [];
+            const gets = [];
+            const originalApiGet = window.apiGet;
             const originalApiPost = window.apiPost;
+            if (typeof originalApiGet !== "function") throw new Error("missing apiGet");
+            window.apiGet = async (path, options) => {
+              const normalizedPath = String(path || "");
+              gets.push({ path: normalizedPath, options: options || {} });
+              return originalApiGet(path, options);
+            };
             window.apiPost = async (path, body, options) => {
               const normalizedPath = String(path || "");
               if (normalizedPath.includes("/api/ui-preferences")) {
                 return { ok: true, message: "UI preference persistence ignored by smoke harness." };
               }
               posts.push({ path: normalizedPath, body: body || {}, options: options || {} });
+              if (normalizedPath.includes("/api/failures/lifecycle")) {
+                const transition = String(body?.transition || "");
+                const dryRun = body?.dry_run === true;
+                const nextState = transition === "acknowledge"
+                  ? "acknowledged"
+                  : transition === "start_work"
+                    ? "working"
+                    : transition === "mark_resolved"
+                      ? "resolved"
+                      : transition === "reopen"
+                        ? "reopened"
+                        : "working";
+                if (transition === "mark_resolved" && dryRun) {
+                  return {
+                    command: "failures.lifecycle",
+                    ok: true,
+                    severity: "info",
+                    message: "Failure lifecycle transition preview ready.",
+                    errors: [],
+                    data: {
+                      journal_key: body?.journal_key || "",
+                      transition,
+                      step_id: body?.step_id || "",
+                      dry_run: true,
+                      current_state: "working",
+                      next_state: "resolved",
+                      lifecycle_state: "resolved",
+                      dry_run_fingerprint: "smoke-lifecycle-fingerprint",
+                      blockers: [],
+                      journal_path: "C:/State/Failures/ResolutionJournal/events.jsonl",
+                      writes_failure_resolution_journal: false,
+                      touches_media: false,
+                      safe_next_action: "Dry-run preview only; confirm when operator evidence has been reviewed.",
+                    },
+                  };
+                }
+                if (transition === "mark_resolved" && body?.confirm_transition === true) {
+                  return {
+                    command: "failures.lifecycle",
+                    ok: true,
+                    severity: "info",
+                    message: "Failure lifecycle transition recorded.",
+                    errors: [],
+                    data: {
+                      journal_key: body?.journal_key || "",
+                      transition,
+                      step_id: body?.step_id || "",
+                      dry_run: false,
+                      current_state: "working",
+                      next_state: "resolved",
+                      lifecycle_state: "resolved",
+                      dry_run_fingerprint: body?.dry_run_fingerprint || "",
+                      blockers: [],
+                      journal_path: "C:/State/Failures/ResolutionJournal/events.jsonl",
+                      writes_failure_resolution_journal: true,
+                      touches_media: false,
+                      safe_next_action: "Refresh Reports and continue from the next active issue.",
+                    },
+                  };
+                }
+                return {
+                  command: "failures.lifecycle",
+                  ok: true,
+                  severity: "info",
+                  message: "Failure lifecycle transition recorded.",
+                  errors: [],
+                  data: {
+                    journal_key: body?.journal_key || "",
+                    transition,
+                    step_id: body?.step_id || "",
+                    dry_run: false,
+                    current_state: "new",
+                    next_state: nextState,
+                    lifecycle_state: nextState,
+                    dry_run_fingerprint: "",
+                    blockers: [],
+                    journal_path: "C:/State/Failures/ResolutionJournal/events.jsonl",
+                    writes_failure_resolution_journal: true,
+                    touches_media: false,
+                    safe_next_action: "Continue from the selected failure playbook.",
+                  },
+                };
+              }
               if (normalizedPath.includes("/api/failures/clear") && body?.dry_run === true) {
                 return {
                   command: "failures.clear",
@@ -64,10 +155,12 @@ def _browser_maintenance_reports_runner_source() -> str:
                     scope: body.scope,
                     dry_run: true,
                     markers: 0,
-                    planned: [
-                      { path: "C:/State/Failures/Markers/marker-1.json" },
-                      { path: "C:/State/Failures/Markers/marker-2.json" },
-                    ],
+                    planned: (Array.isArray(body?.marker_paths) && body.marker_paths.length
+                      ? body.marker_paths
+                      : [
+                        "C:/State/Failures/Markers/marker-1.json",
+                        "C:/State/Failures/Markers/marker-2.json",
+                      ]).map((path) => ({ path })),
                     skipped: [],
                     errors: [],
                     manifest_path: "",
@@ -125,6 +218,68 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
+              if (normalizedPath.includes("/api/failures/archive-evidence") && body?.dry_run === true) {
+                return {
+                  command: "failures.archive_evidence",
+                  ok: true,
+                  severity: "info",
+                  message: "Failure evidence archive preview found 3 evidence file(s).",
+                  errors: [],
+                  data: {
+                    scope: "all_active",
+                    dry_run: true,
+                    include_markers: body?.include_markers === true,
+                    include_reports: body?.include_reports === true,
+                    planned: [
+                      { kind: "marker", path: "C:/State/Failures/Markers/marker-1.json" },
+                      { kind: "marker", path: "C:/State/Failures/Markers/marker-2.json" },
+                      { kind: "report", path: "C:/Reports/Failures/round_failures_001.json" },
+                    ],
+                    moved: [],
+                    skipped: [],
+                    errors: [],
+                    markers: 0,
+                    reports: 0,
+                    manifest_path: "C:/State/Failures/ClearManifests/failure_evidence_archive.json",
+                    archive_dir: "C:/State/Failures/ClearManifests/ClearedEvidence/failure_evidence_archive",
+                    dry_run_fingerprint: "smoke-archive-fingerprint",
+                    writes_failure_evidence: false,
+                    touches_media: false,
+                    safe_next_action: "Review the archive preview, enter a reason, then confirm if the evidence should leave active triage.",
+                  },
+                };
+              }
+              if (normalizedPath.includes("/api/failures/archive-evidence") && body?.confirm_archive === true) {
+                return {
+                  command: "failures.archive_evidence",
+                  ok: true,
+                  severity: "info",
+                  message: "Failure evidence archive moved 3 evidence file(s).",
+                  errors: [],
+                  data: {
+                    scope: "all_active",
+                    dry_run: false,
+                    include_markers: body?.include_markers === true,
+                    include_reports: body?.include_reports === true,
+                    planned: [],
+                    moved: [
+                      { path: "C:/State/Failures/Markers/marker-1.json", archive_path: "C:/State/Failures/ClearManifests/ClearedEvidence/failure_evidence_archive/Markers/marker-1.json" },
+                      { path: "C:/State/Failures/Markers/marker-2.json", archive_path: "C:/State/Failures/ClearManifests/ClearedEvidence/failure_evidence_archive/Markers/marker-2.json" },
+                      { path: "C:/Reports/Failures/round_failures_001.json", archive_path: "C:/State/Failures/ClearManifests/ClearedEvidence/failure_evidence_archive/Reports/round_failures_001.json" },
+                    ],
+                    skipped: [],
+                    errors: [],
+                    markers: 2,
+                    reports: 1,
+                    manifest_path: "C:/State/Failures/ClearManifests/failure_evidence_archive.json",
+                    archive_dir: "C:/State/Failures/ClearManifests/ClearedEvidence/failure_evidence_archive",
+                    dry_run_fingerprint: body?.dry_run_fingerprint || "",
+                    writes_failure_evidence: true,
+                    touches_media: false,
+                    safe_next_action: "Failure evidence was archived; refresh active failures before making retry decisions.",
+                  },
+                };
+              }
               if (normalizedPath.includes("/api/audit/score-policy")) {
                 return {
                   command: "audit.score_policy",
@@ -149,6 +304,21 @@ def _browser_maintenance_reports_runner_source() -> str:
                     pid: 24681,
                     launch_prep: ["audit runtime ready"],
                     logs: "stdout: audit.stdout.log",
+                  },
+                };
+              }
+              if (normalizedPath.includes("/api/audit/stop")) {
+                return {
+                  command: "audit.stop",
+                  ok: true,
+                  severity: "info",
+                  message: "Audit stop recorded. Force-killed audit process tree (PID 24681).",
+                  data: {
+                    schema_version: "desktop_audit_stop_result.v1",
+                    requested_scope: "audit",
+                    job_kinds: ["audit"],
+                    stopped_process_tree_count: 1,
+                    audit_progress_status: "stopped",
                   },
                 };
               }
@@ -601,6 +771,28 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (document.querySelector('[data-reports-tab="failures"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Failures tab was not selected by default.");
             }
+            const failureSourceMarkersControl = byId("failure-source-markers");
+            if (!failureSourceMarkersControl) throw new Error("Reports failure marker source checkbox is missing.");
+            if (failureSourceMarkersControl.checked !== true) {
+              throw new Error("Reports failure marker source checkbox should be checked by default.");
+            }
+            const beforeMarkerRefreshGets = gets.length;
+            await window.refreshAllNow();
+            const markerRefreshGets = gets.slice(beforeMarkerRefreshGets).filter((entry) => entry.path.startsWith("/api/failures"));
+            if (!markerRefreshGets.some((entry) => entry.path === "/api/failures?limit=100&source=markers")) {
+              throw new Error("Default Reports failure refresh did not request active failure markers: " + JSON.stringify(markerRefreshGets));
+            }
+            failureSourceMarkersControl.checked = false;
+            const beforeLatestRefreshGets = gets.length;
+            await window.refreshAllNow();
+            const latestRefreshGets = gets.slice(beforeLatestRefreshGets).filter((entry) => entry.path.startsWith("/api/failures"));
+            if (!latestRefreshGets.some((entry) => entry.path === "/api/failures?limit=100")) {
+              throw new Error("Unchecked Reports failure refresh did not request latest JSON: " + JSON.stringify(latestRefreshGets));
+            }
+            if (latestRefreshGets.some((entry) => entry.path.includes("source=markers"))) {
+              throw new Error("Unchecked Reports failure refresh still requested marker source: " + JSON.stringify(latestRefreshGets));
+            }
+            failureSourceMarkersControl.checked = true;
             [
               "report-launch-handoff",
               "report-launch-handoff-status",
@@ -681,6 +873,96 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Completed report steps: classify, write json",
               "Mutation guardrail:",
             ]);
+            const reportFailureRow = {
+              row_key: "fixture-failure-row-source-locked",
+              source_json: "C:/Reports/failures.json",
+              source_path: "C:/Source/Broken Movie.mkv",
+              lookup_title: "Broken Movie",
+              media_type: "movie",
+              classification: "operator_required",
+              error_code: "source_locked",
+              stage: "source-stability",
+              reason: "Source changed during probe.",
+              suggested_action: "Wait for the source to stabilize before rerun.",
+              suggested_rename: "",
+              retry_count: 1,
+              retry_limit: 3,
+              recorded_at: "2026-05-14T22:00:00-04:00",
+              artifact_path: "C:/Reports/source_locked.txt",
+              repro_path: "C:/Source/Broken Movie.mkv",
+              evidence_details: {
+                schema_version: "desktop_failure_evidence_details.v1",
+                structured: true,
+                source: "video_stream_evidence",
+                summary_lines: ["Video streams: source real=2, attached=0"],
+                stream_rows: [
+                  { source: "source", index: 0, ordinal: 0, codec: "hevc", width: 1920, height: 1080, attached_picture: false, label: "source v:0 hevc 1920x1080" },
+                  { source: "source", index: 1, ordinal: 1, codec: "h264", width: 1280, height: 720, attached_picture: false, label: "source v:1 h264 1280x720" },
+                ],
+                proof_fields: [{ label: "Route", value: "encode" }],
+              },
+            };
+            const reportFailureGroup = {
+              schema_version: "desktop_failure_resolution_group.v1",
+              group_key: "source_locked\u001fsource-stability\u001fmanual-review\u001freview-in-diagnostics",
+              journal_key: "source_locked|source-stability|manual-review|review-in-diagnostics",
+              status_label: "Needs operator",
+              severity: "error",
+              error_code: "source_locked",
+              stage: "source-stability",
+              owner: "Manual review",
+              owner_page: "diagnostics",
+              suggested_action: "Wait for the source to stabilize before rerun.",
+              cause: "Source changed during probe.",
+              safe_next_action: "Open Diagnostics and review the latest failure report before rerun.",
+              row_count: 1,
+              affected_row_keys: ["fixture-failure-row-source-locked"],
+              affected_sources: ["Broken Movie"],
+              sample_rows: [reportFailureRow],
+              clearable_marker_paths: [],
+              clearable_count: 0,
+              marker_count: 0,
+              blocking_count: 1,
+              retryable_count: 0,
+              operator_required_count: 1,
+              permanent_count: 0,
+              transient_count: 0,
+              diagnostic_targets: [
+                { label: "Read Latest Failure", target: "latest_failure_report" },
+                { label: "Open Failure JSON", target: "latest_failure_json" },
+                { label: "Open Failure Reports", target: "failed_reports" },
+                { label: "Open Run Logs", target: "run_logs" },
+                { label: "Open Failure Markers", target: "failed_markers" },
+              ],
+              primary_action: { kind: "open_owner_page", label: "Review in Diagnostics", page: "diagnostics", owner: "Manual review" },
+              primary_action_label: "Review in Diagnostics",
+              lifecycle_state: "new",
+              lifecycle_label: "New",
+              last_transition_at: "",
+              operator_note: "",
+              verification: {
+                schema_version: "failure_resolution_verification.v1",
+                active_marker_count: 0,
+                active_failure_row_count: 1,
+                blocking_count: 1,
+                retryable_count: 0,
+                clearable: false,
+                safe_to_resolve: true,
+                blockers: [],
+              },
+              playbook_steps: [
+                { id: "review_evidence", label: "Review evidence", detail: "Confirm the source-lock evidence and last run log.", status: "current" },
+                { id: "stabilize_source", label: "Stabilize source", detail: "Make sure the source file is no longer changing.", status: "not_started" },
+                { id: "resolve_record", label: "Mark resolved", detail: "Confirm resolution after verification.", status: "not_started" },
+              ],
+              timeline: [],
+              resolution_journal_path: "C:/State/Failures/ResolutionJournal/events.jsonl",
+              available_transitions: [
+                { transition: "acknowledge", label: "Acknowledge", preview_required: false, disabled: false },
+                { transition: "start_work", label: "Start work", preview_required: false, disabled: false },
+                { transition: "mark_resolved", label: "Mark resolved", preview_required: true, disabled: false },
+              ],
+            };
             const reportFailurePreview = {
               source: "C:/Reports/failures.json",
               source_kind: "latest_json",
@@ -689,23 +971,33 @@ def _browser_maintenance_reports_runner_source() -> str:
               permanent_count: 0,
               transient_count: 0,
               warnings: ["fixture failure warning"],
-              rows: [{
-                source_json: "C:/Reports/failures.json",
-                source_path: "C:/Source/Broken Movie.mkv",
-                lookup_title: "Broken Movie",
-                media_type: "movie",
-                classification: "operator_required",
-                error_code: "source_locked",
-                stage: "source-stability",
-                reason: "Source changed during probe.",
-                suggested_action: "Wait for the source to stabilize before rerun.",
-                suggested_rename: "",
-                retry_count: 1,
-                retry_limit: 3,
-                recorded_at: "2026-05-14T22:00:00-04:00",
-                artifact_path: "C:/Reports/source_locked.txt",
-                repro_path: "C:/Source/Broken Movie.mkv",
-              }],
+              resolution_summary: {
+                schema_version: "desktop_failure_resolution.v1",
+                status: "blocked",
+                status_label: "Needs operator",
+                source_kind: "latest_json",
+                source_mode_label: "Latest failure JSON",
+                refresh_state: "loaded",
+                row_count: 1,
+                group_count: 1,
+                primary_group_key: reportFailureGroup.group_key,
+                primary_owner: "Manual review",
+                primary_action: reportFailureGroup.primary_action,
+                primary_action_label: "Review in Diagnostics",
+                safe_next_action: "Open Diagnostics and review the latest failure report before rerun.",
+                blocking_count: 1,
+                retryable_count: 0,
+                clearable_count: 0,
+                warning_count: 1,
+                lifecycle_counts: { new: 1 },
+                unacknowledged_count: 1,
+                working_count: 0,
+                waiting_backend_count: 0,
+                ready_to_clear_count: 0,
+                resolved_recently_count: 0,
+              },
+              resolution_groups: [reportFailureGroup],
+              rows: [reportFailureRow],
             };
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             const reportAuditPreview = {
@@ -911,18 +1203,73 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (document.querySelector('[data-reports-tab="failures"]')?.getAttribute("aria-selected") !== "true") {
               throw new Error("Reports Failures tab did not become selected.");
             }
+            requireText("failure-resolution-summary-strip", [
+              "Posture",
+              "Needs operator",
+              "Primary action",
+              "Review in Diagnostics",
+              "Blocking",
+              "1",
+              "Will retry",
+              "0",
+              "Clearable markers",
+              "0",
+              "Source mode",
+              "Latest failure JSON",
+            ]);
+            requireText("failure-resolution-groups", [
+              "Source changed during probe.",
+              "Needs operator",
+              "1 row",
+              "Manual review",
+              "Review in Diagnostics",
+            ]);
+            requireText("failure-detail", [
+              "Why it stopped",
+              "Status: Needs operator",
+              "Cause: Source changed during probe.",
+              "Stage: source-stability",
+              "Code: source_locked",
+              "Suggested resolution",
+              "Owner: Manual review",
+              "Primary action: Review in Diagnostics",
+              "Suggested fix: Wait for the source to stabilize before rerun.",
+              "Affected files",
+              "Broken Movie",
+              "Structured proof",
+              "Video streams: source real=2, attached=0",
+              "source v:0 hevc 1920x1080",
+              "source v:1 h264 1280x720",
+              "Evidence",
+              "Clearable marker paths: 0",
+              "Record file: C:/Reports/failures.json",
+            ]);
             requireText("failure-rows", [
               "Needs operator",
               "Broken Movie",
               "Stage: source-stability",
               "Code: source_locked",
               "Class: operator_required",
+              "Retry: Blocked (1/3)",
+              "Marker: not active",
+              "Video streams: source real=2, attached=0",
+              "source v:0 hevc 1920x1080",
+              "source v:1 h264 1280x720",
               "Manual review",
               "Wait for the source to stabilize before rerun.",
-              "Open details",
-              "Go to Diagnostics",
-              "Clear error",
             ]);
+            const failureRecordsPanel = document.getElementById("failure-all-records-disclosure");
+            if (!failureRecordsPanel || failureRecordsPanel.tagName !== "SECTION") {
+              throw new Error("failure records grid should be a visible section, not a hidden disclosure");
+            }
+            const failureRecordsWrap = document.querySelector("#failure-all-records-disclosure .failure-records-table-wrap");
+            const failureRecordsRect = failureRecordsWrap?.getBoundingClientRect();
+            if (!failureRecordsRect || failureRecordsRect.width < 200 || failureRecordsRect.height < 80) {
+              throw new Error("failure records grid is not visibly rendered");
+            }
+            if (text("failure-rows").includes("Clear error") || text("failure-rows").includes("Open details")) {
+              throw new Error("failure table still exposes row-level action copy");
+            }
             if (text("failure-rows").includes("2026-05-14T22:00:00-04:00")) {
               throw new Error("failure table still shows the long recorded timestamp");
             }
@@ -932,33 +1279,98 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (!document.querySelector('#failure-rows input[type="checkbox"]')?.checked) {
               throw new Error("failure row multi-select checkbox did not stay checked");
             }
-            const disabledClear = document.querySelector('#failure-rows button[disabled]');
-            if (!disabledClear || !disabledClear.textContent.includes("Clear error")) {
-              throw new Error("latest-json failure row did not render disabled Clear error action");
-            }
-            const beforeDisabledClickPosts = posts.length;
-            disabledClear.click();
-            if (posts.length !== beforeDisabledClickPosts) {
-              throw new Error("disabled Clear error action posted unexpectedly");
+            if (document.querySelector('#failure-rows button')) {
+              throw new Error("failure rows should not render inline action buttons");
             }
             clickFirst('#failure-rows tr[data-row-key]', "failure row");
             requireText("failure-detail", [
-              "Reports failure selected row",
-              "What happened",
+              "Why it stopped",
               "Status: Needs operator",
-              "Class: operator_required",
+              "Cause: Source changed during probe.",
+              "Stage: source-stability",
               "Code: source_locked",
-              "Suggested fix",
-              "Suggested action: Wait for the source to stabilize before rerun.",
-              "Retry state",
-              "Retry status: blocked",
-              "Retry route/command: none_exposed",
-              "Owner routing",
-              "Evidence owner: Diagnostics",
-              "Action owner: Manual review",
+              "Suggested resolution",
+              "Owner: Manual review",
+              "Primary action: Review in Diagnostics",
+              "Structured proof",
+              "source v:0 hevc 1920x1080",
+              "source v:1 h264 1280x720",
               "Evidence",
             ]);
+            requireText("failure-lifecycle-strip", [
+              "State",
+              "New",
+              "Last action",
+              "None",
+              "Resolution check",
+              "Pass",
+            ]);
+            requireText("failure-playbook-steps", [
+              "Review evidence | current | Confirm the source-lock evidence and last run log.",
+              "Stabilize source | not started | Make sure the source file is no longer changing.",
+              "Mark resolved | not started | Confirm resolution after verification.",
+            ]);
+            requireText("failure-verification-panel", [
+              "Active markers",
+              "0",
+              "Failure rows",
+              "1",
+              "Safe to resolve",
+              "Yes",
+            ]);
+            requireText("failure-timeline", ["No lifecycle events recorded."]);
             window.confirm = () => true;
+            const originalRefreshAllForLifecycle = window.refreshAll;
+            let lifecycleRefreshes = 0;
+            window.refreshAll = async () => { lifecycleRefreshes += 1; };
+            try {
+              const beforeLifecyclePosts = posts.length;
+              byId("failure-lifecycle-ack-button").click();
+              await waitFor(
+                () => posts.some((entry) => entry.path.includes("/api/failures/lifecycle") && entry.body?.transition === "acknowledge"),
+                "failure lifecycle acknowledge post"
+              );
+              await waitFor(() => !byId("failure-lifecycle-start-button").disabled, "failure lifecycle start button ready");
+              byId("failure-lifecycle-start-button").click();
+              await waitFor(
+                () => posts.some((entry) => entry.path.includes("/api/failures/lifecycle") && entry.body?.transition === "start_work"),
+                "failure lifecycle start-work post"
+              );
+              await waitFor(() => !byId("failure-lifecycle-resolve-preview-button").disabled, "failure lifecycle resolve preview button ready");
+              if (!byId("failure-lifecycle-resolve-confirm-button").disabled) {
+                throw new Error("failure lifecycle resolve confirm should require a dry-run preview");
+              }
+              byId("failure-lifecycle-resolve-preview-button").click();
+              await waitFor(() => text("failure-lifecycle-result").includes("Fingerprint: smoke-lifecycle-fingerprint"), "failure lifecycle resolve preview");
+              await waitFor(() => !byId("failure-lifecycle-resolve-confirm-button").disabled, "failure lifecycle resolve confirm enabled after preview");
+              byId("failure-lifecycle-resolve-confirm-button").click();
+              await waitFor(
+                () => posts.some((entry) => entry.path.includes("/api/failures/lifecycle") && entry.body?.transition === "mark_resolved" && entry.body?.confirm_transition === true),
+                "failure lifecycle resolve confirm post"
+              );
+              byId("failure-lifecycle-resolve-confirm-button").click();
+              const lifecyclePosts = posts.filter((entry) => entry.path.includes("/api/failures/lifecycle"));
+              if (lifecyclePosts.length !== 4) {
+                throw new Error("failure lifecycle duplicate guard expected 4 posts, saw " + lifecyclePosts.length);
+              }
+              if (posts.length !== beforeLifecyclePosts + 4) {
+                throw new Error("failure lifecycle flow posted unexpected commands");
+              }
+              if (lifecycleRefreshes !== 3) {
+                throw new Error("failure lifecycle non-dry-run transitions should request refresh exactly three times");
+              }
+            } finally {
+              window.refreshAll = originalRefreshAllForLifecycle;
+            }
+            const moreMenu = byId("failure-more-actions");
+            moreMenu.open = true;
+            requireText("failure-diagnostics-actions", [
+              "Read Latest Failure",
+              "Open Failure JSON",
+              "Open Failure Reports",
+              "Open Run Logs",
+              "Open Failure Markers",
+            ]);
             window.mediaPipelineReportsView.renderFailurePreview({
               source: "C:/Reports/failures.json",
               source_kind: "latest_json",
@@ -1002,17 +1414,33 @@ def _browser_maintenance_reports_runner_source() -> str:
               "Will retry",
               "Retry Latest",
               "Configure PgsToSrt before retry.",
-              "Clear error",
+              "Marker: available",
             ]);
-            const latestWarningClearButton = Array.from(document.querySelectorAll('#failure-rows button'))
-              .find((button) => button.textContent.includes("Clear error") && !button.disabled);
-            if (!latestWarningClearButton) throw new Error("latest-json retryable warning clear action missing");
-            latestWarningClearButton.click();
+            requireText("failure-resolution-summary-strip", [
+              "Will retry",
+              "Wait for backend retry",
+              "Clearable markers",
+              "2",
+            ]);
+            byId("failure-clear-scope").value = "selected_group";
+            byId("failure-clear-preview-button").click();
             await waitFor(
-              () => posts.some((entry) => Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json")),
+              () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true && Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json")),
+              "latest-json retryable warning clear preview"
+            );
+            requireText("failure-clear-summary", [
+              "Dry run: yes",
+              "Planned marker clears: 2",
+              "C:/State/Failures/Markers/latest-warning-a.json",
+              "C:/State/Failures/Markers/latest-warning-b.json",
+              "Guardrail:",
+            ]);
+            byId("failure-clear-confirm-button").click();
+            await waitFor(
+              () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json")),
               "latest-json retryable warning clear post"
             );
-            const latestWarningClearPost = posts.find((entry) => Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json"));
+            const latestWarningClearPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && Array.isArray(entry.body?.marker_paths) && entry.body.marker_paths.includes("C:/State/Failures/Markers/latest-warning-b.json"));
             if (latestWarningClearPost.body.scope !== "selected") throw new Error("latest-json warning clear did not use selected scope");
             if (latestWarningClearPost.body.marker_paths.length !== 2) throw new Error("latest-json warning clear did not post every marker path");
             const markerFailurePreview = {
@@ -1081,11 +1509,12 @@ def _browser_maintenance_reports_runner_source() -> str:
             const hiddenFailureCheckbox = document.querySelector('#failure-rows input[type="checkbox"]');
             if (!hiddenFailureCheckbox) throw new Error("failure hidden-selection checkbox missing");
             hiddenFailureCheckbox.click();
-            clickFirst('[data-failure-filter-chip="audio"]', "Failure Audio filter");
+            clickFirst('[data-failure-filter-chip="working"]', "Failure Working filter");
             requireText("failure-status", ["1 selected hidden by filter"]);
             const beforeHiddenFailurePosts = posts.length;
-            byId("failure-preview-selected-clear-button").click();
-            byId("failure-clear-selected-button").click();
+            byId("failure-clear-scope").value = "selected_files";
+            byId("failure-clear-preview-button").click();
+            byId("failure-clear-confirm-button").click();
             if (posts.length !== beforeHiddenFailurePosts) {
               throw new Error("hidden failure selected cleanup posted unexpectedly");
             }
@@ -1101,14 +1530,35 @@ def _browser_maintenance_reports_runner_source() -> str:
             window.mediaPipelineReportsView.renderFailurePreview({ ...markerFailurePreview, count: 260, rows: largeFailureRows });
             requireText("failure-status", ["showing first 250 of 260"]);
             window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
-            const firstClearErrorButton = Array.from(document.querySelectorAll('#failure-rows button'))
-              .find((button) => button.textContent.includes("Clear error") && !button.disabled);
-            if (!firstClearErrorButton) throw new Error("enabled row Clear error action missing");
-            firstClearErrorButton.click();
+            requireText("failure-resolution-groups", [
+              "Source was locked.",
+              "Destination was unavailable.",
+              "Wait for backend retry",
+            ]);
+            const firstGroup = document.querySelector('#failure-resolution-groups button[data-group-key]');
+            if (!firstGroup) throw new Error("failure resolution group button missing");
+            firstGroup.click();
+            byId("failure-clear-scope").value = "selected_group";
+            if (!byId("failure-clear-confirm-button").disabled) {
+              throw new Error("marker clear confirm should stay disabled until the selected scope has a successful preview");
+            }
+            byId("failure-clear-preview-button").click();
             await waitFor(
-              () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && entry.body?.marker_paths?.[0] === "C:/State/Failures/Markers/marker-1.json"),
-              "row clear post"
+              () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.dry_run === true && entry.body?.marker_paths?.[0] === "C:/State/Failures/Markers/marker-1.json"),
+              "row clear preview post"
             );
+            await waitFor(() => !byId("failure-clear-confirm-button").disabled, "row clear confirm enabled after preview");
+            const originalRefreshAllForRowClear = window.refreshAll;
+            window.refreshAll = async () => {};
+            try {
+              byId("failure-clear-confirm-button").click();
+              await waitFor(
+                () => posts.some((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && entry.body?.marker_paths?.[0] === "C:/State/Failures/Markers/marker-1.json"),
+                "row clear post"
+              );
+            } finally {
+              window.refreshAll = originalRefreshAllForRowClear;
+            }
             const rowClearPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.confirm_clear === true && entry.body?.marker_paths?.[0] === "C:/State/Failures/Markers/marker-1.json");
             if (rowClearPost.body.scope !== "selected") throw new Error("row clear did not use selected scope");
             if (rowClearPost.body.dry_run !== false) throw new Error("row clear must not be a dry run");
@@ -1127,19 +1577,25 @@ def _browser_maintenance_reports_runner_source() -> str:
               releaseBulkRefresh = resolve;
             });
             try {
-              await waitFor(() => !byId("failure-clear-all-button").disabled, "failure clear all enabled");
+              if (!byId("failure-clear-confirm-button").disabled) {
+                throw new Error("clear-all confirm should be disabled until the all active markers preview completes");
+              }
               const beforeBulkClearPosts = posts.length;
-              byId("failure-clear-all-button").click();
+              byId("failure-clear-scope").value = "all_markers";
+              byId("failure-clear-preview-button").click();
+              await waitFor(() => text("failure-clear-status").includes("Preview ready"), "failure marker clear all preview");
+              await waitFor(() => !byId("failure-clear-confirm-button").disabled, "failure clear confirm enabled after all active markers preview");
+              byId("failure-clear-confirm-button").click();
               await waitFor(() => text("failure-clear-status").includes("Cleared"), "failure marker clear all success");
               const bulkClearPost = posts.find((entry) => entry.path.includes("/api/failures/clear") && entry.body?.scope === "all_markers" && entry.body?.dry_run === false);
-              if (!bulkClearPost) throw new Error("Clear All Backend Markers did not post directly.");
-              if (bulkClearPost.body.confirm_clear !== true) throw new Error("Clear All Backend Markers must send confirm_clear true.");
+              if (!bulkClearPost) throw new Error("Clear all active markers did not post after preview.");
+              if (bulkClearPost.body.confirm_clear !== true) throw new Error("Clear all active markers must send confirm_clear true.");
               if (Object.prototype.hasOwnProperty.call(bulkClearPost.body, "marker_paths")) {
-                throw new Error("Clear All Backend Markers must let the backend enumerate marker paths.");
+                throw new Error("Clear all active markers must let the backend enumerate marker paths.");
               }
-              byId("failure-clear-all-button").click();
-              if (posts.length !== beforeBulkClearPosts + 1) {
-                throw new Error("Clear All Backend Markers duplicate click posted more than once.");
+              byId("failure-clear-confirm-button").click();
+              if (posts.length !== beforeBulkClearPosts + 2) {
+                throw new Error("Clear all active markers duplicate click posted more than once.");
               }
               if (!bulkRefreshStarted) throw new Error("clear-all did not request the authoritative refresh");
               requireText("failure-summary", [
@@ -1158,6 +1614,85 @@ def _browser_maintenance_reports_runner_source() -> str:
               releaseBulkRefresh();
               window.refreshAll = originalRefreshAllForClear;
             }
+            window.mediaPipelineReportsView.renderFailurePreview(markerFailurePreview);
+            const originalRefreshAllForArchive = window.refreshAll;
+            let archiveRefreshStarted = false;
+            let releaseArchiveRefresh = () => {};
+            window.refreshAll = () => new Promise((resolve) => {
+              archiveRefreshStarted = true;
+              releaseArchiveRefresh = resolve;
+            });
+            try {
+              byId("failure-archive-disclosure").open = true;
+              if (!byId("failure-archive-confirm-button").disabled) {
+                throw new Error("archive evidence confirm should stay disabled until preview and reason are present");
+              }
+              byId("failure-archive-preview-button").click();
+              await waitFor(() => text("failure-archive-status").includes("Preview ready"), "failure archive preview ready");
+              requireText("failure-archive-summary", [
+                "Dry run: yes",
+                "Planned evidence files: 3",
+                "Fingerprint: smoke-archive-fingerprint",
+                "Guardrail:",
+              ]);
+              if (!byId("failure-archive-confirm-button").disabled) {
+                throw new Error("archive evidence confirm should stay disabled until a reason is entered");
+              }
+              byId("failure-archive-reason").value = "Smoke test evidence cleanup";
+              byId("failure-archive-reason").dispatchEvent(new Event("input", { bubbles: true }));
+              await waitFor(() => !byId("failure-archive-confirm-button").disabled, "failure archive confirm enabled after preview and reason");
+              byId("failure-archive-confirm-button").click();
+              await waitFor(() => text("failure-archive-status").includes("Archived"), "failure archive confirmed");
+              const archiveConfirmPost = posts.find((entry) => entry.path.includes("/api/failures/archive-evidence") && entry.body?.confirm_archive === true);
+              if (!archiveConfirmPost) throw new Error("archive evidence confirm did not post");
+              if (archiveConfirmPost.body.scope !== "all_active") throw new Error("archive evidence did not use all_active scope");
+              if (archiveConfirmPost.body.reason !== "Smoke test evidence cleanup") throw new Error("archive evidence did not send the operator reason");
+              if (archiveConfirmPost.body.dry_run_fingerprint !== "smoke-archive-fingerprint") throw new Error("archive evidence did not send dry-run fingerprint");
+              if (!archiveRefreshStarted) throw new Error("archive evidence did not request the authoritative refresh");
+            } finally {
+              releaseArchiveRefresh();
+              window.refreshAll = originalRefreshAllForArchive;
+            }
+            window.mediaPipelineReportsView.renderReports(
+              {
+                latest_paths: {
+                  latest_failure_report: "C:/Reports/failures.txt",
+                  latest_failure_json: "C:/Reports/failures.json",
+                  latest_audit_csv: "C:/Reports/audit_summary.csv",
+                  latest_priority_csv: "C:/Reports/audit_priority.csv",
+                },
+                warnings: [],
+                audit_progress: {
+                  status: "completed",
+                  completed: true,
+                  processed_files: 10,
+                  total_files: 10,
+                  percent_complete: 100,
+                  current_operation: "Audit report fixture idle.",
+                },
+                progress_bars: [{
+                  id: "audit_progress",
+                  label: "Audit progress",
+                  mode: "determinate",
+                  percent: 100,
+                  status: "complete",
+                  detail: "10 / 10 | completed",
+                  source: "audit_progress.json",
+                  updated_at: "2026-05-17T12:05:00Z",
+                }],
+              },
+              {
+                paths: {
+                  failed_reports: "C:/Reports/Failures",
+                  failed_markers: "C:/State/FailedMarkers",
+                  audit_reports: "C:/Reports/Audit",
+                  completed_manifest: "C:/State/Completed/completed_jobs.jsonl",
+                  pending_push: "C:/PendingServerPush",
+                  queue_snapshot: "C:/State/Progress/queue_snapshot.json",
+                  active_jobs: "C:/State/ActiveJobs",
+                },
+              }
+            );
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
             window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
@@ -1231,7 +1766,12 @@ def _browser_maintenance_reports_runner_source() -> str:
             }
             [
               "report-audit-start-button",
+              "report-audit-stop-button",
               "report-audit-start-library-root",
+              "report-audit-saved-location-select",
+              "report-audit-save-location-button",
+              "report-audit-remove-location-button",
+              "report-audit-location-summary",
               "report-audit-start-include-sidecars",
               "report-audit-start-show-console",
               "report-audit-score-policy-save-button",
@@ -1241,6 +1781,50 @@ def _browser_maintenance_reports_runner_source() -> str:
             ].forEach((id) => {
               if (!byId(id)) throw new Error("missing Reports audit control " + id);
             });
+            if (!document.querySelector('[data-audit-selection-action="select-visible"]')) {
+              throw new Error("missing Reports audit Select All control");
+            }
+            if (!document.querySelector('[data-audit-score-threshold-input]')) {
+              throw new Error("missing Reports audit minimum score control");
+            }
+            if (!document.querySelector('[data-audit-selection-action="select-score-at-least"]')) {
+              throw new Error("missing Reports audit score threshold selection control");
+            }
+            if (!document.querySelector('[data-audit-selection-action="clear"]')) {
+              throw new Error("missing Reports audit clear selection control");
+            }
+            try { localStorage.removeItem("mediapipeline-report-audit-locations.v1"); } catch (_) {}
+            const dispatchAuditLocationInput = () => byId("report-audit-start-library-root").dispatchEvent(new Event("input", { bubbles: true }));
+            byId("report-audit-start-library-root").value = "C:/Reports/Library";
+            dispatchAuditLocationInput();
+            byId("report-audit-save-location-button").click();
+            requireText("report-audit-location-summary", [
+              "Saved audit locations: 1/10",
+              "C:/Reports/Library",
+              "Start Audit submits one staged library root",
+            ]);
+            for (let index = 2; index <= 10; index += 1) {
+              byId("report-audit-start-library-root").value = "C:/Reports/Library " + index;
+              dispatchAuditLocationInput();
+              byId("report-audit-save-location-button").click();
+            }
+            requireText("report-audit-location-summary", ["Saved audit locations: 10/10"]);
+            byId("report-audit-start-library-root").value = "C:/Reports/Library 11";
+            dispatchAuditLocationInput();
+            if (!byId("report-audit-save-location-button").disabled) {
+              throw new Error("Reports audit saved-location control allowed more than 10 saved roots.");
+            }
+            requireText("report-audit-location-summary", ["Saved location limit reached"]);
+            byId("report-audit-saved-location-select").value = "C:/Reports/Library";
+            byId("report-audit-saved-location-select").dispatchEvent(new Event("change", { bubbles: true }));
+            if (byId("report-audit-start-library-root").value !== "C:/Reports/Library") {
+              throw new Error("Reports audit saved-location select did not stage the selected root.");
+            }
+            byId("report-audit-remove-location-button").click();
+            requireText("report-audit-location-summary", [
+              "Saved audit locations: 9/10",
+              "Removed saved audit location.",
+            ]);
             if (posts.some((entry) => entry.path.includes("/api/audit/start"))) {
               throw new Error("Reports posted audit start before the explicit Start Audit click.");
             }
@@ -1263,9 +1847,42 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (auditStartPost.body?.include_sidecars !== true) {
               throw new Error("Reports audit start did not submit include_sidecars.");
             }
-            if (text("report-audit-launch-status") !== "Started") {
-              throw new Error("Reports audit launch status did not show Started.");
+            await waitFor(() => text("report-audit-launch-status").includes("Running"), "reports audit running indicator");
+            if (!byId("report-audit-start-button").disabled) {
+              throw new Error("Reports audit start button became clickable while the accepted audit run was still active.");
             }
+            if (text("report-audit-start-button") !== "Audit Running") {
+              throw new Error("Reports audit start button did not switch to Audit Running.");
+            }
+            if (byId("report-audit-stop-button").disabled) {
+              throw new Error("Reports audit stop button was not clickable while the accepted audit run was active.");
+            }
+            requireText("report-audit-launch-detail", [
+              "Running indicator:",
+              "Elapsed:",
+              "ETA: unavailable",
+              "Progress source:",
+            ]);
+            requireText("report-progress-summary", [
+              "Audit status: starting",
+              "Backend accepted audit start",
+            ]);
+            const beforeAuditStopPosts = posts.filter((entry) => entry.path.includes("/api/audit/stop")).length;
+            byId("report-audit-stop-button").click();
+            byId("report-audit-stop-button").click();
+            await waitFor(() => posts.some((entry) => entry.path.includes("/api/audit/stop")), "reports audit stop");
+            if (posts.filter((entry) => entry.path.includes("/api/audit/stop")).length !== beforeAuditStopPosts + 1) {
+              throw new Error("Reports audit stop duplicate click posted more than once.");
+            }
+            const auditStopPost = posts.find((entry) => entry.path.includes("/api/audit/stop"));
+            if (auditStopPost.body?.confirm_stop !== true) {
+              throw new Error("Reports audit stop did not submit confirm_stop true.");
+            }
+            requireText("report-audit-launch-detail", [
+              "audit.stop",
+              "Audit stop recorded",
+              "confirm_stop",
+            ]);
             window.confirm = () => true;
             const beforeScorePolicyPosts = posts.filter((entry) => entry.path.includes("/api/audit/score-policy")).length;
             byId("report-audit-score-policy-save-button").click();
@@ -1286,6 +1903,39 @@ def _browser_maintenance_reports_runner_source() -> str:
             window.mediaPipelineReportsView.renderFailurePreview(reportFailurePreview);
             window.mediaPipelineReportsView.renderAuditPreview(reportAuditPreview);
             window.mediaPipelineReportsView.renderAuditControls(reportAuditControls);
+            const auditSelectAllButton = document.querySelector('[data-audit-selection-action="select-visible"]');
+            if (auditSelectAllButton.disabled) {
+              throw new Error("Reports audit Select All control was disabled with visible audit rows.");
+            }
+            if (typeof auditSelectAllButton.onclick !== "function") {
+              throw new Error("Reports audit Select All control was not bound.");
+            }
+            clickFirst('[data-audit-selection-action="select-visible"]', "Audit Select All");
+            if (!text("audit-preview-status").includes("1 selected")) {
+              throw new Error("Reports audit Select All did not select visible rows: " + JSON.stringify({
+                status: text("audit-preview-status"),
+                action: auditSelectAllButton.dataset.auditSelectionAction,
+                disabled: auditSelectAllButton.disabled,
+                keys: window.mediaPipelineReportsView.selectedAuditRowKeysList(),
+                visibleRows: document.querySelectorAll('#audit-preview-rows tr[data-row-key]').length,
+              }));
+            }
+            requireText("report-audit-export-detail", [
+              "Select All",
+              "selected 1 audit row",
+              "current filter/search",
+            ]);
+            clickFirst('[data-audit-selection-action="clear"]', "Audit Clear Selection");
+            requireText("report-audit-export-status", ["No selection"]);
+            const scoreThresholdInput = document.querySelector('[data-audit-score-threshold-input]');
+            scoreThresholdInput.value = "90";
+            clickFirst('[data-audit-selection-action="select-score-at-least"]', "Audit Select Score or Higher");
+            requireText("audit-preview-status", ["1 selected"]);
+            requireText("report-audit-export-detail", [
+              "Select Score or Higher (90)",
+              "selected 1 audit row",
+            ]);
+            clickFirst('[data-audit-selection-action="clear"]', "Audit Clear Selection After Score");
             const auditCheckbox = document.querySelector('#audit-preview-rows input[type="checkbox"]');
             if (!auditCheckbox) throw new Error("Reports audit row multi-select checkbox missing");
             auditCheckbox.click();
@@ -1346,10 +1996,12 @@ def _browser_maintenance_reports_runner_source() -> str:
               return forbidden.some((path) => entry.path.includes(path));
             });
             if (forbiddenPosts.length) throw new Error("maintenance/reports smoke posted mutation routes: " + JSON.stringify(forbiddenPosts));
+            window.apiGet = originalApiGet;
             window.apiPost = originalApiPost;
             return {
               ok: true,
               posts,
+              gets,
               maintenanceStatus: text("maintenance-readiness-status"),
               reportStatus: text("report-triage-status"),
               failureStatus: text("failure-review-status"),
@@ -1483,25 +2135,92 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
 
         browser_result = result["result"]
         posts = browser_result["posts"]
-        self.assertEqual(len(posts), 6)
+        gets = browser_result["gets"]
+        self.assertEqual(len(posts), 16)
+        failure_get_paths = [get["path"] for get in gets if get["path"].startswith("/api/failures")]
+        self.assertIn("/api/failures?limit=100&source=markers", failure_get_paths)
+        self.assertIn("/api/failures?limit=100", failure_get_paths)
         audit_start_post = next(post for post in posts if post["path"] == "/api/audit/start")
+        audit_stop_post = next(post for post in posts if post["path"] == "/api/audit/stop")
         score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
         diagnostics_open_post = next(post for post in posts if post["path"] == "/api/diagnostics/open")
+        lifecycle_posts = [post for post in posts if post["path"] == "/api/failures/lifecycle"]
+        lifecycle_ack = next(post for post in lifecycle_posts if post["body"].get("transition") == "acknowledge")
+        lifecycle_start = next(post for post in lifecycle_posts if post["body"].get("transition") == "start_work")
+        lifecycle_resolve_preview = next(
+            post
+            for post in lifecycle_posts
+            if post["body"].get("transition") == "mark_resolved" and post["body"].get("dry_run") is True
+        )
+        lifecycle_resolve_confirm = next(
+            post
+            for post in lifecycle_posts
+            if post["body"].get("transition") == "mark_resolved" and post["body"].get("confirm_transition") is True
+        )
+        latest_warning_preview = next(
+            post
+            for post in posts
+            if post["path"] == "/api/failures/clear"
+            and post["body"].get("dry_run") is True
+            and "C:/State/Failures/Markers/latest-warning-b.json" in post["body"].get("marker_paths", [])
+        )
         latest_warning_clear = next(
             post
             for post in posts
-            if "C:/State/Failures/Markers/latest-warning-b.json" in post["body"].get("marker_paths", [])
+            if post["path"] == "/api/failures/clear"
+            and post["body"].get("confirm_clear") is True
+            and "C:/State/Failures/Markers/latest-warning-b.json" in post["body"].get("marker_paths", [])
+        )
+        row_preview = next(
+            post
+            for post in posts
+            if post["path"] == "/api/failures/clear"
+            and post["body"].get("dry_run") is True
+            and post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
         )
         row_clear = next(
             post
             for post in posts
-            if post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
+            if post["path"] == "/api/failures/clear"
+            and post["body"].get("confirm_clear") is True
+            and post["body"].get("marker_paths") == ["C:/State/Failures/Markers/marker-1.json"]
         )
+        bulk_preview = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is True)
         bulk_clear = next(post for post in posts if post["body"].get("scope") == "all_markers" and post["body"].get("dry_run") is False)
+        archive_previews = [
+            post
+            for post in posts
+            if post["path"] == "/api/failures/archive-evidence" and post["body"].get("dry_run") is True
+        ]
+        archive_confirm = next(
+            post
+            for post in posts
+            if post["path"] == "/api/failures/archive-evidence" and post["body"].get("confirm_archive") is True
+        )
         self.assertEqual(audit_start_post["body"]["library_root"], "C:/Reports/Library")
         self.assertTrue(audit_start_post["body"]["include_sidecars"])
         self.assertFalse(audit_start_post["body"]["show_console"])
+        self.assertTrue(audit_stop_post["body"]["confirm_stop"])
+        self.assertEqual(audit_stop_post["body"]["reason"], "Reports Stop Audit button")
         self.assertEqual(diagnostics_open_post["body"]["target"], "latest_failure_report")
+        self.assertEqual(len(lifecycle_posts), 4)
+        self.assertEqual(lifecycle_ack["body"]["journal_key"], "source_locked|source-stability|manual-review|review-in-diagnostics")
+        self.assertFalse(lifecycle_ack["body"]["dry_run"])
+        self.assertTrue(lifecycle_ack["body"]["confirm_transition"])
+        self.assertEqual(lifecycle_start["body"]["journal_key"], lifecycle_ack["body"]["journal_key"])
+        self.assertFalse(lifecycle_start["body"]["dry_run"])
+        self.assertTrue(lifecycle_start["body"]["confirm_transition"])
+        self.assertEqual(lifecycle_resolve_preview["body"]["reason"], "Operator marked failure resolved from Reports.")
+        self.assertEqual(lifecycle_resolve_preview["body"]["operator_note"], "")
+        self.assertTrue(lifecycle_resolve_preview["body"]["dry_run"])
+        self.assertFalse(lifecycle_resolve_preview["body"]["confirm_transition"])
+        self.assertEqual(lifecycle_resolve_preview["body"]["dry_run_fingerprint"], "")
+        self.assertEqual(lifecycle_resolve_confirm["body"]["dry_run_fingerprint"], "smoke-lifecycle-fingerprint")
+        self.assertFalse(lifecycle_resolve_confirm["body"]["dry_run"])
+        self.assertTrue(lifecycle_resolve_confirm["body"]["confirm_transition"])
+        self.assertEqual(latest_warning_preview["body"]["scope"], "selected")
+        self.assertTrue(latest_warning_preview["body"]["dry_run"])
+        self.assertFalse(latest_warning_preview["body"]["confirm_clear"])
         self.assertEqual(latest_warning_clear["path"], "/api/failures/clear")
         self.assertEqual(latest_warning_clear["body"]["scope"], "selected")
         self.assertFalse(latest_warning_clear["body"]["dry_run"])
@@ -1513,16 +2232,38 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
                 "C:/State/Failures/Markers/latest-warning-b.json",
             ],
         )
+        self.assertEqual(row_preview["body"]["scope"], "selected")
+        self.assertTrue(row_preview["body"]["dry_run"])
+        self.assertFalse(row_preview["body"]["confirm_clear"])
         self.assertEqual(row_clear["path"], "/api/failures/clear")
         self.assertEqual(row_clear["body"]["scope"], "selected")
         self.assertFalse(row_clear["body"]["dry_run"])
         self.assertTrue(row_clear["body"]["confirm_clear"])
         self.assertEqual(row_clear["body"]["marker_paths"], ["C:/State/Failures/Markers/marker-1.json"])
+        self.assertEqual(bulk_preview["path"], "/api/failures/clear")
+        self.assertTrue(bulk_preview["body"]["dry_run"])
+        self.assertFalse(bulk_preview["body"]["confirm_clear"])
+        self.assertNotIn("marker_paths", bulk_preview["body"])
         self.assertEqual(bulk_clear["path"], "/api/failures/clear")
         self.assertEqual(bulk_clear["body"]["scope"], "all_markers")
         self.assertFalse(bulk_clear["body"]["dry_run"])
         self.assertTrue(bulk_clear["body"]["confirm_clear"])
         self.assertNotIn("marker_paths", bulk_clear["body"])
+        self.assertEqual(len(archive_previews), 1)
+        for archive_preview in archive_previews:
+            self.assertEqual(archive_preview["body"]["scope"], "all_active")
+            self.assertTrue(archive_preview["body"]["include_markers"])
+            self.assertTrue(archive_preview["body"]["include_reports"])
+            self.assertTrue(archive_preview["body"]["dry_run"])
+            self.assertFalse(archive_preview["body"]["confirm_archive"])
+            self.assertEqual(archive_preview["body"].get("dry_run_fingerprint", ""), "")
+        self.assertEqual(archive_confirm["body"]["scope"], "all_active")
+        self.assertTrue(archive_confirm["body"]["include_markers"])
+        self.assertTrue(archive_confirm["body"]["include_reports"])
+        self.assertFalse(archive_confirm["body"]["dry_run"])
+        self.assertTrue(archive_confirm["body"]["confirm_archive"])
+        self.assertEqual(archive_confirm["body"]["dry_run_fingerprint"], "smoke-archive-fingerprint")
+        self.assertEqual(archive_confirm["body"]["reason"], "Smoke test evidence cleanup")
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["audio-default-policy-mismatch"], 222)
         self.assertEqual(score_policy_post["body"]["policy"]["issue_code_weights"]["bdpgs-subtitles-ocr-candidate"], 40)
         self.assertIn(browser_result["maintenanceStatus"], {"Ready", "Warnings", "Blocked"})

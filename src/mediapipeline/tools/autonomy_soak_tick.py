@@ -12,7 +12,7 @@ from mediapipeline.core.diagnostics.autonomy_health import (
     load_autonomy_growth_history,
     record_autonomy_growth_snapshot,
 )
-from mediapipeline.core.processes.path_evidence import configured_path_health
+from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS, configured_path_health
 from mediapipeline.core.publish.pending_service import PendingPublishServiceMixin
 from mediapipeline.tools.autonomy_health_gate import AUTONOMY_HEALTH_BLOCKED_EXIT_CODE, resolved_paths_from_payload
 
@@ -52,7 +52,10 @@ def run_tick_from_payload(
     resolved = resolved_paths_from_payload(payload)
     history_before = load_autonomy_growth_history(resolved, max_snapshots=max_snapshots)
     pending_publish = _PendingScanner().scan_pending_publish(resolved)
-    path_health = configured_path_health(resolved)
+    path_health = configured_path_health(
+        resolved,
+        timeout_seconds=LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+    )
     health = autonomy_health_payload(
         resolved,
         pending_publish=pending_publish,

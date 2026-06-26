@@ -130,7 +130,7 @@ LOCAL_API_STATUS_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         ],
         "allowed_targets": ["pipeline", "audit", "rerun"],
         "response_schema": "desktop_launch_preflight.v1",
-        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun without reserving locks, launching processes, writing control flags, mutating config, or touching media files.",
+        "purpose": "Read backend-authored launch preflight checks for pipeline, audit, or CSV rerun. Pipeline preflight may refresh the backend-owned encoder capability diagnostic JSON when it is missing or stale; it does not reserve locks, launch work, write control flags, mutate config, or touch media files.",
     },
     {
         "method": "GET",
@@ -247,7 +247,7 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "query_keys": ["source", "limit"],
         "allowed_sources": ["latest_json", "markers"],
         "response_schema": "desktop_failure_preview.v1",
-        "purpose": "Read recent failure rows from the latest round failure JSON or failure marker store without clearing, prioritizing, or rerunning anything.",
+        "purpose": "Read recent failure rows plus backend-authored resolution summary/groups from the latest round failure JSON or failure marker store without clearing, prioritizing, archiving, or rerunning anything.",
     },
     {
         "method": "GET",
@@ -317,9 +317,18 @@ LOCAL_API_RENAME_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
             "tv_remove_terms_text",
             "tv_filter_options",
             "tv_filter_terms",
+            "template_preset",
+            "expected_name",
+            "expected_show",
+            "expected_season",
+            "expected_episode",
+            "expected_episode_title",
+            "expected_movie_title",
+            "expected_year",
+            "include_case_analysis",
         ],
         "response_schema": "desktop_rename_clean_filename_preview.v1",
-        "purpose": "Preview backend movie or TV filename cleaning for one typed filename without opening, renaming, moving, deleting, writing, or probing any filesystem path.",
+        "purpose": "Preview backend movie or TV filename cleaning for one typed filename, optionally returning workbench actual/expected comparison plus mode-scoped filter suggestions marked as already covered or stage-recommended, without opening, renaming, moving, deleting, writing, or probing any filesystem path.",
     },
 )
 

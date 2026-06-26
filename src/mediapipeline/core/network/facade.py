@@ -305,9 +305,9 @@ def _network_worker_progress_bars(
     bars.append(
         {
             "id": "network_mode",
-            "label": "Network mode",
-            "mode": "determinate",
-            "percent": 100.0,
+            "label": "Runtime evidence",
+            "mode": "indeterminate",
+            "percent": None,
             "status": mode_status,
             "detail": f"role={role}; worker_rows={len(rows)}; warnings={len(warnings)}",
             "source": "desktop_network_workers.v1",
@@ -1393,9 +1393,13 @@ class NetworkFacadeMixin:
         if rotate:
             token = generate_token()
             if config_token:
+                save_request = self.settings_patch_request_with_review_confirmation(
+                    resolved,
+                    {"changes": {"CoordinatorAuthToken": token}},
+                )
                 save_result = self.save_settings_patch(
                     resolved,
-                    {"changes": {"CoordinatorAuthToken": token}, "confirm_save": True},
+                    {**save_request, "confirm_save": True},
                 )
                 if not save_result.ok:
                     safe_errors = [
@@ -1596,9 +1600,13 @@ class NetworkFacadeMixin:
         hot_apply: list[dict[str, Any]] = []
         warnings: list[str] = []
         if changes_to_save:
+            save_request = self.settings_patch_request_with_review_confirmation(
+                resolved,
+                {"changes": changes_to_save},
+            )
             save_result = self.save_settings_patch(
                 resolved,
-                {"changes": changes_to_save, "confirm_save": True},
+                {**save_request, "confirm_save": True},
             )
             warnings.extend(redact_network_secret_text(item) for item in list(save_result.warnings or []))
             if not save_result.ok:
@@ -1988,7 +1996,6 @@ class NetworkFacadeMixin:
             token_posture=token_posture,
             running_vs_saved=running_vs_saved,
         )
-
         return _network_workers_dto(
             app_version=self.app_version,
             role=role,

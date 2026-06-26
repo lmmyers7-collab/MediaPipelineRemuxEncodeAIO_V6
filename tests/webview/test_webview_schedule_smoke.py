@@ -10,6 +10,7 @@ import unittest
 from pathlib import Path
 
 from mediapipeline.tools.paths import find_repo_root
+from tests.css_import_resolver import resolve_css_imports
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
@@ -17,6 +18,10 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 WEBVIEW_STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
 WEB_STATIC = WEBVIEW_STATIC_ROOT / "assets"
 PAGE_SCHEDULE = WEBVIEW_STATIC_ROOT / "partials" / "page-schedule.html"
+
+
+def _read_components_css() -> str:
+    return resolve_css_imports(WEB_STATIC / "styles.components.css", WEB_STATIC)
 
 
 def _schedule_runner_source() -> str:
@@ -227,9 +232,15 @@ def _schedule_runner_source() -> str:
         function text(id) {
           return context.document.getElementById(id).textContent || "";
         }
+        function nodeText(node) {
+          if (!node) return "";
+          const own = node.textContent || "";
+          const childText = Array.isArray(node.children) ? node.children.map((child) => nodeText(child)).join("\n") : "";
+          return [own, childText].filter(Boolean).join("\n");
+        }
         function tableText(id) {
           const tbody = context.document.getElementById(id);
-          return tbody.children.flatMap((row) => row.children.map((cell) => cell.textContent || "")).join("\n");
+          return tbody.children.flatMap((row) => row.children.map((cell) => nodeText(cell))).join("\n");
         }
         function requireContains(label, value, fragments) {
           for (const fragment of fragments) {
@@ -291,8 +302,16 @@ def _schedule_runner_source() -> str:
         requireContains("guidance", text("schedule-guidance"), ["Backend continuous watcher: armed for PID 2222"]);
         requireContains("day legend", text("schedule-day-legend"), ["Weekly windows table: 3 selectable rows", "match=1", "ready=1", "review=1"]);
         requireContains("day detail default", text("schedule-day-detail"), ["Day: Monday", "no allowed window"]);
-        requireContains("editor rows", tableText("schedule-editor-rows"), ["Monday", "Tuesday", "Wednesday", "01:00 - 03:00", "All day"]);
+        requireContains("editor rows", tableText("schedule-editor-rows"), ["Monday", "Tuesday", "Wednesday", "1:00 AM-3:00 AM", "All day"]);
         requireContains("editor result", text("schedule-editor-result"), ["No schedule preview or save result loaded", "Backend validation owns time parsing"]);
+        const mondayRail = context.document.getElementById("schedule-editor-monday-block-0")?.parentNode;
+        if (!mondayRail || !String(mondayRail.className || "").includes("schedule-time-rail")) {
+          throw new Error("schedule editor did not render Monday thermostat rail");
+        }
+        if (!String(mondayRail.parentNode?.children?.[2]?.className || "").includes("schedule-time-ticks")) {
+          throw new Error("schedule editor did not render 3-hour timeline ticks");
+        }
+        requireContains("tuesday rail summary", text("schedule-editor-tuesday-summary"), ["1:00 AM-3:00 AM"]);
         if (!context.document.getElementById("schedule-editor-monday-copy-day")) {
           throw new Error("schedule editor did not render Copy Day for Monday");
         }
@@ -512,6 +531,7 @@ class WebViewScheduleSmoke(unittest.TestCase):
         markup = PAGE_SCHEDULE.read_text(encoding="utf-8")
         self.assertLess(markup.index("<h2>Edit Schedule</h2>"), markup.index("<h2>Current Schedule</h2>"))
         self.assertIn("schedule-editor-status-strip", markup)
+        self.assertIn("Time of Day", markup)
         self.assertIn('id="schedule-editor-panel"', markup)
         self.assertIn('aria-busy="false"', markup)
         self.assertIn("schedule-editor-impact", markup)
@@ -525,6 +545,9 @@ class WebViewScheduleSmoke(unittest.TestCase):
         controls_css = (WEB_STATIC / "styles.controls.css").read_text(encoding="utf-8")
         self.assertIn('tr[data-status="current-match"]', controls_css)
         self.assertIn('tr[data-status="unknown"]', controls_css)
+        components_css = _read_components_css()
+        self.assertIn(".schedule-time-rail", components_css)
+        self.assertIn("grid-template-columns: repeat(48", components_css)
 
     def test_schedule_coverage_and_day_detail_render_in_node(self) -> None:
         node = shutil.which("node")

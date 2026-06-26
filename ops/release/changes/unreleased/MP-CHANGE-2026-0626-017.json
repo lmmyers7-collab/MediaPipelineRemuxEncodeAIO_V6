@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0626-017",
+  "title": "Fix generated docs casing drift",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Normalized active generated documentation paths from Docs to docs, hardened summary generation against future Docs/docs casing drift, refreshed generated context, and refreshed the WebView godfile split map.",
+  "reason": "Deep Audit was failing generated-context and WebView map checks because generated summaries and navigation artifacts still referenced the historical uppercase Docs path on a Windows checkout.",
+  "affected_areas": [
+    "docs",
+    "release",
+    "tests",
+    "tooling",
+    "webview"
+  ],
+  "behavior_before": "Generated summaries could remain under docs/generated/summaries/Docs and summary checks reported missing or mismatched docs sources after the working tree used lowercase docs paths. The WebView godfile split map was also stale.",
+  "behavior_after": "The summary generator canonicalizes any Docs path spelling to docs, active docs summaries are stored under docs/generated/summaries/docs, generated navigation files are refreshed, and the WebView map check passes.",
+  "files_touched": [
+    "docs",
+    "docs/generated/DEPENDENCY_GRAPH.md",
+    "docs/generated/FEATURE_FILE_MAP.md",
+    "docs/generated/PROJECT_INDEX.md",
+    "docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md",
+    "docs/generated/summaries/docs",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-017.json",
+    "src/mediapipeline/tools/dev/refresh_summaries.py",
+    "tests/python/tooling/test_summary_integrity.py"
+  ],
+  "tests_added": [
+    "tests.python.tooling.test_summary_integrity.SummaryIntegrityTests.test_docs_path_casing_is_canonicalized_for_summaries"
+  ],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.tooling.test_summary_integrity -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_project_index --check",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_feature_file_map --check",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.generate_pipeline_map --check",
+    "PASS: npm run webview:map:check",
+    "WARN: npm run webview:prework:check failed at the lint-budget gate because existing WebView warning counts exceed the baseline: complexity 115 > 108, max-lines-per-function 46 > 37, no-extra-boolean-cast 1 > 0, no-unused-vars 192 > 143. This scoped change did not update the lint budget."
+  ],
+  "rollback_plan": "Revert the refresh_summaries.py canonicalization and regression test, restore the generated docs summary paths/artifacts from the previous commit, then rerun refresh_summaries --check and webview:map:check.",
+  "related_changes": [],
+  "notes": "Normalize documentation tree casing and regenerated generated documentation artifacts.\nUse existing WebView map scripts for generated map validation.\nTrack the generated context and WebView map drift fix.\nCanonicalize docs path casing when generating and validating summaries.\nRegenerate generated context after summary casing cleanup.\nRefresh WebView split map so WebView prework map check is current.\nAdd regression coverage for docs path casing canonicalization.\nRegenerate dependency graph after summary inventory refresh.\nRegenerate feature map after project index refresh.\nRename active docs summaries to lowercase docs path and refresh stale generated summaries."
+}

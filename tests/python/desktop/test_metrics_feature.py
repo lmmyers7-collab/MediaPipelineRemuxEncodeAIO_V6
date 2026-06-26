@@ -22,7 +22,8 @@ from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
 from mediapipeline.desktop.api.routes import GET_ROUTE_HANDLERS, POST_ROUTE_HANDLERS
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import CompletedJobRecord
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.css_import_resolver import resolve_css_imports
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
 WEBVIEW_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
@@ -408,7 +409,10 @@ class MetricsFeatureTests(unittest.TestCase):
         page = (WEBVIEW_ROOT / "partials" / "page-metrics.html").read_text(encoding="utf-8")
         app_js = (WEBVIEW_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
         metrics_js = (WEBVIEW_ROOT / "assets" / "metricsView.js").read_text(encoding="utf-8")
-        styles = (WEBVIEW_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        styles = resolve_css_imports(
+            WEBVIEW_ROOT / "assets" / "styles.components.css",
+            WEBVIEW_ROOT / "assets",
+        )
 
         self.assertIn('data-page="metrics"', shell)
         self.assertIn("partials/page-metrics.html", index)

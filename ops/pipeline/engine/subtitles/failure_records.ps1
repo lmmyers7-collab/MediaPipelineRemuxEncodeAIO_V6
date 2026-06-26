@@ -55,6 +55,38 @@ function Get-SubtitleFailureStreamText {
     return $Fallback
 }
 
+function ConvertTo-SubtitleFailureEvidence {
+    param(
+        [array] $Failures = @(),
+        [string] $Family = '',
+        [int] $Limit = 12
+    )
+
+    $failureList = @($Failures | Where-Object { $null -ne $_ })
+    $details = @()
+    foreach ($failure in @($failureList | Select-Object -First $Limit)) {
+        $details += [pscustomobject][ordered]@{
+            stream_index = Get-SubtitleFailureStreamIndex -Failure $failure
+            error_code   = Get-SubtitleFailureText -Failure $failure -Name 'ErrorCode' -Fallback 'SUBTITLE_UNKNOWN_FAILURE'
+            reason       = Get-SubtitleFailureText -Failure $failure -Name 'Reason' -Fallback 'failure record was malformed'
+            repro_path   = Get-SubtitleFailureText -Failure $failure -Name 'ReproPath' -Fallback ''
+            codec        = Get-SubtitleFailureText -Failure $failure -Name 'Codec' -Fallback ''
+            language     = Get-SubtitleFailureText -Failure $failure -Name 'Language' -Fallback ''
+            tool         = Get-SubtitleFailureText -Failure $failure -Name 'Tool' -Fallback ''
+            operation    = Get-SubtitleFailureText -Failure $failure -Name 'Operation' -Fallback ''
+            category     = Get-SubtitleFailureText -Failure $failure -Name 'Category' -Fallback ''
+        }
+    }
+
+    return [pscustomobject][ordered]@{
+        schema_version  = 'pipeline_failure_subtitle_evidence.v1'
+        family          = ([string]$Family).Trim()
+        failure_count   = [int]$failureList.Count
+        truncated_count = [math]::Max(0, [int]$failureList.Count - [int]$details.Count)
+        failures        = @($details)
+    }
+}
+
 function Register-Tx3gSubtitleFailure {
     param(
         [Parameter(Mandatory)] $SourceFile,
@@ -78,7 +110,10 @@ function Register-Tx3gSubtitleFailure {
     $errorCode = Get-SubtitleFailureText -Failure $first -Name 'ErrorCode' -Fallback 'SUBTITLE_TX3G_EXTRACT_FAILED'
     $reproPath = Get-SubtitleFailureText -Failure $first -Name 'ReproPath' -Fallback ''
     $suggestedAction = 'Inspect the ffmpeg subtitle extraction repro/log, confirm the tx3g track is readable, or remove/replace the bad subtitle stream before retrying.'
-    $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
+    $failureProperties = [ordered]@{
+        subtitle_failure_details = ConvertTo-SubtitleFailureEvidence -Failures $failureList -Family 'tx3g'
+    }
+    $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction -AdditionalProperties $failureProperties
 }
 
 function Register-SubtitleExtractionFailure {
@@ -105,7 +140,10 @@ function Register-SubtitleExtractionFailure {
         $errorCode = Get-SubtitleFailureText -Failure $first -Name 'ErrorCode' -Fallback 'SUBTITLE_BDPGS_OCR_FAILED'
         $reproPath = Get-SubtitleFailureText -Failure $first -Name 'ReproPath' -Fallback ''
         $suggestedAction = 'Configure a PGS/SUP OCR tool such as PgsToSrt with Tesseract language data, inspect the repro command/log, or disable ConvertBdpgsToSrt to preserve image subtitles without OCR.'
-        $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
+        $failureProperties = [ordered]@{
+            subtitle_failure_details = ConvertTo-SubtitleFailureEvidence -Failures $bdpgsFailures -Family 'bdpgs'
+        }
+        $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction -AdditionalProperties $failureProperties
         return
     }
 
@@ -119,7 +157,10 @@ function Register-SubtitleExtractionFailure {
         $errorCode = Get-SubtitleFailureText -Failure $first -Name 'ErrorCode' -Fallback 'SUBTITLE_VOBSUB_OCR_FAILED'
         $reproPath = Get-SubtitleFailureText -Failure $first -Name 'ReproPath' -Fallback ''
         $suggestedAction = 'Configure Subtitle Edit 4.x SubtitleEdit.exe and bundled Tesseract, inspect the repro command/log, or disable ConvertVobSubToSrt to preserve supported embedded VobSub tracks without OCR.'
-        $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
+        $failureProperties = [ordered]@{
+            subtitle_failure_details = ConvertTo-SubtitleFailureEvidence -Failures $vobSubFailures -Family 'vobsub'
+        }
+        $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction -AdditionalProperties $failureProperties
         return
     }
 
@@ -133,7 +174,10 @@ function Register-SubtitleExtractionFailure {
         $errorCode = Get-SubtitleFailureText -Failure $first -Name 'ErrorCode' -Fallback 'SUBTITLE_ASS_CONVERT_FAILED'
         $reproPath = Get-SubtitleFailureText -Failure $first -Name 'ReproPath' -Fallback ''
         $suggestedAction = 'Inspect the ass_to_srt helper repro/log, adjust ASS style filters if needed, or disable DropAssAfterConversion so the original ASS track can be retained while conversion is investigated.'
-        $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction
+        $failureProperties = [ordered]@{
+            subtitle_failure_details = ConvertTo-SubtitleFailureEvidence -Failures $assFailures -Family 'ass'
+        }
+        $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reason -Stage $Stage -ErrorCode $errorCode -ReproPath $reproPath -SuggestedAction $suggestedAction -AdditionalProperties $failureProperties
         return
     }
 
@@ -148,6 +192,8 @@ function Register-SubtitleExtractionFailure {
     $reasonFallback = "Subtitle conversion failed: $fallbackDetail"
     $errorCodeFallback = Get-SubtitleFailureText -Failure $firstFallback -Name 'ErrorCode' -Fallback 'SUBTITLE_UNKNOWN_FAILURE'
     $reproPathFallback = Get-SubtitleFailureText -Failure $firstFallback -Name 'ReproPath' -Fallback ''
-    $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reasonFallback -Stage $Stage -ErrorCode $errorCodeFallback -ReproPath $reproPathFallback -SuggestedAction 'Review the pipeline log around the subtitle conversion step and retry after correcting the source subtitle issue.'
+    $failurePropertiesFallback = [ordered]@{
+        subtitle_failure_details = ConvertTo-SubtitleFailureEvidence -Failures $failureList -Family 'unknown'
+    }
+    $null = Register-SourceFailure -SourceFile $SourceFile -ScratchPath $ScratchPath -Classification 'transient' -Reason $reasonFallback -Stage $Stage -ErrorCode $errorCodeFallback -ReproPath $reproPathFallback -SuggestedAction 'Review the pipeline log around the subtitle conversion step and retry after correcting the source subtitle issue.' -AdditionalProperties $failurePropertiesFallback
 }
-

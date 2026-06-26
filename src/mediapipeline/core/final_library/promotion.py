@@ -383,7 +383,7 @@ def build_promotion_item_rows(
 ) -> tuple[list[dict[str, Any]], PromotionSettingsSnapshot]:
     settings = promotion_settings_from_config(resolved.config_data)
     evidence_items = read_item_evidence(resolved)
-    pending_keys = _pending_path_keys(pending_payload)
+    pending_keys = _pending_path_keys(pending_payload) if settings.enabled else set()
     active_item_states = active_run.get("item_states", {}) if isinstance(active_run, Mapping) else {}
     if not isinstance(active_item_states, Mapping):
         active_item_states = {}
@@ -395,7 +395,6 @@ def build_promotion_item_rows(
         output_path = record.output_path
         source_path = record.source_path_text
         required_sidecar = _required_pipeline_sidecar_path(record)
-        required_sidecar_exists = required_sidecar.exists()
         evidence = evidence_items.get(row_key, {})
         promoted_fields = row_promoted_fields(evidence)
         row = {
@@ -406,15 +405,18 @@ def build_promotion_item_rows(
             "source_path": source_path,
             "publish_output_path": str(output_path),
             "output_path": str(output_path),
-            "output_exists": bool(record.output_exists),
             "lookup_title": record.lookup_title,
             "media_type": record.media_type,
             "output_file": record.output_file,
             "publish_state": record.publish_state,
             "sidecar_path": str(record.sidecar_path),
             "required_pipeline_sidecar_path": str(required_sidecar),
-            "required_pipeline_sidecar_exists": required_sidecar_exists,
         }
+        required_sidecar_exists: bool | None = None
+        if settings.enabled:
+            required_sidecar_exists = required_sidecar.exists()
+            row["output_exists"] = bool(record.output_exists)
+            row["required_pipeline_sidecar_exists"] = required_sidecar_exists
 
         status = "ready"
         if row["promoted_cleaned"]:
@@ -423,7 +425,7 @@ def build_promotion_item_rows(
             status = "promoted"
         elif not settings.enabled:
             status = "disabled"
-        elif not record.output_exists:
+        elif row.get("output_exists") is False:
             status = "missing_output"
         elif record.publish_state != "published":
             status = "pending_publish_unresolved"
@@ -460,7 +462,7 @@ def build_promotion_item_rows(
                 if not library_profile.promotion_destination.exists():
                     status = "destination_offline"
                     row["destination_offline"] = True
-                elif not required_sidecar_exists:
+                elif required_sidecar_exists is False:
                     status = "missing_required_sidecar"
                     row["required_pipeline_sidecar_missing"] = True
                     row["missing_sidecars"] = [str(required_sidecar)]
@@ -481,7 +483,7 @@ def build_promotion_item_rows(
                     if not rule.destination_root.exists():
                         status = "destination_offline"
                         row["destination_offline"] = True
-                    elif not required_sidecar_exists:
+                    elif required_sidecar_exists is False:
                         status = "missing_required_sidecar"
                         row["required_pipeline_sidecar_missing"] = True
                         row["missing_sidecars"] = [str(required_sidecar)]

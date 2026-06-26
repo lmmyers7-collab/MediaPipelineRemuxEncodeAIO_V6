@@ -360,10 +360,12 @@ def content_type_for(path: Path) -> str:
 
 def resolve_asset_path(static_root: Path, route: str) -> Path | None:
     relative = route.removeprefix("/assets/").strip("/")
-    if not relative or "\\" in relative or ".." in relative.split("/"):
-        return None
+    decoded_relative = unquote(relative)
+    for candidate in (relative, decoded_relative):
+        if not candidate or "\\" in candidate or ".." in candidate.split("/"):
+            return None
     asset_root = (static_root / "assets").resolve()
-    path = (asset_root / relative).resolve()
+    path = (asset_root / decoded_relative).resolve()
     try:
         path.relative_to(asset_root)
     except ValueError:

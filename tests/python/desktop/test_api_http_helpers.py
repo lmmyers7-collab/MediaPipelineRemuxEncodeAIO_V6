@@ -130,6 +130,8 @@ class ApiHttpHelpersTests(unittest.TestCase):
             self.assertEqual(resolve_asset_path(root, "/assets/app.js"), asset.resolve())
             self.assertIsNone(resolve_asset_path(root, "/assets/../secret.txt"))
             self.assertIsNone(resolve_asset_path(root, "/assets/..%2Fsecret.txt"))
+            self.assertIsNone(resolve_asset_path(root, "/assets/%2E%2E%2Fsecret.txt"))
+            self.assertIsNone(resolve_asset_path(root, "/assets/%2E%2E%5Csecret.txt"))
 
     def test_local_api_csp_disallows_inline_script_and_eval(self) -> None:
         self.assertIn("script-src 'self'", LOCAL_API_CONTENT_SECURITY_POLICY)

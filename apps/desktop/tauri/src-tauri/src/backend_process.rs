@@ -113,9 +113,9 @@ impl BackendProcess {
             if guard.is_none() {
                 return BackendShutdownOutcome::Requested;
             }
-            match request_backend_shutdown(&self.url, &self.token, mode) {
-                Ok(BackendShutdownOutcome::Requested) => {}
-                Ok(BackendShutdownOutcome::Failed) => {}
+            let shutdown_request_failed = match request_backend_shutdown(&self.url, &self.token, mode) {
+                Ok(BackendShutdownOutcome::Requested) => false,
+                Ok(BackendShutdownOutcome::Failed) => false,
                 Ok(BackendShutdownOutcome::Blocked) => {
                     eprintln!(
                         "[mediapipeline-shell] backend shutdown request blocked by close-readiness"
@@ -123,13 +123,22 @@ impl BackendProcess {
                     if mode == BackendShutdownMode::SafeOnly {
                         return BackendShutdownOutcome::Blocked;
                     }
+                    false
                 }
                 Err(error) => {
                     eprintln!("[mediapipeline-shell] backend shutdown request failed: {error}");
-                    if mode == BackendShutdownMode::SafeOnly {
-                        return BackendShutdownOutcome::Failed;
-                    }
+                    true
                 }
+            };
+            if shutdown_request_failed && mode == BackendShutdownMode::SafeOnly {
+                let Some(child) = guard.as_mut() else {
+                    return BackendShutdownOutcome::Requested;
+                };
+                if wait_for_child_exit(child, Duration::from_secs(3)) {
+                    let _ = guard.take();
+                    return BackendShutdownOutcome::Requested;
+                }
+                return BackendShutdownOutcome::Failed;
             }
             let Some(mut child) = guard.take() else {
                 return BackendShutdownOutcome::Requested;
@@ -859,6 +868,42 @@ mod tests {
             process.try_take_exited().expect("inspect taken child"),
             BackendProcessExit::NoChild
         );
+    }
+
+    #[test]
+    fn safe_only_shutdown_transport_error_allows_exited_backend_child() {
+        let process = backend_for_child(Some(spawn_child_that_exits(0)));
+
+        assert_eq!(
+            process.shutdown(BackendShutdownMode::SafeOnly),
+            BackendShutdownOutcome::Requested
+        );
+        assert_eq!(
+            process.try_take_exited().expect("inspect exited child"),
+            BackendProcessExit::NoChild
+        );
+    }
+
+    #[test]
+    fn safe_only_shutdown_transport_error_retains_running_backend_child() {
+        let process = backend_for_child(Some(spawn_sleeping_child()));
+
+        assert_eq!(
+            process.shutdown(BackendShutdownMode::SafeOnly),
+            BackendShutdownOutcome::Failed
+        );
+        assert_eq!(
+            process.try_take_exited().expect("inspect retained child"),
+            BackendProcessExit::Running
+        );
+
+        let mut child = process
+            .child
+            .lock()
+            .expect("lock retained child")
+            .take()
+            .expect("retained child should remain available");
+        terminate_child(&mut child);
     }
 
     #[test]

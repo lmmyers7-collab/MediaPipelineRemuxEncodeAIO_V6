@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0626-013",
+  "title": "Network refactor guardrail baseline correction",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Corrected Network refactor baseline docs so they no longer claim the served-static Python helper is parent-plus-child aware, hardened the Network prompt with explicit live-source verification, and added the same guardrail-mismatch stop condition to the other large-file prompts.",
+  "reason": "The Network Phase 0 baseline contradicted live source: application_facade_test_support.py still fetches only /assets/networkView.js into network_view_js, so future extraction must not rely on a false parent-plus-child served-static guardrail.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "Network planning text claimed application_facade_test_support.py had a parent-plus-child Network asset helper even though live served-static coverage still fetched only /assets/networkView.js.",
+  "behavior_after": "Network planning text now marks the served-static helper as not migrated, requires migration or parent-only assertion scoping before extraction, the Network prework prompt tells agents to verify the live source rather than trusting baseline claims, and the other prompts stop extraction when any baseline migration claim conflicts with live source.",
+  "files_touched": [
+    "docs/implementation/network-view-troubleshooting-refactor/PHASE_0_BASELINE.md",
+    "docs/implementation/network-view-troubleshooting-refactor/PREWORK_BASELINE_2026_06_26.md",
+    "docs/implementation/webview-large-file-refactor-prework/networkView.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/queueView.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/renameView.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/settingsLibraries.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/settingsView.prework-prompt.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-013.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "FAIL unrelated/pre-existing: validate_changes --require-worktree-coverage also reports the same invalid status plus 11 uncovered dirty generated files.",
+    "FAIL unrelated/pre-existing: validate_changes fails because ops/release/changes/unreleased/MP-CHANGE-2026-0626-010.json has invalid status 'completed'.",
+    "INFO: active doc reference check still fails only on pre-existing docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md DOC005.",
+    "PASS: rg confirmed the updated docs explicitly mention application_facade_test_support.py, network_view_js, served-static guardrail, and parent-only blocker language.",
+    "PASS: rg confirmed the other large-file prompts include a general stop condition for claimed guardrail migrations that do not match live source.",
+    "PASS: rg found no non-ASCII smart punctuation in the touched docs.",
+    "PASS: rg found no remaining stale positive claims such as 'Added `_read_network_asset_bundle`' or 'bundle is now parent-plus-existing-children' under the Network refactor/prework docs."
+  ],
+  "rollback_plan": "Revert the edits to the two Network baseline docs and the five large-file prework prompts; delete this change packet.",
+  "related_changes": [],
+  "notes": "Aligned newer Network prework baseline with live served-static guardrail blocker.\nCorrected false served-static parent-plus-child guardrail claim.\nAdded explicit Network served-static guardrail verification and stop condition.\nAdded general live-source guardrail mismatch stop condition."
+}

@@ -1,0 +1,56 @@
+{
+  "id": "MP-CHANGE-2026-0624-016",
+  "title": "Network operator readiness upgrades",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Redesigned the Network Workers tab into a scan-first command board with health, attention, topology, readiness, role-aware quick actions, and selected-worker inspector evidence while keeping lifecycle/setup calls backend-owned.",
+  "reason": "The previous Network Workers surface exposed too much text and repeated lifecycle/evidence content without enough quick operator controls or scan-ready worker health signals.",
+  "affected_areas": [
+    "docs",
+    "python",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Network worker evidence was mostly long prose, lower preformatted detail, and broad lifecycle controls; attention priorities were not surfaced as compact worker-board evidence.",
+  "behavior_after": "Network worker evidence renders as a compact command board with role-aware quick actions, diagnostic/readiness chips, compact attention items derived from existing worker evidence, topology nodes, worker view presets, and a right-side inspector fed by the existing read-only /api/network/workers payload.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/network/facade.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_network.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_network_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-016.json",
+    "src/mediapipeline/core/network/facade.py",
+    "tests/python/desktop/test_application_facade_network.py",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_network.py",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "manual_validation": [
+    "Captured desktop/mobile Network command-board screenshots under LocalBase/validation/screenshots/MP-CHANGE-2026-0624-016 - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_network -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_network_smoke -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_network_read_only_boundary -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - passed",
+    "npm run webview:check - passed",
+    "ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Revert the Network WebView markup/CSS/JS changes, restore the previous browser/static test expectations, and restore the prior DOM inventory count.",
+  "related_changes": [],
+  "notes": "Derive Network attention stack from existing worker state, row, drift, state-file, warning, and diagnostic evidence.\nAdd operator readiness regions to the Network command board.\nRender Network attention, topology, view presets, readiness gates, and selected-worker inspector facts.\nStyle Network attention stack, topology, gates, presets, and inspector surfaces.\nDocument new public Network command-board DOM IDs.\nExercise Network command-board browser smoke layout and guided dry-run behavior.\nAssert new Network board elements preserve read-only frontend boundaries and do not add DTO fields.\nTighten Network board responsive containment and worker table width.\nRefresh generated summaries for Network command-board source, tests, and inventory."
+}

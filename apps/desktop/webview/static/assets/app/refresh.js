@@ -21,6 +21,45 @@
     }
   }
 
+  function appendCompletedRefreshFailureMetric(container, label, value, detail = "") {
+    const metric = document.createElement("span");
+    metric.className = "completed-current-metric";
+    metric.dataset.state = "warning";
+    const labelNode = document.createElement("span");
+    labelNode.className = "completed-current-metric-label";
+    labelNode.textContent = label;
+    const valueNode = document.createElement("strong");
+    valueNode.className = "completed-current-metric-value";
+    valueNode.textContent = value;
+    metric.append(labelNode, valueNode);
+    if (detail) {
+      const detailNode = document.createElement("span");
+      detailNode.className = "completed-current-metric-detail";
+      detailNode.textContent = detail;
+      metric.appendChild(detailNode);
+    }
+    container.appendChild(metric);
+  }
+
+  function renderCurrentOutputRefreshFailure(message) {
+    const atAGlance = byId("completed-current-at-a-glance");
+    if (atAGlance) {
+      atAGlance.replaceChildren();
+      appendCompletedRefreshFailureMetric(atAGlance, "Review", "--", "refresh failed");
+      appendCompletedRefreshFailureMetric(atAGlance, "Present", "--", "stale until refresh");
+      appendCompletedRefreshFailureMetric(atAGlance, "Filters", "stale", "previous table state");
+      const meta = document.createElement("span");
+      meta.className = "completed-current-meta";
+      meta.textContent = "Route mix: stale · History not currently present: stale";
+      atAGlance.appendChild(meta);
+    }
+    const filterLine = byId("completed-current-filter-line");
+    if (filterLine) {
+      filterLine.dataset.state = "warning";
+      filterLine.textContent = `Filters: stale after refresh failure · Previous visible table may be out of date · ${message}`;
+    }
+  }
+
   function renderQueueRefreshInProgress() {
     setQueueRefreshButtonBusy(true);
     renderTopbarActivity({
@@ -61,7 +100,7 @@
     setText("completed-current-status", "Refreshing");
     let scrollSnapshot = null;
     try {
-      const [completedRaw, promotionRaw] = await Promise.all([apiGet("/api/completed?limit=all&force_refresh=true&proof=live", {
+      const [completedRaw, promotionRaw] = await Promise.all([apiGet("/api/completed?limit=500&force_refresh=true&proof=bounded", {
         timeoutMs: 30000
       }), apiGet("/api/final-library-promotion/status", {
         timeoutMs: 30000
@@ -82,6 +121,7 @@
       const message = error instanceof Error ? error.message : String(error);
       setText("completed-current-status", "Refresh failed");
       setText("completed-current-summary", [`Current Output Status refresh failed: ${message}`, "Safe next step: use Diagnostics > Completed Manifest and Run Logs before rerun, cleanup, drain, deletion, or library decisions.", "Mutation guardrail: failed refresh did not repair, rerun, drain, publish, rewrite manifests, or touch media."].join("\n"));
+      renderCurrentOutputRefreshFailure(message);
       renderTopbarActivity({
         activity: `Current Output Status refresh failed: ${message}`
       });

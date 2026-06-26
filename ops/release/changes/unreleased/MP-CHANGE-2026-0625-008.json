@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0625-008",
+  "title": "Raise completed history row limit",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-25",
+  "date_completed": "2026-06-25",
+  "summary": "Raise the Completed History row window to 500 rows in the WebView refresh path and history table renderer.",
+  "reason": "The History tab should expose a deeper append-only completed manifest view than the overview/current-output surface.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The main WebView refresh requested `/api/completed?limit=100`, so the Completed History tab could show only 100 loaded rows even though the backend supports a 500-row bounded completed preview.",
+  "behavior_after": "The main WebView refresh requests `/api/completed?limit=500`, and the Completed History table can render up to 500 filtered rows while Current Output Status keeps its 250-row display cap.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/table.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_cross_page.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_large_table_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0625-008.json",
+    "tests/python/desktop/test_application_facade_web_static_cross_page.py",
+    "tests/webview/test_webview_browser_large_table_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "python -m unittest tests.python.desktop.test_application_facade_web_static_cross_page -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_large_table_smoke -q - passed",
+    "refresh_summaries --check --paths app.js completed/table.js test_application_facade_web_static_cross_page.py test_webview_browser_large_table_smoke.py - passed",
+    "validate_changes - passed",
+    "validate_changes --require-worktree-coverage - failed: 11 unrelated generated files were not covered by any unreleased change packet"
+  ],
+  "rollback_plan": "Restore the completed refresh request to `/api/completed?limit=100`, change the Completed History render limit back to 250, and revert the updated static/browser-smoke assertions.",
+  "related_changes": [],
+  "notes": "Raise default completed refresh history request from 100 rows to 500 rows.\nIncrease Completed History table render window to 500 rows while keeping Current Output Status capped at 250 rows.\nUpdate static WebView assertion for the 500-row completed history refresh request.\nUpdate large-table smoke expectation so Completed History renders more than the 250-row overview cap.\nRefresh generated summary for the completed refresh limit change.\nRefresh generated summary for the Completed History table render limit change.\nRefresh generated summary for the updated static WebView assertion.\nRefresh generated summary for the large-table smoke expectation update."
+}

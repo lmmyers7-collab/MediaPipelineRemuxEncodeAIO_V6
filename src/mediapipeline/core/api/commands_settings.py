@@ -258,6 +258,19 @@ class LocalApiSettingsCommandPayloadMixin:
         elif payload.get("ok"):
             data = dict(payload.get("data") or {})
             data["reloaded"] = False
+            data["reload_config_digest"] = ""
+            data["reload_verification_digest"] = ""
+            data["reload_config_verified"] = False
+            verification = dict(data.get("save_verification") or {})
+            verification.update(
+                {
+                    "reload_config_digest": "",
+                    "reload_verification_digest": "",
+                    "verified_from_reload": False,
+                    "verification_reason": "Backend reload function is not configured.",
+                }
+            )
+            data["save_verification"] = verification
             warnings = list(payload.get("warnings") or [])
             warnings.append(
                 "Settings were written to disk but the backend reload function is not configured. "
@@ -326,6 +339,19 @@ class LocalApiSettingsCommandPayloadMixin:
         elif payload.get("ok"):
             data = dict(payload.get("data") or {})
             data["reloaded"] = False
+            data["reload_config_digest"] = ""
+            data["reload_verification_digest"] = ""
+            data["reload_config_verified"] = False
+            verification = dict(data.get("save_verification") or {})
+            verification.update(
+                {
+                    "reload_config_digest": "",
+                    "reload_verification_digest": "",
+                    "verified_from_reload": False,
+                    "verification_reason": "Backend reload function is not configured.",
+                }
+            )
+            data["save_verification"] = verification
             warnings = list(payload.get("warnings") or [])
             warnings.append(
                 "Settings were written to disk but the backend reload function is not configured. "

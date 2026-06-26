@@ -35,7 +35,7 @@ from mediapipeline.desktop.network.coordinator_queue import (
     _coerce_record_priority,
 )
 from mediapipeline.desktop.network.worker import WorkerDispatcher
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
 class _FakeCoordinatorDispatcher:
@@ -376,17 +376,17 @@ class RunningWorkerSettingsHotApplyTests(unittest.TestCase):
                 }
             }
             path_map = json.dumps({r"C:\Media": r"\\SERVER\Media"})
+            request = {
+                "changes": {
+                    "WorkerCoordinatorUrl": "http://new-coordinator.test:7830",
+                    "WorkerAuthToken": "new-token",
+                    "WorkerSourcePathMap": path_map,
+                },
+            }
 
             result = facade.save_settings_patch(
                 resolved,
-                {
-                    "changes": {
-                        "WorkerCoordinatorUrl": "http://new-coordinator.test:7830",
-                        "WorkerAuthToken": "new-token",
-                        "WorkerSourcePathMap": path_map,
-                    },
-                    "confirm_save": True,
-                },
+                {**facade.settings_patch_request_with_review_confirmation(resolved, request), "confirm_save": True},
             )
 
         self.assertTrue(result.ok)

@@ -40,6 +40,7 @@ class WebViewApiClientSmokeTests(unittest.TestCase):
 
             const context = {
               console,
+              URL,
               setTimeout,
               clearTimeout,
               AbortController,
@@ -93,6 +94,23 @@ class WebViewApiClientSmokeTests(unittest.TestCase):
               }
               if (context.MEDIA_PIPELINE_BOOTSTRAP.shellSurface !== "webview") {
                 throw new Error("bootstrap token scrubber removed non-secret bootstrap fields");
+              }
+              if (client.apiBase !== "http://127.0.0.1:8765") {
+                throw new Error(`API base was not normalized to the loopback origin: ${client.apiBase}`);
+              }
+
+              const fetchCallCountBeforeRejectedPaths = fetchCalls.length;
+              await requireRejects(client.apiGet("https://example.invalid/api/health"), [
+                "API path must be a local /api/ route",
+              ]);
+              await requireRejects(client.apiGet("//example.invalid/api/health"), [
+                "API path must be a local /api/ route",
+              ]);
+              await requireRejects(client.apiPost("/assets/app.js", { unsafe: true }), [
+                "API path must be a local /api/ route",
+              ]);
+              if (fetchCalls.length !== fetchCallCountBeforeRejectedPaths) {
+                throw new Error("API client called fetch for a rejected route");
               }
 
               enqueueResponse({ ok: true, status: 200, body: "<html>not-json</html>" });

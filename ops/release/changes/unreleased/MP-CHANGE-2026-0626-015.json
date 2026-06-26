@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0626-015",
+  "title": "Retry locked progress saves",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Progress JSON saves now retry the final atomic replace when a short-lived reader lock blocks pipeline_progress.json.",
+  "reason": "The WebView diagnostics/log polling path can briefly hold pipeline_progress.json open while FFmpeg progress writes try to replace it. On Windows this raises a sharing violation and produced repeated 'Failed to save progress' warnings during active encodes.",
+  "affected_areas": [
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "A transient reader lock on pipeline_progress.json caused Save-Progress to immediately fail, mark progress persistence unhealthy, and log 'Failed to save progress' even though the file became writable moments later.",
+  "behavior_after": "Save-Progress keeps the atomic File.Replace/Move behavior but retries briefly before reporting failure, so normal WebView polling no longer turns short reader contention into progress-save warnings.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/status/progress_state.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1.md",
+    "ops/pipeline/engine/status/progress_state.ps1",
+    "ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-015.json"
+  ],
+  "tests_added": [
+    "Invoke-ProgressStateTelemetryChecks.ps1 covers Save-Progress retrying through a temporary reader lock."
+  ],
+  "manual_validation": [
+    "PASS: reproduced pre-fix Save-Progress failure with a temporary reader lock: File.Replace reported 'The process cannot access the file because it is being used by another process.'",
+    "PASS: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1",
+    "PASS: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-FFmpegProgressChecks.ps1",
+    "PASS: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Unit/Invoke-PipelineProcessingSourceProbeChecks.ps1",
+    "PASS: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoLogo -NoProfile -ExecutionPolicy Bypass -File ops/pipeline/tests/Invoke-ReliabilityRegressionChecks.ps1",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/status/progress_state.ps1 ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths ops/pipeline/engine/status/progress_state.ps1 ops/pipeline/tests/Unit/Invoke-ProgressStateTelemetryChecks.ps1",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes",
+    "FAIL unrelated/pre-existing: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage reports 11 uncovered generated files outside this change.",
+    "INFO: ops/pipeline/tests/Invoke-UnitChecks.ps1 is not present in this checkout, despite the validation runbook naming it.",
+    "INFO: ops/pipeline/tests/Unit/Invoke-RobocopyProgressTelemetryChecks.ps1 failed before exercising this change because its harness resolves the repo root as .../ops and looks for .../ops/ops/pipeline/engine/storage/disk.ps1."
+  ],
+  "rollback_plan": "Remove Move-ProgressFileIntoPlace/Get-ProgressSaveRetryDelaysMs, restore the direct File.Replace/Move call in Save-Progress, and remove the reader-lock regression from Invoke-ProgressStateTelemetryChecks.ps1.",
+  "related_changes": [],
+  "notes": "Retry atomic progress JSON replacement through transient reader locks.\nCover Save-Progress retry behavior during a transient reader lock.\nRefresh generated summary for progress-state retry helper.\nRefresh generated summary for progress-state regression check."
+}

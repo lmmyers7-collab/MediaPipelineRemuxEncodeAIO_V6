@@ -20,7 +20,11 @@ def resolve_paths_for_service(service: PathResolutionServiceProtocol, pipeline_p
         powershell_host=service.resolve_powershell_host(),
     )
 
-    config_data = service.load_config_data(resolved.config_path, resolved.powershell_host)
+    authority_loader = getattr(service, "load_settings_authority", None)
+    if callable(authority_loader):
+        config_data = authority_loader(resolved.config_path, resolved.powershell_host)
+    else:
+        config_data = service.load_config_data(resolved.config_path, resolved.powershell_host)
     resolved.config_data = config_data
     metadata_getter = getattr(service, "settings_store_metadata", None)
     if callable(metadata_getter):

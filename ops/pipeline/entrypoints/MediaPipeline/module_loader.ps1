@@ -50,10 +50,30 @@ $engineModulePaths = @{
     'DynamicHdr.ps1'             = Join-Path $repoRootForModules 'ops\pipeline\engine\process\dynamic_hdr.ps1'
     'EncoderDescriptors.ps1'     = Join-Path $repoRootForModules 'ops\pipeline\engine\decide\encoder_descriptors.ps1'
     'EncodePolicy.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\decide\encode_policy.ps1'
+    'EncodeMux.ps1'              = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_mux.ps1'
     'ExecutableResolution.ps1'   = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\executable_resolution.ps1'
     'FailureCodes.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\shared\failure_codes.ps1'
     'FailureState.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\failures\failure_state.ps1'
     'FfmpegProgress.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\process\ffmpeg_progress.ps1'
+    'EncodeContext.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_context.ps1'
+    'EncodePreflight.ps1'        = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_preflight.ps1'
+    'EncodeAttemptPlan.ps1'      = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_attempt_plan.ps1'
+    'EncodeCommandBuilder.ps1'   = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_command_builder.ps1'
+    'EncodeExecution.ps1'        = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_execution.ps1'
+    'EncodeFallback.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_fallback.ps1'
+    'EncodeVerification.ps1'     = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_verification.ps1'
+    'EncodeSizeGuard.ps1'        = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_size_guard.ps1'
+    'EncodePublish.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_publish.ps1'
+    'EncodeOrchestrator.ps1'     = Join-Path $repoRootForModules 'ops\pipeline\engine\process\encode_orchestrator.ps1'
+    'RemuxContext.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_context.ps1'
+    'RemuxPreflight.ps1'         = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_preflight.ps1'
+    'RemuxSubtitlePlan.ps1'      = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_subtitle_plan.ps1'
+    'RemuxFfmpegAvStage.ps1'     = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_ffmpeg_av_stage.ps1'
+    'RemuxMkvmergeArgs.ps1'      = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_mkvmerge_args.ps1'
+    'RemuxMkvmergeStage.ps1'     = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_mkvmerge_stage.ps1'
+    'RemuxVerification.ps1'      = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_verification.ps1'
+    'RemuxPublish.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_publish.ps1'
+    'RemuxOrchestrator.ps1'      = Join-Path $repoRootForModules 'ops\pipeline\engine\process\remux_orchestrator.ps1'
     'FileOverrides.ps1'          = Join-Path $repoRootForModules 'ops\pipeline\engine\queue\file_overrides.ps1'
     'FolderPolicy.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\policy\folder_policy.ps1'
     'LibraryIndex.ps1'           = Join-Path $repoRootForModules 'ops\pipeline\engine\library\library_index.ps1'
@@ -92,7 +112,7 @@ $engineModulePaths = @{
 }
 # Documented topological load order. Must name exactly the modules in
 # $engineModulePaths above; the contract check below fails fast on any drift.
-$engineModuleLoadOrder = @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncoderDescriptors.ps1', 'EncodePolicy.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'QualityVerify.ps1', 'DynamicHdr.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'FileProcessor.ps1', 'WorkerResult.ps1', 'PipelineEngine.ps1')
+$engineModuleLoadOrder = @('Logging.ps1', 'ConfigGetters.ps1', 'RuntimeConfig.ps1', 'ConfigKeys.ps1', 'ExecutableResolution.ps1', 'TempCleanup.ps1', 'PathHelpers.ps1', 'MediaConstants.ps1', 'ShowOverrides.ps1', 'Versioning.ps1', 'FailureCodes.ps1', 'ConfigSchema.ps1', 'StateStore.ps1', 'Routing.ps1', 'EncoderDescriptors.ps1', 'EncodePolicy.ps1', 'EncodeMux.ps1', 'NativeProcessContracts.ps1', 'Native.ps1', 'Disk.ps1', 'MediaProbe.ps1', 'QualityVerify.ps1', 'DynamicHdr.ps1', 'FolderPolicy.ps1', 'FileOverrides.ps1', 'Audio.ps1', 'Subtitles.ps1', 'ProgressState.ps1', 'FfmpegProgress.ps1', 'EncodeContext.ps1', 'EncodePreflight.ps1', 'EncodeAttemptPlan.ps1', 'EncodeCommandBuilder.ps1', 'EncodeExecution.ps1', 'EncodeFallback.ps1', 'EncodeVerification.ps1', 'EncodeSizeGuard.ps1', 'EncodePublish.ps1', 'EncodeOrchestrator.ps1', 'RemuxContext.ps1', 'RemuxPreflight.ps1', 'RemuxSubtitlePlan.ps1', 'RemuxFfmpegAvStage.ps1', 'RemuxMkvmergeArgs.ps1', 'RemuxMkvmergeStage.ps1', 'RemuxVerification.ps1', 'RemuxPublish.ps1', 'RemuxOrchestrator.ps1', 'QueuePlan.ps1', 'Naming.ps1', 'OutputPathPlanning.ps1', 'SourceIdentity.ps1', 'ScratchCopy.ps1', 'LocalWorkerSlots.ps1', 'FailureState.ps1', 'Sidecar.ps1', 'Publish.Result.ps1', 'Publish.Partial.ps1', 'Publish.Sidecars.ps1', 'PendingManifestStore.ps1', 'PendingTransactions.ps1', 'PendingPush.ps1', 'PendingPublishIndex.ps1', 'PublishCompletion.ps1', 'LibraryIndex.ps1', 'PipelineProcessing.ps1', 'FileProcessor.ps1', 'WorkerResult.ps1', 'PipelineEngine.ps1')
 $modulesMissingFromManifest = @($engineModuleLoadOrder | Where-Object { -not $engineModulePaths.ContainsKey($_) })
 $modulesMissingFromLoadOrder = @($engineModulePaths.Keys | Where-Object { $engineModuleLoadOrder -notcontains $_ })
 if ($modulesMissingFromManifest.Count -gt 0 -or

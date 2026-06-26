@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0625-011",
+  "title": "Enforce subtitle conversion language policy",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-25",
+  "date_completed": "2026-06-25",
+  "summary": "Enforced configured subtitle language policies so SDH/forced/supplemental metadata cannot retain, convert, or keep subtitle tracks outside the configured language lists.",
+  "reason": "A Hobbit encode attempted German and Italian BDPGS OCR even though the active BDPGS OCR language list was eng/en/und. The same metadata-language bypass needed to be closed consistently for ASS, TX3G, BDPGS, and VobSub subtitle routing.",
+  "affected_areas": [
+    "api",
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "Non-ASS subtitle SDH/forced metadata could override the language policy, and some routing paths could still keep or convert entries whose language-policy evidence was false.",
+  "behavior_after": "Subtitle tracks must match the configured language policy before retention, keep, or conversion routing. ASS, TX3G, BDPGS, and VobSub tracks outside the configured languages are dropped even when marked SDH, forced, or supplemental.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/engine/subtitles/routing_decisions.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1.md",
+    "docs/generated/summaries/src/mediapipeline/core/api/file_overrides/selectors.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_file_override_tracks.py.md",
+    "ops/pipeline/engine/subtitles/routing_decisions.ps1",
+    "ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0625-011.json",
+    "src/mediapipeline/core/api/file_overrides/selectors.py",
+    "tests/python/desktop/test_file_override_tracks.py"
+  ],
+  "tests_added": [
+    "ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1 covers non-policy forced ASS drop, non-policy SDH/forced TX3G/BDPGS/VobSub drop before conversion, and policy-matched BDPGS conversion eligibility.",
+    "tests/python/desktop/test_file_override_tracks.py covers resolved file-override drawer actions for non-policy SDH/forced ASS, TX3G, BDPGS, and VobSub tracks."
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_file_override_tracks.FileOverrideTrackMetadataTests.test_effective_payload_resolved_actions_report_subtitle_language_policy_drop -q -> passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_file_override_tracks -q -> passed, 43 tests",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-SubtitleBuilderDecisionChecks.ps1 -> passed after global strict subtitle language-policy update",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/engine/subtitles/routing_decisions.ps1 ops/pipeline/tests/Unit/Invoke-SubtitleBuilderDecisionChecks.ps1 ops/pipeline/tests/Legacy/Invoke-LegacyDesktopReliabilityRegressionChecks.ps1 -> Summaries: 1 written, 2 unchanged.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/api/file_overrides/selectors.py tests/python/desktop/test_file_override_tracks.py -> Summaries: 1 written, 1 unchanged.",
+    "git diff --check on changed subtitle policy, resolver, tests, summaries, and change packet -> passed with Git line-ending normalization warnings only.",
+    "powershell -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Legacy\\Invoke-LegacyDesktopReliabilityRegressionChecks.ps1 -> blocked before subtitle assertions by existing missing deployability checklist lookup under ops\\docs.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage -> failed only because 15 unrelated dirty files are not covered by any unreleased change packet."
+  ],
+  "rollback_plan": "Revert the routing_decisions.ps1 strict language-policy guard and associated regression assertions, then refresh the generated summaries.",
+  "related_changes": [],
+  "notes": "Enforce BDPGS OCR language list before SDH/forced metadata can retain a track.\nExpanded the same strict language policy to ASS, TX3G, and VobSub routing.\nAdd regression coverage for non-policy SDH/forced subtitle drops before conversion.\nRefresh generated summary for subtitle routing policy change.\nRefresh generated summary for subtitle policy regression test.\nUpdate legacy subtitle policy assertions for strict configured-language behavior.\nRefresh generated summary for legacy strict subtitle policy assertions.\nAlign file-override resolved subtitle actions with strict per-format language policy.\nCover SDH/forced subtitle drops in resolved file-override actions for ASS, TX3G, BDPGS, and VobSub.\nRefresh generated summary for strict file-override subtitle resolver.\nRefresh generated summary for resolved subtitle action policy tests."
+}

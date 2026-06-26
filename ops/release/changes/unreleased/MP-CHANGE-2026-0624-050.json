@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0624-050",
+  "title": "Fix settings review library profile diff",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Settings Save review now renders structured LibraryProfiles values with profile/override summaries and before/after override detail instead of JavaScript object stringification.",
+  "reason": "LibraryProfiles save previews could show [object Object] for both current and new values, hiding nested overrides such as SizeGuardMode=fallback_remux.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The save review dialog formatted LibraryProfiles arrays through generic array join logic, so arrays of profile objects displayed as [object Object], [object Object].",
+  "behavior_after": "The save review dialog summarizes LibraryProfiles profile counts, IDs/names, explicit overrides, and per-profile deltas; SizeGuardMode=fallback_remux is visible before confirmation.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_settings_launch_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-050.json",
+    "tests/webview/test_webview_browser_settings_launch_smoke.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_settings_launch_smoke.py covers LibraryProfiles save-review rendering for SizeGuardMode=fallback_remux and rejects [object Object].",
+    "tests/webview/test_webview_settings_libraries.py adds static coverage for LibraryProfiles save-review formatter wiring."
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/settingsView.js: passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_phase4e_library_inheritance_display_and_reset_wiring_is_backend_evidence_based -q: passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_settings_launch_smoke.WebViewBrowserSettingsLaunchSmoke.test_real_browser_hands_staged_settings_patch_to_launch_without_saving -q: passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/settingsView.js tests/webview/test_webview_browser_settings_launch_smoke.py tests/webview/test_webview_settings_libraries.py: passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes: passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage: failed because 22 pre-existing dirty files outside this packet are not listed in any unreleased change packet"
+  ],
+  "rollback_plan": "Revert the settingsView.js LibraryProfiles review formatter additions and the two focused test updates; no settings persistence or media-policy code was changed.",
+  "related_changes": [],
+  "notes": "Render structured LibraryProfiles values and override deltas in the settings save review dialog.\nCover LibraryProfiles save-review rendering for SizeGuardMode fallback_remux in browser smoke.\nRefresh generated summary for browser settings launch smoke after LibraryProfiles review assertion.\nRefresh generated summary for settingsView.js after save-review rendering change.\nRefresh generated summary for settings library static tests after formatter coverage update.\nAdd static coverage for LibraryProfiles save-review formatter wiring."
+}

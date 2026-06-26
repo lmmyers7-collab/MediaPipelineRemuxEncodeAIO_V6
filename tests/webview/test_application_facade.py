@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from tests.python.desktop.test_application_facade import (
+from tests.python.desktop.application_facade_test_support import (
     DummyFacadeService,
     DummyProc,
     DummyWorkflowFacadeService,

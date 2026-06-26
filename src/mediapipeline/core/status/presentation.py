@@ -29,6 +29,7 @@ from mediapipeline.core.status.presentation_lifecycle import (
 from mediapipeline.core.status.presentation_progress import (
     CURRENT_WORK_SCHEMA_VERSION,
     build_current_work,
+    build_stale_current_work,
     display_current_file,
     display_current_file_from_progress,
 )
@@ -38,6 +39,7 @@ __all__ = [
     "activity_from_pipeline_events",
     "build_current_activity",
     "build_current_work",
+    "build_stale_current_work",
     "current_work_item_label",
     "current_work_library_label",
     "current_work_percent_label",

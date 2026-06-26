@@ -669,6 +669,39 @@ function Format-SkipSummary {
     return '(none)'
 }
 
+function Get-ProgressSaveRetryDelaysMs {
+    if ($script:ProgressSaveRetryDelaysMs -is [array] -and $script:ProgressSaveRetryDelaysMs.Count -gt 0) {
+        return @($script:ProgressSaveRetryDelaysMs | ForEach-Object { [math]::Max(0, [int]$_) })
+    }
+    return @(25, 50, 100, 200, 400)
+}
+
+function Move-ProgressFileIntoPlace {
+    param(
+        [Parameter(Mandatory)] [string]$TempPath,
+        [Parameter(Mandatory)] [string]$DestinationPath,
+        [Parameter(Mandatory)] [string]$BackupPath
+    )
+
+    $delays = @(Get-ProgressSaveRetryDelaysMs)
+    $maxAttempts = $delays.Count + 1
+    for ($attempt = 0; $attempt -lt $maxAttempts; $attempt++) {
+        try {
+            if ([System.IO.File]::Exists($DestinationPath)) {
+                [System.IO.File]::Replace($TempPath, $DestinationPath, $BackupPath, $true)
+                Remove-Item -LiteralPath $BackupPath -Force -ErrorAction SilentlyContinue
+            } else {
+                [System.IO.File]::Move($TempPath, $DestinationPath)
+            }
+            return
+        } catch {
+            if ($attempt -ge ($maxAttempts - 1)) { throw }
+            $delay = [int]$delays[$attempt]
+            if ($delay -gt 0) { Start-Sleep -Milliseconds $delay }
+        }
+    }
+}
+
 function Save-Progress {
     param([string]$Status = $script:pipelineStatus)
     $tmp = $null
@@ -739,12 +772,9 @@ function Save-Progress {
         # Move-Item on SMB can leave a window where the file doesn't exist,
         # causing the UI poll to get FileNotFoundException or a zero-byte read.
         # ignoreMetadataErrors=$true prevents ACL/ownership issues on some shares.
-        if ([System.IO.File]::Exists($ProgressFile)) {
-            [System.IO.File]::Replace($tmp, $ProgressFile, $backup, $true)
-            Remove-Item -LiteralPath $backup -Force -ErrorAction SilentlyContinue
-        } else {
-            [System.IO.File]::Move($tmp, $ProgressFile)
-        }
+        # WebView diagnostics polls can briefly hold the JSON open without
+        # FILE_SHARE_DELETE, so keep the atomic swap but tolerate short locks.
+        Move-ProgressFileIntoPlace -TempPath $tmp -DestinationPath $ProgressFile -BackupPath $backup
         $script:ProgressWriteFailures = 0
         $script:ProgressPersistenceHealthy = $true
         return $true

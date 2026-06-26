@@ -7,6 +7,9 @@
   let scheduleEditorPreviewSignature = "";
   let scheduleEditorDayClipboard = null;
   let scheduleEditorBusy = "";
+  let scheduleEditorDrag = null;
+  let scheduleEditorSuppressClick = false;
+  let scheduleEditorDragEventsInitialized = false;
   const SCHEDULE_DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
   const SCHEDULE_BLOCKS_PER_DAY = 48;
 
@@ -650,6 +653,23 @@
     return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
   }
 
+  function scheduleBlockCompactLabel(index) {
+    const bounded = Math.max(0, Math.min(SCHEDULE_BLOCKS_PER_DAY, Number(index) || 0));
+    const hour24 = bounded >= SCHEDULE_BLOCKS_PER_DAY ? 0 : Math.floor(bounded / 2);
+    const minute = bounded % 2 ? 30 : 0;
+    const suffix = hour24 >= 12 ? "PM" : "AM";
+    const hour12 = hour24 % 12 || 12;
+    return `${hour12}:${String(minute).padStart(2, "0")} ${suffix}`;
+  }
+
+  function scheduleTickLabel(index) {
+    const hour = Math.floor(Math.max(0, index) / 2);
+    if (hour === 0) return "12a";
+    if (hour < 12) return `${hour}a`;
+    if (hour === 12) return "12p";
+    return `${hour - 12}p`;
+  }
+
   function scheduleBlockRangeLabel(index) {
     return `${scheduleBlockLabel(index)} - ${scheduleBlockLabel(index + 1)}`;
   }
@@ -724,6 +744,24 @@
     return windows.join(", ");
   }
 
+  function scheduleCompactWindowsTextFromBlocks(blockValues) {
+    const blocks = Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => Boolean(blockValues?.[index]));
+    const selected = blocks.filter(Boolean).length;
+    if (!selected) return "No windows selected";
+    if (selected === SCHEDULE_BLOCKS_PER_DAY) return "All day";
+    const windows = [];
+    let start = null;
+    blocks.concat([false]).forEach((allowed, index) => {
+      if (allowed && start === null) {
+        start = index;
+      } else if (!allowed && start !== null) {
+        windows.push(`${scheduleBlockCompactLabel(start)}-${scheduleBlockCompactLabel(index)}`);
+        start = null;
+      }
+    });
+    return windows.join(", ");
+  }
+
   function scheduleResultGridBlocks(grid, day) {
     const raw = grid && typeof grid === "object" ? grid[day] : null;
     return Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => Boolean(Array.isArray(raw) ? raw[index] : false));
@@ -791,8 +829,8 @@
   function scheduleEditorSummaryText(text) {
     const value = String(text || "").trim();
     if (!value) return "No windows selected";
-    if (["all", "all day", "*"].includes(value.toLowerCase())) return "All day";
-    return value;
+    const blocks = scheduleDraftBlocksFromText(value);
+    return scheduleCompactWindowsTextFromBlocks(blocks);
   }
 
   function scheduleEditorCountText(blockValues) {
@@ -825,6 +863,10 @@
     const enabled = Boolean(selected);
     button.dataset.selected = enabled ? "true" : "false";
     button.setAttribute("aria-pressed", enabled ? "true" : "false");
+    button.setAttribute(
+      "aria-label",
+      `${button.title || "Schedule time block"} ${enabled ? "allowed" : "blocked"}`
+    );
     button.classList.toggle("is-selected", enabled);
   }
 
@@ -854,6 +896,60 @@
       values[index] = !values[index];
     }
     scheduleApplyEditorDayBlocks(day, values);
+  }
+
+  function scheduleHandleEditorBlockClick(day, index) {
+    if (scheduleEditorSuppressClick) {
+      scheduleEditorSuppressClick = false;
+      return;
+    }
+    scheduleToggleEditorBlock(day, index);
+  }
+
+  function scheduleEndEditorDrag() {
+    scheduleEditorDrag = null;
+  }
+
+  function scheduleApplyEditorDragRange(day, index) {
+    if (!scheduleEditorDrag || scheduleEditorBusy) return;
+    if (scheduleEditorDrag.day !== day) return;
+    const start = Math.min(scheduleEditorDrag.startIndex, index);
+    const end = Math.max(scheduleEditorDrag.startIndex, index);
+    const values = scheduleEditorDrag.baseBlocks.slice();
+    for (let block = start; block <= end && block < SCHEDULE_BLOCKS_PER_DAY; block += 1) {
+      values[block] = scheduleEditorDrag.targetSelected;
+    }
+    scheduleApplyEditorDayBlocks(day, values);
+  }
+
+  function scheduleStartEditorDrag(day, index, event) {
+    if (scheduleEditorBusy) return;
+    if (event && typeof event.preventDefault === "function") event.preventDefault();
+    const values = scheduleEditorBlocksForDay(day);
+    const targetSelected = !Boolean(values[index]);
+    scheduleEditorDrag = {
+      day,
+      startIndex: index,
+      targetSelected,
+      baseBlocks: values,
+    };
+    scheduleEditorSuppressClick = true;
+    scheduleApplyEditorDragRange(day, index);
+  }
+
+  function scheduleContinueEditorDrag(day, index) {
+    scheduleApplyEditorDragRange(day, index);
+  }
+
+  function initScheduleEditorDragEvents() {
+    if (scheduleEditorDragEventsInitialized) return;
+    scheduleEditorDragEventsInitialized = true;
+    const targets = [window, document].filter((target) => target && typeof target.addEventListener === "function");
+    targets.forEach((target) => {
+      target.addEventListener("pointerup", scheduleEndEditorDrag);
+      target.addEventListener("mouseup", scheduleEndEditorDrag);
+      target.addEventListener("blur", scheduleEndEditorDrag);
+    });
   }
 
   function scheduleClearEditorDay(day) {
@@ -1228,7 +1324,11 @@
       const row = document.createElement("tr");
       row.dataset.status = item.draft ? "ready" : "normal";
       const dayCell = document.createElement("td");
-      dayCell.textContent = item.day;
+      dayCell.className = "schedule-editor-day-cell";
+      const dayLabel = document.createElement("strong");
+      dayLabel.className = "schedule-editor-day-label";
+      dayLabel.textContent = item.day;
+      dayCell.appendChild(dayLabel);
       const inputCell = document.createElement("td");
       const blockShell = document.createElement("div");
       blockShell.className = "schedule-block-picker";
@@ -1240,6 +1340,61 @@
       const count = document.createElement("span");
       count.className = "schedule-block-count";
       count.id = `schedule-editor-${dayKey}-count`;
+      toolbar.append(summary, count);
+      const input = document.createElement("input");
+      input.id = `schedule-editor-${dayKey}-windows`;
+      input.type = "hidden";
+      input.autocomplete = "off";
+      input.spellcheck = false;
+      input.placeholder = "Generated from selected 30-minute blocks";
+      input.value = item.draft;
+      input.addEventListener("input", () => {
+        scheduleApplyEditorDayBlocks(item.day, scheduleDraftBlocksFromText(input.value));
+      });
+      const ticks = document.createElement("div");
+      ticks.className = "schedule-time-ticks";
+      ticks.setAttribute("aria-hidden", "true");
+      for (let index = 0; index < SCHEDULE_BLOCKS_PER_DAY; index += 6) {
+        const tick = document.createElement("span");
+        tick.className = "schedule-time-tick";
+        tick.style.gridColumn = `${index + 1} / span 4`;
+        tick.textContent = scheduleTickLabel(index);
+        ticks.appendChild(tick);
+      }
+      const grid = document.createElement("div");
+      grid.className = "schedule-block-grid schedule-time-rail";
+      grid.id = `schedule-editor-${dayKey}-blocks`;
+      grid.setAttribute("role", "group");
+      grid.setAttribute("aria-label", `${item.day} 30-minute schedule timeline`);
+      Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "schedule-block-button";
+        button.id = `schedule-editor-${dayKey}-block-${index}`;
+        button.title = `${item.day} ${scheduleBlockRangeLabel(index)}`;
+        button.dataset.scheduleDay = item.day;
+        button.dataset.blockIndex = String(index);
+        button.addEventListener("pointerdown", (event) => scheduleStartEditorDrag(item.day, index, event));
+        button.addEventListener("pointerenter", () => scheduleContinueEditorDrag(item.day, index));
+        button.addEventListener("click", () => scheduleHandleEditorBlockClick(item.day, index));
+        grid.appendChild(button);
+        return button;
+      });
+      blockShell.append(toolbar, input, ticks, grid);
+      inputCell.appendChild(blockShell);
+      const currentCell = document.createElement("td");
+      currentCell.className = "schedule-block-current-cell";
+      const currentValue = document.createElement("div");
+      currentValue.className = "schedule-block-current";
+      const currentLabel = document.createElement("span");
+      currentLabel.className = "metric-label";
+      currentLabel.textContent = "Saved";
+      const currentText = document.createElement("strong");
+      currentText.className = "schedule-block-current-value";
+      currentText.textContent = String(item.current || "").trim().toLowerCase() === "none"
+        ? "None"
+        : scheduleEditorSummaryText(item.current || "");
+      currentValue.append(currentLabel, currentText);
       const actions = document.createElement("div");
       actions.className = "schedule-block-actions";
       const clearDay = document.createElement("button");
@@ -1268,39 +1423,7 @@
       pasteDay.textContent = "Paste Day";
       pasteDay.addEventListener("click", () => schedulePasteEditorDay(item.day));
       actions.append(clearDay, allowDay, copyDay, pasteDay);
-      toolbar.append(summary, count, actions);
-      const input = document.createElement("input");
-      input.id = `schedule-editor-${dayKey}-windows`;
-      input.type = "hidden";
-      input.autocomplete = "off";
-      input.spellcheck = false;
-      input.placeholder = "Generated from selected 30-minute blocks";
-      input.value = item.draft;
-      input.addEventListener("input", () => {
-        scheduleApplyEditorDayBlocks(item.day, scheduleDraftBlocksFromText(input.value));
-      });
-      const grid = document.createElement("div");
-      grid.className = "schedule-block-grid";
-      grid.id = `schedule-editor-${dayKey}-blocks`;
-      grid.setAttribute("role", "group");
-      grid.setAttribute("aria-label", `${item.day} 30-minute schedule blocks`);
-      Array.from({ length: SCHEDULE_BLOCKS_PER_DAY }, (_, index) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className = "schedule-block-button";
-        button.id = `schedule-editor-${dayKey}-block-${index}`;
-        button.textContent = scheduleBlockLabel(index);
-        button.title = `${item.day} ${scheduleBlockRangeLabel(index)}`;
-        button.dataset.scheduleDay = item.day;
-        button.dataset.blockIndex = String(index);
-        button.addEventListener("click", () => scheduleToggleEditorBlock(item.day, index));
-        grid.appendChild(button);
-        return button;
-      });
-      blockShell.append(toolbar, input, grid);
-      inputCell.appendChild(blockShell);
-      const currentCell = document.createElement("td");
-      currentCell.textContent = item.current || "None";
+      currentCell.append(currentValue, actions);
       row.append(dayCell, inputCell, currentCell);
       tbody.appendChild(row);
       scheduleApplyEditorDayBlocks(item.day, scheduleDraftBlocksFromText(item.draft), { dirty: false });
@@ -1447,6 +1570,7 @@
   }
 
   function initScheduleViewEvents() {
+    initScheduleEditorDragEvents();
     const enabled = byId("schedule-editor-enabled");
     if (enabled) enabled.addEventListener("change", () => setScheduleEditorDirty(true));
     const load = byId("schedule-editor-load-current-button");

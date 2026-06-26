@@ -192,7 +192,20 @@ $tauriBackendContractText = Read-Text (Join-Path $tauriSrcRoot 'backend_contract
 $scheduleWatcherText = Read-Text (Join-Path $packageRoot 'application\schedule_stop_watcher.py')
 $ffmpegProgressText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\process\ffmpeg_progress.ps1')
 $nativeText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\shared\native.ps1')
-$remuxText = Read-Text (Join-Path $pipelineRoot 'entrypoints\MediaPipeline\remux.ps1')
+$remuxText = (@(
+        'entrypoints\MediaPipeline\remux.ps1',
+        'engine\process\remux_context.ps1',
+        'engine\process\remux_preflight.ps1',
+        'engine\process\remux_subtitle_plan.ps1',
+        'engine\process\remux_ffmpeg_av_stage.ps1',
+        'engine\process\remux_mkvmerge_args.ps1',
+        'engine\process\remux_mkvmerge_stage.ps1',
+        'engine\process\remux_verification.ps1',
+        'engine\process\remux_publish.ps1',
+        'engine\process\remux_orchestrator.ps1'
+    ) | ForEach-Object {
+        Read-Text (Join-Path $pipelineRoot $_)
+    }) -join "`n"
 $sidecarText = Read-Text (Join-Path $projectRoot 'ops\pipeline\engine\publish\sidecar.ps1')
 $releasePolicyText = Read-Text (Join-Path $projectRoot 'ops\scripts\release\release_policy.ps1')
 $reliabilityWrapperText = Read-Text (Join-Path $pipelineRoot 'tests\Invoke-ReliabilityRegressionChecks.ps1')

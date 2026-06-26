@@ -32,6 +32,10 @@ class QueuePreviewDto:
     movie_count_total: int = 0
     tv_count_total: int = 0
     source_count_total: int = 0
+    total_row_count: int = 0
+    shown_row_count: int = 0
+    row_limit: int = 0
+    rows_truncated: bool = False
     priority_count: int = 0
     runnable_count: int = 0
     completed_excluded_count: int = 0
@@ -228,6 +232,8 @@ class FailurePreviewDto:
     permanent_count: int = 0
     transient_count: int = 0
     retry_state: JsonMap = field(default_factory=dict)
+    resolution_summary: JsonMap = field(default_factory=dict)
+    resolution_groups: list[JsonMap] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
     schema_version: str = "desktop_failure_preview.v1"
 

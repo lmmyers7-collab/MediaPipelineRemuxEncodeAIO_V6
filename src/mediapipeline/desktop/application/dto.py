@@ -6,6 +6,28 @@ is copied from the new home so existing imports (including
 ``mediapipeline.core.kernel.dto`` directly; this shim is removed in the ADR-0013 Wave 6
 cleanup.
 """
+from mediapipeline.core.kernel.dto import (
+    AppSnapshotDto,
+    AuditPreviewDto,
+    CloseReadinessDto,
+    CommandResult,
+    CompletedPreviewDto,
+    DiagnosticsDto,
+    FailurePreviewDto,
+    HealthDto,
+    JsonMap,
+    MaintenanceWorkspaceDto,
+    NetworkWorkersDto,
+    PendingPublishPreviewDto,
+    PublishReconciliationDto,
+    QueuePreviewDto,
+    RenamePreviewDto,
+    ScheduleWorkspaceDto,
+    SettingsWorkspaceDto,
+    TelemetryDto,
+    json_safe,
+    split_summary_lines,
+)
 from mediapipeline.core.kernel import dto as _moved
 globals().update({_k: getattr(_moved, _k) for _k in dir(_moved) if not _k.startswith("__")})
 del _moved

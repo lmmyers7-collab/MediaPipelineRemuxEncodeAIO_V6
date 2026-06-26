@@ -1,0 +1,130 @@
+.panel {
+  margin-bottom: var(--space-5);
+  padding: var(--space-6);
+}
+
+.panel[data-panel-type="evidence"] {
+  background: var(--evidence-bg);
+  border-left: 3px solid var(--semantic-evidence-panel-border);
+}
+
+/* Interactive panels sit slightly closer to the operator than read-only evidence panels */
+.panel[data-panel-type="interactive"] {
+  border-left-color: var(--semantic-interactive-panel-border);
+  box-shadow: var(--shadow-2);
+}
+
+.panel[data-panel-subtype="evidence-tools"] {
+  border-left: 3px solid var(--semantic-interactive-panel-border);
+  box-shadow: var(--shadow-1);
+}
+
+.panel[data-panel-subtype="evidence-tools"] .panel-heading h2::after,
+.panel[data-panel-subtype="evidence-tools"] .panel-heading h3::after {
+  content: "evidence tools";
+  display: inline-block;
+  margin-left: var(--space-2);
+  color: var(--semantic-info-muted-text);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.panel[data-panel-type="status"] {
+  background: var(--grey-800);
+  border-left: 3px solid var(--semantic-info-accent);
+  box-shadow: var(--shadow-2);
+}
+
+body.evidence-hidden .panel[data-panel-type="evidence"]:not([data-evidence-toggle-exempt="true"]) {
+  display: none;
+}
+
+body.evidence-hidden .panel[data-panel-type="evidence"].is-attention-reveal:not([data-evidence-toggle-exempt="true"]) {
+  display: block;
+}
+
+/* ── Evidence panel "read-only" badge appended inline after the heading text ──
+   Adds a subtle chip to every evidence panel h2/h3 so operators know at a glance
+   that the panel cannot perform actions. Uses evidence purple in both themes. */
+.panel[data-panel-type="evidence"] .panel-heading h2::after,
+.panel[data-panel-type="evidence"] .panel-heading h3::after {
+  content: "evidence";
+  display: inline-block;
+  margin-left: var(--space-3);
+  padding: 1px var(--space-2);
+  border: 1px solid var(--semantic-evidence-panel-border);
+  border-radius: var(--radius-xs);
+  color: var(--semantic-evidence-panel-text);
+  font-size: var(--text-xs);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  text-transform: lowercase;
+  vertical-align: middle;
+}
+
+.report-triage-panel[data-panel-type="evidence"] > .panel-heading h2::after {
+  content: none;
+  display: none;
+}
+
+.panel-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  margin-bottom: var(--space-4);
+}
+
+/* ── Stage 16 #2: de-emphasised structural label (Sections 5, 6) ── */
+.panel-heading h2,
+.panel-heading h3 {
+  margin: 0;
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--grey-400);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.panel-subheading {
+  margin-top: var(--space-7);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--grey-700);
+}
+
+.panel-subheading h3 {
+  color: var(--grey-500);
+  font-size: var(--text-sm);
+}
+
+.output-overview-section {
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  background: var(--grey-850, var(--grey-800));
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-xs);
+}
+
+.output-overview-heading {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.output-overview-section-current .output-overview-heading h2,
+.output-overview-section-current .output-overview-heading h3 {
+  color: var(--semantic-info-muted-text);
+}
+
+.output-overview-section-history .output-overview-heading h2,
+.output-overview-section-history .output-overview-heading h3 {
+  color: var(--semantic-warning-text);
+}
+
+.output-overview-kicker {
+  margin: calc(var(--space-2) * -1) 0 var(--space-4);
+  color: var(--grey-300);
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}

@@ -19,9 +19,45 @@
     window.MEDIA_PIPELINE_BOOTSTRAP || {},
     window.MEDIA_PIPELINE_TAURI_BOOTSTRAP || {}
   );
-  const apiBase = bootstrap.apiBase || "";
+  const LOOPBACK_HOSTS = new Set(["localhost", "127.0.0.1", "::1", "[::1]"]);
+  const API_ROUTE_PREFIX = "/api/";
+  const apiBase = normalizeApiBase(bootstrap.apiBase || "");
   const token = bootstrap.token || "";
   const DEFAULT_GET_TIMEOUT_MS = 30000;
+
+  function normalizeApiBase(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    let parsed;
+    try {
+      parsed = new URL(text);
+    } catch (_error) {
+      throw new Error("API base must be a loopback Local API origin");
+    }
+    if (
+      parsed.protocol !== "http:" ||
+      !LOOPBACK_HOSTS.has(parsed.hostname.toLowerCase()) ||
+      parsed.pathname !== "/" ||
+      parsed.search ||
+      parsed.hash
+    ) {
+      throw new Error("API base must be a loopback Local API origin");
+    }
+    return parsed.origin;
+  }
+
+  function normalizeApiPath(path) {
+    const value = String(path || "").trim();
+    if (
+      !value.startsWith(API_ROUTE_PREFIX) ||
+      value.startsWith("//") ||
+      /^[A-Za-z][A-Za-z0-9+.-]*:/.test(value) ||
+      /[\r\n]/.test(value)
+    ) {
+      throw new Error("API path must be a local /api/ route");
+    }
+    return value;
+  }
 
   function bootstrapWithoutToken(value) {
     if (!value || typeof value !== "object") return {};
@@ -103,24 +139,26 @@
 
   async function apiGet(path, options = {}) {
     const timeoutMs = timeoutValue(options.timeoutMs, DEFAULT_GET_TIMEOUT_MS);
-    const response = await fetchWithTimeout(`${apiBase}${path}`, {
+    const requestPath = normalizeApiPath(path);
+    const response = await fetchWithTimeout(`${apiBase}${requestPath}`, {
       headers: apiHeaders(),
       cache: "no-store",
       credentials: "same-origin",
     }, timeoutMs);
-    return parseResponse(response, path);
+    return parseResponse(response, requestPath);
   }
 
   async function apiPost(path, payload, options = {}) {
     const timeoutMs = timeoutValue(options.timeoutMs, 0);
-    const response = await fetchWithTimeout(`${apiBase}${path}`, {
+    const requestPath = normalizeApiPath(path);
+    const response = await fetchWithTimeout(`${apiBase}${requestPath}`, {
       method: "POST",
       headers: apiHeaders({ "Content-Type": "application/json" }),
       cache: "no-store",
       credentials: "same-origin",
       body: JSON.stringify(payload || {}),
     }, timeoutMs);
-    return parseResponse(response, path);
+    return parseResponse(response, requestPath);
   }
 
   /**

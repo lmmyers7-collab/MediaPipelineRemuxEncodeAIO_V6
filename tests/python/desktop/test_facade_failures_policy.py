@@ -38,26 +38,33 @@ def _record(
     classification: str = "operator_required",
     stage: str = "encode",
     error_code: str = "ENCODE_FAILED",
+    retryable: str | None = None,
+    payload_updates: dict[str, object] | None = None,
 ) -> FailureRecord:
+    payload = {
+        "SourcePath": source_path,
+        "JobId": "job-123",
+        "CorrelationId": "run-456",
+        "Stage": stage,
+        "Reason": "Pipeline stage failed.",
+        "Classification": classification,
+        "ErrorCode": error_code,
+        "ArtifactPath": "C:/Reports/artifact.json",
+        "ReproPath": "C:/Reports/repro.txt",
+        "SuggestedAction": "Review manually.",
+        "SuggestedRename": "Movie (2024)",
+        "RecordedAt": "2026-05-07T22:00:00-04:00",
+        "RetryCount": "2",
+        "RetryLimit": "5",
+        "Escalated": "true",
+    }
+    if retryable is not None:
+        payload["Retryable"] = retryable
+    if payload_updates:
+        payload.update(payload_updates)
     return FailureRecord(
         source_json=Path(source_json),
-        payload={
-            "SourcePath": source_path,
-            "JobId": "job-123",
-            "CorrelationId": "run-456",
-            "Stage": stage,
-            "Reason": "Pipeline stage failed.",
-            "Classification": classification,
-            "ErrorCode": error_code,
-            "ArtifactPath": "C:/Reports/artifact.json",
-            "ReproPath": "C:/Reports/repro.txt",
-            "SuggestedAction": "Review manually.",
-            "SuggestedRename": "Movie (2024)",
-            "RecordedAt": "2026-05-07T22:00:00-04:00",
-            "RetryCount": "2",
-            "RetryLimit": "5",
-            "Escalated": "true",
-        },
+        payload=payload,
     )
 
 
@@ -102,8 +109,140 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(row["triage"]["severity"], "blocked")
         self.assertEqual(row["triage"]["plain_summary"], "Pipeline stage failed.")
         self.assertEqual(row["triage"]["suggested_fix"], "Review manually.")
+        self.assertFalse(row["evidence_details"]["structured"])
+        self.assertIn("No structured proof", row["evidence_details"]["summary_lines"][0])
         self.assertFalse(row["clear_error"]["available"])
         self.assertIn("could not be loaded", row["clear_error"]["unavailable_reason"])
+
+    def test_failure_record_row_lists_structured_video_stream_evidence(self) -> None:
+        record = _record(
+            stage="video-stream-policy",
+            error_code="SOURCE_VIDEO_STREAMS_UNVETTED",
+            payload_updates={
+                "video_stream_evidence": {
+                    "schema_version": "pipeline_failure_video_stream_evidence.v1",
+                    "route": "encode",
+                    "source_real_video_stream_count": 2,
+                    "source_attached_picture_stream_count": 1,
+                    "source_streams": [
+                        {"source": "source", "index": 0, "ordinal": 0, "codec": "hevc", "width": 1920, "height": 1080},
+                        {"source": "source", "index": 2, "ordinal": 1, "codec": "h264", "width": 1280, "height": 720},
+                        {
+                            "source": "source",
+                            "index": 5,
+                            "ordinal": -1,
+                            "codec": "mjpeg",
+                            "width": 600,
+                            "height": 900,
+                            "attached_picture": True,
+                        },
+                    ],
+                }
+            },
+        )
+
+        row = failure_record_to_row(record)
+        details = row["evidence_details"]
+
+        self.assertEqual(details["schema_version"], "desktop_failure_evidence_details.v1")
+        self.assertTrue(details["structured"])
+        self.assertIn("video_stream_evidence", details["source"])
+        self.assertIn("Video streams: source real=2, attached=1", details["summary_lines"])
+        labels = [stream["label"] for stream in details["stream_rows"]]
+        self.assertIn("source v:0 hevc 1920x1080", labels)
+        self.assertIn("source v:2 h264 1280x720", labels)
+        self.assertIn("source v:5 mjpeg 600x900 attached-picture", labels)
+        self.assertIn({"label": "Route", "value": "encode"}, details["proof_fields"])
+        self.assertTrue(row["triage"]["detail_available"])
+
+    def test_failure_record_row_normalizes_legacy_video_inventory_payload(self) -> None:
+        record = _record(
+            stage="subtitle-burn-video-stream-policy",
+            error_code="SUBTITLE_BURN_MULTI_VIDEO_UNSUPPORTED",
+            payload_updates={
+                "source_video_stream_count": 2,
+                "subtitle_burn_stream": "s:3",
+                "video_stream_inventory": {
+                    "RealVideoStreamCount": 2,
+                    "AttachedPicCount": 0,
+                    "RealVideoStreams": [
+                        {"Index": 0, "VideoOrdinal": 0, "Codec": "hevc", "Width": 3840, "Height": 2160},
+                        {"Index": 1, "VideoOrdinal": 1, "Codec": "mjpeg", "Width": 1920, "Height": 1080},
+                    ],
+                    "AttachedPicStreams": [],
+                },
+            },
+        )
+
+        details = failure_record_to_row(record)["evidence_details"]
+
+        self.assertTrue(details["structured"])
+        self.assertIn("Video streams: source real=2, attached=0", details["summary_lines"])
+        self.assertEqual([stream["label"] for stream in details["stream_rows"]][:2], [
+            "source v:0 hevc 3840x2160",
+            "source v:1 mjpeg 1920x1080",
+        ])
+        self.assertIn({"label": "Subtitle burn stream", "value": "s:3"}, details["proof_fields"])
+
+    def test_failure_record_row_lists_subtitle_failure_details(self) -> None:
+        record = _record(
+            stage="subtitle-extract",
+            error_code="SUBTITLE_BDPGS_OCR_FAILED",
+            classification="transient",
+            payload_updates={
+                "subtitle_failure_details": {
+                    "schema_version": "pipeline_failure_subtitle_evidence.v1",
+                    "family": "bdpgs",
+                    "failure_count": 2,
+                    "failures": [
+                        {
+                            "stream_index": 4,
+                            "error_code": "SUBTITLE_BDPGS_OCR_FAILED",
+                            "reason": "PgsToSrt exited 1",
+                            "repro_path": "C:/Reports/subtitle-repro.ps1",
+                            "tool": "bdpgs-ocr",
+                        },
+                        {
+                            "stream_index": 6,
+                            "error_code": "SUBTITLE_BDPGS_OCR_FAILED",
+                            "reason": "OCR language data missing",
+                        },
+                    ],
+                }
+            },
+        )
+
+        details = failure_record_to_row(record)["evidence_details"]
+
+        self.assertTrue(details["structured"])
+        self.assertIn("Subtitle failures: 2 recorded (bdpgs)", details["summary_lines"])
+        self.assertIn(
+            {"label": "Subtitle stream 4", "value": "SUBTITLE_BDPGS_OCR_FAILED: PgsToSrt exited 1"},
+            details["proof_fields"],
+        )
+        self.assertIn({"label": "Subtitle repro", "value": "C:/Reports/subtitle-repro.ps1"}, details["proof_fields"])
+        self.assertIn({"label": "Subtitle tool", "value": "bdpgs-ocr"}, details["proof_fields"])
+
+    def test_failure_record_row_allowlists_common_tool_config_path_evidence(self) -> None:
+        record = _record(
+            stage="encoder-activation",
+            error_code="ENCODER_TOOL_MISSING",
+            payload_updates={
+                "Tool": "ffmpeg",
+                "config_path": "C:/Pipeline/config.psd1",
+                "missing_path": "C:/Tools/ffmpeg/bin/ffmpeg.exe",
+                "arbitrary_nested_marker_json": {"secret": "do not expose"},
+            },
+        )
+
+        details = failure_record_to_row(record)["evidence_details"]
+
+        self.assertTrue(details["structured"])
+        self.assertIn({"label": "Tool", "value": "ffmpeg"}, details["proof_fields"])
+        self.assertIn({"label": "Config path", "value": "C:/Pipeline/config.psd1"}, details["proof_fields"])
+        self.assertIn({"label": "Missing path", "value": "C:/Tools/ffmpeg/bin/ffmpeg.exe"}, details["proof_fields"])
+        proof_text = "\n".join(field["value"] for field in details["proof_fields"])
+        self.assertNotIn("do not expose", proof_text)
 
     def test_failure_marker_lookup_and_marker_rows_enable_clear_error(self) -> None:
         record = _record(
@@ -147,6 +286,88 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(fields["retry_state"]["status_state"], "blocked")
         self.assertEqual(fields["warnings"], ["Showing 2 of 3 failure row(s)."])
 
+    def test_failure_preview_fields_add_resolution_summary_and_groups(self) -> None:
+        records = [
+            _record(
+                source_json="C:/State/Failures/Markers/one.json",
+                source_path="C:/Source/Movies/Movie (2024)/Movie.mkv",
+                classification="operator_required",
+                stage="video-stream-policy",
+                error_code="SOURCE_VIDEO_STREAMS_UNVETTED",
+            ),
+            _record(
+                source_json="C:/State/Failures/Markers/two.json",
+                source_path="C:/Source/Movies/Other (2024)/Other.mkv",
+                classification="operator_required",
+                stage="video-stream-policy",
+                error_code="SOURCE_VIDEO_STREAMS_UNVETTED",
+            ),
+        ]
+        lookup = failure_marker_lookup(records)
+
+        fields = failure_preview_fields(
+            records,
+            source="markers",
+            source_kind="markers",
+            limit=100,
+            empty_warning="No rows.",
+            marker_lookup=lookup,
+        )
+
+        self.assertEqual(fields["resolution_summary"]["schema_version"], "desktop_failure_resolution.v1")
+        self.assertEqual(fields["resolution_summary"]["status"], "blocked")
+        self.assertEqual(fields["resolution_summary"]["blocking_count"], 2)
+        self.assertEqual(fields["resolution_summary"]["clearable_count"], 2)
+        self.assertEqual(len(fields["resolution_groups"]), 1)
+        group = fields["resolution_groups"][0]
+        self.assertEqual(group["schema_version"], "desktop_failure_resolution_group.v1")
+        self.assertEqual(group["row_count"], 2)
+        self.assertEqual(group["owner"], "Settings")
+        self.assertEqual(group["primary_action"]["kind"], "open_owner_page")
+        self.assertEqual(group["primary_action"]["label"], "Open Settings")
+        self.assertEqual(group["clearable_count"], 2)
+        self.assertEqual(len(group["affected_row_keys"]), 2)
+        self.assertEqual(group["lifecycle_state"], "new")
+        self.assertEqual(group["lifecycle_label"], "New")
+        self.assertTrue(group["journal_key"])
+        self.assertEqual(group["verification"]["active_marker_count"], 2)
+        self.assertFalse(group["verification"]["safe_to_resolve"])
+        self.assertTrue(group["playbook_steps"])
+        self.assertTrue(group["available_transitions"])
+        self.assertEqual(fields["resolution_summary"]["unacknowledged_count"], 1)
+
+    def test_failure_preview_groups_mixed_retry_and_owner_actions(self) -> None:
+        records = [
+            _record(
+                classification="transient",
+                stage="copy",
+                error_code="SOURCE_LOCKED",
+                source_path="C:/Source/Movies/Retry.mkv",
+                retryable="true",
+            ),
+            _record(
+                classification="operator_required",
+                stage="pending-publish",
+                error_code="PUBLISH_BLOCKED",
+                source_path="C:/Source/Movies/Publish.mkv",
+            ),
+        ]
+
+        fields = failure_preview_fields(
+            records,
+            source="latest_failures.json",
+            source_kind="latest_json",
+            limit=100,
+            empty_warning="No rows.",
+        )
+
+        groups = {group["owner"]: group for group in fields["resolution_groups"]}
+        retry_group = next(group for group in fields["resolution_groups"] if group["retryable_count"] == 1)
+        self.assertEqual(retry_group["primary_action"]["label"], "Wait for backend retry")
+        self.assertEqual(groups["Pending Publish"]["primary_action"]["label"], "Open Pending Publish")
+        self.assertEqual(fields["resolution_summary"]["retryable_count"], 1)
+        self.assertEqual(fields["resolution_summary"]["blocking_count"], 1)
+
     def test_empty_failure_preview_fields_keep_operator_warning(self) -> None:
         fields = failure_preview_fields(
             [],
@@ -163,6 +384,8 @@ class FailureFacadePolicyTests(unittest.TestCase):
         self.assertEqual(fields["transient_count"], 0)
         self.assertEqual(fields["retry_state"]["status_state"], "idle")
         self.assertEqual(fields["retry_state"]["read_only"], True)
+        self.assertEqual(fields["resolution_summary"]["status"], "warning")
+        self.assertEqual(fields["resolution_groups"], [])
         self.assertEqual(fields["warnings"], ["No failure markers are available from the state store."])
 
     def test_failure_preview_dto_helpers_preserve_warning_contracts(self) -> None:

@@ -1,11 +1,13 @@
-"""Read-only process launch preflight facade adapter."""
+"""Process launch preflight facade adapter."""
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from mediapipeline.core.config.settings_policy import settings_encoder_capability_report
+from mediapipeline.core.kernel.runtime.subprocess_runner import run_capture
 from mediapipeline.desktop.application.dto_base import JsonMap, json_safe
 from mediapipeline.desktop.models import ResolvedPaths
 
@@ -35,7 +37,11 @@ from mediapipeline.core.processes.rerun_policy import (
     rerun_modes_from_request,
     rerun_plan_only_from_request,
 )
-from mediapipeline.core.processes.path_evidence import configured_path_health, path_evidence
+from mediapipeline.core.processes.path_evidence import (
+    LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+    configured_path_health,
+    path_evidence,
+)
 from mediapipeline.core.processes.schedule_policy import continuous_schedule_stop_watcher_preflight_check
 from mediapipeline.core.processes.source_path_policy import SOURCE_ROOT_SCOPE_TEXT, queue_source_file_validation
 
@@ -43,6 +49,9 @@ from mediapipeline.core.processes.source_path_policy import SOURCE_ROOT_SCOPE_TE
 LAUNCH_PREFLIGHT_SCHEMA_VERSION = "desktop_launch_preflight.v1"
 LAUNCH_READINESS_SCHEMA_VERSION = "desktop_launch_readiness.v1"
 LAUNCH_PREFLIGHT_TARGETS = frozenset({"pipeline", "audit", "rerun"})
+LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS = LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
+ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS = 7 * 24 * 60 * 60
+ENCODER_CAPABILITY_REFRESH_TIMEOUT_SECONDS = 60.0
 
 
 def _preflight_check(
@@ -192,6 +201,172 @@ def _service_callable(service: object, name: str) -> bool:
     return callable(getattr(service, name, None))
 
 
+def _parse_report_timestamp(value: Any) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    if text.endswith("Z"):
+        text = f"{text[:-1]}+00:00"
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed.astimezone(timezone.utc)
+
+
+def _encoder_capability_report_age_seconds(report: dict[str, Any], now: datetime) -> int | None:
+    generated_at = _parse_report_timestamp(report.get("generated_at"))
+    if generated_at is None:
+        return None
+    return max(0, int((now - generated_at).total_seconds()))
+
+
+def _encoder_capability_report_refresh_reason(report: dict[str, Any], now: datetime) -> tuple[bool, str, int | None]:
+    state = str(report.get("operator_status_state") or "unknown").casefold()
+    age_seconds = _encoder_capability_report_age_seconds(report, now)
+    if state == "missing" or not report.get("exists"):
+        return True, "missing", age_seconds
+    if state == "unknown":
+        return True, "unknown", age_seconds
+    if state == "warning" and not str(report.get("report_schema") or "").strip():
+        return True, "unreadable", age_seconds
+    if age_seconds is None:
+        return True, "generated_at_missing", age_seconds
+    if age_seconds > ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS:
+        return True, "stale", age_seconds
+    return False, "fresh", age_seconds
+
+
+def _path_command_is_available(raw: str) -> bool:
+    candidate = Path(raw)
+    if candidate.is_absolute() or candidate.parent != Path("."):
+        return candidate.is_file()
+    return True
+
+
+def _encoder_capability_refresh_skip_reason(resolved: ResolvedPaths, report_path: Path | None) -> str:
+    host = str(resolved.powershell_host or "").strip()
+    if report_path is None:
+        return "encoder capability report path is unavailable"
+    if not host:
+        return "PowerShell host is unavailable"
+    if not _path_command_is_available(host):
+        return f"PowerShell host does not exist: {host}"
+    if resolved.pipeline_path is None or not Path(resolved.pipeline_path).is_file():
+        return f"pipeline entrypoint does not exist: {resolved.pipeline_path or ''}"
+    if resolved.config_path is None or not Path(resolved.config_path).is_file():
+        return f"config file does not exist: {resolved.config_path or ''}"
+    return ""
+
+
+def _encoder_capability_refresh_command(resolved: ResolvedPaths, report_path: Path) -> list[str]:
+    return [
+        str(resolved.powershell_host),
+        "-NoProfile",
+        "-ExecutionPolicy",
+        "Bypass",
+        "-File",
+        str(resolved.pipeline_path),
+        "-ConfigPath",
+        str(resolved.config_path),
+        "-DumpEncoderCapabilitiesPath",
+        str(report_path),
+    ]
+
+
+def _encoder_capability_refresh_working_directory(resolved: ResolvedPaths) -> Path | None:
+    for value in (resolved.workspace_root, resolved.app_root):
+        if value is not None:
+            path = Path(value)
+            if path.exists() and path.is_dir():
+                return path
+    return None
+
+
+def _encoder_capability_refresh_attempt(resolved: ResolvedPaths, report: dict[str, Any]) -> dict[str, Any]:
+    now = datetime.now(timezone.utc)
+    needed, reason, age_seconds = _encoder_capability_report_refresh_reason(report, now)
+    refresh: dict[str, Any] = {
+        "schema_version": "encoder_capability_auto_refresh.v1",
+        "needed": needed,
+        "reason": reason,
+        "attempted": False,
+        "ok": not needed,
+        "age_seconds": age_seconds,
+        "max_age_seconds": ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS,
+        "timeout_seconds": ENCODER_CAPABILITY_REFRESH_TIMEOUT_SECONDS,
+        "skipped_reason": "",
+        "returncode": None,
+        "timed_out": False,
+        "message": "Encoder capability report is fresh." if not needed else "",
+    }
+    if not needed:
+        return refresh
+    report_path_text = str(report.get("source_path") or "").strip()
+    report_path = Path(report_path_text) if report_path_text else None
+    skipped_reason = _encoder_capability_refresh_skip_reason(resolved, report_path)
+    if skipped_reason:
+        refresh["skipped_reason"] = skipped_reason
+        refresh["message"] = f"Auto-refresh skipped: {skipped_reason}."
+        return refresh
+    if report_path is None:
+        refresh["skipped_reason"] = "encoder capability report path is unavailable"
+        refresh["message"] = "Auto-refresh skipped: encoder capability report path is unavailable."
+        return refresh
+    command = _encoder_capability_refresh_command(resolved, report_path)
+    refresh["attempted"] = True
+    refresh["command"] = command
+    try:
+        report_path.parent.mkdir(parents=True, exist_ok=True)
+        result = run_capture(
+            command,
+            timeout_seconds=ENCODER_CAPABILITY_REFRESH_TIMEOUT_SECONDS,
+            cwd=_encoder_capability_refresh_working_directory(resolved),
+            hidden=True,
+            label="encoder capability diagnostic refresh",
+        )
+    except Exception as exc:
+        refresh["message"] = f"Auto-refresh failed to start: {exc}"
+        return refresh
+    refresh.update(
+        {
+            "returncode": result.returncode,
+            "timed_out": bool(result.timed_out),
+            "ok": result.returncode == 0 and not result.timed_out,
+            "message": (
+                "Auto-refresh completed."
+                if result.returncode == 0 and not result.timed_out
+                else f"Auto-refresh failed: {result.output_tail}"
+            ),
+        }
+    )
+    return refresh
+
+
+def _encoder_capability_report_with_auto_refresh(resolved: ResolvedPaths) -> dict[str, Any]:
+    report = settings_encoder_capability_report(resolved)
+    refresh = _encoder_capability_refresh_attempt(resolved, report)
+    if refresh.get("attempted") and refresh.get("ok"):
+        report = settings_encoder_capability_report(resolved)
+    now = datetime.now(timezone.utc)
+    final_needed, final_reason, final_age = _encoder_capability_report_refresh_reason(report, now)
+    report["auto_refresh"] = refresh
+    report["refresh_needed"] = final_needed
+    report["refresh_reason"] = final_reason
+    report["age_seconds"] = final_age
+    report["stale_after_seconds"] = ENCODER_CAPABILITY_REFRESH_MAX_AGE_SECONDS
+    report["stale"] = final_reason == "stale"
+    if final_needed and str(report.get("operator_status_state") or "").casefold() == "ready":
+        report["operator_status"] = "Stale" if final_reason == "stale" else "Review"
+        report["operator_status_state"] = "warning"
+        summary_lines = list(report.get("summary_lines") or [])
+        summary_lines.append(str(refresh.get("message") or "Encoder capability report needs refresh."))
+        report["summary_lines"] = summary_lines
+    return report
+
+
 def _network_role_preflight_check(config: dict[str, Any]) -> dict[str, Any]:
     role = configured_network_role(config)
     coordinator_also_encode_locally = coordinator_also_encode_locally_enabled(config)
@@ -251,7 +426,7 @@ def _single_file_scope_preflight_check(resolved: ResolvedPaths, single_file: str
 
 
 def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[str, Any]:
-    report = settings_encoder_capability_report(resolved)
+    report = _encoder_capability_report_with_auto_refresh(resolved)
     state = str(report.get("operator_status_state") or "unknown").casefold()
     if state == "ready":
         status = "ready"
@@ -272,6 +447,13 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
     active_hardware_unverified = [
         str(item) for item in report.get("active_hardware_runtime_unverified_encoders", []) if str(item)
     ]
+    auto_refresh = report.get("auto_refresh") if isinstance(report.get("auto_refresh"), dict) else {}
+    if auto_refresh.get("attempted"):
+        auto_refresh_status = "ok" if auto_refresh.get("ok") else "failed"
+    elif auto_refresh.get("needed"):
+        auto_refresh_status = "skipped"
+    else:
+        auto_refresh_status = "not_needed"
     evidence = (
         f"status={report.get('operator_status') or 'Unknown'}; "
         f"source_path={report.get('source_path') or '(unavailable)'}; "
@@ -286,6 +468,8 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
         f"hardware_runtime_verified_count={len(hardware_runtime_verified)}; "
         f"hardware_runtime_skipped_count={len(hardware_runtime_skipped)}; "
         f"active_hardware_unverified_count={len(active_hardware_unverified)}; "
+        f"refresh={auto_refresh_status}; "
+        f"refresh_reason={report.get('refresh_reason') or 'fresh'}; "
         f"read_only={'yes' if report.get('read_only') else 'no'}"
     )
     return _preflight_check(
@@ -317,6 +501,12 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
                     "hardware_runtime_verified_encoders": hardware_runtime_verified,
                     "hardware_runtime_skipped_encoders": hardware_runtime_skipped,
                     "active_hardware_runtime_unverified_encoders": active_hardware_unverified,
+                    "refresh_needed": bool(report.get("refresh_needed")),
+                    "refresh_reason": report.get("refresh_reason") or "",
+                    "age_seconds": report.get("age_seconds"),
+                    "stale_after_seconds": report.get("stale_after_seconds"),
+                    "stale": bool(report.get("stale")),
+                    "auto_refresh": json_safe(auto_refresh),
                     "backend_counts": report.get("backend_counts") or {},
                     "encoding_capability_facts": report.get("encoding_capability_facts") or {},
                     "summary_lines": list(report.get("summary_lines") or []),
@@ -328,7 +518,7 @@ def _encoder_capability_report_preflight_check(resolved: ResolvedPaths) -> dict[
 
 
 class ProcessFacadeMixin:
-    """Read-only process launch preflight helpers."""
+    """Process launch preflight helpers."""
 
     service: object
 
@@ -491,6 +681,12 @@ class ProcessFacadeMixin:
             detail=issue_lines[:10],
         )
 
+    def _launch_path_health_for_resolved(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        return configured_path_health(
+            resolved,
+            timeout_seconds=LAUNCH_PREFLIGHT_PATH_HEALTH_TIMEOUT_SECONDS,
+        )
+
     def _autonomy_health_preflight_check(
         self,
         resolved: ResolvedPaths,
@@ -632,7 +828,7 @@ class ProcessFacadeMixin:
                 self._config_identity_preflight_check(resolved),
             ]
         )
-        path_health = configured_path_health(resolved)
+        path_health = self._launch_path_health_for_resolved(resolved)
         path_health_check = self._configured_path_health_preflight_check(resolved, path_health=path_health)
         if path_health_check is not None:
             checks.append(path_health_check)
@@ -651,7 +847,7 @@ class ProcessFacadeMixin:
                 _preflight_check(
                     "runtime_prep_boundary",
                     "Runtime prep boundary",
-                    "review",
+                    "ready",
                     "Preflight intentionally does not clear stale progress, remove flags, write launch state, or call runtime prep.",
                     "Start route will perform runtime/control prep immediately before launching.",
                 ),
@@ -695,7 +891,7 @@ class ProcessFacadeMixin:
             _preflight_check(
                 "runtime_prep_boundary",
                 "Runtime prep boundary",
-                "review",
+                "ready",
                 "Preflight intentionally does not clear audit progress, write launch state, or call runtime prep.",
                 "Start route will perform audit runtime prep immediately before launching.",
             ),

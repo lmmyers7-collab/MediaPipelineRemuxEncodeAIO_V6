@@ -39,5 +39,5 @@
   ],
   "rollback_plan": "Revert the two namespace call replacements and the static assertions, then refresh generated summaries. This restores the prior flat-global refresh dependency but does not touch settings files, media, queue, publish, or source paths.",
   "related_changes": [],
-  "notes": "Config diagnosis: C:/Users/lmmye/AppData/Local/MediaPipelineRemuxEncodeAIO/MediaPipeline_config.psd1 imports cleanly and still contains SourceMovies, SourceTV, Outsource, LocalBase, RobocopyFlags, SkipStabilityCheck, EnableIntegrityCheck, and LibraryProfiles. The visible blank Settings fields are consistent with the frontend refresh exception rather than a PSD1 parse failure. No settings persistence, backend route, media, source, queue, publish, drain, or filesystem mutation behavior changed."
+  "notes": "Config diagnosis: the redacted AppData MediaPipeline_config.psd1 imports cleanly and still contains SourceMovies, SourceTV, Outsource, LocalBase, RobocopyFlags, SkipStabilityCheck, EnableIntegrityCheck, and LibraryProfiles. The visible blank Settings fields are consistent with the frontend refresh exception rather than a PSD1 parse failure. No settings persistence, backend route, media, source, queue, publish, drain, or filesystem mutation behavior changed."
 }

@@ -166,6 +166,10 @@ jobs:
           node-version: "22"
           cache: npm
 
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1
+
       - name: Install dependencies
         shell: pwsh
         run: |
@@ -196,6 +200,10 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1
 
       - name: Install dependencies
         shell: pwsh

@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0626-016",
+  "title": "Normalize library profile override keys",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Canonicalized library profile IDs across the WebView editor and save-review path, blocked stale LibraryProfiles patches from riding along with unrelated settings saves, and added regression coverage for movie alias saves and new profile IDs.",
+  "reason": "Changing a movie fallback override could surface a broad LibraryProfiles diff because profile aliases and stale profile patch state were not handled consistently in the WebView save path.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The settings review could present movie profile overrides under alias-shaped labels such as movie.editor.SizeGuardMode, and a stale LibraryProfiles patch could be previewed or saved while the operator was changing unrelated settings.",
+  "behavior_after": "Movie, movies, show, shows, and tv profile IDs are canonicalized before editor state lookup and save-review comparison; new custom profiles keep stable generated IDs; stale LibraryProfiles patches are blocked before backend preview/save.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsLibraries.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_settings_patch.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-016.json",
+    "tests/fixtures/settings/library_profiles_round_trip_cases.json",
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_application_facade_settings_patch.ApplicationFacadeSettingsPatchTests.test_movie_profile_alias_save_keeps_canonical_id_and_size_guard_override",
+    "tests/fixtures/settings/library_profiles_round_trip_cases.json: alias_defaults_and_new_custom_profile_ids",
+    "tests.webview.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_settings_libraries_asset_tracks_explicit_override_state static assertions for canonical IDs and stale LibraryProfiles blocking"
+  ],
+  "manual_validation": [
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_patch.ApplicationFacadeSettingsPatchTests.test_movie_profile_alias_save_keeps_canonical_id_and_size_guard_override -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_patch.ApplicationFacadeSettingsPatchTests.test_library_profile_fixture_corpus_round_trips_after_normalization -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_settings_libraries.WebViewSettingsLibrariesStaticTests.test_settings_libraries_asset_tracks_explicit_override_state -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_patch -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_library_profiles -q",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_settings_libraries -q",
+    "PASS: .\\ops\\scripts\\smoke\\Test-WebViewSettingsPatchEvidenceSmoke.ps1",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths apps/desktop/webview/static/assets/settingsLibraries.js apps/desktop/webview/static/assets/settingsView.js tests/python/desktop/test_application_facade_settings_patch.py tests/webview/test_webview_settings_libraries.py tests/fixtures/settings/library_profiles_round_trip_cases.json"
+  ],
+  "rollback_plan": "Revert the WebView canonicalization and stale-patch guard changes plus the related regression fixtures/tests and refreshed generated summaries; then re-run the targeted settings patch and WebView settings-library tests.",
+  "related_changes": [],
+  "notes": "Canonicalize Library Profile IDs and expose stale patch state for save guard.\nBlock stale LibraryProfiles save payloads and canonicalize profile IDs in save review.\nAdd movie alias SizeGuardMode save regression for LibraryProfiles.\nLock static coverage for profile ID canonicalization and stale patch blocking.\nCover alias default IDs and a new custom profile in LibraryProfiles round-trip fixture.\nRefresh generated summary for settings library profile ID canonicalization.\nRefresh generated summary for save review profile canonicalization and stale patch guard.\nRefresh generated summary for settings patch regression coverage.\nRefresh generated summary for WebView settings library static coverage."
+}

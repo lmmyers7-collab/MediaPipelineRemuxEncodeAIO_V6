@@ -115,6 +115,9 @@
   --semantic-overlay-bg: hsl(220 15% 0% / 0.64);
   --live-run-strip-inline-bg: hsl(220 15% 100% / 0.025);
   --live-run-chip-bg: hsl(220 15% 0% / 0.16);
+  --reports-failure-hover-border: var(--blue-400);
+  --reports-failure-selected-border: var(--blue-300);
+  --reports-failure-subtle-bg: hsl(220 15% 100% / 0.015);
 
   /* ===== TYPE SCALE ===== */
   --text-2xs:  10px;
@@ -125,6 +128,7 @@
   --text-lg:   20px;
   --text-xl:   24px;
   --text-2xl:  30px;
+  --text-schedule-hour-marker: 0.68rem;
   --font-mono: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace;
 
   /* ===== SPACING SCALE =====
@@ -144,7 +148,18 @@
   --space-12: 64px;
   --space-13: 80px;
   --space-14: 96px;
+  --space-half: 1px;
+  --space-1-5: 3px;
+  --space-2-5: 5px;
+  --space-fluid-tight: clamp(var(--space-1-5), 0.35vw, var(--space-2-5));
   --topbar-height: 40px;
+
+  /* ===== OPACITY SCALE ===== */
+  --opacity-route-map-muted: 0.75;
+  --opacity-disabled-control: 0.55;
+  --opacity-layout-disabled-control: 0.72;
+  --opacity-rename-activity-dim: 0.45;
+  --opacity-rename-activity-full: 1;
 
   /* ===== RADIUS SCALE =====
      Keep desktop controls crisp and consistent. Cards/panels should stay at

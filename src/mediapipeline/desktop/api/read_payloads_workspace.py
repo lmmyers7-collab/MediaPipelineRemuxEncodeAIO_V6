@@ -75,11 +75,20 @@ class LocalApiWorkspaceReadPayloadMixin:
                 "remove_terms_text",
                 "movie_filter_options",
                 "movie_filter_terms",
-                "tv_remove_terms_text",
-                "tv_filter_options",
-                "tv_filter_terms",
-            )
+            "tv_remove_terms_text",
+            "tv_filter_options",
+            "tv_filter_terms",
+            "template_preset",
+            "expected_name",
+            "expected_show",
+            "expected_season",
+            "expected_episode",
+            "expected_episode_title",
+            "expected_movie_title",
+            "expected_year",
+            "include_case_analysis",
         )
+    )
         request = {
             "filename": query_value(query, "filename", ""),
             "mode": query_value(query, "mode", "movie"),
@@ -90,6 +99,15 @@ class LocalApiWorkspaceReadPayloadMixin:
             "tv_remove_terms_text": query_value(query, "tv_remove_terms_text", ""),
             "tv_filter_options": _query_json_dict(query, "tv_filter_options"),
             "tv_filter_terms": _query_json_dict(query, "tv_filter_terms"),
+            "template_preset": query_value(query, "template_preset", ""),
+            "expected_name": query_value(query, "expected_name", ""),
+            "expected_show": query_value(query, "expected_show", ""),
+            "expected_season": query_value(query, "expected_season", ""),
+            "expected_episode": query_value(query, "expected_episode", ""),
+            "expected_episode_title": query_value(query, "expected_episode_title", ""),
+            "expected_movie_title": query_value(query, "expected_movie_title", ""),
+            "expected_year": query_value(query, "expected_year", ""),
+            "include_case_analysis": query_value(query, "include_case_analysis", ""),
         }
         if staged_policy:
             request["_rename_movie_filter_policy_source"] = "staged"

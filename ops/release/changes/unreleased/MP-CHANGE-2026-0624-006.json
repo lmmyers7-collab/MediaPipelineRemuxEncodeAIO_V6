@@ -1,0 +1,52 @@
+{
+  "id": "MP-CHANGE-2026-0624-006",
+  "title": "Network command board redesign",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Redesigned the backend-served WebView Network Workers tab into a scan-first command board with a compact health strip, role-aware quick actions, diagnostic chips, a primary Worker Board, a structured selected-worker inspector, and collapsed setup/settings/advanced/unavailable drawers.",
+  "reason": "The previous Network Workers tab repeated saved/runtime information, exposed a long lifecycle button wall, and buried the actionable worker state under verbose evidence text.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Network Workers tab opened with long status and lifecycle sections, duplicate role/runtime text, separate dry-run and confirmed lifecycle buttons, and a lower preformatted worker detail dump.",
+  "behavior_after": "The Network Workers tab opens on a compact operational command board. Guided Check & Start / Request Stop controls run existing backend dry-run routes before opening the existing confirmation dialog, diagnostics are summarized as status chips, worker rows are the primary table, and rare evidence/settings/setup controls are collapsed into drawers.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/networkView.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/networkView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-006.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_network_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-006.json",
+    "tests/webview/test_webview_browser_network_smoke.py",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "Updated tests/webview/test_webview_browser_network_smoke.py coverage for command-board layout, role-aware quick actions, guided dry-run confirmation behavior, drawers, worker inspector, and compact filter warnings.",
+    "Updated tests/webview/test_webview_network_read_only_boundary.py static coverage for new panel order, drawer placement, guided lifecycle buttons, and DOM boundary expectations."
+  ],
+  "manual_validation": [
+    "FAIL/BLOCKED: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_network_smoke -q failed because the temporary app returned /api/queue 500 from QueuePreviewDto.__init__() receiving unexpected total_row_count before the Network smoke could complete.",
+    "FAIL/BLOCKED: ops/scripts/smoke/Test-WebViewBrowserNetworkSmoke.ps1 failed for the same unrelated /api/queue QueuePreviewDto total_row_count error.",
+    "PASS: apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_network_read_only_boundary -q",
+    "PASS: npm run webview:check",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths <packet files> wrote 6 summaries and left 1 unchanged.",
+    "PASS: CDP screenshot QA captured desktop, full-page desktop, mobile, and mobile-scrolled Network command board screenshots under LocalBase/tmp/network-command-board-preview/screenshots with no page-level horizontal overflow at 1440px or 390px.",
+    "PASS: Screenshot review found the first command-board version was still too text-heavy; command evidence was collapsed by default and screenshots were retaken.",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage"
+  ],
+  "rollback_plan": "Revert the Network WebView partial, networkView.js helpers, styles.pages.css additions, DOM inventory updates, and the two Network WebView test expectation updates in this packet.",
+  "related_changes": [],
+  "notes": "Redesigned Network Workers markup into command board, worker board, and drawers.\nAdded health strip, diagnostic rail, guided lifecycle actions, and worker inspector rendering.\nAdded dense command-board, diagnostic chip, worker board, inspector, and drawer styling.\nCollapsed verbose command evidence by default after screenshot review so the Worker Board appears in the first desktop viewport.\nUpdated public Network WebView DOM ID inventory for new command board IDs.\nUpdated browser smoke expectations for command board layout and guided lifecycle dry-run behavior.\nUpdated static boundary expectations for command-board panel order, drawers, and guided lifecycle controls.\nNo backend route, DTO, schema, command contract, persisted state, media, queue, claim, release, publish, rename, or filesystem mutation logic was added to the frontend.\nRefreshed generated summary for Network DOM inventory changes.\nRefreshed generated summary for Network view command board helpers.\nRefreshed generated summary for Network command board styles.\nRefreshed generated summary for Network command board markup.\nRefreshed generated summary for Network browser smoke updates.\nRefreshed generated summary for Network static boundary test updates.\nGenerated summary for this change packet."
+}

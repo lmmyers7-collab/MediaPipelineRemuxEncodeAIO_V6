@@ -4,7 +4,7 @@ use std::{
     path::{Path, PathBuf},
     time::Duration,
 };
-use tauri::{Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
+use tauri::{AppHandle, Manager, RunEvent, WebviewUrl, WebviewWindowBuilder, WindowEvent};
 
 mod backend_contract;
 mod backend_lifecycle_monitor;
@@ -28,7 +28,7 @@ use backend_process::{
 };
 use backend_process::{
     close_request_decision, shutdown_backend_state, start_backend, BackendShutdownMode,
-    BackendShutdownOutcome, CloseRequestDecision,
+    BackendProcess, BackendShutdownOutcome, CloseRequestDecision,
 };
 #[cfg(test)]
 use close_readiness::{
@@ -55,10 +55,61 @@ const MAX_STARTUP_VALIDATION_WARNING_CHARS: usize = 280;
 const MAX_CLOSE_READINESS_WARNINGS: usize = 5;
 const MAX_CLOSE_READINESS_WARNING_CHARS: usize = 240;
 const MAX_OPERATOR_PATH_CHARS: usize = 320;
+const PIPELINE_LOG_WINDOW_LABEL: &str = "pipeline-log";
+const PIPELINE_LOG_WINDOW_PATH: &str = "/assets/pipelineLogWindow.html";
+
+fn pipeline_log_window_url(backend_url: &str) -> ShellResult<url::Url> {
+    let mut url = validate_loopback_backend_url(backend_url)?;
+    url.set_path(PIPELINE_LOG_WINDOW_PATH);
+    url.set_query(Some("surface=pipeline-log"));
+    Ok(url)
+}
+
+#[tauri::command]
+fn open_pipeline_log_window(app: AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(PIPELINE_LOG_WINDOW_LABEL) {
+        window
+            .show()
+            .map_err(|error| format!("Could not show Pipeline Log window: {error}"))?;
+        window
+            .unminimize()
+            .map_err(|error| format!("Could not unminimize Pipeline Log window: {error}"))?;
+        window
+            .set_focus()
+            .map_err(|error| format!("Could not focus Pipeline Log window: {error}"))?;
+        return Ok(());
+    }
+
+    let (backend_url, token, startup_warnings) = {
+        let backend = app
+            .try_state::<BackendProcess>()
+            .ok_or_else(|| "Backend state is not available yet.".to_string())?;
+        (
+            backend.url().to_string(),
+            backend.token().to_string(),
+            backend.startup_warnings().to_vec(),
+        )
+    };
+
+    let url = pipeline_log_window_url(&backend_url)
+        .map_err(|error| format!("Could not build Pipeline Log window URL: {error}"))?;
+    WebviewWindowBuilder::new(&app, PIPELINE_LOG_WINDOW_LABEL, WebviewUrl::External(url))
+        .initialization_script(tauri_bootstrap_initialization_script(
+            &token,
+            &startup_warnings,
+        ))
+        .title("Pipeline Log")
+        .inner_size(980.0, 680.0)
+        .min_inner_size(720.0, 420.0)
+        .build()
+        .map_err(|error| format!("Could not open Pipeline Log window: {error}"))?;
+    Ok(())
+}
 
 pub fn run() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_updater::Builder::new().build())
+        .invoke_handler(tauri::generate_handler![open_pipeline_log_window])
         .setup(|app| {
             eprintln!("[mediapipeline-shell] setup: acquiring single-instance guard");
             let single_instance_guard = acquire_single_instance_guard()?;
@@ -725,6 +776,7 @@ mod tests {
     settings: values.settings || getLastSettings(),
   };
   renderCrossPageContext(crossPageContext);
+  window.mediaPipelineFloatingPipelineLog?.renderFloatingPipelineLog?.(values.diagnostics);
 }
 function renderBackendLifecycle() {}
 function renderExternalDependencyDigest() {}
@@ -732,7 +784,39 @@ function externalDependencyRows() {}
 async function requestBackendShutdown() {
   await apiPost("/api/backend/shutdown", {});
   return "Backend shutdown is disabled in WebView until close-readiness reports safe";
-}"#;
+}
+window.mediaPipelineFloatingPipelineLog?.initFloatingPipelineLogEvents?.();"#;
+        let floating_pipeline_log_script = r#"const REFRESH_INTERVAL_MS = 2000;
+function renderFloatingPipelineLog() {}
+async function refreshFloatingPipelineLog() {
+  await window.mediaPipelineApi.apiGet("/api/diagnostics");
+}
+function initFloatingPipelineLogEvents() {
+  return "pipeline-log-window-button";
+}
+window.mediaPipelineFloatingPipelineLog = { initFloatingPipelineLogEvents, renderFloatingPipelineLog, refreshFloatingPipelineLog };"#;
+        let pipeline_log_bridge_script = r#"function showDiagnosticsLogsFallback() {
+  return "diagnostics-pipeline-log-status";
+}
+function tauriInvoke() {
+  return window.__TAURI__.core.invoke;
+}
+async function openPipelineLogWindow() {
+  await tauriInvoke()("open_pipeline_log_window");
+}
+window.mediaPipelinePipelineLogWindowBridge = { openPipelineLogWindow, showDiagnosticsLogsFallback };"#;
+        let pipeline_log_window = r#"<!doctype html>
+<strong id="pipeline-log-window-status">Loading</strong>
+<input id="pipeline-log-window-follow" type="checkbox">
+<button id="pipeline-log-window-refresh-button"></button>
+<script src="/assets/apiClient.js"></script>
+<script src="/assets/pipelineLogWindow.js"></script>"#;
+        let pipeline_log_window_script = r#"const REFRESH_INTERVAL_MS = 2000;
+function renderPipelineLogWindow() {}
+async function refreshPipelineLogWindow() {
+  await window.mediaPipelineApi.apiGet("/api/diagnostics");
+}
+window.mediaPipelinePipelineLogWindow = { renderPipelineLogWindow, refreshPipelineLogWindow };"#;
         let cross_page_script = r#"function createCrossPageConflictModule() {}
 function createCrossPageSampleModule() {}
 function createCrossPageSettingsModule() {}
@@ -949,6 +1033,10 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         let responses = [
             index,
             app_script,
+            floating_pipeline_log_script,
+            pipeline_log_bridge_script,
+            pipeline_log_window,
+            pipeline_log_window_script,
             cross_page_script,
             cross_page_conflict_script,
             cross_page_sample_script,
@@ -997,76 +1085,66 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
         let (url, rx) = serve_sequence(responses);
 
         validate_backend_web_ui(&url, "secret-token").expect("web UI validation should pass");
-        let requests = (0..44)
+        let expected_request_paths = [
+            "/",
+            "/assets/app.js",
+            "/assets/floatingPipelineLog.js",
+            "/assets/pipelineLogWindowBridge.js",
+            "/assets/pipelineLogWindow.html",
+            "/assets/pipelineLogWindow.js",
+            "/assets/crossPageContextView.js",
+            "/assets/crossPageContextView.conflict.js",
+            "/assets/crossPageContextView.sample.js",
+            "/assets/crossPageContextView.settings.js",
+            "/assets/crossPageContextView.sampleValidation.worksheet.js",
+            "/assets/crossPageContextView.sampleValidation.runbook.js",
+            "/assets/crossPageContextView.sampleValidation.records.js",
+            "/assets/crossPageContextView.sampleValidation.js",
+            "/assets/diagnosticsView.activejobs.js",
+            "/assets/diagnosticsView.log.js",
+            "/assets/diagnosticsView.investigation.js",
+            "/assets/diagnosticsView.js",
+            "/assets/settingsView.rawTriage.js",
+            "/assets/settingsView.safetyLocks.js",
+            "/assets/settings/backendResult.js",
+            "/assets/settings/patchReview.js",
+            "/assets/settingsMetadata.js",
+            "/assets/settingsView.builders.video.js",
+            "/assets/settingsView.js",
+            "/assets/settings/policyImpact.js",
+            "/assets/settingsOverview.js",
+            "/assets/launch/risk/settingsAccess.js",
+            "/assets/launch/risk/mediaPolicyValues.js",
+            "/assets/launch/risk/riskRows.js",
+            "/assets/launch/risk/policyPatch.js",
+            "/assets/launch/risk/policyBoundary.js",
+            "/assets/launchView.risk.js",
+            "/assets/launchView.scope.js",
+            "/assets/launchView.realmedia.js",
+            "/assets/launchView.preflight.js",
+            "/assets/launch/controllerState.js",
+            "/assets/launch/statusRender.js",
+            "/assets/launch/startRequest.js",
+            "/assets/launch/scopeControls.js",
+            "/assets/launch/commandButtons.js",
+            "/assets/launchView.js",
+            "/assets/diagnosticsStateSummaryView.js",
+            "/assets/pendingPublishView.recovery.js",
+            "/assets/pendingPublishView.diagnostics.js",
+            "/assets/pendingPublishView.drain.js",
+            "/assets/pendingPublishView.confidence.js",
+            "/assets/pendingPublishView.js",
+        ];
+        let requests = (0..expected_request_paths.len())
             .map(|_| {
                 rx.recv_timeout(Duration::from_secs(2))
                     .expect("request received")
             })
             .collect::<Vec<String>>();
 
-        assert!(requests[0].starts_with("GET / HTTP/1.1\r\n"));
-        assert!(requests[1].starts_with("GET /assets/app.js HTTP/1.1\r\n"));
-        assert!(requests[2].starts_with("GET /assets/crossPageContextView.js HTTP/1.1\r\n"));
-        assert!(
-            requests[3].starts_with("GET /assets/crossPageContextView.conflict.js HTTP/1.1\r\n")
-        );
-        assert!(requests[4].starts_with("GET /assets/crossPageContextView.sample.js HTTP/1.1\r\n"));
-        assert!(
-            requests[5].starts_with("GET /assets/crossPageContextView.settings.js HTTP/1.1\r\n")
-        );
-        assert!(requests[6].starts_with(
-            "GET /assets/crossPageContextView.sampleValidation.worksheet.js HTTP/1.1\r\n"
-        ));
-        assert!(requests[7].starts_with(
-            "GET /assets/crossPageContextView.sampleValidation.runbook.js HTTP/1.1\r\n"
-        ));
-        assert!(requests[8].starts_with(
-            "GET /assets/crossPageContextView.sampleValidation.records.js HTTP/1.1\r\n"
-        ));
-        assert!(requests[9]
-            .starts_with("GET /assets/crossPageContextView.sampleValidation.js HTTP/1.1\r\n"));
-        assert!(requests[10].starts_with("GET /assets/diagnosticsView.activejobs.js HTTP/1.1\r\n"));
-        assert!(requests[11].starts_with("GET /assets/diagnosticsView.log.js HTTP/1.1\r\n"));
-        assert!(
-            requests[12].starts_with("GET /assets/diagnosticsView.investigation.js HTTP/1.1\r\n")
-        );
-        assert!(requests[13].starts_with("GET /assets/diagnosticsView.js HTTP/1.1\r\n"));
-        assert!(requests[14].starts_with("GET /assets/settingsView.rawTriage.js HTTP/1.1\r\n"));
-        assert!(requests[15].starts_with("GET /assets/settingsView.safetyLocks.js HTTP/1.1\r\n"));
-        assert!(requests[16].starts_with("GET /assets/settings/backendResult.js HTTP/1.1\r\n"));
-        assert!(requests[17].starts_with("GET /assets/settings/patchReview.js HTTP/1.1\r\n"));
-        assert!(requests[18].starts_with("GET /assets/settingsMetadata.js HTTP/1.1\r\n"));
-        assert!(requests[19].starts_with("GET /assets/settingsView.builders.video.js HTTP/1.1\r\n"));
-        assert!(requests[20].starts_with("GET /assets/settingsView.js HTTP/1.1\r\n"));
-        assert!(requests[21].starts_with("GET /assets/settings/policyImpact.js HTTP/1.1\r\n"));
-        assert!(requests[22].starts_with("GET /assets/settingsOverview.js HTTP/1.1\r\n"));
-        assert!(requests[23].starts_with("GET /assets/launch/risk/settingsAccess.js HTTP/1.1\r\n"));
-        assert!(
-            requests[24].starts_with("GET /assets/launch/risk/mediaPolicyValues.js HTTP/1.1\r\n")
-        );
-        assert!(requests[25].starts_with("GET /assets/launch/risk/riskRows.js HTTP/1.1\r\n"));
-        assert!(requests[26].starts_with("GET /assets/launch/risk/policyPatch.js HTTP/1.1\r\n"));
-        assert!(requests[27].starts_with("GET /assets/launch/risk/policyBoundary.js HTTP/1.1\r\n"));
-        assert!(requests[28].starts_with("GET /assets/launchView.risk.js HTTP/1.1\r\n"));
-        assert!(requests[29].starts_with("GET /assets/launchView.scope.js HTTP/1.1\r\n"));
-        assert!(requests[30].starts_with("GET /assets/launchView.realmedia.js HTTP/1.1\r\n"));
-        assert!(requests[31].starts_with("GET /assets/launchView.preflight.js HTTP/1.1\r\n"));
-        assert!(requests[32].starts_with("GET /assets/launch/controllerState.js HTTP/1.1\r\n"));
-        assert!(requests[33].starts_with("GET /assets/launch/statusRender.js HTTP/1.1\r\n"));
-        assert!(requests[34].starts_with("GET /assets/launch/startRequest.js HTTP/1.1\r\n"));
-        assert!(requests[35].starts_with("GET /assets/launch/scopeControls.js HTTP/1.1\r\n"));
-        assert!(requests[36].starts_with("GET /assets/launch/commandButtons.js HTTP/1.1\r\n"));
-        assert!(requests[37].starts_with("GET /assets/launchView.js HTTP/1.1\r\n"));
-        assert!(requests[38].starts_with("GET /assets/diagnosticsStateSummaryView.js HTTP/1.1\r\n"));
-        assert!(requests[39].starts_with("GET /assets/pendingPublishView.recovery.js HTTP/1.1\r\n"));
-        assert!(
-            requests[40].starts_with("GET /assets/pendingPublishView.diagnostics.js HTTP/1.1\r\n")
-        );
-        assert!(requests[41].starts_with("GET /assets/pendingPublishView.drain.js HTTP/1.1\r\n"));
-        assert!(
-            requests[42].starts_with("GET /assets/pendingPublishView.confidence.js HTTP/1.1\r\n")
-        );
-        assert!(requests[43].starts_with("GET /assets/pendingPublishView.js HTTP/1.1\r\n"));
+        for (request, path) in requests.iter().zip(expected_request_paths) {
+            assert!(request.starts_with(&format!("GET {path} HTTP/1.1\r\n")));
+        }
         assert!(requests
             .iter()
             .all(|request| request.contains("Authorization: Bearer secret-token\r\n")));
@@ -1124,6 +1202,7 @@ const pendingConfidenceModule = window.__pendingPublishConfidenceModule || {};"#
     settings: values.settings || getLastSettings(),
   };
   renderCrossPageContext(crossPageContext);
+  window.mediaPipelineFloatingPipelineLog?.renderFloatingPipelineLog?.(values.diagnostics);
 }
 function renderBackendLifecycle() {}
 function renderExternalDependencyDigest() {}
@@ -1131,7 +1210,35 @@ function externalDependencyRows() {}
 async function requestBackendShutdown() {
   await apiPost("/api/backend/shutdown", {});
   return "Backend shutdown is disabled in WebView until close-readiness reports safe";
+}
+window.mediaPipelineFloatingPipelineLog?.initFloatingPipelineLogEvents?.();"#;
+        let floating_pipeline_log_script = r#"const REFRESH_INTERVAL_MS = 2000;
+function renderFloatingPipelineLog() {}
+async function refreshFloatingPipelineLog() {
+  await window.mediaPipelineApi.apiGet("/api/diagnostics");
+}
+function initFloatingPipelineLogEvents() {
+  return "pipeline-log-window-button";
+}
+window.mediaPipelineFloatingPipelineLog = { initFloatingPipelineLogEvents, renderFloatingPipelineLog, refreshFloatingPipelineLog };"#;
+        let pipeline_log_bridge_script = r#"function showDiagnosticsLogsFallback() {
+  return "diagnostics-pipeline-log-status";
+}
+function tauriInvoke() {
+  return window.__TAURI__.core.invoke;
+}
+async function openPipelineLogWindow() {
+  await tauriInvoke()("open_pipeline_log_window");
 }"#;
+        let pipeline_log_window = r#"<strong id="pipeline-log-window-status">Loading</strong>
+<input id="pipeline-log-window-follow" type="checkbox">
+<button id="pipeline-log-window-refresh-button"></button>
+<script src="/assets/apiClient.js"></script>
+<script src="/assets/pipelineLogWindow.js"></script>"#;
+        let pipeline_log_window_script = r#"const REFRESH_INTERVAL_MS = 2000;
+function renderPipelineLogWindow() {}
+window.mediaPipelinePipelineLogWindow = {};
+const route = "/api/diagnostics";"#;
         let cross_page_script = r#"function createCrossPageConflictModule() {}
 function createCrossPageSampleModule() {}
 function createCrossPageSettingsModule() {}
@@ -1153,6 +1260,10 @@ window.__crossPageSettingsModule = { createCrossPageSettingsModule };"#;
         let responses = [
             index,
             app_script,
+            floating_pipeline_log_script,
+            pipeline_log_bridge_script,
+            pipeline_log_window,
+            pipeline_log_window_script,
             cross_page_script,
             cross_page_conflict_script,
             cross_page_sample_script,

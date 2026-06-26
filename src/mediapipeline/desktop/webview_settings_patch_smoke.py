@@ -214,7 +214,8 @@ def _validate_patch_static_assets(base_url: str) -> None:
         ("settings-backend-result-rows", "backend result table target"),
         ("settings-backend-result-detail", "backend result detail target"),
         ("openSettingsSaveReviewDialog", "save review confirmation boundary"),
-        ('apiPost("/api/settings/save-patch"', "settings save route"),
+        ('"/api/settings/save-patch"', "settings save route"),
+        ("review_confirmation: reviewConfirmation", "settings save review confirmation guard"),
         ("confirm_save: true", "settings save confirmation guard"),
         ("settingsRuntimeRestartNoticeLines", "settings save/reload evidence renderer"),
         ("The last save was for different JSON. Do not treat it as proof for the current patch.", "stale save guidance"),
@@ -274,6 +275,9 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
         preview_data = preview.get("data") if isinstance(preview.get("data"), dict) else {}
         if preview_data.get("writes_config") is not False:
             raise RuntimeError("Preview Patch reported writes_config=true.")
+        review_confirmation = preview_data.get("review_confirmation")
+        if not isinstance(review_confirmation, dict) or not review_confirmation.get("preview_id"):
+            raise RuntimeError("Preview Patch did not return review_confirmation evidence.")
         preview_progress = preview_data.get("settings_progress") if isinstance(preview_data.get("settings_progress"), dict) else {}
         if preview_progress.get("schema_version") != "desktop_settings_save_reload_progress.v1":
             raise RuntimeError("Preview Patch did not report settings save/reload progress.")
@@ -293,7 +297,11 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
 
         confirmed_status, confirmed_save = _post_json(
             f"{server.url}/api/settings/save-patch",
-            {"changes": PATCH_CHANGES, "confirm_save": True},
+            {
+                "changes": PATCH_CHANGES,
+                "review_confirmation": review_confirmation,
+                "confirm_save": True,
+            },
             server.token,
         )
         _require_status(confirmed_status, "/api/settings/save-patch confirmed")
@@ -303,6 +311,9 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
             raise RuntimeError("Confirmed Save Patch did not report writes_config=true.")
         if confirmed_data.get("reloaded") is not True:
             raise RuntimeError("Confirmed Save Patch did not report successful reload.")
+        verification = confirmed_data.get("save_verification") if isinstance(confirmed_data.get("save_verification"), dict) else {}
+        if verification.get("verified_from_reload") is not True:
+            raise RuntimeError(f"Confirmed Save Patch did not report reload digest verification: {verification}")
         confirmed_progress = confirmed_data.get("settings_progress") if isinstance(confirmed_data.get("settings_progress"), dict) else {}
         if confirmed_progress.get("status") != "complete":
             raise RuntimeError("Confirmed Save Patch did not report complete save/reload progress.")
@@ -342,6 +353,8 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
             "ok": bool(preview.get("ok")),
             "changed_keys": preview_data.get("changed_keys", []),
             "writes_config": preview_data.get("writes_config"),
+            "review_confirmation_preview_id": str(review_confirmation.get("preview_id") or ""),
+            "review_entries_schema_version": preview_data.get("review_entries_schema_version"),
             "progress": preview_progress.get("status"),
             "diff_line_count": len(preview_data.get("redacted_diff_lines", []) if isinstance(preview_data.get("redacted_diff_lines"), list) else []),
         },
@@ -353,6 +366,7 @@ def _run_smoke_in_root(*, app_root: Path, pipeline_path: Path, work_root: Path) 
             "ok": bool(confirmed_save.get("ok")),
             "writes_config": confirmed_data.get("writes_config"),
             "reloaded": confirmed_data.get("reloaded"),
+            "reload_verified": verification.get("verified_from_reload"),
             "progress": confirmed_progress.get("status"),
             "backup_path": str(backup_path),
             "backup_exists": backup_path.is_file(),

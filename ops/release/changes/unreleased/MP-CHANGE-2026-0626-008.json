@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0626-008",
+  "title": "Align Tauri pipeline log asset validation",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Aligned Tauri startup WebView asset validation with the current 2-second pipeline log refresh assets and hardened safe shutdown handling when the backend exits before a shutdown response is read.",
+  "reason": "Tauri/WebView2 crashed at launch because the Rust startup gate still required the old 5-second pipeline log refresh marker while the backend-served WebView assets and static tests use 2 seconds. Launch/close smoke also exposed a safe-close race where the backend could exit cleanly after accepting shutdown while the shell treated the transport error as fatal.",
+  "affected_areas": [
+    "generated-context",
+    "tauri"
+  ],
+  "behavior_before": "The Tauri shell panicked before opening the WebView when backend-served pipeline log assets contained `const REFRESH_INTERVAL_MS = 2000`. If backend shutdown closed the connection before a response was read, safe close could leave the shell process alive even after the backend exited.",
+  "behavior_after": "The Tauri shell accepts the current pipeline log refresh asset contract and opens the WebView. Safe close still fails closed while the backend child is running, but treats a shutdown transport error as requested when the backend child has already exited.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_contract.rs",
+    "apps/desktop/tauri/src-tauri/src/backend_process.rs",
+    "apps/desktop/tauri/src-tauri/src/lib.rs",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_contract.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_process.rs.md",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/lib.rs.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0626-008.json.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-008.json"
+  ],
+  "tests_added": [
+    "backend_process::tests::safe_only_shutdown_transport_error_allows_exited_backend_child",
+    "backend_process::tests::safe_only_shutdown_transport_error_retains_running_backend_child"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_tauri_shell_registers_native_pipeline_log_window_command tests.python.desktop.test_tauri_shell_scaffold.TauriShellScaffoldTests.test_tauri_shell_validates_backend_served_webview_before_opening_window -q -> passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_pipeline_log_window_static -q -> passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\apps\\desktop\\tauri\\Test-TauriShell-Build.ps1 -> passed; JS syntax, cargo check, and 40 Rust tests",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\apps\\desktop\\tauri\\Test-TauriShell-Launch.ps1 -TimeoutSeconds 90 -CloseTimeoutSeconds 20 -Mode Dev -> passed",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\apps\\desktop\\tauri\\Test-TauriShell-Launch.ps1 -TimeoutSeconds 90 -CloseTimeoutSeconds 20 -Mode Packaged -ExecutablePath .\\apps\\desktop\\tauri\\src-tauri\\target\\debug\\mediapipeline-tauri-shell.exe -> passed",
+    ".\\ops\\scripts\\dev\\start-tauri-preview.bat -CheckOnly -> passed"
+  ],
+  "rollback_plan": "Revert the three Rust file edits and this change packet if the Tauri startup gate needs to return to the prior pipeline-log asset contract or shutdown race behavior.",
+  "related_changes": [],
+  "notes": "Align startup WebView asset validation with current pipeline log refresh interval.\nUpdate Rust WebView validation fixtures to the current pipeline log refresh interval.\nTreat safe shutdown transport errors as successful only when the backend child has already exited.\nRefresh generated summary after Tauri validation fixture change.\nRefresh generated summary after Tauri shutdown handling change.\nAdd generated summary for this change packet.\nRefresh generated summary after Tauri asset validation change."
+}

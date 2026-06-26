@@ -4,6 +4,7 @@ import threading
 import time
 from typing import Any, Mapping
 
+from mediapipeline.core.completed.manifest import PROOF_MODE_SUMMARY
 from mediapipeline.desktop.models import CompletedJobRecord, ResolvedPaths
 
 from .promotion import (
@@ -75,9 +76,13 @@ class FinalLibraryPromotionServiceMixin:
         limit: int = 500,
     ) -> dict[str, Any]:
         self._ensure_final_library_promotion_state()
+        settings = promotion_settings_from_config(resolved.config_data)
         if records is None:
             loader = getattr(self, "load_recent_completed_jobs", None)
-            records = loader(resolved, limit=limit) if callable(loader) else []
+            load_kwargs: dict[str, Any] = {"limit": limit}
+            if not settings.enabled:
+                load_kwargs["proof_mode"] = PROOF_MODE_SUMMARY
+            records = loader(resolved, **load_kwargs) if callable(loader) else []
         pending_payload = None
         scanner = getattr(self, "scan_pending_publish", None)
         if callable(scanner):

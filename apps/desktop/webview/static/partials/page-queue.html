@@ -49,7 +49,15 @@
           <pre id="queue-filter-summary" class="prose-block queue-filter-summary" hidden aria-hidden="true">Queue filter inactive. No rows loaded.</pre>
           <div id="queue-source-inventory" class="queue-source-inventory" aria-live="polite">
             <section class="queue-source-tile queue-source-message-tile" data-tone="muted">
+              <div class="queue-source-tile-header">
+                <span class="queue-source-tile-label">Scan Freshness</span>
+                <span class="queue-source-tile-meta">idle</span>
+              </div>
               <strong class="queue-source-tile-value">Source inventory not loaded</strong>
+              <div class="queue-source-chip-row">
+                <span class="queue-source-chip" data-tone="muted">backend idle</span>
+                <span class="queue-source-chip" data-tone="info">view only</span>
+              </div>
               <span class="queue-source-tile-detail">Click Scan Sources to request backend inventory and queue curation.</span>
             </section>
           </div>
@@ -142,7 +150,7 @@
             <span class="empty-state-hint">Check source paths and schedule state, or run a fresh queue preview from Launch.</span>
           </div>
           </div>
-          <p id="queue-table-legend" class="note table-legend">Queue rows: no selectable rows.</p>
+          <p id="queue-table-legend" class="note table-legend" hidden aria-hidden="true"></p>
           <!-- S80 Per-file settings drawer (Phase 3) -->
           <div id="fo-overlay" class="fo-overlay" hidden aria-hidden="true"></div>
           <aside id="fo-drawer" class="fo-drawer" hidden role="dialog" aria-modal="true" aria-labelledby="fo-drawer-title" aria-describedby="fo-inherited-settings-status fo-drawer-status" tabindex="-1">
@@ -339,6 +347,7 @@
                 <div class="fo-drawer-actions">
                   <button type="button" id="fo-drawer-save" class="primary-button" disabled>Save Override</button>
                   <button type="button" id="fo-series-preview-open" class="secondary-button">Apply to Series</button>
+                  <button type="button" id="fo-series-clear-open" class="secondary-button">Clear Series Overrides</button>
                   <button type="button" id="fo-remux-pilot-promote" class="secondary-button" hidden>Promote 3-pilot remux fallback</button>
                   <button type="button" id="fo-drawer-clear" class="secondary-button">Clear Override</button>
                 </div>

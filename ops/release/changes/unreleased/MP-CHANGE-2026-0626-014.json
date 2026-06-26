@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0626-014",
+  "title": "Let fresh progress override stale activity",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Prevent active scans from being labeled stale when ActiveJobs confirms the pipeline process is still running.",
+  "reason": "The previous stale-progress guard decorated activity as stale based only on pipeline_progress.json freshness. During a long source scan, pipeline_progress.json can pause at CurrentStage=scanning while ActiveJobs and pipeline_events continue updating.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "A live scan with a running pipeline PID could still show pipeline_state=stale and stale topbar labels if progress LastUpdate was older than the stale threshold.",
+  "behavior_after": "When progress looks stale but ActiveJobs reports a live pipeline job, snapshot activity is built from current progress instead of being decorated as stale. Orphaned progress with no live job remains stale.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/status/snapshot_runner.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_service_status_snapshot_runner.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-014.json",
+    "src/mediapipeline/core/status/snapshot_runner.py",
+    "tests/python/desktop/test_service_status_snapshot_runner.py"
+  ],
+  "tests_added": [
+    "ServiceStatusSnapshotRunnerTests.test_build_snapshot_keeps_stale_progress_active_when_pipeline_job_is_live"
+  ],
+  "manual_validation": [
+    "PASS: PYTHONDONTWRITEBYTECODE=1 apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_service_status_snapshot_runner -q",
+    "PASS: PYTHONDONTWRITEBYTECODE=1 apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_close_readiness tests.python.desktop.test_application_facade_snapshot -q",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --check --paths src/mediapipeline/core/status/snapshot_runner.py tests/python/desktop/test_service_status_snapshot_runner.py",
+    "INFO: validate_changes is blocked by unrelated packet MP-CHANGE-2026-0626-010 using invalid status 'completed'."
+  ],
+  "rollback_plan": "Revert the ActiveJobs freshness override in snapshot_runner.py and remove the corresponding snapshot-runner regression test.",
+  "related_changes": [],
+  "notes": "Let live pipeline ActiveJobs evidence suppress stale progress decoration during active scans.\nCover stale progress with live pipeline ActiveJobs evidence.\nRefresh generated summary for active-scan stale override.\nRefresh generated summary for snapshot-runner regression test."
+}

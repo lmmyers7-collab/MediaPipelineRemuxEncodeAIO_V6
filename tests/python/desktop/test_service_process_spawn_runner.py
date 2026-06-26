@@ -228,6 +228,24 @@ class SpawnRunnerTests(unittest.TestCase):
         self.assertFalse(service._active_spawned_process_is_registered(fake_proc))
         self.assertEqual(service.active_job_updates, [(fake_proc, "killed", -9)])
 
+    def test_force_cleanup_can_scope_to_audit_processes(self) -> None:
+        service = DummyProcessLifecycleService()
+        pipeline_proc = FakeSpawnProcess()
+        pipeline_proc.pid = 1234
+        audit_proc = FakeSpawnProcess()
+        audit_proc.pid = 1235
+        service._register_active_spawned_process(pipeline_proc, "pipeline")
+        service._register_active_spawned_process(audit_proc, "audit")
+
+        messages = service.kill_active_spawned_processes(job_kinds={"audit"})
+
+        self.assertEqual(messages, ["killed audit"])
+        self.assertEqual(service.killed_labels, ["audit"])
+        self.assertTrue(service._active_spawned_process_is_registered(pipeline_proc))
+        self.assertFalse(service._active_spawned_process_is_registered(audit_proc))
+        self.assertEqual(pipeline_proc.kill_calls, 0)
+        self.assertEqual(audit_proc.kill_calls, 1)
+
 
 if __name__ == "__main__":
     unittest.main()

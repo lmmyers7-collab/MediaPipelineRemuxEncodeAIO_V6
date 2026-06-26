@@ -300,6 +300,114 @@ class RenameFacadePolicyTests(unittest.TestCase):
         self.assertEqual(preview["tv_filter_terms_mode"], "staged")
         self.assertTrue(any(item["kind"] == "context_guard" for item in preview["filter_evidence"]))
 
+    def test_clean_filename_preview_reports_tv_case_analysis(self) -> None:
+        from mediapipeline.core.rename.tv import build_auto_tv_rename_name
+
+        preview = rename_clean_filename_preview_from_request(
+            {
+                "mode": "tv",
+                "source_folder": "Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA",
+                "filename": "S03E01-The Beginning of Winter.mkv",
+                "expected_show": "Ascendance of a Bookworm",
+                "expected_season": "3",
+                "expected_episode": "1",
+                "expected_episode_title": "The Beginning of Winter",
+                "include_case_analysis": "true",
+            },
+            clean_movie_name=clean_pipeline_movie_name,
+            build_auto_tv_name=build_auto_tv_rename_name,
+        )
+
+        self.assertEqual(preview["target_name"], "Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv")
+        self.assertTrue(preview["comparison"]["ok"], preview["comparison"])
+        self.assertEqual(preview["actual_fields"]["show"], "Ascendance of a Bookworm")
+        self.assertEqual(preview["expected_fields"]["episode"], 1)
+        self.assertEqual(preview["case_payload"]["kind"], "tv_auto")
+        suggestion = next(item for item in preview["filter_suggestions"] if item["term"].casefold() == "1080p")
+        self.assertEqual(suggestion["coverage_status"], "already_filtered")
+        self.assertFalse(suggestion["stage_recommended"])
+        self.assertIn("tv_filter_terms.video_source", suggestion["destinations"])
+        self.assertIn("tv_remove_terms", suggestion["destinations"])
+        self.assertFalse(any(destination.startswith("movie_filter_terms.") for destination in suggestion["destinations"]))
+        self.assertNotIn("remove_terms", suggestion["destinations"])
+
+    def test_clean_filename_preview_honors_tv_no_episode_title_template(self) -> None:
+        from mediapipeline.core.rename.tv import build_auto_tv_rename_name
+
+        preview = rename_clean_filename_preview_from_request(
+            {
+                "mode": "tv",
+                "source_folder": "The Web S01",
+                "filename": "S01E01-Pilot.mkv",
+                "template_preset": "tv_no_episode_title",
+                "expected_show": "The Web",
+                "expected_season": "1",
+                "expected_episode": "1",
+                "expected_episode_title": "Pilot",
+                "include_case_analysis": "true",
+            },
+            clean_movie_name=clean_pipeline_movie_name,
+            build_auto_tv_name=build_auto_tv_rename_name,
+        )
+
+        self.assertEqual(preview["target_name"], "The Web - S01E01.mkv")
+        self.assertEqual(preview["expected_fields"]["expected_name"], "The Web - S01E01.mkv")
+        self.assertEqual(preview["expected_fields"]["episode_title"], "")
+        self.assertTrue(preview["comparison"]["ok"], preview["comparison"])
+
+    def test_clean_filename_preview_reports_movie_case_analysis(self) -> None:
+        preview = rename_clean_filename_preview_from_request(
+            {
+                "mode": "movie",
+                "filename": "Scary Movie 2026 1080p DCPRip x264-FS.mkv",
+                "expected_movie_title": "Scary Movie",
+                "expected_year": "2026",
+                "include_case_analysis": "true",
+            },
+            clean_movie_name=clean_pipeline_movie_name,
+        )
+
+        self.assertEqual(preview["target_name"], "Scary Movie (2026).mkv")
+        self.assertEqual(preview["actual_fields"]["movie_title"], "Scary Movie")
+        self.assertTrue(preview["comparison"]["ok"], preview["comparison"])
+        self.assertEqual(preview["case_payload"]["kind"], "movie_auto")
+        destinations = {item["default_destination"] for item in preview["filter_suggestions"]}
+        self.assertIn("movie_filter_terms.video_source", destinations)
+        self.assertIn("movie_filter_terms.release_groups", destinations)
+        self.assertTrue(all(not item["stage_recommended"] for item in preview["filter_suggestions"]))
+        for item in preview["filter_suggestions"]:
+            self.assertIn("movie_filter_terms.video_source", item["destinations"])
+            self.assertIn("remove_terms", item["destinations"])
+            self.assertFalse(any(destination.startswith("tv_filter_terms.") for destination in item["destinations"]))
+            self.assertNotIn("tv_remove_terms", item["destinations"])
+
+    def test_clean_filename_preview_marks_missing_movie_terms_as_stage_recommended(self) -> None:
+        preview = rename_clean_filename_preview_from_request(
+            {
+                "mode": "movie",
+                "filename": "Scary Movie 2026 1080p DCPRip x264-FS.mkv",
+                "expected_movie_title": "Scary Movie",
+                "expected_year": "2026",
+                "include_case_analysis": "true",
+                "movie_filter_options": {
+                    "video_source": False,
+                    "release_groups": True,
+                    "audio_channels": True,
+                    "editions": True,
+                    "file_size": True,
+                    "services_containers": True,
+                    "languages_subs_dubs": True,
+                },
+            },
+            clean_movie_name=clean_pipeline_movie_name,
+        )
+
+        self.assertFalse(preview["comparison"]["ok"], preview["comparison"])
+        suggestions = {item["term"].casefold(): item for item in preview["filter_suggestions"]}
+        self.assertTrue(suggestions["1080p"]["stage_recommended"])
+        self.assertEqual(suggestions["1080p"]["coverage_status"], "new")
+        self.assertTrue(suggestions["dcprip"]["stage_recommended"])
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -289,6 +289,50 @@ function New-QueueEngineTestEntry {
     }
 }
 
+function New-QueueEngineSyntheticEntry {
+    param(
+        [Parameter(Mandatory)] [string] $Root,
+        [Parameter(Mandatory)] [string] $Name,
+        [int] $QueueIndex = 1,
+        [int] $QueueTotal = 1
+    )
+
+    $path = Join-Path $Root $Name
+    $file = [pscustomobject]@{
+        Name             = $Name
+        FullName         = $path
+        Length           = 1
+        Extension        = '.mkv'
+        LastWriteTimeUtc = [datetime]'2026-06-04T00:00:00Z'
+    }
+    return [pscustomobject]@{
+        File                   = $file
+        SourcePath             = [string]$path
+        RootPath               = [string]$Root
+        QueuePhase             = 'movie'
+        MediaKind              = 'movie'
+        IsTV                   = $false
+        IsPriority             = $false
+        PriorityInfo           = [pscustomobject]@{ Reasons = @(); PriorityOrderTicks = 0L }
+        PriorityOrderTicks     = 0L
+        EffectivePriorityLevel = 'normal'
+        QueueIndex             = $QueueIndex
+        QueueTotal             = $QueueTotal
+        SortName               = [System.IO.Path]::GetFileNameWithoutExtension($Name)
+        ShowSortKey            = [System.IO.Path]::GetFileNameWithoutExtension($Name)
+        SeasonSortOrder        = 0
+        SeasonSortKey          = ''
+        EpisodeSortOrder       = 0
+        RelativePathSort       = $Name
+        LibraryId              = ''
+        LibraryName            = ''
+        LibraryDesignation     = ''
+        LibraryOutputRoot      = ''
+        LastWriteUtc           = [datetime]'2026-06-04T00:00:00Z'
+        Metadata               = @{}
+    }
+}
+
 function Invoke-GlobalRunnableQueueSnapshotMetadataCheck {
     $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueRunCountTest_" + [guid]::NewGuid().ToString('N'))
     try {
@@ -338,6 +382,44 @@ function Invoke-GlobalRunnableQueueSnapshotMetadataCheck {
         Assert-Equal ([int]$holdRow['run_queue_index']) 0 'Hold rows should not have global runnable index.'
         Assert-Equal ([int]$holdRow['run_queue_total']) 0 'Hold rows should not have global runnable total.'
     } finally {
+        if (Test-Path -LiteralPath $tempRoot -ErrorAction SilentlyContinue) {
+            Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+        }
+    }
+}
+
+function Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ("MediaPipelineQueueRowCapTest_" + [guid]::NewGuid().ToString('N'))
+    $previousRowLimit = $script:QueueSnapshotRowLimit
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $script:QueueSnapshotRowLimit = 5
+        $entries = [System.Collections.ArrayList]::new()
+        for ($index = 1; $index -le 8; $index++) {
+            $entries.Add((New-QueueEngineSyntheticEntry -Root $tempRoot -Name ("Movie-{0:D3}.mkv" -f $index) -QueueIndex $index -QueueTotal 8)) | Out-Null
+        }
+        $plan = New-TestQueuePlan
+        $plan.NormalMovieEntries = $entries.ToArray()
+        $plan.MovieCount = 8
+        $script:configPath = ''
+        $script:LocalBase = $tempRoot
+        $script:SourceMovies = $tempRoot
+        $script:SourceTV = $tempRoot
+        $script:Outsource = ''
+        $script:ValidExtensions = @('.mkv')
+
+        $snapshot = Build-QueuePlanSnapshotRows -QueuePlan $plan -ProcessedIndex @{}
+
+        Assert-Equal $snapshot.runnable_count 8 'Snapshot runnable_count must preserve the full runnable total.'
+        Assert-Equal $snapshot.total_row_count 8 'Snapshot total_row_count must preserve the full display candidate total.'
+        Assert-Equal $snapshot.shown_row_count 5 'Snapshot should cap displayed rows at the row limit.'
+        Assert-Equal $snapshot.row_limit 5 'Snapshot row_limit should expose the display cap.'
+        Assert-True ([bool]$snapshot.rows_truncated) 'Snapshot should mark rows_truncated when display rows are capped.'
+        Assert-Equal ([int]$snapshot.rows.Count) 5 'Snapshot rows payload should be capped.'
+        Assert-Equal ([int]$snapshot.rows[0]['run_queue_total']) 8 'Visible runnable rows must retain the full run_queue_total.'
+        Assert-Equal ([int]$plan.NormalMovieEntries[7].RunQueueTotal) 8 'Non-visible entries must still receive the full RunQueueTotal for execution.'
+    } finally {
+        $script:QueueSnapshotRowLimit = $previousRowLimit
         if (Test-Path -LiteralPath $tempRoot -ErrorAction SilentlyContinue) {
             Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
         }
@@ -438,6 +520,7 @@ Invoke-ManualOrderSortsHighPriorityBucketsCheck
 Invoke-ExplicitManifestNormalSuppressesFilesystemPriorityCheck
 Invoke-CorruptPriorityManifestFailsClosedCheck
 Invoke-GlobalRunnableQueueSnapshotMetadataCheck
+Invoke-QueueSnapshotRowsAreCappedButTotalsRemainAccurateCheck
 Invoke-SerialQueueDispatchUsesGlobalRunnableMetadataCheck
 Invoke-QueueSnapshotHoldRowsRunnableCountCheck
 

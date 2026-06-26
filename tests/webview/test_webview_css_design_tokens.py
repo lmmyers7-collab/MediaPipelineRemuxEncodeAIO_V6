@@ -10,12 +10,16 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api.static_files import render_index
+from tests.css_import_resolver import local_css_import_paths, resolve_css_imports
 
 REPO_ROOT = find_repo_root(Path(__file__))
 STATIC_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
 ASSETS_ROOT = STATIC_ROOT / "assets"
 CSS_PATH = ASSETS_ROOT / "styles.css"
-CSS_PATHS = sorted(ASSETS_ROOT.glob("styles*.css"))
+CSS_PATHS = sorted(path for path in ASSETS_ROOT.rglob("*.css") if path.is_file())
+COMPONENTS_CSS_PATH = ASSETS_ROOT / "styles.components.css"
+PAGES_CSS_PATH = ASSETS_ROOT / "styles.pages.css"
+QUEUE_CSS_PATH = ASSETS_ROOT / "styles.queue.css"
 DOM_HELPERS_PATH = ASSETS_ROOT / "domHelpers.js"
 COMPLETED_VIEW_PATH = ASSETS_ROOT / "completedView.js"
 PENDING_VIEW_PATH = ASSETS_ROOT / "pendingPublishView.js"
@@ -26,6 +30,7 @@ LAUNCH_VIEW_PATH = ASSETS_ROOT / "launchView.js"
 LAUNCH_COMMAND_BUTTONS_PATH = ASSETS_ROOT / "launch" / "commandButtons.js"
 LAUNCH_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-launch.html"
 REPORTS_VIEW_PATH = ASSETS_ROOT / "reportsView.js"
+REPORTS_SHELL_PATH = ASSETS_ROOT / "reports" / "shell.js"
 COMPLETED_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-completed.html"
 PENDING_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-pending.html"
 QUEUE_PARTIAL_PATH = STATIC_ROOT / "partials" / "page-queue.html"
@@ -51,6 +56,18 @@ def _rendered_index_html() -> str:
     response = render_index(STATIC_ROOT, {"token": "test-token", "appVersion": "v5-test"})
     assert response.status == 200
     return response.body.decode("utf-8")
+
+
+def _read_components_css() -> str:
+    return resolve_css_imports(COMPONENTS_CSS_PATH, ASSETS_ROOT)
+
+
+def _read_pages_css() -> str:
+    return resolve_css_imports(PAGES_CSS_PATH, ASSETS_ROOT)
+
+
+def _read_queue_css() -> str:
+    return resolve_css_imports(QUEUE_CSS_PATH, ASSETS_ROOT)
 
 
 class WebViewCssDesignTokenTests(unittest.TestCase):
@@ -96,7 +113,8 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
                 if "var(--space-" not in line and not re.search(r":\s*0(?:[;\s]|$)", line) and "auto" not in line:
                     violations.append(f"{file_name}:{line_number}: {line}")
             if opacity.search(line):
-                violations.append(f"{file_name}:{line_number}: {line}")
+                if "var(--opacity-" not in line:
+                    violations.append(f"{file_name}:{line_number}: {line}")
 
         self.assertEqual(violations, [])
 
@@ -128,11 +146,11 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         tokens = (ASSETS_ROOT / "styles.tokens.css").read_text(encoding="utf-8")
         theme = (ASSETS_ROOT / "styles.theme.css").read_text(encoding="utf-8")
         layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
-        pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
+        components = _read_components_css()
+        pages = _read_pages_css()
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
         layout_manager = (ASSETS_ROOT / "styles.layout-manager.css").read_text(encoding="utf-8")
-        queue = (ASSETS_ROOT / "styles.queue.css").read_text(encoding="utf-8")
+        queue = _read_queue_css()
         rename = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
         lines = css.splitlines()
 
@@ -193,9 +211,27 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn(".fo-drawer {", queue)
         self.assertIn(".rename-workbench", rename)
 
+    def test_component_css_local_imports_resolve_under_assets_root(self) -> None:
+        for imported_path in local_css_import_paths(COMPONENTS_CSS_PATH, ASSETS_ROOT):
+            self.assertTrue(imported_path.is_file(), imported_path)
+            imported_path.relative_to(ASSETS_ROOT.resolve())
+        self.assertTrue(_read_components_css())
+
+    def test_pages_css_local_imports_resolve_under_assets_root(self) -> None:
+        for imported_path in local_css_import_paths(PAGES_CSS_PATH, ASSETS_ROOT):
+            self.assertTrue(imported_path.is_file(), imported_path)
+            imported_path.relative_to(ASSETS_ROOT.resolve())
+        self.assertTrue(_read_pages_css())
+
+    def test_queue_css_local_imports_resolve_under_assets_root(self) -> None:
+        for imported_path in local_css_import_paths(QUEUE_CSS_PATH, ASSETS_ROOT):
+            self.assertTrue(imported_path.is_file(), imported_path)
+            imported_path.relative_to(ASSETS_ROOT.resolve())
+        self.assertTrue(_read_queue_css())
+
     def test_workflow_tables_use_content_weighted_layout_classes(self) -> None:
         html = _rendered_index_html()
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        components = _read_components_css()
 
         for table_class in [
             "workflow-table queue-table",
@@ -211,7 +247,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
     def test_shared_data_table_controls_are_wired(self) -> None:
         helpers = _read_dom_helpers_bundle()
         app_js = (ASSETS_ROOT / "app.js").read_text(encoding="utf-8")
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        components = _read_components_css()
 
         self.assertIn("function enhanceDataTables", helpers)
         self.assertIn("enhanceDataTables,", helpers)
@@ -256,9 +292,9 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
     def test_semantic_color_roles_are_wired(self) -> None:
         tokens = (ASSETS_ROOT / "styles.tokens.css").read_text(encoding="utf-8")
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
-        pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
-        queue = (ASSETS_ROOT / "styles.queue.css").read_text(encoding="utf-8")
+        components = _read_components_css()
+        pages = _read_pages_css()
+        queue = _read_queue_css()
         theme = (ASSETS_ROOT / "styles.theme.css").read_text(encoding="utf-8")
 
         for token in (
@@ -315,7 +351,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
     def test_topbar_and_evidence_tools_accessibility_contract(self) -> None:
         html = _rendered_index_html()
         layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        components = _read_components_css()
 
         for token in (
             '<button type="button" id="refresh-health"',
@@ -352,7 +388,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
     def test_design_system_cleanup_tokens_and_action_hierarchy_are_wired(self) -> None:
         tokens = (ASSETS_ROOT / "styles.tokens.css").read_text(encoding="utf-8")
         layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        components = _read_components_css()
         controls = (ASSETS_ROOT / "styles.controls.css").read_text(encoding="utf-8")
         launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
         launch_command_buttons_js = LAUNCH_COMMAND_BUTTONS_PATH.read_text(encoding="utf-8")
@@ -390,13 +426,14 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
 
     def test_panel_and_tab_consistency_contract_is_wired(self) -> None:
         html = _rendered_index_html()
-        pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
+        pages = _read_pages_css()
+        components = _read_components_css()
         rename_css = (ASSETS_ROOT / "styles.rename.css").read_text(encoding="utf-8")
         app_js = APP_LAYOUT_MANAGER_PATH.read_text(encoding="utf-8")
         lifecycle_js = APP_LIFECYCLE_PATH.read_text(encoding="utf-8")
         launch_js = LAUNCH_VIEW_PATH.read_text(encoding="utf-8")
         reports_js = REPORTS_VIEW_PATH.read_text(encoding="utf-8")
+        reports_shell_js = REPORTS_SHELL_PATH.read_text(encoding="utf-8")
         completed_html = COMPLETED_PARTIAL_PATH.read_text(encoding="utf-8")
         rename_html = RENAME_PARTIAL_PATH.read_text(encoding="utf-8")
 
@@ -419,7 +456,7 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertNotIn("is-launch-tab-hidden", pages + launch_js + html)
         self.assertNotIn("is-reports-tab-hidden", pages + reports_js + html)
         self.assertIn('panel.classList.toggle("is-active"', launch_js)
-        self.assertIn('panel.classList.toggle("is-active"', reports_js)
+        self.assertIn('panel.classList.toggle("is-active"', reports_shell_js)
         self.assertIn(".settings-tab-pane[data-launch-tab-panel]", app_js)
         self.assertIn(".settings-tab-pane[data-reports-tab-panel]", app_js)
 
@@ -446,17 +483,23 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertNotIn('document.querySelectorAll("[data-output-page-target]")', lifecycle_js)
         self.assertIn('data-completed-tab="overview"', completed_html)
         self.assertIn("output-overview-kicker", completed_html)
+        self.assertIn('id="completed-current-at-a-glance"', completed_html)
+        self.assertIn('id="completed-current-filter-line"', completed_html)
+        self.assertIn('id="completed-current-details"', completed_html)
         self.assertIn("<h2>Why This Output Looks Different</h2>", completed_html)
         self.assertRegex(completed_html, r'<section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">\s*<div class="panel-heading">\s*<h2>Why This Output Looks Different</h2>')
         self.assertLess(
-            completed_html.index('<h2 id="completed-current-output-heading">Current Output Status</h2>'),
             completed_html.index("<h2>Output Files</h2>"),
+            completed_html.index('<h2 id="completed-current-output-heading">Current Output Status</h2>'),
         )
         self.assertNotRegex(
             completed_html,
             r"<section class=\"panel settings-tab-pane is-active\" data-completed-tab=\"overview\"[\s\S]*?<div class=\"settings-tab-bar",
         )
 
+        self.assertIn(".completed-current-at-a-glance {", components)
+        self.assertIn(".completed-current-metric-value {", components)
+        self.assertRegex(components, r"\.completed-current-metric-value\s*\{[^}]*font-variant-numeric: tabular-nums;")
         self.assertRegex(pages, r"\.settings-library-card\s*\{[^}]*border-radius: var\(--radius-sm\);")
         self.assertRegex(pages, r"\.settings-wizard-library-row\s*\{[^}]*border-radius: var\(--radius-sm\);")
         self.assertRegex(pages, r"\.settings-wizard-readiness-strip\s*\{[^}]*border-radius: var\(--radius-sm\);")
@@ -481,8 +524,8 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
 
     def test_webview_shell_has_narrow_viewport_layout(self) -> None:
         layout = (ASSETS_ROOT / "styles.layout.css").read_text(encoding="utf-8")
-        components = (ASSETS_ROOT / "styles.components.css").read_text(encoding="utf-8")
-        pages = (ASSETS_ROOT / "styles.pages.css").read_text(encoding="utf-8")
+        components = _read_components_css()
+        pages = _read_pages_css()
 
         body_match = re.search(r"body\s*\{(?P<body>.*?)\}", layout, re.S)
         self.assertIsNotNone(body_match)

@@ -284,6 +284,8 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "/api/queue/file-overrides/route-preview",
             "/api/queue/file-overrides/series-preview",
             "/api/queue/file-overrides/series-apply",
+            "/api/queue/file-overrides/series-clear-preview",
+            "/api/queue/file-overrides/series-clear-apply",
             "/api/queue/file-overrides/folder-preview",
             "/api/queue/file-overrides/folder-rule",
         ):
@@ -446,6 +448,19 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 self.assertTrue(contract["required_evidence"])
                 self.assertTrue(contract["rollback_requirements"])
                 self.assertTrue(contract["must_not"])
+        orphan_contract = next(
+            contract
+            for contract in payload["repair_reconcile_contracts"]
+            if contract["candidate_command"] == "pending_publish.reconcile_orphan_payloads"
+        )
+        self.assertIn("created_manifest_path", orphan_contract["required_evidence"])
+        self.assertNotIn("backup_path", orphan_contract["required_evidence"])
+        self.assertIn("refuse to overwrite an existing manifest", orphan_contract["rollback_requirements"])
+        self.assertFalse(orphan_contract["rollback_contract"]["backup_before_write"])
+        self.assertIn("new payload-adjacent manifest", orphan_contract["rollback_contract"]["backup_not_applicable_reason"])
+        self.assertIn("written_paths", orphan_contract["rollback_contract"]["journal_fields"])
+        self.assertIn("backup_paths_empty", orphan_contract["rollback_contract"]["journal_fields"])
+        self.assertNotIn("backup_path", orphan_contract["rollback_contract"]["journal_fields"])
 
     def test_repair_reconcile_dry_run_routes_are_backend_only_effect_none(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
@@ -548,6 +563,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 expected_effect = {
                     "/api/queue/file-overrides/folder-preview": "read-only-preview",
                     "/api/queue/file-overrides/route-preview": "read-only-preview",
+                    "/api/queue/file-overrides/series-clear-preview": "read-only-preview",
                     "/api/queue/file-overrides/series-preview": "read-only-preview",
                     "/api/subtitle-qa/preview": "read-only-preview",
                     "/api/ui-preferences": "ui-state-write",
@@ -559,6 +575,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             [
                 "/api/queue/file-overrides/folder-preview",
                 "/api/queue/file-overrides/route-preview",
+                "/api/queue/file-overrides/series-clear-preview",
                 "/api/queue/file-overrides/series-preview",
                 "/api/rename/preview",
                 "/api/sample-validation/preview",
@@ -573,6 +590,9 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(routes["/api/rename/filter-cases"]["effect"], "test-fixture-write")
         self.assertEqual(routes["/api/rename/filter-cases"]["data_schema"], "rename_bad_case_corpus_append.v1")
         self.assertIn("confirm_append", routes["/api/rename/filter-cases"]["request_keys"])
+        self.assertIn("kind", routes["/api/rename/filter-cases"]["request_keys"])
+        self.assertIn("expected_movie_title", routes["/api/rename/filter-cases"]["request_keys"])
+        self.assertIn("expected_episode", routes["/api/rename/filter-cases"]["request_keys"])
 
     def test_rename_browse_contract_includes_folder_files_mode(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -584,6 +604,10 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertIn("source_folder", routes["/api/rename/clean-filename-preview"]["query_keys"])
         self.assertIn("movie_filter_terms", routes["/api/rename/clean-filename-preview"]["query_keys"])
         self.assertIn("tv_filter_terms", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertIn("template_preset", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertIn("expected_movie_title", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertIn("expected_episode", routes["/api/rename/clean-filename-preview"]["query_keys"])
+        self.assertIn("include_case_analysis", routes["/api/rename/clean-filename-preview"]["query_keys"])
         self.assertNotIn("movie_filter_terms_enabled", routes["/api/rename/clean-filename-preview"]["query_keys"])
         self.assertEqual(routes["/api/rename/cleaning-filters"]["effect"], "none")
         self.assertEqual(routes["/api/rename/cleaning-filters"]["response_schema"], "desktop_rename_cleaning_filter_catalog.v1")
@@ -614,10 +638,13 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "diagnostic-process",
             "diagnostics-artifact-write",
             "filesystem-mutation",
+            "failure-evidence-archive",
             "failure-marker-write",
+            "failure-resolution-journal-write",
             "metrics-backfill-state-write",
             "metrics-state-write",
             "process-dry-run",
+            "process-control",
             "deployment-write",
             "process-launch",
             "pending-manifest-write",

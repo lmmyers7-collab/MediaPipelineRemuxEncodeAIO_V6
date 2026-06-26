@@ -1,0 +1,53 @@
+{
+  "id": "MP-CHANGE-2026-0624-035",
+  "title": "Launch preflight evidence refresh",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Launch preflight now refreshes missing or stale encoder capability diagnostic evidence when backend prerequisites are available, runtime prep boundary rows report ready, and autonomy failure health keys off active failure markers instead of historical round reports.",
+  "reason": "Launch readiness was showing review/yellow for backend-owned diagnostic evidence that could be regenerated, for deferred runtime prep that is expected to happen at start, and for old failure report JSON even when the Failure Resolution Center had no active marker rows.",
+  "affected_areas": [
+    "api",
+    "diagnostics",
+    "docs",
+    "generated",
+    "launch",
+    "tests"
+  ],
+  "behavior_before": "Missing/stale encoder capability evidence remained a review row until manually refreshed; runtime prep boundary rows were review despite being intentionally deferred; autonomy health counted JSON under Failures/Reports as active failure artifacts.",
+  "behavior_after": "Pipeline launch preflight attempts a bounded backend diagnostic refresh for missing/stale encoder capability evidence, marks runtime prep boundary rows ready, and only active failure marker JSON contributes to autonomy failure warnings.",
+  "files_touched": [
+    "docs/generated/summaries/docs/inventories/API_ROUTE_INVENTORY.md.md",
+    "docs/generated/summaries/docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md.md",
+    "docs/generated/summaries/src/mediapipeline/core/diagnostics/autonomy_health.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/processes/preflight_facade.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/contract_read.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_process_launch.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_autonomy_health.py.md",
+    "docs/inventories/API_ROUTE_INVENTORY.md",
+    "docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-035.json",
+    "src/mediapipeline/core/diagnostics/autonomy_health.py",
+    "src/mediapipeline/core/processes/preflight_facade.py",
+    "src/mediapipeline/desktop/api/contract_read.py",
+    "tests/python/desktop/test_application_facade_process_launch.py",
+    "tests/python/desktop/test_autonomy_health.py"
+  ],
+  "tests_added": [
+    "test_historical_round_failure_reports_do_not_create_active_failure_review",
+    "test_launch_preflight_auto_refreshes_stale_encoder_capability_report"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_process_launch -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_autonomy_health -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --changed - completed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed only on unrelated uncovered files: docs/generated/summaries/tests/python/desktop/test_preset_library.py.md, docs/implementation/local-api-test-split/PHASE_1_TEST_HARNESS_AND_SHARED_FIXTURES.md, docs/implementation/local-api-test-split/PRE_WORK_AND_BASELINE.md"
+  ],
+  "rollback_plan": "Revert the preflight encoder diagnostic refresh helper and runtime prep status change, restore autonomy failure scanning of failed report JSON, and revert the associated tests and route inventory wording.",
+  "related_changes": [],
+  "notes": "Auto-refresh missing or stale encoder capability diagnostic evidence during launch preflight.\nUse active failure markers, not historical round reports, for autonomy failure launch warnings.\nDocument the bounded encoder diagnostic refresh side effect on launch preflight.\nCover encoder diagnostic auto-refresh and runtime prep ready posture in launch preflight.\nCover active marker failure health and ignored historical round-failure reports.\nUpdate launch preflight inventory text for encoder diagnostic refresh evidence.\nUpdate route ownership note for bounded encoder diagnostic refresh.\nPython impact: launch preflight now invokes a bounded subprocess diagnostic only for missing/stale encoder capability evidence when host/script/config/report paths are available; autonomy failure health narrows active failure evidence to marker JSON.\nRefresh generated source summary for launch preflight changes.\nRefresh generated source summary for autonomy health changes.\nRefresh generated source summary for API read contract wording.\nRefresh generated test summary for launch preflight test changes.\nRefresh generated test summary for autonomy health test changes.\nRefresh generated docs summary for API route inventory wording.\nRefresh generated docs summary for route ownership wording."
+}

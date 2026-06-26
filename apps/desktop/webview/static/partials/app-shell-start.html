@@ -42,10 +42,31 @@
           <button type="button" id="customize-layout-btn" class="secondary-button" aria-pressed="false" title="Open the Layout Editor drawer">Customize</button>
           <button type="button" id="reset-layout-btn" class="secondary-button layout-reset-visible-btn" title="Reset layout preferences for the current page while the Layout Editor is open">Reset Layout</button>
           <button type="button" id="theme-toggle" class="secondary-button">Light</button>
+          <button type="button" id="pipeline-log-window-button" class="secondary-button" title="Toggle the floating Pipeline Log" aria-label="Toggle floating Pipeline Log" aria-pressed="false">Log</button>
           <button type="button" id="refresh-button" class="secondary-button">Refresh</button>
           <button type="button" class="danger-button emergency-button topbar-emergency-control" data-control-action="kill" data-confirm-command="true" hidden aria-label="Emergency force stop related pipeline, audit, and CSV rerun processes">Force Stop</button>
         </div>
       </header>
+
+      <section id="floating-pipeline-log-panel" class="floating-pipeline-log" aria-labelledby="floating-pipeline-log-title" aria-hidden="true" hidden>
+        <header class="floating-pipeline-log-header">
+          <div class="floating-pipeline-log-heading">
+            <span class="floating-pipeline-log-eyebrow">Read-only diagnostics</span>
+            <h2 id="floating-pipeline-log-title">Pipeline Log</h2>
+          </div>
+          <strong id="floating-pipeline-log-status" class="floating-pipeline-log-status" data-state="empty">Closed</strong>
+        </header>
+        <div class="floating-pipeline-log-controls">
+          <label class="check-row floating-pipeline-log-follow-row">
+            <input id="floating-pipeline-log-follow" type="checkbox" checked>
+            Follow tail
+          </label>
+          <button type="button" id="floating-pipeline-log-refresh-button" class="secondary-button">Refresh</button>
+          <button type="button" id="floating-pipeline-log-close-button" class="secondary-button">Close</button>
+          <span id="floating-pipeline-log-updated" class="floating-pipeline-log-updated">Not refreshed yet</span>
+        </div>
+        <pre id="floating-pipeline-log-text" class="log-block floating-pipeline-log-text" aria-live="polite">Open Log to load pipeline log.</pre>
+      </section>
 
       <aside id="layout-editor-drawer" class="layout-editor-drawer" aria-hidden="true" aria-label="Layout Editor" hidden inert>
         <div class="layout-editor-header">

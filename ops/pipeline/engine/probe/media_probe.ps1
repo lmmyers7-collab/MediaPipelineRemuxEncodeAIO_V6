@@ -298,6 +298,122 @@ function Get-SourceVideoStreamInventory {
     }
 }
 
+function Get-VideoStreamEvidenceProperty {
+    param(
+        $Value,
+        [Parameter(Mandatory)] [string[]] $Names,
+        $Default = $null
+    )
+
+    if ($null -eq $Value) { return $Default }
+    if ($Value -is [System.Collections.IDictionary]) {
+        foreach ($name in $Names) {
+            if ($Value.Contains($name)) { return $Value[$name] }
+        }
+    }
+    foreach ($name in $Names) {
+        try {
+            $prop = $Value.PSObject.Properties[$name]
+            if ($prop) { return $prop.Value }
+        } catch {}
+    }
+    return $Default
+}
+
+function ConvertTo-VideoStreamEvidenceInt {
+    param($Value, [int] $Default = 0)
+    if ($null -eq $Value) { return $Default }
+    try { return [int]$Value } catch { return $Default }
+}
+
+function ConvertTo-VideoStreamEvidenceBool {
+    param($Value, [bool] $Default = $false)
+    if ($null -eq $Value) { return $Default }
+    if ($Value -is [bool]) { return [bool]$Value }
+    $text = ([string]$Value).Trim().ToLowerInvariant()
+    if ($text -in @('1','true','yes')) { return $true }
+    if ($text -in @('0','false','no')) { return $false }
+    return $Default
+}
+
+function ConvertTo-VideoStreamEvidenceRows {
+    param(
+        $Streams,
+        [Parameter(Mandatory)] [string] $Source,
+        [bool] $DefaultAttachedPicture = $false,
+        [int] $Limit = 16
+    )
+
+    $rows = @()
+    foreach ($stream in @($Streams | Where-Object { $null -ne $_ } | Select-Object -First $Limit)) {
+        $attached = ConvertTo-VideoStreamEvidenceBool `
+            -Value (Get-VideoStreamEvidenceProperty -Value $stream -Names @('AttachedPicture','attached_picture') -Default $DefaultAttachedPicture) `
+            -Default:$DefaultAttachedPicture
+        $rows += [pscustomobject][ordered]@{
+            source           = $Source
+            kind             = "${Source}_video"
+            index            = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $stream -Names @('Index','index') -Default -1) -Default -1
+            ordinal          = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $stream -Names @('VideoOrdinal','video_ordinal','ordinal') -Default -1) -Default -1
+            codec            = ([string](Get-VideoStreamEvidenceProperty -Value $stream -Names @('Codec','codec','codec_name') -Default '')).Trim().ToLowerInvariant()
+            width            = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $stream -Names @('Width','width') -Default 0) -Default 0
+            height           = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $stream -Names @('Height','height') -Default 0) -Default 0
+            attached_picture = [bool]$attached
+        }
+    }
+    return @($rows)
+}
+
+function ConvertTo-VideoStreamFailureEvidence {
+    param(
+        $SourceInventory = $null,
+        $OutputInventory = $null,
+        [string] $Route = '',
+        [string] $Reason = '',
+        [string] $ErrorCode = ''
+    )
+
+    $sourceReal = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $SourceInventory -Names @('RealVideoStreamCount','real_video_stream_count','source_real_video_stream_count') -Default 0) -Default 0
+    $sourceAttached = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $SourceInventory -Names @('AttachedPicCount','attached_pic_count','source_attached_picture_stream_count') -Default 0) -Default 0
+    $outputReal = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $OutputInventory -Names @('RealVideoStreamCount','real_video_stream_count','output_real_video_stream_count') -Default 0) -Default 0
+    $outputAttached = ConvertTo-VideoStreamEvidenceInt (Get-VideoStreamEvidenceProperty -Value $OutputInventory -Names @('AttachedPicCount','attached_pic_count','output_attached_picture_stream_count') -Default 0) -Default 0
+
+    $sourceRealStreams = Get-VideoStreamEvidenceProperty -Value $SourceInventory -Names @('RealVideoStreams','real_video_streams','source_streams') -Default @()
+    $sourceAttachedStreams = Get-VideoStreamEvidenceProperty -Value $SourceInventory -Names @('AttachedPicStreams','attached_pic_streams','attached_picture_streams') -Default @()
+    $outputRealStreams = Get-VideoStreamEvidenceProperty -Value $OutputInventory -Names @('RealVideoStreams','real_video_streams','output_streams') -Default @()
+    $outputAttachedStreams = Get-VideoStreamEvidenceProperty -Value $OutputInventory -Names @('AttachedPicStreams','attached_pic_streams','attached_picture_streams') -Default @()
+
+    $sourceStreams = @(
+        @(ConvertTo-VideoStreamEvidenceRows -Streams $sourceRealStreams -Source 'source' -DefaultAttachedPicture:$false)
+        @(ConvertTo-VideoStreamEvidenceRows -Streams $sourceAttachedStreams -Source 'source' -DefaultAttachedPicture:$true)
+    )
+    $outputStreams = @(
+        @(ConvertTo-VideoStreamEvidenceRows -Streams $outputRealStreams -Source 'output' -DefaultAttachedPicture:$false)
+        @(ConvertTo-VideoStreamEvidenceRows -Streams $outputAttachedStreams -Source 'output' -DefaultAttachedPicture:$true)
+    )
+
+    $summaryLines = @()
+    if ($null -ne $SourceInventory) {
+        $summaryLines += "Video streams: source real=$sourceReal, attached=$sourceAttached"
+    }
+    if ($null -ne $OutputInventory) {
+        $summaryLines += "Video streams: output real=$outputReal, attached=$outputAttached"
+    }
+
+    return [pscustomobject][ordered]@{
+        schema_version                       = 'pipeline_failure_video_stream_evidence.v1'
+        route                                = ([string]$Route).Trim()
+        error_code                           = ([string]$ErrorCode).Trim()
+        reason                               = ([string]$Reason).Trim()
+        source_real_video_stream_count       = [int]$sourceReal
+        source_attached_picture_stream_count = [int]$sourceAttached
+        output_real_video_stream_count       = [int]$outputReal
+        output_attached_picture_stream_count = [int]$outputAttached
+        source_streams                       = @($sourceStreams)
+        output_streams                       = @($outputStreams)
+        summary_lines                        = @($summaryLines)
+    }
+}
+
 function Test-SourceVideoStreamPublishPolicy {
     param(
         [Parameter(Mandatory)] [string] $FilePath,

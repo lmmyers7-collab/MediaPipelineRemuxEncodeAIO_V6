@@ -4,6 +4,13 @@ Re-exports the full public namespace from the new home so existing imports
 keep working. New code should import from ``mediapipeline.core.kernel.dto_workspaces``
 directly; this shim is removed in the ADR-0013 Wave 6 cleanup.
 """
+from mediapipeline.core.kernel.dto_workspaces import (
+    MaintenanceWorkspaceDto,
+    NetworkWorkersDto,
+    RenamePreviewDto,
+    ScheduleWorkspaceDto,
+    SettingsWorkspaceDto,
+)
 from mediapipeline.core.kernel import dto_workspaces as _moved
 globals().update({_k: getattr(_moved, _k) for _k in dir(_moved) if not _k.startswith("__")})
 del _moved

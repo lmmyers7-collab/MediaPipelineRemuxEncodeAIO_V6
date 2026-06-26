@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0624-028",
+  "title": "Hide network settings guidance tiles",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Hid the generated Network settings guidance and staged-patch summary prose blocks while preserving the existing control IDs used by JavaScript and tests.",
+  "reason": "The visible generated tiles under Save Distributed Settings repeated low-value guardrail and patch-status text, adding visual clutter without helping the operator complete the settings workflow.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Network settings drawer displayed generated guidance tiles for role, purpose, lifecycle guardrail, secret guardrail, setup notes, staged keys, preview/save summary, and runtime boundary immediately under the distributed settings action buttons.",
+  "behavior_after": "The Network settings drawer keeps the distributed settings controls, status, preview, and save actions visible, but hides the generated guidance and staged-patch summary tiles.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-network.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-network.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-028.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_network_read_only_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-028.json",
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_network_read_only_boundary.py"
+  ],
+  "manual_validation": [
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_network_smoke -q",
+    "PASS: PYTHONPATH=src apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_network_read_only_boundary -q (13 tests)",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-network.html ops/release/changes/unreleased/MP-CHANGE-2026-0624-028.json",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/release/changes/unreleased/MP-CHANGE-2026-0624-028.json",
+    "PASS: node --check apps/desktop/webview/static/assets/networkView.js",
+    "TIMEOUT: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke produced no output before the 124s command timeout"
+  ],
+  "rollback_plan": "Remove the hidden/aria-hidden attributes and unwrap the Network settings staged-patch summary in apps/desktop/webview/static/partials/page-network.html, then refresh the generated summaries.",
+  "related_changes": [],
+  "notes": "Hide noisy generated distributed settings guidance and patch-summary tiles while preserving existing control IDs.\nRefresh generated summary for the change packet.\nRefresh generated summary after hiding Network settings guidance tiles.\nAssert the Network settings guidance and staged-patch summary tiles remain hidden while IDs stay available."
+}

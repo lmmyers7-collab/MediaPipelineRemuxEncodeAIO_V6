@@ -165,6 +165,12 @@ class LocalApiProcessCommandPayloadMixin:
             return resolved_paths_unavailable_payload("audit.start", "snapshot")
         return self.facade.start_audit_process(resolved, request).to_mapping()
 
+    def _audit_stop_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("audit.stop", "snapshot")
+        return self.facade.stop_audit_process(resolved, request).to_mapping()
+
     def _rerun_start_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

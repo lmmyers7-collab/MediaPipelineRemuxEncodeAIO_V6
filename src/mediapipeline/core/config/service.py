@@ -14,7 +14,14 @@ from mediapipeline.core.config.profiles import (
     normalize_profile_name,
 )
 from mediapipeline.core.config.preview import build_config_preview as build_config_preview_helper
-from mediapipeline.core.config.load import order_top_level_config, psd1_key, psd1_lines, psd1_quote, serialize_psd1_document
+from mediapipeline.core.config.load import (
+    load_psd1_mapping,
+    order_top_level_config,
+    psd1_key,
+    psd1_lines,
+    psd1_quote,
+    serialize_psd1_document,
+)
 from mediapipeline.core.config.save_runner import (
     config_backup_path,
     list_config_profiles_for_service,
@@ -24,6 +31,7 @@ from mediapipeline.core.config.save_runner import (
     save_config_profile_for_service,
 )
 from mediapipeline.core.config.settings_store import (
+    SettingsStoreError,
     import_psd1_settings_for_service,
     import_psd1_settings_preview_for_service,
     load_settings_authority_for_service,
@@ -44,20 +52,40 @@ from mediapipeline.desktop.subprocess_runner import run_capture
 
 class ConfigProfileServiceMixin:
     def load_config_data(self, config_path: Path, powershell_host: str | None) -> dict[str, Any]:
+        return load_config_data_for_service(
+            self,
+            config_path,
+            powershell_host,
+            run_capture_func=run_capture,
+        )
+
+    def load_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, Any]:
         return load_settings_authority_for_service(
             self,
             config_path,
             powershell_host,
-            psd1_loader=lambda path, host: load_config_data_for_service(
-                self,
-                path,
-                host,
-                run_capture_func=run_capture,
-            ),
+            psd1_loader=self._load_psd1_mapping_for_settings_authority,
         )
 
     def split_list_input(self, raw: str) -> list[str]:
         return split_config_list_input(raw)
+
+    def _load_psd1_mapping_for_settings_authority(self, config_path: Path, powershell_host: str | None) -> dict[str, Any]:
+        result = load_psd1_mapping(
+            config_path,
+            powershell_host,
+            run_capture_func=run_capture,
+            timeout_seconds=30,
+            extra_popen_kwargs=self._subprocess_kwargs_hidden(),
+            label="config import",
+        )
+        if result.timed_out:
+            self.logger.warning("Config authority import timed out for %s: %s", config_path, result.kill_message)
+            raise SettingsStoreError(result.error or "Config import timed out.")
+        if not result.ok:
+            self.logger.warning("Config authority import failed for %s: %s", config_path, result.error)
+            raise SettingsStoreError(result.error or f"Config PSD1 import failed: {config_path}")
+        return result.data
 
     def build_config_preview(self, base_config: dict[str, Any], managed_values: dict[str, Any], managed_keys: list[str]) -> ConfigPreview:
         return build_config_preview_helper(
@@ -125,36 +153,21 @@ class ConfigProfileServiceMixin:
             self,
             resolved,
             candidate_settings,
-            psd1_loader=lambda path, host: load_config_data_for_service(
-                self,
-                path,
-                host,
-                run_capture_func=run_capture,
-            ),
+            psd1_loader=self._load_psd1_mapping_for_settings_authority,
         )
 
     def import_psd1_settings_preview(self, resolved: ResolvedPaths) -> dict[str, Any]:
         return import_psd1_settings_preview_for_service(
             self,
             resolved,
-            psd1_loader=lambda path, host: load_config_data_for_service(
-                self,
-                path,
-                host,
-                run_capture_func=run_capture,
-            ),
+            psd1_loader=self._load_psd1_mapping_for_settings_authority,
         )
 
     def import_psd1_settings(self, resolved: ResolvedPaths) -> dict[str, Any]:
         return import_psd1_settings_for_service(
             self,
             resolved,
-            psd1_loader=lambda path, host: load_config_data_for_service(
-                self,
-                path,
-                host,
-                run_capture_func=run_capture,
-            ),
+            psd1_loader=self._load_psd1_mapping_for_settings_authority,
         )
 
     def settings_store_metadata(self, config_path: Path) -> dict[str, Any]:

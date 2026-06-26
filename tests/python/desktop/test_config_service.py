@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import os
 import sys
 import tempfile
 import unittest
@@ -12,6 +13,8 @@ from unittest.mock import patch
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.config.service import ConfigProfileServiceMixin
+from mediapipeline.core.config.settings_store import SettingsStoreError
+from mediapipeline.core.kernel.config_locations import PER_USER_APP_DIR_NAME, SETTINGS_STORE_NAME
 from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
 
 
@@ -68,6 +71,30 @@ class ConfigServiceRunnerTests(unittest.TestCase):
                 data = self.service.load_config_data(config, "pwsh")
 
             self.assertEqual(data, {})
+
+    def test_load_settings_authority_rejects_timeout_without_promoting_defaults(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            config = root / "MediaPipeline_config.psd1"
+            config.write_text("@{}", encoding="utf-8")
+            store_path = root / "LocalAppData" / PER_USER_APP_DIR_NAME / SETTINGS_STORE_NAME
+
+            def fake_run(args, **_kwargs):
+                return CapturedCommandResult(
+                    args=args,
+                    returncode=None,
+                    stdout="",
+                    stderr="",
+                    timed_out=True,
+                    kill_message="process killed",
+                )
+
+            with patch.dict(os.environ, {"LOCALAPPDATA": str(root / "LocalAppData")}, clear=False):
+                with patch("mediapipeline.core.config.service.run_capture", fake_run):
+                    with self.assertRaisesRegex(SettingsStoreError, "process killed"):
+                        self.service.load_settings_authority(config, "pwsh")
+
+            self.assertFalse(store_path.exists())
 
 
 if __name__ == "__main__":

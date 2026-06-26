@@ -6,7 +6,7 @@ from typing import Any, Mapping
 
 
 ACTIVE_CLOSE_STATES = frozenset({"processing", "paused", "audit"})
-NON_BLOCKING_CLOSE_STATES = frozenset({"idle", "completed", "failed", "unknown"})
+NON_BLOCKING_CLOSE_STATES = frozenset({"idle", "completed", "failed", "stale", "unknown"})
 INACTIVE_PIPELINE_PROGRESS_STAGES = frozenset({"", "idle", "sleeping", "stopped", "completed"})
 INACTIVE_AUDIT_PROGRESS_STATUSES = frozenset({"", "idle", "completed", "failed", "stopped"})
 SNAPSHOT_UNAVAILABLE_WARNING = "Snapshot was unavailable while evaluating close readiness."
@@ -47,7 +47,7 @@ def pipeline_progress_indicates_active_work(progress: Mapping[str, Any]) -> bool
     stage = str(progress.get("CurrentStage", "") or "").strip().casefold()
     if stage in INACTIVE_PIPELINE_PROGRESS_STAGES:
         return False
-    return not bool(progress.get("StopRequested", False))
+    return True
 
 
 def audit_progress_indicates_active_work(audit_progress: Mapping[str, Any]) -> bool:

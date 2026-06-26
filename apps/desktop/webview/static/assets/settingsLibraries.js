@@ -94,7 +94,8 @@
       { type: "note", text: "Use this for direct-copy allowlists and fallback encode controls. Backend Save remains authoritative before any future run uses these values." },
     ],
     subtitles: [
-      { type: "grid", fields: ["SubKeepLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages", "VobSubExtractLanguages", "SubSDHTitleKeywords", "SubSupplementalKeywords", "MergeThresholdMs", "SubtitleExtractTimeoutSeconds", "SubtitleProbeTimeoutSeconds", "BdpgsOcrTimeoutSeconds", "VobSubOcrTimeoutSeconds", "ExcludeSubtitleStyles", "IncludeSubtitleStyles"] },
+      { type: "grid", fields: ["SubKeepLanguages", "Tx3gExtractLanguages", "BdpgsExtractLanguages", "VobSubExtractLanguages"] },
+      { type: "advanced", title: "Advanced", note: "Keywords, timeouts, styles", fields: ["SubSDHTitleKeywords", "SubSupplementalKeywords", "MergeThresholdMs", "SubtitleExtractTimeoutSeconds", "SubtitleProbeTimeoutSeconds", "BdpgsOcrTimeoutSeconds", "VobSubOcrTimeoutSeconds", "ExcludeSubtitleStyles", "IncludeSubtitleStyles"] },
       { type: "panel", title: "TX3G", note: "MP4 timed text / mov_text policy", fields: ["ConvertTx3gToSrt", "DropTx3gAfterConversion", "CreateExternalTx3gSrtSidecars", "Tx3gPreserveExistingSrt", "Tx3gTreatForcedAsSeparate", "TreatTx3gSignsSongsAsForced"] },
       { type: "panel", title: "BDPGS", note: "Blu-ray image subtitle OCR policy", fields: ["ConvertBdpgsToSrt", "DropBdpgsAfterConversion", "TreatBdpgsSignsSongsAsForced"], gridFields: ["BdpgsOcrToolPath", "BdpgsOcrTessdataPath"] },
       { type: "panel", title: "VobSub", note: "DVD bitmap subtitle OCR policy", fields: ["ConvertVobSubToSrt", "DropVobSubAfterConversion", "TreatVobSubSignsSongsAsForced"], gridFields: ["VobSubOcrToolPath"] },
@@ -200,8 +201,10 @@
   }
 
   function profileState(profile) {
-    const profileId = String(profile?.id || "");
-    return libraryProfileStates().find((state) => String(state?.library_id || "") === profileId) || null;
+    const profileId = canonicalLibraryProfileId(profile?.id, "");
+    return libraryProfileStates().find((state) => (
+      canonicalLibraryProfileId(state?.library_id, "") === profileId
+    )) || null;
   }
 
   function fieldDefinition(key) {
@@ -312,6 +315,13 @@
   function slug(value, fallback) {
     const slugged = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
     return slugged || fallback;
+  }
+
+  function canonicalLibraryProfileId(value, fallback) {
+    const id = slug(value, fallback);
+    if (id === "movie" || id === "movies") return "movies";
+    if (id === "show" || id === "shows" || id === "tv") return "tv";
+    return id;
   }
 
   function emptyOverrides() {
@@ -531,9 +541,7 @@
 
   function normalizeProfile(raw, index) {
     const rawId = text(raw?.id || raw?.library_id || raw?.name);
-    let id = slug(rawId, `library-${index}`);
-    if (id === "movie") id = "movies";
-    if (id === "show" || id === "shows") id = "tv";
+    const id = canonicalLibraryProfileId(rawId, `library-${index}`);
     const fallbackDesignation = id === "tv" ? "tv" : id === "movies" ? "movie" : "auto";
     const designation = normalizeDesignation(raw?.designation, fallbackDesignation);
     const trackingWasMissing = !raw || !raw.default_tracking;
@@ -672,15 +680,9 @@
   }
 
   function libraryWatchSummaryLines(watch = libraryWatchConfig()) {
-    const rootsLabel = watch.roots.length
-      ? `${watch.roots.length} explicit root${watch.roots.length === 1 ? "" : "s"}`
-      : "Library Profile source roots";
     return [
       `Auto-run: ${watch.autoRun ? "enabled" : "off"}`,
       `Watch folders: ${watch.enabled ? "enabled" : "off"}`,
-      `Roots: ${rootsLabel}`,
-      `Debounce: ${watch.debounce}s`,
-      `Schedule gate: ${watch.respectSchedule ? "respected" : "ignored"}`,
       "Backend authority: detection stays in the local API watch-folder manager and launches use the existing gated Run Once path.",
     ];
   }
@@ -725,11 +727,7 @@
     const lines = [
       message,
       `Staged keys: ${staged.join(", ")}`,
-      pending.EnableWatchFolders
-        ? "Roots: Library Profile source roots"
-        : "Roots: existing saved roots are preserved while watch folders are disabled.",
       `Action: ${pending.WatchAction === "enqueue_and_launch" ? "gated Run Once" : "enqueue only"}`,
-      `Schedule gate: ${pending.WatchRespectScheduleWindow ? "respected" : "ignored"}`,
       "Runtime boundary: this control only stages settings; it does not scan, launch, queue, publish, rename, move, or delete media files.",
     ];
     setText("settings-library-watch-summary", lines.join("\n"));
@@ -1341,6 +1339,22 @@
     `;
   }
 
+  function renderAdvancedOverrideDisclosure(profile, groupKey, block) {
+    const formGrid = renderFieldGrid(profile, groupKey, block.fields || []);
+    if (!formGrid) return "";
+    return `
+      <details class="settings-library-advanced-disclosure" data-library-advanced-disclosure>
+        <summary class="settings-library-advanced-summary">
+          <span>${escapeHtml(block.title || "Advanced")}</span>
+          ${block.note ? `<small>${escapeHtml(block.note)}</small>` : ""}
+        </summary>
+        <div class="settings-library-advanced-body">
+          ${formGrid}
+        </div>
+      </details>
+    `;
+  }
+
   function renderOverrideLayout(profile, groupKey) {
     const blocks = overrideLayouts[groupKey] || [{ type: "grid", fields: overrideFieldsForGroup(groupKey) }];
     return blocks.map((block) => {
@@ -1349,6 +1363,7 @@
       if (block.type === "options") return renderOptionGrid(profile, groupKey, block.fields || []);
       if (block.type === "full") return renderFullFields(profile, groupKey, block.fields || []);
       if (block.type === "panel") return renderNestedOptionPanel(profile, groupKey, block);
+      if (block.type === "advanced") return renderAdvancedOverrideDisclosure(profile, groupKey, block);
       if (block.type === "compatibility") return renderCompatibilityPresetEditorControl(profile);
       if (block.type === "note") return `<p class="note settings-library-panel-note">${escapeHtml(block.text || "")}</p>`;
       return "";
@@ -1427,6 +1442,9 @@
         </div>
       </div>
       <div class="form-grid form-grid-dense settings-library-main-grid">
+        <label>Library ID
+          <input type="text" data-library-field="id" data-library-identity readonly value="${escapeHtml(profile.id)}">
+        </label>
         <label>Name
           <input type="text" data-library-field="name" value="${escapeHtml(profile.name)}" ${nonDeletable ? "readonly" : ""}>
         </label>
@@ -1935,9 +1953,7 @@
       if (input.type === "checkbox") return Boolean(input.checked);
       return input.value;
     };
-    const id = currentId === "movies" || currentId === "tv"
-      ? currentId
-      : slug(fieldValue("name"), currentId || `library-${index}`);
+    const id = canonicalLibraryProfileId(currentId || fieldValue("name"), `library-${index}`);
     const overrides = emptyOverrides();
     card.querySelectorAll("[data-library-override-row]").forEach((row) => {
       if (row.dataset.libraryOverride !== "true") return;
@@ -2200,14 +2216,24 @@
     }
   }
 
+  function handleSettingsPostSaveRefreshFailure(message) {
+    setText("settings-libraries-status", "Library save refresh failed");
+    renderLibraryPatchHandoff([
+      "Backend save returned success, but automatic settings refresh failed.",
+      message || "Reload settings before launching to verify the saved LibraryProfiles state.",
+    ].filter(Boolean).join(" "));
+    renderLibraryStateStrip();
+  }
+
   function renderLibraryWarningSummary() {
     setLibraryFeedback([...mp4CompatibilityWarningLines(), ...prunedOverrideWarningLines()].join("\n"));
   }
 
   function addLibraryCard() {
     const next = profiles.length + 1;
+    const id = `library-${Date.now()}`;
     const profile = normalizeProfile({
-      id: `library-${Date.now()}`,
+      id,
       name: `Library ${next}`,
       enabled: true,
       designation: "auto",
@@ -2217,7 +2243,7 @@
       promotion_destination: "",
       overrides: emptyOverrides(),
       default_tracking: {
-        ...defaultTracking(`library-${next}`),
+        ...defaultTracking(id),
         inherited_fields: ["output_path"],
       },
     }, next);
@@ -2503,7 +2529,9 @@
     deleteActiveLibrary,
     replaceActiveLibraryValuesWithDefaults,
     libraryProfileResetRequest,
+    libraryPatchStateKind,
     previewLibraryProfiles,
     saveLibraryProfiles,
+    handleSettingsPostSaveRefreshFailure,
   };
 })();

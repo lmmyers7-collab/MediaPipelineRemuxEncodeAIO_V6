@@ -11,7 +11,7 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeProcessControlTests(unittest.TestCase):

@@ -10,7 +10,7 @@ import sys
 import tempfile
 import time
 import unittest
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 REPO_ROOT = find_repo_root(Path(__file__))
 sys.path.insert(0, str(REPO_ROOT))
@@ -237,6 +237,31 @@ class FinalLibraryPromotionTests(unittest.TestCase):
             self.assertEqual(item["library_output_root"], str(original_outsource))
             self.assertEqual(item["final_library_rule_id"], "library-profile-concerts")
             self.assertEqual(item["final_library_destination_path"], str(destination / "Concerts" / "Concert.mkv"))
+
+    def test_disabled_promotion_status_does_not_prove_completed_outputs(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            source = root / "Source" / "Movie.mkv"
+            output = outsource / "Movie.mkv"
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_ENABLED: False,
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [],
+                },
+            )
+            record = _record(source, output, write_sidecar=False)
+
+            with patch.object(CompletedJobRecord, "output_exists", new_callable=PropertyMock) as output_exists:
+                output_exists.side_effect = AssertionError("disabled promotion must not prove output paths")
+                item = promotion_status_payload(resolved, [record])["items"][0]
+
+            self.assertEqual(item["final_library_promotion_status"], "disabled")
+            self.assertFalse(item["ready_for_promotion"])
+            self.assertNotIn("output_exists", item)
+            self.assertFalse(item["required_pipeline_sidecar_exists"])
 
     def test_promotion_enabled_profile_without_destination_is_rejected_and_generates_no_rule(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
@@ -1088,9 +1113,18 @@ class FinalLibraryPromotionTests(unittest.TestCase):
 class _PromotionHarness(FinalLibraryPromotionServiceMixin):
     def __init__(self, records: list[CompletedJobRecord]) -> None:
         self.records = records
+        self.load_calls: list[dict[str, object]] = []
         self.logger = logging.getLogger("final-library-promotion-test")
 
-    def load_recent_completed_jobs(self, resolved: ResolvedPaths, *, limit: int = 500, force_refresh: bool = False):
+    def load_recent_completed_jobs(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        limit: int = 500,
+        force_refresh: bool = False,
+        proof_mode: str | None = None,
+    ):
+        self.load_calls.append({"limit": limit, "force_refresh": force_refresh, "proof_mode": proof_mode})
         return self.records[:limit]
 
     def scan_pending_publish(self, resolved: ResolvedPaths):
@@ -1098,6 +1132,25 @@ class _PromotionHarness(FinalLibraryPromotionServiceMixin):
 
 
 class FinalLibraryPromotionServiceTests(unittest.TestCase):
+    def test_disabled_status_loads_completed_rows_without_live_proof(self) -> None:
+        with tempfile.TemporaryDirectory() as raw:
+            root = Path(raw)
+            outsource = root / "Outsource"
+            resolved = _resolved(
+                root,
+                outsource,
+                {
+                    KEY_FINAL_LIBRARY_PROMOTION_ENABLED: False,
+                    KEY_FINAL_LIBRARY_PROMOTION_RULES: [],
+                },
+            )
+            harness = _PromotionHarness([])
+
+            status = harness.get_final_library_promotion_status(resolved)
+
+            self.assertFalse(status["enabled"])
+            self.assertEqual(harness.load_calls[0]["proof_mode"], "summary")
+
     def test_service_promotes_selected_row_keys_only(self) -> None:
         with tempfile.TemporaryDirectory() as raw:
             root = Path(raw)

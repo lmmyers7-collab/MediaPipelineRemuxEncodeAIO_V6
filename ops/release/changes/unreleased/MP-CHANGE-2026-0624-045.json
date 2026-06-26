@@ -1,0 +1,38 @@
+{
+  "id": "MP-CHANGE-2026-0624-045",
+  "title": "Condense Home next queue detail",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Condensed the Home page Next 5 Videos selected-row detail from a wrapped prose paragraph into labeled, responsive summary chips.",
+  "reason": "The previous small white detail text duplicated the selected row title, wrapped long paths, and hid the useful route/status/position/evidence facts.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Selecting a Home next-queue item wrote five newline-separated prose lines with the selected title, route/status, long source/output values, and a safe-next-step sentence.",
+  "behavior_after": "Selecting a Home next-queue item shows compact Route, Status, Queue, Source, and Output chips plus one short Queue handoff line; long values truncate visually while full chip labels remain available.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/home.js",
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-045.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_home_live_state_smoke.py"
+  ],
+  "tests_added": [
+    "Updated Home next-queue static Node smoke assertions for compact detail chips.",
+    "Updated browser-backed Home live-state smoke assertions for compact detail chips."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_home_next_queue_shows_first_five_runnable_rows_only -q \u2014 passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_home_live_state_smoke.WebViewBrowserHomeLiveStateSmoke.test_real_browser_renders_home_live_state_without_mutation_posts -q \u2014 passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/app/home.js apps/desktop/webview/static/assets/styles.pages.css tests/python/desktop/test_application_facade_web_static.py tests/webview/test_webview_browser_home_live_state_smoke.py \u2014 passed; no additional tracked summary diff",
+    "Targeted Home next-queue static Node smoke passed; browser-backed Home live-state smoke passed; targeted summary refresh passed with no additional tracked summary diff."
+  ],
+  "rollback_plan": "Revert the Home next-queue detail renderer/styling changes and restore the previous selected-row prose assertions in the two focused tests.",
+  "related_changes": [],
+  "notes": "Render Home next-queue selected item as compact labeled summary chips.\nAdd responsive Home next-queue summary chip styling.\nExercise compact Home next-queue detail rendering in the static Node smoke.\nAssert compact Home next-queue selected-item detail fields in browser smoke.\nPython impact: test assertion updates only; no Python runtime behavior changed."
+}

@@ -137,6 +137,9 @@ def _browser_network_runner_source() -> str:
               "networkLifecycleRows",
               "renderNetworkStateFiles",
               "initNetworkViewEvents",
+              "renderNetworkAttentionStack",
+              "renderNetworkTopologyStrip",
+              "renderNetworkActionReadinessGates",
             ].forEach((name) => {
               if (typeof window.mediaPipelineNetworkView?.[name] !== "function") {
                 throw new Error("missing mediaPipelineNetworkView." + name + " function");
@@ -168,6 +171,12 @@ def _browser_network_runner_source() -> str:
             }
             if (typeof window.mediaPipelineNetworkView?.networkLifecycleDryRunAllowsConfirmed !== "function") {
               throw new Error("missing lifecycle dry-run freshness helper");
+            }
+            if (typeof window.mediaPipelineNetworkView?.networkLifecycleRelevantRoles !== "function") {
+              throw new Error("missing lifecycle role-group helper");
+            }
+            if (typeof window.mediaPipelineNetworkView?.renderNetworkDiagnosticRail !== "function") {
+              throw new Error("missing diagnostic rail renderer");
             }
             if (typeof window.mediaPipelineNetworkView?.networkWorkerStatusState !== "function") {
               throw new Error("missing worker status taxonomy helper");
@@ -354,9 +363,23 @@ def _browser_network_runner_source() -> str:
             }
             requireTitle("settings-network-role", ["Standalone", "Coordinator", "Worker", "Coordinator + local worker"]);
             requireText("network-status", ["Backend lifecycle controls"]);
-            requireText("network-status-banner-title", ["Coordinator only", "Blocked"]);
-            requireText("network-status-banner-detail", ["Normal Launch blocked", "Coordinator target"]);
-            requireText("network-status-banner-lines", ["Mode: Coordinator only.", "Runtime: Blocked", "Worker-facing coordinator URL", "Restart note"]);
+            requireText("network-status-banner-title", ["Coordinator only", "Running settings drift"]);
+            requireText("network-status-banner-detail", ["Normal Launch blocked", "Running worker differs from saved"]);
+            requireText("network-status-banner-lines", ["Mode: Coordinator only.", "Runtime: Blocked", "Worker-facing coordinator URL", "Restart note", "Worker settings drift"]);
+            requireText("network-health-strip", ["Role", "Runtime", "Coordinator", "Drift", "Workers", "Alerts"]);
+            requireText("network-health-workers", ["1 active / 1 idle"]);
+            requireText("network-health-alerts", ["review"]);
+            requireText("network-attention-stack", ["Pending done report", "worker-failed: blocked", "Worker settings drift"]);
+            requireText("network-topology-strip", ["Coordinator", "http://coordinator.test:7830", "worker-active", "Episode 01.mkv"]);
+            requireText("network-diagnostic-rail", ["TCP: ready", "Auth: review", "Paths: ready", "Queue: ready", "Claim: review", "State files: review"]);
+            requireText("network-action-readiness-gates", ["TCP: ready", "Auth: review", "Paths: ready", "State: review", "Queue: ready", "Close: ready", "Dry-run: review"]);
+            const coordinatorActionGroup = document.querySelector('[data-network-action-group="coordinator"]');
+            const workerActionGroup = document.querySelector('[data-network-action-group="worker"]');
+            const standaloneActionGroup = document.querySelector('[data-network-action-group="standalone"]');
+            if (!coordinatorActionGroup || coordinatorActionGroup.hidden) throw new Error("coordinator quick actions should be visible");
+            if (!workerActionGroup || !workerActionGroup.hidden) throw new Error("worker quick actions should be hidden in coordinator-only mode");
+            if (!standaloneActionGroup || !standaloneActionGroup.hidden) throw new Error("standalone quick actions should be hidden in coordinator mode");
+            requireText("network-lifecycle-control-buttons", ["Check & Start Coordinator", "Request Coordinator Stop", "Open Cluster Log", "Configure"]);
             requireText("network-coordinator-overview-status", ["Blocked review"]);
             requireText("network-coordinator-overview-summary", ["Coordinator overview:", "Queue on deck:", "Mutation guardrail"]);
             requireText("network-coordinator-active-rows", ["worker-active", "Episode 01.mkv", "Encode", "encoding", "42%"]);
@@ -412,7 +435,12 @@ def _browser_network_runner_source() -> str:
             }
             requireText("network-worker-progress-summary", ["Last reported worker progress:", "Active worker bars:", "Mutation guardrail: this panel uses backend-owned Network lifecycle routes only"]);
             requireText("network-worker-progress-bars", ["worker-active", "42%", "worker-failed"]);
-            requireText("network-worker-filter-summary", ["Showing 3/3 persisted worker rows", "No active/problem/review worker rows are hidden", "Mutation guardrail"]);
+            requireText("network-worker-filter-summary", ["Showing 3/3", "No active/problem/review rows hidden", "Filters are visual only"]);
+            requireText("network-worker-view-presets", ["All", "Needs Attention", "Active", "Idle", "Stale", "Path/Auth"]);
+            click('[data-network-worker-view="stale"]', "stale worker board preset");
+            requireText("network-worker-filter-summary", ["Showing 1/3", "Filter: view=Stale/Failed", "1 active/problem/review hidden"]);
+            click('[data-network-worker-view=""]', "all worker board preset");
+            requireText("network-worker-filter-summary", ["Showing 3/3", "Filter: none"]);
 
             const lifecycleRows = Array.from(document.querySelectorAll('#network-lifecycle-rows tr[data-selectable-row="true"]'));
             if (lifecycleRows.length < 6) throw new Error("expected network lifecycle handoff rows, saw " + lifecycleRows.length);
@@ -430,18 +458,18 @@ def _browser_network_runner_source() -> str:
             requireText("network-state-files-detail", ["File:", "Status:", "Safe next step:", "Mutation guardrail"]);
 
             click('#network-worker-rows tr[data-selectable-row="true"]', "network worker row");
-            requireText("network-worker-detail", ["Worker:", "Accessible libraries: movies, tv", "Lifecycle controls remain backend-owned"]);
+            requireText("network-worker-detail", ["Worker", "Current file", "Stage", "Progress", "Evidence links", "Lifecycle controls remain backend-owned"]);
 
             setSelect("network-worker-status-filter", "idle");
-            requireText("network-worker-filter-summary", ["Showing 1/3 persisted worker rows", "2 active/problem/review worker rows are hidden", "Clear or change filters before lifecycle decisions"]);
+            requireText("network-worker-filter-summary", ["Showing 1/3", "2 active/problem/review hidden", "clear filters before lifecycle decisions"]);
 
             setSelect("network-worker-status-filter", "");
             setInput("network-worker-filter", "failed-job");
-            requireText("network-worker-filter-summary", ["Showing 1/3 persisted worker rows", "1 active/problem/review worker row is hidden", "Mutation guardrail"]);
-            requireText("network-worker-detail", ["failed-job", "Accessible libraries: movies", "Error: ffmpeg exited 1", "Last failure code: SOURCE_NOT_FOUND", "Worker misconfigured code: SOURCE_NOT_FOUND"]);
+            requireText("network-worker-filter-summary", ["Showing 1/3", "1 active/problem/review hidden", "Filters are visual only"]);
+            requireText("network-worker-detail", ["failed-job", "SOURCE_NOT_FOUND", "Last failure reason", "Evidence links"]);
 
             setInput("network-worker-filter", "no-match-filter");
-            requireText("network-worker-filter-summary", ["Showing 0/3 persisted worker rows", "2 active/problem/review worker rows are hidden"]);
+            requireText("network-worker-filter-summary", ["Showing 0/3", "2 active/problem/review hidden"]);
             requireText("network-worker-detail", ["No network worker row selected."]);
             const preJoinSmokeResult = {
               filterSummary: text("network-worker-filter-summary"),
@@ -468,23 +496,21 @@ def _browser_network_runner_source() -> str:
             ];
             await new Promise((resolve) => setTimeout(resolve, 500));
             window.mediaPipelineNetworkView.renderNetworkView(safeLifecyclePayload);
-            const coordinatorStopButton = document.querySelector('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"]:not([data-network-lifecycle-dry-run])');
-            if (!coordinatorStopButton || !coordinatorStopButton.disabled) {
-              throw new Error("confirmed coordinator stop should be disabled before matching safe dry-run");
+            const coordinatorStopButton = document.querySelector('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"][data-network-lifecycle-guided="true"]');
+            if (!coordinatorStopButton || coordinatorStopButton.disabled) {
+              throw new Error("guided coordinator stop should be enabled in safe running state: " + (coordinatorStopButton?.title || "missing"));
             }
-            const coordinatorStopDryRunButton = document.querySelector('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"][data-network-lifecycle-dry-run="true"]');
-            if (!coordinatorStopDryRunButton || coordinatorStopDryRunButton.disabled) {
-              throw new Error("coordinator stop dry-run should be enabled in safe running state");
-            }
-            click('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"][data-network-lifecycle-dry-run="true"]', "coordinator stop dry-run");
+            const beforeGuidedPosts = posted.length;
+            click('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"][data-network-lifecycle-guided="true"]', "guided coordinator stop");
             await waitForText("network-lifecycle-command-result", ["Check complete. This was a dry-run only.", "Effect: none.", "Safe to apply: yes"]);
-            if (coordinatorStopButton.disabled) {
-              throw new Error("confirmed coordinator stop did not enable after matching safe dry-run: " + coordinatorStopButton.title + "\\nDry-run allowed helper: " + window.mediaPipelineNetworkView.networkLifecycleDryRunAllowsConfirmed(safeLifecyclePayload, safeLifecyclePayload.settings.config, "coordinator", "stop") + "\\nPosted: " + JSON.stringify(posted) + "\\nResult:\\n" + text("network-lifecycle-command-result"));
-            }
-            click('[data-network-lifecycle-role="coordinator"][data-network-lifecycle-action="stop"]:not([data-network-lifecycle-dry-run])', "coordinator confirmed stop after dry-run");
+            requireText("network-action-readiness-gates", ["Dry-run: ready"]);
             requireDialogOpen("network-lifecycle-confirm-dialog", ["coordinator stop", "Matching dry-run accepted", "backend confirmation field"]);
+            const guidedPosts = posted.slice(beforeGuidedPosts).filter((entry) => String(entry.url).includes("/api/network/coordinator/"));
+            if (guidedPosts.length !== 1 || !String(guidedPosts[0].url).endsWith("/api/network/coordinator/stop-dry-run")) {
+              throw new Error("guided coordinator stop should post exactly one dry-run before confirmation: " + JSON.stringify(guidedPosts));
+            }
             click("#network-lifecycle-confirm-cancel", "cancel lifecycle confirmation");
-            await waitForText("network-lifecycle-command-result", ["Confirmed lifecycle command was cancelled before the backend confirmation field was sent."]);
+            await waitForText("network-lifecycle-command-result", ["Guided lifecycle command stopped after dry-run"]);
             if (posted.some((entry) => String(entry.url).endsWith("/api/network/coordinator/stop"))) {
               throw new Error("cancelled confirmed lifecycle command still posted: " + JSON.stringify(posted));
             }
@@ -501,6 +527,9 @@ def _browser_network_runner_source() -> str:
             window.mediaPipelineNetworkView.renderNetworkView(coordinatorLocalPayload);
             if (coordinatorPanel.hidden || workerPanel.hidden) {
               throw new Error("Coordinator + local worker mode should show both role dashboards.");
+            }
+            if (coordinatorActionGroup.hidden || workerActionGroup.hidden || !standaloneActionGroup.hidden) {
+              throw new Error("Coordinator + local worker mode should show coordinator and local worker quick actions only.");
             }
 
             const workerModePayload = JSON.parse(JSON.stringify(payload));
@@ -527,6 +556,9 @@ def _browser_network_runner_source() -> str:
             requireText("network-worker-overview-summary", ["Worker overview:", "Remote coordinator queue: Phase 2", "Mutation guardrail"]);
             requireText("network-worker-claim-rows", ["local-job", "Episode 04.mkv", "Encode", "worker current local claim", "Pending done report", "yes"]);
             requireText("network-worker-remote-queue-summary", ["Phase 2 placeholder:", "read-only coordinator queue reporting contract"]);
+            if (!coordinatorActionGroup.hidden || workerActionGroup.hidden || !standaloneActionGroup.hidden) {
+              throw new Error("Worker mode should show only worker quick actions.");
+            }
             click("[data-network-test-connection]", "worker test connection button");
             await waitForText("network-lifecycle-command-result", [
               "Worker test-connection complete.",
@@ -540,7 +572,12 @@ def _browser_network_runner_source() -> str:
             if (!coordinatorPanel.hidden || !workerPanel.hidden) {
               throw new Error("Standalone mode should not show coordinator or worker role dashboards.");
             }
+            if (!coordinatorActionGroup.hidden || !workerActionGroup.hidden || standaloneActionGroup.hidden) {
+              throw new Error("Standalone mode should show only standalone quick actions.");
+            }
             requireText("network-summary", ["Standalone mode keeps all processing local to this workstation."]);
+            click('[data-network-open-drawer="network-settings-drawer"]', "standalone configure drawer");
+            if (!byId("network-settings-drawer").open) throw new Error("Configure Distributed Mode should open Settings drawer");
             const missingJoinRoutePayload = JSON.parse(JSON.stringify(payload));
             missingJoinRoutePayload.contract.routes = missingJoinRoutePayload.contract.routes.filter((route) => route.path !== "/api/network/coordinator/join-blob");
             window.mediaPipelineNetworkView.renderNetworkView(missingJoinRoutePayload);
@@ -1051,6 +1088,16 @@ def _network_payload(root: Path) -> dict[str, object]:
                 ],
                 "read_only": True,
             },
+            "running_vs_saved": {
+                "schema_version": "desktop_network_worker_running_vs_saved.v1",
+                "status": "drift",
+                "drift_fields": ["WorkerPollIntervalSecs"],
+                "drift_field_labels": ["Worker poll interval"],
+                "summary_lines": [
+                    "Worker settings drift: Worker poll interval differs from saved config.",
+                ],
+                "read_only": True,
+            },
             "active_count": 1,
             "idle_count": 1,
             "session_completed": 12,
@@ -1137,9 +1184,9 @@ def _network_payload(root: Path) -> dict[str, object]:
                 "progress_bars": [
                     {
                         "id": "network_mode",
-                        "label": "Network mode",
-                        "mode": "determinate",
-                        "percent": 100,
+                        "label": "Runtime evidence",
+                        "mode": "indeterminate",
+                        "percent": None,
                         "status": "active",
                         "detail": "role=coordinator; worker_rows=3; warnings=1",
                         "source": "desktop_network_workers.v1",
@@ -1260,7 +1307,9 @@ class WebViewBrowserNetworkSmoke(unittest.TestCase):
         self.assertEqual(browser_result["evidenceStatus"], "Blocked review")
         self.assertEqual(browser_result["stateFilesStatus"], "Review")
         self.assertIn("Network runtime state file evidence:", browser_result["stateFilesSummary"])
-        self.assertIn("Showing 0/3 persisted worker rows", browser_result["filterSummary"])
+        self.assertIn("Showing 0/3", browser_result["filterSummary"])
+        self.assertIn('Filter: search="no-match-filter"', browser_result["filterSummary"])
+        self.assertIn("clear filters before lifecycle decisions", browser_result["filterSummary"])
         posted = browser_result["posted"]
         ui_preference_posts = [entry for entry in posted if entry["url"] == "/api/ui-preferences"]
         for entry in ui_preference_posts:
@@ -1280,7 +1329,7 @@ class WebViewBrowserNetworkSmoke(unittest.TestCase):
         )
         self.assertEqual(
             command_posts[0]["body"],
-            {"reason": "webview_network_lifecycle_dry_run"},
+            {"reason": "webview_network_lifecycle_guided_dry_run"},
         )
         self.assertEqual(
             command_posts[1]["body"],

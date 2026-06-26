@@ -964,7 +964,7 @@ Assert-True (
     $auditText -match 'Get-MediaSubtitleCodecTextNames' -and
     $auditText -match 'Get-MediaSubtitleCodecImageNames'
 ) "Shared route, codec, and container literals must be centralized in Modules\\MediaConstants.ps1 for routing, encode, probe, audio, subtitle, and failure policy."
-Assert-True ($regressionText -match 'small movie should route to remux' -and $regressionText -match 'large movie should route to encode' -and $regressionText -match 'PCM track should be standardized to 2\.0 EAC3 640k' -and $regressionText -match 'tx3g stream should be routed to conversion' -and $regressionText -match 'BDPGS signs/songs forced policy should retain OCR candidate' -and $regressionText -match 'mp4 output should not preserve BDPGS image subtitles') "Regression tests must cover remux-safe routing, video encode fallback, audio transcode, subtitle conversion, and container-incompatible subtitle cases."
+Assert-True ($regressionText -match 'small movie should route to remux' -and $regressionText -match 'large movie should route to encode' -and $regressionText -match 'PCM track should be standardized to 2\.0 EAC3 640k' -and $regressionText -match 'tx3g stream should be routed to conversion' -and $regressionText -match 'BDPGS signs/songs outside configured languages should drop before OCR' -and $regressionText -match 'mp4 output should not preserve BDPGS image subtitles') "Regression tests must cover remux-safe routing, video encode fallback, audio transcode, subtitle conversion, and container-incompatible subtitle cases."
 Assert-True ($mainText -match 'FolderPolicy\.ps1' -and $folderPolicyText -match 'mediapipeline\.folder\.json' -and $folderPolicyText -match 'function Resolve-FolderPolicyOverrides' -and $folderPolicyText -match 'RouteMaxVideoBitrateMbps' -and $folderPolicyText -match 'function Merge-MediaPipelineActiveOverrides' -and $folderPolicyText -match 'function Get-ActiveFolderPolicyMetadata' -and $pipelineProcessingText -match 'Resolve-FolderPolicyOverrides' -and $pipelineProcessingText -match 'Merge-MediaPipelineActiveOverrides' -and $publishCompletionText -match 'folder_policy' -and $pendingPushText -match 'FolderPolicyMetadata') "Folder-level mediapipeline.folder.json policy sidecars must load audio, subtitle, and routing hints, merge into active per-job overrides, and stamp output sidecars/pending-push manifests."
 Assert-True ($folderPolicyExampleModel.schema_version -eq 'folder_policy.v1' -and $folderPolicyExampleModel.audio.passthrough_profile -eq 'plex_balanced' -and $folderPolicyExampleModel.subtitles.ass -and $folderPolicyExampleModel.subtitles.tx3g -and $folderPolicyExampleModel.subtitles.bdpgs -and $folderPolicyExampleModel.validation.sample_file -and $folderPolicyExampleText -match 'require_uniform_stream_topology') "Folder policy example must be valid JSON and document audio profile, ASS/TX3G/BDPGS blocks, and sample-file validation."
 Assert-True ($serviceFolderPolicyText -match 'app\.folder_policy\.contracts' -and $serviceFolderPolicyText -match 'default_folder_policy_payload' -and $serviceFolderPolicyText -match 'stream_topology' -and $serviceFolderPolicyContractsText -match 'def default_folder_policy' -and $serviceFolderPolicyContractsText -match 'def stream_signature' -and $serviceFolderPolicyContractsText -match 'def stream_topology') "Desktop folder-policy default payload and stream topology contracts must live in app/folder_policy helpers behind FolderPolicyService compatibility wrappers."
@@ -3385,26 +3385,26 @@ try {
         tags = @{ language = 'spa'; title = 'Spanish Forced' }
         disposition = @{ forced = 1; default = 0 }
     })
-    if (-not `$forcedPolicy.Retain -or -not `$forcedPolicy.IsForced -or `$forcedPolicy.Lang -ne 'spa') { throw 'subtitle policy helper did not retain forced non-preferred subtitle' }
+    if (`$forcedPolicy.Retain -or -not `$forcedPolicy.IsForced -or `$forcedPolicy.Lang -ne 'spa') { throw 'subtitle policy helper did not drop forced subtitle outside configured languages' }
 
     `$sdhPolicy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal 1 -Stream ([pscustomobject]@{
         index = 41; codec_name = 'subrip'; codec_long_name = 'SubRip'; codec_tag_string = ''
         tags = @{ language = 'fre'; title = 'French SDH' }
         disposition = @{ forced = 0; default = 0 }
     })
-    if (-not `$sdhPolicy.Retain -or -not `$sdhPolicy.IsSdh) { throw 'subtitle policy helper did not retain SDH subtitle outside preferred languages' }
+    if (`$sdhPolicy.Retain -or -not `$sdhPolicy.IsSdh) { throw 'subtitle policy helper did not drop SDH subtitle outside configured languages' }
 
     `$tx3gSongPolicy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal 2 -Stream ([pscustomobject]@{
         index = 42; codec_name = 'mov_text'; codec_long_name = 'MPEG-4 Timed Text subtitle'; codec_tag_string = 'tx3g'
         tags = @{ language = 'jpn'; title = 'Song' }
         disposition = @{ forced = 0; default = 0 }
     })
-    if (-not `$tx3gSongPolicy.Retain -or -not `$tx3gSongPolicy.IsForced -or -not `$tx3gSongPolicy.SupplementalForced -or -not `$tx3gSongPolicy.IsTx3g) { throw 'subtitle policy helper did not apply tx3g signs/songs forced policy' }
+    if (`$tx3gSongPolicy.Retain -or -not `$tx3gSongPolicy.IsForced -or -not `$tx3gSongPolicy.SupplementalForced -or -not `$tx3gSongPolicy.IsTx3g) { throw 'subtitle policy helper did not drop TX3G signs/songs outside configured languages' }
     `$tx3gEntry = New-SubtitleFilterEntry -Policy `$tx3gSongPolicy
     if (-not `$tx3gEntry.IsTx3g -or -not `$tx3gEntry.SupplementalForced) { throw 'subtitle filter entry did not preserve common policy metadata' }
 
     `$srtDecision = Resolve-SubtitleRoutingDecision -Entry (New-SubtitleFilterEntry -Policy `$forcedPolicy)
-    if (`$srtDecision.Action -ne 'Keep') { throw 'SRT routing decision should keep subtitle stream' }
+    if (`$srtDecision.Action -ne 'Drop') { throw 'SRT routing decision should drop subtitle stream outside configured languages' }
 
     `$assSupplementalPolicy = Resolve-SubtitleStreamPolicy -SubtitleOrdinal 3 -Stream ([pscustomobject]@{
         index = 43; codec_name = 'ass'; codec_long_name = 'ASS'; codec_tag_string = ''
@@ -3423,7 +3423,7 @@ try {
     if (`$assNormalDecision.Action -ne 'ConvertAss') { throw 'normal retained ASS routing decision should convert to SRT' }
 
     `$tx3gDecision = Resolve-SubtitleRoutingDecision -Entry `$tx3gEntry
-    if (`$tx3gDecision.Action -ne 'ConvertTx3g') { throw 'tx3g routing decision should convert when ConvertTx3gToSrt is true' }
+    if (`$tx3gDecision.Action -ne 'Drop') { throw 'tx3g routing decision should drop outside configured languages before conversion' }
     `$script:ConvertTx3gToSrt = `$false
     `$script:DropTx3gAfterConversion = `$true
     `$tx3gDropDecision = Resolve-SubtitleRoutingDecision -Entry `$tx3gEntry
@@ -3437,7 +3437,7 @@ try {
         disposition = @{ forced = 0; default = 0 }
     })
     `$bdpgsDecision = Resolve-SubtitleRoutingDecision -Entry (New-SubtitleFilterEntry -Policy `$bdpgsSongPolicy)
-    if (`$bdpgsDecision.Action -ne 'ConvertBdpgs') { throw 'BDPGS routing decision should convert when ConvertBdpgsToSrt is true' }
+    if (`$bdpgsDecision.Action -ne 'Drop') { throw 'BDPGS signs/songs outside configured languages should drop before OCR' }
 
     `$unsupportedDecision = Resolve-SubtitleRoutingDecision -Entry @{
         Stream = [pscustomobject]@{ index = 46 }
@@ -3451,18 +3451,18 @@ try {
     if (`$unsupportedDecision.Action -ne 'Drop') { throw 'unsupported subtitle codec should route to drop' }
 
     `$filter = Filter-SubtitleStreams -FilePath (Join-Path `$root 'source.mkv') -Context 'TEST: '
-    if (@(`$filter.Keep).Count -ne 2) { throw ('expected forced SRT and supplemental ASS keep entries, got ' + @(`$filter.Keep).Count) }
+    if (@(`$filter.Keep).Count -ne 1) { throw ('expected only policy-matched supplemental ASS keep entries, got ' + @(`$filter.Keep).Count) }
     if (@(`$filter.Convert).Count -ne 0) { throw 'supplemental ASS should be kept when KeepSignsAndSongs is true' }
     if (@(`$filter.Tx3gConvert).Count -ne 1) { throw 'tx3g stream should be routed to conversion' }
-    if (@(`$filter.BdpgsConvert).Count -ne 1) { throw 'BDPGS signs/songs forced policy should retain OCR candidate outside preferred language' }
-    if (@(`$filter.Drop).Count -ne 1) { throw 'non-preferred non-forced ASS stream should be dropped' }
-    if (-not [bool]@(`$filter.Keep | Where-Object { `$_.Lang -eq 'spa' })[0].IsForced) { throw 'forced non-preferred subtitle was not retained as forced' }
-    if (-not [bool]@(`$filter.BdpgsConvert)[0].IsForced) { throw 'BDPGS signs/songs-as-forced did not mark the stream forced' }
+    if (@(`$filter.BdpgsConvert).Count -ne 0) { throw 'BDPGS signs/songs outside configured languages should drop before OCR' }
+    if (@(`$filter.Drop).Count -ne 3) { throw 'non-policy forced/BDPGS/ASS subtitles should be dropped' }
+    if (-not [bool]@(`$filter.Drop | Where-Object { `$_.Lang -eq 'spa' })[0].IsForced) { throw 'forced subtitle drop did not preserve forced evidence' }
+    if (-not [bool]@(`$filter.Drop | Where-Object { `$_.IsBdpgs })[0].IsForced) { throw 'BDPGS signs/songs drop did not preserve forced evidence' }
     `$subtitleDecisions = @(Get-LastSubtitleDecisionRecords)
     if (`$subtitleDecisions.Count -ne 5 -or @(`$filter.Decisions).Count -ne 5) { throw 'subtitle decision records were not persisted for every probed stream' }
     if (@(`$subtitleDecisions | Where-Object { `$_.action -eq 'converttx3g' -and `$_.is_tx3g }).Count -ne 1) { throw 'tx3g conversion decision record missing' }
-    if (@(`$subtitleDecisions | Where-Object { `$_.action -eq 'convertbdpgs' -and `$_.is_bdpgs -and `$_.is_forced }).Count -ne 1) { throw 'BDPGS conversion/forced decision record missing' }
-    if (@(`$subtitleDecisions | Where-Object { `$_.action -eq 'drop' -and `$_.reason -eq 'language_or_title_policy' }).Count -ne 1) { throw 'subtitle policy drop decision record missing' }
+    if (@(`$subtitleDecisions | Where-Object { `$_.action -eq 'drop' -and `$_.is_bdpgs -and `$_.is_forced }).Count -ne 1) { throw 'BDPGS forced drop decision record missing' }
+    if (@(`$subtitleDecisions | Where-Object { `$_.action -eq 'drop' -and `$_.reason -eq 'language_or_title_policy' }).Count -ne 3) { throw 'subtitle policy drop decision records missing' }
 
     `$script:RemoveKaraoke = `$true
     `$script:ExcludeSubtitleStyles = @('signs', 'karaoke')

@@ -1,0 +1,46 @@
+{
+  "id": "MP-CHANGE-2026-0626-012",
+  "title": "Settings View Refactor Prework Baseline",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Added a docs-only settingsView refactor prework baseline that records the current facade exports, child-module boundaries, route contracts, DOM ownership groups, direct caller search results, mutable state owners, future extraction seams, rollback rules, and validation gates.",
+  "reason": "Provide a troubleshooting baseline before any behavior extraction from the WebView Settings parent facade.",
+  "affected_areas": [
+    "docs",
+    "settings",
+    "webview"
+  ],
+  "behavior_before": "No baseline packet existed for settingsView.js facade responsibilities and extraction boundaries.",
+  "behavior_after": "No runtime behavior changed. The repository now has a prework baseline for future settingsView.js extraction planning.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/implementation/webview-large-file-refactor-prework/settingsView.baseline.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-012.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_settings -q: passed, 5 tests.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_facade_settings_patch_policy -q: passed, 6 tests.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_handbrake_settings_ui -q: passed, 43 tests.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_settings_live_smoke -q: passed, 1 test.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_settings_patch_smoke -q: passed, 1 test.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage: failed for unrelated existing change-control/worktree coverage issues: MP-CHANGE-2026-0626-010.json has invalid status completed, and 11 generated files are not listed in any unreleased change packet.",
+    "git status --short: ran; worktree already contained many unrelated dirty files before this prework.",
+    "npm run webview:commands:check: failed; docs/generated/WEBVIEW_COMMAND_BOUNDARY_AUDIT.json is stale and reports forbidden frontend API findings for direct Tauri bridge access / Tauri invoke.",
+    "npm run webview:contract:check: failed; docs/generated/WEBVIEW_PUBLIC_CONTRACT_BASELINE.json is stale.",
+    "npm run webview:dom-gaps:check: failed; docs/generated/WEBVIEW_DOM_ID_GAP_REPORT.json is stale.",
+    "npm run webview:map:check: failed; docs/generated/WEBVIEW_GODFILE_SPLIT_MAP.md is stale.",
+    "npm run webview:prework:check: failed after webview:check passed; webview:lint:budget:check reported warning budget increases: complexity 115 > 108, max-lines-per-function 46 > 37, no-extra-boolean-cast 1 > 0, no-unused-vars 192 > 143.",
+    "npm run webview:routes:check: passed; route ownership guard is current.",
+    "npm run webview:script-order:smoke: passed; loaded 150 WebView scripts and verified expected globals including mediaPipelineSettingsView.",
+    "npm run webview:slices:check: failed; docs/generated/WEBVIEW_SPLIT_CANDIDATES.json is stale.",
+    "rg -n \"mediaPipelineSettingsView|settingsView.js|/api/settings|confirm_save|review_confirmation|__settings\" apps tests docs/inventories: ran; direct caller, route, strict-save, and child stash results summarized in docs/implementation/webview-large-file-refactor-prework/settingsView.baseline.md."
+  ],
+  "rollback_plan": "Delete docs/implementation/webview-large-file-refactor-prework/settingsView.baseline.md, remove its Docs/DOCS_INDEX.md entry, and remove this change packet. No runtime files were changed.",
+  "related_changes": [],
+  "notes": "Docs-only prework. No functions moved, exports renamed, child scripts added, backend routes changed, config semantics changed, or UI behavior altered. Npm aggregate check failures reflect lint/generated guard state outside this docs-only change. Change-control strict coverage also fails on pre-existing unrelated packet/status and generated-file coverage issues.\nIndex the settingsView prework baseline under the existing WebView large-file refactor prework section."
+}

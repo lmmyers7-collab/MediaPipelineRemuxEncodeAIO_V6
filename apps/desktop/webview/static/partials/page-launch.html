@@ -4,7 +4,6 @@
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="true" data-launch-tab="pipeline">Pipeline Processor</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="rerun">CSV Rerun</button>
           <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="history">History</button>
-          <button type="button" class="settings-tab-btn" role="tab" aria-selected="false" data-launch-tab="readiness">Readiness</button>
         </div>
         <section class="panel settings-tab-pane is-active launch-tab-panel pipeline-controller-panel" data-launch-tab-panel="pipeline" data-panel-type="interactive">
           <div class="panel-heading">
@@ -49,42 +48,42 @@
             <div class="pipeline-controller-start">
               <div class="pipeline-compact-gate">
                 <div class="pipeline-compact-gate-header">
-                  <strong id="pipeline-compact-gate-status">Review</strong>
+                  <strong id="pipeline-compact-gate-status" data-state="unknown">Needs Evidence</strong>
                   <button type="button" id="pipeline-compact-gate-refresh-button" class="secondary-button">Refresh</button>
                 </div>
                 <div id="pipeline-compact-gate-strip" class="pipeline-compact-gate-strip" role="group" aria-label="Pipeline processor gate summary">
-                  <button type="button" id="pipeline-gate-backend" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Backend gate: Review. Refresh Backend Preflight before submitting normal start modes.">
+                  <button type="button" id="pipeline-gate-backend" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Backend gate: Needs Evidence. Refresh Backend Preflight before submitting normal start modes.">
                     <span class="pipeline-gate-label">Backend</span>
-                    <strong class="pipeline-gate-value">Review</strong>
+                    <strong class="pipeline-gate-value">Needs Evidence</strong>
                     <span class="pipeline-gate-note">Refresh</span>
                   </button>
-                  <button type="button" id="pipeline-gate-queue" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Queue gate: Review. Queue evidence is not loaded; use Refresh to update loaded backend evidence.">
+                  <button type="button" id="pipeline-gate-queue" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Queue gate: Needs Evidence. Queue evidence is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Queue</span>
-                    <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Review Queue</span>
+                    <strong class="pipeline-gate-value">Needs Evidence</strong>
+                    <span class="pipeline-gate-note">Not loaded</span>
                   </button>
-                  <button type="button" id="pipeline-gate-settings" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Settings gate: Review. Saved settings evidence is not loaded; use Refresh to update loaded backend evidence.">
+                  <button type="button" id="pipeline-gate-settings" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Settings gate: Needs Evidence. Saved settings evidence is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Settings</span>
-                    <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Review Settings</span>
+                    <strong class="pipeline-gate-value">Needs Evidence</strong>
+                    <span class="pipeline-gate-note">Not loaded</span>
                   </button>
-                  <button type="button" id="pipeline-gate-schedule" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Schedule gate: Review. Schedule evidence is not loaded; use Refresh to update loaded backend evidence.">
+                  <button type="button" id="pipeline-gate-schedule" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Schedule gate: Needs Evidence. Schedule evidence is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Schedule</span>
-                    <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Review Schedule</span>
+                    <strong class="pipeline-gate-value">Needs Evidence</strong>
+                    <span class="pipeline-gate-note">Not loaded</span>
                   </button>
-                  <button type="button" id="pipeline-gate-active" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Active gate: Review. Backend state is not loaded; use Refresh to update loaded backend evidence.">
+                  <button type="button" id="pipeline-gate-active" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Active gate: Needs Evidence. Backend state is not loaded; use Refresh to update loaded backend evidence.">
                     <span class="pipeline-gate-label">Active</span>
-                    <strong class="pipeline-gate-value">Review</strong>
-                    <span class="pipeline-gate-note">Review State</span>
+                    <strong class="pipeline-gate-value">Needs Evidence</strong>
+                    <span class="pipeline-gate-note">Not loaded</span>
                   </button>
-                  <button type="button" id="pipeline-gate-last" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Last gate: Review. No recent launch result loaded.">
+                  <button type="button" id="pipeline-gate-last" class="pipeline-compact-gate-button" data-status="unknown" aria-label="Last gate: Needs Evidence. No recent launch result loaded.">
                     <span class="pipeline-gate-label">Last</span>
-                    <strong class="pipeline-gate-value">Review</strong>
+                    <strong class="pipeline-gate-value">Needs Evidence</strong>
                     <span class="pipeline-gate-note">No history</span>
                   </button>
                 </div>
-                <p id="pipeline-compact-gate-detail" class="pipeline-compact-gate-detail" aria-live="polite">Refresh Backend Preflight and review compact gates before submitting normal start modes.</p>
+                <p id="pipeline-compact-gate-detail" class="pipeline-compact-gate-detail" aria-live="polite">Refresh Backend Preflight and load required evidence before submitting normal start modes.</p>
               </div>
               <div class="panel-heading panel-subheading pipeline-controller-subheading">
                 <h3>Start Work</h3>
@@ -103,6 +102,7 @@
               <div class="pipeline-mode-secondary-row" role="group" aria-label="Secondary pipeline start modes">
                 <button type="button" class="secondary-button pipeline-mode-secondary-button" data-pipeline-mode-preset="validate">Validate</button>
                 <button type="button" class="secondary-button pipeline-mode-secondary-button" data-cross-page-target="pending">Open Pending Publish</button>
+                <button type="button" id="launch-open-pipeline-log-window-button" class="secondary-button pipeline-mode-secondary-button">Open Log Window</button>
               </div>
               <select id="pipeline-start-mode" hidden aria-hidden="true">
                 <option value="once" selected>Run Once</option>
@@ -233,6 +233,7 @@
           </div>
           <pre id="rerun-launch-preflight" class="prose-block">No CSV rerun preflight loaded.</pre>
           <div class="action-row action-row-left">
+            <button type="button" id="rerun-open-audit-tool-button" class="secondary-button" data-cross-page-target="reports" data-cross-page-reports-tab="audit">Open Reports Audit</button>
             <button type="button" id="rerun-plan-only-button" class="secondary-button">Plan CSV Rerun</button>
             <button type="button" id="rerun-dry-run-button" class="secondary-button">Preview CSV Rerun</button>
             <button type="button" id="rerun-start-button" class="primary-button">Start CSV Rerun</button>
@@ -244,7 +245,7 @@
             <h2>Command History</h2>
             <strong id="launch-history-status">No launches</strong>
           </div>
-          <pre id="launch-history" class="prose-block">No launch command history loaded.</pre>
+          <div id="launch-history" class="launch-command-history" role="region" aria-live="polite" aria-label="Launch command history">No launch command history loaded.</div>
           <div data-advanced>
           <div class="panel-heading panel-subheading">
             <h3>Command Review</h3>
@@ -277,22 +278,6 @@
           <div id="launch-command-diagnostics-actions" class="action-row action-row-left wrap-actions"></div>
           </div>
         </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Readiness</h2>
-            <strong id="launch-readiness-status">Not loaded</strong>
-          </div>
-          <pre id="launch-readiness" class="prose-block">No launch readiness loaded.</pre>
-          <div id="launch-readiness-actions" class="action-row action-row-left wrap-actions" hidden></div>
-          <p id="launch-readiness-action-status" class="note">No backend recovery action is advertised.</p>
-        </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Schedule Alignment</h2>
-            <strong id="launch-timing-status">Not loaded</strong>
-          </div>
-          <pre id="launch-timing" class="prose-block">No launch timing trust loaded.</pre>
-        </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="pipeline" data-panel-type="evidence">
           <div class="panel-heading">
             <h2>Start Decision Summary</h2>
@@ -320,242 +305,5 @@
           </div>
           <p id="launch-start-decision-legend" class="note table-legend">Launch start decision rows: no selectable rows.</p>
           <pre id="launch-start-decision-detail" class="prose-block">Select a start decision signal before using backend-owned start controls.</pre>
-        </section>
-        <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="readiness" data-panel-type="interactive" id="launch-evidence-section">
-          <div class="panel-heading">
-            <h2>Settings Check</h2>
-            <div class="inline-actions">
-              <strong id="launch-settings-trust-status">Not loaded</strong>
-              <button type="button" id="launch-evidence-toggle" class="secondary-button" aria-expanded="true">Collapse</button>
-            </div>
-          </div>
-          <div id="launch-evidence-body">
-          <pre id="launch-settings-trust-summary" class="prose-block">No saved settings trust summary loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Risk Summary</h3>
-            <strong id="launch-settings-risk-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-settings-risk-summary" class="prose-block">No launch settings risk handoff loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Area</th>
-                  <th scope="col">Launch Impact</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Check</th>
-                </tr>
-              </thead>
-              <tbody id="launch-settings-risk-rows">
-                <tr><td colspan="4">No launch settings risk rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Settings not reviewed</span>
-            <span class="empty-state-hint">Refresh to load risk rows for the current saved settings.</span>
-          </div>
-          </div>
-          <p id="launch-settings-risk-legend" class="note table-legend">Launch risk rows are read-only and do not change backend launch validation.</p>
-          <pre id="launch-settings-risk-detail" class="prose-block">Select a Launch Risk Handoff row to inspect proof requirements, operator action, and mutation boundaries.</pre>
-          <div data-advanced>
-          <div class="panel-heading panel-subheading">
-            <h3>Policy Boundaries</h3>
-            <strong id="launch-policy-boundary-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-policy-boundary-summary" class="prose-block">No launch media-policy boundary loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Area</th>
-                  <th scope="col">Launch State</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Check</th>
-                </tr>
-              </thead>
-              <tbody id="launch-policy-boundary-rows">
-                <tr><td colspan="4">No launch media-policy boundary rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Policy not evaluated</span>
-            <span class="empty-state-hint">Policy boundary rows appear here after settings are loaded.</span>
-          </div>
-          </div>
-          <p id="launch-policy-boundary-legend" class="note table-legend">Launch media-policy boundary rows: no selectable rows.</p>
-          <pre id="launch-policy-boundary-detail" class="prose-block">Select a policy boundary row before starting queued work.</pre>
-          </div>
-          <div data-advanced>
-          <div class="panel-heading panel-subheading">
-            <h3>Settings vs Intent</h3>
-            <strong id="launch-settings-intent-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-settings-intent-summary" class="prose-block">No saved-settings launch-intent checklist loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Checkpoint</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Action</th>
-                </tr>
-              </thead>
-              <tbody id="launch-settings-intent-rows">
-                <tr><td colspan="4">No saved-settings launch-intent rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Intent not checked</span>
-            <span class="empty-state-hint">Settings vs intent rows appear here after launch data loads.</span>
-          </div>
-          </div>
-          <p id="launch-settings-intent-legend" class="note table-legend">Saved-settings launch-intent rows: no selectable rows.</p>
-          <pre id="launch-settings-intent-detail" class="prose-block">Select a launch-intent checkpoint before starting queued work.</pre>
-          </div>
-          <div data-advanced>
-          <div class="panel-heading panel-subheading">
-            <h3>Scope Check</h3>
-            <strong id="launch-scope-reconciliation-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-scope-reconciliation-summary" class="prose-block">No launch scope reconciliation loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Scope Signal</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Safe Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="launch-scope-reconciliation-rows">
-                <tr><td colspan="4">No launch scope reconciliation rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Scope not checked</span>
-            <span class="empty-state-hint">Scope reconciliation rows appear here after queue and settings load.</span>
-          </div>
-          </div>
-          <p id="launch-scope-reconciliation-legend" class="note table-legend">Launch scope reconciliation rows: no selectable rows.</p>
-          <pre id="launch-scope-reconciliation-detail" class="prose-block">Select a launch scope signal before starting queued work.</pre>
-          </div>
-          <div data-advanced>
-          <div class="panel-heading panel-subheading">
-            <h3>Sample Proof</h3>
-            <strong id="launch-real-media-proof-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-real-media-proof-summary" class="prose-block">No Launch real-media sample proof handoff loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Proof Check</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Proof</th>
-                </tr>
-              </thead>
-              <tbody id="launch-real-media-proof-rows">
-                <tr><td colspan="4">No Launch real-media proof rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No proof loaded</span>
-            <span class="empty-state-hint">Real-media proof rows appear here after sample validation runs from Home.</span>
-          </div>
-          </div>
-          <p id="launch-real-media-proof-legend" class="note table-legend">Launch real-media proof rows are read-only and do not launch, accept, publish, save, rename, or touch media.</p>
-          <pre id="launch-real-media-proof-detail" class="prose-block">Select a real-media proof checkpoint before treating WebView as daily-driver ready.</pre>
-          </div>
-          <div data-advanced>
-          <div class="panel-heading panel-subheading">
-            <h3>Sample Checklist</h3>
-            <strong id="launch-sample-execution-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-sample-execution-summary" class="prose-block">No Launch sample execution checklist loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Phase</th>
-                  <th scope="col">Check</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Owner</th>
-                  <th scope="col">Required</th>
-                </tr>
-              </thead>
-              <tbody id="launch-sample-execution-rows">
-                <tr><td colspan="5">No Launch sample execution checklist rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Sample not run</span>
-            <span class="empty-state-hint">Sample execution rows appear here after a sample validation run completes.</span>
-          </div>
-          </div>
-          <p id="launch-sample-execution-legend" class="note table-legend">Launch sample execution rows are read-only and do not launch, accept, publish, save, rename, or touch media.</p>
-          <pre id="launch-sample-execution-detail" class="prose-block">Select a sample execution row before starting a real-media pilot.</pre>
-          </div>
-          <div data-advanced>
-          <div class="panel-heading panel-subheading">
-            <h3>Pilot Readiness</h3>
-            <strong id="launch-pilot-readiness-status">Not evaluated</strong>
-          </div>
-          <pre id="launch-pilot-readiness-summary" class="prose-block">No Launch pilot run readiness loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Checkpoint</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Operator Action</th>
-                </tr>
-              </thead>
-              <tbody id="launch-pilot-readiness-rows">
-                <tr><td colspan="4">No Launch pilot run readiness rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Pilot not assessed</span>
-            <span class="empty-state-hint">Pilot readiness rows appear here after queue preview and sample validation run.</span>
-          </div>
-          </div>
-          <p id="launch-pilot-readiness-legend" class="note table-legend">Launch pilot readiness rows are read-only and do not launch, accept, publish, save, rename, drain, or touch media.</p>
-          <pre id="launch-pilot-readiness-detail" class="prose-block">Select a pilot readiness row before starting a real-media pilot.</pre>
-          </div>
-          <div class="panel-heading panel-subheading">
-            <h3>Preflight Check</h3>
-            <div class="inline-actions">
-              <button type="button" id="launch-backend-preflight-refresh-button">Refresh Backend Preflight</button>
-              <strong id="launch-backend-preflight-status">Not loaded</strong>
-            </div>
-          </div>
-          <pre id="launch-backend-preflight-summary" class="prose-block">No backend launch preflight loaded.</pre>
-          <div class="table-wrap detail-table-wrap launch-backend-preflight-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Target</th>
-                  <th scope="col">Check</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Backend Action</th>
-                </tr>
-              </thead>
-              <tbody id="launch-backend-preflight-rows">
-                <tr><td colspan="5">No backend launch preflight rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">Preflight not run</span>
-            <span class="empty-state-hint">Click Refresh Backend Preflight to populate these checks.</span>
-          </div>
-          </div>
-          <p id="launch-backend-preflight-legend" class="note table-legend">Backend launch preflight rows: no selectable rows.</p>
-          <pre id="launch-backend-preflight-detail" class="prose-block">Select a backend preflight check for details.</pre>
-          </div><!-- end #launch-evidence-body -->
         </section>
       </section>

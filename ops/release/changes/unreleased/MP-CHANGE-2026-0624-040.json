@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0624-040",
+  "title": "Queue launch-check display state",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Queue WebView now presents deferred-only source/output launch checks as Launch Check instead of generic Review while preserving true blocked and review rows.",
+  "reason": "Deferred runtime checks are normal backend-owned launch validation; labeling every deferred row Review hid actionable review rows behind a generic warning state.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Rows whose only warning was deferred source/output launch checks rendered with a Review chip and generic Launch checks deferred evidence, so large batches looked like they all needed operator review.",
+  "behavior_after": "Deferred-only launch-check rows render with a Launch Check chip, route-first evidence such as bitrate over threshold plus checks at launch, and are excluded from true Queue review rows while remaining visible through deferred-check filtering.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queue/table.js",
+    "apps/desktop/webview/static/assets/queueView.review.js",
+    "apps/desktop/webview/static/assets/styles.queue.css",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-040.json",
+    "tests/webview/test_webview_row_detail_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_row_detail_smoke.py"
+  ],
+  "manual_validation": [
+    "git diff --check touched files - passed with CRLF normalization warnings only",
+    "python -m unittest tests.python.desktop.test_application_facade_queue -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_high_risk_smoke -q - passed",
+    "python -m unittest tests.webview.test_webview_browser_large_table_smoke -q - passed",
+    "python -m unittest tests.webview.test_webview_row_detail_smoke -q - passed",
+    "validate_changes - passed",
+    "validate_changes --require-worktree-coverage - failed due unrelated uncovered dirty files outside this packet"
+  ],
+  "rollback_plan": "Revert the WebView queue review/table/CSS changes and the row-detail smoke assertions in this packet; backend queue policy and runtime launch checks were not changed.",
+  "related_changes": [],
+  "notes": "Classify deferred-only launch checks separately from true review rows.\nRender Launch Check state and route-first launch-check evidence in the Queue table.\nAdd Launch Check queue-state chip styling.\nCover Launch Check rows, bad-extension blockers, true review rows, and deferred-check filtering."
+}

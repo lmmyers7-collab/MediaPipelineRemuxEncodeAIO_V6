@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0624-037",
+  "title": "Settings save review cleanup",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Settings Save now previews through the backend before review, shows only backend-confirmed changed/removed keys, clears stale no-op candidates, and preserves strict confirmed save semantics.",
+  "reason": "Operators were seeing unchanged submitted values in the Save review dialog, and a second Save after success could look like the same settings were changing again.",
+  "affected_areas": [
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Save opened the review from locally submitted keys, so unchanged values could appear as review rows and stale staged JSON could remain after save.",
+  "behavior_after": "Save first calls /api/settings/preview-patch, opens review only for backend-confirmed changes, skips /api/settings/save-patch on no-op preview, and clears staged JSON after no-op or successful save.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-037.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_settings_builder_flush_smoke.py",
+    "tests/webview/test_webview_browser_settings_launch_smoke.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_settings_builder_flush_smoke.py",
+    "tests/webview/test_webview_browser_settings_launch_smoke.py",
+    "tests/webview/test_webview_settings_libraries.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/settingsView.js - passed",
+    "node --check apps/desktop/webview/static/assets/settings/patchReview.js - passed",
+    "apps/desktop/runtime/Python/python.exe -m py_compile tests/webview/test_webview_browser_settings_builder_flush_smoke.py tests/webview/test_webview_browser_settings_launch_smoke.py tests/webview/test_webview_settings_libraries.py tests/python/desktop/test_application_facade_web_static.py - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_settings_patch -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_settings_builder_flush_smoke -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_settings_libraries -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q - passed",
+    "ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1 - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/settingsView.js tests/webview/test_webview_browser_settings_builder_flush_smoke.py tests/webview/test_webview_browser_settings_launch_smoke.py tests/webview/test_webview_settings_libraries.py tests/python/desktop/test_application_facade_web_static.py - passed; 0 written, 5 unchanged",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed: 15 unrelated changed files are not listed in any unreleased change packet"
+  ],
+  "rollback_plan": "Revert the Settings save preview gating and related test assertions in the touched files; backend save/preview routes and PSD1 persistence semantics were not changed.",
+  "related_changes": [],
+  "notes": "Gate Save Settings through backend preview and clear stale no-op candidates.\nCover preview-gated save, no-op candidate clearing, and second-save no-op behavior.\nAllow cancel path dry-run preview evidence while enforcing no save command.\nUpdate static Settings save review assertions for backend-confirmed changed/removed key filtering.\nUpdate Settings save static contract for clearing stale candidates before post-save refresh."
+}

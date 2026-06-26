@@ -145,7 +145,7 @@ def _validate_static_assets(base_url: str) -> None:
         ("function settingsBackendResultRows", "settings backend result handoff rows"),
         ("function renderSettingsBackendResultFromEntries", "settings backend result renderer"),
         ("async function saveSettingsPatch()", "settings save command handler"),
-        ('apiPost("/api/settings/save-patch"', "settings save route"),
+        ('"/api/settings/save-patch"', "settings save route"),
         ("confirm_save: true", "settings save confirmation guard"),
         ("function settingsRuntimeRestartNoticeLines", "settings save/reload evidence renderer"),
         ("settings-save-patch-button", "settings save panel control"),

@@ -30,7 +30,7 @@ import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 
 from mediapipeline.tools.paths import find_repo_root
 from mediapipeline.tools.dev.release_package_scope import (
@@ -224,20 +224,31 @@ def is_source_file(path: Path) -> bool:
     return True
 
 
+def canonical_repo_relative_posix(recorded: str | Path) -> str:
+    rel = str(recorded).replace("\\", "/")
+    while rel.startswith("./"):
+        rel = rel[2:]
+    parts = rel.split("/")
+    if parts and parts[0].lower() == "docs":
+        parts[0] = "docs"
+    return "/".join(parts)
+
+
 def is_excluded_source_path(recorded: str | Path) -> bool:
-    rel = Path(recorded).as_posix()
+    rel = canonical_repo_relative_posix(recorded)
     return any(rel == prefix or rel.startswith(prefix + "/") for prefix in EXCLUDE_SOURCE_PREFIXES)
 
 
 def repo_relative_posix(path: Path) -> str:
     try:
-        return path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
+        rel = path.resolve().relative_to(REPO_ROOT.resolve()).as_posix()
     except (OSError, ValueError):
-        return path.relative_to(REPO_ROOT).as_posix()
+        rel = path.relative_to(REPO_ROOT).as_posix()
+    return canonical_repo_relative_posix(rel)
 
 
 def in_scope_roots(rel_path: Path) -> bool:
-    rel = rel_path.as_posix()
+    rel = canonical_repo_relative_posix(rel_path)
     if is_excluded_source_path(rel):
         return False
     if rel in ROOT_SOURCE_FILES:
@@ -246,7 +257,7 @@ def in_scope_roots(rel_path: Path) -> bool:
 
 
 def is_volatile_generated_summary_source(recorded: str | Path) -> bool:
-    return Path(recorded).as_posix() in VOLATILE_GENERATED_SUMMARY_FILES
+    return canonical_repo_relative_posix(recorded) in VOLATILE_GENERATED_SUMMARY_FILES
 
 
 def iter_source_files() -> Iterable[Path]:
@@ -299,7 +310,8 @@ def iter_known_source_files() -> Iterable[Path]:
 
 
 def summary_path_for_source(rel_path: str | Path, suffix: str) -> Path:
-    return SUMMARY_ROOT / Path(rel_path).with_suffix(suffix + ".md")
+    rel = PurePosixPath(canonical_repo_relative_posix(rel_path)).with_suffix(suffix + ".md")
+    return SUMMARY_ROOT.joinpath(*rel.parts)
 
 
 def is_refreshable_source_path(
@@ -314,7 +326,7 @@ def is_refreshable_source_path(
         rel_path = path.relative_to(REPO_ROOT)
     except ValueError:
         return False
-    rel = rel_path.as_posix()
+    rel = canonical_repo_relative_posix(rel_path)
     if is_volatile_generated_summary_source(rel):
         return False
     existing_summary = summary_path_for_source(rel, path.suffix).is_file()
@@ -385,7 +397,7 @@ def orphan_summaries(sources: Iterable[Path] | None = None) -> list[OrphanSummar
                 )
             )
             continue
-        normalized_recorded = recorded_path.as_posix()
+        normalized_recorded = canonical_repo_relative_posix(recorded_path)
         if is_release_excluded_path(normalized_recorded, excluded_prefixes):
             # Source intentionally omitted from this release package (e.g. tests);
             # its shipped summary is expected, not an orphan.

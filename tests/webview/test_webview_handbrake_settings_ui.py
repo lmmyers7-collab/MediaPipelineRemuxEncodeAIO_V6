@@ -17,9 +17,11 @@ from mediapipeline.core.config.preset_migration import (
     LABEL_ONLY_RENAMES,
     LABEL_ONLY_RENAME_POLICIES,
 )
+from tests.css_import_resolver import resolve_css_imports
 
 
 STATIC_ROOT = find_repo_root(Path(__file__)) / "apps" / "desktop" / "webview" / "static"
+ASSETS_ROOT = STATIC_ROOT / "assets"
 REPRESENTATIVE_SETTINGS_METADATA_KEYS = {
     "VideoPreset",
     "ConvertBdpgsToSrt",
@@ -146,6 +148,10 @@ def _normalize_js_literal(value: str | None) -> object:
     return text
 
 
+def _read_components_css() -> str:
+    return resolve_css_imports(ASSETS_ROOT / "styles.components.css", ASSETS_ROOT)
+
+
 class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_settings_tabs_follow_operator_workflow_grouping(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
@@ -234,7 +240,8 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Copy/remux-first intent",
             "Encode if required",
             "Size / bitrate guards",
-            "Evidence scope",
+            "Preview scope",
+            'class="panel settings-handbrake-preview-panel" data-panel-type="status"',
             "data-settings-summary-key=\"RoutingProfile\"",
             "data-settings-summary-key=\"OutputContainer\"",
             "data-settings-summary-key=\"VideoCodec\"",
@@ -246,6 +253,8 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "cannot launch, save settings, encode, remux, publish, rename, drain pending publish, or touch media files",
         ):
             self.assertIn(token, html)
+        self.assertNotIn("settings-summary-evidence-scope", html)
+        self.assertNotIn("Evidence scope", html)
 
     def test_summary_panel_uses_persisted_keys_without_runtime_authority(self) -> None:
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
@@ -267,6 +276,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             "Applies only when encoding is required.",
             "library_effective_settings is library-only",
             "Final runtime decision is resolved during queue/job processing.",
+            "Preview scope:",
             "The WebView does not compute copy/remux/encode routing.",
             "renderSettingsEffectiveIntentSummary,",
         ):
@@ -699,7 +709,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         metadata_js = (STATIC_ROOT / "assets" / "settingsMetadata.js").read_text(encoding="utf-8")
         builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
-        styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        styles = _read_components_css()
 
         for token in (
             'id="settings-video-preset"',
@@ -743,7 +753,18 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         self.assertIn("function resetSettingsBuilderSyncState(options = {})", settings_js)
         self.assertIn("videoDetailSettingsBuilderState,", settings_js)
         self.assertIn("state.dirty = false;", settings_js)
-        self.assertIn("resetSettingsBuilderSyncState();\n      await refreshAll();", settings_js)
+        self.assertIn("function scheduleSettingsPostSaveRefresh()", settings_js)
+        save_block = settings_js[
+            settings_js.index("async function saveSettingsPatch()") :
+            settings_js.index("async function reloadSettingsFromDisk()")
+        ]
+        self.assertIn("clearSettingsPatchCandidate();\n      resetSettingsBuilderSyncState();", save_block)
+        self.assertIn("scheduleSettingsPostSaveRefresh();", save_block)
+        self.assertLess(save_block.index("resetSettingsBuilderSyncState();"), save_block.index("scheduleSettingsPostSaveRefresh();"))
+        self.assertIn(
+            "finalLibraryPromotionSettingsBuilderState.dirty = false;\n      scheduleSettingsPostSaveRefresh();",
+            settings_js,
+        )
         self.assertIn(
             "resetSettingsBuilderSyncState({ includeFinalLibraryPromotion: true });\n      await refreshAll();",
             settings_js,
@@ -755,7 +776,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         metadata_fields_js = (STATIC_ROOT / "assets" / "settings" / "metadataFields.js").read_text(encoding="utf-8")
         builder_controls_js = (STATIC_ROOT / "assets" / "settings" / "builderControls.js").read_text(encoding="utf-8")
         settings_support_js = settings_js + metadata_fields_js + builder_controls_js
-        styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        styles = _read_components_css()
 
         for key in (
             "ExtraVideoFlags",
@@ -814,7 +835,7 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
     def test_rule_and_strictness_badges_are_not_rendered(self) -> None:
         html = (STATIC_ROOT / "partials" / "page-settings.html").read_text(encoding="utf-8")
         settings_js = (STATIC_ROOT / "assets" / "settingsView.js").read_text(encoding="utf-8")
-        styles = (STATIC_ROOT / "assets" / "styles.components.css").read_text(encoding="utf-8")
+        styles = _read_components_css()
         review_js = (STATIC_ROOT / "assets" / "settings" / "patchReview.js").read_text(encoding="utf-8")
         video_builder_js = (STATIC_ROOT / "assets" / "settingsView.builders.video.js").read_text(encoding="utf-8")
 
@@ -1016,8 +1037,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
             self.assertIn(token, review_js)
 
         for token in (
-            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
-            'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
+            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS })',
+            "review_confirmation: reviewConfirmation",
+            "confirm_save: true",
         ):
             self.assertIn(token, settings_js)
 
@@ -1252,8 +1274,9 @@ class WebViewHandBrakeSettingsUiTests(unittest.TestCase):
         wizard_js = (STATIC_ROOT / "assets" / "settingsWizard.js").read_text(encoding="utf-8")
 
         for token in (
-            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras })',
-            'apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true })',
+            'apiPost("/api/settings/preview-patch", { changes, ...requestExtras }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS })',
+            "review_confirmation: reviewConfirmation",
+            "confirm_save: true",
             'if ((result.errors || []).length) {',
             'lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));',
             "Backend validation errors are authoritative; this WebView did not save or bypass them.",

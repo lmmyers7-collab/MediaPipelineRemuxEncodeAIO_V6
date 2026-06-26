@@ -145,6 +145,15 @@ function Build-QueuePlanSnapshotRows {
     $excludedRows = New-Object System.Collections.Generic.List[object]
     $excludedRowsTotal = 0
     $excludedRowsLimit = 500
+    $rowLimit = 500
+    try {
+        if ($script:QueueSnapshotRowLimit) {
+            $rowLimit = [math]::Max(1, [int]$script:QueueSnapshotRowLimit)
+        }
+    } catch {
+        $rowLimit = 500
+    }
+    $totalRowCount = 0
     $runnableRowCount = 0
     $globalOrder = 0
     $sourceOrder = 0
@@ -360,8 +369,11 @@ function Build-QueuePlanSnapshotRows {
             runtime_check_codes     = @($runtimeCheckCodes)
             runtime_check_notes     = @($runtimeCheckNotes)
         }
-        $rows.Add($row) | Out-Null
-        if ($runQueueIndex -gt 0) {
+        $totalRowCount++
+        if ($rows.Count -lt $rowLimit) {
+            $rows.Add($row) | Out-Null
+        }
+        if ($runQueueIndex -gt 0 -and $rows.Contains($row)) {
             $runnableRows.Add($row) | Out-Null
         }
     }
@@ -389,7 +401,8 @@ function Build-QueuePlanSnapshotRows {
         $holdLibrarySettingsOverrides = if ($holdEntry.Metadata -and $holdEntry.Metadata.ContainsKey('settings_overrides')) { $holdEntry.Metadata['settings_overrides'] } else { [ordered]@{} }
         $holdLibraryEffectiveSettings = if ($holdEntry.Metadata -and $holdEntry.Metadata.ContainsKey('effective_settings')) { $holdEntry.Metadata['effective_settings'] } else { [ordered]@{} }
         $globalOrder++
-        $rows.Add([ordered]@{
+        $totalRowCount++
+        $holdRow = [ordered]@{
             global_order            = $globalOrder
             phase                   = 'hold'
             manifest_priority_level = 'hold'
@@ -433,7 +446,10 @@ function Build-QueuePlanSnapshotRows {
             runtime_checks_deferred = $false
             runtime_check_codes     = @()
             runtime_check_notes     = @()
-        }) | Out-Null
+        }
+        if ($rows.Count -lt $rowLimit) {
+            $rows.Add($holdRow) | Out-Null
+        }
     }
 
     # F-new-2 — surface the NVENC availability probe so the desktop Queue
@@ -465,6 +481,10 @@ function Build-QueuePlanSnapshotRows {
         mix_priority_phase        = [bool]$QueuePlan.MixPriorityPhase
         queue_ordering_strategy   = [string]$QueuePlan.QueueOrderingStrategy
         runnable_count    = [int]$runnableRowCount
+        total_row_count   = [int]$totalRowCount
+        shown_row_count   = [int]$rows.Count
+        row_limit         = [int]$rowLimit
+        rows_truncated    = [bool]($totalRowCount -gt $rows.Count)
         excluded_count    = [int]$excludedRowsTotal
         excluded_row_limit = [int]$excludedRowsLimit
         excluded_rows_truncated = [bool]($excludedRowsTotal -gt $excludedRows.Count)

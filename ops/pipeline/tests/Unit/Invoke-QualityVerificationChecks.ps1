@@ -117,7 +117,10 @@ Assert-True ($qualityBlockingSummary['blocking_failures'] -contains 'quality_bel
 Assert-Equal $qualityBlockingSummary['quality_ref'] 'quality_verification.v1' 'Verification evidence should include quality schema ref.'
 
 $loaderText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\module_loader.ps1') -Raw
-$encodeText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+$encodePaths = @(
+    (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1')
+) + @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process') -Filter 'encode_*.ps1' | ForEach-Object { $_.FullName })
+$encodeText = ($encodePaths | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join "`n"
 $publishText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_completion.ps1') -Raw
 Assert-True ($loaderText -match 'QualityVerify\.ps1') 'Module loader must include the quality verification module.'
 Assert-True ($encodeText -match '\$script:LastQualityVerification\s*=\s*\$null') 'Encode must reset quality verification evidence per file.'

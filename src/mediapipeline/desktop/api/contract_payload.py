@@ -632,12 +632,12 @@ REPAIR_RECONCILE_CONTRACTS = [
             "pending_scan_id",
             "manifest_correlation",
             "complete_manifest_fields",
-            "backup_path",
+            "created_manifest_path",
             "source_payload_output_unchanged",
         ],
         "rollback_requirements": [
-            "write manifest backup before replacement",
-            "write temp manifest and atomic replace",
+            "refuse to overwrite an existing manifest",
+            "write temp manifest and atomically create the payload-adjacent manifest",
             "leave payload parked on uncertainty",
         ],
         "dry_run_contract": {
@@ -671,13 +671,13 @@ REPAIR_RECONCILE_CONTRACTS = [
         },
         "rollback_contract": {
             "required_for_mutation_route": True,
-            "backup_before_write": True,
+            "backup_before_write": False,
+            "backup_not_applicable_reason": "orphan reconcile creates a new payload-adjacent manifest and refuses existing manifests",
             "atomic_write_required": True,
             "journal_required": True,
             "rollback_on": [
-                "manifest backup failure",
                 "temp manifest write failure",
-                "atomic replace failure",
+                "atomic create failure",
                 "post-write manifest validation failure",
             ],
             "journal_fields": [
@@ -685,7 +685,8 @@ REPAIR_RECONCILE_CONTRACTS = [
                 "candidate_command",
                 "pending_scan_id",
                 "manifest_path",
-                "backup_path",
+                "written_paths",
+                "backup_paths_empty",
                 "rows_changed",
                 "rollback_status",
             ],

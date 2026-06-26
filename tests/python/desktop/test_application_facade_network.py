@@ -11,7 +11,7 @@ from mediapipeline.tools.paths import find_repo_root
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 
 
 class ApplicationFacadeNetworkTests(unittest.TestCase):
@@ -65,6 +65,16 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
                 ),
                 encoding="utf-8",
             )
+            (state_dir / "cluster.log").write_text(
+                "\n".join(
+                    [
+                        "2026-05-13T10:01:00+00:00  INFO   worker/Worker One          claim_ok                  claimed job  job=job-1  src=S01E01.mkv",
+                        "2026-05-13T10:02:00+00:00  INFO   worker/Worker One          encode_started            encoding started  job=job-1  src=S01E01.mkv",
+                        "2026-05-13T10:03:00+00:00  ERROR  worker/Worker One          job_failed                SOURCE_NOT_FOUND  job=job-1  src=S01E01.mkv",
+                    ]
+                ),
+                encoding="utf-8",
+            )
 
             payload = facade.get_network_workers(resolved).to_mapping()
 
@@ -107,10 +117,12 @@ class ApplicationFacadeNetworkTests(unittest.TestCase):
         state_files = {item["key"]: item for item in payload["state_files"]}
         self.assertEqual(state_files["coordinator_inflight"]["status"], "present")
         self.assertEqual(state_files["worker_state"]["status"], "present")
-        self.assertEqual(state_files["cluster_log"]["status"], "missing")
+        self.assertEqual(state_files["cluster_log"]["status"], "present")
         self.assertIn("Coordinator in-flight registry", state_files["coordinator_inflight"]["label"])
         self.assertTrue(state_files["coordinator_inflight"]["read_only"])
         self.assertIn("persisted in-flight state", "\n".join(payload["warnings"]))
+        self.assertNotIn("attention_items", payload)
+        self.assertNotIn("worker_event_timeline", payload)
 
     def test_network_workers_marks_malformed_coordinator_state_as_unreadable(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

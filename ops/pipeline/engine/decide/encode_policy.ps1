@@ -337,19 +337,17 @@ function New-EncodeFfmpegArgumentList {
         )
     } else {
         @(
-            '-map', '0:t?',
             '-map_chapters', '0',
             '-map_metadata', '0',
             '-metadata', "title=$GlobalTitle"
         )
     }
-    $attachmentArgs = if ($isMp4Output) { @() } else { @('-c:t', 'copy') }
     $muxerArgs = @('-f', $muxerName)
     if ($isMp4Output) {
         $muxerArgs += @('-movflags', '+faststart')
     }
     return @('-i', $InputPath) + @($ExtraInputs) + @($videoMapArgs) + @($containerMetadataArgs) +
-        @($VideoFlags) + @($AudioArgs) + @($SubtitleMapArgs) + @($attachmentArgs) + @($muxerArgs) + @(
+        @($VideoFlags) + @($AudioArgs) + @($SubtitleMapArgs) + @($muxerArgs) + @(
             '-max_muxing_queue_size', '1024',
             '-y',
             $OutputPath

@@ -212,8 +212,35 @@ Assert-True ([bool]$noneEvidence.probed) 'Absent-metadata evidence should be ful
 Assert-Equal $noneEvidence.outcome 'none_detected' 'Absent-metadata evidence outcome mismatch.'
 Assert-True (-not [bool]$noneEvidence.dynamic_metadata_present) 'Absent-metadata evidence should not mark metadata present.'
 
-$encodeText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
-$remuxText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\remux.ps1') -Raw
+$encodeText = (@(
+        'ops\pipeline\entrypoints\MediaPipeline\encode.ps1',
+        'ops\pipeline\engine\process\encode_context.ps1',
+        'ops\pipeline\engine\process\encode_preflight.ps1',
+        'ops\pipeline\engine\process\encode_attempt_plan.ps1',
+        'ops\pipeline\engine\process\encode_command_builder.ps1',
+        'ops\pipeline\engine\process\encode_execution.ps1',
+        'ops\pipeline\engine\process\encode_fallback.ps1',
+        'ops\pipeline\engine\process\encode_verification.ps1',
+        'ops\pipeline\engine\process\encode_size_guard.ps1',
+        'ops\pipeline\engine\process\encode_publish.ps1',
+        'ops\pipeline\engine\process\encode_orchestrator.ps1'
+    ) | ForEach-Object {
+        Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw
+    }) -join "`n"
+$remuxText = (@(
+        'ops\pipeline\entrypoints\MediaPipeline\remux.ps1',
+        'ops\pipeline\engine\process\remux_context.ps1',
+        'ops\pipeline\engine\process\remux_preflight.ps1',
+        'ops\pipeline\engine\process\remux_subtitle_plan.ps1',
+        'ops\pipeline\engine\process\remux_ffmpeg_av_stage.ps1',
+        'ops\pipeline\engine\process\remux_mkvmerge_args.ps1',
+        'ops\pipeline\engine\process\remux_mkvmerge_stage.ps1',
+        'ops\pipeline\engine\process\remux_verification.ps1',
+        'ops\pipeline\engine\process\remux_publish.ps1',
+        'ops\pipeline\engine\process\remux_orchestrator.ps1'
+    ) | ForEach-Object {
+        Get-Content -LiteralPath (Join-Path $repoRoot $_) -Raw
+    }) -join "`n"
 $publishText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\publish\publish_completion.ps1') -Raw
 Assert-True ($encodeText -match '\$script:CurrentDynamicHdrEvidence\s*=\s*\$null') 'Encode must reset dynamic HDR evidence per file.'
 Assert-True ($remuxText -match '\$script:CurrentDynamicHdrEvidence\s*=\s*\$null') 'Remux must reset dynamic HDR evidence per file.'

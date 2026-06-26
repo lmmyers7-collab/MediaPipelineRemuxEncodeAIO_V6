@@ -417,22 +417,36 @@ def _preview_track_resolution(section: Mapping[str, Any], stream_index: int | No
     return "", {}
 
 
+def _subtitle_language_policy_field(track: Mapping[str, Any], settings: Mapping[str, Any]) -> tuple[str, list[str]]:
+    codec = str(track.get("codec") or "").strip().casefold()
+    if codec in _SUBTITLE_TX3G_CODECS:
+        field = "Tx3gExtractLanguages"
+    elif codec in _SUBTITLE_BDPGS_CODECS:
+        field = "BdpgsExtractLanguages"
+    elif codec in _SUBTITLE_VOBSUB_CODECS:
+        field = "VobSubExtractLanguages"
+    else:
+        field = "SubKeepLanguages"
+
+    languages = _settings_languages(settings.get(field))
+    if not languages and field != "SubKeepLanguages":
+        return "SubKeepLanguages", _settings_languages(settings.get("SubKeepLanguages"))
+    return field, languages
+
+
 def _subtitle_language_policy_allows(
     track: Mapping[str, Any],
     settings: Mapping[str, Any],
 ) -> tuple[bool, str, str]:
-    languages = _settings_languages(settings.get("SubKeepLanguages"))
+    field, languages = _subtitle_language_policy_field(track, settings)
     if not languages:
         return True, "", ""
     language = _track_language_for_match(track)
-    title = _track_title_for_match(track).casefold()
-    is_sdh = bool(track.get("hearing_impaired")) or "sdh" in title or "hearing" in title
-    is_forced = bool(track.get("forced"))
-    if language in languages or (is_sdh and "und" not in languages) or is_sdh or is_forced:
+    if language in languages:
         return True, "", ""
     languages_text = ", ".join(languages)
-    reason = f"Subtitle language {language or 'und'} is outside saved subtitle keep languages ({languages_text})."
-    return False, "SubKeepLanguages", reason
+    reason = f"Subtitle language {language or 'und'} is outside saved {field} policy ({languages_text})."
+    return False, field, reason
 
 
 def _subtitle_codec_resolution(

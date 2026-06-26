@@ -1,0 +1,35 @@
+{
+  "id": "MP-CHANGE-2026-0626-009",
+  "title": "Network view prework refresh",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": null,
+  "summary": "Produced a docs-only Network WebView prework baseline and stopped before extraction because the existing Phase 0 planning pack is stale against live source/tests.",
+  "reason": "Freeze the current networkView.js contract and identify troubleshooting seams before any behavior-preserving split work, while honoring the stop condition for stale planning guardrails.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "networkView.js is a single 4087-line parent facade with window.mediaPipelineNetworkView, 92 namespace exports, and zero flat exports.",
+  "behavior_after": "No runtime behavior changed. The prework note records current exports, routes, DOM regions, direct callers, source-only guardrails, target seams, rollback rules, validation, and the stale guardrail blocker before any function movement or script-order change.",
+  "files_touched": [
+    "docs/implementation/network-view-troubleshooting-refactor/PREWORK_BASELINE_2026_06_26.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-009.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "git status --short: completed; worktree was already heavily dirty and current status count is about 930 entries, including unrelated docs, tests, generated files, WebView assets, PowerShell split files, and many untracked change packets.",
+    "rg -n \"mediaPipelineNetworkView|networkView.js|/api/network|confirm_start|confirm_stop|confirm_create|confirm_rotate|confirm_import\" apps tests docs/inventories ops/scripts/dev: completed; 428 matches confirmed current namespace callers, route inventories, confirmation guards, and source-only guardrails.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_network_read_only_boundary -q: pass, 14 tests in 0.080s.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_network_smoke -q: pass, 1 browser-backed test in 5.992s.",
+    "npm run webview:prework:check: failed after webview:check passed; failing subcheck webview:lint:budget:check reports warning budgets above baselines: complexity 115 > 108, max-lines-per-function 46 > 37, no-extra-boolean-cast 1 > 0, no-unused-vars 192 > 143.",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage: failed; 12 unrelated changed files are not listed in any unreleased change packet."
+  ],
+  "rollback_plan": "No runtime rollback is required. To abandon this prework record, remove docs/implementation/network-view-troubleshooting-refactor/PREWORK_BASELINE_2026_06_26.md and this change packet; no Network source, route, script-order, or UI behavior was changed.",
+  "related_changes": [],
+  "notes": "Stop-condition blocker: docs/implementation/network-view-troubleshooting-refactor/PHASE_0_BASELINE.md says tests/python/desktop/application_facade_test_support.py was migrated to read existing Network child slots plus the parent facade, but live source still fetches only /assets/networkView.js at lines 914-916. That means a later extraction can strand served-static source assertions that read bundle.network_view_js. Current live facts: networkView.js has 4087 lines; window.mediaPipelineNetworkView begins at line 3993; namespace export count is 92; WEBVIEW_GLOBAL_EXPORT_INVENTORY.md records 0 flat exports for networkView.js; partial DOM IDs total 169. No functions were moved, no exports renamed, no backend routes changed, and no UI behavior changed.\nAdded Network WebView prework baseline ledgers; no runtime behavior changed."
+}

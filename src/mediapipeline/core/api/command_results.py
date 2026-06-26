@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hmac
 from collections.abc import Mapping
 from datetime import datetime
 from typing import Any
@@ -330,9 +331,51 @@ def settings_save_reload_success_payload(payload: dict[str, Any], reloaded: Any)
     data = dict(updated.get("data") or {})
     data["reloaded"] = reloaded is not None
     reloaded_key_count = 0
+    verified_from_reload = False
+    verified_at = datetime.now().isoformat(timespec="seconds")
     if reloaded is not None:
+        from mediapipeline.core.config.settings_patch_policy import (
+            settings_config_digest,
+            settings_reload_verification_digest,
+        )
+
         reloaded_key_count = len(reloaded.config_data or {})
         data["reloaded_key_count"] = reloaded_key_count
+        reload_digest = settings_config_digest(reloaded.config_data or {})
+        changed_keys = [str(item) for item in list(data.get("changed_keys") or [])]
+        removed_keys = [str(item) for item in list(data.get("removed_keys") or [])]
+        reload_verification_digest = settings_reload_verification_digest(
+            dict(reloaded.config_data or {}),
+            changed_keys,
+            removed_keys,
+        )
+        expected_digest = str(
+            data.get("reload_verification_digest_written")
+            or dict(data.get("save_verification") or {}).get("reload_verification_digest_written")
+            or ""
+        )
+        verified_from_reload = bool(expected_digest) and hmac.compare_digest(expected_digest, reload_verification_digest)
+        data["reload_config_digest"] = reload_digest
+        data["reload_verification_digest"] = reload_verification_digest
+        data["reload_config_verified"] = verified_from_reload
+        verification = dict(data.get("save_verification") or {})
+        verification.update(
+            {
+                "reload_config_digest": reload_digest,
+                "reload_verification_digest": reload_verification_digest,
+                "verified_from_reload": verified_from_reload,
+                "verified_at": verified_at,
+            }
+        )
+        data["save_verification"] = verification
+        if expected_digest and not verified_from_reload:
+            warnings = list(updated.get("warnings") or [])
+            warning = "Settings reload verification digest did not match the written changed-key candidate; reload evidence needs review."
+            if warning not in warnings:
+                warnings.append(warning)
+            updated["warnings"] = warnings
+            if str(updated.get("severity") or "") == "info":
+                updated["severity"] = "warning"
     progress = settings_save_progress_with_reload(
         data.get("settings_progress") if isinstance(data.get("settings_progress"), Mapping) else None,
         ok=reloaded is not None,
@@ -354,6 +397,15 @@ def settings_save_reload_failure_payload(payload: dict[str, Any], exc: Exception
     updated["message"] = f"Settings saved, but backend reload failed: {error}"
     updated["errors"] = [error]
     data["reloaded"] = False
+    verification = dict(data.get("save_verification") or {})
+    verification.update(
+        {
+            "reload_config_digest": "",
+            "verified_from_reload": False,
+            "verified_at": datetime.now().isoformat(timespec="seconds"),
+        }
+    )
+    data["save_verification"] = verification
     progress = settings_save_progress_with_reload(
         data.get("settings_progress") if isinstance(data.get("settings_progress"), Mapping) else None,
         ok=False,

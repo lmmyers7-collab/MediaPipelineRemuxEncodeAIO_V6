@@ -9,6 +9,8 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_BDPGS_OCR_TOOL_PATH,
     KEY_CONVERT_BDPGS_TO_SRT,
     KEY_CONVERT_VOBSUB_TO_SRT,
+    KEY_FINAL_LIBRARY_PROMOTION_RULES,
+    KEY_LIBRARY_PROFILES,
     KEY_OUTSOURCE,
     KEY_RENAME_MOVIE_FILTER_OPTIONS,
     KEY_RENAME_MOVIE_FILTER_TERMS,
@@ -16,6 +18,8 @@ from mediapipeline.core.kernel.config_keys import (
     KEY_RENAME_TV_FILTER_OPTIONS,
     KEY_RENAME_TV_FILTER_TERMS,
     KEY_RENAME_TV_REMOVE_TERMS,
+    KEY_SOURCE_MOVIES,
+    KEY_SOURCE_TV,
     KEY_VOBSUB_OCR_TOOL_PATH,
 )
 from mediapipeline.core.config.metadata_network import KEY_COORDINATOR_ALSO_ENCODE_LOCALLY
@@ -40,6 +44,67 @@ if TYPE_CHECKING:
 
 
 REGISTERED_CONFIG_KEYS = frozenset(ALL_CONFIG_KEYS)
+LIBRARY_PROFILE_MIRRORED_KEYS = frozenset(
+    {
+        KEY_SOURCE_MOVIES,
+        KEY_SOURCE_TV,
+        KEY_OUTSOURCE,
+        KEY_FINAL_LIBRARY_PROMOTION_RULES,
+    }
+)
+
+
+def _values_differ(left: Any, right: Any) -> bool:
+    return _json_safe(left) != _json_safe(right)
+
+
+def _reconciled_patch_delta_keys(
+    base_config: dict[str, Any],
+    merged: dict[str, Any],
+    changed_keys: list[str],
+    removed_keys: list[str],
+) -> tuple[list[str], list[str]]:
+    actual_removed: list[str] = []
+    for key in _unique_strings(removed_keys):
+        if key in REGISTERED_CONFIG_KEYS and key in base_config and key not in merged:
+            actual_removed.append(key)
+
+    removed = set(actual_removed)
+    ordered_candidates = _unique_strings(
+        [
+            *changed_keys,
+            *[
+                str(key)
+                for key in ALL_CONFIG_KEYS
+                if str(key) in base_config or str(key) in merged
+            ],
+        ]
+    )
+    actual_changed: list[str] = []
+    for key in ordered_candidates:
+        if key in removed or key not in REGISTERED_CONFIG_KEYS or key not in merged:
+            continue
+        if key not in base_config or _values_differ(base_config.get(key), merged.get(key)):
+            actual_changed.append(key)
+    return actual_changed, actual_removed
+
+
+def _review_entry_source(key: str, raw_changes: dict[str, Any], raw_remove_keys: list[Any]) -> str:
+    raw_change_keys = {str(item or "").strip() for item in raw_changes.keys()}
+    if key in {str(item or "").strip() for item in raw_remove_keys}:
+        return "removed"
+    if key in raw_change_keys:
+        return "submitted"
+    if KEY_LIBRARY_PROFILES in raw_change_keys and key in LIBRARY_PROFILE_MIRRORED_KEYS:
+        return "mirrored_from_library_profiles"
+    return "backend_normalized"
+
+
+def _raw_change_value(raw_changes: dict[str, Any], key: str) -> Any:
+    for raw_key, value in raw_changes.items():
+        if str(raw_key or "").strip() == key:
+            return value
+    return None
 
 
 
@@ -151,6 +216,44 @@ def _ocr_tool_path_errors(values: dict[str, Any], changed_keys: list[str]) -> li
 class SettingsPatchCandidateFacadeMixin:
     """Settings patch candidate construction shared by preview and save commands."""
 
+    def _settings_patch_review_entries(
+        self,
+        base_config: dict[str, Any],
+        merged: dict[str, Any],
+        raw_changes: dict[str, Any],
+        raw_remove_keys: list[Any],
+        changed_keys: list[str],
+        removed_keys: list[str],
+    ) -> list[dict[str, Any]]:
+        entries: list[dict[str, Any]] = []
+        actual_keys = _unique_strings([*changed_keys, *removed_keys])
+        removed = set(removed_keys)
+        raw_change_keys = {str(item or "").strip() for item in raw_changes.keys()}
+        for key in actual_keys:
+            current_exists = key in base_config
+            new_exists = key in merged and key not in removed
+            submitted_exists = key in raw_change_keys
+            if key in removed:
+                status = "removed"
+            elif current_exists:
+                status = "changed"
+            else:
+                status = "new"
+            entries.append(
+                {
+                    "key": key,
+                    "status": status,
+                    "source": _review_entry_source(key, raw_changes, raw_remove_keys),
+                    "current_exists": current_exists,
+                    "new_exists": new_exists,
+                    "submitted_exists": submitted_exists,
+                    "current_value": self._redacted_config(base_config.get(key), key) if current_exists else None,
+                    "submitted_value": self._redacted_config(_raw_change_value(raw_changes, key), key) if submitted_exists else None,
+                    "new_value": self._redacted_config(merged.get(key), key) if new_exists else None,
+                }
+            )
+        return entries
+
     def _settings_patch_candidate(self, resolved: ResolvedPaths, request: dict[str, Any], *, command: str) -> dict[str, Any]:
         raw_changes, fatal_result = settings_patch_changes_from_request(request, command=command)
         if fatal_result is not None:
@@ -165,6 +268,13 @@ class SettingsPatchCandidateFacadeMixin:
         warnings: list[str] = []
         changed_keys: list[str] = []
         removed_keys: list[str] = []
+        raw_library_profile_resets = request.get("library_profile_resets")
+        request_evidence = {
+            "changes": _json_safe(raw_changes),
+            "remove_keys": _json_safe(raw_remove_keys),
+            "library_profile_resets": _json_safe(raw_library_profile_resets or []),
+            "preserve_outsource_root": request.get("preserve_outsource_root") is True,
+        }
 
         for raw_key in raw_remove_keys:
             key = str(raw_key or "").strip()
@@ -208,7 +318,6 @@ class SettingsPatchCandidateFacadeMixin:
             merged[key] = safe_value
             changed_keys.append(key)
 
-        raw_library_profile_resets = request.get("library_profile_resets")
         if raw_library_profile_resets:
             before_resets = _json_safe(merged.get("LibraryProfiles"))
             merged, reset_errors = apply_library_profile_resets(merged, raw_library_profile_resets)
@@ -233,6 +342,12 @@ class SettingsPatchCandidateFacadeMixin:
                     changed_keys.append(KEY_OUTSOURCE)
 
         _normalize_rename_cleaning_policy_values(merged, changed_keys)
+        changed_keys, removed_keys = _reconciled_patch_delta_keys(
+            base_config,
+            merged,
+            changed_keys,
+            removed_keys,
+        )
 
         errors.extend(canonical_config_key_spelling_errors(merged))
         errors.extend(_ocr_tool_path_errors(merged, changed_keys))
@@ -270,6 +385,14 @@ class SettingsPatchCandidateFacadeMixin:
         redacted_before = self._redacted_config(base_config)
         redacted_after = self._redacted_config(merged)
         diff_lines = self._redacted_settings_diff(redacted_before, redacted_after)
+        review_entries = self._settings_patch_review_entries(
+            base_config,
+            merged,
+            raw_changes,
+            raw_remove_keys,
+            changed_keys,
+            removed_keys,
+        )
         return {
             "fatal_result": None,
             "base_config": base_config,
@@ -282,6 +405,8 @@ class SettingsPatchCandidateFacadeMixin:
             "risk_summary": risk_summary,
             "library_profile_state": library_profile_state,
             "preserved_unknown_keys": preserved_unknown_keys,
+            "review_entries": review_entries,
+            "request_evidence": request_evidence,
         }
 
 

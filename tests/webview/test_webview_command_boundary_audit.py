@@ -114,9 +114,13 @@ class WebViewCommandBoundaryAuditTests(unittest.TestCase):
 
         self.assertEqual(len(dynamic_posts), 1)
         dynamic_post = dynamic_posts[0]
-        self.assertEqual(
+        self.assertIn(
             dynamic_post["file"],
-            "apps/desktop/webview/static/assets/networkView.js",
+            {
+                "apps/desktop/webview/static/assets/networkView.js",
+                "apps/desktop/webview/static/assets/network/lifecycle.commands.js",
+                "apps/desktop/webview/static/assets/network/setup.commands.js",
+            },
         )
         self.assertTrue(dynamic_post["allowed"])
         self.assertEqual(

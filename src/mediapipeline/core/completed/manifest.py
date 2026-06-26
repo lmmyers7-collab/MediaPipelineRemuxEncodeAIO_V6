@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from pathlib import Path
 
 from mediapipeline.desktop.models import CompletedJobRecord
@@ -24,6 +25,7 @@ COMPLETED_BOUNDED_PROOF_LIMIT = 100
 # can report whether output existence was actually checked.
 OUTPUT_PROOF_LIVE = "live"
 OUTPUT_PROOF_DEFERRED = "deferred"
+COMPLETED_MANIFEST_TAIL_CHUNK_BYTES = 64 * 1024
 
 
 def normalize_proof_mode(value: object) -> str:
@@ -50,6 +52,42 @@ def completed_sidecar_path_from_payload(manifest_path: Path, payload: dict) -> P
     return manifest_path
 
 
+def _recent_manifest_lines(manifest_path: Path, limit: int) -> list[str]:
+    """Return up to ``limit`` recent JSONL lines without reading the full file."""
+    if limit <= 0:
+        return []
+
+    collected: list[bytes] = []
+    with manifest_path.open("rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        position = handle.tell()
+        buffer = b""
+        while position > 0:
+            read_size = min(COMPLETED_MANIFEST_TAIL_CHUNK_BYTES, position)
+            position -= read_size
+            handle.seek(position)
+            buffer = handle.read(read_size) + buffer
+            lines = buffer.splitlines()
+            if position == 0:
+                collected = lines
+                break
+            if buffer and not buffer.startswith((b"\n", b"\r")):
+                lines = lines[1:]
+            non_empty = sum(1 for line in lines if line.strip())
+            if non_empty >= limit:
+                collected = lines
+                break
+        else:
+            collected = buffer.splitlines()
+
+    decoded = [
+        line.decode("utf-8", errors="replace").strip().lstrip("\ufeff")
+        for line in collected
+        if line.strip()
+    ]
+    return list(reversed(decoded[-limit:]))
+
+
 def annotate_completed_output_health(record: CompletedJobRecord) -> None:
     payload = record.payload
     try:
@@ -71,10 +109,15 @@ def read_completed_manifest_records(
     bounded_proof_limit: int = COMPLETED_BOUNDED_PROOF_LIMIT,
 ) -> list[CompletedJobRecord]:
     proof_mode = normalize_proof_mode(proof_mode)
-    raw = manifest_path.read_text(encoding="utf-8", errors="replace")
     parsed: list[CompletedJobRecord] = []
-    for line_no, line in enumerate(raw.splitlines(), start=1):
-        line = line.strip().lstrip("\ufeff")
+    if limit is None:
+        raw = manifest_path.read_text(encoding="utf-8", errors="replace")
+        lines = [line.strip().lstrip("\ufeff") for line in raw.splitlines()]
+        recent_first = False
+    else:
+        lines = _recent_manifest_lines(manifest_path, limit)
+        recent_first = True
+    for line_no, line in enumerate(lines, start=1):
         if not line:
             continue
         try:
@@ -87,8 +130,9 @@ def read_completed_manifest_records(
         sidecar_path = completed_sidecar_path_from_payload(manifest_path, payload)
         record = CompletedJobRecord(sidecar_path=sidecar_path, payload=payload)
         parsed.append(record)
-    parsed.reverse()
-    if limit is not None:
+    if not recent_first:
+        parsed.reverse()
+    if limit is not None and len(parsed) > limit:
         parsed = parsed[:limit]
     # Apply live output proof only to the in-budget rows (Packet 1). Rows
     # outside the budget are stamped "deferred" so the DTO reports "not

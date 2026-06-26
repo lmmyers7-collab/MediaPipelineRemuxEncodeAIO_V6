@@ -1,0 +1,42 @@
+{
+  "id": "MP-CHANGE-2026-0624-026",
+  "title": "Place marker cleanup below error table",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Moved the Reports marker cleanup controls and advanced evidence archive directly under the All error reports table inside the same records panel.",
+  "reason": "The marker cleanup controls were visually separated from the error table they operate on, forcing operators to scan past the resolution workflow before previewing or clearing markers.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The All error reports table rendered in its own records panel, while Clear markers and Advanced evidence archive rendered later after the resolution workflow as a separate block.",
+  "behavior_after": "The All error reports table, table legend, Clear markers controls, and Advanced evidence archive now render together inside the same records panel, with marker cleanup directly below the table.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/styles.pages.css",
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.pages.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-reports.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-026.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-026.json",
+    "tests/python/desktop/test_reports_view_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_reports_view_static.py placement assertions for marker cleanup inside the error records panel"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke.WebViewBrowserMaintenanceReportsSmoke.test_real_browser_renders_maintenance_reports_and_clear_error_payloads -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/partials/page-reports.html apps/desktop/webview/static/assets/styles.pages.css tests/python/desktop/test_reports_view_static.py - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0624-027 metadata and uncovered docs/implementation/local-api-test-split files",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed due unrelated smoke-wrapper inventory freshness, duplicate-test-name report freshness, and MP-CHANGE-2026-0619-020 local workstation path"
+  ],
+  "rollback_plan": "Move the marker cleanup and advanced archive markup back below the resolution workflow, remove the failure-records-actions CSS rule, and remove the placement assertions from the Reports static test.",
+  "related_changes": [],
+  "notes": "Move marker cleanup controls into the error records panel below the table.\nAdd spacing separator for marker cleanup within the records panel.\nAssert marker cleanup stays inside the error records panel after the table.\nRefresh summary after Reports markup placement change.\nRefresh summary after Reports style placement change.\nRefresh summary after Reports static test update.\nAdd generated summary for the new change packet."
+}

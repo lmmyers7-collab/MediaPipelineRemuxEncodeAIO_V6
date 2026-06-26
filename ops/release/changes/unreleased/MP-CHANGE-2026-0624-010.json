@@ -1,0 +1,40 @@
+{
+  "id": "MP-CHANGE-2026-0624-010",
+  "title": "Hide rename filter summary chips",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Hid the Settings > Rename Cleaning Filters status/summary display targets so backend filter-count prose no longer renders as visible summary chips.",
+  "reason": "The rename filter status and generated term-count summary duplicated information from the editable controls and added visual clutter above the operator's rename filter fields.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Settings > Rename Cleaning Filters rendered a backend status label and prose-derived summary chips for saved policy messages, custom negative term counts, and movie/TV filter term counts.",
+  "behavior_after": "Settings keeps the same hidden DOM targets for JS status/test hooks, but the status label and summary target are hidden and the summary target no longer uses prose-block chip rendering.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-010.json.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_rename_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-010.json",
+    "tests/webview/test_webview_browser_rename_smoke.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_browser_rename_smoke.py"
+  ],
+  "manual_validation": [
+    "PowerShell static assertion for hidden settings-rename-cleaning-filter-status, hidden settings-rename-cleaning-filter-summary, and no prose-block class on the summary target - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q - failed on pre-existing dirty WebView/static drift: settings save status assertion, missing contract route references, and disabled buttons in an evidence panel",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_rename_smoke -q - failed before this change's hidden-summary assertion because /api/queue returned 500 from pre-existing QueuePreviewDto total_row_count drift",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_rename_readiness_smoke -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed on unrelated MP-CHANGE-2026-0624-004 rollback/notes metadata and 10 unrelated dirty files not covered by any packet"
+  ],
+  "rollback_plan": "Remove the hidden/aria-hidden attributes from settings-rename-cleaning-filter-status, restore prose-block on settings-rename-cleaning-filter-summary, and remove the hidden-summary assertion helper/calls from the rename browser smoke.",
+  "related_changes": [],
+  "notes": "Hide the rename cleaning filter status and summary targets so prose-chip summaries are not shown in Settings.\nAssert the hidden rename cleaning filter summary does not create a visible prose summary strip.\nRefresh generated summary after hiding the rename filter summary UI target.\nRefresh generated summary after adding the hidden-summary smoke assertion.\nGenerated summary for the completed change packet."
+}

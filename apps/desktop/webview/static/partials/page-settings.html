@@ -23,43 +23,6 @@
             <button type="button" id="settings-save-header-reload-button" class="secondary-button">Reload From Disk</button>
           </div>
         </div>
-        <dialog id="settings-save-review-dialog" class="settings-save-review-dialog" aria-labelledby="settings-save-review-title">
-          <form method="dialog" class="settings-save-review-form">
-            <div class="settings-save-review-header">
-              <div>
-                <h2 id="settings-save-review-title">Review Settings Changes</h2>
-                <p id="settings-save-review-summary" class="settings-save-review-summary">No settings changes are queued for save.</p>
-              </div>
-              <button type="submit" value="cancel" class="secondary-button">Close</button>
-            </div>
-            <ul class="settings-save-review-counts" aria-label="Settings save counts">
-              <li><span>Changed</span><strong id="settings-save-review-dialog-changed">0</strong></li>
-              <li><span>Submitted</span><strong id="settings-save-review-dialog-submitted">0</strong></li>
-              <li><span>Resets</span><strong id="settings-save-review-dialog-resets">0</strong></li>
-            </ul>
-            <div class="table-wrap settings-save-review-table-wrap">
-              <table>
-                <thead>
-                  <tr>
-                    <th scope="col">Setting</th>
-                    <th scope="col">Current</th>
-                    <th scope="col">New</th>
-                    <th scope="col">Status</th>
-                  </tr>
-                </thead>
-                <tbody id="settings-save-review-dialog-rows">
-                  <tr><td colspan="4">No settings changes to review.</td></tr>
-                </tbody>
-              </table>
-            </div>
-            <pre id="settings-save-review-dialog-detail" class="prose-block compact-text-block">Backend save will validate, write a backup, persist the PSD1, and reload settings after confirmation.</pre>
-            <div class="action-row action-row-right wrap-actions">
-              <button type="submit" value="cancel" id="settings-save-review-cancel-button" class="secondary-button">Cancel</button>
-              <button type="submit" value="confirm" id="settings-save-review-confirm-button" class="primary-button">Save Settings</button>
-            </div>
-          </form>
-        </dialog>
-
         <!-- TAB: GUIDED SETUP -->
         <div class="settings-tab-pane" data-settings-tab="guided-setup">
         <section class="panel settings-wizard-panel" data-panel-type="interactive">
@@ -313,7 +276,7 @@
 
         <!-- TAB: SUMMARY -->
         <div class="settings-tab-pane is-active" data-settings-tab="status">
-        <section class="panel settings-handbrake-preview-panel" data-panel-type="evidence" data-handbrake-section="summary" data-local-api-contract-route="/api/settings/pipeline-plan-preview">
+        <section class="panel settings-handbrake-preview-panel" data-panel-type="status" data-handbrake-section="summary" data-local-api-contract-route="/api/settings/pipeline-plan-preview">
           <div class="panel-heading">
             <h2>Decision Preview</h2>
             <strong id="settings-handbrake-preview-status">Predicted pending cutover</strong>
@@ -340,7 +303,7 @@
               <div><dt>Output container</dt><dd id="settings-summary-output-container" data-settings-summary-key="OutputContainer">Not loaded</dd></div>
               <div><dt>Encode if required</dt><dd id="settings-summary-encode-if-required" data-settings-summary-key="VideoCodec">Not loaded</dd></div>
               <div><dt>Size / bitrate guards</dt><dd id="settings-summary-size-bitrate-guards" data-settings-summary-key="SizeGuardMode">Not loaded</dd></div>
-              <div><dt>Evidence scope</dt><dd id="settings-summary-evidence-scope">Saved global settings shown here. library_effective_settings is library-only when shown in queue rows; final runtime decision is resolved during queue/job processing.</dd></div>
+              <div><dt>Preview scope</dt><dd id="settings-summary-preview-scope">Saved global settings shown here. library_effective_settings is library-only when shown in queue rows; final runtime decision is resolved during queue/job processing.</dd></div>
             </dl>
           </section>
           <div class="settings-handbrake-preview-grid">
@@ -1678,174 +1641,227 @@
 
         <!-- TAB: RENAME FILTERS -->
         <div class="settings-tab-pane" data-settings-tab="naming">
-        <section class="panel" data-panel-type="interactive">
+        <section class="panel settings-rename-workbench-panel" data-panel-type="interactive">
           <div class="panel-heading">
-            <h2>Rename Cleaning Filters</h2>
-            <strong id="settings-rename-cleaning-filter-status">Backend terms active</strong>
+            <h2>Rename Filter Case Workbench</h2>
+            <strong id="settings-rename-workbench-status">Backend cleaner waits for input.</strong>
           </div>
-          <p class="note">Edit filters here, then press Save Settings. Save gathers these rename-filter values, shows the change review dialog, and persists through the backend PSD1 save path. Browser storage is local draft recovery only; filesystem changes still require backend rename apply confirmation.</p>
-          <h3>Movie Filters</h3>
-          <label class="full-field">
-            Movie custom negative terms
-            <textarea id="settings-rename-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom negative terms are added to the backend rename planner. Built-in movie scrub filters below handle common ops/release/metadata/source/audio/edition tags; this field is for local terms you want removed from preview names.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
-          </label>
-          <div class="option-grid">
-            <label class="check-row"><input type="checkbox" data-rename-movie-filter="video_source" checked> Video / source tags</label>
-            <label class="check-row"><input type="checkbox" data-rename-movie-filter="audio_channels" checked> Audio / channels</label>
-            <label class="check-row"><input type="checkbox" data-rename-movie-filter="editions" checked> Editions / cuts</label>
-            <label class="check-row"><input type="checkbox" data-rename-movie-filter="file_size" checked> File size tags</label>
-            <label class="check-row"><input type="checkbox" data-rename-movie-filter="services_containers" checked> Services / containers</label>
-            <label class="check-row"><input type="checkbox" data-rename-movie-filter="languages_subs_dubs" checked> Languages / sub-dub tags</label>
-            <label class="check-row"><input type="checkbox" data-rename-movie-filter="release_groups" checked> Release groups</label>
-          </div>
-          <div class="form-grid">
-            <label>
-              Video / source
-              <textarea id="settings-rename-filter-video-source" data-rename-movie-filter-terms="video_source" data-default-terms="2160p, 1080p, 1080i, 720p, 720i, 480p, 4k, uhd, hdr, hdr10, hdr10+, hlg, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, xvid, divx, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, hdrip, dvdrip, dvd, dvdscr, ts, cam, scr, remux, hybrid, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 1080i, 720p, 720i, 480p, 4k, uhd, hdr, hdr10, hdr10+, hlg, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, xvid, divx, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, hdrip, dvdrip, dvd, dvdscr, ts, cam, scr, remux, hybrid, 10 bit, 8 bit</textarea>
-            </label>
-            <label>
-              Audio / channels
-              <textarea id="settings-rename-filter-audio-channels" data-rename-movie-filter-terms="audio_channels" data-default-terms="truehd, atmos, flac, opus, eac3, ac3, aac, dd, dd+, ddp, dts, dts hd, dts-x, dtsx, dtshd, lpcm, pcm, mp3, mp2, 1.0, 2.0, 5.1, 7.1, stereo, mono, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">truehd, atmos, flac, opus, eac3, ac3, aac, dd, dd+, ddp, dts, dts hd, dts-x, dtsx, dtshd, lpcm, pcm, mp3, mp2, 1.0, 2.0, 5.1, 7.1, stereo, mono, 6ch, 6 ch, 8ch, 8 ch</textarea>
-            </label>
-            <label>
-              Editions / cuts
-              <textarea id="settings-rename-filter-editions" data-rename-movie-filter-terms="editions" data-default-terms="imax, proper, repack, rerip, extended, remastered, remaster, restored, restoration, unrated, theatrical, criterion, director cut, directors cut, director's cut, dc, final cut, open matte, redux, special edition, se, anniversary, collectors edition, supercut" rows="3" spellcheck="false">imax, proper, repack, rerip, extended, remastered, remaster, restored, restoration, unrated, theatrical, criterion, director cut, directors cut, director's cut, dc, final cut, open matte, redux, special edition, se, anniversary, collectors edition, supercut</textarea>
-            </label>
-            <label>
-              File size
-              <textarea id="settings-rename-filter-file-size" data-rename-movie-filter-terms="file_size" data-default-terms="500mb, 700mb, 1400mb, 1gb, 1.5gb, 2gb, 3gb, 4.7gb, 5gb, 6gb, 8gb, 10gb, 15gb, 20gb, 25gb, 30gb" rows="3" spellcheck="false">500mb, 700mb, 1400mb, 1gb, 1.5gb, 2gb, 3gb, 4.7gb, 5gb, 6gb, 8gb, 10gb, 15gb, 20gb, 25gb, 30gb</textarea>
-            </label>
-            <label>
-              Services / containers
-              <textarea id="settings-rename-filter-services-containers" data-rename-movie-filter-terms="services_containers" data-default-terms="amzn, nf, dsnp, hmax, hulu, itunes, appletv, atvp, peacock, pck, vudu, stan, sho, mkv, mp4, m4v, avi, mov, wmv" rows="3" spellcheck="false">amzn, nf, dsnp, hmax, hulu, itunes, appletv, atvp, peacock, pck, vudu, stan, sho, mkv, mp4, m4v, avi, mov, wmv</textarea>
-            </label>
-            <label>
-              Languages / sub-dub tags
-              <textarea id="settings-rename-filter-languages-subs-dubs" data-rename-movie-filter-terms="languages_subs_dubs" data-default-terms="eng, ita, fre, fra, ger, deu, spa, esp, jpn, jap, kor, chi, zho, rus, por, dut, nld, swe, dan, nor, fin, pol, cze, ces, hun, gre, ell, tur, ara, hin, tha, vie, ukr, sub, subs, subbed, dub, dubs, dubbed, multi, multi audio, dual audio, dual-audio, vostfr, vose" rows="3" spellcheck="false">eng, ita, fre, fra, ger, deu, spa, esp, jpn, jap, kor, chi, zho, rus, por, dut, nld, swe, dan, nor, fin, pol, cze, ces, hun, gre, ell, tur, ara, hin, tha, vie, ukr, sub, subs, subbed, dub, dubs, dubbed, multi, multi audio, dual audio, dual-audio, vostfr, vose</textarea>
-            </label>
-            <label>
-              Release groups
-              <textarea id="settings-rename-filter-release-groups" data-rename-movie-filter-terms="release_groups" data-default-terms="rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg, neonoir" rows="3" spellcheck="false">rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg, neonoir</textarea>
-            </label>
-          </div>
-          <h3>TV Filters</h3>
-          <label class="full-field">
-            TV custom negative terms
-            <textarea id="settings-rename-tv-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom TV negative terms are added to the backend rename planner for show and episode-title cleanup.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
-          </label>
-          <div class="option-grid">
-            <label class="check-row"><input type="checkbox" data-rename-tv-filter="video_source" checked> Video / source tags</label>
-            <label class="check-row"><input type="checkbox" data-rename-tv-filter="audio_channels" checked> Audio / channels</label>
-            <label class="check-row"><input type="checkbox" data-rename-tv-filter="release_flags" checked> Release flags</label>
-            <label class="check-row"><input type="checkbox" data-rename-tv-filter="services_containers" checked> Services / containers</label>
-            <label class="check-row"><input type="checkbox" data-rename-tv-filter="languages_subs_dubs" checked> Languages / sub-dub tags</label>
-            <label class="check-row"><input type="checkbox" data-rename-tv-filter="release_groups" checked> Release groups</label>
-          </div>
-          <div class="form-grid">
-            <label>
-              Video / source
-              <textarea id="settings-rename-tv-filter-video-source" data-rename-tv-filter-terms="video_source" data-default-terms="2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, dv, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, bd, bdrip, blu ray, blu-ray, bluray, web dl, webdl, webrip, hdtv, dvd, dvdrip, remux, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, dv, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, bd, bdrip, blu ray, blu-ray, bluray, web dl, webdl, webrip, hdtv, dvd, dvdrip, remux, 10 bit, 8 bit</textarea>
-            </label>
-            <label>
-              Audio / channels
-              <textarea id="settings-rename-tv-filter-audio-channels" data-rename-tv-filter-terms="audio_channels" data-default-terms="flac, aac, opus, ac3, eac3, ddp, dts, truehd, atmos, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">flac, aac, opus, ac3, eac3, ddp, dts, truehd, atmos, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch</textarea>
-            </label>
-            <label>
-              Release flags
-              <textarea id="settings-rename-tv-filter-release-flags" data-rename-tv-filter-terms="release_flags" data-default-terms="proper, repack, rerip, uncensored, censored" rows="3" spellcheck="false">proper, repack, rerip, uncensored, censored</textarea>
-            </label>
-            <label>
-              Services / containers
-              <textarea id="settings-rename-tv-filter-services-containers" data-rename-tv-filter-terms="services_containers" data-default-terms="mkv, mp4" rows="3" spellcheck="false">mkv, mp4</textarea>
-            </label>
-            <label>
-              Languages / sub-dub tags
-              <textarea id="settings-rename-tv-filter-languages-subs-dubs" data-rename-tv-filter-terms="languages_subs_dubs" data-default-terms="dual audio, multi audio, eng sub, eng subs, multi sub, multi subs, subs, sub, subbed, dubbed" rows="3" spellcheck="false">dual audio, multi audio, eng sub, eng subs, multi sub, multi subs, subs, sub, subbed, dubbed</textarea>
-            </label>
-            <label>
-              Release groups
-              <textarea id="settings-rename-tv-filter-release-groups" data-rename-tv-filter-terms="release_groups" data-default-terms="chotab, subsplease, erai raws, erai-raws, judas, ember, bonkai, neohevc, animetime, lostyears, nai, asw, sam, tnp, dedsec, mtbb, smugcat, commie, horriblesubs, kametsu, db, kawaiika, tlacatlc6, ttga" rows="3" spellcheck="false">chotab, subsplease, erai raws, erai-raws, judas, ember, bonkai, neohevc, animetime, lostyears, nai, asw, sam, tnp, dedsec, mtbb, smugcat, commie, horriblesubs, kametsu, db, kawaiika, tlacatlc6, ttga</textarea>
-            </label>
-          </div>
-          <div class="rename-filter-preview">
-            <div class="form-grid">
-              <label>
-                Test mode
-                <select id="settings-rename-preview-mode">
-                  <option value="movie" selected>Movie</option>
-                  <option value="tv">TV</option>
-                </select>
-              </label>
-              <label>
-                TV source folder
-                <input type="text" id="settings-rename-preview-source-folder" autocomplete="off" spellcheck="false" placeholder="Show Name S03 1080p Dual Audio BD Remux-GROUP">
-              </label>
+          <p class="note">Use this loop to make a bad case fail first, stage new filter terms into the Settings draft, retest with staged filters, then use Save Settings only after the backend comparison passes.</p>
+          <form id="settings-rename-workbench-form">
+            <div class="rename-workbench-layout">
+              <div class="rename-workbench-fields">
+                <fieldset class="rename-workbench-fieldset">
+                  <legend>Case input</legend>
+                  <div class="form-grid">
+                    <label>
+                      Media type
+                      <select id="settings-rename-workbench-mode">
+                        <option value="movie" selected>Movie</option>
+                        <option value="tv">TV series</option>
+                      </select>
+                    </label>
+                    <label class="rename-workbench-source-title" data-rename-workbench-required-modes="movie tv">
+                      Source file/title
+                      <input type="text" id="settings-rename-workbench-source-file" autocomplete="off" spellcheck="false" placeholder="Scary Movie 2026 1080p DCPRip x264-FS.mkv">
+                    </label>
+                    <label data-rename-workbench-required-modes="tv">
+                      Source folder
+                      <input type="text" id="settings-rename-workbench-source-folder" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA">
+                    </label>
+                  </div>
+                </fieldset>
+                <fieldset class="rename-workbench-fieldset">
+                  <legend>Expected output</legend>
+                  <div class="form-grid">
+                    <label data-rename-workbench-mode-field="tv" data-rename-workbench-required-modes="tv">
+                      TV format
+                      <select id="settings-rename-workbench-template">
+                        <option value="tv_standard" selected>Show - SxxEyy - Episode Title</option>
+                        <option value="tv_no_episode_title">Show - SxxEyy</option>
+                      </select>
+                    </label>
+                    <label data-rename-workbench-mode-field="tv" data-rename-workbench-required-modes="tv">
+                      Expected show title
+                      <input type="text" id="settings-rename-workbench-expected-show" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm">
+                    </label>
+                    <label data-rename-workbench-mode-field="tv" data-rename-workbench-required-modes="tv">
+                      Expected season
+                      <input type="number" id="settings-rename-workbench-expected-season" min="0" step="1" inputmode="numeric" placeholder="3">
+                    </label>
+                    <label data-rename-workbench-mode-field="tv" data-rename-workbench-required-modes="tv">
+                      Expected episode
+                      <input type="number" id="settings-rename-workbench-expected-episode" min="0" step="1" inputmode="numeric" placeholder="1">
+                    </label>
+                    <label data-rename-workbench-mode-field="tv">
+                      Expected episode title
+                      <input type="text" id="settings-rename-workbench-expected-episode-title" autocomplete="off" spellcheck="false" placeholder="The Beginning of Winter">
+                    </label>
+                    <label data-rename-workbench-mode-field="movie" data-rename-workbench-required-modes="movie">
+                      Expected movie title
+                      <input type="text" id="settings-rename-workbench-expected-movie-title" autocomplete="off" spellcheck="false" placeholder="Scary Movie">
+                    </label>
+                    <label data-rename-workbench-mode-field="movie" data-rename-workbench-required-modes="movie">
+                      Expected year
+                      <input type="number" id="settings-rename-workbench-expected-year" min="1900" max="2099" step="1" inputmode="numeric" placeholder="2026">
+                    </label>
+                  </div>
+                  <label class="full-field">
+                    Notes
+                    <textarea id="settings-rename-workbench-notes" rows="3" spellcheck="false" placeholder="Example: source suffix +SP TTGA should be removed from the show title."></textarea>
+                  </label>
+                </fieldset>
+                <section class="rename-workbench-result" aria-labelledby="settings-rename-workbench-result-heading">
+                  <div class="rename-workbench-result-heading">
+                    <h3 id="settings-rename-workbench-result-heading">Backend comparison</h3>
+                    <span id="settings-rename-workbench-save-state" class="rename-workbench-save-state" data-state="waiting">Run a test before Save Settings.</span>
+                  </div>
+                  <div class="rename-workbench-action-strip">
+                    <div class="rename-workbench-action-group">
+                      <button type="button" id="settings-rename-workbench-test-button" class="secondary-button">Test Current Filters</button>
+                    </div>
+                    <div class="rename-workbench-action-group">
+                      <button type="button" id="settings-rename-workbench-stage-suggestions-button" class="secondary-button">Stage Selected Suggestions</button>
+                      <button type="button" id="settings-rename-workbench-retest-button" class="secondary-button">Retest With Staged Filters</button>
+                      <button type="button" id="settings-rename-workbench-save-filters-button" class="primary-button" disabled>Save New Filters</button>
+                    </div>
+                    <div class="rename-workbench-action-group rename-workbench-case-action">
+                      <button type="button" id="settings-rename-workbench-save-case-button" class="secondary-button">Save Regression Case</button>
+                    </div>
+                  </div>
+                  <p id="settings-rename-workbench-message" class="note" aria-live="polite">Waiting for case details.</p>
+                  <div id="settings-rename-workbench-output" class="rename-preview-output" aria-live="polite"></div>
+                </section>
+              </div>
             </div>
-            <label class="full-field">
-              Test a filename
-              <input type="text" id="settings-rename-preview-input" autocomplete="off" spellcheck="false" placeholder="Movie.Title.2001.1080p.BluRay.x265-GROUP.mkv">
-            </label>
-            <div class="action-row action-row-left wrap-actions">
-              <button type="button" id="settings-rename-preview-button" class="secondary-button">Test Filename</button>
-              <span id="settings-rename-preview-status" class="note">Backend cleaner waits for input.</span>
-            </div>
-            <div id="settings-rename-preview-output" class="rename-preview-output" aria-live="polite"></div>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" id="settings-rename-cleaning-filters-reset-button" class="secondary-button">Reset Rename Filters</button>
-            <button type="button" class="secondary-button" data-cross-page-target="rename">Open Rename</button>
-          </div>
-          <pre id="settings-rename-cleaning-filter-summary" class="prose-block">Saved backend rename cleaning policy loads here.</pre>
-        </section>
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Rename Filter Case Log</h2>
-            <strong id="settings-rename-log-case-status">Ready</strong>
-          </div>
-          <p class="note">Append a bad rename case to the regression corpus. This writes a test fixture only; it does not rename files, save settings, or touch media.</p>
-          <form id="settings-rename-log-case-form">
-            <div class="form-grid">
-              <label>
-                Source folder
-                <input id="settings-rename-log-case-source-folder" type="text" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm S03+SP 1080p Dual Audio BD Remux FLAC-TTGA">
-              </label>
-              <label>
-                Source file
-                <input id="settings-rename-log-case-source-file" type="text" autocomplete="off" spellcheck="false" placeholder="S03E01-The Beginning of Winter.mkv">
-              </label>
-              <label>
-                Season number
-                <input id="settings-rename-log-case-season-number" type="number" min="1" step="1" value="1" inputmode="numeric">
-              </label>
-              <label>
-                Expected name
-                <input id="settings-rename-log-case-expected-name" type="text" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm - S03E01 - The Beginning of Winter.mkv">
-              </label>
-              <label>
-                Expected show
-                <input id="settings-rename-log-case-expected-show" type="text" autocomplete="off" spellcheck="false" placeholder="Ascendance of a Bookworm">
-              </label>
-              <label>
-                Expected season
-                <input id="settings-rename-log-case-expected-season" type="number" min="0" step="1" inputmode="numeric" placeholder="3">
-              </label>
-              <label>
-                Status
-                <select id="settings-rename-log-case-status-select">
-                  <option value="pending" selected>Pending</option>
-                  <option value="active">Active</option>
-                </select>
-              </label>
-            </div>
-            <label class="full-field">
-              Notes
-              <textarea id="settings-rename-log-case-notes" rows="3" spellcheck="false" placeholder="Example: source folder suffix +SP TTGA should be removed from the show title."></textarea>
-            </label>
-            <div class="action-row action-row-left wrap-actions">
-              <button type="submit" id="settings-rename-log-case-submit-button" class="secondary-button">Append Filter Case</button>
-              <span id="settings-rename-log-case-message" class="note" aria-live="polite">Waiting for case details.</span>
-            </div>
+            <section class="rename-workbench-suggestion-section" aria-label="Filter suggestions">
+              <div class="rename-workbench-suggestion-heading">
+                <h3>New terms to stage</h3>
+                <span class="note">Only destinations for the selected media type are offered.</span>
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Stage</th>
+                      <th>Term</th>
+                      <th>Destination</th>
+                      <th>Reason</th>
+                    </tr>
+                  </thead>
+                  <tbody id="settings-rename-workbench-suggestions">
+                    <tr><td colspan="4">Run a test to load new filter suggestions.</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </form>
+        </section>
+        <section class="panel settings-rename-filter-editor-panel" data-panel-type="interactive">
+          <details id="settings-rename-cleaning-filters-details" class="settings-rename-filter-editor-disclosure">
+            <summary>
+              <span>Current Draft Filters</span>
+              <span class="note">Staged terms appear here; Save Settings is still the only persistence path.</span>
+            </summary>
+            <div class="panel-heading">
+              <h2>Rename Cleaning Filters</h2>
+              <strong id="settings-rename-cleaning-filter-status" hidden aria-hidden="true">Backend terms active</strong>
+            </div>
+            <p class="note">Edit filters here, then press Save Settings. Save gathers these rename-filter values, shows the change review dialog, and persists through the backend PSD1 save path. Browser storage is local draft recovery only; filesystem changes still require backend rename apply confirmation.</p>
+            <div class="rename-filter-editor-grid">
+              <section class="rename-filter-editor-group">
+                <h3>Movie Filters</h3>
+                <label class="full-field">
+                  Movie custom negative terms
+                  <textarea id="settings-rename-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom negative terms are added to the backend rename planner. Built-in movie scrub filters below handle common ops/release/metadata/source/audio/edition tags; this field is for local terms you want removed from preview names.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
+                </label>
+                <div class="option-grid">
+                  <label class="check-row"><input type="checkbox" data-rename-movie-filter="video_source" checked> Video / source tags</label>
+                  <label class="check-row"><input type="checkbox" data-rename-movie-filter="audio_channels" checked> Audio / channels</label>
+                  <label class="check-row"><input type="checkbox" data-rename-movie-filter="editions" checked> Editions / cuts</label>
+                  <label class="check-row"><input type="checkbox" data-rename-movie-filter="file_size" checked> File size tags</label>
+                  <label class="check-row"><input type="checkbox" data-rename-movie-filter="services_containers" checked> Services / containers</label>
+                  <label class="check-row"><input type="checkbox" data-rename-movie-filter="languages_subs_dubs" checked> Languages / sub-dub tags</label>
+                  <label class="check-row"><input type="checkbox" data-rename-movie-filter="release_groups" checked> Release groups</label>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Video / source
+                    <textarea id="settings-rename-filter-video-source" data-rename-movie-filter-terms="video_source" data-default-terms="2160p, 1080p, 1080i, 720p, 720i, 480p, 4k, uhd, hdr, hdr10, hdr10+, hlg, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, xvid, divx, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, hdrip, dvdrip, dvd, dvdscr, ts, cam, scr, remux, hybrid, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 1080i, 720p, 720i, 480p, 4k, uhd, hdr, hdr10, hdr10+, hlg, dv, dovi, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, avc, xvid, divx, blu ray, bluray, brrip, bdrip, webrip, web dl, webdl, web, hdtv, hdrip, dvdrip, dvd, dvdscr, ts, cam, scr, remux, hybrid, 10 bit, 8 bit</textarea>
+                  </label>
+                  <label>
+                    Audio / channels
+                    <textarea id="settings-rename-filter-audio-channels" data-rename-movie-filter-terms="audio_channels" data-default-terms="truehd, atmos, flac, opus, eac3, ac3, aac, dd, dd+, ddp, dts, dts hd, dts-x, dtsx, dtshd, lpcm, pcm, mp3, mp2, 1.0, 2.0, 5.1, 7.1, stereo, mono, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">truehd, atmos, flac, opus, eac3, ac3, aac, dd, dd+, ddp, dts, dts hd, dts-x, dtsx, dtshd, lpcm, pcm, mp3, mp2, 1.0, 2.0, 5.1, 7.1, stereo, mono, 6ch, 6 ch, 8ch, 8 ch</textarea>
+                  </label>
+                  <label>
+                    Editions / cuts
+                    <textarea id="settings-rename-filter-editions" data-rename-movie-filter-terms="editions" data-default-terms="imax, proper, repack, rerip, extended, remastered, remaster, restored, restoration, unrated, theatrical, criterion, director cut, directors cut, director's cut, dc, final cut, open matte, redux, special edition, se, anniversary, collectors edition, supercut" rows="3" spellcheck="false">imax, proper, repack, rerip, extended, remastered, remaster, restored, restoration, unrated, theatrical, criterion, director cut, directors cut, director's cut, dc, final cut, open matte, redux, special edition, se, anniversary, collectors edition, supercut</textarea>
+                  </label>
+                  <label>
+                    File size
+                    <textarea id="settings-rename-filter-file-size" data-rename-movie-filter-terms="file_size" data-default-terms="500mb, 700mb, 1400mb, 1gb, 1.5gb, 2gb, 3gb, 4.7gb, 5gb, 6gb, 8gb, 10gb, 15gb, 20gb, 25gb, 30gb" rows="3" spellcheck="false">500mb, 700mb, 1400mb, 1gb, 1.5gb, 2gb, 3gb, 4.7gb, 5gb, 6gb, 8gb, 10gb, 15gb, 20gb, 25gb, 30gb</textarea>
+                  </label>
+                  <label>
+                    Services / containers
+                    <textarea id="settings-rename-filter-services-containers" data-rename-movie-filter-terms="services_containers" data-default-terms="amzn, nf, dsnp, hmax, hulu, itunes, appletv, atvp, peacock, pck, vudu, stan, sho, mkv, mp4, m4v, avi, mov, wmv" rows="3" spellcheck="false">amzn, nf, dsnp, hmax, hulu, itunes, appletv, atvp, peacock, pck, vudu, stan, sho, mkv, mp4, m4v, avi, mov, wmv</textarea>
+                  </label>
+                  <label>
+                    Languages / sub-dub tags
+                    <textarea id="settings-rename-filter-languages-subs-dubs" data-rename-movie-filter-terms="languages_subs_dubs" data-default-terms="eng, ita, fre, fra, ger, deu, spa, esp, jpn, jap, kor, chi, zho, rus, por, dut, nld, swe, dan, nor, fin, pol, cze, ces, hun, gre, ell, tur, ara, hin, tha, vie, ukr, sub, subs, subbed, dub, dubs, dubbed, multi, multi audio, dual audio, dual-audio, vostfr, vose" rows="3" spellcheck="false">eng, ita, fre, fra, ger, deu, spa, esp, jpn, jap, kor, chi, zho, rus, por, dut, nld, swe, dan, nor, fin, pol, cze, ces, hun, gre, ell, tur, ara, hin, tha, vie, ukr, sub, subs, subbed, dub, dubs, dubbed, multi, multi audio, dual audio, dual-audio, vostfr, vose</textarea>
+                  </label>
+                  <label>
+                    Release groups
+                    <textarea id="settings-rename-filter-release-groups" data-rename-movie-filter-terms="release_groups" data-default-terms="rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg, neonoir" rows="3" spellcheck="false">rarbg, rbg, yify, yts, yts lt, galaxyrg, bone, psa, tigole, kris, sparks, ntb, evo, tepes, flux, framestor, cmrg, neonoir</textarea>
+                  </label>
+                </div>
+              </section>
+              <section class="rename-filter-editor-group">
+                <h3>TV Filters</h3>
+                <label class="full-field">
+                  TV custom negative terms
+                  <textarea id="settings-rename-tv-remove-terms" rows="3" spellcheck="false" data-default-terms="sample, trailer, extras, featurette, deleted scenes, behind the scenes" title="Custom TV negative terms are added to the backend rename planner for show and episode-title cleanup.">sample, trailer, extras, featurette, deleted scenes, behind the scenes</textarea>
+                </label>
+                <div class="option-grid">
+                  <label class="check-row"><input type="checkbox" data-rename-tv-filter="video_source" checked> Video / source tags</label>
+                  <label class="check-row"><input type="checkbox" data-rename-tv-filter="audio_channels" checked> Audio / channels</label>
+                  <label class="check-row"><input type="checkbox" data-rename-tv-filter="release_flags" checked> Release flags</label>
+                  <label class="check-row"><input type="checkbox" data-rename-tv-filter="services_containers" checked> Services / containers</label>
+                  <label class="check-row"><input type="checkbox" data-rename-tv-filter="languages_subs_dubs" checked> Languages / sub-dub tags</label>
+                  <label class="check-row"><input type="checkbox" data-rename-tv-filter="release_groups" checked> Release groups</label>
+                </div>
+                <div class="form-grid">
+                  <label>
+                    Video / source
+                    <textarea id="settings-rename-tv-filter-video-source" data-rename-tv-filter-terms="video_source" data-default-terms="2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, dv, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, bd, bdrip, blu ray, blu-ray, bluray, web dl, webdl, webrip, hdtv, dvd, dvdrip, remux, 10 bit, 8 bit" rows="3" spellcheck="false">2160p, 1080p, 720p, 480p, uhd, hdr, hdr10, dv, dolby vision, hevc, h264, h.264, h265, h.265, x264, x265, av1, bd, bdrip, blu ray, blu-ray, bluray, web dl, webdl, webrip, hdtv, dvd, dvdrip, remux, 10 bit, 8 bit</textarea>
+                  </label>
+                  <label>
+                    Audio / channels
+                    <textarea id="settings-rename-tv-filter-audio-channels" data-rename-tv-filter-terms="audio_channels" data-default-terms="flac, aac, opus, ac3, eac3, ddp, dts, truehd, atmos, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch" rows="3" spellcheck="false">flac, aac, opus, ac3, eac3, ddp, dts, truehd, atmos, 1.0, 2.0, 5.1, 7.1, 6ch, 6 ch, 8ch, 8 ch</textarea>
+                  </label>
+                  <label>
+                    Release flags
+                    <textarea id="settings-rename-tv-filter-release-flags" data-rename-tv-filter-terms="release_flags" data-default-terms="proper, repack, rerip, uncensored, censored" rows="3" spellcheck="false">proper, repack, rerip, uncensored, censored</textarea>
+                  </label>
+                  <label>
+                    Services / containers
+                    <textarea id="settings-rename-tv-filter-services-containers" data-rename-tv-filter-terms="services_containers" data-default-terms="mkv, mp4" rows="3" spellcheck="false">mkv, mp4</textarea>
+                  </label>
+                  <label>
+                    Languages / sub-dub tags
+                    <textarea id="settings-rename-tv-filter-languages-subs-dubs" data-rename-tv-filter-terms="languages_subs_dubs" data-default-terms="dual audio, multi audio, eng sub, eng subs, multi sub, multi subs, subs, sub, subbed, dubbed" rows="3" spellcheck="false">dual audio, multi audio, eng sub, eng subs, multi sub, multi subs, subs, sub, subbed, dubbed</textarea>
+                  </label>
+                  <label>
+                    Release groups
+                    <textarea id="settings-rename-tv-filter-release-groups" data-rename-tv-filter-terms="release_groups" data-default-terms="chotab, subsplease, erai raws, erai-raws, judas, ember, bonkai, neohevc, animetime, lostyears, nai, asw, sam, tnp, dedsec, mtbb, smugcat, commie, horriblesubs, kametsu, db, kawaiika, tlacatlc6, ttga" rows="3" spellcheck="false">chotab, subsplease, erai raws, erai-raws, judas, ember, bonkai, neohevc, animetime, lostyears, nai, asw, sam, tnp, dedsec, mtbb, smugcat, commie, horriblesubs, kametsu, db, kawaiika, tlacatlc6, ttga</textarea>
+                  </label>
+                </div>
+              </section>
+            </div>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="button" id="settings-rename-cleaning-filters-reset-button" class="secondary-button">Reset Rename Filters</button>
+              <button type="button" class="secondary-button" data-cross-page-target="rename">Open Rename</button>
+            </div>
+            <pre id="settings-rename-cleaning-filter-summary" hidden aria-hidden="true">Saved backend rename cleaning policy loads here.</pre>
+          </details>
         </section>
         </div>
 

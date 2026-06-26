@@ -601,13 +601,81 @@
   }
 
   function queueFormatTopCounts(counts, limit = 3) {
-    if (!counts || typeof counts !== "object") return "No counts loaded";
-    const entries = Object.entries(counts)
+    const entries = queueTopCountEntries(counts, limit);
+    return entries.length ? entries.map((entry) => `${entry.label} ${entry.count}`).join("; ") : "No counts loaded";
+  }
+
+  function queueTopCountEntries(counts, limit = 3) {
+    if (!counts || typeof counts !== "object") return [];
+    return Object.entries(counts)
       .map(([label, count]) => ({ label: String(label || "unknown"), count: Number(count || 0) }))
       .filter((entry) => entry.count > 0)
       .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
       .slice(0, limit);
-    return entries.length ? entries.map((entry) => `${entry.label} ${entry.count}`).join("; ") : "No counts loaded";
+  }
+
+  function queuePlural(count, singular, plural = `${singular}s`) {
+    return `${count} ${count === 1 ? singular : plural}`;
+  }
+
+  function queueSourceChip(label, tone = "muted", title = "") {
+    const text = String(label || "").trim();
+    return text ? { label: text, tone, title: String(title || text) } : null;
+  }
+
+  function queueSourceCompactStatus(value, fallback = "not scanned") {
+    return String(value || fallback)
+      .trim()
+      .replace(/[_-]+/g, " ")
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+  }
+
+  function queueSourceCompactTimestamp(value) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    const compact = text
+      .replace("T", " ")
+      .replace(/\.\d+Z?$/i, "Z")
+      .replace(/Z$/i, "Z");
+    return compact.length > 16 ? compact.slice(0, 16) : compact;
+  }
+
+  function queueSourceCompactPath(value, maxChars = 46) {
+    const text = String(value || "").trim();
+    if (!text) return "";
+    if (shortenPath) return shortenPath(text, maxChars);
+    if (text.length <= maxChars) return text;
+    const parts = text.split(/[\\/]+/).filter(Boolean);
+    const leaf = parts[parts.length - 1] || text;
+    const root = parts[0] || "";
+    const compact = root && root !== leaf ? `${root}/.../${leaf}` : `.../${leaf}`;
+    return compact.length <= maxChars ? compact : compact.slice(0, Math.max(0, maxChars - 3)) + "...";
+  }
+
+  function queueSourceEntryLabel(entry, maxChars = 34) {
+    return queueSourceCompactPath(entry?.label, maxChars);
+  }
+
+  function queueSourceMeterSegments(entries, toneByLabel = {}) {
+    return (Array.isArray(entries) ? entries : [])
+      .map((entry) => ({
+        label: String(entry?.label || "unknown"),
+        count: Number(entry?.count || 0),
+        tone: toneByLabel[String(entry?.label || "").toLowerCase()] || entry?.tone || "info",
+      }))
+      .filter((entry) => entry.count > 0);
+  }
+
+  function queueSourceMeterLabel(segments) {
+    return (Array.isArray(segments) ? segments : [])
+      .map((segment) => `${segment.label} ${segment.count}`)
+      .join("; ");
+  }
+
+  function queueSourcePrimaryCounts(entries, limit = 2) {
+    const visible = (Array.isArray(entries) ? entries : []).slice(0, limit);
+    return visible.length ? visible.map((entry) => `${entry.label} ${entry.count}`).join(" / ") : "No counts";
   }
 
   function queueCountBy(rows, keyFn) {
@@ -680,72 +748,204 @@
     const largest = queueSourceInventoryLargestRow(inventoryRows);
     const largestName = largest.row?.relative_path || largest.row?.display_name || largest.row?.source_path || "No preview item loaded";
     const visibleCount = Array.isArray(filteredRows) ? filteredRows.length : queueRows.length;
+    const hiddenByFilterCount = Math.max(0, queueRows.length - visibleCount);
+    const scanUpdated = queueSourceCompactTimestamp(status.updated_at_utc);
+    const routeEntries = queueTopCountEntries(routeCounts, 3);
+    const sourceRootEntries = queueTopCountEntries(sourceRootCounts, 2);
+    const readinessSegments = queueSourceMeterSegments([
+      { label: "ready", count: readiness.ready },
+      { label: "warning", count: readiness.warning },
+      { label: "blocked", count: readiness.blocked },
+    ], { ready: "success", warning: "warning", blocked: "danger" });
+    const routeSegments = queueSourceMeterSegments(routeEntries, {});
+    const filterSegments = queueSourceMeterSegments([
+      { label: "visible", count: visibleCount, tone: visibleCount === queueRows.length ? "success" : "info" },
+      { label: "hidden", count: hiddenByFilterCount, tone: "warning" },
+    ]);
+    const largestKind = queueSourceCompactStatus(largest.row?.media_kind || largest.row?.media_type || "", "");
+    const largestExt = queuePathExtension(largestName) || queuePathExtension(largest.row?.source_path || "");
     return [
       {
         label: "Scan Freshness",
-        value: status.status || "Not scanned",
-        detail: status.updated_at_utc ? `Updated ${status.updated_at_utc}` : (status.message || "No backend scan status loaded."),
+        value: queueSourceCompactStatus(status.status, "not scanned"),
+        meta: scanUpdated || "",
+        chips: [
+          queueSourceChip(candidateCount ? queuePlural(candidateCount, "candidate") : "", "info"),
+          queueSourceChip(curatedCount ? queuePlural(curatedCount, "curated row") : "", "muted"),
+        ].filter(Boolean),
+        detail: status.message || (status.updated_at_utc ? `Updated ${status.updated_at_utc}` : "No backend scan status loaded."),
         tone: queueScanStatusTone(status),
       },
       {
         label: "Queue Size",
         value: `${curatedCount} row${curatedCount === 1 ? "" : "s"}`,
+        meta: queueFormatSizeGb(totalSizeGb),
+        chips: [
+          queueSourceChip(queuePlural(candidateCount, "candidate"), "info"),
+          queueSourceChip(`preview ${queueFormatSizeGb(totalSizeGb)}`, "muted"),
+        ],
         detail: `${candidateCount} inventory candidate${candidateCount === 1 ? "" : "s"}; preview size ${queueFormatSizeGb(totalSizeGb)}.`,
         tone: curatedCount ? "info" : "muted",
       },
       {
         label: "Launch Readiness",
         value: `Ready ${readiness.ready}`,
+        meter: readinessSegments,
+        chips: [
+          queueSourceChip(`blocked ${readiness.blocked}`, readiness.blocked ? "danger" : "muted"),
+          queueSourceChip(`warning ${readiness.warning}`, readiness.warning ? "warning" : "muted"),
+        ],
         detail: `Blocked ${readiness.blocked}; Warning ${readiness.warning}.`,
         tone: readiness.blocked ? "danger" : (readiness.warning ? "warning" : (queueRows.length ? "success" : "muted")),
       },
       {
         label: "Top Blocker",
         value: topBlocker ? topBlocker.label : "No blockers",
+        chips: [
+          queueSourceChip(topBlocker ? queuePlural(topBlocker.count, "row") : "clear", topBlocker ? "danger" : "success"),
+        ],
         detail: topBlocker ? `${topBlocker.count} row${topBlocker.count === 1 ? "" : "s"} affected.` : "No blocked reason count in the loaded queue.",
         tone: topBlocker ? "danger" : "success",
       },
       {
         label: "Work Mix",
-        value: queueFormatTopCounts(routeCounts, 2),
+        value: queueSourcePrimaryCounts(routeEntries, 2),
+        meter: routeSegments,
+        chips: routeEntries.slice(0, 3).map((entry) => queueSourceChip(`${entry.label} ${entry.count}`, "info")),
         detail: "Highest route counts in the curated queue.",
         tone: queueRows.length ? "info" : "muted",
       },
       {
         label: "Largest Preview",
         value: largest.sizeGb ? queueFormatSizeGb(largest.sizeGb) : "No size",
-        detail: largestName,
+        chips: [
+          queueSourceChip(largestKind, "muted"),
+          queueSourceChip(largestExt, "muted"),
+        ].filter(Boolean),
+        detail: queueSourceCompactPath(largestName, 58),
+        fullDetail: largestName,
         tone: largest.sizeGb ? "warning" : "muted",
       },
       {
         label: "Filter Impact",
-        value: `${visibleCount} of ${queueRows.length}`,
+        value: `${visibleCount}/${queueRows.length}`,
+        meter: filterSegments,
+        chips: [
+          queueSourceChip("view only", "info"),
+          queueSourceChip(hiddenByFilterCount ? `${hiddenByFilterCount} hidden` : "all visible", hiddenByFilterCount ? "warning" : "success"),
+        ],
         detail: "Visible rows only; backend Launch scope is unchanged.",
         tone: visibleCount === queueRows.length ? "success" : "warning",
       },
       {
         label: "Source Roots",
         value: sourceRootTotal ? `${sourceRootTotal} root${sourceRootTotal === 1 ? "" : "s"}` : "Not reported",
+        paths: sourceRootEntries.map((entry) => ({
+          label: queueSourceEntryLabel(entry),
+          count: entry.count,
+          title: entry.label,
+        })),
         detail: sourceRootTotal ? queueFormatTopCounts(sourceRootCounts, 2) : "Refresh source inventory to load root evidence.",
         tone: sourceRootTotal ? "info" : "muted",
       },
     ];
   }
 
+  function queueSourceTileTitle(tile) {
+    const parts = [tile.label, tile.value, tile.meta, tile.detail, tile.fullDetail]
+      .concat((Array.isArray(tile.chips) ? tile.chips : []).map((chip) => chip?.title || chip?.label))
+      .concat((Array.isArray(tile.meter) ? [queueSourceMeterLabel(tile.meter)] : []))
+      .concat((Array.isArray(tile.paths) ? tile.paths.map((path) => `${path.title || path.label} ${path.count}`) : []))
+      .filter(Boolean);
+    return parts.join(" | ");
+  }
+
+  function appendQueueSourceChips(card, chips) {
+    const visibleChips = (Array.isArray(chips) ? chips : []).filter(Boolean);
+    if (!visibleChips.length) return;
+    const row = document.createElement("div");
+    row.className = "queue-source-chip-row";
+    visibleChips.forEach((chip) => {
+      const item = document.createElement("span");
+      item.className = "queue-source-chip";
+      item.dataset.tone = chip.tone || "muted";
+      item.textContent = chip.label || "";
+      if (chip.title) item.title = chip.title;
+      row.appendChild(item);
+    });
+    card.appendChild(row);
+  }
+
+  function appendQueueSourceMeter(card, segments) {
+    const visibleSegments = (Array.isArray(segments) ? segments : []).filter((segment) => Number(segment?.count || 0) > 0);
+    if (!visibleSegments.length) return;
+    const meter = document.createElement("div");
+    meter.className = "queue-source-meter";
+    meter.setAttribute("role", "img");
+    meter.setAttribute("aria-label", queueSourceMeterLabel(visibleSegments));
+    visibleSegments.forEach((segment) => {
+      const item = document.createElement("span");
+      const count = Math.max(0, Number(segment.count || 0));
+      item.className = "queue-source-meter-segment";
+      item.dataset.tone = segment.tone || "info";
+      item.style.flexGrow = String(count || 1);
+      item.title = `${segment.label} ${count}`;
+      meter.appendChild(item);
+    });
+    card.appendChild(meter);
+  }
+
+  function appendQueueSourcePaths(card, paths) {
+    const visiblePaths = (Array.isArray(paths) ? paths : []).filter((path) => path?.label);
+    if (!visiblePaths.length) return;
+    const row = document.createElement("div");
+    row.className = "queue-source-path-list";
+    visiblePaths.forEach((path) => {
+      const item = document.createElement("span");
+      item.className = "queue-source-path";
+      item.title = path.title || path.label;
+      const label = document.createElement("span");
+      label.textContent = path.label || "";
+      const count = document.createElement("strong");
+      count.textContent = String(path.count || 0);
+      item.append(label, count);
+      row.appendChild(item);
+    });
+    card.appendChild(row);
+  }
+
   function appendQueueSourceTile(board, tile) {
     const card = document.createElement("section");
     card.className = "queue-source-tile";
     card.dataset.tone = tile.tone || "muted";
+    const title = tile.title || queueSourceTileTitle(tile);
+    if (title) {
+      card.title = title;
+      card.setAttribute("aria-label", title);
+    }
+    const header = document.createElement("div");
+    header.className = "queue-source-tile-header";
     const label = document.createElement("span");
     label.className = "queue-source-tile-label";
     label.textContent = tile.label || "";
+    header.appendChild(label);
+    if (tile.meta) {
+      const meta = document.createElement("span");
+      meta.className = "queue-source-tile-meta";
+      meta.textContent = tile.meta;
+      header.appendChild(meta);
+    }
     const value = document.createElement("strong");
     value.className = "queue-source-tile-value";
     value.textContent = tile.value || "";
+    card.append(header, value);
+    appendQueueSourceMeter(card, tile.meter);
+    appendQueueSourceChips(card, tile.chips);
+    appendQueueSourcePaths(card, tile.paths);
     const detail = document.createElement("span");
     detail.className = "queue-source-tile-detail";
     detail.textContent = tile.detail || "";
-    card.append(label, value, detail);
+    card.appendChild(detail);
     board.appendChild(card);
   }
 
@@ -822,7 +1022,7 @@
     const scanLines = queueScanStatusLines(lastQueuePayload).filter((line) => line && !/^Queue source scan: not requested/i.test(line));
     const scanText = scanLines.length ? ` ${scanLines.slice(0, 3).join(" ")}` : "";
     setText("queue-status", `Refreshing queue... ${snapshotText}`);
-    setText("queue-table-legend", `Queue refresh in progress. ${snapshotText} Backend Launch scope is unchanged.`);
+    hideQueueTableLegend();
     setText("queue-loading-status", `Scanning configured source roots for a fresh queue preview.${scanText} ${snapshotText} No media mutation has been submitted.`);
     updateQueueManualOrderControls();
   }
@@ -1271,15 +1471,16 @@
     updateQueueManualOrderControls();
   }
 
-  function updateQueueTableLegend(tbody) {
-    updateTableStatusLegend("queue-table-legend", tbody, "Queue rows");
+  function hideQueueTableLegend() {
     const legend = byId("queue-table-legend");
     if (!legend) return;
-    const selectedKeys = getSelectedQueuePriorityRowKeys();
-    const visibleSelectedCount = tbody && typeof tbody.querySelectorAll === "function"
-      ? tbody.querySelectorAll('tr[data-priority-selected="true"]').length
-      : selectedKeys.length;
-    legend.textContent = `${legend.textContent} Selected for Queue actions: ${selectedKeys.length} total, ${visibleSelectedCount} visible. Backend Launch scope is unchanged. Ctrl/Cmd-click or Space toggles rows; Shift-click selects a visible range.`;
+    legend.textContent = "";
+    legend.hidden = true;
+    legend.setAttribute("aria-hidden", "true");
+  }
+
+  function updateQueueTableLegend() {
+    hideQueueTableLegend();
   }
 
   function queueDisplayFilterSignature(filterText, statusFilter, investigationFilter) {

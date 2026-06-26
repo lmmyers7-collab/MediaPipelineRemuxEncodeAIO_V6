@@ -166,19 +166,25 @@ For browser-free sample-validation route coverage, run the local API sample vali
 .\ops/scripts/smoke\Test-WebViewSettingsPatchEvidenceSmoke.ps1
 ```
 
-22. Run the bounded launch smoke. This opens the Tauri shell, verifies the Rust shell can bootstrap/validate the local API backend, verifies the backend-served WebView index and critical JS assets are present, closes the window, and checks process cleanup:
+22. Run the browser-backed LibraryProfiles save smoke. This uses a generated temporary config, saves a custom LibraryProfile through the backend review dialog, verifies `review_confirmation` and reload digest evidence, and checks media fixture files are unchanged:
+
+```powershell
+.\ops/scripts/smoke\Test-WebViewBrowserLibraryProfilesSaveSmoke.ps1
+```
+
+23. Run the bounded launch smoke. This opens the Tauri shell, verifies the Rust shell can bootstrap/validate the local API backend, verifies the backend-served WebView index and critical JS assets are present, closes the window, and checks process cleanup:
 
 ```powershell
 .\apps\desktop\tauri\Test-TauriShell-Launch.ps1 -TimeoutSeconds 180 -CloseTimeoutSeconds 30
 ```
 
-23. Run the release self-test before treating a package as trustworthy:
+24. Run the release self-test before treating a package as trustworthy:
 
 ```powershell
 .\ops\scripts\release\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke
 ```
 
-Tool integration and end-to-end media smoke checks are still separate. Passing the fixture, command-evidence, row-detail, schedule, browser schedule, browser backend lifecycle, local API Maintenance dry-run, local API sample validation, browser high-risk, browser diagnostics handoff, pending drain guard, completed pending proof, large-table, browser Maintenance/Reports, browser Sample Validation, browser Home live-state, browser Launch/Queue readiness, browser layout manager, settings/launch policy, live-config handoff, settings patch evidence, or preview launch smoke does not prove FFmpeg, PowerShell pipeline behavior, subtitle conversion, pending publish, Plex playback, or real-media processing.
+Tool integration and end-to-end media smoke checks are still separate. Passing the fixture, command-evidence, row-detail, schedule, browser schedule, browser backend lifecycle, local API Maintenance dry-run, local API sample validation, browser high-risk, browser diagnostics handoff, pending drain guard, completed pending proof, large-table, browser Maintenance/Reports, browser Sample Validation, browser Home live-state, browser Launch/Queue readiness, browser layout manager, browser LibraryProfiles save, settings/launch policy, live-config handoff, settings patch evidence, or preview launch smoke does not prove FFmpeg, PowerShell pipeline behavior, subtitle conversion, pending publish, Plex playback, or real-media processing.
 
 ## Launch Commands
 

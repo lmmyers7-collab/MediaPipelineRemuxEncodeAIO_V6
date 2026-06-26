@@ -9,6 +9,7 @@ from typing import Any
 REPO_ROOT = Path(__file__).resolve().parents[3]
 sys.path.insert(0, str(REPO_ROOT / "src"))
 
+from mediapipeline.core.rename.bad_case_corpus import RenameBadCaseCorpusError, append_bad_rename_case_from_request
 from mediapipeline.core.rename.tv import (
     build_auto_tv_rename_name,
     clean_pipeline_tv_name_part,
@@ -49,7 +50,7 @@ class RenameBadCaseCorpusTests(unittest.TestCase):
                     self.assertIsInstance(case.get(field), str, field)
                     self.assertTrue(case[field].strip(), field)
                 self.assertIn(case["status"], {"active", "pending"})
-                self.assertIn(case["kind"], {"tv_auto"})
+                self.assertIn(case["kind"], {"tv_auto", "movie_auto"})
                 self.assertNotIn(case["id"], seen)
                 seen.add(case["id"])
                 self.assertIsInstance(case.get("season_number", 1), int)
@@ -59,7 +60,7 @@ class RenameBadCaseCorpusTests(unittest.TestCase):
                     self.assertNotIn("\n", case[field])
 
     def test_active_tv_auto_cases_match_expected_output(self) -> None:
-        active_cases = [case for case in load_cases() if case.get("status") == "active"]
+        active_cases = [case for case in load_cases() if case.get("status") == "active" and case.get("kind") == "tv_auto"]
         self.assertGreaterEqual(len(active_cases), 1)
         for case in active_cases:
             with self.subTest(case=case["id"]):
@@ -86,6 +87,44 @@ class RenameBadCaseCorpusTests(unittest.TestCase):
                     ),
                     case["expected_name"],
                 )
+
+    def test_movie_auto_case_append_builds_expected_name(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as raw_dir:
+            fixture_path = Path(raw_dir) / "bad_rename_cases.jsonl"
+            payload = append_bad_rename_case_from_request(
+                {
+                    "kind": "movie_auto",
+                    "source_file": "Scary Movie 2026 1080p DCPRip x264-FS.mkv",
+                    "expected_movie_title": "Scary Movie",
+                    "expected_year": "2026",
+                    "status": "pending",
+                    "confirm_append": True,
+                },
+                fixture_path=fixture_path,
+            )
+
+            self.assertEqual(payload["case"]["kind"], "movie_auto")
+            self.assertEqual(payload["case"]["source_folder"], "Movies")
+            self.assertEqual(payload["case"]["expected_name"], "Scary Movie (2026).mkv")
+
+    def test_movie_auto_case_append_requires_confirmation(self) -> None:
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as raw_dir:
+            fixture_path = Path(raw_dir) / "bad_rename_cases.jsonl"
+            with self.assertRaises(RenameBadCaseCorpusError):
+                append_bad_rename_case_from_request(
+                    {
+                        "kind": "movie_auto",
+                        "source_file": "Scary Movie 2026.mkv",
+                        "expected_movie_title": "Scary Movie",
+                        "expected_year": "2026",
+                    },
+                    fixture_path=fixture_path,
+                )
+            self.assertFalse(fixture_path.exists())
 
 
 if __name__ == "__main__":

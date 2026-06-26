@@ -3,9 +3,9 @@ file: docs/change_control/RELEASE_PROCESS.md
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: unknown
-last_modified: 2026-06-04
+last_modified: 2026-06-26
 last_reviewed: 2026-06-03
-sha256: 521afe1fc230993b2bf845c2b501510e742b3842191cf557e5520f7e7a98e481
+sha256: 6b025ede57c1452462f7ecd7652cc1c2a2c592c51f93577c660df2fb617220cb
 ---
 # `docs/change_control/RELEASE_PROCESS.md`
 

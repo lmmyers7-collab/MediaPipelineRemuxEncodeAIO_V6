@@ -28,7 +28,8 @@ intent is worth keeping, it goes here and/or in an ADR.
   controls, and no manifest, sidecar, payload, source, scratch, or output file
   writes/moves/deletes.
 - Test coverage rationalization audit:
-  `docs/ai-audits/2026-06-18-test-coverage-rationalization.md` classifies the
+  `Docs/archive/docs-housekeeping/2026-06-24-doc-prune/ai-audits/2026-06-18-test-coverage-rationalization.md`
+  classifies the
   live-worktree test/check surface across Python, WebView, PowerShell, smoke
   wrappers, and release gates, flags overlap candidates, records high-risk weak
   coverage, and recommends safe consolidation sequencing without changing tests
@@ -193,11 +194,12 @@ intent is worth keeping, it goes here and/or in an ADR.
 - `docs/archive/sessions/docs/SESSION.md` — archived session scope notes from
   the structural cleanup workspace; current startup guidance lives in
   `AGENTS.md`.
-- `docs/adr/` seeded with `README.md`, `0000-template.md`, and
+- Former `docs/adr/` seeded with `README.md`, `0000-template.md`, and
   ADRs `0001`–`0011`. ADR-0011 (V5 → V6 split) was written from the
   surviving `V6_SPLIT_NOTES.md` at the repo root; the source notes were
   moved to `docs/archive/v6-split-notes-2026-05-20.md` in the same
-  change so the validation evidence and live-API proof survive.
+  change so the validation evidence and live-API proof survive. Current
+  durable decision guidance lives in `Docs/architecture/DECISIONS_AND_HISTORY.md`.
 - `docs/audits/latest.md` capturing current known issues distilled from
   active architecture and status docs.
 - `ops/scripts/ops/release/metadata/Backup-PreOverhaul.ps1` — operator-run script that

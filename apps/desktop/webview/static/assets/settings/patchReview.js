@@ -652,8 +652,8 @@
         `Size guard ${formatSettingsOutputSizeCheckMode(sizeGuard)}; targets by height: 1080p movie ${movie1080pTarget} GB / TV ${tv1080pTarget} GB, 1440p movie ${movie1440pTarget} GB / TV ${tv1440pTarget} GB, 4K movie ${movie4kTarget} GB / TV ${tv4kTarget} GB. Unknown height uses the 1080p targets. Direct-copy caps: 1080p <=${routeBoundaries.route1080pMaxHeight}p ${route1080pBitrate} Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pBitrate} Mbps, 4K >=${routeBoundaries.route4kMinHeight}p ${route4kBitrate} Mbps. Unknown height uses the 1080p cap; growth ${maxGrowth}% normal / ${compatGrowth}% compatibility.`
       );
       setText(
-        "settings-summary-evidence-scope",
-        `Evidence scope: ${planAuthority}. Saved global settings are shown here; library_effective_settings is library-only when shown in queue rows. Final runtime decision is resolved during queue/job processing.`
+        "settings-summary-preview-scope",
+        `Preview scope: ${planAuthority}. Saved global settings are shown here; library_effective_settings is library-only when shown in queue rows. Final runtime decision is resolved during queue/job processing.`
       );
     }
 

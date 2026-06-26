@@ -161,20 +161,25 @@ def kill_related_pipeline_processes(
     *,
     psutil_module: Any,
     logger: WarningLogger,
+    job_kinds: set[str] | None = None,
 ) -> list[str]:
     messages: list[str] = []
-    for proc in find_related_pipeline_processes(resolved, psutil_module=psutil_module):
+    label = "related MediaPipeline"
+    normalized_job_kinds = _normalized_related_job_kinds(job_kinds)
+    if normalized_job_kinds is not None:
+        label = f"related MediaPipeline {'/'.join(sorted(normalized_job_kinds))}"
+    for proc in find_related_pipeline_processes(resolved, psutil_module=psutil_module, job_kinds=job_kinds):
         pid = getattr(proc, "pid", None)
         try:
             if not proc.is_running():
                 continue
-            logger.warning("Force-killing related MediaPipeline process tree for PID %s", pid)
-            kill_psutil_process_tree(proc, "related MediaPipeline", psutil_module=psutil_module, logger=logger)
+            logger.warning("Force-killing %s process tree for PID %s", label, pid)
+            kill_psutil_process_tree(proc, label, psutil_module=psutil_module, logger=logger)
             if proc.is_running() and proc.status() != psutil_module.STATUS_ZOMBIE:
-                raise RuntimeError(f"related MediaPipeline process PID {pid} is still running after kill")
-            messages.append(f"Force-killed related MediaPipeline process tree (PID {pid}).")
+                raise RuntimeError(f"{label} process PID {pid} is still running after kill")
+            messages.append(f"Force-killed {label} process tree (PID {pid}).")
         except Exception as exc:
-            logger.warning("Related MediaPipeline process kill did not complete cleanly for PID %s: %s", pid, exc)
+            logger.warning("%s process kill did not complete cleanly for PID %s: %s", label, pid, exc)
             raise
     return messages
 

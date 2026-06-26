@@ -264,6 +264,10 @@ def queue_preview_metadata(
     tv_count = queue_snapshot_int(snapshot, "tv_count_total")
     source_count = movie_count + tv_count
     runnable_count = _snapshot_int_with_fallback(snapshot, "runnable_count", len(rows))
+    total_row_count = _snapshot_int_with_fallback(snapshot, "total_row_count", len(rows))
+    shown_row_count = _snapshot_int_with_fallback(snapshot, "shown_row_count", len(rows))
+    row_limit = queue_snapshot_int(snapshot, "row_limit")
+    rows_truncated = bool(snapshot.get("rows_truncated", False))
     completed_excluded = max(0, source_count - runnable_count)
     invalid_row_count = sum(1 for row in rows if str(row.get("status") or "").casefold() == "invalid")
     blocked_rows = [row for row in rows if str(row.get("blocked_reason") or "").strip()]
@@ -292,6 +296,10 @@ def queue_preview_metadata(
         "source_count_total": source_count,
         "priority_count": queue_snapshot_int(snapshot, "priority_count"),
         "runnable_count": runnable_count,
+        "total_row_count": total_row_count,
+        "shown_row_count": shown_row_count,
+        "row_limit": row_limit,
+        "rows_truncated": rows_truncated,
         "completed_excluded_count": completed_excluded,
         "excluded_row_count": excluded_row_count,
         "excluded_row_limit": excluded_row_limit,

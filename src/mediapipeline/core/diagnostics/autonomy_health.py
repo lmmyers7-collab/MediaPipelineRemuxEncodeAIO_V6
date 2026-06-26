@@ -18,6 +18,19 @@ PENDING_TOTAL_BLOCK_BYTES = 250 * 1024**3
 FAILURE_OPERATOR_REQUIRED_BLOCK_SECONDS = 72 * 60 * 60
 FAILURE_OPERATOR_REQUIRED_BLOCK_COUNT = 10
 FAILURE_INFRASTRUCTURE_BLOCK_COUNT = 3
+FAILURE_INFRASTRUCTURE_TEXT_KEYS = {
+    "category",
+    "classification",
+    "error",
+    "error_code",
+    "message",
+    "operation",
+    "operator_action",
+    "reason",
+    "stage",
+    "suggested_action",
+    "tool",
+}
 
 ACTIVE_JOB_REVIEW_SECONDS = 30 * 60
 ACTIVE_JOB_TIMEOUT_GRACE_SECONDS = 15 * 60
@@ -431,14 +444,14 @@ def _failures_category(findings: list[dict[str, Any]]) -> dict[str, Any]:
         },
         summary_lines=[
             f"Failure artifacts: {len(findings)}; operator_required={len(operator_required)}; infrastructure={len(infrastructure)}.",
-            "Failure health is read-only; source markers and reports are not cleared here.",
+            "Failure health is read-only and uses active failure markers; historical round reports are not launch warnings.",
         ],
         blockers=blockers,
         review_items=review_items,
     )
 
 
-def _workers_category(resolved: ResolvedPaths, now: datetime, *, psutil_module: Any = None) -> dict[str, Any]:
+def _workers_category(resolved: Any, now: datetime, *, psutil_module: Any = None) -> dict[str, Any]:
     active_dir = resolved.active_jobs_path or (resolved.state_root / "ActiveJobs" if resolved.state_root else None)
     blockers: list[dict[str, Any]] = []
     review_items: list[dict[str, Any]] = []
@@ -566,7 +579,7 @@ def _active_liveness_watchdog(records: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _active_liveness_evidence(resolved: ResolvedPaths, payload: Mapping[str, Any], active_job_path: Path, now: datetime) -> dict[str, Any]:
+def _active_liveness_evidence(resolved: Any, payload: Mapping[str, Any], active_job_path: Path, now: datetime) -> dict[str, Any]:
     heartbeat_age = _age_seconds(_first_text(payload, "last_update", "launched_at"), active_job_path, now)
     evidence_candidates = [
         {
@@ -680,7 +693,7 @@ def _native_timeout_for_active_job(payload: Mapping[str, Any], config_data: Mapp
     return "", None
 
 
-def _disk_state_category(resolved: ResolvedPaths, path_health: Mapping[str, Any] | None) -> dict[str, Any]:
+def _disk_state_category(resolved: Any, path_health: Mapping[str, Any] | None) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     review_items: list[dict[str, Any]] = []
     rows = path_health.get("rows") if isinstance(path_health, Mapping) else []
@@ -695,7 +708,7 @@ def _disk_state_category(resolved: ResolvedPaths, path_health: Mapping[str, Any]
             reserve_gb = _safe_float(row.get("reserve_gb"))
             threshold_gb = reserve_gb if reserve_gb and reserve_gb > 0 else DEFAULT_STORAGE_MIN_FREE_GB
             storage_status = str(row.get("storage_status") or "").casefold()
-            if storage_status in {"blocked", "low"} or (free_gb is not None and free_gb < threshold_gb):
+            if storage_status == "low" or (free_gb is not None and free_gb < threshold_gb):
                 blockers.append(
                     _issue(
                         "autonomy_storage_free_space_low",
@@ -786,7 +799,7 @@ def _path_health_category(path_health: Mapping[str, Any] | None) -> dict[str, An
     )
 
 
-def _journals_category(resolved: ResolvedPaths) -> dict[str, Any]:
+def _journals_category(resolved: Any) -> dict[str, Any]:
     blockers: list[dict[str, Any]] = []
     review_items: list[dict[str, Any]] = []
     file_count = 0
@@ -854,7 +867,7 @@ def _journals_category(resolved: ResolvedPaths) -> dict[str, Any]:
     )
 
 
-def _publish_recency_category(resolved: ResolvedPaths, now: datetime) -> dict[str, Any]:
+def _publish_recency_category(resolved: Any, now: datetime) -> dict[str, Any]:
     runnable_count = _queue_runnable_count(resolved.queue_snapshot_path)
     manifest = resolved.completed_manifest_path
     review_items: list[dict[str, Any]] = []
@@ -925,9 +938,9 @@ def _topic_failure_category(
     )
 
 
-def _failure_findings(resolved: ResolvedPaths, now: datetime) -> list[dict[str, Any]]:
+def _failure_findings(resolved: Any, now: datetime) -> list[dict[str, Any]]:
     findings: list[dict[str, Any]] = []
-    roots = [resolved.failed_reports_path, resolved.failed_markers_path]
+    roots = [resolved.failed_markers_path]
     for root in roots:
         if root is None or not root.exists():
             continue
@@ -942,7 +955,7 @@ def _failure_findings(resolved: ResolvedPaths, now: datetime) -> list[dict[str, 
                     "search_text": search_text,
                     "age_seconds": age_seconds,
                     "operator_required": _is_operator_required_failure(payload, search_text),
-                    "infrastructure": _is_infrastructure_failure(search_text),
+                    "infrastructure": _is_infrastructure_failure(payload),
                 }
             )
     return findings[:AUTONOMY_SCAN_LIMIT]
@@ -970,8 +983,19 @@ def _is_operator_required_failure(payload: Mapping[str, Any], text: str) -> bool
     return any(term in text for term in ("operator_required", "operator required", "manual_review", "manual review"))
 
 
-def _is_infrastructure_failure(text: str) -> bool:
+def _is_infrastructure_failure(payload: Mapping[str, Any]) -> bool:
+    text = _failure_infrastructure_text(payload)
     return any(term in text for term in ("network", "share", "smb", "disk", "space", "robocopy", "copy", "publish", "pending", "path"))
+
+
+def _failure_infrastructure_text(payload: Mapping[str, Any]) -> str:
+    values: list[str] = []
+    for key, value in payload.items():
+        if str(key).casefold() not in FAILURE_INFRASTRUCTURE_TEXT_KEYS:
+            continue
+        if isinstance(value, str | int | float | bool):
+            values.append(str(value))
+    return " ".join(values).casefold()
 
 
 def _category(
@@ -1609,7 +1633,7 @@ def _directory_size(root: Path | None, *, limit: int = AUTONOMY_SCAN_LIMIT) -> i
     return total
 
 
-def _journal_paths(resolved: ResolvedPaths) -> list[Path | None]:
+def _journal_paths(resolved: Any) -> list[Path | None]:
     return [
         resolved.event_file,
         resolved.completed_manifest_path,

@@ -92,6 +92,47 @@ class ApiCommandContractsTests(unittest.TestCase):
 
         self.assertEqual(validate_api_payload("/api/failures/clear", payload), payload)
 
+    def test_failure_archive_evidence_requires_strict_boolean_fields(self) -> None:
+        payload = {
+            "scope": "all_active",
+            "include_markers": True,
+            "include_reports": True,
+            "dry_run": True,
+            "confirm_archive": False,
+            "dry_run_fingerprint": "",
+            "reason": "",
+        }
+
+        self.assertEqual(validate_api_payload("/api/failures/archive-evidence", payload), payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/archive-evidence", {**payload, "include_markers": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/archive-evidence", {**payload, "dry_run": "false"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/archive-evidence", {**payload, "confirm_archive": "false"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/archive-evidence", {**payload, "marker_paths": []})
+
+    def test_failure_lifecycle_requires_strict_journal_contract_fields(self) -> None:
+        payload = {
+            "journal_key": "source_video_streams_unvetted",
+            "transition": "mark_resolved",
+            "step_id": "close_issue",
+            "operator_note": "operator reviewed settings",
+            "reason": "markers are clear",
+            "dry_run": True,
+            "dry_run_fingerprint": "",
+            "confirm_transition": False,
+        }
+
+        self.assertEqual(validate_api_payload("/api/failures/lifecycle", payload), payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/lifecycle", {**payload, "path": r"C:\Media\Movie.mkv"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/lifecycle", {**payload, "dry_run": "false"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/failures/lifecycle", {**payload, "confirm_transition": "false"})
+
     def test_audit_score_policy_contract_accepts_v2_issue_code_weights(self) -> None:
         payload = {
             "policy": {
@@ -121,10 +162,17 @@ class ApiCommandContractsTests(unittest.TestCase):
         high_risk_payloads = {
             "/api/pipeline/start": {"mode": "once", "extra_args": "-NoDeleteSource"},
             "/api/pipeline/control": {"action": "pause", "extra": True},
+            "/api/audit/stop": {"confirm_stop": True, "path": r"C:\Media\Movie.mkv"},
             "/api/queue/scan": {"mode": "inventory_then_curate", "path": r"C:\Media\Movie.mkv"},
             "/api/queue/file-overrides/series-apply": {
                 "path": r"C:\Media\TV\Show\S01E01.mkv",
                 "proposed_override": {"audio": {"maxChannels": 2}},
+                "confirm_apply": True,
+                "preview_fingerprint": "fp",
+                "row_keys": ["client-owned"],
+            },
+            "/api/queue/file-overrides/series-clear-apply": {
+                "path": r"C:\Media\TV\Show\S01E01.mkv",
                 "confirm_apply": True,
                 "preview_fingerprint": "fp",
                 "row_keys": ["client-owned"],
@@ -183,6 +231,8 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/metrics/backfill": {"scope": "enabled", "recursive": True},
             "/api/completed/reconcile-manifest-dry-run": {"scope": "selected", "row_key": "row-1", "manifest_path": r"C:\Other\completed.jsonl"},
             "/api/completed/repair-sidecar-metadata-dry-run": {"scope": "selected", "row_key": "row-1", "sidecar_json": {"output_path": "client-owned"}},
+            "/api/pending-publish/open": {"row_key": "row-1", "target": "manifest", "path": r"C:\Other\pending.json"},
+            "/api/pending-publish/recovery-plan": {"scope": "selected", "row_key": "row-1", "path": r"C:\Other\pending.json"},
             "/api/pending-publish/repair-manifest-dry-run": {"scope": "selected", "row_key": "row-1", "patch": [{"op": "replace"}]},
             "/api/pending-publish/reconcile-orphan-payloads-dry-run": {"scope": "selected", "row_key": "row-1", "payload_path": r"C:\Other\Movie.mkv"},
             "/api/network/coordinator/start-dry-run": {"reason": "check", "path": r"C:\Media\Movie.mkv"},
@@ -209,6 +259,16 @@ class ApiCommandContractsTests(unittest.TestCase):
 
     def test_high_risk_mutation_routes_accept_known_fields_only(self) -> None:
         self.assertEqual(validate_api_payload("/api/pipeline/start", {"mode": "once"}), {"mode": "once"})
+        self.assertEqual(
+            validate_api_payload("/api/audit/stop", {"confirm_stop": True, "reason": "operator stop"}),
+            {"confirm_stop": True, "reason": "operator stop"},
+        )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/audit/stop", {"confirm_stop": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/audit/stop", {"confirm_stop": False})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/audit/stop", {})
         self.assertEqual(
             validate_api_payload("/api/backend/shutdown", {"reason": "operator-close", "force_active_work_shutdown": False}),
             {"reason": "operator-close", "force_active_work_shutdown": False},
@@ -251,6 +311,30 @@ class ApiCommandContractsTests(unittest.TestCase):
                 "preview_fingerprint": "fp",
             },
         )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/queue/file-overrides/series-clear-apply",
+                {
+                    "path": r"C:\Media\TV\Show\S01E01.mkv",
+                    "confirm_apply": True,
+                    "preview_fingerprint": "fp",
+                },
+            ),
+            {
+                "path": r"C:\Media\TV\Show\S01E01.mkv",
+                "confirm_apply": True,
+                "preview_fingerprint": "fp",
+            },
+        )
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload(
+                "/api/queue/file-overrides/series-clear-apply",
+                {
+                    "path": r"C:\Media\TV\Show\S01E01.mkv",
+                    "confirm_apply": "true",
+                    "preview_fingerprint": "fp",
+                },
+            )
         self.assertEqual(
             validate_api_payload(
                 "/api/queue/file-overrides/remux-pilot-promote",
@@ -457,6 +541,37 @@ class ApiCommandContractsTests(unittest.TestCase):
             validate_api_payload("/api/network/coordinator/start-dry-run", {"reason": "operator check"}),
             {"reason": "operator check"},
         )
+        self.assertEqual(
+            validate_api_payload("/api/pending-publish/open", {"row_key": "row-1", "target": "manifest"}),
+            {"row_key": "row-1", "target": "manifest"},
+        )
+        for payload in [
+            {"row_key": "row-1", "target": "manifest", "path": r"C:\Other\pending.json"},
+            {"row_key": "row-1", "target": "manifest", "manifest_path": r"C:\Other\pending.json"},
+            {"row_key": "row-1", "target": r"C:\Other\pending.json"},
+            {"row_key": "   ", "target": "manifest"},
+        ]:
+            with self.subTest(route="/api/pending-publish/open", payload=payload):
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload("/api/pending-publish/open", payload)
+        self.assertEqual(
+            validate_api_payload("/api/pending-publish/recovery-plan", {"scope": "all", "row_key": ""}),
+            {"scope": "all", "row_key": ""},
+        )
+        self.assertEqual(
+            validate_api_payload("/api/pending-publish/recovery-plan", {"scope": "selected", "row_key": "row-1"}),
+            {"scope": "selected", "row_key": "row-1"},
+        )
+        for payload in [
+            {"row_key": "row-1"},
+            {"scope": "selected", "row_key": "   "},
+            {"scope": "selected", "row_key": "row-1", "path": r"C:\Other\pending.json"},
+            {"scope": "all", "path": r"C:\Other\pending.json"},
+            {"scope": "visible", "row_key": "row-1"},
+        ]:
+            with self.subTest(route="/api/pending-publish/recovery-plan", payload=payload):
+                with self.assertRaises(ValidationFailure):
+                    validate_api_payload("/api/pending-publish/recovery-plan", payload)
         for route in [
             "/api/completed/reconcile-manifest-dry-run",
             "/api/completed/repair-sidecar-metadata-dry-run",

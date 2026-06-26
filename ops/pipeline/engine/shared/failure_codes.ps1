@@ -22,7 +22,15 @@ function Get-MediaPipelineKnownFailureCodes {
         'ENCODE_CPU_OOM',
         'ENCODE_CPU_TIMEOUT',
         'ENCODE_CPU_X265_INTERNAL',
+        'ENCODE_ATTACHMENT_INVENTORY_FAILED',
+        'ENCODE_ATTACHMENT_VERIFY_FAILED',
         'ENCODE_FFMPEG_FAILED',
+        'ENCODE_MKVMERGE_FAILED',
+        'ENCODE_MKVMERGE_INPUT_INVALID',
+        'ENCODE_MKVMERGE_INSUFFICIENT_SPACE',
+        'ENCODE_MKVMERGE_INVALID_ARGUMENT',
+        'ENCODE_MKVMERGE_STOPPED',
+        'ENCODE_MKVMERGE_TIMEOUT',
         'ENCODE_NVENC_FAILED',
         'ENCODE_TIMEOUT',
         'FFMPEG_FAILED',
@@ -603,6 +611,46 @@ function Get-MkvmergeFailureCode {
     if ($ffprobeCode -eq 'MEDIA_CONTAINER_INVALID' -or $text -match 'EBML|not a Matroska file|No segment') { return 'MKVMERGE_INPUT_INVALID' }
     if ($text -match 'Invalid argument') { return 'MKVMERGE_INVALID_ARGUMENT' }
     return 'REMUX_MKVMERGE_FAILED'
+}
+
+function Get-EncodeMkvmergeFailureCode {
+    param(
+        [string]$ErrorText,
+        [int]$ExitCode = 1,
+        [bool]$TimedOut = $false,
+        [bool]$Stopped = $false
+    )
+
+    $mkvmergeCode = Get-MkvmergeFailureCode -ErrorText $ErrorText -ExitCode $ExitCode -TimedOut:$TimedOut -Stopped:$Stopped
+    switch ($mkvmergeCode) {
+        'MKVMERGE_TIMEOUT'          { return 'ENCODE_MKVMERGE_TIMEOUT' }
+        'MKVMERGE_STOPPED'          { return 'ENCODE_MKVMERGE_STOPPED' }
+        'MKVMERGE_INPUT_INVALID'    { return 'ENCODE_MKVMERGE_INPUT_INVALID' }
+        'MKVMERGE_INVALID_ARGUMENT' { return 'ENCODE_MKVMERGE_INVALID_ARGUMENT' }
+        'OUTPUT_DISK_FULL'          { return 'OUTPUT_DISK_FULL' }
+        'SOURCE_FILE_MISSING'       { return 'SOURCE_FILE_MISSING' }
+        'MEDIA_ACCESS_DENIED'       { return 'MEDIA_ACCESS_DENIED' }
+        default                     { return 'ENCODE_MKVMERGE_FAILED' }
+    }
+}
+
+function Get-EncodeAttachmentMuxFailureCode {
+    param(
+        [string]$Stage,
+        [string]$ErrorText,
+        [int]$ExitCode = 1,
+        [bool]$TimedOut = $false,
+        [bool]$Stopped = $false
+    )
+
+    $stageText = if ($Stage) { ([string]$Stage).Trim().ToLowerInvariant() } else { '' }
+    switch -Regex ($stageText) {
+        'inventory|identify|probe' { return 'ENCODE_ATTACHMENT_INVENTORY_FAILED' }
+        'verify'                   { return 'ENCODE_ATTACHMENT_VERIFY_FAILED' }
+        'space|insufficient'       { return 'ENCODE_MKVMERGE_INSUFFICIENT_SPACE' }
+        'mkvmerge|mux'             { return Get-EncodeMkvmergeFailureCode -ErrorText $ErrorText -ExitCode $ExitCode -TimedOut:$TimedOut -Stopped:$Stopped }
+        default                    { return 'ENCODE_MKVMERGE_FAILED' }
+    }
 }
 
 # When ffmpeg fails mid-encode, we want to distinguish NVENC-specific

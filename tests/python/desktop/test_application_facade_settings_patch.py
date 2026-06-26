@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 import tempfile
 import unittest
@@ -11,7 +12,8 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.models import ConfigSaveResult
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from mediapipeline.core.config.library_profiles import normalize_library_profile_config_values
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 from tests.python.desktop.test_service_config_validation import (
     _path_key,
     _path_within_root,
@@ -71,6 +73,21 @@ class ImportSettingsService(DummyFacadeService):
         }
 
 
+def _confirmed_patch_request(facade: MediaPipelineApplicationFacade, resolved, request: dict[str, object]) -> dict[str, object]:
+    preview = facade.preview_settings_patch(resolved, request)
+    data = preview.data if isinstance(preview.data, dict) else {}
+    confirmed = dict(request)
+    confirmed["confirm_save"] = True
+    if isinstance(data.get("review_confirmation"), dict):
+        confirmed["review_confirmation"] = dict(data["review_confirmation"])
+    return confirmed
+
+
+LIBRARY_PROFILE_ROUND_TRIP_FIXTURE = (
+    find_repo_root(Path(__file__)) / "tests" / "fixtures" / "settings" / "library_profiles_round_trip_cases.json"
+)
+
+
 class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
     def test_settings_patch_coerces_coordinator_local_string_true_to_real_bool(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -111,12 +128,22 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             }
 
             preview = facade.preview_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
+            secret_preview = facade.preview_settings_patch(
+                resolved,
+                {"changes": {"CoordinatorAuthToken": "new-secret-token"}},
+            )
             rejected = facade.preview_settings_patch(resolved, {"changes": {"CoordinatorAuthToken": "<redacted>"}})
 
         self.assertTrue(preview.ok)
         self.assertEqual(preview.command, "settings.preview_patch")
         self.assertIn("RoutingProfile", preview.data["changed_keys"])
         self.assertFalse(preview.data["writes_config"])
+        self.assertEqual(preview.data["review_entries_schema_version"], "desktop_settings_patch_review_entries.v1")
+        self.assertEqual(
+            preview.data["review_confirmation"]["schema_version"],
+            "desktop_settings_save_review_confirmation.v1",
+        )
+        self.assertTrue(preview.data["review_confirmation"]["preview_id"])
         self.assertEqual(preview.data["settings_progress"]["schema_version"], "desktop_settings_save_reload_progress.v1")
         self.assertEqual(preview.data["progress_bars"][0]["id"], "settings_save_reload")
         self.assertEqual(preview.data["progress_bars"][0]["percent"], 20.0)
@@ -124,6 +151,16 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertIn("plex_direct_play", diff_text)
         self.assertIn("<redacted>", diff_text)
         self.assertNotIn("secret-token", diff_text)
+        review_entry = next(entry for entry in preview.data["review_entries"] if entry["key"] == "RoutingProfile")
+        self.assertEqual(review_entry["status"], "changed")
+        self.assertEqual(review_entry["source"], "submitted")
+        self.assertEqual(review_entry["current_value"], "plex_direct_stream")
+        self.assertEqual(review_entry["submitted_value"], "plex_direct_play")
+        self.assertEqual(review_entry["new_value"], "plex_direct_play")
+        secret_review_text = json.dumps(secret_preview.data["review_entries"])
+        self.assertIn("<redacted>", secret_review_text)
+        self.assertNotIn("secret-token", secret_review_text)
+        self.assertNotIn("new-secret-token", secret_review_text)
         self.assertEqual(preview.data["risk_summary"]["total_count"], 0)
         self.assertFalse(rejected.ok)
         self.assertIn("redacted display placeholder", "\n".join(rejected.errors))
@@ -141,7 +178,7 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
 
             saved = facade.save_settings_patch(
                 resolved,
-                {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+                _confirmed_patch_request(facade, resolved, {"changes": {"RoutingProfile": "plex_direct_play"}}),
             )
 
         self.assertTrue(saved.ok)
@@ -237,7 +274,7 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             )
             saved = facade.save_settings_patch(
                 resolved,
-                {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+                _confirmed_patch_request(facade, resolved, {"changes": {"RoutingProfile": "plex_direct_play"}}),
             )
             saved_document_text = config_path.read_text(encoding="utf-8")
 
@@ -272,7 +309,7 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             )
             saved = facade.save_settings_patch(
                 resolved,
-                {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+                _confirmed_patch_request(facade, resolved, {"changes": {"RoutingProfile": "plex_direct_play"}}),
             )
 
         self.assertTrue(preview.ok, preview.errors)
@@ -444,7 +481,10 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             resolved.config_path = config_path
             resolved.config_data = {"RoutingProfile": "plex_direct_stream", "LegacyUnknownKey": "keep"}
             preview = facade.preview_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
-            saved = facade.save_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True})
+            saved = facade.save_settings_patch(
+                resolved,
+                _confirmed_patch_request(facade, resolved, {"changes": {"RoutingProfile": "plex_direct_play"}}),
+            )
             saved_document_text = config_path.read_text(encoding="utf-8")
             self.assertTrue(preview.ok)
             self.assertEqual(preview.data["preserved_unknown_keys"], ["LegacyUnknownKey"])
@@ -596,9 +636,23 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             }
 
             rejected = facade.save_settings_patch(resolved, {"changes": {"RoutingProfile": "plex_direct_play"}})
-            saved = facade.save_settings_patch(
+            unreviewed = facade.save_settings_patch(
                 resolved,
                 {"changes": {"RoutingProfile": "plex_direct_play"}, "confirm_save": True},
+            )
+            tampered_request = _confirmed_patch_request(
+                facade,
+                resolved,
+                {"changes": {"RoutingProfile": "plex_direct_play"}},
+            )
+            tampered_request["review_confirmation"] = {
+                **dict(tampered_request["review_confirmation"]),
+                "preview_id": "stale-preview-id",
+            }
+            tampered = facade.save_settings_patch(resolved, tampered_request)
+            saved = facade.save_settings_patch(
+                resolved,
+                _confirmed_patch_request(facade, resolved, {"changes": {"RoutingProfile": "plex_direct_play"}}),
             )
             secret_rejected = facade.save_settings_patch(
                 resolved,
@@ -607,9 +661,15 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
 
             self.assertFalse(rejected.ok)
             self.assertIn("confirmation", rejected.message)
+            self.assertFalse(unreviewed.ok)
+            self.assertIn("review_confirmation", "\n".join(unreviewed.warnings))
+            self.assertFalse(tampered.ok)
+            self.assertIn("review_confirmation", "\n".join(tampered.warnings))
             self.assertTrue(saved.ok)
             self.assertEqual(saved.command, "settings.save_patch")
             self.assertTrue(saved.data["writes_config"])
+            self.assertEqual(saved.data["review_entries_schema_version"], "desktop_settings_patch_review_entries.v1")
+            self.assertEqual(saved.data["save_verification"]["config_digest_written"], saved.data["config_digest_written"])
             self.assertIn("RoutingProfile", saved.data["changed_keys"])
             self.assertEqual(saved.data["risk_summary"]["total_count"], 0)
             self.assertTrue(saved.data["backup_path"])
@@ -698,6 +758,260 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
         self.assertIn("no changes", saved.message)
         self.assertEqual(service.saved_config_calls, [])
 
+    def test_settings_patch_filters_library_profiles_after_backend_normalization(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            config_path.write_text("@{ LibraryProfiles = @() }\n", encoding="utf-8")
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+
+            raw_profiles = [
+                {
+                    "id": "movies",
+                    "name": "Movies",
+                    "designation": "movie",
+                    "source_path": r"C:\Incoming\Movies",
+                    "output_path": r"D:\Processed",
+                    "default_tracking": {
+                        "schema_version": "library_profile_default_tracking.v1",
+                        "inherited_fields": ["source_path"],
+                        "field_default_keys": {
+                            "source_path": "SourceMovies",
+                            "output_path": "Outsource",
+                        },
+                    },
+                },
+                {
+                    "id": "tv",
+                    "name": "TV",
+                    "designation": "tv",
+                    "source_path": r"C:\Incoming\TV",
+                    "output_path": r"D:\Processed",
+                    "default_tracking": {
+                        "schema_version": "library_profile_default_tracking.v1",
+                        "inherited_fields": ["source_path"],
+                        "field_default_keys": {
+                            "source_path": "SourceTV",
+                            "output_path": "Outsource",
+                        },
+                    },
+                },
+            ]
+            resolved.config_data = normalize_library_profile_config_values(
+                {
+                    "SourceMovies": r"C:\Incoming\Movies",
+                    "SourceTV": r"C:\Incoming\TV",
+                    "Outsource": r"D:\Processed",
+                    "LibraryProfiles": raw_profiles,
+                },
+                require_profiles=True,
+            )
+            request = {"changes": {"LibraryProfiles": raw_profiles}}
+
+            preview = facade.preview_settings_patch(resolved, request)
+            saved = facade.save_settings_patch(
+                resolved,
+                {**request, "confirm_save": True},
+            )
+
+        self.assertTrue(preview.ok)
+        self.assertEqual(preview.data["changed_keys"], [])
+        self.assertEqual(preview.data["redacted_diff_lines"], [])
+        self.assertIn("no changes", preview.message)
+        self.assertFalse(saved.ok)
+        self.assertIn("no changes", saved.message)
+        self.assertEqual(service.saved_config_calls, [])
+
+    def test_library_profile_fixture_corpus_round_trips_after_normalization(self) -> None:
+        fixture = json.loads(LIBRARY_PROFILE_ROUND_TRIP_FIXTURE.read_text(encoding="utf-8"))
+        self.assertEqual(fixture["schema_version"], "settings_library_profiles_round_trip_cases.v1")
+        for case in fixture["cases"]:
+            with self.subTest(case=case["name"]):
+                input_config = json.loads(json.dumps(case["input_config"]))
+                normalized = normalize_library_profile_config_values(input_config, require_profiles=True)
+                renormalized = normalize_library_profile_config_values(
+                    json.loads(json.dumps(normalized)),
+                    require_profiles=True,
+                )
+                self.assertEqual(
+                    json.dumps(normalized, sort_keys=True),
+                    json.dumps(renormalized, sort_keys=True),
+                )
+                if "expected_profile_ids" in case:
+                    self.assertEqual(
+                        [profile["id"] for profile in normalized["LibraryProfiles"]],
+                        case["expected_profile_ids"],
+                    )
+                with tempfile.TemporaryDirectory() as raw_root:
+                    root = Path(raw_root)
+                    service = DummyFacadeService(root)
+                    facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+                    resolved = _resolved(root)
+                    resolved.config_data = normalized
+
+                    preview = facade.preview_settings_patch(
+                        resolved,
+                        {"changes": {"LibraryProfiles": normalized["LibraryProfiles"]}},
+                    )
+                    self.assertTrue(preview.ok, preview.errors)
+                    self.assertEqual(preview.data["changed_keys"], [])
+
+                    if case.get("reset_request"):
+                        reset_preview = facade.preview_settings_patch(
+                            resolved,
+                            {"changes": {}, "library_profile_resets": case["reset_request"]},
+                        )
+                        self.assertTrue(reset_preview.ok, reset_preview.errors)
+                        self.assertIn("LibraryProfiles", reset_preview.data["changed_keys"])
+                        state_by_id = {
+                            state["library_id"]: state
+                            for state in reset_preview.data["library_profile_state"]
+                        }
+                        for library_id, fields in case["expected_inherited_fields"].items():
+                            for field in fields:
+                                self.assertEqual(
+                                    state_by_id[library_id]["path_fields"][field]["state"],
+                                    "inherited",
+                                )
+
+    def test_settings_patch_review_entries_include_library_profile_mirrored_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_data = {
+                "SourceMovies": r"C:\OldMovies",
+                "SourceTV": r"C:\OldTV",
+                "Outsource": r"D:\Processed",
+                "LibraryProfiles": [
+                    {
+                        "id": "movies",
+                        "name": "Movies",
+                        "designation": "movie",
+                        "source_path": r"C:\OldMovies",
+                        "output_path": r"D:\Processed",
+                    },
+                    {
+                        "id": "tv",
+                        "name": "TV",
+                        "designation": "tv",
+                        "source_path": r"C:\OldTV",
+                        "output_path": r"D:\Processed",
+                    },
+                ],
+            }
+            request = {
+                "changes": {
+                    "LibraryProfiles": [
+                        {
+                            "id": "movies",
+                            "name": "Movies",
+                            "designation": "movie",
+                            "source_path": r"E:\NewMovies",
+                            "output_path": r"D:\Processed",
+                        },
+                        {
+                            "id": "tv",
+                            "name": "TV",
+                            "designation": "tv",
+                            "source_path": r"C:\OldTV",
+                            "output_path": r"D:\Processed",
+                        },
+                    ]
+                }
+            }
+
+            preview = facade.preview_settings_patch(resolved, request)
+
+        self.assertTrue(preview.ok)
+        self.assertEqual(preview.data["changed_keys"], ["LibraryProfiles", "SourceMovies"])
+        entries = {entry["key"]: entry for entry in preview.data["review_entries"]}
+        self.assertEqual(entries["SourceMovies"]["source"], "mirrored_from_library_profiles")
+        self.assertEqual(entries["SourceMovies"]["current_value"], r"C:\OldMovies")
+        self.assertIsNone(entries["SourceMovies"]["submitted_value"])
+        self.assertEqual(entries["SourceMovies"]["new_value"], r"E:\NewMovies")
+        self.assertEqual(entries["LibraryProfiles"]["source"], "submitted")
+
+    def test_movie_profile_alias_save_keeps_canonical_id_and_size_guard_override(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            config_path = root / "config.psd1"
+            config_path.write_text("@{ LibraryProfiles = @() }\n", encoding="utf-8")
+            service = DummyFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.config_path = config_path
+            resolved.config_data = {
+                "SourceMovies": r"C:\Incoming\Movies",
+                "SourceTV": r"C:\Incoming\TV",
+                "Outsource": r"D:\Processed",
+                "SizeGuardMode": "advisory",
+                "LibraryProfiles": [
+                    {
+                        "id": "movies",
+                        "name": "Movies",
+                        "designation": "movie",
+                        "source_path": r"C:\Incoming\Movies",
+                        "output_path": r"D:\Processed",
+                        "overrides": {"editor": {}, "video": {}, "subtitles": {}, "audio": {}},
+                    },
+                    {
+                        "id": "tv",
+                        "name": "TV",
+                        "designation": "tv",
+                        "source_path": r"C:\Incoming\TV",
+                        "output_path": r"D:\Processed",
+                        "overrides": {"editor": {}, "video": {}, "subtitles": {}, "audio": {}},
+                    },
+                ],
+            }
+            request = {
+                "changes": {
+                    "LibraryProfiles": [
+                        {
+                            "id": "movie",
+                            "name": "Movies",
+                            "designation": "movie",
+                            "source_path": r"C:\Incoming\Movies",
+                            "output_path": r"D:\Processed",
+                            "overrides": {
+                                "editor": {"SizeGuardMode": "fallback_remux"},
+                                "video": {},
+                                "subtitles": {},
+                                "audio": {},
+                            },
+                        },
+                        {
+                            "id": "tv",
+                            "name": "TV",
+                            "designation": "tv",
+                            "source_path": r"C:\Incoming\TV",
+                            "output_path": r"D:\Processed",
+                            "overrides": {"editor": {}, "video": {}, "subtitles": {}, "audio": {}},
+                        },
+                    ]
+                }
+            }
+
+            preview = facade.preview_settings_patch(resolved, request)
+            saved = facade.save_settings_patch(resolved, _confirmed_patch_request(facade, resolved, request))
+
+        self.assertTrue(preview.ok, preview.errors)
+        self.assertEqual(preview.data["changed_keys"], ["LibraryProfiles"])
+        preview_profiles = {profile["id"]: profile for profile in preview.data["review_entries"][0]["new_value"]}
+        self.assertIn("movies", preview_profiles)
+        self.assertNotIn("movie", preview_profiles)
+        self.assertEqual(preview_profiles["movies"]["overrides"]["editor"]["SizeGuardMode"], "fallback_remux")
+        self.assertTrue(saved.ok, saved.errors)
+        saved_profiles = {profile["id"]: profile for profile in service.saved_config_calls[-1]["config_values"]["LibraryProfiles"]}
+        self.assertIn("movies", saved_profiles)
+        self.assertNotIn("movie", saved_profiles)
+        self.assertEqual(saved_profiles["movies"]["overrides"]["editor"]["SizeGuardMode"], "fallback_remux")
+
     def test_library_profile_resets_preview_and_save_remove_explicit_state_without_copying_globals(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
@@ -751,7 +1065,7 @@ class ApplicationFacadeSettingsPatchTests(unittest.TestCase):
             }
 
             preview = facade.preview_settings_patch(resolved, request)
-            saved = facade.save_settings_patch(resolved, {**request, "confirm_save": True})
+            saved = facade.save_settings_patch(resolved, _confirmed_patch_request(facade, resolved, request))
 
         self.assertTrue(preview.ok)
         self.assertIn("LibraryProfiles", preview.data["changed_keys"])

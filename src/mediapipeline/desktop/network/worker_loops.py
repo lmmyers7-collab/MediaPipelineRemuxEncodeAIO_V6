@@ -4,7 +4,7 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from .diagnostics import diagnostic_preview as _worker_diagnostic_preview
 from .library_roots import accessible_library_ids_from_config
@@ -13,6 +13,9 @@ from .poll_policy import resolve_worker_wait_seconds
 from .worker_parts.reporting import claim_failure_status_message
 from .worker_parts.tasks import build_claimed_job, claim_with_source_path, parse_claim_response_payload
 from .worker_record import make_queue_record as _make_queue_record
+
+if TYPE_CHECKING:
+    from .dispatcher import ClaimedJob
 
 _log = logging.getLogger("mediapipeline.desktop.network.worker")
 

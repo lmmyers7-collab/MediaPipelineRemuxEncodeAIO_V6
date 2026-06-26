@@ -1,0 +1,2481 @@
+{
+  "schema_version": "webview_dom_id_gap_report.v1",
+  "generated_by": "ops/scripts/dev/check-webview-dom-id-gaps.mjs",
+  "source_index": "apps/desktop/webview/static/index.html",
+  "included_partials": [
+    "partials/app-shell-start.html",
+    "partials/page-home.html",
+    "partials/page-telemetry.html",
+    "partials/page-metrics.html",
+    "partials/page-queue.html",
+    "partials/page-completed.html",
+    "partials/page-pending.html",
+    "partials/page-rename.html",
+    "partials/page-launch.html",
+    "partials/page-reports.html",
+    "partials/page-schedule.html",
+    "partials/page-network.html",
+    "partials/page-maintenance.html",
+    "partials/page-diagnostics.html",
+    "partials/page-libraries.html",
+    "partials/page-settings.html",
+    "partials/shared-settings-save-review-dialog.html",
+    "partials/app-shell-end.html"
+  ],
+  "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
+  "counts": {
+    "html_ids": 1920,
+    "js_touched_ids": 607,
+    "ids_present_in_index": 568,
+    "ids_missing_from_index": 39,
+    "likely_dynamic_missing_ids": 0,
+    "review_missing_ids": 39
+  },
+  "ids_present_in_index": [
+    "active-job-detail-rows",
+    "active-job-diagnostics-actions",
+    "activity",
+    "advanced-toggle",
+    "api-contract-filter",
+    "api-contract-method",
+    "api-contract-rows",
+    "api-contract-safety-rows",
+    "api-contract-scope",
+    "audit-preview-diagnostics-actions",
+    "audit-preview-filter",
+    "audit-preview-priority-only",
+    "audit-preview-rows",
+    "backend-lifecycle-history-rows",
+    "backend-lifecycle-status",
+    "backend-shutdown-button",
+    "backfill-dry-run-button",
+    "close-readiness",
+    "command-diagnostics-actions",
+    "command-rows",
+    "completed-active-output-context",
+    "completed-clear-filters-button",
+    "completed-copy-evidence-button",
+    "completed-copy-evidence-status",
+    "completed-current-at-a-glance",
+    "completed-current-filter-line",
+    "completed-diagnostics-actions",
+    "completed-filter",
+    "completed-final-trust-rows",
+    "completed-history-clear-filters-button",
+    "completed-history-filter",
+    "completed-history-investigation-filter",
+    "completed-history-status-filter",
+    "completed-investigation-filter",
+    "completed-library-filter",
+    "completed-output-acceptance-rows",
+    "completed-pending-proof-rows",
+    "completed-pilot-evidence-markdown",
+    "completed-pilot-evidence-rows",
+    "completed-real-media-proof-rows",
+    "completed-refresh-current-output-button",
+    "completed-route-agreement-rows",
+    "completed-route-agreement-status",
+    "completed-selected-status",
+    "completed-selected-summary",
+    "completed-show-selected-button",
+    "completed-size-evidence-rows",
+    "completed-status-filter",
+    "completed-trust-decision-chips",
+    "completed-trust-decision-status",
+    "control-readiness-status",
+    "cross-page-conflict-rows",
+    "cross-page-real-media-rows",
+    "cross-page-sample-rows",
+    "customize-layout-btn",
+    "daily-driver-rows",
+    "dependency-atlas-button",
+    "dependency-atlas-detail",
+    "dependency-atlas-open-folder-button",
+    "diagnostics-command-drilldown-actions",
+    "diagnostics-command-drilldown-rows",
+    "diagnostics-command-evidence-rows",
+    "diagnostics-command-owner-rows",
+    "diagnostics-command-resolution-rows",
+    "diagnostics-command-resolution-status",
+    "diagnostics-drilldown-actions",
+    "diagnostics-first-response-rows",
+    "diagnostics-investigation-actions",
+    "diagnostics-log-actions",
+    "diagnostics-log-filter",
+    "diagnostics-log-rows",
+    "diagnostics-log-severity",
+    "diagnostics-owner-handoff-actions",
+    "diagnostics-owner-handoff-rows",
+    "diagnostics-pipeline-log-status",
+    "diagnostics-progress-rows",
+    "diagnostics-state-summary-actions",
+    "diagnostics-state-summary-rows",
+    "diagnostics-state-triage-actions",
+    "diagnostics-state-triage-rows",
+    "diagnostics-tail-max-bytes",
+    "diagnostics-tail-refresh-button",
+    "diagnostics-tail-target",
+    "evidence-toggle",
+    "failure-archive-confirm-button",
+    "failure-archive-include-markers",
+    "failure-archive-include-reports",
+    "failure-archive-preview-button",
+    "failure-archive-reason",
+    "failure-clear-confirm-button",
+    "failure-clear-preview-button",
+    "failure-clear-scope",
+    "failure-filter",
+    "failure-lifecycle-ack-button",
+    "failure-lifecycle-reopen-confirm-button",
+    "failure-lifecycle-reopen-preview-button",
+    "failure-lifecycle-resolve-confirm-button",
+    "failure-lifecycle-resolve-preview-button",
+    "failure-lifecycle-start-button",
+    "failure-lifecycle-strip",
+    "failure-more-actions",
+    "failure-playbook-steps",
+    "failure-primary-action-button",
+    "failure-resolution-groups",
+    "failure-review-board",
+    "failure-rows",
+    "failure-source-markers",
+    "failure-timeline",
+    "failure-verification-panel",
+    "final-library-pause-button",
+    "final-library-promote-button",
+    "final-library-promotion-rows",
+    "final-library-resume-button",
+    "floating-pipeline-log-close-button",
+    "floating-pipeline-log-follow",
+    "floating-pipeline-log-panel",
+    "floating-pipeline-log-refresh-button",
+    "floating-pipeline-log-status",
+    "floating-pipeline-log-text",
+    "floating-pipeline-log-updated",
+    "fo-audio-drop-langs",
+    "fo-audio-keep-langs",
+    "fo-audio-max-channels",
+    "fo-audio-prefer-default-language",
+    "fo-drawer",
+    "fo-drawer-clear",
+    "fo-drawer-close",
+    "fo-drawer-path",
+    "fo-drawer-save",
+    "fo-drawer-status",
+    "fo-drawer-title",
+    "fo-inherited-settings-status",
+    "fo-overlay",
+    "fo-processing-route-section",
+    "fo-remux-pilot-promote",
+    "fo-remux-pilot-proof",
+    "fo-route-override-controls",
+    "fo-route-override-disclosure-status",
+    "fo-route-override-toggle",
+    "fo-route-profile",
+    "fo-route-threshold-mode",
+    "fo-series-apply",
+    "fo-series-auto-detect",
+    "fo-series-cancel",
+    "fo-series-clear-open",
+    "fo-series-counts",
+    "fo-series-detected",
+    "fo-series-fields",
+    "fo-series-issues",
+    "fo-series-modal",
+    "fo-series-modal-close",
+    "fo-series-modal-title",
+    "fo-series-preview-open",
+    "fo-series-rows",
+    "fo-series-status",
+    "fo-series-summary",
+    "fo-source-info-grid",
+    "fo-source-info-missing",
+    "fo-source-info-section",
+    "fo-sub-drop-langs",
+    "fo-sub-filter-fields",
+    "fo-sub-keep-langs",
+    "fo-sub-strip-all",
+    "fo-track-warning-list",
+    "fo-video-codec",
+    "fo-video-container",
+    "fo-video-encode-ladder",
+    "fo-video-encode-preset",
+    "gpu-empty-state",
+    "gpu-rows",
+    "home-next-queue-detail",
+    "home-next-queue-list",
+    "home-queue-snapshot",
+    "home-recent-completed-tbody",
+    "home-refresh-button",
+    "launch-backend-preflight-rows",
+    "launch-backend-preflight-status",
+    "launch-command-diagnostics-actions",
+    "launch-command-review-rows",
+    "launch-evidence-body",
+    "launch-evidence-toggle",
+    "launch-history",
+    "launch-pilot-readiness-rows",
+    "launch-pilot-readiness-status",
+    "launch-policy-boundary-rows",
+    "launch-policy-boundary-status",
+    "launch-real-media-proof-rows",
+    "launch-real-media-proof-status",
+    "launch-sample-execution-rows",
+    "launch-sample-execution-status",
+    "launch-scope-reconciliation-rows",
+    "launch-scope-reconciliation-status",
+    "launch-settings-intent-rows",
+    "launch-settings-intent-status",
+    "launch-settings-risk-rows",
+    "launch-settings-risk-status",
+    "launch-start-decision-rows",
+    "launch-start-decision-status",
+    "layout-editor-done",
+    "layout-editor-drawer",
+    "layout-editor-reset-all",
+    "layout-editor-reset-page",
+    "layout-editor-reset-subtab",
+    "layout-editor-status",
+    "layout-editor-tree",
+    "library-route-compare-left",
+    "library-route-compare-right",
+    "library-route-compare-rows",
+    "library-route-decision-rows",
+    "library-route-map-graph",
+    "library-route-map-profile-select",
+    "library-route-map-warning-summary",
+    "library-route-navigation-rows",
+    "library-route-node-rows",
+    "library-route-trace-rows",
+    "library-route-trace-selector",
+    "library-route-validation-rows",
+    "maintenance-change-ledger-refresh-button",
+    "maintenance-change-ledger-rows",
+    "maintenance-diagnostics-actions",
+    "maintenance-refresh-button",
+    "maintenance-rows",
+    "media-pipeline-bootstrap",
+    "metrics-attention-rows",
+    "metrics-backfill-button",
+    "metrics-coverage-rows",
+    "metrics-reason-group-rows",
+    "metrics-route-series-rows",
+    "metrics-source-add-button",
+    "metrics-source-label",
+    "metrics-source-path",
+    "metrics-sources-rows",
+    "metrics-storage-breakdown-rows",
+    "metrics-throughput-rows",
+    "metrics-worker-rows",
+    "network-action-readiness-gates",
+    "network-attention-stack",
+    "network-coordinator-active-rows",
+    "network-coordinator-join-copy",
+    "network-coordinator-join-create",
+    "network-coordinator-join-output",
+    "network-coordinator-join-rotate",
+    "network-coordinator-join-url",
+    "network-coordinator-queue-rows",
+    "network-evidence-rows",
+    "network-health-strip",
+    "network-lifecycle-command-result",
+    "network-lifecycle-confirm-cancel",
+    "network-lifecycle-confirm-dialog",
+    "network-lifecycle-confirm-submit",
+    "network-lifecycle-rows",
+    "network-role-coordinator-setup-button",
+    "network-role-dashboards",
+    "network-role-setup-close-button",
+    "network-role-setup-coordinator-fields",
+    "network-role-setup-coordinator-port",
+    "network-role-setup-dialog",
+    "network-role-setup-local-encode",
+    "network-role-setup-preview-button",
+    "network-role-setup-save-button",
+    "network-role-setup-stage-button",
+    "network-role-setup-worker-fields",
+    "network-role-setup-worker-url",
+    "network-role-worker-setup-button",
+    "network-settings-preview-button",
+    "network-settings-rows",
+    "network-settings-save-button",
+    "network-state-files-rows",
+    "network-topology-strip",
+    "network-worker-claim-rows",
+    "network-worker-detail",
+    "network-worker-discover",
+    "network-worker-discovery-list",
+    "network-worker-filter",
+    "network-worker-join-blob",
+    "network-worker-join-import",
+    "network-worker-rows",
+    "network-worker-status-filter",
+    "pending-action-blockers-button",
+    "pending-action-drain-button",
+    "pending-action-refresh-button",
+    "pending-action-status",
+    "pending-backend-scope-rows",
+    "pending-backend-scope-status",
+    "pending-clear-filters-button",
+    "pending-diagnostics-actions",
+    "pending-drain-button",
+    "pending-drain-confidence-rows",
+    "pending-drain-decision-chips",
+    "pending-drain-decision-rows",
+    "pending-drain-decision-status",
+    "pending-drain-guard-status",
+    "pending-drain-overview",
+    "pending-evidence-rows",
+    "pending-file-inventory-rows",
+    "pending-filter",
+    "pending-investigation-filter",
+    "pending-post-drain-trust-rows",
+    "pending-post-drain-trust-status",
+    "pending-reconcile-orphan-apply-button",
+    "pending-reconcile-orphan-dry-run-button",
+    "pending-recovery-plan-all-button",
+    "pending-recovery-plan-rows",
+    "pending-recovery-plan-selected-button",
+    "pending-repair-manifest-apply-button",
+    "pending-repair-manifest-dry-run-button",
+    "pending-review-rows",
+    "pending-rows",
+    "pending-selected-status",
+    "pending-status-filter",
+    "pipeline-compact-gate-status",
+    "pipeline-event-rows",
+    "pipeline-launch-status",
+    "pipeline-log-window-button",
+    "pipeline-single-file-browse-button",
+    "pipeline-single-file-browse-status",
+    "pipeline-single-file-clear-button",
+    "pipeline-sparkline",
+    "pipeline-start-button",
+    "pipeline-start-mode",
+    "pipeline-start-schedule-override",
+    "pipeline-start-show-config",
+    "pipeline-start-show-console",
+    "pipeline-start-single-file",
+    "pipeline-start-sleep",
+    "pipeline-state",
+    "progress-bar-list",
+    "progress-detail-rows",
+    "progress-evidence-rows",
+    "publish-reconciliation-refresh-button",
+    "publish-reconciliation-rows",
+    "queue-attention-status",
+    "queue-backend-scope-rows",
+    "queue-backend-scope-status",
+    "queue-clear-filters-button",
+    "queue-decision-status",
+    "queue-diagnostics-actions",
+    "queue-excluded-rows",
+    "queue-filter",
+    "queue-filter-summary",
+    "queue-investigation-filter",
+    "queue-launch-decision-rows",
+    "queue-launch-decision-status",
+    "queue-loading-screen",
+    "queue-manual-order-status",
+    "queue-page-next-btn",
+    "queue-page-prev-btn",
+    "queue-review-rows",
+    "queue-rows",
+    "queue-selected-status",
+    "queue-source-inventory",
+    "queue-status-filter",
+    "queue-strategy-apply-btn",
+    "queue-strategy-select",
+    "queue-strategy-status",
+    "queue-table-legend",
+    "queue-table-page-status",
+    "queue-table-pagination",
+    "refresh-button",
+    "refresh-health",
+    "release-build-button",
+    "release-build-force",
+    "release-dry-run-button",
+    "release-dry-run-destination",
+    "release-dry-run-dev-docs",
+    "release-dry-run-keep-config",
+    "release-dry-run-optional-tools",
+    "release-dry-run-tauri-binary",
+    "release-dry-run-tests",
+    "release-dry-run-tool-docs",
+    "release-dry-run-verify",
+    "release-dry-run-zip",
+    "rename-add-path-button",
+    "rename-add-path-input",
+    "rename-apply-button",
+    "rename-apply-outcome-rows",
+    "rename-apply-outcome-status",
+    "rename-apply-progress-bars",
+    "rename-apply-readiness-rows",
+    "rename-apply-status-hint",
+    "rename-apply-status-panel",
+    "rename-browse-files-button",
+    "rename-browse-folder-button",
+    "rename-check-all-button",
+    "rename-check-applicable-button",
+    "rename-clear-checks-button",
+    "rename-clear-paths-button",
+    "rename-confirm-apply-button",
+    "rename-confirm-cancel-button",
+    "rename-confirm-count",
+    "rename-confirm-list",
+    "rename-confirm-warning",
+    "rename-drop-zone",
+    "rename-force-pipeline",
+    "rename-last-apply-status",
+    "rename-log-bad-case-button",
+    "rename-log-bad-case-status",
+    "rename-log-case-cancel-button",
+    "rename-log-case-dialog",
+    "rename-log-case-status-select",
+    "rename-log-case-submit-button",
+    "rename-mode",
+    "rename-movie-year",
+    "rename-paths",
+    "rename-pipeline-preview",
+    "rename-preview-button",
+    "rename-result-errors",
+    "rename-result-open-log-button",
+    "rename-result-summary",
+    "rename-rows",
+    "rename-season",
+    "rename-show",
+    "rename-sidecars",
+    "rename-start",
+    "rename-table-legend",
+    "rename-template-preset",
+    "rename-undo-button",
+    "rename-undo-status",
+    "report-audit-export-rerun-csv-button",
+    "report-audit-ignore-selected-button",
+    "report-audit-remove-location-button",
+    "report-audit-save-location-button",
+    "report-audit-saved-location-select",
+    "report-audit-score-policy-reset-button",
+    "report-audit-score-policy-save-button",
+    "report-audit-score-redownload-bucket",
+    "report-audit-start-button",
+    "report-audit-start-include-sidecars",
+    "report-audit-start-library-root",
+    "report-audit-start-show-console",
+    "report-audit-stop-button",
+    "report-open-history-disclosure",
+    "report-warning-rows",
+    "rerun-dry-run-button",
+    "rerun-plan-only-button",
+    "rerun-start-button",
+    "rerun-start-csv-path",
+    "rerun-start-show-console",
+    "reset-layout-btn",
+    "sample-validation-acceptance-gate-rows",
+    "sample-validation-append-button",
+    "sample-validation-category",
+    "sample-validation-category-summary-rows",
+    "sample-validation-clear-checks-button",
+    "sample-validation-completed-packet-rows",
+    "sample-validation-cutover-rows",
+    "sample-validation-decision",
+    "sample-validation-decision-strip",
+    "sample-validation-decision-strip-summary",
+    "sample-validation-execution-rows",
+    "sample-validation-gap-rows",
+    "sample-validation-notes",
+    "sample-validation-preview-button",
+    "sample-validation-record-review-rows",
+    "sample-validation-records",
+    "sample-validation-runbook-rows",
+    "sample-validation-sample-set-rows",
+    "sample-validation-strip-clear-checks-button",
+    "sample-validation-strip-preview-button",
+    "sample-validation-use-sample-set-category-button",
+    "sample-validation-worksheet-rows",
+    "schedule-allowed-state",
+    "schedule-coverage-rows",
+    "schedule-day-rows",
+    "schedule-editor-allow-all-button",
+    "schedule-editor-clear-button",
+    "schedule-editor-draft-summary",
+    "schedule-editor-enabled",
+    "schedule-editor-impact",
+    "schedule-editor-load-current-button",
+    "schedule-editor-panel",
+    "schedule-editor-preview-button",
+    "schedule-editor-rows",
+    "schedule-editor-save-button",
+    "schedule-editor-save-state",
+    "schedule-enabled-state",
+    "schedule-watch-folder-event-rows",
+    "schedule-watch-folder-root-rows",
+    "schedule-watch-folder-scope",
+    "schedule-watch-folder-status",
+    "settings-active-media-policy-rows",
+    "settings-audio-auto-bitrate",
+    "settings-audio-preferred-languages",
+    "settings-backend-media-policy-rows",
+    "settings-backend-result-rows",
+    "settings-builder-quality-enable",
+    "settings-builder-quality-fail-action",
+    "settings-effective-policy-rows",
+    "settings-encoder-capability-rows",
+    "settings-filter",
+    "settings-handbrake-active-preset",
+    "settings-launch-impact-rows",
+    "settings-library-active-title",
+    "settings-library-add-button",
+    "settings-library-build-patch-button",
+    "settings-library-defaults-button",
+    "settings-library-delete-button",
+    "settings-library-preview-button",
+    "settings-library-profile-list",
+    "settings-library-profile-nav",
+    "settings-library-reset-button",
+    "settings-library-save-button",
+    "settings-library-warning-summary",
+    "settings-library-watch-auto-run",
+    "settings-library-watch-panel",
+    "settings-library-watch-preview-button",
+    "settings-library-watch-respect-schedule",
+    "settings-library-watch-save-button",
+    "settings-library-watch-stage-button",
+    "settings-media-policy-rows",
+    "settings-network-coordinator-local-encode",
+    "settings-network-role",
+    "settings-network-worker-url",
+    "settings-overview-rows",
+    "settings-patch-detail",
+    "settings-patch-json",
+    "settings-patch-status",
+    "settings-patch-summary-changed-only",
+    "settings-patch-summary-rows",
+    "settings-pending-cleanup-remote",
+    "settings-pending-deferred-publish",
+    "settings-pending-enable-integrity",
+    "settings-pending-robocopy-flags",
+    "settings-pending-skip-stability",
+    "settings-policy-delta-rows",
+    "settings-raw-action-plan-rows",
+    "settings-raw-triage-rows",
+    "settings-rename-filter-release-groups",
+    "settings-route-boundary-1080p-end-input",
+    "settings-route-height-slider",
+    "settings-rows",
+    "settings-safety-lock-rows",
+    "settings-save-header-patch-status",
+    "settings-save-header-reload-button",
+    "settings-save-header-reload-status",
+    "settings-save-header-save-button",
+    "settings-save-review-dialog",
+    "settings-save-review-dialog-rows",
+    "settings-save-review-rows",
+    "settings-subtitle-bdpgs-path-status",
+    "settings-subtitle-convert-bdpgs",
+    "settings-subtitle-convert-tx3g",
+    "settings-subtitle-convert-vobsub",
+    "settings-subtitle-drop-ass",
+    "settings-subtitle-drop-bdpgs",
+    "settings-subtitle-drop-tx3g",
+    "settings-subtitle-drop-vobsub",
+    "settings-subtitle-languages",
+    "settings-subtitle-vobsub-path-status",
+    "settings-validate-button",
+    "state-pill",
+    "tdarr-matrix-audit-bucket-filter",
+    "tdarr-matrix-audit-bucket-rows",
+    "tdarr-matrix-audit-evidence-actions",
+    "tdarr-matrix-audit-filter",
+    "tdarr-matrix-audit-findings-rows",
+    "tdarr-matrix-audit-load-latest",
+    "tdarr-matrix-audit-rerun-failures",
+    "tdarr-matrix-audit-rerun-selected",
+    "tdarr-matrix-audit-severity-filter",
+    "tdarr-matrix-compare-left",
+    "tdarr-matrix-compare-refresh",
+    "tdarr-matrix-compare-right",
+    "tdarr-matrix-delete-confirm",
+    "tdarr-matrix-proof-pack-rows",
+    "tdarr-matrix-run-compare-rows",
+    "theme-toggle",
+    "topbar-event-ticker"
+  ],
+  "ids_missing_from_index": [
+    "completed-review-rows",
+    "completed-size-review-rows",
+    "diagnostics-tail-target-choice-groups",
+    "layout-reset-warning",
+    "rename-apply-selected-button",
+    "rename-bulk-clear-button",
+    "rename-bulk-clear-force-button",
+    "rename-bulk-find",
+    "rename-bulk-force-button",
+    "rename-bulk-prefix",
+    "rename-bulk-replace",
+    "rename-bulk-scope",
+    "rename-bulk-stage-button",
+    "rename-bulk-suffix",
+    "rename-bulk-use-pipeline-button",
+    "rename-clear-override-button",
+    "rename-move-checked-down-button",
+    "rename-move-checked-up-button",
+    "rename-movie-title",
+    "rename-natural-sort-button",
+    "rename-preview-top-button",
+    "rename-save-override-button",
+    "rename-selected-final",
+    "rename-selected-force",
+    "rename-use-loaded-queue-button",
+    "rename-use-selected-queue-button",
+    "schedule-editor-monday-windows",
+    "settings-final-library-cleanup",
+    "settings-final-library-enabled",
+    "settings-final-library-overwrite",
+    "settings-final-library-rules-rows",
+    "settings-final-library-verification-mode",
+    "settings-rename-log-case-form",
+    "settings-rename-log-case-status-select",
+    "settings-rename-log-case-submit-button",
+    "settings-rename-preview-button",
+    "settings-rename-preview-input",
+    "settings-rename-preview-output",
+    "settings-rename-preview-status"
+  ],
+  "likely_dynamic_missing_ids": [],
+  "review_missing_ids": [
+    "completed-review-rows",
+    "completed-size-review-rows",
+    "diagnostics-tail-target-choice-groups",
+    "layout-reset-warning",
+    "rename-apply-selected-button",
+    "rename-bulk-clear-button",
+    "rename-bulk-clear-force-button",
+    "rename-bulk-find",
+    "rename-bulk-force-button",
+    "rename-bulk-prefix",
+    "rename-bulk-replace",
+    "rename-bulk-scope",
+    "rename-bulk-stage-button",
+    "rename-bulk-suffix",
+    "rename-bulk-use-pipeline-button",
+    "rename-clear-override-button",
+    "rename-move-checked-down-button",
+    "rename-move-checked-up-button",
+    "rename-movie-title",
+    "rename-natural-sort-button",
+    "rename-preview-top-button",
+    "rename-save-override-button",
+    "rename-selected-final",
+    "rename-selected-force",
+    "rename-use-loaded-queue-button",
+    "rename-use-selected-queue-button",
+    "schedule-editor-monday-windows",
+    "settings-final-library-cleanup",
+    "settings-final-library-enabled",
+    "settings-final-library-overwrite",
+    "settings-final-library-rules-rows",
+    "settings-final-library-verification-mode",
+    "settings-rename-log-case-form",
+    "settings-rename-log-case-status-select",
+    "settings-rename-log-case-submit-button",
+    "settings-rename-preview-button",
+    "settings-rename-preview-input",
+    "settings-rename-preview-output",
+    "settings-rename-preview-status"
+  ],
+  "scripts": [
+    {
+      "src": "/assets/apiClient.js",
+      "path": "apps/desktop/webview/static/assets/apiClient.js",
+      "dom_ids_touched": [
+        "media-pipeline-bootstrap"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/query.js",
+      "path": "apps/desktop/webview/static/assets/dom/query.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/text.js",
+      "path": "apps/desktop/webview/static/assets/dom/text.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/status.js",
+      "path": "apps/desktop/webview/static/assets/dom/status.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/filtering.js",
+      "path": "apps/desktop/webview/static/assets/dom/filtering.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/dom/table.js",
+      "path": "apps/desktop/webview/static/assets/dom/table.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/domHelpers.js",
+      "path": "apps/desktop/webview/static/assets/domHelpers.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/formatters.js",
+      "path": "apps/desktop/webview/static/assets/formatters.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/progressView.js",
+      "path": "apps/desktop/webview/static/assets/progressView.js",
+      "dom_ids_touched": [
+        "diagnostics-progress-rows",
+        "pipeline-event-rows",
+        "progress-bar-list",
+        "progress-detail-rows",
+        "progress-evidence-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/commandHistory/formatters.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/formatters.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/commandHistory/diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory/diagnostics.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/commandHistory.js",
+      "path": "apps/desktop/webview/static/assets/commandHistory.js",
+      "dom_ids_touched": [
+        "command-diagnostics-actions",
+        "command-rows",
+        "diagnostics-command-drilldown-actions",
+        "diagnostics-command-drilldown-rows",
+        "diagnostics-command-evidence-rows",
+        "diagnostics-command-owner-rows",
+        "diagnostics-command-resolution-rows",
+        "diagnostics-command-resolution-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnosticsBridge.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsBridge.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/commands.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/commands.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/filterScope.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/filterScope.js",
+      "dom_ids_touched": [
+        "completed-filter",
+        "completed-investigation-filter",
+        "completed-library-filter",
+        "completed-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/acceptance.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/acceptance.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/evidence/routeAgreement.js",
+      "path": "apps/desktop/webview/static/assets/completed/evidence/routeAgreement.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.evidence.js",
+      "path": "apps/desktop/webview/static/assets/completedView.evidence.js",
+      "dom_ids_touched": [
+        "completed-output-acceptance-rows",
+        "completed-pending-proof-rows",
+        "completed-route-agreement-rows",
+        "completed-route-agreement-status",
+        "publish-reconciliation-refresh-button",
+        "publish-reconciliation-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.proof.js",
+      "path": "apps/desktop/webview/static/assets/completedView.proof.js",
+      "dom_ids_touched": [
+        "completed-final-trust-rows",
+        "completed-pilot-evidence-rows",
+        "completed-real-media-proof-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/integrity.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/integrity.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/sizeReview.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/sizeReview.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/healthSignals.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/healthSignals.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/reviewRows.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/reviewRows.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/review/investigationFilters.js",
+      "path": "apps/desktop/webview/static/assets/completed/review/investigationFilters.js",
+      "dom_ids_touched": [
+        "completed-filter",
+        "completed-investigation-filter",
+        "completed-library-filter",
+        "completed-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.review.js",
+      "path": "apps/desktop/webview/static/assets/completedView.review.js",
+      "dom_ids_touched": [
+        "completed-review-rows",
+        "completed-selected-status",
+        "completed-selected-summary",
+        "completed-size-evidence-rows",
+        "completed-size-review-rows"
+      ],
+      "missing_from_index": [
+        "completed-review-rows",
+        "completed-size-review-rows"
+      ]
+    },
+    {
+      "src": "/assets/completedView.diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/completedView.diagnostics.js",
+      "dom_ids_touched": [
+        "completed-diagnostics-actions"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/statusBoards.js",
+      "path": "apps/desktop/webview/static/assets/completed/statusBoards.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/promotionCommands.js",
+      "path": "apps/desktop/webview/static/assets/completed/promotionCommands.js",
+      "dom_ids_touched": [
+        "final-library-pause-button",
+        "final-library-promote-button",
+        "final-library-promotion-rows",
+        "final-library-resume-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/openActions.js",
+      "path": "apps/desktop/webview/static/assets/completed/openActions.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/selection.js",
+      "path": "apps/desktop/webview/static/assets/completed/selection.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.repair.js",
+      "path": "apps/desktop/webview/static/assets/completedView.repair.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/filters.js",
+      "path": "apps/desktop/webview/static/assets/completed/filters.js",
+      "dom_ids_touched": [
+        "completed-filter",
+        "completed-history-filter",
+        "completed-history-investigation-filter",
+        "completed-history-status-filter",
+        "completed-investigation-filter",
+        "completed-library-filter",
+        "completed-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completed/table.js",
+      "path": "apps/desktop/webview/static/assets/completed/table.js",
+      "dom_ids_touched": [
+        "completed-current-at-a-glance",
+        "completed-current-filter-line",
+        "completed-filter",
+        "completed-history-filter",
+        "completed-history-investigation-filter",
+        "completed-history-status-filter",
+        "completed-investigation-filter",
+        "completed-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/completedView.js",
+      "path": "apps/desktop/webview/static/assets/completedView.js",
+      "dom_ids_touched": [
+        "completed-active-output-context",
+        "completed-copy-evidence-button",
+        "completed-copy-evidence-status",
+        "completed-pilot-evidence-markdown",
+        "completed-show-selected-button",
+        "completed-trust-decision-chips",
+        "completed-trust-decision-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queueView.summary.js",
+      "path": "apps/desktop/webview/static/assets/queueView.summary.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queueView.review.js",
+      "path": "apps/desktop/webview/static/assets/queueView.review.js",
+      "dom_ids_touched": [
+        "queue-filter",
+        "queue-investigation-filter",
+        "queue-review-rows",
+        "queue-selected-status",
+        "queue-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queueView.detail.js",
+      "path": "apps/desktop/webview/static/assets/queueView.detail.js",
+      "dom_ids_touched": [
+        "queue-diagnostics-actions"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queueView.launch.js",
+      "path": "apps/desktop/webview/static/assets/queueView.launch.js",
+      "dom_ids_touched": [
+        "queue-backend-scope-rows",
+        "queue-backend-scope-status",
+        "queue-filter",
+        "queue-investigation-filter",
+        "queue-launch-decision-rows",
+        "queue-launch-decision-status",
+        "queue-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/selection.js",
+      "path": "apps/desktop/webview/static/assets/queue/selection.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/openActions.js",
+      "path": "apps/desktop/webview/static/assets/queue/openActions.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/table.js",
+      "path": "apps/desktop/webview/static/assets/queue/table.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queueView.js",
+      "path": "apps/desktop/webview/static/assets/queueView.js",
+      "dom_ids_touched": [
+        "queue-attention-status",
+        "queue-decision-status",
+        "queue-excluded-rows",
+        "queue-filter",
+        "queue-filter-summary",
+        "queue-investigation-filter",
+        "queue-loading-screen",
+        "queue-manual-order-status",
+        "queue-page-next-btn",
+        "queue-page-prev-btn",
+        "queue-rows",
+        "queue-source-inventory",
+        "queue-status-filter",
+        "queue-strategy-apply-btn",
+        "queue-strategy-select",
+        "queue-strategy-status",
+        "queue-table-legend",
+        "queue-table-page-status",
+        "queue-table-pagination"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.routePreview.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.routePreview.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.state.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.state.js",
+      "dom_ids_touched": [
+        "fo-drawer-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.form.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.form.js",
+      "dom_ids_touched": [
+        "fo-audio-drop-langs",
+        "fo-audio-keep-langs",
+        "fo-audio-max-channels",
+        "fo-audio-prefer-default-language",
+        "fo-drawer",
+        "fo-drawer-clear",
+        "fo-drawer-save",
+        "fo-inherited-settings-status",
+        "fo-processing-route-section",
+        "fo-remux-pilot-promote",
+        "fo-route-override-controls",
+        "fo-route-override-disclosure-status",
+        "fo-route-override-toggle",
+        "fo-route-profile",
+        "fo-route-threshold-mode",
+        "fo-series-apply",
+        "fo-series-clear-open",
+        "fo-series-preview-open",
+        "fo-sub-drop-langs",
+        "fo-sub-filter-fields",
+        "fo-sub-keep-langs",
+        "fo-sub-strip-all",
+        "fo-video-codec",
+        "fo-video-container",
+        "fo-video-encode-ladder",
+        "fo-video-encode-preset"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.series.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.series.js",
+      "dom_ids_touched": [
+        "fo-remux-pilot-promote",
+        "fo-remux-pilot-proof",
+        "fo-series-apply",
+        "fo-series-auto-detect",
+        "fo-series-clear-open",
+        "fo-series-counts",
+        "fo-series-detected",
+        "fo-series-fields",
+        "fo-series-issues",
+        "fo-series-modal-title",
+        "fo-series-preview-open",
+        "fo-series-rows",
+        "fo-series-status",
+        "fo-series-summary"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.tracks.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.tracks.js",
+      "dom_ids_touched": [
+        "fo-source-info-grid",
+        "fo-source-info-missing",
+        "fo-source-info-section",
+        "fo-track-warning-list"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.api.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.api.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.focus.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.focus.js",
+      "dom_ids_touched": [
+        "fo-drawer",
+        "fo-overlay",
+        "fo-series-apply",
+        "fo-series-modal",
+        "fo-series-modal-close"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/queue/fileOverrides.drawer.js",
+      "path": "apps/desktop/webview/static/assets/queue/fileOverrides.drawer.js",
+      "dom_ids_touched": [
+        "fo-drawer",
+        "fo-drawer-clear",
+        "fo-drawer-close",
+        "fo-drawer-path",
+        "fo-drawer-save",
+        "fo-drawer-title",
+        "fo-overlay",
+        "fo-remux-pilot-promote",
+        "fo-route-override-toggle",
+        "fo-series-apply",
+        "fo-series-cancel",
+        "fo-series-clear-open",
+        "fo-series-modal",
+        "fo-series-modal-close",
+        "fo-series-preview-open",
+        "fo-sub-strip-all"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublishView.recovery.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.recovery.js",
+      "dom_ids_touched": [
+        "pending-recovery-plan-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublishView.diagnostics.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js",
+      "dom_ids_touched": [
+        "pending-diagnostics-actions"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublishView.drain.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.drain.js",
+      "dom_ids_touched": [
+        "pending-backend-scope-rows",
+        "pending-backend-scope-status",
+        "pending-evidence-rows",
+        "pending-filter",
+        "pending-investigation-filter",
+        "pending-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublishView.confidence.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.confidence.js",
+      "dom_ids_touched": [
+        "pending-drain-button",
+        "pending-drain-confidence-rows",
+        "pending-drain-decision-rows",
+        "pending-drain-decision-status",
+        "pending-drain-guard-status",
+        "pending-post-drain-trust-rows",
+        "pending-post-drain-trust-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublishView.repair.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.repair.js",
+      "dom_ids_touched": [
+        "pending-reconcile-orphan-apply-button",
+        "pending-reconcile-orphan-dry-run-button",
+        "pending-repair-manifest-apply-button",
+        "pending-repair-manifest-dry-run-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublish/summary.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/summary.js",
+      "dom_ids_touched": [
+        "pending-review-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublish/filters.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/filters.js",
+      "dom_ids_touched": [
+        "pending-filter",
+        "pending-investigation-filter",
+        "pending-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublish/details.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublish/details.js",
+      "dom_ids_touched": [
+        "pending-selected-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pendingPublishView.js",
+      "path": "apps/desktop/webview/static/assets/pendingPublishView.js",
+      "dom_ids_touched": [
+        "pending-action-blockers-button",
+        "pending-action-drain-button",
+        "pending-action-refresh-button",
+        "pending-action-status",
+        "pending-drain-button",
+        "pending-drain-decision-chips",
+        "pending-drain-overview",
+        "pending-file-inventory-rows",
+        "pending-filter",
+        "pending-investigation-filter",
+        "pending-rows",
+        "pending-status-filter"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.conflict.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.conflict.js",
+      "dom_ids_touched": [
+        "cross-page-conflict-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.sample.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sample.js",
+      "dom_ids_touched": [
+        "cross-page-sample-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.settings.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.settings.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.sampleValidation.worksheet.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.worksheet.js",
+      "dom_ids_touched": [
+        "cross-page-real-media-rows",
+        "sample-validation-category",
+        "sample-validation-category-summary-rows",
+        "sample-validation-sample-set-rows",
+        "sample-validation-worksheet-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.sampleValidation.runbook.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.runbook.js",
+      "dom_ids_touched": [
+        "sample-validation-cutover-rows",
+        "sample-validation-execution-rows",
+        "sample-validation-gap-rows",
+        "sample-validation-runbook-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.sampleValidation.records.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.records.js",
+      "dom_ids_touched": [
+        "sample-validation-acceptance-gate-rows",
+        "sample-validation-completed-packet-rows",
+        "sample-validation-record-review-rows",
+        "sample-validation-records"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.sampleValidation.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.sampleValidation.js",
+      "dom_ids_touched": [
+        "sample-validation-append-button",
+        "sample-validation-category",
+        "sample-validation-clear-checks-button",
+        "sample-validation-decision",
+        "sample-validation-decision-strip",
+        "sample-validation-decision-strip-summary",
+        "sample-validation-notes",
+        "sample-validation-preview-button",
+        "sample-validation-strip-clear-checks-button",
+        "sample-validation-strip-preview-button",
+        "sample-validation-use-sample-set-category-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/crossPageContextView.js",
+      "path": "apps/desktop/webview/static/assets/crossPageContextView.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/renameLabels.js",
+      "path": "apps/desktop/webview/static/assets/renameLabels.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/renameHistoryView.js",
+      "path": "apps/desktop/webview/static/assets/renameHistoryView.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/preview.js",
+      "path": "apps/desktop/webview/static/assets/rename/preview.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/applyReadiness.js",
+      "path": "apps/desktop/webview/static/assets/rename/applyReadiness.js",
+      "dom_ids_touched": [
+        "rename-apply-readiness-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/rename/applyResult.js",
+      "path": "apps/desktop/webview/static/assets/rename/applyResult.js",
+      "dom_ids_touched": [
+        "rename-apply-outcome-rows",
+        "rename-apply-outcome-status",
+        "rename-last-apply-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/renameView.js",
+      "path": "apps/desktop/webview/static/assets/renameView.js",
+      "dom_ids_touched": [
+        "rename-add-path-button",
+        "rename-add-path-input",
+        "rename-apply-button",
+        "rename-apply-progress-bars",
+        "rename-apply-status-hint",
+        "rename-apply-status-panel",
+        "rename-browse-files-button",
+        "rename-browse-folder-button",
+        "rename-bulk-find",
+        "rename-bulk-prefix",
+        "rename-bulk-replace",
+        "rename-bulk-scope",
+        "rename-bulk-suffix",
+        "rename-check-all-button",
+        "rename-check-applicable-button",
+        "rename-clear-checks-button",
+        "rename-clear-paths-button",
+        "rename-confirm-apply-button",
+        "rename-confirm-cancel-button",
+        "rename-confirm-count",
+        "rename-confirm-list",
+        "rename-confirm-warning",
+        "rename-drop-zone",
+        "rename-force-pipeline",
+        "rename-log-bad-case-button",
+        "rename-log-bad-case-status",
+        "rename-log-case-cancel-button",
+        "rename-log-case-dialog",
+        "rename-log-case-status-select",
+        "rename-log-case-submit-button",
+        "rename-mode",
+        "rename-move-checked-down-button",
+        "rename-move-checked-up-button",
+        "rename-movie-title",
+        "rename-movie-year",
+        "rename-natural-sort-button",
+        "rename-paths",
+        "rename-pipeline-preview",
+        "rename-preview-button",
+        "rename-result-errors",
+        "rename-result-open-log-button",
+        "rename-result-summary",
+        "rename-rows",
+        "rename-season",
+        "rename-selected-final",
+        "rename-selected-force",
+        "rename-show",
+        "rename-sidecars",
+        "rename-start",
+        "rename-table-legend",
+        "rename-template-preset",
+        "rename-undo-button",
+        "rename-undo-status",
+        "rename-use-loaded-queue-button",
+        "rename-use-selected-queue-button",
+        "settings-patch-json",
+        "settings-rename-preview-button",
+        "settings-rename-preview-input",
+        "settings-rename-preview-output",
+        "settings-rename-preview-status",
+        "settings-save-header-save-button"
+      ],
+      "missing_from_index": [
+        "rename-bulk-find",
+        "rename-bulk-prefix",
+        "rename-bulk-replace",
+        "rename-bulk-scope",
+        "rename-bulk-suffix",
+        "rename-move-checked-down-button",
+        "rename-move-checked-up-button",
+        "rename-movie-title",
+        "rename-natural-sort-button",
+        "rename-selected-final",
+        "rename-selected-force",
+        "rename-use-loaded-queue-button",
+        "rename-use-selected-queue-button",
+        "settings-rename-preview-button",
+        "settings-rename-preview-input",
+        "settings-rename-preview-output",
+        "settings-rename-preview-status"
+      ]
+    },
+    {
+      "src": "/assets/settingsOverview.js",
+      "path": "apps/desktop/webview/static/assets/settingsOverview.js",
+      "dom_ids_touched": [
+        "settings-overview-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsCommandHistory.js",
+      "path": "apps/desktop/webview/static/assets/settingsCommandHistory.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsMetadata.js",
+      "path": "apps/desktop/webview/static/assets/settingsMetadata.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/metadataFields.js",
+      "path": "apps/desktop/webview/static/assets/settings/metadataFields.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/builderControls.js",
+      "path": "apps/desktop/webview/static/assets/settings/builderControls.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.audio.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
+      "dom_ids_touched": [
+        "settings-audio-auto-bitrate",
+        "settings-audio-preferred-languages"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.video.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.video.js",
+      "dom_ids_touched": [
+        "settings-encoder-capability-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.quality.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.quality.js",
+      "dom_ids_touched": [
+        "settings-builder-quality-enable",
+        "settings-builder-quality-fail-action"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.subtitle.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
+      "dom_ids_touched": [
+        "settings-subtitle-bdpgs-path-status",
+        "settings-subtitle-convert-bdpgs",
+        "settings-subtitle-convert-tx3g",
+        "settings-subtitle-convert-vobsub",
+        "settings-subtitle-drop-ass",
+        "settings-subtitle-drop-bdpgs",
+        "settings-subtitle-drop-tx3g",
+        "settings-subtitle-drop-vobsub",
+        "settings-subtitle-languages",
+        "settings-subtitle-vobsub-path-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.queue.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.queue.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.runtime.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.runtime.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.file_safety.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.file_safety.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.pending.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.pending.js",
+      "dom_ids_touched": [
+        "settings-pending-cleanup-remote",
+        "settings-pending-deferred-publish",
+        "settings-pending-enable-integrity",
+        "settings-pending-robocopy-flags",
+        "settings-pending-skip-stability"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.builders.network.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.builders.network.js",
+      "dom_ids_touched": [
+        "network-role-coordinator-setup-button",
+        "network-role-setup-close-button",
+        "network-role-setup-coordinator-fields",
+        "network-role-setup-coordinator-port",
+        "network-role-setup-dialog",
+        "network-role-setup-local-encode",
+        "network-role-setup-preview-button",
+        "network-role-setup-save-button",
+        "network-role-setup-stage-button",
+        "network-role-setup-worker-fields",
+        "network-role-setup-worker-url",
+        "network-role-worker-setup-button",
+        "network-settings-preview-button",
+        "network-settings-save-button",
+        "settings-network-coordinator-local-encode",
+        "settings-network-role",
+        "settings-network-worker-url"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.rawTriage.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.rawTriage.js",
+      "dom_ids_touched": [
+        "settings-filter",
+        "settings-raw-action-plan-rows",
+        "settings-raw-triage-rows",
+        "settings-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.safetyLocks.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.safetyLocks.js",
+      "dom_ids_touched": [
+        "settings-safety-lock-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/backendResult.js",
+      "path": "apps/desktop/webview/static/assets/settings/backendResult.js",
+      "dom_ids_touched": [
+        "settings-backend-result-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/routePolicyModel.js",
+      "path": "apps/desktop/webview/static/assets/settings/routePolicyModel.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settings/patchReview.js",
+      "path": "apps/desktop/webview/static/assets/settings/patchReview.js",
+      "dom_ids_touched": [
+        "settings-filter",
+        "settings-final-library-cleanup",
+        "settings-final-library-enabled",
+        "settings-final-library-overwrite",
+        "settings-final-library-rules-rows",
+        "settings-final-library-verification-mode",
+        "settings-patch-json",
+        "settings-patch-summary-changed-only",
+        "settings-patch-summary-rows",
+        "settings-route-boundary-1080p-end-input",
+        "settings-route-height-slider",
+        "settings-save-review-rows"
+      ],
+      "missing_from_index": [
+        "settings-final-library-cleanup",
+        "settings-final-library-enabled",
+        "settings-final-library-overwrite",
+        "settings-final-library-rules-rows",
+        "settings-final-library-verification-mode"
+      ]
+    },
+    {
+      "src": "/assets/settings/policyImpact.js",
+      "path": "apps/desktop/webview/static/assets/settings/policyImpact.js",
+      "dom_ids_touched": [
+        "settings-active-media-policy-rows",
+        "settings-backend-media-policy-rows",
+        "settings-effective-policy-rows",
+        "settings-launch-impact-rows",
+        "settings-media-policy-rows",
+        "settings-policy-delta-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsView.js",
+      "path": "apps/desktop/webview/static/assets/settingsView.js",
+      "dom_ids_touched": [
+        "settings-handbrake-active-preset",
+        "settings-patch-detail",
+        "settings-patch-json",
+        "settings-patch-status",
+        "settings-rename-filter-release-groups",
+        "settings-rename-log-case-form",
+        "settings-rename-log-case-status-select",
+        "settings-rename-log-case-submit-button",
+        "settings-save-header-patch-status",
+        "settings-save-header-reload-button",
+        "settings-save-header-reload-status",
+        "settings-save-header-save-button",
+        "settings-save-review-dialog",
+        "settings-save-review-dialog-rows"
+      ],
+      "missing_from_index": [
+        "settings-rename-log-case-form",
+        "settings-rename-log-case-status-select",
+        "settings-rename-log-case-submit-button"
+      ]
+    },
+    {
+      "src": "/assets/settingsLibraries.js",
+      "path": "apps/desktop/webview/static/assets/settingsLibraries.js",
+      "dom_ids_touched": [
+        "settings-library-active-title",
+        "settings-library-add-button",
+        "settings-library-build-patch-button",
+        "settings-library-defaults-button",
+        "settings-library-delete-button",
+        "settings-library-preview-button",
+        "settings-library-profile-list",
+        "settings-library-profile-nav",
+        "settings-library-reset-button",
+        "settings-library-save-button",
+        "settings-library-warning-summary",
+        "settings-library-watch-auto-run",
+        "settings-library-watch-panel",
+        "settings-library-watch-preview-button",
+        "settings-library-watch-respect-schedule",
+        "settings-library-watch-save-button",
+        "settings-library-watch-stage-button",
+        "settings-patch-json",
+        "settings-patch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/librariesRouteMap.js",
+      "path": "apps/desktop/webview/static/assets/librariesRouteMap.js",
+      "dom_ids_touched": [
+        "library-route-compare-left",
+        "library-route-compare-right",
+        "library-route-compare-rows",
+        "library-route-decision-rows",
+        "library-route-map-graph",
+        "library-route-map-profile-select",
+        "library-route-map-warning-summary",
+        "library-route-navigation-rows",
+        "library-route-node-rows",
+        "library-route-trace-rows",
+        "library-route-trace-selector",
+        "library-route-validation-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/settingsWizard.js",
+      "path": "apps/desktop/webview/static/assets/settingsWizard.js",
+      "dom_ids_touched": [
+        "settings-validate-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/networkView.js",
+      "path": "apps/desktop/webview/static/assets/networkView.js",
+      "dom_ids_touched": [
+        "network-action-readiness-gates",
+        "network-attention-stack",
+        "network-coordinator-active-rows",
+        "network-coordinator-join-copy",
+        "network-coordinator-join-create",
+        "network-coordinator-join-output",
+        "network-coordinator-join-rotate",
+        "network-coordinator-join-url",
+        "network-coordinator-queue-rows",
+        "network-evidence-rows",
+        "network-health-strip",
+        "network-lifecycle-command-result",
+        "network-lifecycle-confirm-cancel",
+        "network-lifecycle-confirm-dialog",
+        "network-lifecycle-confirm-submit",
+        "network-lifecycle-rows",
+        "network-role-dashboards",
+        "network-settings-preview-button",
+        "network-settings-rows",
+        "network-settings-save-button",
+        "network-state-files-rows",
+        "network-topology-strip",
+        "network-worker-claim-rows",
+        "network-worker-detail",
+        "network-worker-discover",
+        "network-worker-discovery-list",
+        "network-worker-filter",
+        "network-worker-join-blob",
+        "network-worker-join-import",
+        "network-worker-rows",
+        "network-worker-status-filter",
+        "settings-network-role",
+        "settings-patch-json",
+        "settings-patch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/metricsView.js",
+      "path": "apps/desktop/webview/static/assets/metricsView.js",
+      "dom_ids_touched": [
+        "metrics-attention-rows",
+        "metrics-backfill-button",
+        "metrics-coverage-rows",
+        "metrics-reason-group-rows",
+        "metrics-route-series-rows",
+        "metrics-source-add-button",
+        "metrics-source-label",
+        "metrics-source-path",
+        "metrics-sources-rows",
+        "metrics-storage-breakdown-rows",
+        "metrics-throughput-rows",
+        "metrics-worker-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnosticsTailView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsTailView.js",
+      "dom_ids_touched": [
+        "diagnostics-tail-max-bytes",
+        "diagnostics-tail-refresh-button",
+        "diagnostics-tail-target",
+        "diagnostics-tail-target-choice-groups"
+      ],
+      "missing_from_index": [
+        "diagnostics-tail-target-choice-groups"
+      ]
+    },
+    {
+      "src": "/assets/diagnosticsStateSummaryView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsStateSummaryView.js",
+      "dom_ids_touched": [
+        "diagnostics-state-summary-actions",
+        "diagnostics-state-summary-rows",
+        "diagnostics-state-triage-actions",
+        "diagnostics-state-triage-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnosticsView.activejobs.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.activejobs.js",
+      "dom_ids_touched": [
+        "active-job-detail-rows",
+        "active-job-diagnostics-actions"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnosticsView.log.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.log.js",
+      "dom_ids_touched": [
+        "diagnostics-log-actions",
+        "diagnostics-log-filter",
+        "diagnostics-log-rows",
+        "diagnostics-log-severity"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnosticsView.investigation.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.investigation.js",
+      "dom_ids_touched": [
+        "diagnostics-owner-handoff-actions",
+        "diagnostics-owner-handoff-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/diagnosticsView.js",
+      "path": "apps/desktop/webview/static/assets/diagnosticsView.js",
+      "dom_ids_touched": [
+        "diagnostics-drilldown-actions",
+        "diagnostics-first-response-rows",
+        "diagnostics-investigation-actions",
+        "diagnostics-log-filter",
+        "diagnostics-log-severity",
+        "diagnostics-tail-refresh-button",
+        "tdarr-matrix-audit-bucket-filter",
+        "tdarr-matrix-audit-bucket-rows",
+        "tdarr-matrix-audit-evidence-actions",
+        "tdarr-matrix-audit-filter",
+        "tdarr-matrix-audit-findings-rows",
+        "tdarr-matrix-audit-load-latest",
+        "tdarr-matrix-audit-rerun-failures",
+        "tdarr-matrix-audit-rerun-selected",
+        "tdarr-matrix-audit-severity-filter",
+        "tdarr-matrix-compare-left",
+        "tdarr-matrix-compare-refresh",
+        "tdarr-matrix-compare-right",
+        "tdarr-matrix-delete-confirm",
+        "tdarr-matrix-proof-pack-rows",
+        "tdarr-matrix-run-compare-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/state.js",
+      "path": "apps/desktop/webview/static/assets/reports/state.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/shared.js",
+      "path": "apps/desktop/webview/static/assets/reports/shared.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/shell.js",
+      "path": "apps/desktop/webview/static/assets/reports/shell.js",
+      "dom_ids_touched": [
+        "report-open-history-disclosure",
+        "report-warning-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/failureModel.js",
+      "path": "apps/desktop/webview/static/assets/reports/failureModel.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/failureCommands.js",
+      "path": "apps/desktop/webview/static/assets/reports/failureCommands.js",
+      "dom_ids_touched": [
+        "failure-archive-confirm-button",
+        "failure-archive-include-markers",
+        "failure-archive-include-reports",
+        "failure-archive-reason",
+        "failure-clear-confirm-button",
+        "failure-clear-scope",
+        "failure-primary-action-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/failureView.js",
+      "path": "apps/desktop/webview/static/assets/reports/failureView.js",
+      "dom_ids_touched": [
+        "failure-filter",
+        "failure-lifecycle-strip",
+        "failure-more-actions",
+        "failure-playbook-steps",
+        "failure-resolution-groups",
+        "failure-review-board",
+        "failure-rows",
+        "failure-timeline",
+        "failure-verification-panel"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/auditModel.js",
+      "path": "apps/desktop/webview/static/assets/reports/auditModel.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/auditView.js",
+      "path": "apps/desktop/webview/static/assets/reports/auditView.js",
+      "dom_ids_touched": [
+        "audit-preview-diagnostics-actions",
+        "audit-preview-filter",
+        "audit-preview-rows",
+        "report-audit-score-redownload-bucket"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/auditCommands.js",
+      "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
+      "dom_ids_touched": [
+        "report-audit-remove-location-button",
+        "report-audit-save-location-button",
+        "report-audit-saved-location-select",
+        "report-audit-score-redownload-bucket",
+        "report-audit-start-button",
+        "report-audit-start-include-sidecars",
+        "report-audit-start-library-root",
+        "report-audit-start-show-console",
+        "report-audit-stop-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reports/triage.js",
+      "path": "apps/desktop/webview/static/assets/reports/triage.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/reportsView.js",
+      "path": "apps/desktop/webview/static/assets/reportsView.js",
+      "dom_ids_touched": [
+        "failure-archive-confirm-button",
+        "failure-archive-preview-button",
+        "failure-archive-reason",
+        "failure-clear-confirm-button",
+        "failure-clear-preview-button",
+        "failure-clear-scope",
+        "failure-filter",
+        "failure-lifecycle-ack-button",
+        "failure-lifecycle-reopen-confirm-button",
+        "failure-lifecycle-reopen-preview-button",
+        "failure-lifecycle-resolve-confirm-button",
+        "failure-lifecycle-resolve-preview-button",
+        "failure-lifecycle-start-button",
+        "failure-source-markers",
+        "report-audit-export-rerun-csv-button",
+        "report-audit-ignore-selected-button",
+        "report-audit-remove-location-button",
+        "report-audit-save-location-button",
+        "report-audit-saved-location-select",
+        "report-audit-score-policy-reset-button",
+        "report-audit-score-policy-save-button",
+        "report-audit-start-button",
+        "report-audit-start-library-root",
+        "report-audit-stop-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/scheduleView.js",
+      "path": "apps/desktop/webview/static/assets/scheduleView.js",
+      "dom_ids_touched": [
+        "pipeline-start-mode",
+        "pipeline-start-schedule-override",
+        "schedule-allowed-state",
+        "schedule-coverage-rows",
+        "schedule-day-rows",
+        "schedule-editor-allow-all-button",
+        "schedule-editor-clear-button",
+        "schedule-editor-draft-summary",
+        "schedule-editor-enabled",
+        "schedule-editor-impact",
+        "schedule-editor-load-current-button",
+        "schedule-editor-monday-windows",
+        "schedule-editor-panel",
+        "schedule-editor-preview-button",
+        "schedule-editor-rows",
+        "schedule-editor-save-button",
+        "schedule-editor-save-state",
+        "schedule-enabled-state",
+        "schedule-watch-folder-event-rows",
+        "schedule-watch-folder-root-rows",
+        "schedule-watch-folder-scope",
+        "schedule-watch-folder-status"
+      ],
+      "missing_from_index": [
+        "schedule-editor-monday-windows"
+      ]
+    },
+    {
+      "src": "/assets/maintenanceView.js",
+      "path": "apps/desktop/webview/static/assets/maintenanceView.js",
+      "dom_ids_touched": [
+        "dependency-atlas-detail",
+        "dependency-atlas-open-folder-button",
+        "maintenance-change-ledger-refresh-button",
+        "maintenance-change-ledger-rows",
+        "maintenance-diagnostics-actions",
+        "maintenance-refresh-button",
+        "maintenance-rows",
+        "release-build-force",
+        "release-dry-run-destination",
+        "release-dry-run-dev-docs",
+        "release-dry-run-keep-config",
+        "release-dry-run-optional-tools",
+        "release-dry-run-tauri-binary",
+        "release-dry-run-tests",
+        "release-dry-run-tool-docs",
+        "release-dry-run-verify",
+        "release-dry-run-zip"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/telemetryView.js",
+      "path": "apps/desktop/webview/static/assets/telemetryView.js",
+      "dom_ids_touched": [
+        "gpu-empty-state",
+        "gpu-rows"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/tauriLifecycleBridge.js",
+      "path": "apps/desktop/webview/static/assets/tauriLifecycleBridge.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/floatingPipelineLog.js",
+      "path": "apps/desktop/webview/static/assets/floatingPipelineLog.js",
+      "dom_ids_touched": [
+        "floating-pipeline-log-close-button",
+        "floating-pipeline-log-follow",
+        "floating-pipeline-log-panel",
+        "floating-pipeline-log-refresh-button",
+        "floating-pipeline-log-status",
+        "floating-pipeline-log-text",
+        "floating-pipeline-log-updated",
+        "pipeline-log-window-button"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pipelineLogWindowBridge.js",
+      "path": "apps/desktop/webview/static/assets/pipelineLogWindowBridge.js",
+      "dom_ids_touched": [
+        "diagnostics-pipeline-log-status",
+        "pipeline-launch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchReadinessView.js",
+      "path": "apps/desktop/webview/static/assets/launchReadinessView.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchHistoryView.js",
+      "path": "apps/desktop/webview/static/assets/launchHistoryView.js",
+      "dom_ids_touched": [
+        "launch-command-diagnostics-actions",
+        "launch-command-review-rows",
+        "launch-history"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/settingsAccess.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/settingsAccess.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/mediaPolicyValues.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/mediaPolicyValues.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/riskRows.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/policyPatch.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/policyPatch.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/risk/policyBoundary.js",
+      "path": "apps/desktop/webview/static/assets/launch/risk/policyBoundary.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchView.risk.js",
+      "path": "apps/desktop/webview/static/assets/launchView.risk.js",
+      "dom_ids_touched": [
+        "launch-policy-boundary-rows",
+        "launch-policy-boundary-status",
+        "launch-settings-intent-rows",
+        "launch-settings-intent-status",
+        "launch-settings-risk-rows",
+        "launch-settings-risk-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchView.scope.js",
+      "path": "apps/desktop/webview/static/assets/launchView.scope.js",
+      "dom_ids_touched": [
+        "launch-scope-reconciliation-rows",
+        "launch-scope-reconciliation-status",
+        "launch-start-decision-rows",
+        "launch-start-decision-status",
+        "pipeline-compact-gate-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchView.realmedia.js",
+      "path": "apps/desktop/webview/static/assets/launchView.realmedia.js",
+      "dom_ids_touched": [
+        "launch-real-media-proof-rows",
+        "launch-real-media-proof-status",
+        "launch-sample-execution-rows",
+        "launch-sample-execution-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchView.preflight.js",
+      "path": "apps/desktop/webview/static/assets/launchView.preflight.js",
+      "dom_ids_touched": [
+        "launch-backend-preflight-rows",
+        "launch-backend-preflight-status",
+        "launch-pilot-readiness-rows",
+        "launch-pilot-readiness-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/controllerState.js",
+      "path": "apps/desktop/webview/static/assets/launch/controllerState.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/statusRender.js",
+      "path": "apps/desktop/webview/static/assets/launch/statusRender.js",
+      "dom_ids_touched": [
+        "control-readiness-status",
+        "pipeline-launch-status"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/startRequest.js",
+      "path": "apps/desktop/webview/static/assets/launch/startRequest.js",
+      "dom_ids_touched": [
+        "pipeline-start-mode",
+        "pipeline-start-schedule-override",
+        "pipeline-start-show-config",
+        "pipeline-start-show-console",
+        "pipeline-start-single-file",
+        "pipeline-start-sleep",
+        "rerun-start-csv-path",
+        "rerun-start-show-console"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/scopeControls.js",
+      "path": "apps/desktop/webview/static/assets/launch/scopeControls.js",
+      "dom_ids_touched": [
+        "pipeline-single-file-browse-status",
+        "pipeline-start-button",
+        "pipeline-start-mode",
+        "pipeline-start-single-file"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launch/commandButtons.js",
+      "path": "apps/desktop/webview/static/assets/launch/commandButtons.js",
+      "dom_ids_touched": [
+        "pipeline-single-file-browse-button",
+        "pipeline-single-file-clear-button",
+        "pipeline-start-single-file"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/launchView.js",
+      "path": "apps/desktop/webview/static/assets/launchView.js",
+      "dom_ids_touched": [
+        "launch-backend-preflight-status",
+        "pending-drain-button",
+        "pipeline-single-file-browse-button",
+        "pipeline-single-file-clear-button",
+        "pipeline-start-button",
+        "pipeline-start-single-file"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/contractView.js",
+      "path": "apps/desktop/webview/static/assets/contractView.js",
+      "dom_ids_touched": [
+        "api-contract-filter",
+        "api-contract-method",
+        "api-contract-rows",
+        "api-contract-safety-rows",
+        "api-contract-scope"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/lifecycle.js",
+      "path": "apps/desktop/webview/static/assets/app/lifecycle.js",
+      "dom_ids_touched": [
+        "activity",
+        "advanced-toggle",
+        "backend-lifecycle-history-rows",
+        "backend-lifecycle-status",
+        "backend-shutdown-button",
+        "close-readiness",
+        "customize-layout-btn",
+        "evidence-toggle",
+        "launch-evidence-body",
+        "launch-evidence-toggle",
+        "pipeline-sparkline",
+        "refresh-health",
+        "theme-toggle",
+        "topbar-event-ticker"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/topbar.js",
+      "path": "apps/desktop/webview/static/assets/app/topbar.js",
+      "dom_ids_touched": [
+        "pipeline-state"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/closeReadiness.js",
+      "path": "apps/desktop/webview/static/assets/app/closeReadiness.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/tauriLifecycle.js",
+      "path": "apps/desktop/webview/static/assets/app/tauriLifecycle.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/refresh.js",
+      "path": "apps/desktop/webview/static/assets/app/refresh.js",
+      "dom_ids_touched": [
+        "completed-current-at-a-glance",
+        "completed-current-filter-line",
+        "completed-refresh-current-output-button",
+        "home-refresh-button",
+        "refresh-button",
+        "refresh-health",
+        "topbar-event-ticker"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/home.js",
+      "path": "apps/desktop/webview/static/assets/app/home.js",
+      "dom_ids_touched": [
+        "daily-driver-rows",
+        "home-next-queue-detail",
+        "home-next-queue-list",
+        "home-queue-snapshot",
+        "home-recent-completed-tbody"
+      ],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/homeReadiness.js",
+      "path": "apps/desktop/webview/static/assets/app/homeReadiness.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/rowOpenActions.js",
+      "path": "apps/desktop/webview/static/assets/app/rowOpenActions.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/app/layoutManager.js",
+      "path": "apps/desktop/webview/static/assets/app/layoutManager.js",
+      "dom_ids_touched": [
+        "customize-layout-btn",
+        "layout-editor-done",
+        "layout-editor-drawer",
+        "layout-editor-reset-all",
+        "layout-editor-reset-page",
+        "layout-editor-reset-subtab",
+        "layout-editor-status",
+        "layout-editor-tree",
+        "layout-reset-warning",
+        "reset-layout-btn"
+      ],
+      "missing_from_index": [
+        "layout-reset-warning"
+      ]
+    },
+    {
+      "src": "/assets/app.js",
+      "path": "apps/desktop/webview/static/assets/app.js",
+      "dom_ids_touched": [
+        "advanced-toggle",
+        "audit-preview-filter",
+        "audit-preview-priority-only",
+        "backend-shutdown-button",
+        "backfill-dry-run-button",
+        "close-readiness",
+        "completed-clear-filters-button",
+        "completed-copy-evidence-button",
+        "completed-filter",
+        "completed-history-clear-filters-button",
+        "completed-history-filter",
+        "completed-history-investigation-filter",
+        "completed-history-status-filter",
+        "completed-investigation-filter",
+        "completed-library-filter",
+        "completed-refresh-current-output-button",
+        "completed-show-selected-button",
+        "completed-status-filter",
+        "dependency-atlas-button",
+        "dependency-atlas-open-folder-button",
+        "evidence-toggle",
+        "failure-filter",
+        "failure-source-markers",
+        "final-library-pause-button",
+        "final-library-promote-button",
+        "final-library-resume-button",
+        "home-refresh-button",
+        "maintenance-refresh-button",
+        "pending-clear-filters-button",
+        "pending-drain-button",
+        "pending-filter",
+        "pending-investigation-filter",
+        "pending-recovery-plan-all-button",
+        "pending-recovery-plan-selected-button",
+        "pending-status-filter",
+        "pipeline-start-button",
+        "publish-reconciliation-refresh-button",
+        "queue-clear-filters-button",
+        "queue-filter",
+        "queue-investigation-filter",
+        "queue-status-filter",
+        "refresh-button",
+        "release-build-button",
+        "release-dry-run-button",
+        "rename-add-path-button",
+        "rename-add-path-input",
+        "rename-apply-button",
+        "rename-apply-selected-button",
+        "rename-browse-files-button",
+        "rename-browse-folder-button",
+        "rename-bulk-clear-button",
+        "rename-bulk-clear-force-button",
+        "rename-bulk-force-button",
+        "rename-bulk-scope",
+        "rename-bulk-stage-button",
+        "rename-bulk-use-pipeline-button",
+        "rename-check-all-button",
+        "rename-check-applicable-button",
+        "rename-clear-checks-button",
+        "rename-clear-override-button",
+        "rename-clear-paths-button",
+        "rename-move-checked-down-button",
+        "rename-move-checked-up-button",
+        "rename-natural-sort-button",
+        "rename-paths",
+        "rename-preview-button",
+        "rename-preview-top-button",
+        "rename-save-override-button",
+        "rename-use-loaded-queue-button",
+        "rename-use-selected-queue-button",
+        "rerun-dry-run-button",
+        "rerun-plan-only-button",
+        "rerun-start-button",
+        "state-pill"
+      ],
+      "missing_from_index": [
+        "rename-apply-selected-button",
+        "rename-bulk-clear-button",
+        "rename-bulk-clear-force-button",
+        "rename-bulk-force-button",
+        "rename-bulk-scope",
+        "rename-bulk-stage-button",
+        "rename-bulk-use-pipeline-button",
+        "rename-clear-override-button",
+        "rename-move-checked-down-button",
+        "rename-move-checked-up-button",
+        "rename-natural-sort-button",
+        "rename-preview-top-button",
+        "rename-save-override-button",
+        "rename-use-loaded-queue-button",
+        "rename-use-selected-queue-button"
+      ]
+    }
+  ]
+}

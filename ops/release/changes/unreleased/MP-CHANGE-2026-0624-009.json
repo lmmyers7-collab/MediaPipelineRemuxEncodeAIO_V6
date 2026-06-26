@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0624-009",
+  "title": "Launch CSV rerun audit link",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Added a Launch > CSV Rerun quick-link button that opens Reports with the Audit tab selected.",
+  "reason": "Operators preparing a CSV rerun need a direct path back to the Reports audit tooling that owns audit rows, score policy, ignore controls, and backend-owned rerun CSV export.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Launch > CSV Rerun exposed plan, dry-run, and start controls, but no direct navigation to the Reports audit tooling used to review or export rerun candidates.",
+  "behavior_after": "Launch > CSV Rerun includes an Open Reports Audit button that navigates to Reports and activates its Audit tab without invoking any rerun, audit, export, or filesystem mutation route.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-009.json.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-009.json",
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_local_api.py",
+    "tests/python/desktop/test_application_facade_web_static.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q - failed before this change's assertions on unrelated Rename text assertion",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_launch_controls_are_state_aware_and_topbar_kill_is_emergency_only -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_inventory_docs.WebViewInventoryDocsTests.test_dom_inventory_manifest_matches_index_html -q - failed on pre-existing DOM inventory count drift: header 1830, rendered unique IDs 1846",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_navigation_static.WebViewNavigationStaticTests.test_cross_page_targets_are_valid_page_names -q - passed",
+    "node --check apps/desktop/webview/static/assets/app/lifecycle.js - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - timed out after 124 seconds"
+  ],
+  "rollback_plan": "Remove the rerun-open-audit-tool-button markup, remove the optional Reports tab activation branch from app/lifecycle.js, and remove the matching static assertions/inventory entry.",
+  "related_changes": [],
+  "notes": "Add CSV rerun quick link to Reports Audit controls.\nAllow cross-page buttons to select the Reports Audit tab.\nDocument the new Launch CSV rerun audit-link button ID.\nAssert rendered Launch quick link and lifecycle tab activation hook.\nAssert raw WebView static quick link and cross-page Reports tab contract.\nGenerated summary for the change packet."
+}

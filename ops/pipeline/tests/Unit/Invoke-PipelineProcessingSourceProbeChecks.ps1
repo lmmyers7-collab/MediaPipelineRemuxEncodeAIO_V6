@@ -272,4 +272,182 @@ Invoke-FailedSourceProbeCase `
     -ExpectedQueueTerminal:$false `
     -SuggestedActionPattern 'source path'
 
+function Set-ProgressStage {
+    param(
+        [string] $Stage,
+        [string] $Status,
+        [string] $Route,
+        $Percent,
+        $CopyState,
+        $PushState,
+        $SidecarState,
+        [switch] $SaveNow
+    )
+}
+function DebugLog {
+    param([string] $Message)
+}
+function Get-SourceMediaRouteProfile {
+    param([string] $FilePath, [long] $FileSizeBytes)
+    return [pscustomobject]@{
+        probe_ok = $true
+        video_codec = 'hevc'
+        duration_seconds = 3600
+    }
+}
+function Resolve-InitialMediaRoutePlan {
+    param($File, [bool] $IsTV, $MediaProfile, $RouteHints)
+    $route = if ($script:RouteDispatchShouldEncode) { 'encode' } else { 'remux' }
+    return [pscustomobject]@{
+        ShouldEncode = [bool]$script:RouteDispatchShouldEncode
+        Route = $route
+        DisplayRoute = $route.ToUpperInvariant()
+        ReasonCode = "test_${route}_route"
+        Reason = "test $route route"
+        SourceMediaProfile = $MediaProfile
+        SourceCodec = 'hevc'
+        SizeGB = 1.0
+        ThresholdGB = 8.0
+        EstimatedBitrateMbps = 3.0
+        PlexCompatibilityScore = 1.0
+        RoutingProfile = 'test'
+        SizeGuardMode = 'strict'
+        Actions = @()
+        RouteHints = @{}
+        DecisionTrace = @()
+        RequiresCodecProbe = $false
+    }
+}
+function New-MediaPipelineRuntimeEffectiveSettingsEvidence {
+    param($Layers)
+    return [ordered]@{
+        layers = @($Layers)
+        unsupported_keys = @()
+        ignored_keys = @()
+    }
+}
+function Get-MediaPipelineRuntimeEffectiveSettingSources {
+    param($RuntimeEffectiveSettings, $Keys)
+    return @{}
+}
+function Get-MediaPipelineRuntimeRoutingConsumerKeys { return @() }
+function Get-MediaPipelineRuntimeAudioConsumerKeys { return @() }
+function Get-MediaPipelineRuntimeSubtitleConsumerKeys { return @() }
+function Get-MediaPipelineRuntimeLayerNames {
+    param($RuntimeEffectiveSettings)
+    return @('global')
+}
+function Get-MediaRouteRuleOutcomeEvidence {
+    param($RoutePlan)
+    return @()
+}
+function New-MediaPipelineRuntimeConsumerSettingsEvidence {
+    param(
+        $RuntimeEffectiveSettings,
+        [string] $Consumer,
+        $Keys,
+        [string] $DecisionScope,
+        [string] $ActionSelected,
+        [string] $ActionEvidence,
+        $DecisionImpact,
+        $Consequences
+    )
+    return [ordered]@{
+        consumer = $Consumer
+        decision_scope = $DecisionScope
+        action_selected = $ActionSelected
+        action_evidence = $ActionEvidence
+    }
+}
+function Get-MediaPipelineOutputContainerPlanningEvidence {
+    param(
+        $LibraryOverrides,
+        $RuntimeEffectiveSettings,
+        [string] $LibraryOutputRoot,
+        [string] $LibrarySourceRoot,
+        [string] $DefaultOutputContainer
+    )
+    return [ordered]@{ output_container = $DefaultOutputContainer }
+}
+function New-MediaPipelineSizeGuardEvidence {
+    param($RuntimeEffectiveSettings, $SizePolicyResult, $RoutePlan)
+    return [ordered]@{ route = [string]$RoutePlan.Route }
+}
+function New-MediaPipelinePublishEvidence {
+    param($PublishResult, [string] $Route)
+    return [ordered]@{ route = $Route; publish_state = [string]$PublishResult.PublishState }
+}
+function New-MediaPipelineVerificationEvidence {
+    param($SizeGuardEvidence, $PublishEvidence, $QualityEvidence)
+    return [ordered]@{
+        size_guard = $SizeGuardEvidence
+        publish = $PublishEvidence
+        quality = $QualityEvidence
+    }
+}
+function Do-Encode {
+    param($File, [bool] $IsTV, $TvInfo)
+    $script:EncodeCalled = $true
+    $script:LastPublishResult = [pscustomobject]@{
+        PublishState = 'published'
+        PublishMode = 'test-encode'
+        OutputPath = 'C:\Out\Encoded.mkv'
+        OutputSizeBytes = 123
+    }
+    return $true
+}
+function Do-Remux {
+    param($File, [bool] $IsTV, $TvInfo)
+    $script:RemuxCalled = $true
+    $script:LastPublishResult = [pscustomobject]@{
+        PublishState = 'published'
+        PublishMode = 'test-remux'
+        OutputPath = 'C:\Out\Remuxed.mkv'
+        OutputSizeBytes = 456
+    }
+    return $true
+}
+
+function Invoke-RouteDispatchCase {
+    param(
+        [Parameter(Mandatory)] [bool] $ShouldEncode,
+        [Parameter(Mandatory)] [string] $ExpectedRoute,
+        [Parameter(Mandatory)] [string] $ExpectedPublishMode
+    )
+
+    $script:RegisteredFailures = @()
+    $script:PipelineEvents = @()
+    $script:EncodeCalled = $false
+    $script:RemuxCalled = $false
+    $script:RouteDispatchShouldEncode = $ShouldEncode
+    $script:LastPublishResult = $null
+    $script:CurrentRoutePlan = $null
+    $script:CurrentRouteReasonCode = $null
+    $script:CurrentRouteReason = $null
+
+    $file = [pscustomobject]@{
+        Name = "$ExpectedRoute-route.mkv"
+        Extension = '.mkv'
+        FullName = "C:\Media\$ExpectedRoute-route.mkv"
+        Length = 1024
+    }
+
+    $result = Invoke-MediaPipelineProcessFile -file $file -isTV:$false -idx @{} -QueueIndex 1 -QueueTotal 1
+
+    Assert-True ([bool]$result.Success) "$ExpectedRoute dispatch should succeed through the selected public function."
+    Assert-Equal $result.Status 'processed' "$ExpectedRoute dispatch status mismatch."
+    Assert-Equal $result.Route $ExpectedRoute "$ExpectedRoute dispatch route mismatch."
+    Assert-Equal $result.PublishMode $ExpectedPublishMode "$ExpectedRoute dispatch publish mode mismatch."
+    Assert-Equal ([bool]$script:EncodeCalled) $ShouldEncode "$ExpectedRoute dispatch encode-call flag mismatch."
+    Assert-Equal ([bool]$script:RemuxCalled) (-not $ShouldEncode) "$ExpectedRoute dispatch remux-call flag mismatch."
+
+    $routeEvent = @($script:PipelineEvents | Where-Object { $_.EventType -eq 'route_selected' } | Select-Object -First 1)
+    Assert-True ($null -ne $routeEvent) "$ExpectedRoute dispatch should emit route_selected evidence."
+    Assert-Equal $routeEvent.Route $ExpectedRoute "$ExpectedRoute route_selected route mismatch."
+    Assert-Equal $routeEvent.Data.reason_code "test_${ExpectedRoute}_route" "$ExpectedRoute route_selected reason code mismatch."
+}
+
+Invoke-RouteDispatchCase -ShouldEncode:$true -ExpectedRoute 'encode' -ExpectedPublishMode 'test-encode'
+Invoke-RouteDispatchCase -ShouldEncode:$false -ExpectedRoute 'remux' -ExpectedPublishMode 'test-remux'
+
 Write-Host 'Pipeline processing source-probe checks passed.'

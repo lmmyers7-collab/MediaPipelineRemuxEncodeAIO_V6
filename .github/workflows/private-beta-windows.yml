@@ -26,6 +26,7 @@ on:
         type: boolean
 
 permissions:
+  actions: read
   contents: write
 
 jobs:
@@ -35,6 +36,8 @@ jobs:
     environment: ${{ inputs.channel }}-release
     env:
       MEDIAPIPELINE_RELEASE_CHANNEL: ${{ inputs.channel }}
+      MEDIAPIPELINE_RELEASE_REPOSITORY: ${{ github.repository }}
+      MEDIAPIPELINE_RELEASE_TAG: ${{ inputs.release_tag }}
       MEDIAPIPELINE_SEMVER_VERSION: ${{ inputs.version }}
       TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
       TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
@@ -46,15 +49,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Validate workflow inputs
+        shell: pwsh
+        run: |
+          $channel = $env:MEDIAPIPELINE_RELEASE_CHANNEL
+          $repository = $env:MEDIAPIPELINE_RELEASE_REPOSITORY
+          $version = $env:MEDIAPIPELINE_SEMVER_VERSION
+          $releaseTag = $env:MEDIAPIPELINE_RELEASE_TAG
+          if ($channel -notin @('beta', 'stable')) {
+            throw "Unsupported release channel: $channel"
+          }
+          if ($repository -notmatch '^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$') {
+            throw "Unsafe repository value: $repository"
+          }
+          if ($version -notmatch '^[0-9A-Za-z][0-9A-Za-z.+-]{0,63}$') {
+            throw "Unsafe version value: $version"
+          }
+          if ($releaseTag -notmatch '^[A-Za-z0-9][A-Za-z0-9._/+~-]{0,127}$' -or $releaseTag.Contains('..')) {
+            throw "Unsafe release tag value: $releaseTag"
+          }
+
       - name: Private beta release preflight
         shell: pwsh
         run: |
           .\ops\scripts\release\Test-PrivateBetaReleasePreflight.ps1 `
-            -Channel '${{ inputs.channel }}' `
-            -Repository '${{ github.repository }}' `
-            -Version '${{ inputs.version }}' `
-            -ReleaseTag '${{ inputs.release_tag }}' `
-            -ConfigOutputPath "$env:RUNNER_TEMP\tauri.${{ inputs.channel }}.preflight.conf.json"
+            -Channel $env:MEDIAPIPELINE_RELEASE_CHANNEL `
+            -Repository $env:MEDIAPIPELINE_RELEASE_REPOSITORY `
+            -Version $env:MEDIAPIPELINE_SEMVER_VERSION `
+            -ReleaseTag $env:MEDIAPIPELINE_RELEASE_TAG `
+            -ConfigOutputPath "$env:RUNNER_TEMP\tauri.$($env:MEDIAPIPELINE_RELEASE_CHANNEL).preflight.conf.json"
 
       - name: Setup Node
         uses: actions/setup-node@v4
@@ -62,6 +85,15 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: apps/desktop/tauri/package-lock.json
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Provision CI Python runtime
+        shell: pwsh
+        run: .\ops\scripts\release\Initialize-CiPythonRuntime.ps1
 
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
@@ -86,10 +118,10 @@ jobs:
         shell: pwsh
         run: |
           .\ops\scripts\release\New-TauriProductizationConfig.ps1 `
-            -Channel '${{ inputs.channel }}' `
-            -Repository '${{ github.repository }}' `
-            -Version '${{ inputs.version }}' `
-            -OutputPath "apps\desktop\tauri\src-tauri\tauri.${{ inputs.channel }}.generated.conf.json"
+            -Channel $env:MEDIAPIPELINE_RELEASE_CHANNEL `
+            -Repository $env:MEDIAPIPELINE_RELEASE_REPOSITORY `
+            -Version $env:MEDIAPIPELINE_SEMVER_VERSION `
+            -OutputPath "apps\desktop\tauri\src-tauri\tauri.$($env:MEDIAPIPELINE_RELEASE_CHANNEL).generated.conf.json"
 
       - name: Release package dry run
         shell: pwsh
@@ -112,7 +144,7 @@ jobs:
       - name: Build signed NSIS updater bundle
         working-directory: apps/desktop/tauri
         shell: pwsh
-        run: npm run tauri -- build --config "src-tauri\tauri.${{ inputs.channel }}.generated.conf.json"
+        run: npm run tauri -- build --config "src-tauri\tauri.$($env:MEDIAPIPELINE_RELEASE_CHANNEL).generated.conf.json"
 
       - name: Verify Authenticode signature
         shell: pwsh
@@ -129,24 +161,25 @@ jobs:
       - name: Generate updater channel JSON and checksums
         shell: pwsh
         run: |
+          $notes = "MediaPipelineRemuxEncodeAIO $($env:MEDIAPIPELINE_RELEASE_CHANNEL) build $($env:MEDIAPIPELINE_SEMVER_VERSION)"
           .\ops\scripts\release\New-TauriUpdaterChannelJson.ps1 `
-            -Channel '${{ inputs.channel }}' `
+            -Channel $env:MEDIAPIPELINE_RELEASE_CHANNEL `
             -BundleRoot 'apps\desktop\tauri\src-tauri\target\release\bundle' `
-            -Repository '${{ github.repository }}' `
-            -ReleaseTag '${{ inputs.release_tag }}' `
-            -Version '${{ inputs.version }}' `
-            -Notes "MediaPipelineRemuxEncodeAIO ${{ inputs.channel }} build ${{ inputs.version }}" `
-            -OutputPath "apps\desktop\tauri\src-tauri\target\release\bundle\latest-${{ inputs.channel }}.json"
+            -Repository $env:MEDIAPIPELINE_RELEASE_REPOSITORY `
+            -ReleaseTag $env:MEDIAPIPELINE_RELEASE_TAG `
+            -Version $env:MEDIAPIPELINE_SEMVER_VERSION `
+            -Notes $notes `
+            -OutputPath "apps\desktop\tauri\src-tauri\target\release\bundle\latest-$($env:MEDIAPIPELINE_RELEASE_CHANNEL).json"
 
       - name: Verify release artifacts
         shell: pwsh
         run: |
           .\ops\scripts\release\Test-PrivateBetaReleaseArtifact.ps1 `
-            -Channel '${{ inputs.channel }}' `
+            -Channel $env:MEDIAPIPELINE_RELEASE_CHANNEL `
             -BundleRoot 'apps\desktop\tauri\src-tauri\target\release\bundle' `
-            -Repository '${{ github.repository }}' `
-            -ReleaseTag '${{ inputs.release_tag }}' `
-            -Version '${{ inputs.version }}'
+            -Repository $env:MEDIAPIPELINE_RELEASE_REPOSITORY `
+            -ReleaseTag $env:MEDIAPIPELINE_RELEASE_TAG `
+            -Version $env:MEDIAPIPELINE_SEMVER_VERSION
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
@@ -164,21 +197,23 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          $tag = '${{ inputs.release_tag }}'
+          $tag = $env:MEDIAPIPELINE_RELEASE_TAG
           gh release view $tag 2>$null
           if ($LASTEXITCODE -ne 0) {
+            $title = "MediaPipelineRemuxEncodeAIO $($env:MEDIAPIPELINE_SEMVER_VERSION) ($($env:MEDIAPIPELINE_RELEASE_CHANNEL))"
+            $notes = "Signed NSIS $($env:MEDIAPIPELINE_RELEASE_CHANNEL) release. Assets include updater channel JSON and SHA-256 checksums."
             $createArgs = @(
               'release',
               'create',
               $tag,
               '--title',
-              'MediaPipelineRemuxEncodeAIO ${{ inputs.version }} (${{ inputs.channel }})',
+              $title,
               '--notes',
-              'Signed NSIS ${{ inputs.channel }} release. Assets include updater channel JSON and SHA-256 checksums.',
+              $notes,
               '--target',
               $env:GITHUB_SHA
             )
-            if ('${{ inputs.channel }}' -ne 'stable') {
+            if ($env:MEDIAPIPELINE_RELEASE_CHANNEL -ne 'stable') {
               $createArgs += '--prerelease'
             }
             gh @createArgs
@@ -186,6 +221,6 @@ jobs:
           gh release upload $tag `
             apps\desktop\tauri\src-tauri\target\release\bundle\nsis\*.exe `
             apps\desktop\tauri\src-tauri\target\release\bundle\nsis\*.sig `
-            apps\desktop\tauri\src-tauri\target\release\bundle\latest-${{ inputs.channel }}.json `
+            apps\desktop\tauri\src-tauri\target\release\bundle\latest-$($env:MEDIAPIPELINE_RELEASE_CHANNEL).json `
             apps\desktop\tauri\src-tauri\target\release\bundle\SHA256SUMS.txt `
             --clobber

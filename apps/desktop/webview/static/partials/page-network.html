@@ -1,31 +1,183 @@
       <section class="page" data-page-panel="network">
         <h1 class="visually-hidden">Network Workers</h1>
-        <div class="network-status-banner" id="network-status-banner" data-status="unknown" role="status" aria-live="polite">
-          <div>
-            <p class="settings-mini-label">Network runtime</p>
-            <strong id="network-status-banner-title">Not loaded</strong>
-            <span id="network-status-banner-detail">Load network status to see role, runtime state, coordinator target, and Launch blocking.</span>
+        <section class="panel network-command-board" data-panel-type="interactive" aria-labelledby="network-command-board-title">
+          <div class="panel-heading">
+            <h2 id="network-command-board-title">Network Command Board</h2>
+            <strong id="network-status">Not loaded</strong>
           </div>
-          <pre id="network-status-banner-lines" class="network-status-banner-lines">No network operator summary loaded.</pre>
-        </div>
-        <div class="metric-grid network-metric-grid">
-          <section class="metric network-status-tile">
-            <span class="metric-label">Saved Role</span>
-            <strong id="network-role">standalone</strong>
-          </section>
-          <section class="metric network-status-tile">
-            <span class="metric-label">Worker Coordinator URL</span>
-            <strong id="network-coordinator-target">not configured</strong>
-          </section>
-          <section class="metric network-status-tile">
-            <span class="metric-label">Saved Worker Poll</span>
-            <strong id="network-worker-poll">not configured</strong>
-          </section>
-          <section class="metric network-status-tile">
-            <span class="metric-label">Local API</span>
-            <strong id="network-local-api">not loaded</strong>
-          </section>
-        </div>
+          <div class="network-health-strip" id="network-health-strip" data-status="unknown" role="status" aria-live="polite">
+            <section class="network-health-item">
+              <span>Role</span>
+              <strong id="network-role">standalone</strong>
+            </section>
+            <section class="network-health-item">
+              <span>Runtime</span>
+              <strong id="network-status-banner-title">Not loaded</strong>
+            </section>
+            <section class="network-health-item">
+              <span>Coordinator</span>
+              <strong id="network-coordinator-target">not configured</strong>
+            </section>
+            <section class="network-health-item">
+              <span>Drift</span>
+              <strong id="network-health-drift">not loaded</strong>
+            </section>
+            <section class="network-health-item">
+              <span>Workers</span>
+              <strong id="network-health-workers">0 active / 0 idle</strong>
+            </section>
+            <section class="network-health-item">
+              <span>Alerts</span>
+              <strong id="network-health-alerts">not loaded</strong>
+            </section>
+          </div>
+          <p id="network-status-banner-detail" class="network-command-summary">Load network status to see role, runtime state, coordinator target, and Launch blocking.</p>
+          <div class="network-command-meta">
+            <span>Local API: <strong id="network-local-api">not loaded</strong></span>
+            <span>Worker poll: <strong id="network-worker-poll">not configured</strong></span>
+          </div>
+          <div class="network-attention-stack" id="network-attention-stack" aria-label="Network items needing attention">
+            <div class="network-attention-item" data-status="unknown">
+              <strong>No attention items loaded</strong>
+              <span>Load network worker state to see the highest-priority lifecycle, worker, path, auth, and state-file issues.</span>
+            </div>
+          </div>
+          <div class="network-topology-strip" id="network-topology-strip" aria-label="Network topology">
+            <div class="network-topology-node" data-status="unknown">
+              <span>Coordinator</span>
+              <strong>not loaded</strong>
+            </div>
+          </div>
+          <div class="network-quick-actions" id="network-lifecycle-control-buttons" aria-label="Network quick actions">
+            <div class="network-action-group" data-network-action-group="standalone">
+              <span class="network-action-group-label">Standalone</span>
+              <button type="button" class="secondary-button" data-network-open-drawer="network-settings-drawer">Configure Distributed Mode</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Logs</button>
+            </div>
+            <div class="network-action-group" data-network-action-group="coordinator">
+              <span class="network-action-group-label">Coordinator</span>
+              <button type="button" class="primary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="start" data-network-lifecycle-guided="true">Check &amp; Start Coordinator</button>
+              <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="stop" data-network-lifecycle-guided="true">Request Coordinator Stop</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
+              <button type="button" class="secondary-button" data-network-open-drawer="network-settings-drawer">Configure</button>
+            </div>
+            <div class="network-action-group" data-network-action-group="worker">
+              <span class="network-action-group-label">Worker</span>
+              <button type="button" class="secondary-button" data-network-test-connection>Test Connection</button>
+              <button type="button" class="primary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="start" data-network-lifecycle-guided="true">Check &amp; Start Worker</button>
+              <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="stop" data-network-lifecycle-guided="true">Request Worker Stop</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Logs</button>
+              <button type="button" class="secondary-button" data-network-open-drawer="network-settings-drawer">Configure</button>
+            </div>
+          </div>
+          <div class="network-action-readiness-gates" id="network-action-readiness-gates" aria-label="Action readiness gates">
+            <span data-status="unknown">TCP</span>
+            <span data-status="unknown">Auth</span>
+            <span data-status="unknown">Paths</span>
+            <span data-status="unknown">State</span>
+            <span data-status="unknown">Queue</span>
+            <span data-status="unknown">Close</span>
+            <span data-status="unknown">Dry-run</span>
+          </div>
+          <div class="network-diagnostic-rail" id="network-diagnostic-rail" aria-label="Network diagnostic layers">
+            <span class="network-diagnostic-chip" id="network-diagnostic-tcp" data-status="unknown">TCP: unknown</span>
+            <span class="network-diagnostic-chip" id="network-diagnostic-auth" data-status="unknown">Auth: unknown</span>
+            <span class="network-diagnostic-chip" id="network-diagnostic-paths" data-status="unknown">Paths: unknown</span>
+            <span class="network-diagnostic-chip" id="network-diagnostic-queue" data-status="unknown">Queue: unknown</span>
+            <span class="network-diagnostic-chip" id="network-diagnostic-claim" data-status="unknown">Claim: unknown</span>
+            <span class="network-diagnostic-chip" id="network-diagnostic-state-files" data-status="unknown">State files: unknown</span>
+          </div>
+          <pre id="network-lifecycle-command-result" class="network-command-result">No lifecycle command result yet.</pre>
+          <details class="network-command-evidence" id="network-command-evidence-drawer">
+            <summary>Command evidence</summary>
+            <pre id="network-lifecycle-control-summary" class="network-command-detail">No network lifecycle controls loaded.</pre>
+            <pre id="network-status-banner-lines" class="network-status-banner-lines">No network operator summary loaded.</pre>
+          </details>
+        </section>
+
+<section class="panel network-worker-board" data-panel-type="interactive" aria-labelledby="network-worker-board-title">
+          <div class="panel-heading">
+            <h2 id="network-worker-board-title">Worker Board</h2>
+            <strong id="network-worker-status">Not loaded</strong>
+          </div>
+          <div class="network-worker-board-layout">
+            <div class="network-worker-board-main">
+              <div class="panel-heading panel-subheading">
+                <h3>Last Reported Progress</h3>
+                <strong id="network-worker-progress-status">Not loaded</strong>
+              </div>
+              <div id="network-worker-progress-bars" class="progress-bar-list" aria-live="polite">
+                <p class="note">No last reported worker progress loaded.</p>
+              </div>
+              <div class="network-worker-view-presets" id="network-worker-view-presets" aria-label="Worker board views">
+                <button type="button" class="secondary-button" data-network-worker-view="" aria-pressed="true">All</button>
+                <button type="button" class="secondary-button" data-network-worker-view="attention" aria-pressed="false">Needs Attention</button>
+                <button type="button" class="secondary-button" data-network-worker-view="active" aria-pressed="false">Active Work</button>
+                <button type="button" class="secondary-button" data-network-worker-view="idle" aria-pressed="false">Idle</button>
+                <button type="button" class="secondary-button" data-network-worker-view="stale" aria-pressed="false">Stale/Failed</button>
+                <button type="button" class="secondary-button" data-network-worker-view="path-auth" aria-pressed="false">Path/Auth</button>
+              </div>
+              <div class="option-grid option-grid-compact network-worker-filter-grid">
+                <label>
+                  Worker status
+                  <select id="network-worker-status-filter">
+                    <option value="">All worker rows</option>
+                    <option value="active">Active or claimed</option>
+                    <option value="idle">Idle or complete</option>
+                    <option value="problem">Stale, offline, or failed</option>
+                    <option value="unknown">Unknown</option>
+                  </select>
+                </label>
+                <label>
+                  Search
+                  <input id="network-worker-filter" type="search" autocomplete="off" placeholder="Worker, job, file, stage, error">
+                </label>
+              </div>
+              <p id="network-worker-filter-summary" class="network-filter-summary">No worker filters applied.</p>
+              <div class="table-wrap detail-table-wrap network-worker-table-wrap">
+                <table aria-label="Network worker status rows">
+                  <thead>
+                    <tr>
+                      <th scope="col">Worker</th>
+                      <th scope="col">State</th>
+                      <th scope="col">Current file</th>
+                      <th scope="col">Stage</th>
+                      <th scope="col" class="num">Progress</th>
+                      <th scope="col" class="num">Heartbeat</th>
+                      <th scope="col">Last result</th>
+                      <th scope="col" class="num">Throughput</th>
+                      <th scope="col">Inspect</th>
+                    </tr>
+                  </thead>
+                  <tbody id="network-worker-rows">
+                    <tr><td colspan="9">No persisted worker runtime state loaded.</td></tr>
+                  </tbody>
+                </table>
+              <div class="empty-state" data-empty-state="hidden" style="display:none">
+                <span class="empty-state-label">No persisted workers</span>
+                <span class="empty-state-hint">Persisted worker rows appear here when distributed mode is active and workers are registered.</span>
+              </div>
+              </div>
+              <p id="network-worker-table-legend" class="note table-legend">Persisted worker rows: no selectable rows.</p>
+            </div>
+            <aside class="network-worker-inspector-shell" aria-label="Selected worker inspector">
+              <div class="panel-heading panel-subheading">
+                <h3>Selected Worker Inspector</h3>
+                <strong>Read-only</strong>
+              </div>
+              <div id="network-worker-detail" class="network-worker-inspector">No network worker row selected.</div>
+            </aside>
+          </div>
+          <details class="network-inline-evidence">
+            <summary>Worker evidence summary</summary>
+            <div id="network-worker-summary" class="network-summary-list network-worker-summary-list" role="list">
+              <div class="network-summary-row" role="listitem">
+                <span class="network-summary-row-body">No persisted worker runtime state loaded.</span>
+              </div>
+            </div>
+            <pre id="network-worker-progress-summary" class="prose-block">No last reported worker progress loaded.</pre>
+          </details>
+        </section>
         <div id="network-role-dashboards" class="network-role-dashboard-stack" aria-label="Saved network role dashboard">
           <div class="settings-tab-pane network-tab-panel" data-network-role-panel="coordinator" hidden>
           <section class="panel network-overview-panel" data-panel-type="evidence">
@@ -138,210 +290,82 @@
           </div>
         </div>
 
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Mode Summary</h2>
-            <strong id="network-status">Read-only</strong>
-          </div>
-          <div id="network-summary" class="network-summary-list" role="list">
-            <div class="network-summary-row" role="listitem">
-              <span class="network-summary-row-body">No network settings loaded.</span>
+        <details class="network-command-drawer" id="network-setup-drawer">
+          <summary>Join Worker to Cluster</summary>
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>Join Worker to Cluster</h2>
+              <strong id="network-lifecycle-control-status">Not loaded</strong>
             </div>
-          </div>
-          <div class="panel-heading panel-subheading">
-            <h3>Mode Model</h3>
-            <strong>Read-only</strong>
-          </div>
-          <div id="network-mode-model" class="network-summary-list network-summary-list-compact" role="list">
-            <div class="network-summary-row" role="listitem">
-              <span class="network-summary-row-body">No distributed mode model loaded.</span>
-            </div>
-          </div>
-          <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Run Logs</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Open Active Jobs</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="config">Open Config</button>
-            <button type="button" class="secondary-button" data-open-diagnostics="state">Open State Folder</button>
-          </div>
-        </section>
-
-        <section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Network Lifecycle</h2>
-            <strong id="network-lifecycle-control-status">Not loaded</strong>
-          </div>
-          <div class="action-row action-row-left wrap-actions" id="network-lifecycle-control-buttons">
-            <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="start" data-network-lifecycle-dry-run="true">Check coordinator start</button>
-            <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="stop" data-network-lifecycle-dry-run="true">Check coordinator stop</button>
-            <button type="button" class="primary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="start">Start coordinator</button>
-            <button type="button" class="secondary-button" data-network-lifecycle-role="coordinator" data-network-lifecycle-action="stop">Request coordinator stop</button>
-            <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="start" data-network-lifecycle-dry-run="true">Check worker start</button>
-            <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="stop" data-network-lifecycle-dry-run="true">Check worker stop</button>
-            <button type="button" class="secondary-button" data-network-test-connection>Test worker connection</button>
-            <button type="button" class="primary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="start">Start worker polling</button>
-            <button type="button" class="secondary-button" data-network-lifecycle-role="worker" data-network-lifecycle-action="stop">Request worker stop</button>
-          </div>
-          <div class="network-future-controls">
-            <p class="note">Unavailable future controls stay disabled until backend-owned routes, preconditions, and tests exist.</p>
-            <div class="action-row action-row-left wrap-actions">
-            <button type="button" class="secondary-button" data-network-future-control="drain" disabled>Drain</button>
-            <button type="button" class="secondary-button" data-network-future-control="disable-new-work" disabled>Disable New Work</button>
-            <button type="button" class="secondary-button" data-network-future-control="pause" disabled>Pause</button>
-            <button type="button" class="secondary-button" data-network-future-control="abort-current" disabled>Abort Current</button>
-            <button type="button" class="secondary-button" data-network-future-control="reclaim-job" disabled>Reclaim Job</button>
-            <button type="button" class="secondary-button" data-network-future-control="quarantine-worker" disabled>Quarantine Worker</button>
-            </div>
-          </div>
-          <pre id="network-lifecycle-control-summary" class="prose-block">No network lifecycle controls loaded.</pre>
-          <pre id="network-lifecycle-command-result" class="prose-block">No lifecycle command result yet.</pre>
-          <div class="network-join-grid" aria-label="Network join setup">
-            <section class="network-join-block">
-              <div class="panel-heading panel-subheading">
-                <h3>Coordinator Join Blob</h3>
-                <strong id="network-coordinator-join-status">Not loaded</strong>
-              </div>
-              <div class="form-grid launch-form-grid network-join-form-grid">
-                <label>
-                  Coordinator URL
-                  <input id="network-coordinator-join-url" type="text" autocomplete="off" spellcheck="false" placeholder="http://coordinator-host:7830">
-                </label>
-                <label class="check-row launch-check-row">
-                  <input id="network-coordinator-join-rotate" type="checkbox"> Rotate token
-                </label>
-              </div>
-              <div class="action-row action-row-left wrap-actions">
-                <button type="button" id="network-coordinator-join-create" class="secondary-button">Create Join Blob</button>
-                <button type="button" id="network-coordinator-join-copy" class="secondary-button">Copy Blob</button>
-              </div>
-              <textarea id="network-coordinator-join-output" class="network-join-blob-textarea" rows="3" readonly spellcheck="false" autocomplete="off" aria-label="Coordinator join blob"></textarea>
-              <pre id="network-coordinator-join-result" class="prose-block network-join-result">No join blob created.</pre>
-            </section>
-            <section class="network-join-block">
-              <div class="panel-heading panel-subheading">
-                <h3>Worker Join Cluster</h3>
-                <strong id="network-worker-join-status">Not loaded</strong>
-              </div>
-              <label class="full-field">
-                Join blob
-                <textarea id="network-worker-join-blob" class="network-join-blob-textarea" rows="3" spellcheck="false" autocomplete="off" aria-label="Worker join blob"></textarea>
-              </label>
-              <div class="action-row action-row-left wrap-actions">
-                <button type="button" id="network-worker-join-import" class="primary-button">Join Cluster</button>
-              </div>
-              <pre id="network-worker-join-result" class="prose-block network-join-result">No join imported.</pre>
-              <div class="panel-heading panel-subheading">
-                <h3>mDNS Discovery</h3>
-                <strong id="network-worker-discovery-status">Not loaded</strong>
-              </div>
-              <div class="action-row action-row-left wrap-actions">
-                <button type="button" id="network-worker-discover" class="secondary-button">Discover Coordinators</button>
-              </div>
-              <div id="network-worker-discovery-list" class="network-discovery-list" role="list" aria-label="Discovered coordinators"></div>
-              <pre id="network-worker-discovery-result" class="prose-block network-join-result">No coordinator discovery run.</pre>
-            </section>
-          </div>
-          <dialog id="network-lifecycle-confirm-dialog" class="network-role-setup-dialog network-lifecycle-confirm-dialog" aria-labelledby="network-lifecycle-confirm-title">
-            <form method="dialog" class="network-role-setup-form">
-              <div class="network-role-setup-heading">
-                <div>
-                  <p class="settings-mini-label">Backend-owned Network command</p>
-                  <h3 id="network-lifecycle-confirm-title">Confirm network command</h3>
+            <div class="network-join-grid" aria-label="Join worker to network cluster">
+              <section class="network-join-block">
+                <div class="panel-heading panel-subheading">
+                  <h3>Coordinator Join Blob</h3>
+                  <strong id="network-coordinator-join-status">Not loaded</strong>
                 </div>
-                <strong id="network-lifecycle-confirm-designation">Network</strong>
-              </div>
-              <p id="network-lifecycle-confirm-summary" class="note">Review the backend command impact before confirming.</p>
-              <pre id="network-lifecycle-confirm-detail" class="prose-block">No Network command selected.</pre>
-              <div class="action-row action-row-left wrap-actions network-role-setup-actions">
-                <button type="button" id="network-lifecycle-confirm-cancel" class="secondary-button" value="cancel">Cancel</button>
-                <button type="button" id="network-lifecycle-confirm-submit" class="primary-button" value="confirm">Confirm command</button>
-              </div>
-            </form>
-          </dialog>
-        </section>
-
-<section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Readiness + Lifecycle Boundary</h2>
-            <strong id="network-readiness-status">Checking</strong>
-          </div>
-          <pre id="network-readiness-summary" class="prose-block">No network readiness data loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Lifecycle Boundary</h3>
-            <strong id="network-lifecycle-boundary-status">Checking</strong>
-          </div>
-          <pre id="network-lifecycle-boundary-summary" class="prose-block">No lifecycle boundary evidence loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Workers Route Summary</h3>
-            <strong id="network-route-summary-status">Not loaded</strong>
-          </div>
-          <pre id="network-route-summary" class="prose-block">No Workers route summary loaded.</pre>
-        </section>
-
-<section class="panel" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Persisted Worker State</h2>
-            <strong id="network-worker-status">Not loaded</strong>
-          </div>
-          <div id="network-worker-summary" class="network-summary-list network-worker-summary-list" role="list">
-            <div class="network-summary-row" role="listitem">
-              <span class="network-summary-row-body">No persisted worker runtime state loaded.</span>
+                <div class="form-grid launch-form-grid network-join-form-grid">
+                  <label>
+                    Coordinator URL
+                    <input id="network-coordinator-join-url" type="text" autocomplete="off" spellcheck="false" placeholder="http://coordinator-host:7830">
+                  </label>
+                  <label class="check-row launch-check-row">
+                    <input id="network-coordinator-join-rotate" type="checkbox"> Rotate token
+                  </label>
+                </div>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="network-coordinator-join-create" class="secondary-button">Create Join Blob</button>
+                  <button type="button" id="network-coordinator-join-copy" class="secondary-button">Copy Blob</button>
+                </div>
+                <textarea id="network-coordinator-join-output" class="network-join-blob-textarea" rows="3" readonly spellcheck="false" autocomplete="off" aria-label="Coordinator join blob"></textarea>
+                <pre id="network-coordinator-join-result" class="prose-block network-join-result">No join blob created.</pre>
+              </section>
+              <section class="network-join-block">
+                <div class="panel-heading panel-subheading">
+                  <h3>Worker Join Cluster</h3>
+                  <strong id="network-worker-join-status">Not loaded</strong>
+                </div>
+                <label class="full-field">
+                  Join blob
+                  <textarea id="network-worker-join-blob" class="network-join-blob-textarea" rows="3" spellcheck="false" autocomplete="off" aria-label="Worker join blob"></textarea>
+                </label>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="network-worker-join-import" class="primary-button">Join Cluster</button>
+                </div>
+                <pre id="network-worker-join-result" class="prose-block network-join-result">No join imported.</pre>
+                <div class="panel-heading panel-subheading">
+                  <h3>mDNS Discovery</h3>
+                  <strong id="network-worker-discovery-status">Not loaded</strong>
+                </div>
+                <div class="action-row action-row-left wrap-actions">
+                  <button type="button" id="network-worker-discover" class="secondary-button">Discover Coordinators</button>
+                </div>
+                <div id="network-worker-discovery-list" class="network-discovery-list" role="list" aria-label="Discovered coordinators"></div>
+                <pre id="network-worker-discovery-result" class="prose-block network-join-result">No coordinator discovery run.</pre>
+              </section>
             </div>
-          </div>
-          <div class="panel-heading panel-subheading">
-            <h3>Last Reported Worker Progress</h3>
-            <strong id="network-worker-progress-status">Not loaded</strong>
-          </div>
-          <div id="network-worker-progress-bars" class="progress-bar-list" aria-live="polite">
-            <p class="note">No last reported worker progress loaded.</p>
-          </div>
-          <pre id="network-worker-progress-summary" class="prose-block">No last reported worker progress loaded.</pre>
-          <div class="option-grid option-grid-compact">
-            <label>
-              Worker status
-              <select id="network-worker-status-filter">
-                <option value="">All worker rows</option>
-                <option value="active">Active or claimed</option>
-                <option value="idle">Idle or complete</option>
-                <option value="problem">Stale, offline, or failed</option>
-                <option value="unknown">Unknown</option>
-              </select>
-            </label>
-            <label>
-              Search
-              <input id="network-worker-filter" type="search" autocomplete="off" placeholder="Worker, job, file, stage, error">
-            </label>
-          </div>
-          <p id="network-worker-filter-summary" class="note">No worker filters applied.</p>
-          <div class="table-wrap detail-table-wrap">
-            <table aria-label="Network worker status rows">
-              <thead>
-                <tr>
-                  <th scope="col">Worker</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">File</th>
-                  <th scope="col" class="num">Progress</th>
-                  <th scope="col" class="num">Heartbeat</th>
-                  <th scope="col" class="num">Done</th>
-                  <th scope="col" class="num">GB</th>
-                  <th scope="col" class="num">GB/h</th>
-                  <th scope="col">Stage</th>
-                </tr>
-              </thead>
-              <tbody id="network-worker-rows">
-                <tr><td colspan="9">No persisted worker runtime state loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No persisted workers</span>
-            <span class="empty-state-hint">Persisted worker rows appear here when distributed mode is active and workers are registered.</span>
-          </div>
-          </div>
-          <p id="network-worker-table-legend" class="note table-legend">Persisted worker rows: no selectable rows.</p>
-          <pre id="network-worker-detail" class="prose-block">No network worker row selected.</pre>
-        </section>
+            <dialog id="network-lifecycle-confirm-dialog" class="network-role-setup-dialog network-lifecycle-confirm-dialog" aria-labelledby="network-lifecycle-confirm-title">
+              <form method="dialog" class="network-role-setup-form">
+                <div class="network-role-setup-heading">
+                  <div>
+                    <p class="settings-mini-label">Backend-owned Network command</p>
+                    <h3 id="network-lifecycle-confirm-title">Confirm network command</h3>
+                  </div>
+                  <strong id="network-lifecycle-confirm-designation">Network</strong>
+                </div>
+                <p id="network-lifecycle-confirm-summary" class="note">Review the backend command impact before confirming.</p>
+                <pre id="network-lifecycle-confirm-detail" class="prose-block">No Network command selected.</pre>
+                <div class="action-row action-row-left wrap-actions network-role-setup-actions">
+                  <button type="button" id="network-lifecycle-confirm-cancel" class="secondary-button" value="cancel">Cancel</button>
+                  <button type="button" id="network-lifecycle-confirm-submit" class="primary-button" value="confirm">Confirm command</button>
+                </div>
+              </form>
+            </dialog>
+          </section>
+        </details>
 
-        <section class="panel" data-panel-type="interactive">
+        <details class="network-command-drawer" id="network-settings-drawer">
+          <summary>Settings</summary>
+          <section class="panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Saved Distributed Mode Settings <span class="impact-chip" data-impact="medium" title="Network / runtime config - standalone, coordinator, worker, polling, and connection timeouts">Medium Impact</span></h2>
             <strong id="settings-network-builder-status">Staged Patch: none</strong>
@@ -438,12 +462,14 @@
             <button type="button" id="network-settings-preview-button" class="secondary-button">Preview Settings Patch</button>
             <button type="button" id="network-settings-save-button" class="primary-button">Save Distributed Settings</button>
           </div>
-          <pre id="settings-network-guidance" class="prose-block">No distributed-mode guidance loaded.</pre>
-          <div class="panel-heading panel-subheading">
-            <h3>Staged Settings Patch</h3>
-            <strong id="network-settings-control-status">Staged Patch: none</strong>
+          <pre id="settings-network-guidance" class="prose-block" hidden aria-hidden="true">No distributed-mode guidance loaded.</pre>
+          <div class="network-settings-patch-summary" hidden aria-hidden="true">
+            <div class="panel-heading panel-subheading">
+              <h3>Staged Settings Patch</h3>
+              <strong id="network-settings-control-status">Staged Patch: none</strong>
+            </div>
+            <pre id="network-settings-patch-handoff" class="prose-block">Stage distributed mode settings, preview the backend patch, then save when the diff is correct.</pre>
           </div>
-          <pre id="network-settings-patch-handoff" class="prose-block">Stage distributed mode settings, preview the backend patch, then save when the diff is correct.</pre>
           <dialog id="network-role-setup-dialog" class="network-role-setup-dialog" aria-labelledby="network-role-setup-title">
             <form method="dialog" class="network-role-setup-form">
               <div class="network-role-setup-heading">
@@ -540,134 +566,203 @@
               </div>
             </form>
           </dialog>
-        </section>
+          </section>
+        </details>
 
-<section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Network Config</h2>
-            <strong id="network-settings-status">No rows</strong>
-          </div>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Section</th>
-                  <th scope="col">Setting</th>
-                  <th scope="col">Value</th>
-                  <th scope="col">Purpose</th>
-                </tr>
-              </thead>
-              <tbody id="network-settings-rows">
-                <tr><td colspan="4">No network settings loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No network config</span>
-            <span class="empty-state-hint">Network settings appear here when the backend loads with distributed mode configured.</span>
-          </div>
-          </div>
-        </section>
+        <details class="network-command-drawer" id="network-advanced-evidence-drawer" data-advanced>
+          <summary>Advanced Evidence</summary>
+          <section class="panel" data-panel-type="interactive">
+            <div class="panel-heading">
+              <h2>Mode Summary</h2>
+              <strong>Read-only</strong>
+            </div>
+            <div id="network-summary" class="network-summary-list" role="list">
+              <div class="network-summary-row" role="listitem">
+                <span class="network-summary-row-body">No network settings loaded.</span>
+              </div>
+            </div>
+            <div class="panel-heading panel-subheading">
+              <h3>Mode Model</h3>
+              <strong>Read-only</strong>
+            </div>
+            <div id="network-mode-model" class="network-summary-list network-summary-list-compact" role="list">
+              <div class="network-summary-row" role="listitem">
+                <span class="network-summary-row-body">No distributed mode model loaded.</span>
+              </div>
+            </div>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="button" class="secondary-button" data-open-diagnostics="run_logs">Open Run Logs</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="cluster_log">Open Cluster Log</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="active_jobs">Open Active Jobs</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="config">Open Config</button>
+              <button type="button" class="secondary-button" data-open-diagnostics="state">Open State Folder</button>
+            </div>
+          </section>
 
-<section class="panel" data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Open History</h2>
-            <strong id="network-open-history-status">No opens</strong>
-          </div>
-          <pre id="network-open-history" class="prose-block">No network diagnostics open command history loaded.</pre>
-        </section>
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Readiness + Lifecycle Boundary</h2>
+              <strong id="network-readiness-status">Checking</strong>
+            </div>
+            <pre id="network-readiness-summary" class="prose-block">No network readiness data loaded.</pre>
+            <div class="panel-heading panel-subheading">
+              <h3>Lifecycle Boundary</h3>
+              <strong id="network-lifecycle-boundary-status">Checking</strong>
+            </div>
+            <pre id="network-lifecycle-boundary-summary" class="prose-block">No lifecycle boundary evidence loaded.</pre>
+            <div class="panel-heading panel-subheading">
+              <h3>Workers Route Summary</h3>
+              <strong id="network-route-summary-status">Not loaded</strong>
+            </div>
+            <pre id="network-route-summary" class="prose-block">No Workers route summary loaded.</pre>
+          </section>
 
-<section class="panel" data-advanced data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Lifecycle Handoff</h2>
-            <strong id="network-lifecycle-status">Not loaded</strong>
-          </div>
-          <pre id="network-lifecycle-summary" class="prose-block">No network lifecycle handoff loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Gate</th>
-                  <th scope="col">Status</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Safe Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="network-lifecycle-rows">
-                <tr><td colspan="4">No network lifecycle handoff rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No lifecycle data</span>
-            <span class="empty-state-hint">Lifecycle handoff rows appear when a distributed job is active or recently completed.</span>
-          </div>
-          </div>
-          <p id="network-lifecycle-legend" class="note table-legend">Network lifecycle handoff rows are read-only and cannot start, stop, reclaim, release, abort, or mutate distributed work.</p>
-          <pre id="network-lifecycle-detail" class="prose-block">No network lifecycle handoff row selected.</pre>
-        </section>
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Network Config</h2>
+              <strong id="network-settings-status">No rows</strong>
+            </div>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Section</th>
+                    <th scope="col">Setting</th>
+                    <th scope="col">Value</th>
+                    <th scope="col">Purpose</th>
+                  </tr>
+                </thead>
+                <tbody id="network-settings-rows">
+                  <tr><td colspan="4">No network settings loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No network config</span>
+              <span class="empty-state-hint">Network settings appear here when the backend loads with distributed mode configured.</span>
+            </div>
+            </div>
+          </section>
 
-<section class="panel" data-advanced data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>Evidence Checklist</h2>
-            <strong id="network-evidence-status">Not loaded</strong>
-          </div>
-          <pre id="network-evidence-summary" class="prose-block">No network evidence checklist loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">Checkpoint</th>
-                  <th scope="col">Posture</th>
-                  <th scope="col">Evidence</th>
-                  <th scope="col">Safe Next Step</th>
-                </tr>
-              </thead>
-              <tbody id="network-evidence-rows">
-                <tr><td colspan="4">No network evidence rows loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No evidence</span>
-            <span class="empty-state-hint">Network evidence rows appear when distributed mode is active.</span>
-          </div>
-          </div>
-          <p id="network-evidence-legend" class="note table-legend">Network evidence rows: no selectable rows.</p>
-          <pre id="network-evidence-detail" class="prose-block">No network evidence row selected.</pre>
-        </section>
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Open History</h2>
+              <strong id="network-open-history-status">No opens</strong>
+            </div>
+            <pre id="network-open-history" class="prose-block">No network diagnostics open command history loaded.</pre>
+          </section>
 
-<section class="panel" data-advanced data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>State Files</h2>
-            <strong id="network-state-files-status">Not loaded</strong>
-          </div>
-          <pre id="network-state-files-summary" class="prose-block">No network runtime state file evidence loaded.</pre>
-          <div class="table-wrap detail-table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th scope="col">File</th>
-                  <th scope="col">Status</th>
-                  <th scope="col" class="num">Age</th>
-                  <th scope="col">Purpose</th>
-                </tr>
-              </thead>
-              <tbody id="network-state-files-rows">
-                <tr><td colspan="4">No network runtime state files loaded.</td></tr>
-              </tbody>
-            </table>
-          <div class="empty-state" data-empty-state="hidden" style="display:none">
-            <span class="empty-state-label">No state files</span>
-            <span class="empty-state-hint">Network runtime state files appear when a distributed job has run.</span>
-          </div>
-          </div>
-          <p id="network-state-files-legend" class="note table-legend">Network runtime state file rows: no selectable rows.</p>
-          <pre id="network-state-files-detail" class="prose-block">No network runtime state file selected.</pre>
-        </section>
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Lifecycle Handoff</h2>
+              <strong id="network-lifecycle-status">Not loaded</strong>
+            </div>
+            <pre id="network-lifecycle-summary" class="prose-block">No network lifecycle handoff loaded.</pre>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Gate</th>
+                    <th scope="col">Status</th>
+                    <th scope="col">Evidence</th>
+                    <th scope="col">Safe Next Step</th>
+                  </tr>
+                </thead>
+                <tbody id="network-lifecycle-rows">
+                  <tr><td colspan="4">No network lifecycle handoff rows loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No lifecycle data</span>
+              <span class="empty-state-hint">Lifecycle handoff rows appear when a distributed job is active or recently completed.</span>
+            </div>
+            </div>
+            <p id="network-lifecycle-legend" class="note table-legend">Network lifecycle handoff rows are read-only and cannot start, stop, reclaim, release, abort, or mutate distributed work.</p>
+            <pre id="network-lifecycle-detail" class="prose-block">No network lifecycle handoff row selected.</pre>
+          </section>
 
-<section class="panel" data-advanced data-panel-type="evidence">
-          <div class="panel-heading">
-            <h2>API Contract</h2>
-            <strong id="network-api-status">Not loaded</strong>
-          </div>
-          <pre id="network-api-summary" class="prose-block">No local API contract loaded.</pre>
-        </section>
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Evidence Checklist</h2>
+              <strong id="network-evidence-status">Not loaded</strong>
+            </div>
+            <pre id="network-evidence-summary" class="prose-block">No network evidence checklist loaded.</pre>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">Checkpoint</th>
+                    <th scope="col">Posture</th>
+                    <th scope="col">Evidence</th>
+                    <th scope="col">Safe Next Step</th>
+                  </tr>
+                </thead>
+                <tbody id="network-evidence-rows">
+                  <tr><td colspan="4">No network evidence rows loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No evidence</span>
+              <span class="empty-state-hint">Network evidence rows appear when distributed mode is active.</span>
+            </div>
+            </div>
+            <p id="network-evidence-legend" class="note table-legend">Network evidence rows: no selectable rows.</p>
+            <pre id="network-evidence-detail" class="prose-block">No network evidence row selected.</pre>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>State Files</h2>
+              <strong id="network-state-files-status">Not loaded</strong>
+            </div>
+            <pre id="network-state-files-summary" class="prose-block">No network runtime state file evidence loaded.</pre>
+            <div class="table-wrap detail-table-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    <th scope="col">File</th>
+                    <th scope="col">Status</th>
+                    <th scope="col" class="num">Age</th>
+                    <th scope="col">Purpose</th>
+                  </tr>
+                </thead>
+                <tbody id="network-state-files-rows">
+                  <tr><td colspan="4">No network runtime state files loaded.</td></tr>
+                </tbody>
+              </table>
+            <div class="empty-state" data-empty-state="hidden" style="display:none">
+              <span class="empty-state-label">No state files</span>
+              <span class="empty-state-hint">Network runtime state files appear when a distributed job has run.</span>
+            </div>
+            </div>
+            <p id="network-state-files-legend" class="note table-legend">Network runtime state file rows: no selectable rows.</p>
+            <pre id="network-state-files-detail" class="prose-block">No network runtime state file selected.</pre>
+          </section>
+
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>API Contract</h2>
+              <strong id="network-api-status">Not loaded</strong>
+            </div>
+            <pre id="network-api-summary" class="prose-block">No local API contract loaded.</pre>
+          </section>
+        </details>
+
+        <details class="network-command-drawer" id="network-unavailable-actions-drawer">
+          <summary>Unavailable Actions</summary>
+          <section class="panel" data-panel-type="evidence">
+            <div class="panel-heading">
+              <h2>Unavailable Actions</h2>
+              <strong>Backend routes required</strong>
+            </div>
+            <p class="note">Disabled controls stay out of the main workflow until backend-owned routes, preconditions, and tests exist.</p>
+            <div class="action-row action-row-left wrap-actions network-future-controls">
+              <button type="button" class="secondary-button" data-network-future-control="drain" disabled>Drain</button>
+              <button type="button" class="secondary-button" data-network-future-control="disable-new-work" disabled>Disable New Work</button>
+              <button type="button" class="secondary-button" data-network-future-control="pause" disabled>Pause</button>
+              <button type="button" class="secondary-button" data-network-future-control="abort-current" disabled>Abort Current</button>
+              <button type="button" class="secondary-button" data-network-future-control="reclaim-job" disabled>Reclaim Job</button>
+              <button type="button" class="secondary-button" data-network-future-control="quarantine-worker" disabled>Quarantine Worker</button>
+            </div>
+          </section>
+        </details>
       </section>

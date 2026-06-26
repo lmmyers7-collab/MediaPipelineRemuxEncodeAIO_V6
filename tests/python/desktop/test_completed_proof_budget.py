@@ -34,7 +34,7 @@ from mediapipeline.desktop.api.read_payloads_inventory import (
 )
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import CompletedJobRecord
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
 def _logger() -> logging.Logger:

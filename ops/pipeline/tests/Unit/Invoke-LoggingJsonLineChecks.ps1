@@ -155,7 +155,62 @@ function Invoke-PipelineEventLogRotationCheck {
     }
 }
 
+function Invoke-ConcurrentCompletedManifestJsonLineAppendCheck {
+    $tempRoot = Join-Path ([System.IO.Path]::GetTempPath()) ('MediaPipelineCompletedJsonLineStress_' + [guid]::NewGuid().ToString('N'))
+    $jobs = @()
+    try {
+        New-Item -ItemType Directory -Path $tempRoot -Force | Out-Null
+        $manifestPath = Join-Path $tempRoot 'completed_jobs.jsonl'
+        $mutexName = 'Global\MediaPipelineCompletedJsonLineStress_' + [guid]::NewGuid().ToString('N')
+        for ($slot = 0; $slot -lt 4; $slot++) {
+            $jobs += Start-Job -ScriptBlock {
+                param([string] $RepoRoot, [string] $ManifestPath, [string] $MutexName, [int] $Slot)
+                . (Join-Path $RepoRoot 'ops\pipeline\engine\observability\logging.ps1')
+                $script:logLock = [System.Threading.Mutex]::new($false, $MutexName)
+                try {
+                    for ($index = 0; $index -lt 50; $index++) {
+                        $ok = Write-JsonLineAppend -Path $ManifestPath -Payload ([ordered]@{
+                            schema_version = 'completed_job.v1'
+                            slot           = $Slot
+                            index          = $index
+                            output_path    = "C:\Out\slot-$Slot-$index.mkv"
+                        }) -Depth 10 -UseLogLock
+                        if (-not [bool]$ok) { throw "append failed for slot $Slot index $index" }
+                    }
+                } finally {
+                    if ($script:logLock) {
+                        $script:logLock.Dispose()
+                        $script:logLock = $null
+                    }
+                }
+            } -ArgumentList $repoRoot, $manifestPath, $mutexName, $slot
+        }
+
+        Wait-Job -Job $jobs -Timeout 30 | Out-Null
+        $notDone = @($jobs | Where-Object { $_.State -ne 'Completed' })
+        if ($notDone.Count -gt 0) {
+            throw "concurrent append jobs did not complete: $($notDone.State -join ', ')"
+        }
+        foreach ($job in $jobs) {
+            Receive-Job -Job $job -ErrorAction Stop | Out-Null
+        }
+
+        $lines = @(Get-Content -LiteralPath $manifestPath)
+        Assert-Equal $lines.Count 200 'Concurrent completed manifest append should preserve every JSONL row.'
+        foreach ($line in $lines) {
+            $parsed = $line | ConvertFrom-Json -ErrorAction Stop
+            Assert-Equal ([string]$parsed.schema_version) 'completed_job.v1' 'Completed manifest JSONL row schema mismatch.'
+        }
+    } finally {
+        foreach ($job in $jobs) {
+            Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+        }
+        Remove-Item -LiteralPath $tempRoot -Recurse -Force -ErrorAction SilentlyContinue
+    }
+}
+
 Invoke-JsonLineAppendFailsClosedWhenLogLockIsHeldCheck
 Invoke-PipelineEventLogRotationCheck
+Invoke-ConcurrentCompletedManifestJsonLineAppendCheck
 
 Write-Host 'Logging JSONL checks passed.'

@@ -43,13 +43,72 @@
       return runtimeStatus === "stopped" && (runtimeError === "stop_requested" || (runtimeReason.includes("stop") && runtimeReason.includes("operator")));
     }
 
+    function queueReviewFlagIsLaunchCheckBenign(flag) {
+      const normalized = String(flag || "").trim().toLowerCase();
+      return normalized === "encode_route"
+        || normalized === "remux_route"
+        || normalized === "runtime_checks_deferred"
+        || normalized.startsWith("runtime:");
+    }
+
+    function queueActionableReviewFlags(row) {
+      return Array.isArray(row?.review_flags)
+        ? row.review_flags.filter((flag) => flag && !queueReviewFlagIsLaunchCheckBenign(flag))
+        : [];
+    }
+
+    function queueHasDeferredLaunchChecks(row) {
+      if (row?.runtime_checks_deferred) return true;
+      if (Number(row?.runtime_check_deferred_count || 0) > 0) return true;
+      if (String(row?.operator_trust_state || "").toLowerCase() === "launch-check-needed") return true;
+      return Array.isArray(row?.review_flags) && row.review_flags.some((flag) => {
+        const normalized = String(flag || "").trim().toLowerCase();
+        return normalized === "runtime_checks_deferred" || normalized.startsWith("runtime:");
+      });
+    }
+
+    function queueHasRuntimeOutcome(row) {
+      return Boolean(
+        row?.runtime_outcome_status
+        || row?.runtime_outcome_error_code
+        || row?.runtime_outcome_reason
+        || row?.runtime_outcome_success === true
+        || row?.runtime_outcome_success === false
+      );
+    }
+
+    function queueIsLaunchCheckOnly(row) {
+      if (!row || typeof row !== "object" || !queueHasDeferredLaunchChecks(row)) return false;
+      const severity = String(row.operator_severity || "").toLowerCase();
+      const status = String(row.status || "").toLowerCase();
+      const trustState = String(row.operator_trust_state || "").toLowerCase();
+      const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(row) : "";
+      if (severity && !["ok", "info", "normal", "ready"].includes(severity)) return false;
+      if (["invalid", "blocked", "failed", "error"].some((value) => status.includes(value))) return false;
+      if (row.blocked_reason || row.blocked_reason_code || row.error) return false;
+      if (queueHasRuntimeOutcome(row)) return false;
+      if (queueActionableReviewFlags(row).length) return false;
+      if (trustState && !["ready", "launch-check-needed", "consistent-looking"].includes(trustState)) return false;
+      if (backendState && !["warning", "ready", "queued", "match", "changed"].includes(backendState)) return false;
+      return true;
+    }
+
+    function queuePrimaryConcernNeedsReview(row) {
+      const concern = String(row?.primary_concern || "").trim().toLowerCase();
+      if (!concern) return false;
+      if (concern.includes("no blocker")) return false;
+      if (concern.includes("deferred until backend launch") && queueIsLaunchCheckOnly(row)) return false;
+      return true;
+    }
+
     function queueReviewRowReasons(row) {
+      if (queueIsLaunchCheckOnly(row)) return [];
       const reasons = [];
       const severity = String(row?.operator_severity || "").toLowerCase();
       const status = String(row?.status || "").toLowerCase();
       const runtimeStatus = String(row?.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(row?.runtime_outcome_freshness_status || "").toLowerCase();
-      const reviewFlags = Array.isArray(row?.review_flags) ? row.review_flags.filter(Boolean) : [];
+      const reviewFlags = queueActionableReviewFlags(row);
       if (severity === "error") reasons.push("backend error severity");
       if (severity === "warning") reasons.push("backend warning severity");
       if (status === "invalid") reasons.push("invalid queue row");
@@ -62,7 +121,7 @@
       }
       if (reviewFlags.length) reasons.push(`review flags: ${reviewFlags.join(", ")}`);
       if (String(row?.operator_trust_state || "").toLowerCase().includes("review")) reasons.push(`trust state: ${row.operator_trust_state}`);
-      if (row?.primary_concern) reasons.push(`primary concern: ${row.primary_concern}`);
+      if (queuePrimaryConcernNeedsReview(row)) reasons.push(`primary concern: ${row.primary_concern}`);
       return reasons.filter(Boolean);
     }
 
@@ -148,8 +207,9 @@
 
 
     function queueTableRowStatus(item) {
+      if (queueIsLaunchCheckOnly(item)) return "launch-check";
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
-      if (backendState) return backendState;
+      if (backendState && backendState !== "warning") return backendState;
       const severity = String(item?.operator_severity || "").toLowerCase();
       if (severity === "error" || item?.blocked_reason || item?.blocked_reason_code || item?.error) return "blocked";
       if (severity === "warning" || item?.is_priority || queueReviewRowReasons(item).length) return "warning";
@@ -260,11 +320,16 @@
       if (!item) return "unknown";
       const backendState = typeof backendRowStatusState === "function" ? backendRowStatusState(item) : "";
       if (["blocked", "failed"].includes(backendState)) return "blocked";
-      if (["warning", "running", "completed", "skipped", "parked", "publishing", "health-check"].includes(backendState)) return "warning";
+      if (queueIsLaunchCheckOnly(item)) return "changed";
+      if (backendState === "warning") {
+        const severity = String(item.operator_severity || "").toLowerCase();
+        if (severity === "warning" || item.is_priority || queueReviewRowReasons(item).length) return "warning";
+      }
+      if (["running", "completed", "skipped", "parked", "publishing", "health-check"].includes(backendState)) return "warning";
       if (["ready", "match"].includes(backendState)) return "ready";
       const runtimeStatus = String(item.runtime_outcome_status || "").toLowerCase();
       const runtimeFreshness = String(item.runtime_outcome_freshness_status || "").toLowerCase();
-      const reviewFlags = Array.isArray(item.review_flags) ? item.review_flags.filter(Boolean) : [];
+      const reviewFlags = queueActionableReviewFlags(item);
       const blocked = Boolean(item.blocked_reason || item.blocked_reason_code || String(item.status || "").toLowerCase().includes("blocked") || item.error);
       const recentRuntimeIssue = runtimeFreshness === "fresh" && ["failed", "error", "skipped"].some((value) => runtimeStatus.includes(value));
       if (blocked) return "blocked";

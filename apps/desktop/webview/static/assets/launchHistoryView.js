@@ -35,6 +35,27 @@
     return parts.length ? ` (${parts.join("; ")})` : "";
   }
 
+  function launchHistoryRawData(entry) {
+    const raw = entry?.raw && typeof entry.raw === "object" ? entry.raw : {};
+    return raw.data && typeof raw.data === "object" ? raw.data : {};
+  }
+
+  function launchHistoryMode(entry) {
+    const request = launchHistoryRequest(entry);
+    const data = launchHistoryRawData(entry);
+    return request.mode || data.mode || data.actual_mode || data.requested_mode || "";
+  }
+
+  function launchHistoryPid(entry) {
+    const data = launchHistoryRawData(entry);
+    return data.pid || data.process_id || "";
+  }
+
+  function launchHistoryJob(entry) {
+    const data = launchHistoryRawData(entry);
+    return data.active_job_id || data.job_id || "";
+  }
+
   function launchHistoryLine(entry) {
     if (typeof commandHistoryCompactEvidenceLine === "function") {
       return commandHistoryCompactEvidenceLine(entry, {
@@ -48,11 +69,152 @@
     return `${entry?.at || ""} ${launchHistoryLabel(command)} [${status}; ${local}] ${entry?.message || ""}${launchHistoryDetail(entry)}`.trim();
   }
 
+  function launchHistoryLegacyBlock(entries) {
+    return [
+      `Last ${entries.length} launch command${entries.length === 1 ? "" : "s"}:`,
+      ...entries.map(launchHistoryLine),
+      "Backend launch locking and validation remain the source of truth.",
+    ].join("\n");
+  }
+
   function launchHistoryIssueLevel(entry) {
     if (typeof commandHistoryView.commandHistoryIssueLevel === "function") return commandHistoryView.commandHistoryIssueLevel(entry);
     if (!entry) return "none";
     if (entry.ok) return String(entry.severity || "").toLowerCase() === "warning" ? "warning" : "ok";
     return String(entry.severity || "error").toLowerCase();
+  }
+
+  function launchHistoryOwner(entry) {
+    if (typeof commandHistoryView.commandHistoryOwnerPage === "function") return commandHistoryView.commandHistoryOwnerPage(entry);
+    return "Launch";
+  }
+
+  function launchHistoryStatusLabel(entry) {
+    return String(entry?.result || (entry?.ok ? "ok" : entry?.severity || "unknown") || "unknown");
+  }
+
+  function launchHistoryStatusState(entry) {
+    const issue = String(launchHistoryIssueLevel(entry) || "").toLowerCase();
+    if (["error", "failed", "blocked"].includes(issue)) return "blocked";
+    if (["warning", "review", "unknown"].includes(issue)) return "warning";
+    if (["ok", "info"].includes(issue)) return "ok";
+    return issue || "unknown";
+  }
+
+  function launchHistoryOverallPosture(entries) {
+    const states = entries.map(launchHistoryStatusState);
+    if (states.some((state) => state === "blocked")) return { label: "Needs review", state: "blocked" };
+    if (states.some((state) => state === "warning")) return { label: "Review", state: "warning" };
+    if (entries.length) return { label: "All OK", state: "ok" };
+    return { label: "No launches", state: "empty" };
+  }
+
+  function launchHistoryElement(tagName, className = "", text = "") {
+    const node = document.createElement(tagName);
+    if (className) node.className = className;
+    if (text !== "") node.textContent = String(text);
+    return node;
+  }
+
+  function launchHistoryAppendText(parent, tagName, className, text) {
+    const node = launchHistoryElement(tagName, className, text);
+    parent.appendChild(node);
+    return node;
+  }
+
+  function launchHistoryStatusChip(label, status) {
+    const maker = window.mediaPipelineDom?.makeStatusChip || window.makeStatusChip;
+    if (typeof maker === "function") return maker(label, status);
+    const chip = launchHistoryElement("span", "status-chip", label || status || "unknown");
+    chip.dataset.status = status || "unknown";
+    return chip;
+  }
+
+  function launchHistoryMetaChip(text, status = "") {
+    const chip = launchHistoryElement("span", "launch-history-meta-chip", text);
+    if (status) chip.dataset.status = status;
+    return chip;
+  }
+
+  function launchHistorySummaryMetric(label, value, detail, status = "") {
+    const node = launchHistoryElement("section", "launch-history-summary-card");
+    if (status) node.dataset.status = status;
+    launchHistoryAppendText(node, "span", "launch-history-summary-label", label);
+    launchHistoryAppendText(node, "strong", "launch-history-summary-value", value);
+    launchHistoryAppendText(node, "span", "launch-history-summary-detail", detail);
+    return node;
+  }
+
+  function renderLaunchHistoryEmpty(target, text) {
+    setText("launch-history", text);
+    if (!target) return;
+    target.className = "launch-command-history";
+    target.replaceChildren(launchHistoryElement("p", "launch-history-empty", text));
+  }
+
+  function renderLaunchHistorySummary(entries, totalLaunches) {
+    const posture = launchHistoryOverallPosture(entries);
+    const summary = launchHistoryElement("div", "launch-history-summary-strip");
+    summary.appendChild(launchHistorySummaryMetric(
+      "Launches shown",
+      String(entries.length),
+      `${totalLaunches} launch command${totalLaunches === 1 ? "" : "s"} in recent history`,
+      entries.length ? "ok" : "empty",
+    ));
+    summary.appendChild(launchHistorySummaryMetric(
+      "Latest launch",
+      entries[0]?.at || "Not loaded",
+      entries[0] ? launchHistoryLabel(entries[0].command) : "No launch command loaded",
+      entries[0] ? launchHistoryStatusState(entries[0]) : "empty",
+    ));
+    summary.appendChild(launchHistorySummaryMetric(
+      "Posture",
+      posture.label,
+      "Backend command journal evidence",
+      posture.state,
+    ));
+    return summary;
+  }
+
+  function renderLaunchHistoryRow(entry) {
+    const row = launchHistoryElement("article", "launch-history-row");
+    const command = String(entry?.command || "");
+    const status = launchHistoryStatusState(entry);
+    const source = entry?.local ? "local" : "journal";
+    const issue = launchHistoryIssueLevel(entry);
+    const owner = launchHistoryOwner(entry);
+    const mode = launchHistoryMode(entry);
+    const pid = launchHistoryPid(entry);
+    const job = launchHistoryJob(entry);
+    const rawLine = launchHistoryLine(entry);
+
+    row.dataset.status = status;
+    row.setAttribute("aria-label", `${launchHistoryLabel(command)} launch command ${launchHistoryStatusLabel(entry)}`);
+
+    const header = launchHistoryElement("div", "launch-history-row-header");
+    const titleBlock = launchHistoryElement("div", "launch-history-row-title");
+    launchHistoryAppendText(titleBlock, "strong", "launch-history-row-name", launchHistoryLabel(command));
+    launchHistoryAppendText(titleBlock, "span", "launch-history-row-time", entry?.at || "No timestamp");
+    header.appendChild(titleBlock);
+    header.appendChild(launchHistoryStatusChip(launchHistoryStatusLabel(entry), status));
+    row.appendChild(header);
+
+    launchHistoryAppendText(row, "p", "launch-history-message", entry?.message || "No command message recorded.");
+
+    const meta = launchHistoryElement("div", "launch-history-meta");
+    meta.appendChild(launchHistoryMetaChip(source, source === "journal" ? "ok" : "warning"));
+    meta.appendChild(launchHistoryMetaChip(`owner=${owner}`, "ok"));
+    meta.appendChild(launchHistoryMetaChip(`issue=${issue}`, status));
+    if (mode) meta.appendChild(launchHistoryMetaChip(`mode=${mode}`, "running"));
+    if (pid) meta.appendChild(launchHistoryMetaChip(`pid=${pid}`, "running"));
+    if (job) meta.appendChild(launchHistoryMetaChip(`job=${job}`, "running"));
+    row.appendChild(meta);
+
+    const details = launchHistoryElement("details", "launch-history-raw");
+    launchHistoryAppendText(details, "summary", "", "Raw evidence");
+    launchHistoryAppendText(details, "pre", "launch-history-raw-text", rawLine);
+    row.appendChild(details);
+    return row;
   }
 
   function launchHistoryTarget(command) {
@@ -506,38 +668,33 @@
 
   function renderLaunchCommandHistory(history = []) {
     renderLaunchCommandReview(history);
-    if (typeof commandHistoryView.renderCompactCommandHistoryBlock === "function") {
-      commandHistoryView.renderCompactCommandHistoryBlock({
-        history,
-        filter: isLaunchCommand,
-        limit: 6,
-        targetId: "launch-history",
-        statusId: "launch-history-status",
-        statusText: (entries) => `${entries.length} launch${entries.length === 1 ? "" : "es"}`,
-        itemLabel: "launch command",
-        emptyHistoryText: "No command history loaded yet. Recent pipeline and CSV rerun starts will appear here after refresh.",
-        emptyMatchText: "No pipeline or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.",
-        lineFor: launchHistoryLine,
-        footer: "Backend launch locking and validation remain the source of truth.",
-      });
-      return;
-    }
-    const entries = Array.isArray(history) ? history.filter(isLaunchCommand).slice(0, 6) : [];
+    const target = byId("launch-history");
+    const allLaunches = Array.isArray(history) ? history.filter(isLaunchCommand) : [];
+    const entries = allLaunches.slice(0, 6);
     setText("launch-history-status", `${entries.length} launch${entries.length === 1 ? "" : "es"}`);
     if (!Array.isArray(history) || !history.length) {
-      setText("launch-history", "No command history loaded yet. Recent pipeline and CSV rerun starts will appear here after refresh.");
+      renderLaunchHistoryEmpty(target, "No command history loaded yet. Recent pipeline and CSV rerun starts will appear here after refresh.");
       return;
     }
     if (!entries.length) {
-      setText("launch-history", "No pipeline or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.");
+      renderLaunchHistoryEmpty(target, "No pipeline or CSV rerun start commands found in the recent command history. Pending publish drain history remains on the Pending Publish page.");
       return;
     }
-    const lines = [
-      `Last ${entries.length} launch command${entries.length === 1 ? "" : "s"}:`,
-      ...entries.map(launchHistoryLine),
-      "Backend launch locking and validation remain the source of truth.",
-    ];
-    setText("launch-history", lines.join("\n"));
+    setText("launch-history", launchHistoryLegacyBlock(entries));
+    if (!target) return;
+    target.className = "launch-command-history";
+    const heading = launchHistoryElement("p", "launch-history-legacy-line visually-hidden", `Last ${entries.length} launch command${entries.length === 1 ? "" : "s"}:`);
+    const list = launchHistoryElement("div", "launch-history-list");
+    entries.forEach((entry) => {
+      list.appendChild(renderLaunchHistoryRow(entry));
+    });
+    const footer = launchHistoryElement("p", "launch-history-footer", "Backend launch locking and validation remain the source of truth.");
+    target.replaceChildren(
+      heading,
+      renderLaunchHistorySummary(entries, allLaunches.length),
+      list,
+      footer,
+    );
   }
 
   /**

@@ -1,0 +1,63 @@
+{
+  "id": "MP-CHANGE-2026-0624-041",
+  "title": "Fix Libraries save review freeze",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "The shared Save Settings review dialog now lives outside hidden page panels, Libraries save defensively rehomes the dialog before opening, and settings patch preview/save POSTs have explicit UI-bounded timeouts.",
+  "reason": "Saving a LibraryProfiles patch from the Libraries page could open the shared review dialog while it was nested inside the hidden Settings page, leaving the WebView inert with no visible dialog to cancel. Unbounded settings patch POSTs could also keep local busy latches disabled indefinitely if the backend never returned.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The save review dialog was declared inside page-settings.html, so opening it from Libraries could make the app modal while the dialog remained hidden under .page:not(.is-visible). Settings patch preview/save requests from settingsView.js also used the no-timeout POST default.",
+  "behavior_after": "The review dialog is included once from a shared shell partial outside page panels; openSettingsSaveReviewDialog moves any hidden-page-contained dialog to the global shell/body before showModal and resolves its promise once. Settings patch preview/save POSTs use 60000 ms and 120000 ms timeouts with a save-status-unknown message on timeout.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "apps/desktop/webview/static/index.html",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "apps/desktop/webview/static/partials/shared-settings-save-review-dialog.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/index.html.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/shared-settings-save-review-dialog.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-041.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_static_files_policy.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_settings_launch_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_handbrake_settings_ui.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_settings_libraries.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-041.json",
+    "tests/python/desktop/test_api_static_files_policy.py",
+    "tests/webview/test_webview_browser_settings_launch_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_api_static_files_policy.py",
+    "tests/webview/test_webview_browser_settings_launch_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py",
+    "tests/webview/test_webview_handbrake_settings_ui.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "manual_validation": [
+    "node --check apps/desktop/webview/static/assets/settingsView.js - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_settings_libraries -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_api_static_files_policy -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_handbrake_settings_ui -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_local_api.LocalApiServerTests.test_local_api_serves_read_only_web_prototype -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q - passed",
+    "ops/scripts/smoke/Test-WebViewSettingsPatchEvidenceSmoke.ps1 - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed"
+  ],
+  "rollback_plan": "Move the dialog markup back into page-settings.html, remove the defensive rehome and timeout options from settingsView.js, and revert the matching static/browser smoke assertions.",
+  "related_changes": [],
+  "notes": "Browser regression opens Save Library Profile from Libraries, verifies the dialog is visible and not inside a hidden page, cancels, and verifies Library command buttons are enabled/clickable. Backend settings authority and confirm_save=true behavior are unchanged.\nStrict worktree coverage was run but failed on unrelated dirty files outside this packet: pipelineLogWindow assets, dependency-atlas generated images, docs/generated/summaries/tests/python/desktop/test_preset_library.py.md, and docs/implementation/local-api-test-split docs."
+}

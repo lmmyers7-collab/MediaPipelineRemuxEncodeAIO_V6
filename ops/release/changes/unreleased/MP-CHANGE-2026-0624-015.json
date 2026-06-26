@@ -1,0 +1,50 @@
+{
+  "id": "MP-CHANGE-2026-0624-015",
+  "title": "Harden pending publish command contracts",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Hardened pending-publish command payload validation and corrected orphan payload reconcile rollback evidence contract.",
+  "reason": "Pending Publish open and recovery-plan routes accepted generic path-shaped payload fields despite documented row-key/backend-owned path authority; orphan reconcile contract promised backup evidence even though the implementation creates new manifests and refuses overwrites.",
+  "affected_areas": [
+    "contracts",
+    "docs",
+    "tests"
+  ],
+  "behavior_before": "Pending Publish open and recovery-plan validation reused the generic open-location payload and accepted path-like extras; orphan reconcile contract described backup-before-replacement evidence for a create-only manifest flow.",
+  "behavior_after": "Pending Publish open and recovery-plan use strict route-specific payloads; orphan reconcile contract describes create-only, no-backup-applicable rollback evidence.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/contracts/api_commands.py.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/api/contract_payload.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_command_contracts.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_api_contract_payload.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-015.json",
+    "src/mediapipeline/contracts/api_commands.py",
+    "src/mediapipeline/desktop/api/contract_payload.py",
+    "tests/python/desktop/test_api_command_contracts.py",
+    "tests/python/desktop/test_api_contract_payload.py"
+  ],
+  "tests_added": [
+    "tests.python.desktop.test_api_command_contracts: pending publish open/recovery-plan strict payload validation",
+    "tests.python.desktop.test_api_contract_payload: orphan reconcile create-only rollback evidence contract"
+  ],
+  "manual_validation": [
+    "python -m unittest tests.python.desktop.test_api_command_contracts -q",
+    "python -m unittest tests.python.desktop.test_api_contract_payload.LocalApiContractPayloadTests.test_repair_reconcile_contracts_advertise_backend_dry_runs_and_confirmed_apply_routes -q",
+    "python -m unittest tests.python.desktop.test_service_pending_publish_manifest tests.python.desktop.test_service_pending_publish_manifest_rows tests.python.desktop.test_pending_publish_service tests.python.desktop.test_facade_pending_publish_policy tests.python.desktop.test_application_facade_pending_publish tests.python.desktop.test_repair_reconcile_dry_run tests.python.desktop.test_repair_reconcile_apply tests.webview.test_webview_frontend_mutation_boundary -q",
+    "pending publish path-payload regression proof rejects /api/pending-publish/open and /api/pending-publish/recovery-plan path extras",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishSafetyChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-PendingPublishOwnershipChecks.ps1",
+    "ops/scripts/smoke/Test-WebViewBrowserPendingDrainGuardSmoke.ps1",
+    "ops/scripts/smoke/Test-WebViewBrowserCompletedPendingProofSmoke.ps1",
+    "ops/scripts/smoke/Test-WebViewRowDetailSmoke.ps1",
+    "ops/scripts/smoke/Test-WebViewBrowserLargeTableSmoke.ps1",
+    "ops/scripts/smoke/Test-WebViewBrowserDiagnosticsHandoffSmoke.ps1"
+  ],
+  "rollback_plan": "Revert MP-CHANGE-2026-0624-015 touched files to restore the previous generic command payload mapping and orphan reconcile contract wording.",
+  "related_changes": [],
+  "notes": "Correct orphan pending payload reconcile rollback evidence contract for create-only manifests.\nCover pending publish command validation rejecting path-shaped extras and selected blank row keys.\nCover orphan reconcile create-only rollback and journal evidence semantics.\nRefresh generated summary for strict pending publish command contract changes.\nRefresh generated summary for pending publish command validation tests.\nRefresh generated summary for orphan reconcile contract test coverage.\nAdd strict pending publish command payload models for open and recovery-plan routes.\nRefresh generated summary for orphan reconcile contract wording."
+}

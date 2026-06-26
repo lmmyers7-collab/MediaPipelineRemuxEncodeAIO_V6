@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0626-004",
+  "title": "Compact pipeline log progress updates",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Compacts repeated pipeline progress log lines in WebView log displays and refreshes standalone log views every 2 seconds.",
+  "reason": "The pipeline log panel could visually flood with repeated progress lines such as ENCODE : 65%, making the useful log context hard to scan during active work.",
+  "affected_areas": [
+    "diagnostics",
+    "generated_docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Diagnostics, floating overlay, and detached pipeline-log views rendered repeated progress-percent lines one-for-one.",
+  "behavior_after": "Repeated adjacent progress-percent lines for the same route and percent render once with a collapsed update count; raw backend diagnostics payloads and log files remain unchanged.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/diagnosticsView.js",
+    "apps/desktop/webview/static/assets/floatingPipelineLog.js",
+    "apps/desktop/webview/static/assets/pipelineLogWindow.html",
+    "apps/desktop/webview/static/assets/pipelineLogWindow.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/diagnosticsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/floatingPipelineLog.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pipelineLogWindow.html.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pipelineLogWindow.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_pipeline_log_window_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-004.json",
+    "tests/webview/test_webview_pipeline_log_window_static.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Final change_control.validate_changes - passed (768 packets valid).",
+    "Final scoped git diff --check over touched files - passed; Git reported only LF-to-CRLF normalization warning for diagnosticsView.js.",
+    "Focused tests rerun after unchanged-log-text guard - tests.webview.test_webview_pipeline_log_window_static passed (7 tests); tests.python.desktop.test_application_facade_web_static_diagnostics_reports passed (5 tests).",
+    "WebView non-browser smoke set stopped at Test-WebViewCommandEvidenceSmoke.ps1 due to existing reports/state.js load-order failure outside this change.",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static_diagnostics_reports -q - passed (5 tests).",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_pipeline_log_window_static -q - passed (7 tests).",
+    "change_control.validate_changes - passed (767 packets valid).",
+    "change_control.validate_changes --require-worktree-coverage - failed only on 11 unrelated pre-existing generated/dependency-atlas files not touched by this change.",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed on pre-existing repository drift; current WebView reliability checks passed inside the run."
+  ],
+  "rollback_plan": "Remove compactRepeatedProgressLines usages/helpers from diagnosticsView.js, floatingPipelineLog.js, and pipelineLogWindow.js; restore pipelineLogWindow copy and standalone poll constants to 5 seconds; remove the added static assertions.",
+  "related_changes": [],
+  "notes": "Display-only pipeline log progress compaction plus 2s standalone log polling; backend diagnostics payload and log files remain unchanged.\nRollback: remove the progress compaction helpers/usages, restore standalone log poll interval/detail text to 5 seconds, and remove the added static assertions.\nLog text nodes now skip textContent rewrites when the compacted text has not changed."
+}

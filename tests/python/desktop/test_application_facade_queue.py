@@ -22,7 +22,7 @@ from mediapipeline.core.queue.source_inventory import (
 )
 from mediapipeline.core.queue.policy_parts.operator_guidance import queue_row_operator_guidance
 from mediapipeline.core.queue.priority_manifest import set_manifest_entry
-from tests.python.desktop.test_application_facade import DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeQueueTests(unittest.TestCase):

@@ -169,9 +169,15 @@ function Invoke-RecursivePathScan {
         [string] $Label = 'recursive scan'
     )
 
-    if ([string]::IsNullOrWhiteSpace($Path)) { return @() }
+    $script:LastRecursivePathScanStatus = 'started'
+    $script:LastRecursivePathScanPath = [string]$Path
+    if ([string]::IsNullOrWhiteSpace($Path)) {
+        $script:LastRecursivePathScanStatus = 'empty_path'
+        return @()
+    }
     if (-not (Test-IsUncPath $Path) -and -not (Test-Path -LiteralPath $Path -ErrorAction SilentlyContinue)) {
         Write-Log "$Label skipped because path is not accessible: $Path" "WARN"
+        $script:LastRecursivePathScanStatus = 'missing'
         return @()
     }
 
@@ -193,11 +199,13 @@ function Invoke-RecursivePathScan {
                 Write-Log "$Label stopped during recursive scan: $Path" "WARN"
                 $script:StopRequested = $true
                 Stop-Job $job -ErrorAction SilentlyContinue
+                $script:LastRecursivePathScanStatus = 'stopped'
                 return @()
             }
 
             $completed = Wait-Job $job -Timeout 1
             if ($completed) {
+                $script:LastRecursivePathScanStatus = 'ok'
                 return @(
                     Receive-Job $job -ErrorAction Stop |
                         Where-Object { -not [string]::IsNullOrWhiteSpace([string]$_) }
@@ -207,11 +215,13 @@ function Invoke-RecursivePathScan {
             if ($TimeoutSeconds -gt 0 -and ((Get-Date) - $startedAt).TotalSeconds -ge $TimeoutSeconds) {
                 Stop-Job $job -ErrorAction SilentlyContinue
                 Write-Log "$Label timed out after ${TimeoutSeconds}s while scanning $Path" "WARN"
+                $script:LastRecursivePathScanStatus = 'timeout'
                 return @()
             }
         }
     } catch {
         Write-Log "$Label failed while scanning $Path : $_" "WARN"
+        $script:LastRecursivePathScanStatus = 'error'
         return @()
     } finally {
         Remove-Job $job -Force -ErrorAction SilentlyContinue

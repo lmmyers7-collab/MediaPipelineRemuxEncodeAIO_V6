@@ -48,6 +48,9 @@ class FacadeUtilityMixin:
     def _pipeline_state(snapshot: Snapshot) -> str:
         progress = snapshot.progress or {}
         audit_progress = snapshot.audit_progress or {}
+        activity = str(snapshot.current_activity or "").strip().casefold()
+        if "stale progress" in activity:
+            return "stale"
         status = str(progress.get("Status") or "").strip().casefold()
         if status:
             if status in {"processing", "running", "active"}:

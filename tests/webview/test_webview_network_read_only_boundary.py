@@ -11,6 +11,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
 from mediapipeline.desktop.api.static_files import render_index
+from tests.css_import_resolver import resolve_css_imports
 
 REPO_ROOT = find_repo_root(Path(__file__))
 STATIC_ROOT = REPO_ROOT / "apps" / "desktop" / "webview" / "static"
@@ -18,6 +19,40 @@ INDEX_HTML = STATIC_ROOT / "index.html"
 NETWORK_JS = STATIC_ROOT / "assets" / "networkView.js"
 NETWORK_BUILDER_JS = STATIC_ROOT / "assets" / "settingsView.builders.network.js"
 STYLES_PAGES_CSS = STATIC_ROOT / "assets" / "styles.pages.css"
+NETWORK_CHILD_ASSET_NAMES = (
+    "network/state.js",
+    "network/shared.js",
+    "network/config.js",
+    "network/contract.js",
+    "network/status.js",
+    "network/readiness.js",
+    "network/lifecycle.model.js",
+    "network/lifecycle.view.js",
+    "network/lifecycle.commands.js",
+    "network/setup.commands.js",
+    "network/settingsHandoff.js",
+    "network/openHistory.js",
+    "network/stateFiles.js",
+    "network/workers.model.js",
+    "network/workers.view.js",
+    "network/roleDashboard.js",
+)
+NETWORK_ASSET_NAMES = (*NETWORK_CHILD_ASSET_NAMES, "networkView.js")
+
+
+def _existing_network_asset_sources() -> dict[str, str]:
+    sources: dict[str, str] = {}
+    for name in NETWORK_ASSET_NAMES:
+        path = STATIC_ROOT / "assets" / name
+        if path.exists():
+            sources[name] = path.read_text(encoding="utf-8")
+    if "networkView.js" not in sources:
+        raise AssertionError("networkView.js must remain the public Network facade")
+    return sources
+
+
+def _network_asset_source() -> str:
+    return "\n".join(_existing_network_asset_sources().values())
 
 
 def _network_page_html() -> str:
@@ -31,6 +66,10 @@ def _network_page_html() -> str:
     start = html.index('<section class="page" data-page-panel="network">')
     end = html.index('<section class="page" data-page-panel="maintenance">', start)
     return html[start:end]
+
+
+def _read_pages_css() -> str:
+    return resolve_css_imports(STYLES_PAGES_CSS, STATIC_ROOT / "assets")
 
 
 def _button_labels_and_attrs(html: str) -> list[tuple[str, str]]:
@@ -56,40 +95,70 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertEqual(
             headings,
             [
+                "Network Command Board",
+                "Worker Board",
                 "Coordinator At A Glance",
                 "Worker At A Glance",
-                "Mode Summary",
-                "Network Lifecycle",
-                "Readiness + Lifecycle Boundary",
-                "Persisted Worker State",
+                "Join Worker to Cluster",
                 "Saved Distributed Mode Settings Medium Impact",
+                "Mode Summary",
+                "Readiness + Lifecycle Boundary",
                 "Network Config",
                 "Open History",
                 "Lifecycle Handoff",
                 "Evidence Checklist",
                 "State Files",
                 "API Contract",
+                "Unavailable Actions",
             ],
         )
+
+    def test_network_settings_guidance_tiles_stay_hidden(self) -> None:
+        network_html = _network_page_html()
+
+        self.assertIn(
+            'id="settings-network-guidance" class="prose-block" hidden aria-hidden="true"',
+            network_html,
+        )
+        self.assertIn(
+            'class="network-settings-patch-summary" hidden aria-hidden="true"',
+            network_html,
+        )
+        self.assertIn('id="network-settings-control-status"', network_html)
+        self.assertIn('id="network-settings-patch-handoff"', network_html)
 
     def test_workers_page_distinguishes_saved_and_persisted_state_labels(self) -> None:
         network_html = _network_page_html()
 
         for expected in (
-            "Saved Role",
-            "Worker Coordinator URL",
-            "Network runtime",
+            "Network Command Board",
+            "Role",
+            "Runtime",
+            "Coordinator",
+            "Drift",
+            "Workers",
+            "Alerts",
+            'id="network-attention-stack"',
+            'id="network-topology-strip"',
+            'id="network-diagnostic-rail"',
+            'id="network-action-readiness-gates"',
+            "Worker Board",
+            'id="network-worker-view-presets"',
+            "Selected Worker Inspector",
             "Coordinator At A Glance",
             "Active Claimed Work",
             "Queue On Deck",
             "Worker At A Glance",
             "Local Worker Claim",
             "Remote Queue Visibility",
+            "Join Worker to Cluster",
+            "Settings",
+            "Advanced Evidence",
+            "Unavailable Actions",
             "Mode Model",
             "Lifecycle Boundary",
             "Workers Route Summary",
-            "Persisted Worker State",
-            "Last Reported Worker Progress",
+            "Last Reported Progress",
             "Saved Distributed Mode Settings",
             "Coordinator policy authority",
             "Worker-local execution ownership",
@@ -107,14 +176,14 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
 
     def test_workers_api_contract_detail_is_advanced_only(self) -> None:
         network_html = _network_page_html()
-        first_advanced = network_html.index("data-advanced")
+        first_advanced = network_html.index('id="network-advanced-evidence-drawer"')
 
-        self.assertLess(network_html.index("Workers Route Summary"), first_advanced)
+        self.assertGreater(network_html.index("Workers Route Summary"), first_advanced)
         self.assertGreater(network_html.index("<h2>API Contract</h2>"), first_advanced)
         self.assertRegex(
             network_html,
-            r'<section class="panel" data-advanced data-panel-type="evidence">\s*'
-            r'<div class="panel-heading">\s*<h2>API Contract</h2>',
+            r'<details class="network-command-drawer" id="network-advanced-evidence-drawer" data-advanced>[\s\S]*'
+            r'<h2>API Contract</h2>',
         )
 
     def test_workers_page_buttons_are_diagnostics_lifecycle_or_settings_only(self) -> None:
@@ -122,20 +191,20 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         labels = [label for label, _attrs in buttons]
 
         for expected in (
+            "Configure Distributed Mode",
+            "Open Logs",
+            "Check &amp; Start Coordinator",
+            "Request Coordinator Stop",
+            "Open Cluster Log",
+            "Configure",
+            "Test Connection",
+            "Check &amp; Start Worker",
+            "Request Worker Stop",
             "Open Run Logs",
             "Open Cluster Log",
             "Open Active Jobs",
             "Open Config",
             "Open State Folder",
-            "Check coordinator start",
-            "Check coordinator stop",
-            "Start coordinator",
-            "Request coordinator stop",
-            "Check worker start",
-            "Check worker stop",
-            "Test worker connection",
-            "Start worker polling",
-            "Request worker stop",
             "Create Join Blob",
             "Copy Blob",
             "Join Cluster",
@@ -157,10 +226,16 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             "Close",
             "Cancel",
             "Confirm command",
+            "All",
+            "Needs Attention",
+            "Active Work",
+            "Idle",
+            "Stale/Failed",
+            "Path/Auth",
         ):
             self.assertIn(expected, labels)
         diagnostics_buttons = [(label, attrs) for label, attrs in buttons if "data-open-diagnostics=" in attrs]
-        self.assertEqual(len(diagnostics_buttons), 5)
+        self.assertEqual(len(diagnostics_buttons), 8)
         for _label, attrs in diagnostics_buttons:
             self.assertIn("data-open-diagnostics=", attrs)
             self.assertNotIn("id=", attrs)
@@ -171,9 +246,10 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
             for label, attrs in buttons
             if "data-network-lifecycle-role=" in attrs
         ]
-        self.assertEqual(len(lifecycle_buttons), 8)
+        self.assertEqual(len(lifecycle_buttons), 4)
         for label, attrs in lifecycle_buttons:
             self.assertIn("data-network-lifecycle-action=", attrs, label)
+            self.assertIn('data-network-lifecycle-guided="true"', attrs, label)
             self.assertNotIn("data-open-diagnostics=", attrs)
         future_buttons = [
             (label, attrs)
@@ -206,9 +282,11 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         for _label, attrs in buttons:
             if (
                 "data-open-diagnostics=" in attrs
+                or "data-network-open-drawer=" in attrs
                 or "data-network-lifecycle-role=" in attrs
                 or "data-network-future-control=" in attrs
                 or "data-network-test-connection" in attrs
+                or "data-network-worker-view" in attrs
             ):
                 continue
             self.assertTrue(any(item in attrs for item in allowed_setting_ids), attrs)
@@ -268,17 +346,19 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertNotIn("accessible no", source)
 
     def test_workers_page_setup_dialog_actions_are_mobile_safe(self) -> None:
-        css = STYLES_PAGES_CSS.read_text(encoding="utf-8")
+        css = _read_pages_css()
 
         self.assertRegex(css, r"\.network-role-setup-actions\s*\{[^}]*position:\s*sticky", re.DOTALL)
         self.assertRegex(css, r"\.network-role-setup-actions\s*\{[^}]*bottom:\s*0", re.DOTALL)
         self.assertIn("@media (max-width: 600px)", css)
         self.assertIn("grid-template-columns: repeat(2, minmax(0, 1fr));", css)
         self.assertIn(".network-overview-grid", css)
+        self.assertIn(".network-action-readiness-gates", css)
+        self.assertIn(".network-worker-view-presets", css)
         self.assertIn("width: calc(100vw - 16px);", css)
 
     def test_workers_status_banner_lines_are_overflow_contained(self) -> None:
-        css = STYLES_PAGES_CSS.read_text(encoding="utf-8")
+        css = _read_pages_css()
         network_html = _network_page_html()
 
         self.assertIn('id="network-status-banner-lines" class="network-status-banner-lines"', network_html)
@@ -313,8 +393,15 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         for forbidden in ("promote", "demote", "release", "retry", "delete", "publish", "rename"):
             self.assertNotIn(f'data-network-future-control="{forbidden}"', network_html)
 
+    def test_network_asset_set_is_ready_for_child_split(self) -> None:
+        sources = _existing_network_asset_sources()
+
+        self.assertIn("networkView.js", sources)
+        self.assertIn("window.mediaPipelineNetworkView", sources["networkView.js"])
+        self.assertTrue(all(name.startswith("network/") for name in NETWORK_CHILD_ASSET_NAMES))
+
     def test_network_view_js_uses_only_backend_network_lifecycle_routes(self) -> None:
-        source = NETWORK_JS.read_text(encoding="utf-8")
+        source = _network_asset_source()
 
         self.assertNotRegex(source, r"\bfetch\s*\(")
         self.assertIn("function postNetworkLifecycleRoute", source)
@@ -387,8 +474,13 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn("function networkWorkerOverviewModel", source)
         self.assertIn("function renderNetworkRoleDashboards", source)
         self.assertIn("function renderNetworkStatusBanner", source)
+        self.assertIn("function renderNetworkAttentionStack", source)
+        self.assertIn("function renderNetworkTopologyStrip", source)
+        self.assertIn("function renderNetworkActionReadinessGates", source)
         self.assertIn("function networkDiagnosticLayers", source)
         self.assertIn("diagnostic_layers", source)
+        self.assertNotIn("attention_items", source)
+        self.assertNotIn("worker_event_timeline", source)
         self.assertIn("url_reachable, auth_ok, paths_ok, queue_fresh, last_claim_result", source)
         self.assertIn("Last failure code", source)
         self.assertIn("CoordinatorMaxJobRetries", source)
@@ -411,7 +503,7 @@ class WebViewNetworkReadOnlyBoundaryTests(unittest.TestCase):
         self.assertIn('return "unknown";', source)
 
     def test_network_view_js_does_not_render_auth_token_settings(self) -> None:
-        source = NETWORK_JS.read_text(encoding="utf-8")
+        source = _network_asset_source()
 
         self.assertNotIn("CoordinatorAuthToken", source)
         self.assertNotIn("WorkerAuthToken", source)

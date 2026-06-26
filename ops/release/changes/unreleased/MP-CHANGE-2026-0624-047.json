@@ -1,0 +1,44 @@
+{
+  "id": "MP-CHANGE-2026-0624-047",
+  "title": "Hide Queue table legend text",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Hide the main Queue table legend so loaded and loading Queue states no longer show row-count, selection, keyboard, or backend-scope helper copy under the table.",
+  "reason": "The visible Queue legend text was noisy in daily Queue use. More specific Queue status, filter, loading, and backend-scope evidence remains in the surrounding Queue panels.",
+  "affected_areas": [
+    "generated_docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Queue page rendered a visible table legend such as row counts, selected-row counts, status mix, keyboard instructions, and backend Launch-scope reminders under the main Queue table.",
+  "behavior_after": "The main Queue table legend remains a hidden empty placeholder. Queue loading status and other Queue evidence panels continue to render normally.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queueView.js",
+    "apps/desktop/webview/static/partials/page-queue.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-queue.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_large_table_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-047.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_large_table_smoke.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_web_tables_share_accessible_selection_helpers -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_queue -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_large_table_smoke -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_launch_queue_readiness_smoke -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/queueView.js apps/desktop/webview/static/partials/page-queue.html tests/webview/test_webview_browser_launch_queue_readiness_smoke.py tests/webview/test_webview_browser_large_table_smoke.py tests/python/desktop/test_application_facade_web_static.py - passed",
+    "validate_changes - passed; validate_changes --require-worktree-coverage - failed only on 13 unrelated uncovered dirty files; git diff --check on touched files - passed with existing LF-to-CRLF warnings"
+  ],
+  "rollback_plan": "Restore the Queue legend paragraph's initial text, restore updateQueueTableLegend to call updateTableStatusLegend and append Queue action copy, then restore the prior browser/static test expectations.",
+  "related_changes": [],
+  "notes": "Hide and clear the main Queue table legend text during loaded and loading states.\nStart the Queue table legend hidden with no visible copy.\nAssert Scan Sources keeps the Queue legend hidden instead of rendering helper copy.\nAssert loaded Queue rows keep the main legend hidden.\nUpdate static legend contract so the main Queue table legend is a hidden placeholder, not a visible updated helper.\nRefresh generated summary for Queue view legend cleanup.\nRefresh generated summary for Queue page partial legend placeholder.\nRefresh generated summary for Launch/Queue readiness smoke assertion update.\nRefresh generated summary for large Queue table smoke assertion update.\nRefresh generated summary for static legend contract update."
+}

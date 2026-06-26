@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0624-056",
+  "title": "Harden LibraryProfiles save review authority",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Add backend-owned settings save review entries and use them in the WebView save dialog so normalized/mirrored LibraryProfiles changes display accurate redacted current/new values. Preserve custom LibraryProfiles IDs when only the display name changes and surface post-save refresh failures.",
+  "reason": "LibraryProfiles save had multiple trust gaps: the WebView review table inferred values from the raw patch instead of backend-normalized data, custom profile names could silently change backend IDs, and save success could hide refresh failures that left stale settings on screen.",
+  "affected_areas": [
+    "config",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Save review rows were rendered from raw submitted changes, mirrored keys such as SourceMovies could show incorrect or missing new values, sensitive raw values could appear in the modal, custom profile names could rewrite IDs, and post-save refresh errors were swallowed.",
+  "behavior_after": "Backend preview/save responses include redacted review_entries for actual changed/removed keys; the WebView review and overwrite summary use those entries, custom LibraryProfiles IDs remain stable across display-name edits, and refresh failures are surfaced in Settings and Libraries status.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsLibraries.js",
+    "apps/desktop/webview/static/assets/settingsView.js",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-056.json",
+    "src/mediapipeline/core/config/settings_patch_candidate_facade.py",
+    "src/mediapipeline/core/config/settings_patch_policy.py",
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_application_facade_settings_patch.py",
+    "tests/webview/test_webview_settings_libraries.py"
+  ],
+  "manual_validation": [
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_patch -q - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_patch -q - passed after final review-entry lookup adjustment",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_patch tests.python.desktop.test_library_profiles -q - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_settings -q - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.webview.test_webview_settings_libraries -q - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.webview.test_webview_settings_libraries -q - passed after final review-entry lookup adjustment",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe -m unittest tests.webview.test_webview_settings_patch_smoke -q - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed: 12 unrelated dirty files not listed in any unreleased packet",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/config/settings_patch_candidate_facade.py - passed after final review-entry lookup adjustment",
+    ".\\\\apps\\\\desktop\\\\runtime\\\\Python\\\\python.exe .\\\\ops\\\\scripts\\\\dev\\\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/config/settings_patch_candidate_facade.py src/mediapipeline/core/config/settings_patch_policy.py apps/desktop/webview/static/assets/settingsView.js apps/desktop/webview/static/assets/settingsLibraries.js tests/python/desktop/test_application_facade_settings_patch.py tests/webview/test_webview_settings_libraries.py - passed, 6 written and no generated summary git diff",
+    ".\\\\ops\\\\scripts\\\\smoke\\\\Test-WebViewSettingsPatchEvidenceSmoke.ps1 - passed"
+  ],
+  "rollback_plan": "Remove review_entries from settings patch responses, restore the WebView modal to raw change rendering, revert stable custom LibraryProfiles ID collection, remove refresh-failure status handling, and revert the added tests.",
+  "related_changes": [],
+  "notes": "Add backend review entries, render save review from backend-normalized values, preserve LibraryProfiles IDs, and surface post-save refresh failures."
+}

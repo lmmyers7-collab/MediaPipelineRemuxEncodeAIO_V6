@@ -1026,7 +1026,7 @@ def _browser_diagnostics_handoff_runner_source() -> str:
                 expression: `
                   (function () {
                     if (typeof window.showPage === "function") window.showPage("diagnostics");
-                    const tabs = ["triage", "investigation", "logs", "progress", "advanced"];
+                    const tabs = ["triage", "readiness", "investigation", "logs", "progress", "advanced"];
                     const panels = [];
                     for (const tab of tabs) {
                       const button = document.querySelector('button.settings-tab-btn[data-diag-tab="' + tab + '"]');
@@ -1267,7 +1267,7 @@ def _assert_diagnostics_hardening_checks(testcase: unittest.TestCase, browser_re
     responsive = browser_result["responsiveChecks"]
     assert isinstance(responsive, list)
     testcase.assertEqual(len(responsive), 3)
-    testcase.assertEqual(len(responsive[0]["panels"]), 5)
+    testcase.assertEqual(len(responsive[0]["panels"]), 6)
 
 
 class WebViewBrowserDiagnosticsHandoffSmoke(unittest.TestCase):

@@ -393,6 +393,33 @@ function New-PipelinePlanExecutorMp4RemuxArgumentList {
     return @($args.ToArray())
 }
 
+function New-PipelinePlanExecutorEncodeMuxArgumentList {
+    param(
+        [Parameter(Mandatory)] [string] $InputPath,
+        [Parameter(Mandatory)] [string] $EncodedInputPath,
+        [Parameter(Mandatory)] [string] $OutputPath,
+        [string] $GlobalTitle = ''
+    )
+
+    $args = [System.Collections.Generic.List[string]]::new()
+    $args.AddRange([string[]]@('--output', $OutputPath))
+    if (-not [string]::IsNullOrWhiteSpace($GlobalTitle)) {
+        $args.AddRange([string[]]@('--title', $GlobalTitle))
+    }
+    $args.Add($EncodedInputPath)
+    $args.AddRange([string[]]@(
+        '--no-video',
+        '--no-audio',
+        '--no-subtitles',
+        '--no-buttons',
+        '--no-chapters',
+        '--no-track-tags',
+        '--no-global-tags',
+        $InputPath
+    ))
+    return @($args.ToArray())
+}
+
 function New-PipelinePlanExecutorMkvmergeArgumentList {
     param(
         [Parameter(Mandatory)] $Plan,
@@ -564,13 +591,26 @@ function New-PipelinePlanExecutorDryRun {
             if ($container -notin @('mkv','matroska','mp4','m4v','mov')) {
                 throw "PipelinePlan validation failed: Phase 07B encode command parity supports MKV/Matroska and MP4-family outputs; got '$($Plan.output.container)'."
             }
-            $attemptPlan = New-PipelinePlanExecutorEncodeCommand -Plan $Plan -InputPath $resolvedInput -OutputPath $resolvedOutput
+            $encodeOutputPath = if ($container -in @('mkv','matroska')) {
+                [System.IO.Path]::ChangeExtension($resolvedOutput, '.encode_media.mkv')
+            } else {
+                $resolvedOutput
+            }
+            $attemptPlan = New-PipelinePlanExecutorEncodeCommand -Plan $Plan -InputPath $resolvedInput -OutputPath $encodeOutputPath
             $commands.Add((New-PipelinePlanExecutorNativeCommand `
                 -Tool 'ffmpeg' `
                 -Label ([string]$attemptPlan.Label) `
                 -Stage ([string]$attemptPlan.ReproStage) `
                 -BuiltWith @('New-EncodeAttemptPlan', 'New-EncodeFfmpegArgumentList', 'plan stream action mapping') `
                 -ArgumentList @($attemptPlan.ArgumentList))) | Out-Null
+            if ($container -in @('mkv','matroska')) {
+                $commands.Add((New-PipelinePlanExecutorNativeCommand `
+                    -Tool 'mkvmerge' `
+                    -Label 'ENCODE-MUX' `
+                    -Stage 'encode-mkvmerge' `
+                    -BuiltWith @('New-EncodeMkvAttachmentMuxArgumentList', 'attachment-safe encode final mux') `
+                    -ArgumentList (New-PipelinePlanExecutorEncodeMuxArgumentList -InputPath $resolvedInput -EncodedInputPath $encodeOutputPath -OutputPath $resolvedOutput -GlobalTitle (Get-PipelinePlanGlobalTitle -Plan $Plan)))) | Out-Null
+            }
         }
         'REJECT' {
             $notes.Add('Rejected plan has no native command.')

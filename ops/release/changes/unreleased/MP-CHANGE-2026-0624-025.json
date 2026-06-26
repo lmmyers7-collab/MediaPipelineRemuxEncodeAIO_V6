@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0624-025",
+  "title": "Remove failure lifecycle notes",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Removed the visible Reports failure lifecycle reason and note inputs while preserving backend lifecycle journal payload requirements with fixed WebView audit reasons.",
+  "reason": "The operator-facing notes add friction and visual clutter, and the backend still owns lifecycle journal strictness. The UI should not require ad hoc text entry to preview or confirm a failure lifecycle transition.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Reports failure lifecycle panel displayed Reason and Note inputs, blocked resolve/reopen preview until a reason was typed, and echoed that reason in the confirmation dialog.",
+  "behavior_after": "The Reports failure lifecycle panel shows only lifecycle action buttons. Resolve/reopen preview and confirmation no longer require operator text, while the WebView still sends fixed non-empty audit reasons and an empty operator_note for backend-required transitions.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/reportsView.js",
+    "apps/desktop/webview/static/partials/page-reports.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reportsView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-reports.html.md",
+    "docs/generated/summaries/docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0624-025.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_maintenance_reports_smoke.py.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-025.json",
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_reports_view_static.py",
+    "tests/webview/test_webview_browser_maintenance_reports_smoke.py"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q - passed",
+    "mediapipeline.tools.change_control.validate_changes - failed due unrelated MP-CHANGE-2026-0624-027 missing high/critical notes or rollback detail",
+    "mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0624-027 and uncovered docs/implementation/local-api-test-split files",
+    "mediapipeline.tools.dev.refresh_summaries --paths scoped touched files - passed (4 written, 2 unchanged; packet summary refreshed)"
+  ],
+  "rollback_plan": "Restore the lifecycle Reason and Note inputs in page-reports.html, restore reportsView.js collection and validation of those fields, re-add their DOM inventory rows, and revert the related test expectations.",
+  "related_changes": [],
+  "notes": "Removed visible failure lifecycle reason and note inputs.\nReplaced operator-entered lifecycle notes with backend-only fixed audit reasons.\nRemoved DOM inventory entries for deleted lifecycle note fields.\nUpdated maintenance Reports smoke for no lifecycle note fields.\nAdded static assertions that lifecycle note fields stay absent.\nRefreshed summary after Reports lifecycle controller update.\nRefreshed summary after Reports partial update.\nRefreshed summary after DOM inventory update.\nRefreshed summary after Reports static test update.\nRefreshed summary after maintenance Reports smoke update.\nGenerated summary for this change packet.\nNo Python runtime behavior was changed; Python impact is limited to test expectations and generated summaries."
+}

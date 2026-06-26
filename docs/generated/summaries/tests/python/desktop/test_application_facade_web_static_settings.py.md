@@ -1,0 +1,16 @@
+---
+file: tests/python/desktop/test_application_facade_web_static_settings.py
+pipeline_stage: n/a
+token_priority: medium
+owner_domain: tests
+last_modified: 2026-06-24
+last_reviewed: 2026-06-24
+sha256: a475bc3691ee2a40e832cdab87d141af7de0722e5902e87c91ed92e3964c1526
+---
+# `tests/python/desktop/test_application_facade_web_static_settings.py`
+
+**Purpose:** (no module docstring)
+
+**Classes:** `ApplicationFacadeWebStaticSettingsTests`
+
+_Edit the source, not this file. Regenerate with `apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths tests/python/desktop/test_application_facade_web_static_settings.py`._

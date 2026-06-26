@@ -107,14 +107,6 @@ function Resolve-SubtitleStreamPolicy {
     $languagePolicyMatched = ($languagePolicy -contains $lang)
     $langOk = $languagePolicyMatched
     $retainReason = if ($languagePolicyMatched) { 'language_policy' } else { 'language_or_title_policy' }
-    if (-not $isAss -and $isSdh -and -not $langOk) {
-        $langOk = $true
-        $retainReason = 'sdh_metadata'
-    }
-    if (-not $isAss -and $isForced -and -not $langOk) {
-        $langOk = $true
-        $retainReason = 'forced_metadata'
-    }
 
     $enrichedTitle = New-SubtitleEnrichedTitle -Language $lang -RawTitle $rawTitle -TitleLower $titleLower -IsSdh:$isSdh -IsForced:$isForced -IsSupplemental:$isSupplemental
     return [pscustomobject]@{
@@ -199,6 +191,28 @@ function Get-SubtitleRoutingPolicyChain {
     return @(
         {
             param($Entry)
+            $languagePolicyMatched = ConvertTo-SubtitleRoutingBool -Value (Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'LanguagePolicyMatched' -Default $true) -Default $true
+            if ($languagePolicyMatched) { return $null }
+
+            $stream = Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'Stream' -Default $null
+            $streamText = if ($stream -and $null -ne $stream.PSObject.Properties['index']) {
+                "stream $($stream.index)"
+            } else {
+                $sourceKind = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'SourceKind' -Default 'embedded')
+                $idxPath = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'IdxPath' -Default '')
+                if ($sourceKind -eq 'sidecar' -and -not [string]::IsNullOrWhiteSpace($idxPath)) {
+                    "sidecar $([System.IO.Path]::GetFileName($idxPath))"
+                } else {
+                    'subtitle'
+                }
+            }
+            $retainReason = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'RetainReason' -Default 'language_or_title_policy')
+            $language = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'Lang' -Default '')
+            $title = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'Title' -Default '')
+            return New-SubtitleRoutingDecision -Action 'Drop' -Message "DROP subtitle $streamText ($language) '$title': $retainReason outside configured subtitle language policy" -Level 'WARN'
+        },
+        {
+            param($Entry)
             if ($Entry.Codec -in (Get-MediaSubtitleCodecSrtNames)) {
                 return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP SRT stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
             }
@@ -210,11 +224,6 @@ function Get-SubtitleRoutingPolicyChain {
             $effectiveKeepSaS = Get-EffectiveSubtitleSwitch -Name 'KeepSignsAndSongs' -Default $true
             if ([bool]$Entry.IsSupplemental -and $effectiveKeepSaS) {
                 return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP ASS (supplemental) stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)'"
-            }
-            $languagePolicyMatched = ConvertTo-SubtitleRoutingBool -Value (Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'LanguagePolicyMatched' -Default $true) -Default $true
-            if (-not $languagePolicyMatched) {
-                $retainReason = [string](Get-SubtitleRoutingEntryValue -Entry $Entry -Name 'RetainReason' -Default 'metadata_policy')
-                return New-SubtitleRoutingDecision -Action 'Drop' -Message "DROP ASS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)': $retainReason outside ASS conversion language policy" -Level 'WARN'
             }
             if (-not (Get-EffectiveSubtitleSwitch -Name 'ConvertAssToSrt' -Default $true)) {
                 return New-SubtitleRoutingDecision -Action 'Keep' -Message "KEEP ASS stream $($Entry.Stream.index) ($($Entry.Lang)) '$($Entry.Title)': ConvertAssToSrt disabled"

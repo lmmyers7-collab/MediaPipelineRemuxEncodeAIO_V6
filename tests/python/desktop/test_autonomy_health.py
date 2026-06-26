@@ -17,7 +17,12 @@ from mediapipeline.core.diagnostics.autonomy_health import (
     load_autonomy_growth_history,
     record_autonomy_growth_snapshot,
 )
+from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 from mediapipeline.desktop.models import ResolvedPaths
+from mediapipeline.tools.autonomy_health_gate import (
+    AUTONOMY_HEALTH_GATE_PATH_HEALTH_TIMEOUT_SECONDS,
+    build_health_from_payload,
+)
 
 
 def _resolved(root: Path) -> ResolvedPaths:
@@ -443,9 +448,9 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
                             "role": "scratch",
                             "path": str(root / "LocalBase"),
                             "status": "ready",
-                            "storage_status": "ready",
+                            "storage_status": "low",
                             "free_space_gb": 50,
-                            "reserve_gb": 0,
+                            "reserve_gb": 100,
                         }
                     ],
                 },
@@ -453,6 +458,87 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
 
         self.assertEqual(payload["overall_status"], "blocked")
         self.assertIn("autonomy_storage_free_space_low", {item["code"] for item in payload["blockers"]})
+        self.assertNotIn("autonomy_configured_path_blocked", {item["code"] for item in payload["blockers"]})
+
+    def test_blocked_path_health_does_not_report_false_low_space(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={
+                    "operator_status": "blocked",
+                    "operator_summary": "1 configured root did not respond.",
+                    "rows": [
+                        {
+                            "key": "outsource",
+                            "label": "Outsource output root",
+                            "role": "output",
+                            "path": r"\\LAYNE-SERVER\Users\Layne\Videos\outsource\Movies",
+                            "status": "blocked",
+                            "operator_status": "blocked",
+                            "storage_status": "blocked",
+                            "free_space_gb": None,
+                            "reserve_gb": 50,
+                            "message": "Outsource output root did not respond within the bounded path health timeout.",
+                            "safe_next_action": "Reconnect the server share before starting the pipeline.",
+                        }
+                    ],
+                },
+            )
+
+        blocker_codes = {item["code"] for item in payload["blockers"]}
+        self.assertEqual(payload["overall_status"], "blocked")
+        self.assertIn("autonomy_configured_path_blocked", blocker_codes)
+        self.assertNotIn("autonomy_storage_free_space_low", blocker_codes)
+        self.assertIn("did not respond", payload["launch_gate"]["blocked_reason"])
+
+    def test_cli_gate_uses_network_tolerant_path_health_timeout(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            paths_payload = {
+                "app_root": str(root),
+                "workspace_root": str(root),
+                "pipeline_path": str(root / "pipeline.ps1"),
+                "config_path": str(root / "config.psd1"),
+                "local_base": str(root / "LocalBase"),
+                "state_root": str(root / "State"),
+                "pending_push_path": str(root / "State" / "PendingServerPush"),
+                "source_movies": r"\\LAYNE-SERVER\Video\Movies",
+                "source_tv": str(root / "TV"),
+                "config_data": {
+                    "SourceMovies": r"\\LAYNE-SERVER\Video\Movies",
+                    "SourceTV": str(root / "TV"),
+                    "Outsource": r"\\LAYNE-SERVER\Video\Outsource",
+                    "LocalBase": str(root / "LocalBase"),
+                },
+            }
+            path_health_payload = {
+                "schema_version": "desktop_configured_path_health.v1",
+                "operator_status": "ready",
+                "rows": [],
+            }
+
+            with (
+                patch(
+                    "mediapipeline.tools.autonomy_health_gate.configured_path_health",
+                    return_value=path_health_payload,
+                ) as path_health,
+                patch(
+                    "mediapipeline.tools.autonomy_health_gate._PendingScanner.scan_pending_publish",
+                    return_value={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                ),
+            ):
+                payload = build_health_from_payload(paths_payload)
+
+        self.assertEqual(payload["overall_status"], "ready")
+        path_health.assert_called_once()
+        self.assertEqual(AUTONOMY_HEALTH_GATE_PATH_HEALTH_TIMEOUT_SECONDS, LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS)
+        self.assertEqual(
+            path_health.call_args.kwargs["timeout_seconds"],
+            AUTONOMY_HEALTH_GATE_PATH_HEALTH_TIMEOUT_SECONDS,
+        )
 
     def test_oversized_state_journal_blocks(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
@@ -629,10 +715,10 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)
             resolved = _resolved(root)
-            assert resolved.failed_reports_path is not None
-            resolved.failed_reports_path.mkdir(parents=True)
+            assert resolved.failed_markers_path is not None
+            resolved.failed_markers_path.mkdir(parents=True)
             old = (datetime.now(timezone.utc) - timedelta(days=4)).isoformat()
-            report = resolved.failed_reports_path / "failure.json"
+            report = resolved.failed_markers_path / "failure.json"
             report.write_text(
                 json.dumps(
                     {
@@ -654,6 +740,113 @@ class AutonomyHealthPayloadTests(unittest.TestCase):
         self.assertEqual(payload["overall_status"], "blocked")
         self.assertIn("autonomy_failure_operator_required_old", {item["code"] for item in payload["blockers"]})
         self.assertEqual(payload["categories"]["subtitles_ocr"]["status"], "review")
+
+    def test_historical_round_failure_reports_do_not_create_active_failure_review(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.failed_reports_path is not None
+            assert resolved.failed_markers_path is not None
+            resolved.failed_reports_path.mkdir(parents=True)
+            resolved.failed_markers_path.mkdir(parents=True)
+            (resolved.failed_reports_path / "round_failures_20260616_120000.json").write_text(
+                json.dumps(
+                    {
+                        "schema_version": "round_failures.v1",
+                        "failures": [
+                            {
+                                "classification": "operator_required",
+                                "stage": "subtitle-ocr",
+                                "reason": "historical report row",
+                            }
+                        ],
+                    }
+                ),
+                encoding="utf-8",
+            )
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        failures = payload["categories"]["failures"]
+        self.assertEqual(payload["overall_status"], "ready")
+        self.assertEqual(failures["status"], "ready")
+        self.assertEqual(failures["metrics"]["artifact_count"], 0)
+        self.assertEqual(payload["review_count"], 0)
+
+    def test_source_media_failure_paths_do_not_count_as_infrastructure(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.failed_markers_path is not None
+            resolved.failed_markers_path.mkdir(parents=True)
+            for idx in range(3):
+                (resolved.failed_markers_path / f"source_media_{idx}.json").write_text(
+                    json.dumps(
+                        {
+                            "schema_version": "failure_record.v1",
+                            "category": "probe",
+                            "operation": "encode",
+                            "source_path": rf"\\server\share\Show\S03E{idx + 1:02d}.mkv",
+                            "source_full_path": rf"\\server\share\Show\S03E{idx + 1:02d}.mkv",
+                            "classification": "permanent",
+                            "error_code": "SOURCE_MEDIA_STREAM_UNSUPPORTED",
+                            "reason": "FFmpeg NVENC encode failed: invalid argument.",
+                            "artifact_path": str(root / "State" / "Failures" / "Artifacts" / f"{idx}.mkv"),
+                            "reproduction_path": str(root / "State" / "Failures" / "Reports" / f"{idx}.cmd.txt"),
+                            "repro_path": str(root / "State" / "Failures" / "Reports" / f"{idx}.cmd.txt"),
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        failures = payload["categories"]["failures"]
+        self.assertEqual(failures["status"], "review")
+        self.assertEqual(failures["metrics"]["artifact_count"], 3)
+        self.assertEqual(failures["metrics"]["infrastructure_count"], 0)
+        self.assertTrue(payload["launch_gate"]["can_start_new_work"])
+        self.assertNotIn("autonomy_failure_infrastructure_repeated", {item["code"] for item in payload["blockers"]})
+
+    def test_repeated_network_failure_values_still_block(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            resolved = _resolved(root)
+            assert resolved.failed_markers_path is not None
+            resolved.failed_markers_path.mkdir(parents=True)
+            for idx in range(3):
+                (resolved.failed_markers_path / f"network_{idx}.json").write_text(
+                    json.dumps(
+                        {
+                            "schema_version": "failure_record.v1",
+                            "operation": "publish",
+                            "classification": "retryable",
+                            "error_code": "NETWORK_SHARE_PATH_UNAVAILABLE",
+                            "reason": "Robocopy publish failed because the network share path is not reachable.",
+                            "source_path": rf"\\server\share\Show\S03E{idx + 1:02d}.mkv",
+                        }
+                    ),
+                    encoding="utf-8",
+                )
+
+            payload = autonomy_health_payload(
+                resolved,
+                pending_publish={"rows": [], "count": 0, "total_bytes": 0, "health_count": 0},
+                path_health={"operator_status": "ready", "rows": []},
+            )
+
+        failures = payload["categories"]["failures"]
+        self.assertEqual(payload["overall_status"], "blocked")
+        self.assertEqual(failures["metrics"]["infrastructure_count"], 3)
+        self.assertIn("autonomy_failure_infrastructure_repeated", {item["code"] for item in payload["blockers"]})
 
 
 if __name__ == "__main__":

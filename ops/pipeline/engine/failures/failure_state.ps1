@@ -29,6 +29,8 @@ function Get-FailureSuggestedAction {
         '^remux-push$'     { return 'Inspect network/share availability and free space; the verified local output is parked in PendingServerPush for retry.' }
         '^remux-sidecar$'  { return 'Inspect sidecar write permissions on the share; the verified local output is parked for retry.' }
         '^encode$'         { return 'Inspect the FFmpeg stderr log and repro command. If NVENC is unstable, check the CPU fallback result or run the saved repro manually.' }
+        '^encode-mkvmerge$' { return 'Inspect the mkvmerge stderr log and repro command, then retry after fixing the attachment/container mux issue.' }
+        '^encode-attachment-verify$' { return 'Compare source and encoded output attachment inventories; publish remains blocked until expected font attachments are preserved.' }
         '^encode-verify$'  { return 'Compare source and encoded output durations before retrying; this usually means a truncated encode.' }
         '^encode-quality-verify$' { return 'Compare the recorded quality score against the thresholds; the encoded output was rejected before publish.' }
         '^encode-push$'    { return 'Inspect network/share availability and free space; the verified local output is parked in PendingServerPush for retry.' }
@@ -241,6 +243,8 @@ function Get-MediaFailureCode {
         '^remux-push$'               { return 'PUBLISH_COPY_FAILED' }
         '^remux-sidecar$'            { return 'SIDECAR_WRITE_FAILED' }
         '^encode$'                   { if ($combined -match 'missing|empty') { return 'ENCODE_OUTPUT_MISSING' }; return Get-FFmpegFailureCode -Stage $stageText -ErrorText $reasonText }
+        '^encode-mkvmerge$'          { return Get-EncodeMkvmergeFailureCode -ErrorText $reasonText }
+        '^encode-attachment-verify$' { return Get-EncodeAttachmentMuxFailureCode -Stage 'verify' -ErrorText $reasonText }
         '^encode-verify$'            { return 'ENCODE_DURATION_MISMATCH' }
         '^encode-quality-verify$'    { return 'ENCODE_QUALITY_BELOW_FLOOR' }
         '^encode-push$'              { return 'PUBLISH_COPY_FAILED' }

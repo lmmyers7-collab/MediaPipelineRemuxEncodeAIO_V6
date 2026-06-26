@@ -1,0 +1,161 @@
+/* =============================================================================
+   S80 — Per-File Settings Drawer (Phase 3)
+   Overlay backdrop (.fo-overlay), slide-in drawer (.fo-drawer), form controls.
+   ============================================================================= */
+
+/* Per-row settings trigger button */
+.fo-open-btn {
+  font-size: var(--text-xs);
+  padding: var(--space-1) var(--space-4);
+  background: none;
+  border: 1px solid var(--grey-600);
+  border-radius: var(--radius-sm);
+  color: var(--grey-400);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: border-color 0.15s, color 0.15s;
+}
+.fo-open-btn:hover { border-color: var(--semantic-interactive-panel-border); color: var(--grey-100); }
+.fo-open-btn:focus-visible { outline: 2px solid var(--semantic-focus-outline); outline-offset: 1px; }
+
+.queue-row-action-button {
+  width: 2rem;
+  min-width: 2rem;
+  height: 1.75rem;
+  padding: 0;
+  font-size: var(--text-sm);
+  line-height: 1;
+}
+
+/* Highlight button when an override is active for this row */
+.fo-open-btn[data-has-override="true"] {
+  border-color: var(--semantic-selected-border);
+  color: var(--semantic-info-muted-text);
+}
+
+/* Semi-transparent backdrop */
+.fo-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--overlay-backdrop-bg);
+  z-index: 200;
+}
+.fo-overlay[hidden] { display: none; }
+
+/* Slide-in drawer panel */
+.fo-drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: min(420px, 92vw);
+  height: 100vh;
+  background: var(--grey-800);
+  border-left: 1px solid var(--grey-700);
+  box-shadow: var(--shadow-drawer);
+  z-index: 201;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.fo-drawer[hidden] { display: none; }
+
+.fo-drawer-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-5) var(--space-4);
+  border-bottom: 1px solid var(--grey-700);
+  flex-shrink: 0;
+}
+.fo-drawer-title-group { flex: 1; min-width: 0; }
+.fo-drawer-title {
+  font-size: var(--text-sm);
+  font-weight: 600;
+  color: var(--grey-100);
+  margin: 0 0 var(--space-1);
+}
+.fo-drawer-path {
+  font-size: var(--text-xs);
+  color: var(--grey-500);
+  word-break: break-all;
+  margin: 0;
+  max-height: 3.5em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fo-close-btn {
+  background: none;
+  border: none;
+  color: var(--grey-500);
+  font-size: var(--text-md);
+  cursor: pointer;
+  padding: var(--space-1) var(--space-2);
+  line-height: 1;
+  flex-shrink: 0;
+}
+.fo-close-btn:hover { color: var(--grey-100); }
+.fo-close-btn:focus-visible { outline: 2px solid var(--semantic-focus-outline); outline-offset: 1px; }
+
+.fo-drawer-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: var(--space-4) var(--space-5) var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+}
+
+.fo-drawer-actions {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+.fo-drawer-footer {
+  background: var(--grey-800);
+  border-top: 1px solid var(--grey-700);
+  bottom: 0;
+  display: grid;
+  gap: var(--space-3);
+  margin-inline: calc(-1 * var(--space-5));
+  padding: var(--space-3) var(--space-5);
+  position: sticky;
+  z-index: 2;
+}
+.fo-drawer-footer .fo-drawer-actions > button {
+  min-width: 0;
+}
+
+.fo-drawer-status {
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  margin: 0;
+  min-height: 1.25rem;
+  overflow-wrap: anywhere;
+  padding: var(--space-2);
+}
+.fo-drawer-status:empty {
+  display: none;
+}
+.fo-drawer-status[data-tone="success"] {
+  background: var(--semantic-success-bg);
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-text);
+}
+.fo-drawer-status[data-tone="error"] {
+  background: var(--semantic-danger-bg);
+  border-color: var(--semantic-danger-border);
+  color: var(--semantic-danger-text);
+}
+.fo-drawer-status[data-tone="warning"] {
+  background: var(--semantic-warning-bg);
+  border-color: var(--semantic-warning-border);
+  color: var(--semantic-warning-text);
+}
+.fo-drawer-status[data-tone="working"] {
+  background: var(--semantic-pending-bg);
+  border-color: var(--semantic-pending-border);
+  color: var(--semantic-pending-text);
+}

@@ -16,7 +16,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.desktop.subprocess_runner import CapturedCommandResult
-from tests.python.desktop.test_application_facade import DummyFacadeService, DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeCompletedTests(unittest.TestCase):

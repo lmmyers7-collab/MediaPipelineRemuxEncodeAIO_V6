@@ -1,0 +1,386 @@
+.reports-tab-bar {
+  margin-top: var(--space-3);
+}
+
+[data-page-panel="reports"] > .metric-grid,
+.report-triage-panel .metric-grid {
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+[data-page-panel="reports"] .metric {
+  min-width: 0;
+  padding: var(--space-3);
+}
+
+[data-page-panel="reports"] .metric-label {
+  margin-bottom: var(--space-2);
+}
+
+[data-page-panel="reports"] .metric strong {
+  display: block;
+  min-width: 0;
+  font-size: var(--text-lg);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.report-triage-panel {
+  margin-bottom: var(--space-3);
+}
+
+.report-triage-panel .metric strong {
+  font-size: var(--text-base);
+}
+
+.failure-resolution-summary-strip {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.failure-resolution-primary-metric {
+  grid-column: span 1;
+}
+
+.failure-resolution-summary-strip .metric {
+  min-height: 3.5rem;
+  padding: var(--space-2);
+}
+
+.failure-resolution-summary-strip .metric strong {
+  font-size: var(--text-base);
+}
+
+.failure-resolution-primary-metric strong {
+  font-size: var(--text-lg);
+}
+
+.failure-resolution-layout {
+  display: grid;
+  grid-template-columns: minmax(16rem, 0.75fr) minmax(34rem, 1.55fr);
+  gap: var(--space-2);
+  align-items: start;
+  margin-top: var(--space-2);
+}
+
+.failure-resolution-groups-pane,
+.failure-resolution-detail-pane {
+  min-width: 0;
+}
+
+.failure-resolution-groups {
+  display: grid;
+  gap: var(--space-1);
+  max-height: 26rem;
+  overflow: auto;
+  padding-right: var(--space-1);
+}
+
+.failure-resolution-group-button {
+  display: grid;
+  width: 100%;
+  min-height: 3.4rem;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  background: var(--grey-850, var(--grey-800));
+  color: var(--grey-100);
+  text-align: left;
+  cursor: pointer;
+  transition-property: border-color, background-color, box-shadow;
+  transition-duration: 140ms;
+  transition-timing-function: ease-out;
+}
+
+.failure-resolution-group-button:hover,
+.failure-resolution-group-button:focus-visible {
+  border-color: var(--reports-failure-hover-border);
+  background: var(--grey-800);
+}
+
+.failure-resolution-group-button[aria-pressed="true"] {
+  border-color: var(--reports-failure-selected-border);
+  box-shadow: inset 3px 0 0 var(--reports-failure-selected-border);
+}
+
+.failure-resolution-group-title {
+  font-weight: 700;
+  line-height: 1.25;
+  text-wrap: pretty;
+}
+
+.failure-resolution-group-meta,
+.failure-resolution-group-hint {
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+  line-height: 1.35;
+  text-wrap: pretty;
+}
+
+.failure-resolution-primary-actions {
+  align-items: center;
+  margin-bottom: var(--space-1);
+}
+
+.failure-lifecycle-strip {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--space-1);
+  margin-bottom: var(--space-2);
+}
+
+.failure-lifecycle-chip {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  min-height: 3rem;
+  padding: var(--space-2);
+  border: 1px solid var(--grey-700);
+  border-left: 3px solid var(--grey-500);
+  border-radius: var(--radius-sm);
+  background: var(--grey-850, var(--grey-800));
+}
+
+.failure-lifecycle-chip[data-state="new"],
+.failure-lifecycle-chip[data-state="reopened"] {
+  border-left-color: var(--semantic-danger-accent);
+}
+
+.failure-lifecycle-chip[data-state="acknowledged"],
+.failure-lifecycle-chip[data-state="working"] {
+  border-left-color: var(--semantic-info-accent);
+}
+
+.failure-lifecycle-chip[data-state="waiting_backend"],
+.failure-lifecycle-chip[data-state="ready_to_clear"] {
+  border-left-color: var(--semantic-warning-accent);
+}
+
+.failure-lifecycle-chip[data-state="resolved"] {
+  border-left-color: var(--semantic-success-accent);
+}
+
+.failure-lifecycle-chip span {
+  color: var(--grey-400);
+  font-size: var(--text-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.failure-lifecycle-chip strong {
+  min-width: 0;
+  color: var(--grey-100);
+  font-size: var(--text-sm);
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.failure-lifecycle-command-row {
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.failure-lifecycle-command-row label {
+  flex: 1 1 13rem;
+  min-width: 13rem;
+}
+
+.failure-lifecycle-command-row button[hidden] {
+  display: none;
+}
+
+.failure-operator-panels {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(13.5rem, 1fr));
+  gap: var(--space-2);
+  margin-bottom: var(--space-2);
+}
+
+.failure-operator-panel {
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--grey-800);
+  border-radius: var(--radius-sm);
+  background: var(--reports-failure-subtle-bg);
+}
+
+.failure-playbook-steps,
+.failure-timeline {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-5);
+}
+
+.failure-playbook-steps li,
+.failure-timeline li {
+  color: var(--grey-200);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.failure-playbook-steps li[data-status="current"] {
+  color: var(--grey-50);
+  font-weight: 700;
+}
+
+.failure-playbook-steps li[data-status="blocked"] {
+  color: var(--semantic-warning-text);
+}
+
+.failure-playbook-steps li[data-status="done"] {
+  color: var(--semantic-success-text);
+}
+
+.failure-verification-panel {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr));
+  gap: var(--space-2);
+}
+
+.failure-verification-item {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-2);
+  border: 1px solid var(--grey-800);
+  border-radius: var(--radius-xs);
+  background: var(--grey-900);
+}
+
+.failure-verification-item span {
+  color: var(--grey-400);
+  font-size: var(--text-xs);
+  font-weight: 700;
+}
+
+.failure-verification-item strong {
+  color: var(--grey-100);
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+#failure-detail[data-visual-keep] {
+  max-height: 8rem;
+  margin-bottom: var(--space-2);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+}
+
+.failure-records-panel {
+  display: grid;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.failure-records-table-wrap {
+  max-height: 24rem;
+  border-color: var(--grey-700);
+}
+
+.failure-records-table {
+  min-width: 70rem;
+}
+
+.failure-records-table th,
+.failure-records-table td {
+  vertical-align: top;
+}
+
+.failure-records-table td {
+  font-size: var(--text-xs);
+  line-height: 1.35;
+}
+
+.failure-records-panel .table-legend {
+  margin: 0 0 var(--space-2);
+}
+
+.failure-records-actions {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-2);
+  border-top: 1px solid var(--grey-800);
+}
+
+.failure-resolution-workflow {
+  display: grid;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+
+.compact-menu-disclosure {
+  position: relative;
+}
+
+.compact-menu-disclosure > summary {
+  min-height: 2.5rem;
+  padding: var(--space-2) var(--space-3);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  color: var(--grey-100);
+  cursor: pointer;
+}
+
+.compact-menu-disclosure[open] > summary {
+  border-color: var(--reports-failure-hover-border);
+}
+
+.compact-menu-disclosure > .action-row {
+  margin-top: var(--space-2);
+  padding: var(--space-2);
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  background: var(--grey-850, var(--grey-800));
+}
+
+.guided-action-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: end;
+}
+
+.guided-action-row label {
+  min-width: 14rem;
+}
+
+@media (max-width: 980px) {
+  .failure-resolution-summary-strip {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .failure-resolution-primary-metric {
+    grid-column: span 2;
+  }
+
+  .failure-resolution-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .failure-lifecycle-strip {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 520px) {
+  [data-page-panel="reports"] > .metric-grid,
+  .report-triage-panel .metric-grid,
+  .failure-resolution-summary-strip {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .failure-resolution-primary-metric {
+    grid-column: auto;
+  }
+
+  .failure-resolution-summary-strip .metric {
+    min-height: 0;
+  }
+}

@@ -25,6 +25,7 @@ from mediapipeline.core.publish.pending_manifest import pending_manifest_row
 PENDING_DRAIN_SUMMARY_SCHEMA_VERSION = "pending_drain_summary.v1"
 PENDING_FILE_INVENTORY_SCHEMA_VERSION = "desktop_pending_publish_file_inventory.v1"
 PENDING_FILE_INVENTORY_LIMIT = 500
+PENDING_PUBLISH_BOUNDED_SCAN_MANIFEST_LIMIT = 500
 
 
 def pending_drain_summary_path(resolved: ResolvedPaths, pending_root: Path | None) -> Path | None:
@@ -165,6 +166,7 @@ def pending_file_inventory(
     referenced_payloads: set[str] | None = None,
     status: str = "complete",
     error: str = "",
+    references_complete: bool = True,
 ) -> dict[str, Any]:
     if not exists or files is None:
         return _pending_file_inventory_empty(pending_root, exists=exists, status=status, error=error)
@@ -215,6 +217,8 @@ def pending_file_inventory(
         f"Total size: {format_bytes_compact(total_bytes)}",
         "Evidence boundary: directory listing only; file bytes were not read and no files were changed.",
     ]
+    if not references_complete:
+        summary_lines.append("Reference classification is sampled because manifest reads were capped.")
     if orphan_payload_count:
         summary_lines.append("Safe next action: inspect unreferenced payload rows with Pending Publish diagnostics before cleanup, rerun, manual move, or drain.")
     return {
@@ -235,6 +239,7 @@ def pending_file_inventory(
         "orphan_payload_count": orphan_payload_count,
         "kind_counts": _count_values(rows, "kind"),
         "role_counts": _count_values(rows, "role"),
+        "references_complete": bool(references_complete),
         "summary_lines": summary_lines,
         "error": error,
     }
@@ -265,7 +270,13 @@ def mark_duplicate_pending_targets(rows: list[dict[str, Any]]) -> None:
 
 
 class PendingPublishServiceMixin:
-    def scan_pending_publish(self, resolved: ResolvedPaths) -> dict[str, Any]:
+    def scan_pending_publish(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        manifest_limit: int | None = None,
+        include_orphan_rows: bool = True,
+    ) -> dict[str, Any]:
         pending_root = resolved.pending_push_path
         if pending_root is None:
             return {
@@ -326,30 +337,46 @@ class PendingPublishServiceMixin:
         )
         rows: list[dict[str, Any]] = []
         referenced_payloads: set[str] = set()
-        for manifest_path in manifests:
+        normalized_limit = None if manifest_limit is None else max(0, int(manifest_limit))
+        manifests_to_read = manifests if normalized_limit is None else manifests[:normalized_limit]
+        scan_limited = normalized_limit is not None and len(manifests_to_read) < len(manifests)
+        for manifest_path in manifests_to_read:
             row = self._pending_manifest_row(manifest_path)
             rows.append(row)
             for path_text in [row.get("local_file", ""), *row.get("sidecar_paths", [])]:
                 if path_text:
                     referenced_payloads.add(Path(str(path_text)).name.casefold())
 
-        for item in sorted(files, key=self._pending_item_mtime, reverse=True):
-            if item.name.endswith(".manifest.json"):
-                continue
-            if item.name.casefold() in referenced_payloads:
-                continue
-            rows.append(self._pending_orphan_payload_row(item))
+        if include_orphan_rows and not scan_limited:
+            for item in sorted(files, key=self._pending_item_mtime, reverse=True):
+                if item.name.endswith(".manifest.json"):
+                    continue
+                if item.name.casefold() in referenced_payloads:
+                    continue
+                rows.append(self._pending_orphan_payload_row(item))
 
         mark_duplicate_pending_targets(rows)
         total_bytes = sum(int(row.get("output_size") or 0) for row in rows)
         missing_local_count = sum(1 for row in rows if row.get("local_file") and not row.get("local_exists", False))
         health_rows = [row for row in rows if row.get("error") or (row.get("local_file") and not row.get("local_exists", False))]
+        warnings: list[str] = []
+        if scan_limited:
+            warnings.append(
+                f"Pending publish manifest scan capped at {normalized_limit} of {len(manifests)} manifest(s); run explicit drain or deep diagnostics for full validation."
+            )
         return {
             "pending_root": str(pending_root),
             "exists": True,
             "error": "",
             "rows": rows,
             "count": len(manifests),
+            "shown_count": len(rows),
+            "manifest_count": len(manifests),
+            "manifest_rows_read": len(manifests_to_read),
+            "manifest_limit": 0 if normalized_limit is None else normalized_limit,
+            "scan_limited": scan_limited,
+            "rows_truncated": scan_limited,
+            "warnings": warnings,
             "payload_count": len([item for item in files if not item.name.endswith(".manifest.json")]),
             "total_bytes": total_bytes,
             "total_size_text": self._format_bytes_compact(total_bytes),
@@ -362,6 +389,8 @@ class PendingPublishServiceMixin:
                 files,
                 exists=True,
                 referenced_payloads=referenced_payloads,
+                status="sampled" if scan_limited else "complete",
+                references_complete=not scan_limited,
             ),
         }
 

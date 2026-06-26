@@ -16,7 +16,7 @@ from mediapipeline.contracts.source_media import source_media_from_ffprobe  # no
 from mediapipeline.desktop.api import LocalApiServer  # noqa: E402
 from mediapipeline.desktop.api.contract_command import LOCAL_API_COMMAND_ROUTE_CONTRACT  # noqa: E402
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade  # noqa: E402
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved  # noqa: E402
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved  # noqa: E402
 
 
 REPO_ROOT = find_repo_root(Path(__file__))

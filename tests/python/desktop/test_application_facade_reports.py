@@ -13,7 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.core.audit.score_policy import normalize_audit_score_policy, read_audit_score_policy, write_audit_score_policy
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 
 
 class ApplicationFacadeReportsTests(unittest.TestCase):
@@ -396,6 +396,256 @@ class ApplicationFacadeReportsTests(unittest.TestCase):
         self.assertFalse(result["ok"])
         self.assertFalse(result["data"]["writes_failure_markers"])
         self.assertFalse(result["data"]["touches_media"])
+
+    def test_archive_failure_evidence_requires_preview_reason_and_matching_fingerprint(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            calls: list[dict[str, object]] = []
+
+            def archive_failure_evidence(  # type: ignore[no-untyped-def]
+                resolved,
+                *,
+                scope="all_active",
+                include_markers=True,
+                include_reports=True,
+                dry_run=False,
+                dry_run_fingerprint="",
+                reason="",
+            ):
+                calls.append(
+                    {
+                        "scope": scope,
+                        "include_markers": include_markers,
+                        "include_reports": include_reports,
+                        "dry_run": dry_run,
+                        "dry_run_fingerprint": dry_run_fingerprint,
+                        "reason": reason,
+                    }
+                )
+                return {
+                    "schema_version": "failure_evidence_archive_result.v1",
+                    "operation": "archive_failure_evidence",
+                    "scope": scope,
+                    "include_markers": include_markers,
+                    "include_reports": include_reports,
+                    "markers": 0 if dry_run else 1,
+                    "reports": 0 if dry_run else 2,
+                    "planned": [{"path": str(root / "State" / "Failures" / "Markers" / "one.json")}],
+                    "moved": [] if dry_run else [{"path": "one.json", "archive_path": "archive/one.json"}],
+                    "skipped": [],
+                    "errors": [],
+                    "dry_run": dry_run,
+                    "dry_run_fingerprint": "abc123",
+                    "manifest_path": str(root / "State" / "Failures" / "ClearManifests" / "manifest.json"),
+                    "archive_dir": str(root / "State" / "Failures" / "ClearManifests" / "ClearedEvidence"),
+                    "writes_failure_evidence": not dry_run,
+                    "touches_media": False,
+                }
+
+            service.archive_failure_evidence = archive_failure_evidence  # type: ignore[attr-defined]
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+
+            invalid_bool = facade.archive_failure_evidence(
+                resolved,
+                {"scope": "all_active", "include_markers": True, "include_reports": True, "dry_run": "true"},
+            ).to_mapping()
+            no_confirm = facade.archive_failure_evidence(
+                resolved,
+                {"scope": "all_active", "include_markers": True, "include_reports": True, "dry_run": False},
+            ).to_mapping()
+            no_reason = facade.archive_failure_evidence(
+                resolved,
+                {
+                    "scope": "all_active",
+                    "include_markers": True,
+                    "include_reports": True,
+                    "dry_run": False,
+                    "confirm_archive": True,
+                    "dry_run_fingerprint": "abc123",
+                },
+            ).to_mapping()
+            preview = facade.archive_failure_evidence(
+                resolved,
+                {
+                    "scope": "all_active",
+                    "include_markers": True,
+                    "include_reports": True,
+                    "dry_run": True,
+                    "confirm_archive": False,
+                },
+            ).to_mapping()
+            confirmed = facade.archive_failure_evidence(
+                resolved,
+                {
+                    "scope": "all_active",
+                    "include_markers": True,
+                    "include_reports": True,
+                    "dry_run": False,
+                    "confirm_archive": True,
+                    "dry_run_fingerprint": "abc123",
+                    "reason": "operator verified stale evidence",
+                },
+            ).to_mapping()
+
+        self.assertFalse(invalid_bool["ok"])
+        self.assertIn("dry_run", invalid_bool["message"])
+        self.assertFalse(no_confirm["ok"])
+        self.assertIn("confirm_archive", no_confirm["message"])
+        self.assertFalse(no_reason["ok"])
+        self.assertIn("non-empty reason", no_reason["message"])
+        self.assertEqual(len(calls), 2)
+        self.assertTrue(preview["ok"])
+        self.assertTrue(preview["data"]["dry_run"])
+        self.assertFalse(preview["data"]["writes_failure_evidence"])
+        self.assertTrue(confirmed["ok"])
+        self.assertEqual(confirmed["data"]["markers"], 1)
+        self.assertEqual(confirmed["data"]["reports"], 2)
+        self.assertTrue(confirmed["data"]["writes_failure_evidence"])
+        self.assertFalse(confirmed["data"]["touches_media"])
+
+    def test_failure_lifecycle_requires_confirmation_and_blocks_resolve_until_markers_clear(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_path = root / "Movies" / "Movie.mkv"
+            failure_json = root / "failures.json"
+            failure_json.write_text(
+                json.dumps(
+                    [
+                        {
+                            "SourcePath": str(source_path),
+                            "Stage": "video-stream-policy",
+                            "Reason": "Source video streams need operator routing.",
+                            "Classification": "operator_required",
+                            "ErrorCode": "SOURCE_VIDEO_STREAMS_UNVETTED",
+                            "SuggestedAction": "Use a source with one real video stream or add per-stream routing.",
+                            "video_stream_evidence": {
+                                "schema_version": "pipeline_failure_video_stream_evidence.v1",
+                                "route": "encode",
+                                "source_real_video_stream_count": 2,
+                                "source_attached_picture_stream_count": 0,
+                                "source_streams": [
+                                    {"source": "source", "index": 0, "ordinal": 0, "codec": "hevc", "width": 1920, "height": 1080},
+                                    {"source": "source", "index": 1, "ordinal": 1, "codec": "h264", "width": 1920, "height": 1080},
+                                ],
+                            },
+                        }
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            markers_path = root / "State" / "Failures" / "Markers"
+            markers_path.mkdir(parents=True)
+            marker_file = markers_path / "marker-1.json"
+            marker_file.write_text(
+                json.dumps(
+                    {
+                        "source_full_path": str(source_path),
+                        "stage": "video-stream-policy",
+                        "reason": "Source video streams need operator routing.",
+                        "classification": "operator_required",
+                        "error_code": "SOURCE_VIDEO_STREAMS_UNVETTED",
+                        "suggested_action": "Use a source with one real video stream or add per-stream routing.",
+                        "video_stream_evidence": {
+                            "schema_version": "pipeline_failure_video_stream_evidence.v1",
+                            "route": "encode",
+                            "source_real_video_stream_count": 2,
+                            "source_attached_picture_stream_count": 0,
+                            "source_streams": [
+                                {"source": "source", "index": 0, "ordinal": 0, "codec": "hevc", "width": 1920, "height": 1080},
+                                {"source": "source", "index": 1, "ordinal": 1, "codec": "h264", "width": 1920, "height": 1080},
+                            ],
+                        },
+                    }
+                ),
+                encoding="utf-8",
+            )
+            facade = MediaPipelineApplicationFacade(DummyFacadeService(root), app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+            resolved.failed_markers_path = markers_path
+            failure_preview = facade.get_failure_preview(resolved).to_mapping()
+            group = failure_preview["resolution_groups"][0]
+            journal_key = group["journal_key"]
+
+            evidence = failure_preview["rows"][0]["evidence_details"]
+            evidence_lines = "\n".join(group["evidence_lines"])
+            no_confirm = facade.transition_failure_lifecycle(
+                resolved,
+                {"journal_key": journal_key, "transition": "acknowledge", "confirm_transition": False},
+            ).to_mapping()
+            acknowledged = facade.transition_failure_lifecycle(
+                resolved,
+                {"journal_key": journal_key, "transition": "acknowledge", "confirm_transition": True},
+            ).to_mapping()
+            resolve_preview_blocked = facade.transition_failure_lifecycle(
+                resolved,
+                {
+                    "journal_key": journal_key,
+                    "transition": "mark_resolved",
+                    "dry_run": True,
+                    "reason": "operator reviewed issue",
+                },
+            ).to_mapping()
+            marker_file.unlink()
+            resolve_preview = facade.transition_failure_lifecycle(
+                resolved,
+                {
+                    "journal_key": journal_key,
+                    "transition": "mark_resolved",
+                    "dry_run": True,
+                    "reason": "operator reviewed issue and markers are clear",
+                },
+            ).to_mapping()
+            wrong_fingerprint = facade.transition_failure_lifecycle(
+                resolved,
+                {
+                    "journal_key": journal_key,
+                    "transition": "mark_resolved",
+                    "dry_run": False,
+                    "confirm_transition": True,
+                    "dry_run_fingerprint": "wrong",
+                    "reason": "operator reviewed issue and markers are clear",
+                },
+            ).to_mapping()
+            resolved_result = facade.transition_failure_lifecycle(
+                resolved,
+                {
+                    "journal_key": journal_key,
+                    "transition": "mark_resolved",
+                    "dry_run": False,
+                    "confirm_transition": True,
+                    "dry_run_fingerprint": resolve_preview["data"]["dry_run_fingerprint"],
+                    "reason": "operator reviewed issue and markers are clear",
+                },
+            ).to_mapping()
+            journal_path = root / "State" / "Failures" / "ResolutionJournal" / "events.jsonl"
+            journal_exists = journal_path.exists()
+            journal_line_count = len(journal_path.read_text(encoding="utf-8").splitlines()) if journal_exists else 0
+        self.assertTrue(evidence["structured"])
+        self.assertIn("Video streams: source real=2, attached=0", evidence["summary_lines"])
+        self.assertEqual([stream["label"] for stream in evidence["stream_rows"]], [
+            "source v:0 hevc 1920x1080",
+            "source v:1 h264 1920x1080",
+        ])
+        self.assertIn("source v:0 hevc 1920x1080", evidence_lines)
+        self.assertIn("source v:1 h264 1920x1080", evidence_lines)
+        self.assertFalse(no_confirm["ok"])
+        self.assertIn("confirm_transition", no_confirm["message"])
+        self.assertTrue(acknowledged["ok"])
+        self.assertTrue(acknowledged["data"]["writes_failure_resolution_journal"])
+        self.assertFalse(acknowledged["data"]["touches_media"])
+        self.assertFalse(resolve_preview_blocked["ok"])
+        self.assertIn("Active failure markers remain", "\n".join(resolve_preview_blocked["errors"]))
+        self.assertTrue(resolve_preview["ok"])
+        self.assertTrue(resolve_preview["data"]["dry_run_fingerprint"])
+        self.assertFalse(wrong_fingerprint["ok"])
+        self.assertIn("fingerprint mismatch", wrong_fingerprint["message"])
+        self.assertTrue(resolved_result["ok"])
+        self.assertEqual(resolved_result["data"]["lifecycle_state"], "resolved")
+        self.assertTrue(journal_exists)
+        self.assertEqual(journal_line_count, 2)
 
     def test_audit_preview_reads_latest_csv_without_mutation(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

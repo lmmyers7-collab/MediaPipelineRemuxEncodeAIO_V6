@@ -95,7 +95,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'primary sdr mkv auto movie'
         Params = @{}
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'primary'
         Route = 'encode'
         Label = 'ENCODE'
@@ -121,7 +121,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'primary sdr mkv tv-balanced'
         Params = @{ EncodeLadder = 'tv_balanced' }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|90M|-bufsize|180M|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|90M|-bufsize|180M|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'primary'
         Route = 'encode'
         Label = 'ENCODE'
@@ -134,7 +134,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'primary sdr mkv plex-compat'
         Params = @{ EncodeLadder = 'plex_compat' }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|80M|-bufsize|160M|-rc|vbr|-spatial-aq|1|-aq-strength|6|-bf|2|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|80M|-bufsize|160M|-rc|vbr|-spatial-aq|1|-aq-strength|6|-bf|2|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'primary'
         Route = 'encode'
         Label = 'ENCODE'
@@ -147,7 +147,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'primary sdr mkv auto tv'
         Params = @{ IsTV = $true }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|90M|-bufsize|180M|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|90M|-bufsize|180M|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'primary'
         Route = 'encode'
         Label = 'ENCODE'
@@ -160,7 +160,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'primary hdr no metadata mkv'
         Params = @{ IsHDR = $true }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|main10|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|main10|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'primary'
         Route = 'encode'
         Label = 'ENCODE'
@@ -173,7 +173,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'primary hdr with metadata mkv'
         Params = @{ IsHDR = $true; Hdr10MasterDisplay = $hdr10MasterDisplay; Hdr10MaxCll = $hdr10MaxCll }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|main10|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|main10|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'primary'
         Route = 'encode'
         Label = 'ENCODE'
@@ -199,7 +199,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'safe sdr mkv auto'
         Params = @{ UseSafeHardwareRetry = $true }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-rc|vbr|-spatial-aq|1|-aq-strength|6|-bf|2|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-rc|vbr|-spatial-aq|1|-aq-strength|6|-bf|2|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'hardware_safe_retry'
         Route = 'encode'
         Label = 'ENCODE-SAFE'
@@ -225,7 +225,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'safe hdr with metadata mkv plex-compat'
         Params = @{ UseSafeHardwareRetry = $true; IsHDR = $true; EncodeLadder = 'plex_compat'; Hdr10MasterDisplay = $hdr10MasterDisplay; Hdr10MaxCll = $hdr10MaxCll }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|80M|-bufsize|160M|-rc|vbr|-spatial-aq|1|-aq-strength|6|-bf|2|-profile:v|main10|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|23|-maxrate|80M|-bufsize|160M|-rc|vbr|-spatial-aq|1|-aq-strength|6|-bf|2|-profile:v|main10|-pix_fmt|p010le|-color_primaries|bt2020|-color_trc|smpte2084|-colorspace|bt2020nc|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'hardware_safe_retry'
         Route = 'encode'
         Label = 'ENCODE-SAFE'
@@ -238,7 +238,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu sdr mkv auto threads0'
         Params = @{ UseCpuFallback = $true }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -251,7 +251,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu sdr mkv auto threads8'
         Params = @{ UseCpuFallback = $true; CpuMaxThreads = 8 }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-threads|8|-x265-params|log-level=error:pools=8:frame-threads=2|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-threads|8|-x265-params|log-level=error:pools=8:frame-threads=2|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -277,7 +277,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu sdr mkv movie-archive threads0'
         Params = @{ UseCpuFallback = $true; EncodeLadder = 'movie_archive' }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|19|-x265-params|log-level=error|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|19|-x265-params|log-level=error|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -290,7 +290,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu sdr mkv plex-compat threads0'
         Params = @{ UseCpuFallback = $true; EncodeLadder = 'plex_compat' }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|21|-x265-params|log-level=error|-profile:v|main|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|21|-x265-params|log-level=error|-profile:v|main|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -303,7 +303,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu hdr no metadata mkv'
         Params = @{ UseCpuFallback = $true; IsHDR = $true }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc|-profile:v|main10|-pix_fmt|p010le|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc|-profile:v|main10|-pix_fmt|p010le|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -316,7 +316,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu hdr with metadata mkv'
         Params = @{ UseCpuFallback = $true; IsHDR = $true; Hdr10MasterDisplay = $hdr10MasterDisplay; Hdr10MaxCll = $hdr10MaxCll }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400|-profile:v|main10|-pix_fmt|p010le|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400|-profile:v|main10|-pix_fmt|p010le|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -342,7 +342,7 @@ $snapshotCases = @(
     [pscustomobject]@{
         Name = 'cpu hdr dynamic hdr artifacts mkv'
         Params = @{ UseCpuFallback = $true; IsHDR = $true; Hdr10MasterDisplay = $hdr10MasterDisplay; Hdr10MaxCll = $hdr10MaxCll; DolbyVisionRpuPath = 'dynamic_hdr\rpu.bin'; DolbyVisionTargetProfile = '8.1'; Hdr10PlusJsonPath = 'dynamic_hdr\hdr10plus.json' }
-        Expected = '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-dolbyvision|true|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400:dolby-vision-profile=8.1:vbv-maxrate=50000:vbv-bufsize=50000:dhdr10-info=dynamic_hdr\hdr10plus.json|-profile:v|main10|-pix_fmt|p010le|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-dolbyvision|true|-x265-params|log-level=error:hdr10=1:hdr10-opt=1:repeat-headers=1:colorprim=bt2020:transfer=smpte2084:colormatrix=bt2020nc:master-display=G(13250,34500)B(7500,3000)R(34000,16000)WP(15635,16450)L(10000000,1):max-cll=1000,400:dolby-vision-profile=8.1:vbv-maxrate=50000:vbv-bufsize=50000:dhdr10-info=dynamic_hdr\hdr10plus.json|-profile:v|main10|-pix_fmt|p010le|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -361,7 +361,7 @@ $snapshotCases = @(
             SubtitleMapArgs = @('-map','1:s:0','-c:s:0','srt')
             ExtraVideoFlags = @('-gpu','0','-rc-lookahead','32')
         }
-        Expected = '-i|in.mkv|-i|subs.srt|-map|0:V|-vf|scale=1920:-2|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-gpu|0|-rc-lookahead|32|-profile:v|main|-map|0:a:0|-c:a:0|copy|-map|1:s:0|-c:s:0|srt|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-i|subs.srt|-map|0:V|-vf|scale=1920:-2|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|hevc_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-gpu|0|-rc-lookahead|32|-profile:v|main|-map|0:a:0|-c:a:0|copy|-map|1:s:0|-c:s:0|srt|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'primary'
         Route = 'encode'
         Label = 'ENCODE'
@@ -402,7 +402,7 @@ $snapshotCases = @(
             AudioArgs = @('-map','0:a:0','-c:a:0','copy')
             SubtitleMapArgs = @('-map','1:s:0','-c:s:0','srt')
         }
-        Expected = '-i|in.mkv|-i|subs.srt|-map|0:V|-vf|scale=1920:-2|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-threads|8|-x265-params|log-level=error:pools=8:frame-threads=2|-profile:v|main|-map|0:a:0|-c:a:0|copy|-map|1:s:0|-c:s:0|srt|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
+        Expected = '-i|in.mkv|-i|subs.srt|-map|0:V|-vf|scale=1920:-2|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx265|-preset|medium|-crf|20|-threads|8|-x265-params|log-level=error:pools=8:frame-threads=2|-profile:v|main|-map|0:a:0|-c:a:0|copy|-map|1:s:0|-c:s:0|srt|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv'
         Attempt = 'cpu_fallback'
         Route = 'encode-cpu-fallback'
         Label = 'ENCODE-CPU'
@@ -451,7 +451,7 @@ Assert-Equal ([bool]$av1CpuFallbackPlan.DescriptorSelection.Resolved) $true 'AV1
 Assert-Equal ([bool]$av1CpuFallbackPlan.DescriptorSelection.Active) $true 'AV1/NVENC CPU fallback descriptor selection should be active.'
 Assert-Equal ([string]$av1CpuFallbackPlan.DescriptorSelection.Role) 'cpu_fallback' 'AV1/NVENC CPU fallback descriptor role mismatch.'
 Assert-Equal ([string]$av1CpuFallbackPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'AV1/NVENC CPU fallback descriptor backend mismatch.'
-Assert-Equal (@($av1CpuFallbackPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'AV1/NVENC CPU fallback command topology mismatch.'
+Assert-Equal (@($av1CpuFallbackPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'AV1/NVENC CPU fallback command topology mismatch.'
 
 $libaomPrimaryPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'libaom-av1'; CpuMaxThreads = 8 }
 Assert-Equal ([string]$libaomPrimaryPlan.SelectedEncoder) 'libaom-av1' 'libaom AV1 primary plan should expose the AV1 CPU descriptor encoder.'
@@ -460,7 +460,7 @@ Assert-Equal ([bool]$libaomPrimaryPlan.DescriptorSelection.Resolved) $true 'liba
 Assert-Equal ([bool]$libaomPrimaryPlan.DescriptorSelection.Active) $true 'libaom AV1 primary descriptor selection should be active.'
 Assert-Equal ([string]$libaomPrimaryPlan.DescriptorSelection.Role) 'primary' 'libaom AV1 primary descriptor role mismatch.'
 Assert-Equal ([string]$libaomPrimaryPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'libaom AV1 primary descriptor backend mismatch.'
-Assert-Equal (@($libaomPrimaryPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'libaom AV1 primary command topology mismatch.'
+Assert-Equal (@($libaomPrimaryPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'libaom AV1 primary command topology mismatch.'
 
 $h264NvencActivePlan = New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc' }
 Assert-Equal ([string]$h264NvencActivePlan.SelectedEncoder) 'h264_nvenc' 'H.264/NVENC active primary plan should expose the descriptor encoder.'
@@ -468,7 +468,7 @@ Assert-Equal ([bool]$h264NvencActivePlan.DescriptorSelection.Resolved) $true 'H.
 Assert-Equal ([bool]$h264NvencActivePlan.DescriptorSelection.Active) $true 'H.264/NVENC primary descriptor selection should be active.'
 Assert-Equal ([string]$h264NvencActivePlan.DescriptorSelection.Family) 'h264' 'H.264/NVENC descriptor family mismatch.'
 Assert-Equal ([string]$h264NvencActivePlan.DescriptorSelection.DescriptorBackend) 'nvenc' 'H.264/NVENC descriptor backend mismatch.'
-Assert-Equal (@($h264NvencActivePlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|h264_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|high|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'H.264/NVENC active primary command topology mismatch.'
+Assert-Equal (@($h264NvencActivePlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|h264_nvenc|-preset|p7|-cq|22|-maxrate|120M|-bufsize|240M|-profile:v|high|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'H.264/NVENC active primary command topology mismatch.'
 Assert-Throws {
     New-PlanFromCase -Overrides @{ VideoCodec = 'h264_nvenc'; IsHDR = $true } | Out-Null
 } 'H.264/NVENC active descriptor path must fail closed for HDR sources until HDR preservation is proven.'
@@ -479,7 +479,7 @@ Assert-Equal ([bool]$h264CpuFallbackPlan.DescriptorSelection.Resolved) $true 'H.
 Assert-Equal ([bool]$h264CpuFallbackPlan.DescriptorSelection.Active) $true 'H.264/NVENC CPU fallback descriptor selection should be active.'
 Assert-Equal ([string]$h264CpuFallbackPlan.DescriptorSelection.Role) 'cpu_fallback' 'H.264/NVENC CPU fallback descriptor role mismatch.'
 Assert-Equal ([string]$h264CpuFallbackPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'H.264/NVENC CPU fallback descriptor backend mismatch.'
-Assert-Equal (@($h264CpuFallbackPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'H.264/NVENC CPU fallback command topology mismatch.'
+Assert-Equal (@($h264CpuFallbackPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'H.264/NVENC CPU fallback command topology mismatch.'
 
 $libx264PrimaryPlan = New-PlanFromCase -Overrides @{ VideoCodec = 'libx264'; CpuMaxThreads = 8 }
 Assert-Equal ([string]$libx264PrimaryPlan.SelectedEncoder) 'libx264' 'libx264 primary plan should expose the H.264 CPU descriptor encoder.'
@@ -487,7 +487,7 @@ Assert-Equal ([bool]$libx264PrimaryPlan.DescriptorSelection.Resolved) $true 'lib
 Assert-Equal ([bool]$libx264PrimaryPlan.DescriptorSelection.Active) $true 'libx264 primary descriptor selection should be active.'
 Assert-Equal ([string]$libx264PrimaryPlan.DescriptorSelection.Role) 'primary' 'libx264 primary descriptor role mismatch.'
 Assert-Equal ([string]$libx264PrimaryPlan.DescriptorSelection.DescriptorBackend) 'cpu' 'libx264 primary descriptor backend mismatch.'
-Assert-Equal (@($libx264PrimaryPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'libx264 primary command topology mismatch.'
+Assert-Equal (@($libx264PrimaryPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libx264|-preset|medium|-crf|20|-threads|8|-profile:v|high|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'libx264 primary command topology mismatch.'
 
 $hevcHdrReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'hevc_nvenc' -IsHDR:$true
 Assert-Equal ([bool]$hevcHdrReadiness.ok) $true 'HEVC/NVENC HDR should be active for descriptor-owned primary flags.'
@@ -533,7 +533,10 @@ $unknownReadiness = Resolve-MediaEncoderActivationReadiness -VideoCodec 'vp9_nve
 Assert-Equal ([bool]$unknownReadiness.ok) $false 'Unknown encoder readiness must fail closed.'
 Assert-Equal ([string]$unknownReadiness.error_code) 'ENCODE_ENCODER_UNSUPPORTED' 'Unknown encoder readiness error code mismatch.'
 
-$encodeEntryText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+$encodeImplementationPaths = @(
+    (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1')
+) + @(Get-ChildItem -LiteralPath (Join-Path $repoRoot 'ops\pipeline\engine\process') -Filter 'encode_*.ps1' | ForEach-Object { $_.FullName })
+$encodeEntryText = ($encodeImplementationPaths | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join "`n"
 Assert-True ($encodeEntryText -match 'Resolve-MediaEncoderActivationReadiness') 'Do-Encode must check encoder activation before FFmpeg plan construction.'
 Assert-True ($encodeEntryText -match '-EncoderBackend \$normalizedEncoderBackend') 'Do-Encode must thread the saved EncoderBackend into activation and attempt planning.'
 Assert-True ($encodeEntryText -match 'encoder_backend_cpu_selected') 'Do-Encode must expose EncoderBackend=cpu CPU-only routing evidence.'
@@ -769,7 +772,7 @@ Assert-Equal ([string]$av1CpuBackendPlan.Attempt) 'cpu_fallback' 'EncoderBackend
 Assert-Equal ([string]$av1CpuBackendPlan.SelectedEncoder) 'libaom-av1' 'EncoderBackend=cpu should select the AV1 family CPU descriptor.'
 Assert-Equal ([bool]$av1CpuBackendPlan.DescriptorSelection.Active) $true 'EncoderBackend=cpu descriptor selection should be active.'
 Assert-Equal ([string]$av1CpuBackendPlan.DescriptorSelection.EncoderBackend) 'cpu' 'EncoderBackend=cpu attempt evidence should retain backend evidence.'
-Assert-Equal (@($av1CpuBackendPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map|0:t?|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-c:t|copy|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'EncoderBackend=cpu AV1 command topology mismatch.'
+Assert-Equal (@($av1CpuBackendPlan.ArgumentList) -join '|') '-i|in.mkv|-map|0:V|-map_chapters|0|-map_metadata|0|-metadata|title=T|-c:v|libaom-av1|-crf|22|-b:v|0|-cpu-used|1|-threads|8|-f|matroska|-max_muxing_queue_size|1024|-y|out.mkv' 'EncoderBackend=cpu AV1 command topology mismatch.'
 
 $qsvDescriptorCases = @(
     @{ Family = 'hevc'; Codec = 'hevc_qsv'; Preset = 'p7'; ExpectedPreset = 'veryslow'; Expected = '-c:v|hevc_qsv|-preset|veryslow|-global_quality|24' },
@@ -837,7 +840,7 @@ foreach ($case in $retryCases) {
     Assert-Equal ([bool]$actual) ([bool]$case.Expected) "Retry truth-table mismatch for $($case.Name)."
 }
 
-$encodeEntryText = Get-Content -LiteralPath (Join-Path $repoRoot 'ops\pipeline\entrypoints\MediaPipeline\encode.ps1') -Raw
+$encodeEntryText = ($encodeImplementationPaths | ForEach-Object { Get-Content -LiteralPath $_ -Raw }) -join "`n"
 Assert-True ($encodeEntryText -match 'Acquire-CpuEncodeMutex -TimeoutSeconds \$script:FFmpegCpuEncodeTimeoutSeconds') 'CPU fallback must wait for the CPU mutex after zero-time acquisition fails.'
 Assert-True ($encodeEntryText -match 'if \(-not \$cpuMutexLock\.Acquired\)') 'CPU fallback must re-check mutex acquisition after the timed wait.'
 Assert-True ($encodeEntryText -match 'ENCODE_CPU_MUTEX_UNAVAILABLE') 'CPU fallback mutex timeout must register a distinct failure code.'

@@ -1,0 +1,54 @@
+.fo-route-override-toggle {
+  justify-self: start;
+}
+.fo-route-override-status {
+  color: var(--grey-400);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  margin: 0;
+}
+.fo-route-override-controls {
+  display: grid;
+  gap: var(--space-3);
+}
+.fo-route-override-controls[hidden] {
+  display: none;
+}
+.fo-route-preview-status,
+.fo-route-encode-advisory {
+  border: 1px solid var(--grey-700);
+  border-radius: var(--radius-sm);
+  color: var(--grey-300);
+  font-size: var(--text-xs);
+  line-height: 1.4;
+  padding: var(--space-3);
+}
+.fo-route-preview-status[data-risk="high"],
+.fo-route-preview-status[data-risk="medium"] {
+  border-color: var(--semantic-frontend-advisory-border);
+  color: var(--grey-100);
+}
+.fo-route-preview-list {
+  margin: var(--space-2) 0 0;
+  padding-left: var(--space-5);
+}
+.fo-route-encode-advisory {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.fo-route-encode-advisory[data-tone="safe"] {
+  background: var(--semantic-success-bg);
+  border-color: var(--semantic-success-border);
+  color: var(--semantic-success-text);
+}
+.fo-route-encode-advisory[data-tone="warning"] {
+  background: var(--semantic-frontend-advisory-bg);
+  border-color: var(--semantic-frontend-advisory-border);
+  color: var(--semantic-frontend-advisory-text);
+}
+.fo-route-encode-advisory[data-tone="info"] {
+  background: var(--semantic-info-bg);
+  border-color: var(--semantic-info-border);
+  color: var(--semantic-info-text);
+}
+.fo-route-encode-advisory[hidden] { display: none; }

@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0625-002",
+  "title": "Calm active launch readiness gates",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-25",
+  "date_completed": "2026-06-25",
+  "summary": "Adjusted the Launch compact gate so active-work-only backend preflight blocks render as the existing Active/running state instead of Will Fail/blocked. Real backend blockers still render as Will Fail.",
+  "reason": "During a normal active pipeline run, backend launch guards correctly reject duplicate starts. The compact gate was presenting that expected protection as bright red failure, creating false-positive operator alarm.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "When a run was already active, active_work/process_launch_lock preflight checks made the compact Launch gate show Will Fail with blocked styling across Backend, Queue, Schedule, and Active tiles.",
+  "behavior_after": "When active_work/process_launch_lock are the only compact-gate blockers, the compact Launch gate shows Active/running styling. Non-active backend blockers such as config identity still show Will Fail/blocked styling.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchView.scope.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchView.scope.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_launch_command_buttons_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0625-002.json",
+    "tests/webview/test_webview_launch_command_buttons_smoke.py"
+  ],
+  "tests_added": [
+    "tests.webview.test_webview_launch_command_buttons_smoke.WebViewLaunchCommandButtonsSmoke.test_active_work_compact_gate_renders_active_instead_of_will_fail"
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke.WebViewLaunchCommandButtonsSmoke.test_active_work_compact_gate_renders_active_instead_of_will_fail -q (pass)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke.WebViewLaunchCommandButtonsSmoke.test_backend_preflight_refresh_is_explicit_and_splits_csv_preview_from_start -q (pass)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q (pass)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_launch_command_buttons_smoke -q (fails before completion on existing launch-readiness-actions page markup assertion in the dirty worktree)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (fails on 11 unrelated uncovered dirty files)"
+  ],
+  "rollback_plan": "Revert the compact-gate active-work classification changes in apps/desktop/webview/static/assets/launchView.scope.js and remove the added compact-gate smoke assertion.",
+  "related_changes": [],
+  "notes": "Demote active-work-only compact launch gate blockers to the existing running/active presentation state.\nAdd Node-backed compact gate smoke covering active-work-only versus real backend blockers.\nRefresh generated summary for the touched Launch compact gate module.\nRefresh generated summary for the touched Launch WebView smoke test."
+}

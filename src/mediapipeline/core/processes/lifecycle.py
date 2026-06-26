@@ -69,6 +69,19 @@ from .runtime_runner import (
 from .spawn_runner import spawn_process_for_service
 
 
+def _normalized_spawned_job_kinds(job_kinds: set[str] | None) -> set[str] | None:
+    if job_kinds is None:
+        return None
+    normalized: set[str] = set()
+    for item in job_kinds:
+        key = str(item or "").strip().casefold()
+        if key == "rerun":
+            key = "rerun_csv"
+        if key:
+            normalized.add(key)
+    return normalized
+
+
 class ProcessLifecycleServiceMixin:
     def _iter_bundled_launch_dirs(self) -> list[Path]:
         return iter_bundled_launch_dirs(self.app_root, self.workspace_root)
@@ -191,13 +204,19 @@ class ProcessLifecycleServiceMixin:
         with lock:
             return pid in active
 
-    def kill_active_spawned_processes(self) -> list[str]:
+    def kill_active_spawned_processes(self, *, job_kinds: set[str] | None = None) -> list[str]:
         lock = getattr(self, "_active_spawned_processes_lock", None)
         active = getattr(self, "_active_spawned_processes", None)
         if lock is None or not isinstance(active, dict):
             return []
+        normalized_job_kinds = _normalized_spawned_job_kinds(job_kinds)
         with lock:
-            items = list(active.items())
+            items = [
+                item
+                for item in active.items()
+                if normalized_job_kinds is None
+                or str(item[1][1] or "").strip().casefold() in normalized_job_kinds
+            ]
         messages: list[str] = []
         for _pid, (proc, job_kind) in items:
             poll = getattr(proc, "poll", None)
@@ -341,8 +360,18 @@ class ProcessLifecycleServiceMixin:
             job_kinds=job_kinds,
         )
 
-    def kill_related_pipeline_processes(self, resolved: ResolvedPaths) -> list[str]:
-        return kill_related_pipeline_processes(resolved, psutil_module=psutil, logger=self.logger)
+    def kill_related_pipeline_processes(
+        self,
+        resolved: ResolvedPaths,
+        *,
+        job_kinds: set[str] | None = None,
+    ) -> list[str]:
+        return kill_related_pipeline_processes(
+            resolved,
+            psutil_module=psutil,
+            logger=self.logger,
+            job_kinds=job_kinds,
+        )
 
     def kill_process_tree(self, proc: subprocess.Popen[Any] | None, label: str) -> str:
         return kill_process_tree(

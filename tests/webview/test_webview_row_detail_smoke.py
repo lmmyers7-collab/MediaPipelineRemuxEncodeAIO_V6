@@ -425,6 +425,128 @@ def _node_runner_source() -> str:
           throw new Error("shift selection should visibly select the rendered range");
         }
 
+        const launchCheckRow = Object.assign({}, payload.queue.rows[0], {
+          row_key: "launch-check-only",
+          global_order: 1,
+          queue_index: 1,
+          display_name: "Bookworm S03E01",
+          relative_path: "Bookworm/S03E01-The Beginning of Winter.mkv",
+          source_path: "C:/Source/Bookworm/S03E01-The Beginning of Winter.mkv",
+          media_type: "TV",
+          status: "ready",
+          route_name: "Encode",
+          route_reason_code: "bitrate_over_threshold",
+          route_reason: "estimated source bitrate 37.36 Mbps exceeds 5.00 Mbps threshold",
+          route_decision_summary: "Encode because estimated bitrate exceeds threshold.",
+          operator_status: "Ready",
+          operator_status_state: "warning",
+          operator_severity: "ok",
+          operator_trust_state: "launch-check-needed",
+          primary_concern: "source stability and output-path checks are deferred until backend launch",
+          safe_next_action: "Use Launch only after page-level readiness and schedule checks agree; expect final source/output validation during processing.",
+          runtime_checks_deferred: true,
+          runtime_check_deferred_count: 2,
+          runtime_check_codes: ["source_stability", "output_path_capability"],
+          runtime_check_notes: ["Source stability is checked by Test-FileStable only when processing starts."],
+          runtime_outcome_status: "",
+          runtime_outcome_error_code: "",
+          runtime_outcome_reason: "",
+          runtime_outcome_freshness_status: "",
+          review_flags: ["encode_route", "runtime_checks_deferred", "runtime:source_stability", "runtime:output_path_capability"],
+          blocked_reason: "",
+          blocked_reason_code: "",
+          error: "",
+        });
+        const blockedBadExtensionRow = Object.assign({}, launchCheckRow, {
+          row_key: "blocked-bad-extension",
+          global_order: 2,
+          queue_index: 2,
+          display_name: "www.YTS.AM",
+          relative_path: "www.YTS.AM.jpg",
+          source_path: "C:/Source/www.YTS.AM.jpg",
+          status: "invalid",
+          route_name: "",
+          route_reason_code: "bad_extension",
+          route_reason: "bad extension",
+          operator_status: "Blocked",
+          operator_status_state: "blocked",
+          operator_severity: "warning",
+          operator_trust_state: "blocked",
+          primary_concern: "bad extension",
+          runtime_checks_deferred: false,
+          runtime_check_deferred_count: 0,
+          runtime_check_codes: [],
+          runtime_check_notes: [],
+          review_flags: ["blocked", "blocked:bad_extension"],
+          blocked_reason: "bad extension",
+          blocked_reason_code: "bad_extension",
+        });
+        const realReviewRow = Object.assign({}, launchCheckRow, {
+          row_key: "real-review-row",
+          global_order: 3,
+          queue_index: 3,
+          display_name: "Needs Source Review",
+          status: "ready",
+          operator_status: "Review before launch",
+          operator_status_state: "warning",
+          operator_severity: "warning",
+          operator_trust_state: "review-before-launch",
+          primary_concern: "row is missing source or routing metadata",
+          runtime_checks_deferred: false,
+          runtime_check_deferred_count: 0,
+          runtime_check_codes: [],
+          runtime_check_notes: [],
+          review_flags: ["missing_source_path"],
+        });
+        const launchCheckQueue = { ok: true, rows: [launchCheckRow, blockedBadExtensionRow, realReviewRow], count: 3, snapshot_exists: true };
+        context.renderQueue(launchCheckQueue);
+        const renderedLaunchRows = queueRenderedRows();
+        const renderedByKey = (key) => renderedLaunchRows.find((row) => row.dataset.rowKey === key);
+        const launchCheckNode = renderedByKey("launch-check-only");
+        const blockedBadExtensionNode = renderedByKey("blocked-bad-extension");
+        const realReviewNode = renderedByKey("real-review-row");
+        if (!launchCheckNode || !blockedBadExtensionNode || !realReviewNode) {
+          throw new Error(`expected launch-check, blocked, and review rows to render; keys=${renderedLaunchRows.map((row) => row.dataset.rowKey).join(",")}`);
+        }
+        if (launchCheckNode.dataset.status !== "launch-check" || launchCheckNode.dataset.filterStatus !== "launch-check") {
+          throw new Error(`deferred-only row should render as launch-check, got ${JSON.stringify(launchCheckNode.dataset)}`);
+        }
+        if (!launchCheckNode.textContent.includes("Launch Check")) {
+          throw new Error(`deferred-only row missing Launch Check chip: ${launchCheckNode.textContent}`);
+        }
+        if (!launchCheckNode.textContent.includes("bitrate over threshold") || !launchCheckNode.textContent.includes("checks at launch")) {
+          throw new Error(`deferred-only row evidence should explain route reason and launch checks: ${launchCheckNode.textContent}`);
+        }
+        if (blockedBadExtensionNode.dataset.status !== "blocked" || !blockedBadExtensionNode.textContent.includes("Blocked")) {
+          throw new Error(`bad-extension row should remain blocked: ${JSON.stringify(blockedBadExtensionNode.dataset)} ${blockedBadExtensionNode.textContent}`);
+        }
+        if (realReviewNode.dataset.status !== "warning" || !realReviewNode.textContent.includes("Review")) {
+          throw new Error(`real warning row should remain Review: ${JSON.stringify(realReviewNode.dataset)} ${realReviewNode.textContent}`);
+        }
+        const reviewEntries = context.mediaPipelineQueueView.queueReviewRows(launchCheckQueue, launchCheckQueue.rows);
+        const reviewKeys = reviewEntries.map((entry) => entry.row.row_key).join(",");
+        if (reviewKeys.includes("launch-check-only")) {
+          throw new Error(`launch-check-only row should not appear in review rows: ${reviewKeys}`);
+        }
+        if (!reviewKeys.includes("blocked-bad-extension") || !reviewKeys.includes("real-review-row")) {
+          throw new Error(`blocked and real review rows should remain review rows: ${reviewKeys}`);
+        }
+        context.document.getElementById("queue-investigation-filter").value = "deferred_checks";
+        context.renderQueueRows();
+        const deferredRows = queueRenderedRows().map((row) => row.dataset.rowKey).join(",");
+        if (deferredRows !== "launch-check-only") {
+          throw new Error(`deferred_checks filter should still find the launch-check row only; got ${deferredRows}`);
+        }
+        context.document.getElementById("queue-investigation-filter").value = "all";
+        context.document.getElementById("queue-status-filter").value = "review";
+        context.renderQueueRows();
+        const reviewFilterRows = queueRenderedRows().map((row) => row.dataset.rowKey).join(",");
+        if (reviewFilterRows.includes("launch-check-only") || !reviewFilterRows.includes("blocked-bad-extension") || !reviewFilterRows.includes("real-review-row")) {
+          throw new Error(`review status filter should exclude launch-check rows and keep true review rows; got ${reviewFilterRows}`);
+        }
+        context.document.getElementById("queue-status-filter").value = "all";
+        context.renderQueueRows();
+
         requireText("completed-detail", [
           "Selected completed-row quick signal:",
           "Current filter visibility:",
@@ -587,6 +709,20 @@ def _node_runner_source() -> str:
           "Current encoded/remuxed: 0 / 1",
           "Current table rule: a row appears here once per expected output path",
         ]);
+        requireText("completed-current-at-a-glance", [
+          "Review",
+          "0",
+          "Present",
+          "1",
+          "Filters",
+          "none",
+          "Route mix: 0 encode / 1 remux",
+          "History not currently present: 0",
+        ]);
+        requireText("completed-current-filter-line", [
+          "Filters: none",
+          "Showing 1 of 1 current outputs",
+        ]);
         const libraryFilterRows = [
           Object.assign({}, currentBaseRow, {
             row_key: "library-filter-anime",
@@ -628,6 +764,16 @@ def _node_runner_source() -> str:
           "showing 1 of 2 rows",
           "Hidden review rows: 1.",
           "clear or change this filter before rerun, cleanup, or library decisions",
+        ]);
+        requireText("completed-current-at-a-glance", [
+          "Filters",
+          "1/2",
+          "1 review hidden",
+        ]);
+        requireText("completed-current-filter-line", [
+          "Filters: library=Anime Library",
+          "Showing 1 of 2 current outputs",
+          "Hidden review/blocker rows: 1",
         ]);
         const libraryScope = context.completedCurrentFilterScope(libraryFilterRows);
         if (!libraryScope.active || libraryScope.libraryLabel !== "Anime Library" || libraryScope.visibleRows !== 1 || libraryScope.totalRows !== 2) {

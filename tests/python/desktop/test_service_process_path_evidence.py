@@ -11,7 +11,14 @@ from unittest.mock import patch
 
 sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
-from mediapipeline.core.processes.path_evidence import configured_path_health, is_unc_path, path_evidence, path_health_warning_lines
+from mediapipeline.core.processes.path_evidence import (
+    LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+    PATH_HEALTH_UNC_RETRY_TIMEOUT_SECONDS,
+    configured_path_health,
+    is_unc_path,
+    path_evidence,
+    path_health_warning_lines,
+)
 
 
 class ProcessPathEvidenceTests(unittest.TestCase):
@@ -170,6 +177,247 @@ class ProcessPathEvidenceTests(unittest.TestCase):
         self.assertEqual(output["free_space_gb"], 25.0)
         self.assertTrue(output["meets_space_reserve"])
         self.assertEqual(source["storage_status"], "not_checked")
+        self.assertEqual(scratch["health_code"], "free_space_low")
+
+    def test_configured_path_health_retries_timed_out_unc_once(self) -> None:
+        calls: list[float] = []
+
+        def probe_runner(path_text: str, timeout_seconds: float) -> dict[str, object]:
+            calls.append(timeout_seconds)
+            if len(calls) == 1:
+                return {
+                    "path": path_text,
+                    "server": "SLOW-SERVER",
+                    "share": "Video",
+                    "timed_out": True,
+                    "path_error": "Path health probe timed out.",
+                    "elapsed_ms": int(timeout_seconds * 1000),
+                }
+            return {
+                "path": path_text,
+                "server": "SLOW-SERVER",
+                "share": "Video",
+                "dns_status": "ready",
+                "tcp_445_status": "ready",
+                "exists": True,
+                "path_kind": "directory",
+                "can_list": True,
+                "elapsed_ms": 25,
+                "phase_timings_ms": {"path": 10, "list": 15},
+            }
+
+        resolved = SimpleNamespace(
+            source_movies=None,
+            source_tv=None,
+            local_base=None,
+            config_data={"SourceMovies": r"\\SLOW-SERVER\Video\Movies"},
+        )
+        with patch("mediapipeline.core.processes.path_evidence.time.sleep"):
+            payload = configured_path_health(
+                resolved,
+                timeout_seconds=LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+                cache_ttl_seconds=0,
+                probe_runner=probe_runner,
+            )
+
+        row = payload["rows"][0]
+        self.assertEqual(payload["operator_status"], "ready")
+        self.assertEqual(row["status"], "ready")
+        self.assertEqual(row["health_code"], "path_ready")
+        self.assertEqual(calls, [LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS, PATH_HEALTH_UNC_RETRY_TIMEOUT_SECONDS])
+        self.assertEqual(len(row["probe_attempts"]), 2)
+        self.assertTrue(row["probe_attempts"][0]["timed_out"])
+        self.assertEqual(row["phase_timings_ms"], {"path": 10, "list": 15})
+
+    def test_configured_path_health_repeated_unc_timeout_remains_blocked(self) -> None:
+        calls: list[float] = []
+
+        def probe_runner(path_text: str, timeout_seconds: float) -> dict[str, object]:
+            calls.append(timeout_seconds)
+            return {
+                "path": path_text,
+                "server": "TIMEOUT-SERVER",
+                "share": "Video",
+                "timed_out": True,
+                "path_error": f"Path health probe exceeded {timeout_seconds:g} seconds.",
+                "elapsed_ms": int(timeout_seconds * 1000),
+            }
+
+        resolved = SimpleNamespace(
+            source_movies=None,
+            source_tv=None,
+            local_base=None,
+            config_data={"Outsource": r"\\TIMEOUT-SERVER\Video\Out"},
+        )
+        with patch("mediapipeline.core.processes.path_evidence.time.sleep"):
+            payload = configured_path_health(
+                resolved,
+                timeout_seconds=LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+                cache_ttl_seconds=0,
+                probe_runner=probe_runner,
+            )
+
+        row = payload["rows"][0]
+        self.assertEqual(payload["operator_status"], "blocked")
+        self.assertEqual(row["status"], "blocked")
+        self.assertEqual(row["health_code"], "path_timeout")
+        self.assertEqual(row["storage_status"], "blocked")
+        self.assertIsNone(row["free_space_gb"])
+        self.assertEqual(len(row["probe_attempts"]), 2)
+        self.assertEqual(calls, [LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS, PATH_HEALTH_UNC_RETRY_TIMEOUT_SECONDS])
+
+    def test_configured_path_health_does_not_retry_missing_unc(self) -> None:
+        calls: list[float] = []
+
+        def probe_runner(path_text: str, timeout_seconds: float) -> dict[str, object]:
+            calls.append(timeout_seconds)
+            return {
+                "path": path_text,
+                "server": "MISSING-SERVER",
+                "share": "Video",
+                "dns_status": "ready",
+                "tcp_445_status": "ready",
+                "exists": False,
+                "path_kind": "missing",
+                "can_list": False,
+                "elapsed_ms": 4,
+            }
+
+        resolved = SimpleNamespace(
+            source_movies=None,
+            source_tv=None,
+            local_base=None,
+            config_data={"SourceMovies": r"\\MISSING-SERVER\Video\Movies"},
+        )
+        payload = configured_path_health(
+            resolved,
+            timeout_seconds=LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+            cache_ttl_seconds=0,
+            probe_runner=probe_runner,
+        )
+
+        row = payload["rows"][0]
+        self.assertEqual(calls, [LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS])
+        self.assertEqual(row["status"], "blocked")
+        self.assertEqual(row["health_code"], "path_missing_or_unreachable")
+        self.assertEqual(len(row["probe_attempts"]), 1)
+
+    def test_configured_path_health_surfaces_share_root_capacity_fallback(self) -> None:
+        gib = 1024**3
+
+        def probe_runner(path_text: str, timeout_seconds: float) -> dict[str, object]:
+            _ = timeout_seconds
+            return {
+                "path": path_text,
+                "server": "LAYNE-SERVER",
+                "share": "Users",
+                "dns_status": "ready",
+                "tcp_445_status": "ready",
+                "exists": True,
+                "path_kind": "directory",
+                "can_list": True,
+                "disk_error": "configured path capacity failed",
+                "capacity_error": "configured path capacity failed",
+                "capacity_source": "share_root_fallback",
+                "capacity_path": r"\\LAYNE-SERVER\Users",
+                "free_bytes": 125 * gib,
+                "total_bytes": 200 * gib,
+                "used_bytes": 75 * gib,
+                "elapsed_ms": 18,
+                "phase_timings_ms": {"list": 3, "disk_usage": 10, "disk_usage_share_root": 5},
+            }
+
+        resolved = SimpleNamespace(
+            source_movies=None,
+            source_tv=None,
+            local_base=None,
+            config_data={
+                "Outsource": r"\\LAYNE-SERVER\Users\Layne\Videos\outsource\Movies",
+                "OutsourceMinFreeSpaceGB": 50,
+            },
+        )
+        payload = configured_path_health(
+            resolved,
+            timeout_seconds=LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+            cache_ttl_seconds=0,
+            probe_runner=probe_runner,
+        )
+
+        row = payload["rows"][0]
+        self.assertEqual(row["status"], "ready")
+        self.assertEqual(row["storage_status"], "ready")
+        self.assertEqual(row["health_code"], "ready_with_capacity")
+        self.assertEqual(row["capacity_source"], "share_root_fallback")
+        self.assertEqual(row["capacity_path"], r"\\LAYNE-SERVER\Users")
+        self.assertEqual(row["free_space_gb"], 125.0)
+        self.assertEqual(row["last_successful_capacity"]["capacity_source"], "share_root_fallback")
+
+    def test_configured_path_health_last_successful_capacity_is_evidence_only(self) -> None:
+        gib = 1024**3
+        path = r"\\CACHE-SERVER\Video\Out"
+
+        def successful_probe(path_text: str, timeout_seconds: float) -> dict[str, object]:
+            _ = timeout_seconds
+            return {
+                "path": path_text,
+                "server": "CACHE-SERVER",
+                "share": "Video",
+                "dns_status": "ready",
+                "tcp_445_status": "ready",
+                "exists": True,
+                "path_kind": "directory",
+                "can_list": True,
+                "capacity_source": "configured_path",
+                "capacity_path": path_text,
+                "free_bytes": 120 * gib,
+                "total_bytes": 200 * gib,
+                "used_bytes": 80 * gib,
+                "elapsed_ms": 5,
+            }
+
+        def timed_out_probe(path_text: str, timeout_seconds: float) -> dict[str, object]:
+            _ = timeout_seconds
+            return {
+                "path": path_text,
+                "server": "CACHE-SERVER",
+                "share": "Video",
+                "timed_out": True,
+                "path_error": "Path health probe timed out.",
+                "elapsed_ms": 2000,
+            }
+
+        resolved = SimpleNamespace(
+            source_movies=None,
+            source_tv=None,
+            local_base=None,
+            config_data={
+                "Outsource": path,
+                "OutsourceMinFreeSpaceGB": 50,
+            },
+        )
+        ready_payload = configured_path_health(
+            resolved,
+            timeout_seconds=LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+            cache_ttl_seconds=0,
+            probe_runner=successful_probe,
+        )
+        with patch("mediapipeline.core.processes.path_evidence.time.sleep"):
+            blocked_payload = configured_path_health(
+                resolved,
+                timeout_seconds=LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS,
+                cache_ttl_seconds=0,
+                probe_runner=timed_out_probe,
+            )
+
+        ready_row = ready_payload["rows"][0]
+        blocked_row = blocked_payload["rows"][0]
+        self.assertEqual(ready_row["storage_status"], "ready")
+        self.assertEqual(blocked_row["status"], "blocked")
+        self.assertEqual(blocked_row["storage_status"], "blocked")
+        self.assertIsNone(blocked_row["free_space_gb"])
+        self.assertEqual(blocked_row["health_code"], "path_timeout")
+        self.assertEqual(blocked_row["last_successful_capacity"]["free_space_gb"], 120.0)
+        self.assertTrue(blocked_row["last_successful_capacity"]["evidence_only"])
 
 
 if __name__ == "__main__":

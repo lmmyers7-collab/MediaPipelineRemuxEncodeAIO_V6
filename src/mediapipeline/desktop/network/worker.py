@@ -46,7 +46,7 @@ from .library_roots import (
 from .path_map import apply_source_path_map, parse_source_path_map
 from .poll_policy import resolve_worker_poll_interval
 from .processing_policy import worker_encoder_map_descriptor, worker_honor_coordinator_policy_enabled
-from .protocol import LogEntryRequest
+from .protocol import ClaimResponse, LogEntryRequest
 from .worker_record import make_queue_record as _make_queue_record
 from .worker_parts.reporting import (
     is_unauthorized_http_error as _is_unauthorized_http_error,  # noqa: F401 - compatibility re-export

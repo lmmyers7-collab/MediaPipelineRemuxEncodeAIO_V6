@@ -1,0 +1,39 @@
+{
+  "id": "MP-CHANGE-2026-0626-007",
+  "title": "WebView large-file refactor prework prompts",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-26",
+  "date_completed": "2026-06-26",
+  "summary": "Added five file-specific WebView large-file refactor prework prompts for Network, Rename, Queue, Settings, and Settings Libraries, and indexed them in the active docs map.",
+  "reason": "The largest WebView files need baseline-ledger prompts before extraction so future refactors preserve backend authority, public namespaces, strict confirmations, route ownership, DOM ownership, and test guardrails.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "Large WebView file refactor prework was scattered across existing plans and source/test knowledge, with no shared five-file prompt set for the requested files.",
+  "behavior_after": "Each requested large WebView file has a dedicated prework prompt that tells future agents what to read, what ledgers to build, which safety boundaries to preserve, which seams to consider, and which validation commands to run before extraction.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/implementation/webview-large-file-refactor-prework/networkView.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/queueView.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/renameView.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/settingsLibraries.prework-prompt.md",
+    "docs/implementation/webview-large-file-refactor-prework/settingsView.prework-prompt.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0626-007.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PASS: Test-Path check confirmed all five new prework prompt files exist.",
+    "PASS: Select-String check confirmed each new prompt has Prompt, Prework Deliverables, Stop Conditions, and Final Prework Report sections.",
+    "PASS: rg check found no non-ASCII smart punctuation in docs/implementation/webview-large-file-refactor-prework.",
+    "PASS: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes.",
+    "INFO: apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.check_active_doc_references fails only on pre-existing docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md DOC005 after removing DOC005-triggering wording from the new prompts.",
+    "FAIL unrelated/pre-existing: ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke failed on existing repository-wide drift: smoke wrapper inventory/catalog/layout drift, duplicate test-name report drift, active-doc reference DOC005 in docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md, dependency-boundary findings, release package policy failure from older packet MP-CHANGE-2026-0619-020.json containing a local workstation path; current WebView reliability checks inside the run passed.",
+    "FAIL unrelated/pre-existing: validate_changes --require-worktree-coverage failed because 11 dirty generated files are not listed in any unreleased change packet."
+  ],
+  "rollback_plan": "Delete docs/implementation/webview-large-file-refactor-prework/, remove its five entries from docs/DOCS_INDEX.md, and delete this change packet.",
+  "related_changes": [],
+  "notes": "Added Network WebView large-file refactor prework prompt.\nAdded Rename WebView large-file refactor prework prompt.\nAdded Queue WebView large-file refactor prework prompt.\nAdded Settings WebView large-file refactor prework prompt.\nAdded Settings Libraries WebView large-file refactor prework prompt.\nIndexed the five WebView large-file refactor prework prompts."
+}

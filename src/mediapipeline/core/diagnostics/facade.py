@@ -50,14 +50,24 @@ class DiagnosticsFacadeMixin:
     service: object
     app_version: str
 
+    def _scan_pending_publish_bounded(self, resolved: ResolvedPaths) -> dict[str, Any] | None:
+        scan_pending = getattr(self.service, "scan_pending_publish", None)
+        if not callable(scan_pending):
+            return None
+        try:
+            return scan_pending(resolved, manifest_limit=500, include_orphan_rows=False)
+        except TypeError as exc:
+            if "manifest_limit" not in str(exc) and "include_orphan_rows" not in str(exc):
+                raise
+            return scan_pending(resolved)
+
     def _autonomy_health_for_resolved(
         self,
         resolved: ResolvedPaths,
         *,
         path_health: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        scan_pending = getattr(self.service, "scan_pending_publish", None)
-        pending_publish = scan_pending(resolved) if callable(scan_pending) else None
+        pending_publish = self._scan_pending_publish_bounded(resolved)
         return autonomy_health_payload(
             resolved,
             pending_publish=pending_publish,
@@ -143,10 +153,7 @@ class DiagnosticsFacadeMixin:
             else None
         )
         path_health = configured_path_health(resolved)
-        pending_scan = None
-        scan_pending = getattr(self.service, "scan_pending_publish", None)
-        if callable(scan_pending):
-            pending_scan = scan_pending(resolved)
+        pending_scan = self._scan_pending_publish_bounded(resolved)
         return diagnostics_state_summary_payload(
             items,
             settings_tool_path_evidence=tool_path_evidence,

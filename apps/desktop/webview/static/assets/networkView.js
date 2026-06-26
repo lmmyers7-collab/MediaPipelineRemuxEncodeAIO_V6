@@ -17,12 +17,14 @@
     ["Worker", "WorkerSourcePathMap", "Source Path Map", "Path rewrites from coordinator UNC roots to local worker roots."],
   ];
   let lastNetworkWorkerRows = [];
+  let lastNetworkWorkersPayload = {};
   let selectedNetworkWorkerKey = "";
   let selectedNetworkLifecycleKey = "";
   let selectedNetworkEvidenceKey = "";
   let selectedNetworkStateFileKey = "";
   let networkWorkerStatusFilter = "";
   let networkWorkerSearchText = "";
+  let networkWorkerViewPreset = "";
   let networkViewEventsInitialized = false;
   let lastNetworkLifecyclePayload = {};
   const networkLifecycleDryRunEvidence = new Map();
@@ -233,6 +235,252 @@
     return "unknown";
   }
 
+  function networkStatusTone(status) {
+    const value = String(status || "").trim().toLowerCase();
+    if (["ready", "match", "pass", "passed", "present", "running", "active", "encoding", "success"].includes(value)) return "match";
+    if (["review", "warning", "missing", "stale", "not_running", "not_applicable"].includes(value)) return "warning";
+    if (["blocked", "error", "failed", "unreadable", "fatal"].includes(value)) return "blocked";
+    return "unknown";
+  }
+
+  function networkDiagnosticLayerByKey(networkWorkers, key) {
+    const diagnostic = networkDiagnosticLayers(networkWorkers);
+    const layers = Array.isArray(diagnostic.layers) ? diagnostic.layers : [];
+    const requested = String(key || "").trim().toLowerCase();
+    const row = layers.find((layer) => String(layer?.key || "").trim().toLowerCase() === requested);
+    if (row) return row;
+    const status = diagnostic[requested];
+    return status ? { key: requested, label: requested, status } : null;
+  }
+
+  function networkStateFilesDiagnosticStatus(networkWorkers) {
+    const rows = networkStateFileRows(networkWorkers);
+    if (!rows.length) return "unknown";
+    const statuses = rows.map((row) => networkStateFileStatus(row));
+    if (statuses.some((status) => status === "blocked")) return "blocked";
+    if (statuses.some((status) => status === "warning")) return "review";
+    if (statuses.every((status) => status === "match")) return "ready";
+    return "unknown";
+  }
+
+  function setNetworkDiagnosticChip(id, label, status, detail = "") {
+    const node = byId(id);
+    if (!node) return;
+    const value = String(status || "").trim() || "unknown";
+    node.textContent = `${label}: ${value}`;
+    node.dataset.status = networkStatusTone(value);
+    node.title = detail || `${label} diagnostic status: ${value}`;
+  }
+
+  function renderNetworkDiagnosticRail(networkWorkers = {}) {
+    const layers = {
+      tcp: networkDiagnosticLayerByKey(networkWorkers, "url_reachable"),
+      auth: networkDiagnosticLayerByKey(networkWorkers, "auth_ok"),
+      paths: networkDiagnosticLayerByKey(networkWorkers, "paths_ok"),
+      queue: networkDiagnosticLayerByKey(networkWorkers, "queue_fresh"),
+      claim: networkDiagnosticLayerByKey(networkWorkers, "last_claim_result"),
+    };
+    setNetworkDiagnosticChip("network-diagnostic-tcp", "TCP", layers.tcp?.status, layers.tcp?.detail);
+    setNetworkDiagnosticChip("network-diagnostic-auth", "Auth", layers.auth?.status, layers.auth?.detail);
+    setNetworkDiagnosticChip("network-diagnostic-paths", "Paths", layers.paths?.status, layers.paths?.detail);
+    setNetworkDiagnosticChip("network-diagnostic-queue", "Queue", layers.queue?.status, layers.queue?.detail);
+    setNetworkDiagnosticChip("network-diagnostic-claim", "Claim", layers.claim?.status, layers.claim?.detail);
+    setNetworkDiagnosticChip(
+      "network-diagnostic-state-files",
+      "State files",
+      networkStateFilesDiagnosticStatus(networkWorkers),
+      networkStateFileCompactLines(networkStateFileRows(networkWorkers)).join("\n")
+    );
+  }
+
+  function networkAttentionItems(networkWorkers = {}) {
+    const items = [];
+    const workerState = networkWorkers?.worker_state && typeof networkWorkers.worker_state === "object" ? networkWorkers.worker_state : {};
+    if (workerState.pending_done_report) {
+      items.push({
+        key: "pending-done-report",
+        label: "Pending done report",
+        detail: `Local worker has pending_done_report for job ${workerState.job_id || "unknown"}.`,
+        status: "blocked",
+        source: "worker_state",
+      });
+    }
+    const rows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows : [];
+    rows.forEach((row) => {
+      const status = networkWorkerStatusState(row);
+      if (status === "blocked" || status === "warning") {
+        const name = row.worker_name || row.worker_id || "Worker";
+        items.push({
+          key: `worker-${name}`,
+          label: `${name}: ${status === "blocked" ? "blocked" : "review"}`,
+          detail: row.last_failure_reason || row.last_failure_reason_code || row.error || row.current_stage || "Worker row needs review.",
+          status,
+          source: "worker row",
+        });
+      }
+    });
+    const drift = networkWorkerDriftPayload(networkWorkers);
+    if (String(drift.status || "").toLowerCase() === "drift") {
+      items.push({
+        key: "running-vs-saved-drift",
+        label: "Worker settings drift",
+        detail: networkWorkerDriftSummaryLines(drift).join(" ") || "Running worker settings differ from saved config.",
+        status: "warning",
+        source: "running_vs_saved",
+      });
+    }
+    networkStateFileRows(networkWorkers).forEach((row) => {
+      const status = networkStateFileStatus(row);
+      if (status === "blocked" || status === "warning") {
+        items.push({
+          key: `state-file-${row.key || row.label}`,
+          label: `${row.label || row.key || "State file"}: ${row.status || "review"}`,
+          detail: row.error || row.purpose || "State-file evidence needs review.",
+          status,
+          source: "state_files",
+        });
+      }
+    });
+    const warnings = Array.isArray(networkWorkers?.warnings) ? networkWorkers.warnings : [];
+    warnings.slice(0, 6).forEach((warning, index) => {
+      items.push({
+        key: `warning-${index}`,
+        label: "Network warning",
+        detail: String(warning || ""),
+        status: "warning",
+        source: "warnings",
+      });
+    });
+    const diagnostic = networkDiagnosticLayers(networkWorkers);
+    (Array.isArray(diagnostic.layers) ? diagnostic.layers : []).forEach((layer) => {
+      if (["blocked", "review", "warning"].includes(String(layer?.status || "").toLowerCase())) {
+        items.push({
+          key: `diagnostic-${layer.key || layer.label}`,
+          label: layer.label || layer.key || "Diagnostic",
+          detail: layer.detail || "Diagnostic layer needs review.",
+          status: layer.status || "warning",
+          source: "diagnostic_layers",
+        });
+      }
+    });
+    return items;
+  }
+
+  function renderNetworkAttentionStack(networkWorkers = {}) {
+    const target = byId("network-attention-stack");
+    if (!target) return;
+    const items = networkAttentionItems(networkWorkers);
+    target.replaceChildren();
+    if (!items.length) {
+      const item = document.createElement("div");
+      item.className = "network-attention-item";
+      item.dataset.status = "match";
+      item.innerHTML = "<strong>No attention items</strong><span>Worker state, diagnostics, drift, and state files have no loaded blockers.</span>";
+      target.appendChild(item);
+      return;
+    }
+    items.slice(0, 3).forEach((entry) => {
+      const item = document.createElement("div");
+      item.className = "network-attention-item";
+      item.dataset.status = networkStatusTone(entry.status);
+      const heading = document.createElement("strong");
+      heading.textContent = entry.label || entry.key || "Attention item";
+      const detail = document.createElement("span");
+      detail.textContent = entry.detail || entry.action_hint || "Inspect Network evidence before lifecycle action.";
+      item.title = [entry.source, entry.action_hint].filter(Boolean).join(" - ");
+      item.append(heading, detail);
+      target.appendChild(item);
+    });
+    if (items.length > 3) {
+      const overflow = document.createElement("div");
+      overflow.className = "network-attention-overflow";
+      overflow.textContent = `+${items.length - 3} more in Advanced Evidence`;
+      target.appendChild(overflow);
+    }
+  }
+
+  function networkTopologyNodes(config = {}, networkWorkers = {}) {
+    const nodes = [];
+    const mode = visibleNetworkMode(config);
+    const runtime = networkRuntimeStatus(networkWorkers, config);
+    nodes.push({
+      label: "Coordinator",
+      value: coordinatorTarget(config, networkWorkers) || "not configured",
+      status: mode === "standalone" ? "not_applicable" : runtime.severity || "unknown",
+      detail: networkWorkers.cluster_log_path || "cluster log not resolved",
+    });
+    const workerState = networkWorkers?.worker_state && typeof networkWorkers.worker_state === "object" ? networkWorkers.worker_state : {};
+    if (mode === "worker" || mode === "coordinator_local" || workerState.job_id || workerState.pending_done_report) {
+      nodes.push({
+        label: mode === "coordinator_local" ? "Local worker" : "Worker",
+        value: workerState.job_id || workerState.source_file || "idle",
+        status: workerState.pending_done_report ? "blocked" : workerState.job_id ? "running" : "ready",
+        detail: workerState.source_file || networkWorkers.worker_state_path || "",
+      });
+    }
+    const rows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows : [];
+    rows.slice(0, 6).forEach((row) => {
+      nodes.push({
+        label: row.worker_name || row.worker_id || "Worker",
+        value: row.current_file_name || row.current_stage || row.status || "idle",
+        status: networkWorkerStatusState(row),
+        detail: workerHeartbeatText(row),
+      });
+    });
+    if (rows.length > 6) {
+      nodes.push({ label: "More workers", value: `+${rows.length - 6}`, status: "unknown", detail: "Additional workers are visible in the Worker Board." });
+    }
+    return nodes;
+  }
+
+  function renderNetworkTopologyStrip(config = {}, networkWorkers = {}) {
+    const target = byId("network-topology-strip");
+    if (!target) return;
+    target.replaceChildren();
+    networkTopologyNodes(config, networkWorkers).forEach((entry) => {
+      const node = document.createElement("div");
+      node.className = "network-topology-node";
+      node.dataset.status = networkStatusTone(entry.status);
+      node.title = entry.detail || "";
+      const label = document.createElement("span");
+      label.textContent = entry.label || "Node";
+      const value = document.createElement("strong");
+      value.textContent = entry.value || "-";
+      node.append(label, value);
+      target.appendChild(node);
+    });
+  }
+
+  function setNetworkGate(label, status, detail = "") {
+    const target = byId("network-action-readiness-gates");
+    if (!target) return;
+    const chip = document.createElement("span");
+    chip.dataset.status = networkStatusTone(status);
+    chip.textContent = `${label}: ${status || "unknown"}`;
+    chip.title = detail || `${label} readiness: ${status || "unknown"}`;
+    target.appendChild(chip);
+  }
+
+  function renderNetworkActionReadinessGates(payload = {}, config = {}) {
+    const target = byId("network-action-readiness-gates");
+    if (!target) return;
+    target.replaceChildren();
+    const networkWorkers = payload.networkWorkers || {};
+    const tcp = networkDiagnosticLayerByKey(networkWorkers, "url_reachable");
+    const auth = networkDiagnosticLayerByKey(networkWorkers, "auth_ok");
+    const paths = networkDiagnosticLayerByKey(networkWorkers, "paths_ok");
+    const queue = networkDiagnosticLayerByKey(networkWorkers, "queue_fresh");
+    setNetworkGate("TCP", tcp?.status || "unknown", tcp?.detail);
+    setNetworkGate("Auth", auth?.status || "unknown", auth?.detail);
+    setNetworkGate("Paths", paths?.status || "unknown", paths?.detail);
+    setNetworkGate("State", networkStateFilesDiagnosticStatus(networkWorkers), networkStateFileCompactLines(networkStateFileRows(networkWorkers)).join("\n"));
+    setNetworkGate("Queue", queue?.status || "unknown", queue?.detail);
+    setNetworkGate("Close", closeReadinessIsSafe(payload.closeReadiness) ? "ready" : "blocked", payload.closeReadiness?.reason || payload.closeReadiness?.message || "");
+    const roles = networkLifecycleRelevantRoles(config);
+    const hasDryRun = roles.some((role) => ["start", "stop"].some((action) => networkLifecycleDryRunRecord(role, action)?.safeToApply === true));
+    setNetworkGate("Dry-run", hasDryRun ? "ready" : "review", hasDryRun ? "A matching dry-run is cached for this session." : "Run Check & Start or Request Stop to cache backend dry-run evidence.");
+  }
+
   function networkWorkerDriftPayload(networkWorkers) {
     const drift = networkWorkers?.running_vs_saved;
     return drift && typeof drift === "object" ? drift : {};
@@ -308,13 +556,28 @@
     const modeLabel = visibleNetworkModeLabel(config);
     const target = coordinatorTarget(config, networkWorkers);
     const mode = visibleNetworkMode(config);
+    const warnings = Array.isArray(networkWorkers.warnings) ? networkWorkers.warnings : [];
+    const diagnosticPosture = networkDiagnosticLayerPosture(networkWorkers);
+    const activeCount = Number(networkWorkers.active_count || 0);
+    const idleCount = Number(networkWorkers.idle_count || 0);
     const launchReason = mode === "standalone"
       ? "Normal Launch available"
       : "Normal Launch blocked; use Network Lifecycle";
-    const banner = byId("network-status-banner");
-    if (banner) banner.dataset.status = (driftActive || policyReviewActive) ? "warning" : (runtime.severity || "unknown");
+    const banner = byId("network-health-strip");
+    const stripStatus = runtime.severity === "blocked" || diagnosticPosture === "blocked"
+      ? "blocked"
+      : (driftActive || policyReviewActive || diagnosticPosture === "review") ? "warning" : (runtime.severity || "unknown");
+    if (banner) banner.dataset.status = stripStatus;
     const bannerStatus = driftActive ? "Running settings drift" : policyReviewActive ? "Coordinator policy review" : runtime.label;
     setText("network-status-banner-title", `${modeLabel} - ${bannerStatus}`);
+    setText("network-health-drift", driftActive ? networkWorkerDriftStatusText(drift) : networkWorkerPolicyDivergenceStatusText(drift));
+    setText("network-health-workers", `${Number.isFinite(activeCount) ? activeCount : 0} active / ${Number.isFinite(idleCount) ? idleCount : 0} idle`);
+    const attentionCount = networkAttentionItems(networkWorkers).length;
+    const alertCount = attentionCount || warnings.length
+      + (driftActive ? 1 : 0)
+      + (policyReviewActive ? 1 : 0)
+      + (["review", "blocked"].includes(diagnosticPosture) ? 1 : 0);
+    setText("network-health-alerts", alertCount ? `${alertCount} review` : "0");
     setText(
       "network-status-banner-detail",
       driftActive
@@ -338,6 +601,8 @@
       summaryLines.push(...networkWorkerPolicyDivergenceSummaryLines(drift));
     }
     setText("network-status-banner-lines", summaryLines.join("\n"));
+    renderNetworkDiagnosticRail(networkWorkers);
+    renderNetworkAttentionStack(networkWorkers);
   }
 
   function obviousWorkerCoordinatorUrlIssue(value, { required = true } = {}) {
@@ -1275,13 +1540,21 @@
     return "";
   }
 
+  function networkLifecycleRelevantRoles(config) {
+    const mode = visibleNetworkMode(config);
+    if (mode === "coordinator_local") return ["coordinator", "worker"];
+    if (mode === "coordinator") return ["coordinator"];
+    if (mode === "worker") return ["worker"];
+    return [];
+  }
+
   function networkLifecycleControlLines(payload = {}, config = {}) {
     const contract = payload.contract || {};
     const networkWorkers = payload.networkWorkers || {};
-    const relevantRole = networkLifecycleRelevantRole(config);
+    const relevantRoles = networkLifecycleRelevantRoles(config);
     const modeLabel = visibleNetworkModeLabel(config);
     const runtime = networkRuntimeStatus(networkWorkers, config);
-    if (!relevantRole) {
+    if (!relevantRoles.length) {
       return [
         `Mode: ${modeLabel}`,
         `Runtime: ${runtime.label}`,
@@ -1289,23 +1562,24 @@
         "Normal Launch is available only in Standalone mode.",
       ];
     }
-    const roleState = networkLifecycleStateFor(networkWorkers, relevantRole);
-    const workerUrlIssue = relevantRole === "worker"
+    const workerUrlIssue = relevantRoles.includes("worker")
       ? obviousWorkerCoordinatorUrlIssue(coordinatorTarget(config, networkWorkers, { raw: true }), { required: true })
       : "";
-    const routeLines = ["start", "stop"].flatMap((action) => [
-      `${relevantRole} ${action} dry-run route: ${networkLifecycleRouteAvailable(contract, relevantRole, action, true) ? "available" : "missing"}`,
-      `${relevantRole} ${action} route: ${networkLifecycleRouteAvailable(contract, relevantRole, action, false) ? "available" : "missing"}`,
-    ]);
+    const routeLines = relevantRoles.flatMap((roleName) => ["start", "stop"].flatMap((action) => [
+      `${roleName} ${action} dry-run route: ${networkLifecycleRouteAvailable(contract, roleName, action, true) ? "available" : "missing"}`,
+      `${roleName} ${action} route: ${networkLifecycleRouteAvailable(contract, roleName, action, false) ? "available" : "missing"}`,
+    ]));
+    const stateLines = relevantRoles.map((roleName) => {
+      const roleState = networkLifecycleStateFor(networkWorkers, roleName);
+      return `${roleName} state=${roleState.status}; confirmed start=${networkLifecycleDryRunRequirementLine(payload, config, roleName, "start")}; confirmed stop=${networkLifecycleDryRunRequirementLine(payload, config, roleName, "stop")}`;
+    });
     const lines = [
       `Mode: ${modeLabel}`,
-      `Runtime: ${runtime.label}; lifecycle state=${roleState.status}.`,
+      `Runtime: ${runtime.label}.`,
       "Normal Launch is blocked in this network mode; use these backend lifecycle controls.",
-      "Dry-runs check backend preconditions only: effect=none.",
-      "Dry-run no-touch rule: No files, queue, scratch, output, pending publish, or lifecycle state changed.",
-      "Confirmed start/stop commands require backend confirmation fields and command-journal records.",
-      `Confirmed ${relevantRole} start: ${networkLifecycleDryRunRequirementLine(payload, config, relevantRole, "start")}`,
-      `Confirmed ${relevantRole} stop: ${networkLifecycleDryRunRequirementLine(payload, config, relevantRole, "stop")}`,
+      "Guided actions run the backend dry-run route first; confirmation opens only after safe_to_apply evidence is current.",
+      "Confirmed start/stop commands still require backend confirmation fields and command-journal records.",
+      ...stateLines,
       ...routeLines,
       ...networkTokenPostureLines(networkWorkers),
       "Drain, Disable New Work, Pause, Abort Current, Reclaim Job, and Quarantine Worker remain disabled until backend routes exist.",
@@ -1376,42 +1650,57 @@
     lastNetworkLifecyclePayload = payload && typeof payload === "object" ? payload : {};
     const contract = payload.contract || {};
     const networkWorkers = payload.networkWorkers || {};
-    const relevantRole = networkLifecycleRelevantRole(config);
+    const relevantRoles = networkLifecycleRelevantRoles(config);
     const modeLabel = visibleNetworkModeLabel(config);
     const runtime = networkRuntimeStatus(networkWorkers, config);
-    const roleState = relevantRole ? networkLifecycleStateFor(networkWorkers, relevantRole) : { status: "standalone" };
-    const workerUrlIssue = relevantRole === "worker"
+    const roleStates = relevantRoles.map((roleName) => {
+      const state = networkLifecycleStateFor(networkWorkers, roleName);
+      return `${roleName} ${state.status}`;
+    });
+    const workerUrlIssue = relevantRoles.includes("worker")
       ? obviousWorkerCoordinatorUrlIssue(coordinatorTarget(config, networkWorkers, { raw: true }), { required: true })
       : "";
     pruneNetworkLifecycleDryRunEvidence(payload, config);
+    document.querySelectorAll("[data-network-action-group]").forEach((group) => {
+      const groupRole = group.dataset.networkActionGroup || "";
+      const visible = groupRole === "standalone"
+        ? relevantRoles.length === 0
+        : relevantRoles.includes(groupRole);
+      group.hidden = !visible;
+    });
     document.querySelectorAll("[data-network-lifecycle-role]").forEach((button) => {
       const buttonRole = button.dataset.networkLifecycleRole || "";
       const action = button.dataset.networkLifecycleAction || "";
       const dryRun = button.dataset.networkLifecycleDryRun === "true";
-      const roleApplies = buttonRole === relevantRole;
-      const routeAvailable = networkLifecycleRouteAvailable(contract, buttonRole, action, dryRun);
-      const stateAllowsConfirmed = dryRun
+      const guided = button.dataset.networkLifecycleGuided === "true";
+      const usesDryRunRoute = dryRun || guided;
+      const roleApplies = relevantRoles.includes(buttonRole);
+      const routeAvailable = networkLifecycleRouteAvailable(contract, buttonRole, action, usesDryRunRoute);
+      const roleState = networkLifecycleStateFor(networkWorkers, buttonRole);
+      const stateAllowsAction = dryRun && !guided
         ? true
-        : runtime.severity === "blocked"
-          ? false
-          : action === "start"
-            ? roleState.status === "stopped"
-            : roleState.status === "running";
-      const dryRunAllowsConfirmed = dryRun || networkLifecycleDryRunAllowsConfirmed(payload, config, buttonRole, action);
+        : action === "start"
+          ? roleState.status === "stopped"
+          : roleState.status === "running";
+      const dryRunAllowsConfirmed = dryRun || guided || networkLifecycleDryRunAllowsConfirmed(payload, config, buttonRole, action);
       const urlAllows = !workerUrlIssue || buttonRole !== "worker";
-      const available = roleApplies && routeAvailable && urlAllows && stateAllowsConfirmed && dryRunAllowsConfirmed;
+      const available = roleApplies && routeAvailable && urlAllows && stateAllowsAction && dryRunAllowsConfirmed;
       button.hidden = !roleApplies;
       button.disabled = !available;
       if (available) {
-        button.title = dryRun
-          ? `${modeLabel}: check ${buttonRole} ${action}; effect=none.`
-          : action === "stop"
+        button.title = guided
+          ? `${modeLabel}: run backend dry-run for ${buttonRole} ${action}; confirmation opens only when safe_to_apply is current.`
+          : dryRun
+            ? `${modeLabel}: check ${buttonRole} ${action}; effect=none.`
+            : action === "stop"
             ? `${modeLabel}: stop polling/new claims through backend lifecycle route; active work is preserved for done reporting.`
             : `${modeLabel}: start through backend lifecycle route.`;
       } else if (!roleApplies) {
         button.title = "This lifecycle control does not apply to the saved network mode.";
       } else if (!routeAvailable) {
-        button.title = "Backend lifecycle route is not available in the loaded contract.";
+        button.title = usesDryRunRoute
+          ? "Backend lifecycle dry-run route is not available in the loaded contract."
+          : "Backend lifecycle route is not available in the loaded contract.";
       } else if (!urlAllows) {
         button.title = workerUrlIssue;
       } else if (!dryRunAllowsConfirmed) {
@@ -1428,7 +1717,7 @@
     });
     document.querySelectorAll("[data-network-test-connection]").forEach((button) => {
       const routeAvailable = Boolean(networkWorkerTestConnectionRoute(contract));
-      const roleApplies = relevantRole === "worker";
+      const roleApplies = relevantRoles.includes("worker");
       button.hidden = !roleApplies;
       button.disabled = !roleApplies || !routeAvailable;
       button.title = routeAvailable
@@ -1437,9 +1726,10 @@
     });
     setText(
       "network-lifecycle-control-status",
-      relevantRole ? runtime.label : "Standalone"
+      relevantRoles.length ? `${runtime.label}: ${roleStates.join(", ")}` : "Standalone"
     );
     setText("network-lifecycle-control-summary", networkLifecycleControlLines(payload, config).join("\n"));
+    renderNetworkDiagnosticRail(networkWorkers);
     renderNetworkJoinControls(payload, config);
   }
 
@@ -2022,7 +2312,86 @@
     return postNetworkRoute(route, request);
   }
 
+  async function runGuidedNetworkLifecycleCommand(button) {
+    const role = button?.dataset?.networkLifecycleRole || "";
+    const action = button?.dataset?.networkLifecycleAction || "";
+    const contract = lastNetworkLifecyclePayload.contract || {};
+    const config = settingsConfig(lastNetworkLifecyclePayload.settings || {});
+    const networkWorkers = lastNetworkLifecyclePayload.networkWorkers || {};
+    const dryRunRoute = networkLifecycleRoutePath(contract, role, action, true);
+    if (!dryRunRoute) {
+      setText("network-lifecycle-control-status", "Route missing");
+      setText("network-lifecycle-command-result", "Backend lifecycle dry-run route is not available in the loaded contract.");
+      return;
+    }
+    const urlIssue = role === "worker"
+      ? obviousWorkerCoordinatorUrlIssue(coordinatorTarget(config, networkWorkers, { raw: true }), { required: true })
+      : "";
+    if (urlIssue) {
+      setText("network-lifecycle-control-status", "Blocked");
+      setText("network-lifecycle-command-result", `Worker coordinator URL is blocked before lifecycle dry-run submission: ${urlIssue}`);
+      return;
+    }
+    setText("network-lifecycle-control-status", "Dry-running");
+    setText("network-lifecycle-command-result", `Submitting ${dryRunRoute}...`);
+    try {
+      const dryRunResult = await postNetworkLifecycleRoute(contract, role, action, true, {
+        reason: "webview_network_lifecycle_guided_dry_run",
+      });
+      rememberNetworkLifecycleDryRun(lastNetworkLifecyclePayload, config, role, action, dryRunResult);
+      setText("network-lifecycle-command-result", networkLifecycleCommandResultLines(dryRunResult).join("\n"));
+      renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
+      renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
+      if (!networkLifecycleDryRunAllowsConfirmed(lastNetworkLifecyclePayload, config, role, action)) {
+        setText("network-lifecycle-control-status", dryRunResult.ok ? "Dry-run review" : "Dry-run blocked");
+        return;
+      }
+      const confirmRoute = networkLifecycleRoutePath(contract, role, action, false);
+      if (!confirmRoute) {
+        setText("network-lifecycle-control-status", "Route missing");
+        setText(
+          "network-lifecycle-command-result",
+          [
+            ...networkLifecycleCommandResultLines(dryRunResult),
+            "",
+            "Confirmed backend lifecycle route is not available in the loaded contract.",
+          ].join("\n")
+        );
+        return;
+      }
+      const confirmed = await confirmNetworkLifecycleCommand({
+        role,
+        action,
+        route: confirmRoute,
+        payload: lastNetworkLifecyclePayload,
+        config,
+      });
+      if (!confirmed) {
+        setText("network-lifecycle-control-status", "Cancelled");
+        setText("network-lifecycle-command-result", "Guided lifecycle command stopped after dry-run; confirmation was cancelled before the backend confirmation field was sent.");
+        return;
+      }
+      const request = { reason: "webview_network_lifecycle_guided_confirmed" };
+      request[action === "start" ? "confirm_start" : "confirm_stop"] = true;
+      setText("network-lifecycle-control-status", "Running");
+      setText("network-lifecycle-command-result", `Submitting ${confirmRoute}...`);
+      const result = await postNetworkLifecycleRoute(contract, role, action, false, request);
+      setText("network-lifecycle-command-result", networkLifecycleCommandResultLines(result).join("\n"));
+      setText("network-lifecycle-control-status", result.ok ? "Command returned" : "Command blocked");
+      renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
+      renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
+      if (typeof refreshAll === "function") refreshAll({ automatic: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setText("network-lifecycle-control-status", "Command failed");
+      setText("network-lifecycle-command-result", [`Command route: ${dryRunRoute}`, `Error: ${message}`].join("\n"));
+    }
+  }
+
   async function runNetworkLifecycleCommand(button) {
+    if (button?.dataset?.networkLifecycleGuided === "true") {
+      return runGuidedNetworkLifecycleCommand(button);
+    }
     const role = button?.dataset?.networkLifecycleRole || "";
     const action = button?.dataset?.networkLifecycleAction || "";
     const dryRun = button?.dataset?.networkLifecycleDryRun === "true";
@@ -2048,6 +2417,7 @@
         setText("network-lifecycle-control-status", "Blocked");
         setText("network-lifecycle-command-result", networkLifecycleDryRunRequirementLine(lastNetworkLifecyclePayload, config, role, action));
         renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
+        renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
         return;
       }
       const confirmed = await confirmNetworkLifecycleCommand({
@@ -2075,6 +2445,7 @@
       setText("network-lifecycle-command-result", networkLifecycleCommandResultLines(result).join("\n"));
       setText("network-lifecycle-control-status", result.ok ? "Command returned" : "Command blocked");
       renderNetworkLifecycleControls(lastNetworkLifecyclePayload, role, config);
+      renderNetworkActionReadinessGates(lastNetworkLifecyclePayload, config);
       if (!dryRun && typeof refreshAll === "function") refreshAll({ automatic: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -3088,16 +3459,42 @@
     return true;
   }
 
+  function networkWorkerMatchesViewPreset(item) {
+    const preset = String(networkWorkerViewPreset || "").trim().toLowerCase();
+    if (!preset) return true;
+    const state = networkWorkerStatusState(item);
+    const text = networkWorkerFilterText(item);
+    if (preset === "attention") return state === "running" || state === "blocked" || state === "warning";
+    if (preset === "active") return state === "running";
+    if (preset === "idle") return state === "match";
+    if (preset === "stale") return state === "blocked" || state === "warning" || text.includes("fail") || text.includes("stale");
+    if (preset === "path-auth") return text.includes("path") || text.includes("auth") || text.includes("source_not_found") || text.includes("misconfigured");
+    return true;
+  }
+
   function filteredNetworkWorkerRows(rows) {
     const query = networkWorkerSearchText.trim().toLowerCase();
     return (Array.isArray(rows) ? rows : []).filter((item) => {
+      if (!networkWorkerMatchesViewPreset(item)) return false;
       if (!networkWorkerMatchesStatusFilter(item)) return false;
       return !query || networkWorkerFilterText(item).includes(query);
     });
   }
 
+  function networkWorkerViewPresetLabel() {
+    const labels = {
+      attention: "Needs Attention",
+      active: "Active Work",
+      idle: "Idle",
+      stale: "Stale/Failed",
+      "path-auth": "Path/Auth",
+    };
+    return labels[networkWorkerViewPreset] || "All";
+  }
+
   function networkWorkerFilterLabel() {
     const parts = [];
+    if (networkWorkerViewPreset) parts.push(`view=${networkWorkerViewPresetLabel()}`);
     if (networkWorkerStatusFilter) parts.push(`status=${networkWorkerStatusFilter}`);
     if (networkWorkerSearchText.trim()) parts.push(`search="${networkWorkerSearchText.trim()}"`);
     return parts.length ? parts.join("; ") : "none";
@@ -3123,16 +3520,13 @@
     const visibleKeys = new Set(shownRows.map(networkWorkerRowKey));
     const hiddenReviewRows = networkWorkerRowsNeedingReview(allRows)
       .filter((row) => !visibleKeys.has(networkWorkerRowKey(row)));
-    const lines = [
-      `Showing ${shownRows.length}/${allRows.length} persisted worker row${allRows.length === 1 ? "" : "s"}. Filter: ${networkWorkerFilterLabel()}.`,
-    ];
-    if (hiddenReviewRows.length) {
-      lines.push(`${hiddenReviewRows.length} active/problem/review worker row${hiddenReviewRows.length === 1 ? " is" : "s are"} hidden by the current filter. Clear or change filters before lifecycle decisions.`);
-    } else {
-      lines.push("No active/problem/review worker rows are hidden by the current filter.");
-    }
-    lines.push("Mutation guardrail: filters only change this visible table; they do not start, stop, reclaim, release, or mutate network jobs.");
-    setText("network-worker-filter-summary", lines.join("\n"));
+    const reviewText = hiddenReviewRows.length
+      ? `${hiddenReviewRows.length} active/problem/review hidden; clear filters before lifecycle decisions.`
+      : "No active/problem/review rows hidden.";
+    setText(
+      "network-worker-filter-summary",
+      `Showing ${shownRows.length}/${allRows.length}. Filter: ${networkWorkerFilterLabel()}. ${reviewText} Filters are visual only.`
+    );
   }
 
   function networkWorkerDetailLines(item) {
@@ -3220,14 +3614,87 @@
     return ids.length ? ids.join(", ") : "unknown/not reported";
   }
 
+  function workerPendingDoneReportText(item) {
+    if (item?.pending_done_report === true || item?.done_report_pending === true) return "yes";
+    if (item?.pending_done_report === false || item?.done_report_pending === false) return "no";
+    return "-";
+  }
+
+  function workerLastResultText(item) {
+    if (!item || typeof item !== "object") return "-";
+    if (item.worker_misconfigured_reason_code) return `Misconfigured: ${workerDisplayValue(item.worker_misconfigured_reason_code)}`;
+    if (item.last_failure_reason_code) return `Failed: ${workerDisplayValue(item.last_failure_reason_code)}`;
+    if (item.last_failure_reason) return `Failed: ${workerDisplayValue(item.last_failure_reason)}`;
+    if (item.error) return `Error: ${workerDisplayValue(item.error)}`;
+    if (item.return_code !== undefined && item.return_code !== null && item.return_code !== "") return `Exit ${item.return_code}`;
+    if (item.files_completed !== undefined && item.files_completed !== null && item.files_completed !== "") return `${item.files_completed} done`;
+    if (networkWorkerLooksCompleteOrIdle(item)) return workerDisplayValue(item.status || "idle");
+    return "-";
+  }
+
+  function workerThroughputText(item) {
+    if (!item || typeof item !== "object") return "-";
+    if (item.current_speed_gbh !== undefined && item.current_speed_gbh !== null && item.current_speed_gbh !== "") {
+      return `${item.current_speed_gbh} GB/h current`;
+    }
+    if (item.avg_speed_gbh !== undefined && item.avg_speed_gbh !== null && item.avg_speed_gbh !== "") {
+      return `${item.avg_speed_gbh} GB/h avg`;
+    }
+    if (item.total_gb_encoded !== undefined && item.total_gb_encoded !== null && item.total_gb_encoded !== "") {
+      return `${item.total_gb_encoded} GB encoded`;
+    }
+    return "-";
+  }
+
+  function appendNetworkInspectorRow(target, label, value, status = "") {
+    const row = document.createElement("div");
+    row.className = "network-inspector-row";
+    if (status) row.dataset.status = networkStatusTone(status);
+    const labelNode = document.createElement("span");
+    labelNode.textContent = label;
+    const valueNode = document.createElement("strong");
+    valueNode.textContent = workerDisplayValue(value);
+    row.append(labelNode, valueNode);
+    target.appendChild(row);
+  }
+
   function renderNetworkWorkerDetail(item) {
-    setText("network-worker-detail", networkWorkerDetailLines(item).join("\n"));
+    const target = byId("network-worker-detail");
+    if (!target) return;
+    target.replaceChildren();
+    if (!item || typeof item !== "object") {
+      const message = document.createElement("p");
+      message.className = "note";
+      message.textContent = networkWorkerDetailLines(item).join(" ");
+      target.appendChild(message);
+      return;
+    }
+    const networkWorkers = lastNetworkLifecyclePayload.networkWorkers || {};
+    const drift = networkWorkerDriftPayload(networkWorkers);
+    const warnings = Array.isArray(networkWorkers.warnings) ? networkWorkers.warnings : [];
+    appendNetworkInspectorRow(target, "Worker", item.worker_name || item.worker_id || "-");
+    appendNetworkInspectorRow(target, "State", item.status || "-", networkWorkerStatusState(item));
+    appendNetworkInspectorRow(target, "Current job", item.job_id || "-");
+    appendNetworkInspectorRow(target, "Current file", item.current_file_name || item.current_file || item.source_file || "-");
+    appendNetworkInspectorRow(target, "Stage", item.current_stage || "-");
+    appendNetworkInspectorRow(target, "Progress", workerProgressText(item));
+    appendNetworkInspectorRow(target, "Heartbeat", workerHeartbeatText(item));
+    appendNetworkInspectorRow(target, "Pending done report", workerPendingDoneReportText(item));
+    appendNetworkInspectorRow(target, "Last result", workerLastResultText(item), networkWorkerStatusState(item));
+    appendNetworkInspectorRow(target, "Last failure reason", item.last_failure_reason || item.failure_streak_reason_code || "-");
+    appendNetworkInspectorRow(target, "Drift", networkWorkerDriftStatusText(drift), drift.status || "unknown");
+    appendNetworkInspectorRow(target, "Warnings", warnings.length ? `${warnings.length} warning(s)` : "0");
+    appendNetworkInspectorRow(target, "Evidence links", "Cluster Log, ActiveJobs, Run Logs, State Files");
+    const note = document.createElement("p");
+    note.className = "note";
+    note.textContent = "Inspector facts are read-only persisted state. Lifecycle controls remain backend-owned.";
+    target.appendChild(note);
   }
 
   function selectNetworkWorkerRow(item) {
     selectedNetworkWorkerKey = networkWorkerRowKey(item);
     renderNetworkWorkerDetail(item);
-    renderNetworkWorkerRows({ rows: lastNetworkWorkerRows });
+    renderNetworkWorkerRows(lastNetworkWorkersPayload);
   }
 
   function workerHeartbeatText(row) {
@@ -3290,11 +3757,14 @@
   }
 
   function renderNetworkWorkerRows(networkWorkers) {
+    const payload = networkWorkers && typeof networkWorkers === "object" ? networkWorkers : {};
+    lastNetworkWorkersPayload = payload;
     const rows = Array.isArray(networkWorkers?.rows) ? networkWorkers.rows : [];
     lastNetworkWorkerRows = rows;
     const visibleRows = filteredNetworkWorkerRows(rows);
     const tbody = byId("network-worker-rows");
     if (!tbody) return;
+    syncNetworkWorkerViewPresetButtons();
     renderNetworkWorkerFilterSummary(rows, visibleRows);
     if (!rows.length) {
       selectedNetworkWorkerKey = "";
@@ -3326,17 +3796,23 @@
       row.dataset.rowKey = key;
       row.dataset.status = networkWorkerStatusState(item);
       row.title = item.worker_id || item.current_file || "";
-      appendCells(row, [
-        item.worker_name || item.worker_id || "",
-        item.status || "",
-        item.current_file_name || item.current_file || "",
-        workerProgressText(item),
-        workerHeartbeatText(item),
-        item.files_completed || "",
-        item.total_gb_encoded || "",
-        item.avg_speed_gbh || "",
-        item.current_stage || "",
-      ], [null, null, null, "num", "num", "num", "num", "num", null]);
+      networkAppendCell(row, item.worker_name || item.worker_id || "");
+      networkAppendCell(row, item.status || "");
+      networkAppendCell(row, item.current_file_name || item.current_file || "");
+      networkAppendCell(row, item.current_stage || "");
+      networkAppendCell(row, workerProgressText(item), "num");
+      networkAppendCell(row, workerHeartbeatText(item), "num");
+      networkAppendCell(row, workerLastResultText(item));
+      networkAppendCell(row, workerThroughputText(item), "num");
+      const inspectButton = document.createElement("button");
+      inspectButton.type = "button";
+      inspectButton.className = "secondary-button network-inspect-button";
+      inspectButton.textContent = "Inspect";
+      inspectButton.addEventListener("click", (event) => {
+        event.stopPropagation();
+        selectNetworkWorkerRow(item);
+      });
+      networkAppendCell(row, inspectButton);
       makeRowSelectable(row, () => selectNetworkWorkerRow(item), {
         selected: Boolean(key && key === selectedNetworkWorkerKey),
         label: `Network worker row ${item.worker_name || item.worker_id || item.current_file_name || ""}`,
@@ -3347,6 +3823,23 @@
     renderNetworkWorkerDetail(getSelectedNetworkWorkerRow());
   }
 
+  function openNetworkDrawer(id) {
+    const drawer = byId(id);
+    if (!drawer) return;
+    if ("open" in drawer) drawer.open = true;
+    else drawer.setAttribute("open", "open");
+    const summary = drawer.querySelector?.("summary");
+    summary?.focus?.({ preventScroll: true });
+  }
+
+  function syncNetworkWorkerViewPresetButtons() {
+    document.querySelectorAll("[data-network-worker-view]").forEach((button) => {
+      const active = String(button.dataset.networkWorkerView || "") === String(networkWorkerViewPreset || "");
+      button.setAttribute("aria-pressed", active ? "true" : "false");
+      button.classList.toggle("is-active", active);
+    });
+  }
+
   function initNetworkViewEvents() {
     if (networkViewEventsInitialized) return;
     networkViewEventsInitialized = true;
@@ -3354,16 +3847,23 @@
     if (workerFilter) {
       workerFilter.addEventListener("input", () => {
         networkWorkerSearchText = workerFilter.value || "";
-        renderNetworkWorkerRows({ rows: lastNetworkWorkerRows });
+        renderNetworkWorkerRows(lastNetworkWorkersPayload);
       });
     }
     const statusFilter = byId("network-worker-status-filter");
     if (statusFilter) {
       statusFilter.addEventListener("change", () => {
         networkWorkerStatusFilter = statusFilter.value || "";
-        renderNetworkWorkerRows({ rows: lastNetworkWorkerRows });
+        renderNetworkWorkerRows(lastNetworkWorkersPayload);
       });
     }
+    document.querySelectorAll("[data-network-worker-view]").forEach((button) => {
+      button.addEventListener("click", () => {
+        networkWorkerViewPreset = button.dataset.networkWorkerView || "";
+        syncNetworkWorkerViewPresetButtons();
+        renderNetworkWorkerRows(lastNetworkWorkersPayload);
+      });
+    });
     const previewSettingsButton = byId("network-settings-preview-button");
     if (previewSettingsButton) previewSettingsButton.addEventListener("click", previewNetworkSettingsPatch);
     const saveSettingsButton = byId("network-settings-save-button");
@@ -3373,6 +3873,9 @@
     });
     document.querySelectorAll("[data-network-test-connection]").forEach((button) => {
       button.addEventListener("click", () => runNetworkWorkerTestConnection());
+    });
+    document.querySelectorAll("[data-network-open-drawer]").forEach((button) => {
+      button.addEventListener("click", () => openNetworkDrawer(button.dataset.networkOpenDrawer || ""));
     });
     const createJoinButton = byId("network-coordinator-join-create");
     if (createJoinButton) createJoinButton.addEventListener("click", () => createNetworkJoinBlob());
@@ -3464,6 +3967,8 @@
     setText("network-local-api", localApiState);
     setText("network-status", settings.error ? "Settings unavailable" : "Backend lifecycle controls");
     renderNetworkStatusBanner(payload, config);
+    renderNetworkTopologyStrip(config, networkWorkers);
+    renderNetworkActionReadinessGates(payload, config);
     syncNetworkRoleDashboards(config);
     renderNetworkRoleDashboards({ queue, networkWorkers, config, contract });
     renderNetworkSummaryRows("network-summary", guidance);
@@ -3498,6 +4003,9 @@
     visibleNetworkModeLabel,
     networkReadinessLines,
     networkRuntimeStatus,
+    networkStatusTone,
+    networkDiagnosticLayerByKey,
+    renderNetworkDiagnosticRail,
     networkWorkerDriftPayload,
     networkWorkerDriftFieldText,
     networkWorkerDriftStatusText,
@@ -3505,6 +4013,11 @@
     renderNetworkStatusBanner,
     obviousWorkerCoordinatorUrlIssue,
     networkLifecycleMutationRouteCount,
+    networkAttentionItems,
+    renderNetworkAttentionStack,
+    networkTopologyNodes,
+    renderNetworkTopologyStrip,
+    renderNetworkActionReadinessGates,
     networkLifecycleDryRunRouteCount,
     networkSetupMutationRouteSummary,
     networkLifecycleRouteRow,
@@ -3516,6 +4029,7 @@
     networkCoordinatorJoinBlobRoute,
     networkWorkerJoinClusterRoute,
     networkLifecycleRelevantRole,
+    networkLifecycleRelevantRoles,
     networkLifecycleControlLines,
     networkLifecycleCommandResultLines,
     networkTestConnectionResultLines,
@@ -3544,6 +4058,8 @@
     networkWorkerFilterText,
     filteredNetworkWorkerRows,
     networkWorkerDetailLines,
+    workerLastResultText,
+    workerThroughputText,
     renderNetworkWorkerDetail,
     renderNetworkWorkerProgress,
     networkWorkerProgressStatus,
@@ -3558,6 +4074,7 @@
     renderNetworkOpenHistory,
     renderNetworkSettingsPatchHandoff,
     renderNetworkLifecycleControls,
+    runGuidedNetworkLifecycleCommand,
     runNetworkLifecycleCommand,
     runNetworkWorkerTestConnection,
     createNetworkJoinBlob,

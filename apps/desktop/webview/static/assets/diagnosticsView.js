@@ -703,6 +703,57 @@
     return text ? text.split(/\r?\n/).map((line) => line.trim()).filter(Boolean) : [];
   }
 
+  function progressCompactionKey(line) {
+    const text = String(line || "").trim();
+    const match = text.match(/^(?:\d{4}-\d{2}-\d{2}[ T]\d{2}:\d{2}:\d{2}(?:\.\d+)?\s+)?(?:\[[A-Z]+\]\s+)?([A-Z][A-Z0-9_-]*)\s*:\s*(\d{1,3})%\s*$/i);
+    if (!match) return "";
+    return `${match[1].toUpperCase()}:${match[2]}`;
+  }
+
+  function compactRepeatedProgressLines(value) {
+    const lines = diagnosticsTextLines(value);
+    const compacted = [];
+    let pending = null;
+    const flushPending = () => {
+      if (!pending) return;
+      compacted.push(
+        pending.count > 1
+          ? `${pending.lastLine} (shown once; ${pending.count} repeated progress updates collapsed)`
+          : pending.lastLine
+      );
+      pending = null;
+    };
+
+    lines.forEach((line) => {
+      const key = progressCompactionKey(line);
+      if (!key) {
+        flushPending();
+        compacted.push(line);
+        return;
+      }
+      if (pending && pending.key === key) {
+        pending.count += 1;
+        pending.lastLine = line;
+        return;
+      }
+      flushPending();
+      pending = { key, lastLine: line, count: 1 };
+    });
+    flushPending();
+    return compacted.join("\n");
+  }
+
+  function compactedDiagnosticsTextLines(value) {
+    return diagnosticsTextLines(compactRepeatedProgressLines(value));
+  }
+
+  function setTextIfChanged(id, value) {
+    const node = byId(id);
+    const text = String(value || "");
+    if (node && node.textContent === text) return;
+    setText(id, text);
+  }
+
   function diagnosticsSeverityForLine(line) {
     const text = String(line || "").toLowerCase();
     if (/\b(error|failed|failure|exception|traceback|unavailable|denied|blocked|corrupt|malformed|invalid|unreadable|locked)\b/.test(text)) {
@@ -1064,7 +1115,8 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     ];
     const entries = [];
     groups.forEach(([source, value]) => {
-      diagnosticsTextLines(value).slice(-50).forEach((line) => {
+      const sourceLines = source === "Pipeline log tail" ? compactedDiagnosticsTextLines(value) : diagnosticsTextLines(value);
+      sourceLines.slice(-50).forEach((line) => {
         entries.push({ source, line });
       });
     });
@@ -1874,8 +1926,8 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     });
     setDiagnosticsPanelStatus("diagnostics-pipeline-log-status", pipelineStatus.label, pipelineStatus.state);
     setDiagnosticsPanelStatus("diagnostics-launch-log-status", launchStatus.label, launchStatus.state);
-    setText("log-tail", pipelineLog || pipelineStatus.fallback);
-    setText("launch-logs", launchLog || launchStatus.fallback);
+    setTextIfChanged("log-tail", compactRepeatedProgressLines(pipelineLog) || pipelineStatus.fallback);
+    setTextIfChanged("launch-logs", launchLog || launchStatus.fallback);
   }
 
   function diagnosticsFailureMessage(failure) {
@@ -2184,6 +2236,9 @@ const renderDiagnosticsOpenHistory = diagnosticsInvestigation.renderDiagnosticsO
     renderDiagnosticsTriage,
     renderDiagnosticsDrilldown,
     diagnosticsTextLines,
+    compactRepeatedProgressLines,
+    compactedDiagnosticsTextLines,
+    setTextIfChanged,
     diagnosticsSeverityForLine,
     diagnosticsMalformedStateLines,
     diagnosticsRealMediaBoundaryLines,

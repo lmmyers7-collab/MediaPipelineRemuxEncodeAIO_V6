@@ -13,7 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 from mediapipeline.desktop.api import LocalApiServer
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths
-from tests.python.desktop.test_application_facade import DummyFacadeService
+from tests.python.desktop.application_facade_test_support import DummyFacadeService
 
 
 def _write_bytes(path: Path, content: bytes) -> None:

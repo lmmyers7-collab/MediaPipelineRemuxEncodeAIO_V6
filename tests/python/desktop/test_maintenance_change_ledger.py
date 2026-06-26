@@ -16,7 +16,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.core.maintenance import change_ledger as change_ledger_module
 from mediapipeline.core.maintenance.change_ledger import change_ledger_payload, python_impact_for_files
-from tests.python.desktop.test_application_facade import DummyFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, _resolved
 from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
 from mediapipeline.desktop.api.routes_read import GET_ROUTE_HANDLERS
 from mediapipeline.desktop.api.server import LocalApiServer

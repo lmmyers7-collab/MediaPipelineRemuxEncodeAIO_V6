@@ -719,7 +719,7 @@ async function refreshAllNow(options = {}) {
     ["commands", refreshGet("/api/commands?limit=20", refreshOptions), false],
     ["metrics", refreshGet("/api/metrics", refreshOptions), false],
     ["queue", refreshGet("/api/queue", refreshOptions), false],
-    ["completed", refreshGet("/api/completed?limit=100", refreshOptions), false],
+    ["completed", refreshGet("/api/completed?limit=500", refreshOptions), false],
     ["failures", refreshGet(failureQuery, refreshOptions), false],
     ["audit results", refreshGet(auditQuery, refreshOptions), false],
     ["audit controls", refreshGet("/api/audit-controls", refreshOptions), false],
@@ -791,7 +791,10 @@ async function refreshAllNow(options = {}) {
       unavailableReason: telemetryFailure?.message || "telemetry route returned no payload",
     });
   if (telemetryRenderFailure) failures.push(telemetryRenderFailure);
-  if (values.diagnostics) renderDiagnostics(values.diagnostics);
+  if (values.diagnostics) {
+    renderDiagnostics(values.diagnostics);
+    window.mediaPipelineFloatingPipelineLog?.renderFloatingPipelineLog?.(values.diagnostics);
+  }
   const renderDiagnosticsStateSummaryFn = window.mediaPipelineDiagnosticsStateSummaryView?.renderDiagnosticsStateSummary;
   if (values["diagnostics state summary"] && typeof renderDiagnosticsStateSummaryFn === "function") {
     renderDiagnosticsStateSummaryFn(values["diagnostics state summary"]);
@@ -879,6 +882,29 @@ async function refreshAllNow(options = {}) {
     settings: values.settings || getLastSettings(),
     failures,
   });
+  const launchPanel = document.querySelector('[data-page-panel="launch"]');
+  const launchVisible = Boolean(launchPanel && !launchPanel.hidden && launchPanel.getAttribute("aria-hidden") !== "true");
+  const launchAlertVisible = Boolean(document.querySelector(".launch-preflight-startup-alert"));
+  const launchView = window.mediaPipelineLaunchView || {};
+  if (
+    typeof launchView.refreshLaunchBackendPreflight === "function"
+    && (!refreshOptions.automatic || launchVisible || launchAlertVisible)
+  ) {
+    try {
+      await launchView.refreshLaunchBackendPreflight();
+    } catch (error) {
+      failures.push({
+        name: "launch backend preflight",
+        required: false,
+        message: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+  launchView.renderLaunchCompactGate?.();
+  launchView.updateLaunchCommandButtonStates?.(
+    values.snapshot || lastSnapshot,
+    values["close readiness"] || lastCloseReadiness
+  );
   window.mediaPipelineProgressView?.renderHomeActiveWork?.({
     snapshot: values.snapshot || lastSnapshot,
     diagnostics: values.diagnostics || null,
@@ -1648,6 +1674,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
   const launchView = window.mediaPipelineLaunchView || {};
   launchView.initLaunchViewEvents?.();
+  window.mediaPipelineFloatingPipelineLog?.initFloatingPipelineLogEvents?.();
+  window.mediaPipelinePipelineLogWindowBridge?.initPipelineLogWindowBridgeEvents?.();
   window.mediaPipelineMetricsView?.initMetricsViewEvents?.();
   window.mediaPipelineReportsView?.initReportsViewEvents?.();
   window.mediaPipelineScheduleView?.initScheduleViewEvents?.();
@@ -1740,7 +1768,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   const pendingClearFiltersButton = byId("pending-clear-filters-button");
   if (pendingClearFiltersButton) pendingClearFiltersButton.addEventListener("click", () => window.mediaPipelinePendingPublishView?.resetPendingFilters?.());
   const failureFilter = byId("failure-filter");
-  if (failureFilter) failureFilter.addEventListener("input", () => window.mediaPipelineReportsView?.renderFailureRows?.());
+  if (failureFilter) failureFilter.addEventListener("input", () => {
+    window.mediaPipelineReportsView?.renderFailureResolutionGroups?.();
+    window.mediaPipelineReportsView?.renderFailureRows?.();
+  });
   const failureSourceMarkers = byId("failure-source-markers");
   if (failureSourceMarkers) failureSourceMarkers.addEventListener("change", refreshAll);
   const auditPreviewFilter = byId("audit-preview-filter");

@@ -101,6 +101,8 @@ const settingsCommandButtonIds = [
 let settingsCommandInFlight = false;
 let settingsRenameLogCaseInFlight = false;
 let settingsRenameLogCaseEventsBound = false;
+const SETTINGS_PREVIEW_POST_TIMEOUT_MS = 60000;
+const SETTINGS_SAVE_POST_TIMEOUT_MS = 120000;
 
 const settingsRuntimeActiveStates = new Set(["processing", "running", "active", "publishing", "audit", "rerun", "stopping", "paused"]);
 const settingsRuntimeInactiveStages = new Set(["", "idle", "sleeping", "stopped", "completed"]);
@@ -167,6 +169,48 @@ function setSettingsCommandBusy(isBusy) {
   syncSettingsRenameLogCaseButton();
 }
 
+function scheduleSettingsPostSaveRefresh() {
+  const refresh = window.refreshAll || (typeof refreshAll === "function" ? refreshAll : null);
+  if (typeof refresh !== "function") {
+    reportSettingsPostSaveRefreshFailure("Settings were saved, but automatic refresh is not available. Reload settings before launching.");
+    return;
+  }
+  window.setTimeout(() => {
+    try {
+      const result = refresh();
+      if (result && typeof result.catch === "function") {
+        result.catch((error) => reportSettingsPostSaveRefreshFailure(error));
+      }
+    } catch (error) {
+      reportSettingsPostSaveRefreshFailure(error);
+    }
+  }, 0);
+}
+
+function reportSettingsPostSaveRefreshFailure(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  const detail = [
+    byId("settings-patch-detail")?.textContent || "",
+    "",
+    `Post-save refresh failed: ${message}`,
+    "The backend save may have succeeded, but the WebView could still be showing stale settings. Use Reload From Disk or refresh before launching.",
+  ].filter(Boolean).join("\n");
+  setText("settings-patch-status", "Saved; refresh failed");
+  setText("settings-patch-detail", detail);
+  window.mediaPipelineSettingsLibraries?.handleSettingsPostSaveRefreshFailure?.(message);
+  renderSettingsPatchSummary();
+}
+
+function settingsPostErrorMessage(error, action) {
+  const raw = error instanceof Error ? error.message : String(error);
+  const lower = raw.toLowerCase();
+  if (!lower.includes("timed out") && !lower.includes("timeout")) return raw;
+  if (action === "save") {
+    return "Settings save timed out before backend success was reported. Save status unknown; use Reload From Disk or refresh to verify saved backend settings before launching.";
+  }
+  return "Settings preview timed out before backend validation completed. No save command was sent; use Preview again or refresh before saving.";
+}
+
 function rejectSettingsCommandWhileBusy(command, statusId, detailId) {
   if (!settingsCommandInFlight) return false;
   const result = {
@@ -184,7 +228,13 @@ function rejectSettingsCommandWhileBusy(command, statusId, detailId) {
 function settingsResultStatusLabel(result, okLabel, fallbackLabel) {
   if (result?.ok) return okLabel;
   const severity = String(result?.severity || "").trim().toLowerCase();
-  if (severity === "warning") return "Needs review";
+  const command = String(result?.command || "").trim().toLowerCase();
+  const message = String(result?.message || "").trim().toLowerCase();
+  if (severity === "warning") {
+    if (message.includes("no changes")) return "No backend changes";
+    if (command === "settings.preview_patch") return "Review warnings";
+    return "Review warnings";
+  }
   if (severity === "error") return fallbackLabel;
   return result?.severity || fallbackLabel;
 }
@@ -763,6 +813,22 @@ async function browseFinalLibraryPromotionRulePath(input, settingKey, label) {
   }
 }
 
+function settingsSaveReviewModalHost() {
+  return document.querySelector("[data-settings-modal-host]") || document.querySelector("main.workspace") || document.body;
+}
+
+function ensureSettingsSaveReviewDialogGlobal(dialog) {
+  const hiddenPage = dialog?.closest?.(".page:not(.is-visible)");
+  if (!hiddenPage) return dialog;
+  const host = settingsSaveReviewModalHost();
+  if (host && typeof host.appendChild === "function") {
+    host.appendChild(dialog);
+  } else if (document.body && typeof document.body.appendChild === "function") {
+    document.body.appendChild(dialog);
+  }
+  return dialog;
+}
+
 async function previewFinalLibraryPromotionSettings() {
   if (rejectSettingsCommandWhileBusy("settings.preview_patch", "settings-final-library-status", "settings-final-library-guidance")) return;
   let changes;
@@ -782,7 +848,7 @@ async function previewFinalLibraryPromotionSettings() {
   setSettingsCommandBusy(true);
   setFinalLibraryPromotionStatus("Previewing...", "Requesting backend preview for Final Library Promotion settings. This will not save the PSD1.");
   try {
-    const result = await apiPost("/api/settings/preview-patch", { changes });
+    const result = await apiPost("/api/settings/preview-patch", { changes }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS });
     appendCommandResult(result);
     lastSettingsPatchPreviewEvidence = {
       command: "settings.preview_patch",
@@ -794,7 +860,7 @@ async function previewFinalLibraryPromotionSettings() {
     setFinalLibraryPromotionStatus(result.ok ? "Preview ready" : result.severity || "Preview failed", finalLibraryPromotionSettingsResultLines("Backend preview", result, changes).join("\n"));
     renderSettingsPatchSummary();
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = settingsPostErrorMessage(error, "preview");
     const result = {
       command: "settings.preview_patch",
       ok: false,
@@ -852,9 +918,28 @@ async function saveFinalLibraryPromotionSettings() {
     return;
   }
   setSettingsCommandBusy(true);
-  setFinalLibraryPromotionStatus("Saving...", "Saving backend-validated Final Library Promotion settings to the active PSD1. A backup will be created first.");
+  setFinalLibraryPromotionStatus("Previewing save...", "Requesting backend preview before saving Final Library Promotion settings.");
   try {
-    const result = await apiPost("/api/settings/save-patch", { changes, confirm_save: true });
+    const previewResult = await apiPost("/api/settings/preview-patch", { changes }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS });
+    appendCommandResult(previewResult);
+    const previewData = previewResult.data && typeof previewResult.data === "object" ? previewResult.data : {};
+    const reviewConfirmation = previewData.review_confirmation && typeof previewData.review_confirmation === "object"
+      ? previewData.review_confirmation
+      : null;
+    if (!previewResult.ok || (previewResult.errors || []).length) {
+      setFinalLibraryPromotionStatus("Preview blocked", finalLibraryPromotionSettingsResultLines("Backend preview", previewResult, changes).join("\n"));
+      return;
+    }
+    if (!reviewConfirmation) {
+      setFinalLibraryPromotionStatus("Preview missing confirmation", "Backend preview did not return a review_confirmation contract, so no save command was sent.");
+      return;
+    }
+    setFinalLibraryPromotionStatus("Saving...", "Saving backend-validated Final Library Promotion settings to the active PSD1. A backup will be created first.");
+    const result = await apiPost(
+      "/api/settings/save-patch",
+      { changes, review_confirmation: reviewConfirmation, confirm_save: true },
+      { timeoutMs: SETTINGS_SAVE_POST_TIMEOUT_MS }
+    );
     appendCommandResult(result);
     lastSettingsPatchSaveEvidence = {
       command: "settings.save_patch",
@@ -872,10 +957,10 @@ async function saveFinalLibraryPromotionSettings() {
     renderSettingsPatchSummary();
     if (result.ok) {
       finalLibraryPromotionSettingsBuilderState.dirty = false;
-      await refreshAll();
+      scheduleSettingsPostSaveRefresh();
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = settingsPostErrorMessage(error, "save");
     const result = {
       command: "settings.save_patch",
       ok: false,
@@ -952,6 +1037,45 @@ function settingsPatchRequestExtras() {
     return {};
   }
   return {};
+}
+function settingsLibraryProfilePatchStateKind() {
+  const provider = window.mediaPipelineSettingsLibraries?.libraryPatchStateKind;
+  if (typeof provider !== "function") return "";
+  try {
+    return String(provider() || "");
+  } catch (_error) {
+    return "";
+  }
+}
+function settingsPatchHasStaleLibraryProfiles(changes) {
+  return Boolean(
+    changes
+    && typeof changes === "object"
+    && !Array.isArray(changes)
+    && Object.prototype.hasOwnProperty.call(changes, "LibraryProfiles")
+    && settingsLibraryProfilePatchStateKind() === "stale"
+  );
+}
+function blockStaleLibraryProfilesPatch(command) {
+  if (command && typeof appendCommandResult === "function") {
+    appendCommandResult({
+      command,
+      ok: false,
+      severity: "warning",
+      message: "Stale LibraryProfiles patch blocked before backend settings save.",
+    });
+  }
+  setText("settings-patch-status", "Stale LibraryProfiles blocked");
+  setText(
+    "settings-patch-detail",
+    [
+      "Changes JSON contains LibraryProfiles, but the Library Profiles editor says that patch is stale.",
+      "Stage Patch from the Library Profiles tab to save the current profile editor state, or Reset From Current to remove the stale LibraryProfiles key before saving unrelated settings.",
+      "No backend preview or save command was sent.",
+    ].join("\n")
+  );
+  renderSettingsPatchSummary();
+  return true;
 }
 function settingsPatchRequestSignature(changes, extras = {}) {
   if (Array.isArray(extras.library_profile_resets) && extras.library_profile_resets.length) {
@@ -1239,7 +1363,15 @@ function syncSaveHeaderStatus() {
   const patchStatusEl = byId("settings-patch-status");
   const headerPatchEl = byId("settings-save-header-patch-status");
   if (patchStatusEl && headerPatchEl) {
-    headerPatchEl.textContent = patchStatusEl.textContent || "No changes";
+    let headerText = patchStatusEl.textContent || "No changes";
+    if (headerText !== "No backend changes") {
+      try {
+        if (!settingsPatchIsTouched() || !settingsPatchHasUnsavedChanges()) {
+          headerText = "No changes";
+        }
+      } catch (_error) {}
+    }
+    headerPatchEl.textContent = headerText || "No changes";
   }
   const reloaded = lastSettingsPatchSaveEvidence?.result?.data?.reloaded;
   const headerReloadEl = byId("settings-save-header-reload-status");
@@ -1457,6 +1589,16 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
 
   function settingsSaveReviewValueText(value) {
     if (value === undefined) return "(not previously set)";
+    if (Array.isArray(value) && value.some((item) => item && typeof item === "object")) {
+      try {
+        return JSON.stringify(value);
+      } catch (_) {}
+    }
+    if (value && typeof value === "object") {
+      try {
+        return JSON.stringify(value);
+      } catch (_) {}
+    }
     try {
       return formatConfigValue(value) || JSON.stringify(value) || String(value);
     } catch (_) {
@@ -1466,6 +1608,404 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
         return String(value);
       }
     }
+  }
+
+  const renameFilterTermKeys = new Set([
+    "RenameMovieFilterTerms",
+    "RenameTVFilterTerms",
+  ]);
+  const renameFilterOptionKeys = new Set([
+    "RenameMovieFilterOptions",
+    "RenameTVFilterOptions",
+  ]);
+  const renameFilterRemoveTermKeys = new Set([
+    "RenameMovieRemoveTerms",
+    "RenameTVRemoveTerms",
+  ]);
+
+  function settingsSaveReviewObjectValue(value) {
+    if (value && typeof value === "object" && !Array.isArray(value)) return value;
+    if (typeof value !== "string") return null;
+    const trimmed = value.trim();
+    if (!trimmed.startsWith("{")) return null;
+    try {
+      const parsed = JSON.parse(trimmed);
+      return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : null;
+    } catch (_error) {
+      return null;
+    }
+  }
+
+  function settingsSaveReviewTermList(value) {
+    if (Array.isArray(value)) {
+      return value.map((item) => String(item || "").trim()).filter(Boolean);
+    }
+    if (value === undefined || value === null) return [];
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (!trimmed) return [];
+      if (trimmed.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(trimmed);
+          if (Array.isArray(parsed)) return settingsSaveReviewTermList(parsed);
+        } catch (_error) {}
+      }
+      return parseSettingsListText(trimmed);
+    }
+    return [String(value).trim()].filter(Boolean);
+  }
+
+  function settingsSaveReviewTermMap(value) {
+    const map = new Map();
+    settingsSaveReviewTermList(value).forEach((term) => {
+      const normalized = term.toLowerCase();
+      if (!map.has(normalized)) map.set(normalized, term);
+    });
+    return map;
+  }
+
+  function settingsSaveReviewTermDeltas(currentValue, newValue) {
+    const currentMap = settingsSaveReviewTermMap(currentValue);
+    const newMap = settingsSaveReviewTermMap(newValue);
+    const added = [];
+    const removed = [];
+    newMap.forEach((term, normalized) => {
+      if (!currentMap.has(normalized)) added.push(term);
+    });
+    currentMap.forEach((term, normalized) => {
+      if (!newMap.has(normalized)) removed.push(term);
+    });
+    return { added, removed };
+  }
+
+  function settingsSaveReviewRenameFilterLabel(value) {
+    return String(value || "").replace(/_/g, " ").replace(/\s+/g, " ").trim() || "default";
+  }
+
+  function settingsSaveReviewLimitedText(values, limit = 6) {
+    const visible = values.slice(0, limit);
+    const suffix = values.length > visible.length ? `, +${values.length - visible.length} more` : "";
+    return `${visible.join(", ")}${suffix}`;
+  }
+
+  function settingsSaveReviewRenameTermDictionaryText(currentValue, newValue, side) {
+    const currentTerms = settingsSaveReviewObjectValue(currentValue);
+    const newTerms = settingsSaveReviewObjectValue(newValue);
+    if (!currentTerms || !newTerms) return "";
+    const keys = Array.from(new Set([...Object.keys(currentTerms), ...Object.keys(newTerms)]))
+      .sort((a, b) => a.localeCompare(b));
+    const addedLines = [];
+    const removedLines = [];
+    keys.forEach((key) => {
+      const delta = settingsSaveReviewTermDeltas(currentTerms[key], newTerms[key]);
+      if (delta.added.length) {
+        addedLines.push(`${settingsSaveReviewRenameFilterLabel(key)}: ${settingsSaveReviewLimitedText(delta.added)}`);
+      }
+      if (delta.removed.length) {
+        removedLines.push(`${settingsSaveReviewRenameFilterLabel(key)}: ${settingsSaveReviewLimitedText(delta.removed)}`);
+      }
+    });
+    const lines = side === "current" ? removedLines : addedLines;
+    const oppositeLines = side === "current" ? addedLines : removedLines;
+    if (lines.length) {
+      return `${side === "current" ? "Removed terms" : "Added terms"}: ${lines.join("; ")}. Unchanged terms hidden.`;
+    }
+    if (oppositeLines.length) {
+      return `${side === "current" ? "No removed terms" : "No added terms"}. Unchanged terms hidden.`;
+    }
+    return "No added or removed terms after trim/case comparison; unchanged terms hidden.";
+  }
+
+  function settingsSaveReviewOptionState(value) {
+    if (value === undefined) return "(not set)";
+    if (value === true) return "on";
+    if (value === false) return "off";
+    const text = String(value).trim().toLowerCase();
+    if (["true", "1", "yes", "on"].includes(text)) return "on";
+    if (["false", "0", "no", "off"].includes(text)) return "off";
+    return String(value);
+  }
+
+  function settingsSaveReviewRenameOptionDictionaryText(currentValue, newValue) {
+    const currentOptions = settingsSaveReviewObjectValue(currentValue);
+    const newOptions = settingsSaveReviewObjectValue(newValue);
+    if (!currentOptions || !newOptions) return "";
+    const keys = Array.from(new Set([...Object.keys(currentOptions), ...Object.keys(newOptions)]))
+      .sort((a, b) => a.localeCompare(b));
+    const changed = keys
+      .filter((key) => settingsSaveReviewOptionState(currentOptions[key]) !== settingsSaveReviewOptionState(newOptions[key]))
+      .map((key) => `${settingsSaveReviewRenameFilterLabel(key)}: ${settingsSaveReviewOptionState(currentOptions[key])} -> ${settingsSaveReviewOptionState(newOptions[key])}`);
+    if (!changed.length) return "No option toggles changed; unchanged options hidden.";
+    return `Changed toggles: ${changed.join("; ")}. Unchanged options hidden.`;
+  }
+
+  function settingsSaveReviewRenameRemoveTermsText(currentValue, newValue, side) {
+    const delta = settingsSaveReviewTermDeltas(currentValue, newValue);
+    const values = side === "current" ? delta.removed : delta.added;
+    const oppositeValues = side === "current" ? delta.added : delta.removed;
+    if (values.length) {
+      return `${side === "current" ? "Removed terms" : "Added terms"}: ${settingsSaveReviewLimitedText(values)}. Unchanged terms hidden.`;
+    }
+    if (oppositeValues.length) {
+      return `${side === "current" ? "No removed terms" : "No added terms"}. Unchanged terms hidden.`;
+    }
+    return "No added or removed terms after trim/case comparison; unchanged terms hidden.";
+  }
+
+  function settingsSaveReviewLibraryProfiles(value) {
+    let candidate = value;
+    if (typeof candidate === "string") {
+      const trimmed = candidate.trim();
+      if (!trimmed) return [];
+      try {
+        candidate = JSON.parse(trimmed);
+      } catch (_error) {
+        return [];
+      }
+    }
+    if (!Array.isArray(candidate)) return [];
+    return candidate.filter((profile) => profile && typeof profile === "object" && !Array.isArray(profile));
+  }
+
+  function settingsSaveReviewCanonicalProfileId(value, fallback) {
+    const id = String(value || "").trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "") || fallback;
+    if (id === "movie" || id === "movies") return "movies";
+    if (id === "show" || id === "shows" || id === "tv") return "tv";
+    return id;
+  }
+
+  function settingsSaveReviewProfileId(profile, index = 0) {
+    const raw = String(profile?.id || profile?.library_id || profile?.name || "").trim();
+    return settingsSaveReviewCanonicalProfileId(raw, `profile-${index + 1}`);
+  }
+
+  function settingsSaveReviewProfileLabel(profile, index = 0) {
+    const id = settingsSaveReviewProfileId(profile, index);
+    const name = String(profile?.name || "").trim();
+    return name && name !== id ? `${name} (${id})` : id;
+  }
+
+  function settingsSaveReviewPrimitiveText(value) {
+    if (value === undefined) return "(not set)";
+    if (value === null) return "null";
+    if (Array.isArray(value) || (value && typeof value === "object")) {
+      try {
+        return JSON.stringify(value);
+      } catch (_) {
+        return String(value);
+      }
+    }
+    return String(value);
+  }
+
+  function settingsSaveReviewProfileOverrideEntries(profile, index = 0) {
+    const overrides = profile?.overrides && typeof profile.overrides === "object" && !Array.isArray(profile.overrides)
+      ? profile.overrides
+      : {};
+    const profileId = settingsSaveReviewProfileId(profile, index);
+    const profileLabel = settingsSaveReviewProfileLabel(profile, index);
+    return Object.keys(overrides).sort((a, b) => a.localeCompare(b)).flatMap((group) => {
+      const groupValues = overrides[group];
+      if (!groupValues || typeof groupValues !== "object" || Array.isArray(groupValues)) return [];
+      return Object.keys(groupValues).sort((a, b) => a.localeCompare(b)).map((key) => ({
+        profileId,
+        profileLabel,
+        path: `${group}.${key}`,
+        value: groupValues[key],
+      }));
+    });
+  }
+
+  function settingsSaveReviewLibraryProfileSummary(value) {
+    const profiles = settingsSaveReviewLibraryProfiles(value);
+    if (!profiles.length) return settingsSaveReviewValueText(value);
+    const enabledCount = profiles.filter((profile) => profile.enabled !== false).length;
+    const profileLabels = profiles
+      .slice(0, 4)
+      .map((profile, index) => settingsSaveReviewProfileLabel(profile, index));
+    const profileSuffix = profiles.length > profileLabels.length ? `, +${profiles.length - profileLabels.length} more` : "";
+    const overrideEntries = profiles.flatMap((profile, index) => settingsSaveReviewProfileOverrideEntries(profile, index));
+    const overrideLabels = overrideEntries
+      .slice(0, 5)
+      .map((entry) => `${entry.profileId}.${entry.path}=${settingsSaveReviewPrimitiveText(entry.value)}`);
+    const overrideSuffix = overrideEntries.length > overrideLabels.length ? `, +${overrideEntries.length - overrideLabels.length} more` : "";
+    return [
+      `${profiles.length} profile${profiles.length === 1 ? "" : "s"} (${enabledCount} enabled): ${profileLabels.join(", ")}${profileSuffix}`,
+      overrideEntries.length ? `Overrides: ${overrideLabels.join("; ")}${overrideSuffix}` : "Overrides: none",
+    ].join(". ");
+  }
+
+  function settingsSaveReviewProfileMap(profiles) {
+    const map = new Map();
+    profiles.forEach((profile, index) => {
+      map.set(settingsSaveReviewProfileId(profile, index), { profile, index });
+    });
+    return map;
+  }
+
+  function settingsSaveReviewOverrideMap(profile, index = 0) {
+    const map = new Map();
+    settingsSaveReviewProfileOverrideEntries(profile, index).forEach((entry) => {
+      map.set(entry.path, entry.value);
+    });
+    return map;
+  }
+
+  function settingsSaveReviewValuesDiffer(left, right) {
+    try {
+      return !settingsValuesEqual(left, right);
+    } catch (_error) {
+      return JSON.stringify(left) !== JSON.stringify(right);
+    }
+  }
+
+  function settingsSaveReviewLibraryProfileDiffEntries(currentValue, newValue) {
+    const currentProfiles = settingsSaveReviewLibraryProfiles(currentValue);
+    const newProfiles = settingsSaveReviewLibraryProfiles(newValue);
+    const currentMap = settingsSaveReviewProfileMap(currentProfiles);
+    const newMap = settingsSaveReviewProfileMap(newProfiles);
+    const ids = Array.from(new Set([...currentMap.keys(), ...newMap.keys()])).sort((a, b) => a.localeCompare(b));
+    const topLevelKeys = ["name", "enabled", "designation", "source_path", "output_path", "promotion_enabled", "promotion_destination"];
+    const entries = [];
+    ids.forEach((id) => {
+      const currentRecord = currentMap.get(id);
+      const newRecord = newMap.get(id);
+      if (!currentRecord && newRecord) {
+        entries.push({
+          profileLabel: settingsSaveReviewProfileLabel(newRecord.profile, newRecord.index),
+          path: "profile",
+          before: undefined,
+          after: "added",
+        });
+        return;
+      }
+      if (currentRecord && !newRecord) {
+        entries.push({
+          profileLabel: settingsSaveReviewProfileLabel(currentRecord.profile, currentRecord.index),
+          path: "profile",
+          before: "present",
+          after: undefined,
+        });
+        return;
+      }
+      if (!currentRecord || !newRecord) return;
+      topLevelKeys.forEach((key) => {
+        const before = currentRecord.profile[key];
+        const after = newRecord.profile[key];
+        if (settingsSaveReviewValuesDiffer(before, after)) {
+          entries.push({
+            profileLabel: settingsSaveReviewProfileLabel(newRecord.profile, newRecord.index),
+            path: key,
+            before,
+            after,
+          });
+        }
+      });
+      const currentOverrides = settingsSaveReviewOverrideMap(currentRecord.profile, currentRecord.index);
+      const newOverrides = settingsSaveReviewOverrideMap(newRecord.profile, newRecord.index);
+      Array.from(new Set([...currentOverrides.keys(), ...newOverrides.keys()]))
+        .sort((a, b) => a.localeCompare(b))
+        .forEach((path) => {
+          const before = currentOverrides.get(path);
+          const after = newOverrides.get(path);
+          if (settingsSaveReviewValuesDiffer(before, after)) {
+            entries.push({
+              profileLabel: settingsSaveReviewProfileLabel(newRecord.profile, newRecord.index),
+              path,
+              before,
+              after,
+            });
+          }
+        });
+    });
+    return entries;
+  }
+
+  function settingsSaveReviewLibraryProfileCellText(value, currentValue, newValue, side) {
+    const summary = settingsSaveReviewLibraryProfileSummary(value);
+    const deltas = settingsSaveReviewLibraryProfileDiffEntries(currentValue, newValue);
+    if (!deltas.length) return summary;
+    const valueKey = side === "current" ? "before" : "after";
+    const labels = deltas
+      .slice(0, 4)
+      .map((entry) => `${entry.profileLabel}.${entry.path}=${settingsSaveReviewPrimitiveText(entry[valueKey])}`);
+    const suffix = deltas.length > labels.length ? `, +${deltas.length - labels.length} more` : "";
+    return `${summary}. ${side === "current" ? "Current" : "New"} changed values: ${labels.join("; ")}${suffix}`;
+  }
+
+  function settingsSaveReviewCellText(key, value, currentValue, newValue, side) {
+    if (key === "LibraryProfiles") {
+      return settingsSaveReviewLibraryProfileCellText(value, currentValue, newValue, side);
+    }
+    if (renameFilterTermKeys.has(key)) {
+      return settingsSaveReviewRenameTermDictionaryText(currentValue, newValue, side) || "Changed; unchanged terms hidden.";
+    }
+    if (renameFilterOptionKeys.has(key)) {
+      return settingsSaveReviewRenameOptionDictionaryText(currentValue, newValue) || "Changed; unchanged options hidden.";
+    }
+    if (renameFilterRemoveTermKeys.has(key)) {
+      return settingsSaveReviewRenameRemoveTermsText(currentValue, newValue, side);
+    }
+    return settingsSaveReviewValueText(value);
+  }
+
+  function settingsSaveReviewBackendEntries(entries = []) {
+    return (Array.isArray(entries) ? entries : [])
+      .filter((entry) => entry && typeof entry === "object" && !Array.isArray(entry) && String(entry.key || "").trim());
+  }
+
+  function settingsSaveReviewBackendEntryForKey(entries = [], key) {
+    return settingsSaveReviewBackendEntries(entries).find((entry) => String(entry.key || "") === key) || null;
+  }
+
+  function settingsReviewDigestShort(value) {
+    const text = String(value || "").trim();
+    return text ? `${text.slice(0, 12)}...` : "n/a";
+  }
+
+  function settingsSaveReviewSourceLabel(source) {
+    const value = String(source || "").trim();
+    if (value === "mirrored_from_library_profiles") return "mirrored from LibraryProfiles";
+    if (value === "backend_normalized") return "backend normalized";
+    if (value === "removed") return "remove request";
+    if (value === "submitted") return "submitted";
+    return value || "backend";
+  }
+
+  function settingsSaveReviewStatusLabel(entry) {
+    const status = String(entry?.status || "").trim().toLowerCase();
+    const statusLabel = status === "new" ? "New" : status === "removed" ? "Removed" : "Changed";
+    const sourceLabel = settingsSaveReviewSourceLabel(entry?.source);
+    return sourceLabel && sourceLabel !== "submitted" && sourceLabel !== "remove request"
+      ? `${statusLabel} (${sourceLabel})`
+      : statusLabel;
+  }
+
+  function settingsSaveReviewEntryCellText(entry, side) {
+    const key = String(entry?.key || "");
+    const currentExists = entry?.current_exists !== false;
+    const newExists = entry?.new_exists !== false;
+    const currentValue = currentExists ? entry.current_value : undefined;
+    const newValue = newExists ? entry.new_value : undefined;
+    if (side === "current") {
+      return currentExists
+        ? settingsSaveReviewCellText(key, currentValue, currentValue, newValue, "current")
+        : "(not previously set)";
+    }
+    if (!newExists || String(entry?.status || "").toLowerCase() === "removed") return "(remove key)";
+    return settingsSaveReviewCellText(key, newValue, currentValue, newValue, "new");
+  }
+
+  function settingsSaveReviewLibraryProfileDetailLines(currentValue, newValue) {
+    const deltas = settingsSaveReviewLibraryProfileDiffEntries(currentValue, newValue);
+    if (!deltas.length) {
+      return ["LibraryProfiles changed, but no profile field or override delta was summarized. Use the backend redacted diff before saving."];
+    }
+    const lines = deltas.slice(0, 20).map((entry) => (
+      `- ${entry.profileLabel}.${entry.path}: ${settingsSaveReviewPrimitiveText(entry.before)} -> ${settingsSaveReviewPrimitiveText(entry.after)}`
+    ));
+    if (deltas.length > lines.length) lines.push(`- +${deltas.length - lines.length} more LibraryProfiles change(s).`);
+    return lines;
   }
 
   function settingsSaveReviewLabel(key) {
@@ -1479,11 +2019,61 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
     row.appendChild(cell);
   }
 
-  function renderSettingsSaveReviewDialogRows({ changes, changedKeys, libraryProfileResetCount }) {
+  function settingsUniqueKeys(keys = []) {
+    return Array.from(new Set((Array.isArray(keys) ? keys : [])
+      .map((key) => String(key || "").trim())
+      .filter(Boolean)));
+  }
+
+  function settingsSaveActualKeys(changedKeys = [], removedKeys = []) {
+    return settingsUniqueKeys([...settingsUniqueKeys(changedKeys), ...settingsUniqueKeys(removedKeys)]);
+  }
+
+  function clearSettingsPatchCandidate() {
+    const patchNode = byId("settings-patch-json");
+    if (patchNode) patchNode.value = "{}";
+    settingsPatchTouched = false;
+  }
+
+  function settingsSavePreviewDetailLines(result, localHintLines = [], options = {}) {
+    const data = result?.data && typeof result.data === "object" ? result.data : {};
+    const changedKeys = settingsUniqueKeys(data.changed_keys || []);
+    const removedKeys = settingsUniqueKeys(data.removed_keys || []);
+    const submittedCount = Number.isFinite(options.submittedCount) ? options.submittedCount : 0;
+    const lines = [
+      result?.message || "Backend settings save preview completed.",
+      "",
+      "Backend preview is authoritative for which submitted settings will actually change.",
+      `Submitted keys: ${submittedCount}`,
+      `Backend-confirmed changed keys: ${settingsPersistedKeyDisplayList(changedKeys) || "none"}`,
+      `Backend-confirmed removed keys: ${settingsPersistedKeyDisplayList(removedKeys) || "none"}`,
+      `Writes config during preview: ${data.writes_config === true ? "yes" : "no"}`,
+      `Review contract: ${data.review_entries_schema_version || "legacy"}; confirmation ${settingsReviewDigestShort(data.review_confirmation?.preview_id)}`,
+    ];
+    if (localHintLines.length) lines.push("", ...localHintLines);
+    if ((result?.errors || []).length) {
+      lines.push("", "Errors:", ...(result.errors || []).map((item) => `- ${item}`));
+      lines.push("Backend validation errors are authoritative; this WebView did not save or bypass them.");
+    }
+    if ((result?.warnings || []).length) {
+      lines.push("", "Warnings:", ...(result.warnings || []).map((item) => `- ${item}`));
+    }
+    appendSettingsRiskSummaryLines(lines, data.risk_summary);
+    if ((data.redacted_diff_lines || []).length) {
+      lines.push("", "Redacted diff:", ...(data.redacted_diff_lines || []));
+      if (data.diff_truncated) lines.push("...diff truncated...");
+    }
+    return lines;
+  }
+
+  function renderSettingsSaveReviewDialogRows({ changes, changedKeys, removedKeys, libraryProfileResetCount, reviewEntries = [] }) {
     const tbody = byId("settings-save-review-dialog-rows");
     if (!tbody) return;
+    const backendEntries = settingsSaveReviewBackendEntries(reviewEntries);
+    const effectiveChangedKeys = settingsUniqueKeys(changedKeys).sort((a, b) => a.localeCompare(b));
+    const effectiveRemovedKeys = settingsUniqueKeys(removedKeys).sort((a, b) => a.localeCompare(b));
     tbody.replaceChildren();
-    if (!changedKeys.length && !libraryProfileResetCount) {
+    if (!backendEntries.length && !effectiveChangedKeys.length && !effectiveRemovedKeys.length && !libraryProfileResetCount) {
       const row = document.createElement("tr");
       const cell = document.createElement("td");
       cell.colSpan = 4;
@@ -1492,16 +2082,41 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
       tbody.appendChild(row);
       return;
     }
-    changedKeys.sort((a, b) => a.localeCompare(b)).forEach((key) => {
+    if (backendEntries.length) {
+      backendEntries
+        .slice()
+        .sort((a, b) => String(a.key || "").localeCompare(String(b.key || "")))
+        .forEach((entry) => {
+          const key = String(entry.key || "");
+          const row = document.createElement("tr");
+          appendSettingsSaveReviewCell(row, settingsSaveReviewLabel(key));
+          appendSettingsSaveReviewCell(row, settingsSaveReviewEntryCellText(entry, "current"));
+          appendSettingsSaveReviewCell(row, settingsSaveReviewEntryCellText(entry, "new"));
+          appendSettingsSaveReviewCell(row, settingsSaveReviewStatusLabel(entry));
+          tbody.appendChild(row);
+        });
+    }
+    if (!backendEntries.length) effectiveChangedKeys.forEach((key) => {
+      const row = document.createElement("tr");
+      const currentExists = lastSettingsValues && Object.prototype.hasOwnProperty.call(lastSettingsValues, key);
+      const currentValue = currentExists ? lastSettingsValues[key] : undefined;
+      const newValue = changes[key];
+      appendSettingsSaveReviewCell(row, settingsSaveReviewLabel(key));
+      appendSettingsSaveReviewCell(row, currentExists ? settingsSaveReviewCellText(key, currentValue, currentValue, newValue, "current") : "(not previously set)");
+      appendSettingsSaveReviewCell(row, settingsSaveReviewCellText(key, newValue, currentValue, newValue, "new"));
+      appendSettingsSaveReviewCell(row, currentExists ? "Changed" : "New");
+      tbody.appendChild(row);
+    });
+    if (!backendEntries.length) effectiveRemovedKeys.forEach((key) => {
       const row = document.createElement("tr");
       const currentExists = lastSettingsValues && Object.prototype.hasOwnProperty.call(lastSettingsValues, key);
       appendSettingsSaveReviewCell(row, settingsSaveReviewLabel(key));
       appendSettingsSaveReviewCell(row, currentExists ? settingsSaveReviewValueText(lastSettingsValues[key]) : "(not previously set)");
-      appendSettingsSaveReviewCell(row, settingsSaveReviewValueText(changes[key]));
-      appendSettingsSaveReviewCell(row, currentExists ? "Changed" : "New");
+      appendSettingsSaveReviewCell(row, "(remove key)");
+      appendSettingsSaveReviewCell(row, "Removed");
       tbody.appendChild(row);
     });
-    if (!changedKeys.length && libraryProfileResetCount) {
+    if (!effectiveChangedKeys.length && !effectiveRemovedKeys.length && libraryProfileResetCount) {
       const row = document.createElement("tr");
       appendSettingsSaveReviewCell(row, "Library profile reset");
       appendSettingsSaveReviewCell(row, "Current profile overrides");
@@ -1512,7 +2127,7 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
   }
 
   function openSettingsSaveReviewDialog(options) {
-    const dialog = byId("settings-save-review-dialog");
+    const dialog = ensureSettingsSaveReviewDialogGlobal(byId("settings-save-review-dialog"));
     if (!dialog || typeof dialog.showModal !== "function") {
       setText("settings-patch-status", "Review unavailable");
       setText("settings-patch-detail", "The Save Settings review dialog could not open, so no backend save command was sent.");
@@ -1522,29 +2137,59 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
       changes,
       keys,
       changedKeys,
+      removedKeys,
       libraryProfileResetCount,
       localHintLines,
       renameMerge,
+      previewResult,
     } = options;
+    const reviewEntries = settingsSaveReviewBackendEntries(previewResult?.data?.review_entries || options.reviewEntries || []);
+    const effectiveChangeCount = settingsSaveActualKeys(changedKeys, removedKeys).length;
     setText(
       "settings-save-review-summary",
-      `Review ${changedKeys.length} value change${changedKeys.length === 1 ? "" : "s"} before writing ${keys.length} submitted key${keys.length === 1 ? "" : "s"} to the active PSD1.`
+      `Review ${effectiveChangeCount} backend-confirmed change${effectiveChangeCount === 1 ? "" : "s"} from ${keys.length} submitted key${keys.length === 1 ? "" : "s"} before writing the active PSD1.`
     );
-    setText("settings-save-review-dialog-changed", String(changedKeys.length));
+    setText("settings-save-review-dialog-changed", String(effectiveChangeCount));
     setText("settings-save-review-dialog-submitted", String(keys.length));
     setText("settings-save-review-dialog-resets", String(libraryProfileResetCount));
-    renderSettingsSaveReviewDialogRows({ changes, changedKeys, libraryProfileResetCount });
+    renderSettingsSaveReviewDialogRows({ changes, changedKeys, removedKeys, libraryProfileResetCount, reviewEntries });
     const detailLines = [
-      "Backend save will validate the current values, write a backup, persist the PSD1, and reload settings after confirmation.",
+      "Backend preview already filtered out submitted values that are unchanged. Confirming will save only backend-confirmed changes.",
+      "Backend save will validate again, write a backup, persist the PSD1, and reload settings after confirmation.",
       settingsRuntimeRestartConfirmationLine(),
     ];
     if (renameMerge?.included) {
       detailLines.push(`Rename filter keys included: ${settingsPersistedKeyDisplayList(renameMerge.keys)}.`);
     }
+    if (settingsUniqueKeys(changedKeys).includes("LibraryProfiles")) {
+      const libraryProfileEntry = settingsSaveReviewBackendEntryForKey(reviewEntries, "LibraryProfiles");
+      detailLines.push(
+        "",
+        "LibraryProfiles change detail:",
+        ...settingsSaveReviewLibraryProfileDetailLines(
+          libraryProfileEntry ? libraryProfileEntry.current_value : lastSettingsValues?.LibraryProfiles,
+          libraryProfileEntry ? libraryProfileEntry.new_value : changes.LibraryProfiles
+        )
+      );
+    }
+    if ((previewResult?.warnings || []).length) {
+      detailLines.push("", "Backend preview warning(s):", ...(previewResult.warnings || []).map((item) => `- ${item}`));
+    }
     if (localHintLines.length) detailLines.push("", ...localHintLines);
     setText("settings-save-review-dialog-detail", detailLines.join("\n"));
     return new Promise((resolve) => {
       const form = dialog.querySelector("form");
+      let settled = false;
+      const cleanup = () => {
+        dialog.removeEventListener("close", onClose);
+        form?.removeEventListener("submit", onSubmit);
+      };
+      const finish = (value) => {
+        if (settled) return;
+        settled = true;
+        cleanup();
+        resolve(value);
+      };
       const onSubmit = (event) => {
         event.preventDefault();
         const submitter = event.submitter;
@@ -1553,9 +2198,7 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
         dialog.close(value);
       };
       const onClose = () => {
-        dialog.removeEventListener("close", onClose);
-        form?.removeEventListener("submit", onSubmit);
-        resolve(dialog.returnValue === "confirm");
+        finish(dialog.returnValue === "confirm");
       };
       dialog.addEventListener("close", onClose);
       form?.addEventListener("submit", onSubmit);
@@ -1563,12 +2206,10 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
         dialog.returnValue = "cancel";
         dialog.showModal();
       } catch (error) {
-        dialog.removeEventListener("close", onClose);
-        form?.removeEventListener("submit", onSubmit);
         const message = error instanceof Error ? error.message : String(error);
         setText("settings-patch-status", "Review unavailable");
         setText("settings-patch-detail", `The Save Settings review dialog could not open: ${message}`);
-        resolve(false);
+        finish(false);
       }
     });
   }
@@ -1720,6 +2361,10 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
     setText("settings-patch-detail", result.message);
     return;
   }
+  if (settingsPatchHasStaleLibraryProfiles(changes)) {
+    blockStaleLibraryProfilesPatch("settings.preview_patch");
+    return;
+  }
   const requestExtras = settingsPatchRequestExtras();
   const requestSignature = settingsPatchRequestSignature(changes, requestExtras);
   const localHintLines = settingsPatchLocalValidationHintLines(changes);
@@ -1731,7 +2376,7 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
   ].join("\n"));
   const requestId = ++settingsPatchPreviewRequestId;
   try {
-    const result = await apiPost("/api/settings/preview-patch", { changes, ...requestExtras });
+    const result = await apiPost("/api/settings/preview-patch", { changes, ...requestExtras }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS });
     if (requestId !== settingsPatchPreviewRequestId) return;
     if ((byId("settings-patch-json")?.value || "{}") !== rawAtRequest) {
       setText("settings-patch-status", "Preview replaced");
@@ -1779,7 +2424,7 @@ function appendSettingsRiskSummaryLines(lines, riskSummary) {
       setText("settings-patch-detail", "Patch JSON changed before the backend preview returned. Save will review the current values before writing.");
       return;
     }
-    const message = error instanceof Error ? error.message : String(error);
+    const message = settingsPostErrorMessage(error, "preview");
     const result = {
       command: "settings.preview_patch",
       ok: false,
@@ -1856,6 +2501,10 @@ async function saveSettingsPatch() {
   const libraryProfileResetCount = Array.isArray(requestExtras.library_profile_resets) ? requestExtras.library_profile_resets.length : 0;
   const hasLibraryProfileResets = libraryProfileResetCount > 0;
   const keys = Object.keys(changes);
+  if (settingsPatchHasStaleLibraryProfiles(changes)) {
+    blockStaleLibraryProfilesPatch("settings.save_patch");
+    return;
+  }
   if (!keys.length && !hasLibraryProfileResets) {
     setText("settings-patch-status", "No changes");
     setText("settings-patch-detail", [
@@ -1866,30 +2515,105 @@ async function saveSettingsPatch() {
   }
   const signature = settingsPatchRequestSignature(changes, requestExtras);
   const localHintLines = settingsPatchLocalValidationHintLines(changes);
-  const keyChanged = (key) => {
-    if (!lastSettingsValues || !Object.prototype.hasOwnProperty.call(lastSettingsValues, key)) return true;
-    return !settingsValuesEqual(lastSettingsValues[key], changes[key]);
-  };
-  const changedKeys = keys.filter(keyChanged);
-  if (!changedKeys.length && !hasLibraryProfileResets) {
-    setText("settings-patch-status", "No changes");
-    setText("settings-patch-detail", [
-      renameMerge.draftSaved ? "Rename filter draft retained in this browser for local recovery." : "",
-      "No settings differ from the saved config, so nothing was saved.",
-      "Edit a setting on any tab (subtitle / audio / routing / etc.), then Save again.",
-      "Builder edits are gathered automatically when you Save.",
-    ].join("\n"));
+  const rawAtRequest = byId("settings-patch-json")?.value || "{}";
+  let previewResult;
+  setSettingsCommandBusy(true);
+  setText("settings-patch-status", "Previewing save...");
+  setText("settings-patch-detail", [
+    "Requesting backend save preview. This filters submitted keys down to settings that will actually change.",
+    ...localHintLines,
+  ].join("\n"));
+  try {
+    previewResult = await apiPost("/api/settings/preview-patch", { changes, ...requestExtras }, { timeoutMs: SETTINGS_PREVIEW_POST_TIMEOUT_MS });
+  } catch (error) {
+    const message = settingsPostErrorMessage(error, "preview");
+    const result = {
+      command: "settings.preview_patch",
+      ok: false,
+      severity: "error",
+      message,
+    };
+    appendCommandResult(result);
+    lastSettingsPatchPreviewEvidence = {
+      signature,
+      command: "settings.preview_patch",
+      result,
+      captured_at: new Date().toISOString(),
+    };
+    setText("settings-patch-status", "Preview failed");
+    setText("settings-patch-detail", message);
     renderSettingsPatchSummary();
-    if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
+    setSettingsCommandBusy(false);
     return;
   }
+  if ((byId("settings-patch-json")?.value || "{}") !== rawAtRequest) {
+    setText("settings-patch-status", "Preview replaced");
+    setText("settings-patch-detail", "Patch JSON changed before the backend save preview returned. Save again to review the current values before writing.");
+    renderSettingsPatchSummary();
+    setSettingsCommandBusy(false);
+    return;
+  }
+  appendCommandResult(previewResult);
+  lastSettingsPatchPreviewEvidence = {
+    signature,
+    command: "settings.preview_patch",
+    result: previewResult,
+    captured_at: new Date().toISOString(),
+  };
+  const previewData = previewResult.data && typeof previewResult.data === "object" ? previewResult.data : {};
+  const reviewConfirmation = previewData.review_confirmation && typeof previewData.review_confirmation === "object"
+    ? previewData.review_confirmation
+    : null;
+  const changedKeys = settingsUniqueKeys(previewData.changed_keys || []);
+  const removedKeys = settingsUniqueKeys(previewData.removed_keys || []);
+  const actualChangeKeys = settingsSaveActualKeys(changedKeys, removedKeys);
+  const previewLines = settingsSavePreviewDetailLines(previewResult, localHintLines, { submittedCount: keys.length });
+  if (!previewResult.ok || (previewResult.errors || []).length) {
+    setText("settings-patch-status", "Preview blocked");
+    setText("settings-patch-detail", previewLines.join("\n"));
+    renderSettingsPatchSummary();
+    setSettingsCommandBusy(false);
+    return;
+  }
+  if (!actualChangeKeys.length) {
+    clearSettingsPatchCandidate();
+    resetSettingsBuilderSyncState();
+    setText("settings-patch-status", "No backend changes");
+    setText("settings-patch-detail", [
+      renameMerge.draftSaved ? "Rename filter draft retained in this browser for local recovery." : "",
+      ...previewLines,
+      "",
+      "No backend settings differ from the saved config, so no save command was sent.",
+      "The stale save candidate was cleared to avoid reviewing unchanged values again.",
+    ].filter(Boolean).join("\n"));
+    renderSettingsPatchSummary();
+    if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
+    setSettingsCommandBusy(false);
+    return;
+  }
+  if (!reviewConfirmation) {
+    setText("settings-patch-status", "Preview missing confirmation");
+    setText("settings-patch-detail", [
+      ...previewLines,
+      "",
+      "Backend preview did not return a review_confirmation contract, so no save command was sent.",
+    ].join("\n"));
+    renderSettingsPatchSummary();
+    setSettingsCommandBusy(false);
+    return;
+  }
+  setText("settings-patch-status", (previewResult.warnings || []).length ? "Review warnings" : "Review ready");
+  setText("settings-patch-detail", previewLines.join("\n"));
+  renderSettingsPatchSummary();
   const confirmed = await openSettingsSaveReviewDialog({
     changes,
     keys,
     changedKeys,
+    removedKeys,
     libraryProfileResetCount,
     localHintLines,
     renameMerge,
+    previewResult,
   });
   if (!confirmed) {
     selectedSettingsBackendResultKey = "save-confirmation-boundary";
@@ -1901,22 +2625,26 @@ async function saveSettingsPatch() {
     ].join("\n"));
     renderSettingsPatchSummary();
     if (typeof renderAllLaunchPreflights === "function") renderAllLaunchPreflights();
+    setSettingsCommandBusy(false);
     return;
   }
   const snapshotBefore = {};
-  changedKeys.forEach((key) => {
+  actualChangeKeys.forEach((key) => {
     if (lastSettingsValues && Object.prototype.hasOwnProperty.call(lastSettingsValues, key)) {
       snapshotBefore[key] = lastSettingsValues[key];
     }
   });
-  setSettingsCommandBusy(true);
   setText("settings-patch-status", "Saving...");
   setText("settings-patch-detail", [
     "Saving backend-validated settings changes to the active PSD1. A backup will be created first.",
     ...localHintLines,
   ].join("\n"));
   try {
-    const result = await apiPost("/api/settings/save-patch", { changes, ...requestExtras, confirm_save: true });
+    const result = await apiPost(
+      "/api/settings/save-patch",
+      { changes, ...requestExtras, review_confirmation: reviewConfirmation, confirm_save: true },
+      { timeoutMs: SETTINGS_SAVE_POST_TIMEOUT_MS }
+    );
     appendCommandResult(result);
     lastSettingsPatchSaveEvidence = {
       signature,
@@ -1928,6 +2656,7 @@ async function saveSettingsPatch() {
     };
     setText("settings-patch-status", settingsResultStatusLabel(result, "Saved", "Save failed"));
     const data = result.data || {};
+    const saveReviewEntries = settingsSaveReviewBackendEntries(data.review_entries || []);
     const lines = [
       result.message || "Settings save completed.",
       "",
@@ -1935,6 +2664,8 @@ async function saveSettingsPatch() {
       `Config: ${data.config_path || ""}`,
       `Backup: ${data.backup_path || ""}`,
       `Reloaded: ${data.reloaded === true ? "yes" : data.reloaded === false ? "no" : "n/a"}`,
+      `Reload verified: ${data.save_verification?.verified_from_reload === true ? "yes" : data.save_verification?.verified_from_reload === false ? "no" : "n/a"}`,
+      `Review confirmation: ${settingsReviewDigestShort(data.review_confirmation?.preview_id)}`,
       `Active preset: ${byId("settings-handbrake-active-preset")?.textContent || "Saved settings"}`,
       "Preset scope: display/preset adapters only; backend save writes stable persisted keys.",
       `Changed keys: ${settingsPersistedKeyDisplayList(data.changed_keys || []) || "none"}`,
@@ -1960,19 +2691,24 @@ async function saveSettingsPatch() {
     if (result.ok && Object.keys(snapshotBefore).length) {
       lines.push("", "Overwrite record (values replaced by this save):");
       Object.keys(snapshotBefore).sort().forEach((key) => {
-        lines.push(`  ${key}: ${JSON.stringify(snapshotBefore[key])} -> ${JSON.stringify(changes[key])}`);
+        const reviewEntry = settingsSaveReviewBackendEntryForKey(saveReviewEntries, key);
+        const afterValue = reviewEntry && reviewEntry.new_exists !== false ? reviewEntry.new_value : changes[key];
+        lines.push(`  ${key}: ${JSON.stringify(snapshotBefore[key])} -> ${JSON.stringify(afterValue)}`);
       });
       if (data.backup_path) lines.push(`  Backup: ${data.backup_path}`);
+    }
+    if (result.ok) {
+      clearSettingsPatchCandidate();
+      resetSettingsBuilderSyncState();
     }
     setText("settings-patch-detail", lines.join("\n"));
     renderSettingsPatchSummary();
     maybeShowSettingsRuntimeRestartNotice(result);
     if (result.ok) {
-      resetSettingsBuilderSyncState();
-      await refreshAll();
+      scheduleSettingsPostSaveRefresh();
     }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
+    const message = settingsPostErrorMessage(error, "save");
     const result = {
       command: "settings.save_patch",
       ok: false,

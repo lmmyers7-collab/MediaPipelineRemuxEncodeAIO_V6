@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0624-036",
+  "title": "Launch command history structured display",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": null,
+  "summary": "Render Launch command history as a structured read-only run list with summary cards, status chips, metadata chips, and raw evidence details while preserving existing command-history text evidence.",
+  "reason": "The previous Launch history block was a dense preformatted text area that made recent launch outcomes, timestamps, PIDs, and backend journal trust evidence hard to scan.",
+  "affected_areas": [
+    "generated_context",
+    "webview"
+  ],
+  "behavior_before": "Launch Command History displayed recent launch commands as raw compact text in a prose block.",
+  "behavior_after": "Launch Command History displays the same backend command evidence in a structured Launch-only region with scan-friendly status, metadata, and expandable raw evidence; backend command journal behavior is unchanged.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launchHistoryView.js",
+    "apps/desktop/webview/static/assets/styles.components.css",
+    "apps/desktop/webview/static/partials/page-launch.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launchHistoryView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles.components.css.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-launch.html.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-036.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 - passed",
+    "Test-WebViewCommandEvidenceSmoke.ps1 - passed",
+    "git diff --check touched WebView files - passed",
+    "node --check launchHistoryView.js - passed",
+    "python -m unittest tests.webview.test_webview_css_design_tokens - failed on pre-existing unrelated CSS token violations after patch issue was fixed",
+    "release test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed on pre-existing smoke wrapper map, duplicate test-name report, and MP-CHANGE-2026-0619-020 local-path drift",
+    "validate_changes - passed",
+    "validate_changes --require-worktree-coverage - failed on unrelated uncovered docs/implementation/local-api-test-split files"
+  ],
+  "rollback_plan": "Revert the Launch partial, launchHistoryView.js renderer changes, styles.components.css Launch history styles, and regenerated summaries from this packet.",
+  "related_changes": [],
+  "notes": "Launch-only structured command-history display; backend command journal, routes, schemas, and shared compact history renderer unchanged."
+}

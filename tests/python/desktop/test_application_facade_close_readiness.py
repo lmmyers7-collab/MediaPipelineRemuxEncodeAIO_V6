@@ -13,7 +13,7 @@ sys.path.insert(0, str(find_repo_root(Path(__file__)) / "src"))
 
 from mediapipeline.desktop.application import MediaPipelineApplicationFacade
 from mediapipeline.desktop.models import ResolvedPaths, Snapshot
-from tests.python.desktop.test_application_facade import DummyFacadeService, DummyProc, DummyWorkflowFacadeService, _resolved
+from tests.python.desktop.application_facade_test_support import DummyFacadeService, DummyProc, DummyWorkflowFacadeService, _resolved
 
 
 class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
@@ -83,6 +83,78 @@ class ApplicationFacadeCloseReadinessTests(unittest.TestCase):
             root = Path(raw_root)
             service = DummyFacadeService(root)
             service.read_progress = lambda _resolved: {"ProgressVersion": 2, "Status": "Running", "CurrentStage": "encode"}
+            service.is_progress_stale = lambda _progress: False
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            idle_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Ready.",
+                status_summary="Idle",
+                log_tail="",
+                progress={"ProgressVersion": 2, "Status": "Completed", "CurrentStage": "completed"},
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            readiness = facade.get_close_readiness(resolved, idle_snapshot)
+
+        self.assertFalse(readiness.safe_to_close)
+        self.assertTrue(readiness.active_work)
+        self.assertIn("fresh pipeline progress", readiness.reason)
+
+    def test_close_readiness_allows_stale_orphaned_progress_without_live_work(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            service.read_progress = lambda _resolved: {
+                "ProgressVersion": 2,
+                "Status": "Processing",
+                "CurrentStage": "encode",
+                "CurrentStagePercent": 65,
+            }
+            service.is_progress_stale = lambda _progress: True
+            service.read_audit_progress = lambda _resolved: {}
+            service.is_audit_progress_stale = lambda _progress: True
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            stale_snapshot = Snapshot(
+                resolved=resolved,
+                current_activity="Stale progress from previous run; latest event: ENCODE : 65%",
+                status_summary="Status OK",
+                log_tail="2026-06-25 22:39:43 [INFO] ENCODE : 65%",
+                progress={
+                    "ProgressVersion": 2,
+                    "Status": "Processing",
+                    "CurrentStage": "encode",
+                    "CurrentStagePercent": 65,
+                },
+                audit_progress=None,
+                latest_failure_report=None,
+                latest_failure_json=None,
+                latest_audit_csv=None,
+                latest_priority_csv=None,
+            )
+
+            readiness = facade.get_close_readiness(resolved, stale_snapshot)
+
+        self.assertTrue(readiness.safe_to_close)
+        self.assertFalse(readiness.active_work)
+        self.assertEqual(readiness.state, "stale")
+        self.assertIn("No active pipeline", readiness.reason)
+
+    def test_close_readiness_blocks_stop_requested_progress_until_terminal_evidence(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            service = DummyFacadeService(root)
+            service.read_progress = lambda _resolved: {
+                "ProgressVersion": 2,
+                "Status": "Stopping",
+                "CurrentStage": "encode",
+                "StopRequested": True,
+            }
             service.is_progress_stale = lambda _progress: False
             facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
             resolved = _resolved(root)

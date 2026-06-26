@@ -220,6 +220,39 @@ class ProcessKillHelperTests(unittest.TestCase):
         self.assertTrue(matching.killed)
         self.assertEqual(messages, ["Force-killed related MediaPipeline process tree (PID 100)."])
 
+    def test_kill_related_pipeline_processes_can_scope_to_audit_only(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            pipeline = FakePsutilProc(
+                pid=100,
+                name="pwsh.exe",
+                cmdline=["pwsh", "-File", str(resolved.pipeline_path)],
+            )
+            audit = FakePsutilProc(
+                pid=101,
+                name="pwsh.exe",
+                cmdline=["pwsh", "-File", str(resolved.audit_script_path)],
+            )
+            rerun = FakePsutilProc(
+                pid=102,
+                name="pwsh.exe",
+                cmdline=["pwsh", "-File", str(resolved.rerun_script_path)],
+            )
+            FakePsutil.processes = [pipeline, audit, rerun]
+
+            messages = kill_related_pipeline_processes(
+                resolved,
+                psutil_module=FakePsutil,
+                logger=logging.getLogger("test_service_process_kill"),
+                job_kinds={"audit"},
+            )
+
+        self.assertFalse(pipeline.killed)
+        self.assertTrue(audit.killed)
+        self.assertFalse(rerun.killed)
+        self.assertEqual(messages, ["Force-killed related MediaPipeline audit process tree (PID 101)."])
+
     def test_kill_process_tree_already_exited_updates_active_job_without_taskkill(self) -> None:
         proc = FakePopen(pid=1234, returncode=0)
         updates: list[dict[str, Any]] = []

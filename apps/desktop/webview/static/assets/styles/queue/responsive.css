@@ -1,0 +1,26 @@
+/* Responsive and motion overrides */
+
+@media (prefers-reduced-motion: reduce) {
+  [data-page-panel="queue"] .queue-loading-spinner {
+    animation: none;
+  }
+}
+
+@media (max-width: 1100px) {
+  [data-page-panel="queue"] .queue-source-tile-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 720px) {
+  [data-page-panel="queue"] .queue-source-tile-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fo-track-group[data-loading="true"] .fo-track-count::before {
+    animation: none;
+    border-color: var(--semantic-pending-border);
+  }
+}

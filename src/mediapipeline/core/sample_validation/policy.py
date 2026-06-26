@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 import json
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from mediapipeline.desktop.models import ResolvedPaths
 from mediapipeline.desktop.application.sample_validation.evidence import (
@@ -53,6 +53,9 @@ from mediapipeline.desktop.application.sample_validation.worksheet import (
     SAMPLE_VALIDATION_WORKSHEET_SAMPLE_LIMIT,
     sample_validation_worksheet_runs_payload,
 )
+
+if TYPE_CHECKING:
+    from mediapipeline.desktop.application.dto_commands import CommandResult
 
 SAMPLE_VALIDATION_PREVIEW_SCHEMA = "desktop_sample_validation_preview.v1"
 SAMPLE_VALIDATION_COMMAND = "sample_validation.append"

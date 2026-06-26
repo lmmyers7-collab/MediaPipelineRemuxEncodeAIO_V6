@@ -2,7 +2,7 @@
   "$schema": "../gen/src/mediapipeline/contracts/schemas/desktop-schema.json",
   "identifier": "default",
   "description": "Default capability set for the MediaPipeline shell window.",
-  "windows": ["main"],
+  "windows": ["main", "pipeline-log"],
   "remote": {
     "urls": ["http://127.0.0.1:*", "http://localhost:*"]
   },

@@ -6,6 +6,7 @@ import logging
 import uuid
 from datetime import datetime
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from mediapipeline.core.network.url_policy import redact_network_secret_text
 
@@ -20,6 +21,9 @@ from .library_roots import claim_library_fields_for_record
 from .library_roots import libraries_response_from_config
 from .protocol import ClaimResponse, DoneRequest, HeartbeatRequest, PingResponse, coerce_library_id_list
 from .protocol import HeartbeatResponse, LogEntryRequest, WorkersResponse
+
+if TYPE_CHECKING:
+    from .coordinator_parts.http_server import _CoordHandler
 
 _log = logging.getLogger("mediapipeline.desktop.network.coordinator")
 

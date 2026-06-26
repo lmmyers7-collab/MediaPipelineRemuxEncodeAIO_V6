@@ -301,7 +301,10 @@ def _browser_large_table_runner_source() -> str:
             requireText("queue-progress-summary", ["Queue source scan progress:", "Source candidates: 260", "indeterminate until backend scanner telemetry"]);
             requireText("queue-progress-bars", ["Queue source scan", "complete", "Source candidates: 260"]);
             requireText("queue-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering the Queue table does not change backend launch scope"]);
-            requireText("queue-table-legend", ["Queue rows: 250 selectable rows"]);
+            const queueTableLegend = byId("queue-table-legend");
+            if (!queueTableLegend || !queueTableLegend.hidden || queueTableLegend.textContent.trim()) {
+              throw new Error("Queue table legend should stay hidden for loaded rows: " + (queueTableLegend?.textContent || ""));
+            }
             const excludedSourceCell = document.querySelector("#queue-excluded-rows tr[data-row-key='excluded-snow-white-001'] td:nth-child(5)");
             if (!excludedSourceCell) throw new Error("Missing excluded source cell");
             const fullExcludedPath = queuePayload.excluded_rows[0].source_path;
@@ -580,12 +583,15 @@ def _browser_large_table_runner_source() -> str:
             requireText("completed-missing-count", ["1"]);
             requireText("completed-status", ["1 missing from expected destination / 250 shown / 259 filtered / 259 rows"]);
             requireText("completed-current-summary", ["Current outputs present at expected destination: 259", "Current encoded/remuxed: 129 / 130", "Completed history rows not currently present: 1"]);
+            requireText("completed-current-at-a-glance", ["Review", "0", "Present", "259", "Filters", "none", "Route mix: 129 encode / 130 remux", "History not currently present: 1"]);
+            requireText("completed-current-filter-line", ["Filters: none", "Showing 259 of 259 current outputs"]);
             requireText("completed-reconciliation-hint", ["Backend publish reconciliation: not loaded.", "Advanced -> Refresh Backend Reconciliation"]);
             requireText("completed-inventory-progress-bars", ["Completed inventory", "100%", "Completed inventory loaded 260 row(s)."]);
             requireText("completed-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering Current Output Status does not mark outputs accepted"]);
             requireText("completed-table-legend", ["Current output rows: 250 selectable rows"]);
             requireRenderedRows("#completed-rows tr[data-row-key]", 250);
-            requireRenderedRows("#completed-history-rows tr[data-row-key]", 250);
+            requireText("completed-history-status", ["260 / 260 rows"]);
+            requireRenderedRows("#completed-history-rows tr[data-row-key]", 260);
             enhancedTableState("completed-rows");
             const completedLibrarySelect = byId("completed-library-filter");
             const tvLibraryOption = Array.from(completedLibrarySelect.options).find((option) => option.textContent === "TV Library");
@@ -595,6 +601,8 @@ def _browser_large_table_runner_source() -> str:
             setValue("completed-library-filter", tvLibraryOption.value);
             requireText("completed-status", ["1 missing from expected destination / 129 / 259 rows"]);
             requireText("completed-filter-summary", ["library=TV Library", "showing 129 of 259 rows"]);
+            requireText("completed-current-at-a-glance", ["Filters", "129/259"]);
+            requireText("completed-current-filter-line", ["Filters: library=TV Library", "Showing 129 of 259 current outputs"]);
             requireRenderedRows("#completed-rows tr[data-row-key]", 129);
             setValue("completed-library-filter", "all");
             if (!pressShortcut("3")) throw new Error("Completed Output shortcut should be handled before scroll preservation check");
@@ -610,6 +618,8 @@ def _browser_large_table_runner_source() -> str:
             window.mediaPipelineCompletedView.renderCompletedRows();
             requireText("completed-status", ["1 missing from expected destination / 1 / 259 rows"]);
             requireText("completed-filter-summary", ["Hidden review rows: 0", "not hiding blocked/warning rows"]);
+            requireText("completed-current-at-a-glance", ["Filters", "1/259"]);
+            requireText("completed-current-filter-line", ["Filters: text=\\\"Large Completed 001\\\"", "Showing 1 of 259 current outputs"]);
             requireText("completed-output-acceptance-summary", [
               "Daily-use handoff: Completed evidence supports an operator trust decision",
               "Operator outcome:",

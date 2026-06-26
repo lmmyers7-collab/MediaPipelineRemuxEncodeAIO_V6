@@ -1,0 +1,237 @@
+from __future__ import annotations
+
+import unittest
+
+from tests.python.desktop.application_facade_test_support import exercise_local_api_route_workflow
+
+
+class LocalApiWorkflowRouteTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls) -> None:
+        cls.workflow = exercise_local_api_route_workflow()
+
+    def test_completed_failure_audit_and_pending_publish_previews_are_contracted(self) -> None:
+        workflow = self.workflow
+
+        self.assertEqual(workflow.completed_status, 200)
+        self.assertEqual(workflow.completed_payload["schema_version"], "desktop_completed_preview.v1")
+        self.assertEqual(workflow.completed_payload["count"], 1)
+        self.assertEqual(workflow.completed_payload["inventory_progress"]["schema_version"], "desktop_completed_inventory_progress.v1")
+        self.assertEqual(workflow.completed_payload["progress_bars"][0]["id"], "completed_inventory")
+        self.assertEqual(workflow.completed_payload["rows"][0]["route_label"], "REMUX")
+        self.assertEqual(workflow.completed_payload["validation_state"]["schema_version"], "desktop_validation_state.v1")
+        self.assertEqual(workflow.completed_payload["completed_pending_proof"]["schema_version"], "desktop_completed_pending_proof.v1")
+        self.assertEqual(workflow.completed_payload["completed_pending_proof"]["evidence_authority"], "backend")
+        self.assertIn(workflow.completed_payload["validation_state"]["status_state"], {"validation-needed", "blocked"})
+        self.assertIn(workflow.completed_payload["rows"][0]["validation_status_state"], {"validation-needed", "blocked"})
+        self.assertEqual(workflow.completed_open_status, 200)
+        self.assertEqual(workflow.completed_open_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.completed_open_payload["command"], "completed.open")
+        self.assertEqual(workflow.completed_open_payload["data"]["target"], "output_folder")
+
+        self.assertEqual(workflow.failures_status, 200)
+        self.assertEqual(workflow.failures_payload["schema_version"], "desktop_failure_preview.v1")
+        self.assertEqual(workflow.failures_payload["count"], 1)
+        self.assertEqual(workflow.failures_payload["rows"][0]["error_code"], "ENCODE_NVENC_FAILED")
+        failure_evidence = workflow.failures_payload["rows"][0]["evidence_details"]
+        self.assertTrue(failure_evidence["structured"])
+        self.assertIn("Video streams: source real=2, attached=0", failure_evidence["summary_lines"])
+        self.assertEqual(
+            [row["label"] for row in failure_evidence["stream_rows"]],
+            ["source v:0 hevc 1920x1080", "source v:1 h264 1280x720"],
+        )
+        self.assertEqual(workflow.failures_payload["operator_required_count"], 1)
+        self.assertEqual(workflow.failures_payload["retry_state"]["schema_version"], "desktop_retry_state.v1")
+        self.assertEqual(workflow.failures_payload["retry_state"]["blocked_count"], 1)
+        self.assertEqual(workflow.failure_markers_status, 200)
+        self.assertEqual(workflow.failure_markers_payload["source_kind"], "markers")
+        self.assertEqual(workflow.failure_markers_payload["rows"][0]["error_code"], "PUBLISH_UNAVAILABLE")
+        self.assertEqual(workflow.failure_markers_payload["retry_state"]["status_state"], "retrying")
+        self.assertEqual(workflow.failure_markers_payload["retry_state"]["rows"][0]["retry_route_or_command"], "automatic_next_queue_pass")
+
+        self.assertEqual(workflow.audit_results_status, 200)
+        self.assertEqual(workflow.audit_results_payload["schema_version"], "desktop_audit_preview.v1")
+        self.assertEqual(workflow.audit_results_payload["count"], 1)
+        self.assertEqual(workflow.audit_results_payload["rows"][0]["primary_issue_code"], "subtitle_srt_required")
+        self.assertEqual(workflow.audit_results_payload["high_priority_count"], 1)
+        self.assertEqual(workflow.priority_audit_status, 200)
+        self.assertTrue(workflow.priority_audit_payload["priority_only"])
+        self.assertEqual(workflow.priority_audit_payload["rows"][0]["primary_issue_code"], "priority_only_issue")
+
+        self.assertEqual(workflow.pending_status, 200)
+        self.assertEqual(workflow.pending_payload["schema_version"], "desktop_pending_publish_preview.v1")
+        self.assertEqual(workflow.pending_payload["retry_budget"]["schema_version"], "desktop_pending_publish_retry_budget.v1")
+        self.assertEqual(workflow.pending_payload["retry_budget"]["exhausted_count"], 0)
+        self.assertEqual(workflow.pending_payload["drain_confidence"]["schema_version"], "desktop_pending_drain_confidence.v1")
+        self.assertEqual(workflow.pending_payload["drain_confidence"]["evidence_authority"], "backend")
+        self.assertEqual(workflow.pending_payload["inventory_progress"]["schema_version"], "desktop_pending_publish_inventory_progress.v1")
+        self.assertEqual(workflow.pending_payload["progress_bars"][0]["id"], "pending_inventory")
+        self.assertEqual(workflow.pending_payload["rows"][0]["state"], "orphan_payload")
+        self.assertEqual(workflow.pending_recovery_plan_status, 200)
+        self.assertEqual(workflow.pending_recovery_plan_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.pending_recovery_plan_payload["command"], "pending_publish.recovery_plan_dry_run")
+        self.assertTrue(workflow.pending_recovery_plan_payload["ok"])
+        self.assertEqual(workflow.pending_recovery_plan_payload["data"]["schema_version"], "pending_publish_recovery_plan.v1")
+        self.assertTrue(workflow.pending_recovery_plan_payload["data"]["dry_run_only"])
+        self.assertFalse(workflow.pending_recovery_plan_payload["data"]["would_mutate"])
+
+    def test_maintenance_schedule_and_settings_workflow_routes_are_contracted(self) -> None:
+        workflow = self.workflow
+
+        self.assertEqual(workflow.close_readiness_status, 200)
+        self.assertEqual(workflow.close_readiness_payload["schema_version"], "desktop_close_readiness.v1")
+        self.assertFalse(workflow.close_readiness_payload["safe_to_close"])
+        self.assertEqual(workflow.close_readiness_payload["state"], "processing")
+
+        self.assertEqual(workflow.maintenance_status, 200)
+        self.assertEqual(workflow.maintenance_payload["schema_version"], "desktop_maintenance_workspace.v1")
+        self.assertEqual(workflow.maintenance_payload["warning_count"], 1)
+        self.assertEqual(workflow.maintenance_payload["health_progress"]["schema_version"], "desktop_maintenance_health_progress.v1")
+        self.assertEqual(workflow.maintenance_progress_status, 200)
+        self.assertEqual(workflow.maintenance_progress_payload["schema_version"], "desktop_maintenance_health_progress.v1")
+        self.assertEqual(workflow.maintenance_progress_payload["progress_bars"][0]["id"], "maintenance_health")
+        self.assertEqual(workflow.release_dry_run_status, 200)
+        self.assertEqual(workflow.release_dry_run_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.release_dry_run_payload["command"], "maintenance.release_dry_run")
+        self.assertTrue(workflow.release_dry_run_payload["ok"])
+        self.assertFalse(workflow.release_dry_run_payload["data"]["manifest_exists"])
+        self.assertFalse(workflow.release_dry_run_payload["data"]["zip_exists"])
+        self.assertEqual(workflow.release_dry_run_payload["data"]["release_progress"]["schema_version"], "desktop_release_package_progress.v1")
+        self.assertEqual(workflow.release_dry_run_payload["data"]["progress_bars"][0]["id"], "release_package")
+        self.assertEqual(workflow.backfill_dry_run_status, 200)
+        self.assertEqual(workflow.backfill_dry_run_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.backfill_dry_run_payload["command"], "maintenance.completed_backfill_dry_run")
+        self.assertTrue(workflow.backfill_dry_run_payload["ok"])
+        self.assertEqual(workflow.backfill_dry_run_payload["data"]["backfill_progress"]["schema_version"], "desktop_maintenance_backfill_progress.v1")
+        self.assertEqual(workflow.backfill_dry_run_payload["data"]["progress_bars"][0]["id"], "maintenance_backfill")
+        self.assertEqual(workflow.backfill_dry_run_payload["data"]["sidecars_ingested"], "4")
+        self.assertFalse(workflow.backfill_dry_run_payload["data"]["writes_manifest"])
+        self.assertEqual(workflow.dependency_atlas_status, 200)
+        self.assertEqual(workflow.dependency_atlas_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.dependency_atlas_payload["command"], "maintenance.dependency_atlas")
+        self.assertTrue(workflow.dependency_atlas_payload["ok"])
+        self.assertFalse(workflow.dependency_atlas_payload["data"]["writes_media"])
+        self.assertEqual(workflow.dependency_atlas_payload["data"]["dependency_atlas_progress"]["schema_version"], "desktop_dependency_atlas_progress.v1")
+        self.assertEqual(workflow.dependency_atlas_payload["data"]["progress_bars"][0]["id"], "dependency_atlas")
+        self.assertEqual(workflow.dependency_atlas_open_status, 200)
+        self.assertEqual(workflow.dependency_atlas_open_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.dependency_atlas_open_payload["command"], "maintenance.dependency_atlas_open_folder")
+        self.assertTrue(workflow.dependency_atlas_open_payload["ok"])
+        self.assertEqual(workflow.dependency_atlas_open_payload["data"]["target"], "dependency_atlas_folder")
+        self.assertFalse(workflow.dependency_atlas_open_payload["data"]["writes_media"])
+        self.assertFalse(workflow.dependency_atlas_open_payload["data"]["writes_dependency_atlas"])
+
+        self.assertEqual(workflow.schedule_status, 200)
+        self.assertEqual(workflow.schedule_payload["schema_version"], "desktop_schedule_workspace.v1")
+        self.assertIn("day_summaries", workflow.schedule_payload)
+        self.assertEqual(workflow.schedule_preview_status, 200)
+        self.assertEqual(workflow.schedule_preview_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.schedule_preview_payload["command"], "schedule.preview")
+        self.assertFalse(workflow.schedule_preview_payload["data"]["writes_app_state"])
+        self.assertEqual(workflow.schedule_save_status, 200)
+        self.assertEqual(workflow.schedule_save_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.schedule_save_payload["command"], "schedule.save")
+        self.assertTrue(workflow.schedule_save_payload["ok"])
+        self.assertTrue(workflow.schedule_save_payload["data"]["writes_app_state"])
+
+        self.assertEqual(workflow.settings_browse_status, 200)
+        self.assertEqual(workflow.settings_browse_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.settings_browse_payload["command"], "settings.browse_path")
+        self.assertTrue(workflow.settings_browse_payload["ok"])
+        self.assertEqual(workflow.settings_browse_payload["data"]["schema_version"], "desktop_settings_path_browse.v1")
+        self.assertEqual(workflow.settings_browse_payload["data"]["selected_path"], str(workflow.root / "TV"))
+        self.assertEqual(workflow.settings_browse_payload["data"]["setting_key"], "SourceTV")
+        self.assertFalse(workflow.settings_browse_payload["data"]["writes_config"])
+        self.assertTrue(workflow.settings_browse_payload["data"]["stages_only"])
+        self.assertEqual(workflow.settings_browse_payload["data"]["validation"]["status_state"], "ready")
+        self.assertEqual(workflow.validate_status, 200)
+        self.assertEqual(workflow.validate_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.validate_payload["command"], "settings.validate")
+        self.assertEqual(workflow.settings_patch_status, 200)
+        self.assertEqual(workflow.settings_patch_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.settings_patch_payload["command"], "settings.preview_patch")
+        self.assertFalse(workflow.settings_patch_payload["data"]["writes_config"])
+        self.assertEqual(workflow.settings_patch_payload["data"]["settings_progress"]["schema_version"], "desktop_settings_save_reload_progress.v1")
+        self.assertIn("RoutingProfile", workflow.settings_patch_payload["data"]["changed_keys"])
+        self.assertEqual(workflow.settings_patch_payload["data"]["risk_summary"]["schema_version"], "settings_patch_risk_summary.v1")
+        self.assertNotIn("secret-token", "\n".join(workflow.settings_patch_payload["data"]["redacted_diff_lines"]))
+        self.assertEqual(workflow.settings_save_patch_status, 200)
+        self.assertEqual(workflow.settings_save_patch_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.settings_save_patch_payload["command"], "settings.save_patch")
+        self.assertTrue(workflow.settings_save_patch_payload["ok"])
+        self.assertTrue(workflow.settings_save_patch_payload["data"]["writes_config"])
+        self.assertTrue(workflow.settings_save_patch_payload["data"]["reloaded"])
+        self.assertEqual(workflow.settings_save_patch_payload["data"]["settings_progress"]["status"], "complete")
+        self.assertEqual(workflow.settings_save_patch_payload["data"]["progress_bars"][0]["percent"], 100.0)
+        self.assertIn("risk_summary", workflow.settings_save_patch_payload["data"])
+        self.assertEqual(workflow.settings_reload_status, 200)
+        self.assertEqual(workflow.settings_reload_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.settings_reload_payload["command"], "settings.reload")
+        self.assertEqual(workflow.settings_reload_payload["data"]["key_count"], len(workflow.resolved.config_data))
+        self.assertEqual(workflow.settings_reload_payload["data"]["settings_progress"]["schema_version"], "desktop_settings_reload_progress.v1")
+        self.assertEqual(workflow.settings_reload_payload["data"]["progress_bars"][0]["percent"], 100.0)
+        self.assertEqual(workflow.reload_calls["count"], 2)
+
+    def test_diagnostics_process_commands_and_history_are_journaled(self) -> None:
+        workflow = self.workflow
+
+        self.assertEqual(workflow.pipeline_browse_status, 200)
+        self.assertEqual(workflow.pipeline_browse_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.pipeline_browse_payload["command"], "pipeline.browse_file")
+        self.assertTrue(workflow.pipeline_browse_payload["ok"])
+        self.assertEqual(workflow.pipeline_browse_payload["data"]["schema_version"], "desktop_pipeline_single_file_browse.v1")
+        self.assertEqual(workflow.pipeline_browse_payload["data"]["selected_path"], str(workflow.media))
+        self.assertEqual(workflow.pipeline_browse_payload["data"]["selection_mode"], "files")
+        self.assertFalse(workflow.pipeline_browse_payload["data"]["writes_config"])
+        self.assertTrue(workflow.pipeline_browse_payload["data"]["stages_only"])
+        self.assertFalse(workflow.pipeline_browse_payload["data"]["launches_work"])
+        self.assertEqual(workflow.pipeline_browse_payload["data"]["validation"]["status_state"], "ready")
+
+        self.assertEqual(workflow.diagnostics_open_status, 200)
+        self.assertEqual(workflow.diagnostics_open_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.diagnostics_open_payload["command"], "diagnostics.open")
+        self.assertEqual(workflow.diagnostics_open_payload["data"]["target"], "run_logs")
+        self.assertEqual(
+            workflow.service.opened_paths,
+            [
+                workflow.completed_output.parent,
+                workflow.root / "docs/generated/dependency-atlas",
+                workflow.root / "RunLogs",
+            ],
+        )
+        self.assertEqual(workflow.control_status, 200)
+        self.assertEqual(workflow.control_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.control_payload["command"], "pipeline.control.stop")
+        self.assertTrue(workflow.stop_flag_exists)
+        self.assertEqual(workflow.start_status, 200)
+        self.assertEqual(workflow.start_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.start_payload["command"], "pipeline.start")
+        self.assertTrue(workflow.start_payload["ok"], workflow.start_payload)
+        self.assertEqual(workflow.start_payload["data"]["mode"], "validate")
+        self.assertEqual(workflow.audit_status, 200)
+        self.assertEqual(workflow.audit_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.audit_payload["command"], "audit.start")
+        self.assertEqual(workflow.audit_payload["data"]["pid"], 24681)
+        self.assertEqual(workflow.rerun_status, 200)
+        self.assertEqual(workflow.rerun_payload["schema_version"], "desktop_command_result.v1")
+        self.assertEqual(workflow.rerun_payload["command"], "rerun.start")
+        self.assertEqual(workflow.rerun_payload["data"]["pid"], 24682)
+        self.assertEqual(workflow.command_history_status, 200)
+        self.assertEqual(workflow.command_history_payload["schema_version"], "desktop_command_history.v1")
+        self.assertGreaterEqual(workflow.command_history_payload["count"], 10)
+        self.assertEqual(workflow.command_history_payload["entries"][0]["command"], "rerun.start")
+        self.assertTrue(any(entry["command"] == "schedule.save" for entry in workflow.command_history_payload["entries"]))
+        self.assertTrue(any(entry["command"] == "settings.save_patch" for entry in workflow.command_history_payload["entries"]))
+        rerun_entry = workflow.command_history_payload["entries"][0]
+        self.assertEqual(rerun_entry["data"]["pid"], 24682)
+        self.assertEqual(rerun_entry["request"]["csv_path"], str(workflow.rerun_csv))
+        settings_save_entry = next(
+            entry for entry in workflow.command_history_payload["entries"] if entry["command"] == "settings.save_patch"
+        )
+        self.assertTrue(settings_save_entry["data"]["writes_config"])
+        self.assertEqual(settings_save_entry["request"]["changes"]["RoutingProfile"], "plex_direct_play")
+        self.assertTrue(settings_save_entry["request"]["confirm_save"])
+
+
+if __name__ == "__main__":
+    unittest.main()

@@ -1,0 +1,328 @@
+@media (max-width: 900px) {
+  .metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .review-tile-board {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .telemetry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .telemetry-operator-state,
+  .telemetry-trust-strip,
+  .telemetry-kpi-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .metrics-chart-row,
+  .metrics-two-column {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .metrics-chart-value {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .pending-action-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-active-output-context {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-active-output-actions {
+    justify-content: flex-start;
+  }
+
+  .completed-current-at-a-glance {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .completed-current-meta {
+    grid-column: 1 / -1;
+  }
+
+  .completed-output-strip-main {
+    grid-template-columns: max-content minmax(14rem, 1fr) max-content;
+  }
+
+  .completed-output-status {
+    grid-column: 1 / -1;
+    text-align: left;
+    white-space: normal;
+  }
+
+  .pending-action-filter-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .schedule-editor-status-strip,
+  .schedule-editor-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .schedule-block-toolbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    align-items: flex-start;
+    width: 100%;
+  }
+
+  .schedule-block-summary,
+  .schedule-block-count {
+    width: 100%;
+    white-space: normal;
+  }
+
+  .schedule-block-actions {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  #schedule-editor-rows,
+  #schedule-editor-rows tr,
+  #schedule-editor-rows td {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  #schedule-editor-rows tr {
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--grey-700);
+  }
+
+  .schedule-editor-day-cell,
+  .schedule-block-current-cell {
+    min-width: 0;
+  }
+
+  .schedule-block-current-cell {
+    padding-top: var(--space-3);
+  }
+
+  .schedule-editor-bulk-actions {
+    justify-content: flex-start;
+    padding-top: var(--space-4);
+    padding-left: 0;
+    border-top: 1px solid var(--grey-700);
+    border-left: 0;
+  }
+
+  .panel {
+    padding: var(--space-5);
+  }
+
+  .panel-heading,
+  .option-panel-heading,
+  .progress-bar-header {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .progress-timeline-row,
+  .progress-timeline-section[data-group="completed"] .progress-timeline-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-3);
+  }
+
+  .progress-timeline-badge {
+    text-align: left;
+  }
+
+  .progress-timeline-header,
+  .progress-timeline-section-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+
+  .form-grid,
+  .launch-form-grid,
+  .form-grid-dense,
+  .pipeline-controller-status-strip,
+  .pipeline-compact-gate-strip,
+  .pipeline-controller-grid,
+  .pipeline-mode-command-grid,
+  .pipeline-scope-row,
+  .pipeline-single-file-row,
+  .settings-tv-library-panel,
+  .option-grid,
+  .option-grid-compact,
+  .settings-summary-grid,
+  .settings-handbrake-decision-strip,
+  .settings-handbrake-preview-grid,
+  .settings-section-map {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-current-filter-actions {
+    grid-column: 1 / -1;
+  }
+
+  .completed-selected-decision-strip,
+  .completed-selected-signal-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action-row {
+    justify-content: flex-start;
+    flex-wrap: wrap;
+  }
+
+  .pipeline-controller-start-actions,
+  .pipeline-controller-button-row,
+  .pipeline-single-file-actions,
+  .pipeline-scope-segmented,
+  .completed-column-mode-control,
+  .pipeline-controller-emergency {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .pipeline-start-command-button,
+  .pipeline-control-button,
+  .pipeline-stop-button,
+  .pipeline-emergency-button,
+  .pipeline-scope-button,
+  .completed-column-mode-button,
+  .pipeline-single-file-actions button,
+  .pipeline-controller-controls [data-control-action] {
+    width: 100%;
+  }
+
+  .action-row button {
+    min-width: 0;
+  }
+
+  .table-wrap,
+  .prose-block,
+  .log-block,
+  .status-block {
+    max-width: 100%;
+  }
+
+  .pipeline-log-window-body {
+    padding: var(--space-4);
+  }
+
+  .pipeline-log-window-shell {
+    height: calc(100vh - (var(--space-4) * 2));
+  }
+
+  .pipeline-log-window-header {
+    flex-direction: column;
+  }
+}
+
+@media (max-width: 520px) {
+  .metric-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-tile-board {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .review-tile-wide {
+    grid-column: auto;
+  }
+
+  .telemetry-grid,
+  .telemetry-operator-state,
+  .telemetry-trust-strip,
+  .telemetry-kpi-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .action-row button {
+    width: 100%;
+  }
+
+  .action-row .action-hint-wrapper {
+    width: 100%;
+  }
+
+  .action-row .action-hint-wrapper button,
+  .action-row .action-hover-hint {
+    width: 100%;
+  }
+
+  .pending-action-center-header {
+    flex-direction: column;
+  }
+
+  .pending-action-filter-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-active-output-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-active-output-actions button {
+    width: 100%;
+  }
+
+  .completed-current-at-a-glance {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-current-meta {
+    grid-column: auto;
+  }
+
+  .completed-output-strip-main {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-output-strip h2,
+  .completed-output-status,
+  .completed-output-progress .progress-bar-label,
+  .completed-output-progress .progress-bar-detail,
+  .completed-output-progress .note {
+    white-space: normal;
+  }
+
+  .completed-output-refresh {
+    width: 100%;
+  }
+
+  .schedule-editor-status-strip,
+  .schedule-editor-action-group {
+    align-items: stretch;
+  }
+
+  .schedule-editor-action-group button,
+  .schedule-editor-save-state {
+    width: 100%;
+  }
+
+  .schedule-block-action {
+    flex: 1 1 45%;
+  }
+
+  .schedule-block-grid {
+    grid-template-columns: repeat(48, minmax(0, 1fr));
+  }
+
+  .pipeline-mode-secondary-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .completed-current-filter-actions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .completed-selected-path-row {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--space-1);
+  }
+}

@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0624-024",
+  "title": "Plan Local API test split",
+  "version_target": "2026.06.04.001",
+  "status": "in_progress",
+  "type": "docs",
+  "risk_level": "low",
+  "date_started": "2026-06-24",
+  "date_completed": "2026-06-24",
+  "summary": "Added a phased planning pack for splitting the oversized Local API/WebView static test module into focused test modules with testing and prework front-loaded.",
+  "reason": "The current Local API test file has grown into a broad god-file, including a multi-thousand-line WebView static contract test. A written execution plan is needed before moving tests so baseline evidence, assertion preservation, ownership boundaries, validation, and rollback are explicit.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "The repository documented the existing Local API/WebView static test coverage but did not have an executable plan for splitting tests/python/desktop/test_application_facade_local_api.py into smaller ownership-based modules.",
+  "behavior_after": "The repository now has an active implementation planning pack under docs/implementation/local-api-test-split/ with ordered prework, phased extraction steps, validation commands, adversarial review, execution prompts, and docs index entries.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/implementation/local-api-test-split",
+    "docs/implementation/local-api-test-split/ADVERSARIAL_REVIEW.md",
+    "docs/implementation/local-api-test-split/ASSERTION_MIGRATION_LEDGER.md",
+    "docs/implementation/local-api-test-split/EXECUTION_PROMPTS.md",
+    "docs/implementation/local-api-test-split/PHASE_2_WEB_STATIC_EXTRACTION.md",
+    "docs/implementation/local-api-test-split/PHASE_3_LOCAL_API_ROUTE_DOMAIN_EXTRACTION.md",
+    "docs/implementation/local-api-test-split/PHASE_4_QUEUE_RENAME_CONTRACT_DECOMPOSITION.md",
+    "docs/implementation/local-api-test-split/PHASE_5_CLEANUP_DOCS_AND_DISCOVERY.md",
+    "docs/implementation/local-api-test-split/README.md",
+    "docs/implementation/local-api-test-split/VALIDATION.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0624-024.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "PowerShell Test-Path check for local-api-test-split docs - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed",
+    "rg consistency scan for stale Phase 2/Phase 3 target-module validation commands - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed after review-hardening edits",
+    "PowerShell Test-Path check for all local-api-test-split docs including ASSERTION_MIGRATION_LEDGER.md - passed",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed due unrelated existing drift: smoke wrapper map freshness, duplicate test-name report freshness, and MP-CHANGE-2026-0619-020 local workstation path"
+  ],
+  "rollback_plan": "Delete docs/implementation/local-api-test-split/, remove the corresponding entries from docs/DOCS_INDEX.md, and remove this change packet if the planning pack is abandoned before implementation.",
+  "related_changes": [],
+  "notes": "Added phased planning pack for splitting oversized Local API/WebView static tests.\nIndexed the Local API test split planning pack.\nReview fixes: clarified Phase 1 fixture-provider migration, Phase 2 target-module validation, and docs-only release self-test requirement.\nAdded a full-pack execution prompt for the Local API test split.\nReview-hardening for Local API test split execution plan.\nAdded assertion migration ledger and tightened execution prompt phase gates."
+}

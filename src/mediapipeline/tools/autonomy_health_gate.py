@@ -7,12 +7,13 @@ from pathlib import Path
 from typing import Any, Mapping
 
 from mediapipeline.core.diagnostics.autonomy_health import autonomy_health_is_blocked, autonomy_health_payload
-from mediapipeline.core.processes.path_evidence import configured_path_health
+from mediapipeline.core.processes.path_evidence import LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS, configured_path_health
 from mediapipeline.core.publish.pending_service import PendingPublishServiceMixin
 from mediapipeline.desktop.models import ResolvedPaths
 
 
 AUTONOMY_HEALTH_BLOCKED_EXIT_CODE = 76
+AUTONOMY_HEALTH_GATE_PATH_HEALTH_TIMEOUT_SECONDS = LAUNCH_PATH_HEALTH_TIMEOUT_SECONDS
 
 
 class _PendingScanner(PendingPublishServiceMixin):
@@ -72,7 +73,10 @@ def _read_payload(args: argparse.Namespace) -> Mapping[str, Any]:
 def build_health_from_payload(payload: Mapping[str, Any]) -> dict[str, Any]:
     resolved = resolved_paths_from_payload(payload)
     pending_publish = _PendingScanner().scan_pending_publish(resolved)
-    path_health = configured_path_health(resolved)
+    path_health = configured_path_health(
+        resolved,
+        timeout_seconds=AUTONOMY_HEALTH_GATE_PATH_HEALTH_TIMEOUT_SECONDS,
+    )
     return autonomy_health_payload(
         resolved,
         pending_publish=pending_publish,
@@ -105,6 +109,7 @@ if __name__ == "__main__":
 
 __all__ = [
     "AUTONOMY_HEALTH_BLOCKED_EXIT_CODE",
+    "AUTONOMY_HEALTH_GATE_PATH_HEALTH_TIMEOUT_SECONDS",
     "build_health_from_payload",
     "main",
     "resolved_paths_from_payload",

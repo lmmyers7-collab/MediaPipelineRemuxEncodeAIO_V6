@@ -224,6 +224,11 @@
   cursor: not-allowed;
 }
 
+.layout-editor-toggle-button:disabled {
+  cursor: not-allowed;
+  opacity: var(--opacity-layout-disabled-control);
+}
+
 .layout-editor-toggle-button.is-active {
   border-color: var(--semantic-selected-border);
   background: var(--semantic-selected-bg);

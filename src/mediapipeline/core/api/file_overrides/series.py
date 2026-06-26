@@ -25,10 +25,15 @@ from .results import _mapping
 
 
 SERIES_PREVIEW_SCHEMA_VERSION = "queue_file_override_series_preview.v1"
+SERIES_CLEAR_PREVIEW_SCHEMA_VERSION = "queue_file_override_series_clear_preview.v1"
 SERIES_PREVIEW_COMMAND = "queue.file_overrides.series_preview"
 SERIES_APPLY_COMMAND = "queue.file_overrides.series_apply"
+SERIES_CLEAR_PREVIEW_COMMAND = "queue.file_overrides.series_clear_preview"
+SERIES_CLEAR_APPLY_COMMAND = "queue.file_overrides.series_clear_apply"
 SERIES_PREVIEW_POST_KEYS = frozenset({"path", "proposed_override"})
 SERIES_APPLY_POST_KEYS = frozenset({"path", "proposed_override", "confirm_apply", "preview_fingerprint"})
+SERIES_CLEAR_PREVIEW_POST_KEYS = frozenset({"path"})
+SERIES_CLEAR_APPLY_POST_KEYS = frozenset({"path", "confirm_apply", "preview_fingerprint"})
 SERIES_BATCH_SCOPE = "series_current_queue"
 SERIES_BATCH_ORIGIN = "series_batch"
 ExactSelectorValidator = Callable[[Mapping[str, Any], str], tuple[list[str], list[str]]]
@@ -42,6 +47,14 @@ def unsupported_series_preview_key_errors(request: Mapping[str, Any]) -> list[st
 
 def unsupported_series_apply_key_errors(request: Mapping[str, Any]) -> list[str]:
     return _unsupported_key_errors(request, SERIES_APPLY_POST_KEYS, "series apply")
+
+
+def unsupported_series_clear_preview_key_errors(request: Mapping[str, Any]) -> list[str]:
+    return _unsupported_key_errors(request, SERIES_CLEAR_PREVIEW_POST_KEYS, "series clear preview")
+
+
+def unsupported_series_clear_apply_key_errors(request: Mapping[str, Any]) -> list[str]:
+    return _unsupported_key_errors(request, SERIES_CLEAR_APPLY_POST_KEYS, "series clear apply")
 
 
 def _unsupported_key_errors(request: Mapping[str, Any], allowed: frozenset[str], label: str) -> list[str]:
@@ -224,6 +237,132 @@ def file_override_series_apply_payload(
     return payload
 
 
+def file_override_series_clear_preview_payload(
+    *,
+    resolved: Any,
+    source_path: str,
+) -> dict[str, Any]:
+    manifest_path = getattr(resolved, "file_overrides_path", None)
+    if manifest_path is None:
+        return _series_clear_preview_error("File overrides service unavailable: state_root is not configured.")
+
+    snapshot, snapshot_error = _read_queue_snapshot(getattr(resolved, "queue_snapshot_path", None))
+    if snapshot_error:
+        return _series_clear_preview_error(snapshot_error)
+
+    rows = snapshot.get("rows") if isinstance(snapshot, Mapping) else None
+    if not isinstance(rows, list):
+        return _series_clear_preview_error("Queue snapshot does not contain current queue rows.")
+
+    source_key = normalize_file_override_path(source_path)
+    selected = _find_row_by_source(rows, source_key)
+    if selected is None:
+        return _series_clear_preview_error("Selected source path is not present in the latest queue snapshot; refresh Queue first.")
+    if not _row_is_tv(selected):
+        return _series_clear_preview_error("Clear From Series is available only for TV queue rows.")
+
+    selected_identity = _series_identity(selected)
+    if not selected_identity.get("show_root_key"):
+        return _series_clear_preview_error("Selected TV row does not expose enough folder evidence to detect a series root.")
+
+    manifest = read_file_overrides(Path(manifest_path))
+    preview_rows = _series_clear_preview_rows(rows, selected_identity, manifest)
+    counts = _series_clear_counts(preview_rows)
+    blockers: list[str] = []
+    if counts["eligible_clear_count"] <= 0:
+        blockers.append("No exact current queue file overrides would be cleared.")
+
+    preview_fingerprint = _series_clear_preview_fingerprint(
+        source_key=source_key,
+        selected_identity=selected_identity,
+        preview_rows=preview_rows,
+    )
+
+    payload = {
+        "ok": not blockers,
+        "command": SERIES_CLEAR_PREVIEW_COMMAND,
+        "operation": "clear",
+        "severity": "error" if blockers else "ok",
+        "schema_version": SERIES_CLEAR_PREVIEW_SCHEMA_VERSION,
+        "preview_only": True,
+        "message": _series_clear_preview_message(counts, blockers),
+        "selected_source_path": source_path,
+        "detected": {
+            "show_name": selected_identity.get("show_name", ""),
+            "show_root": selected_identity.get("show_root", ""),
+            "show_root_key": selected_identity.get("show_root_key", ""),
+            "source_root": selected_identity.get("source_root", ""),
+            "confidence": "high",
+            "confidence_reason": "Same configured TV source root and same detected show folder.",
+        },
+        "clear_scope": "exact_current_queue_series",
+        "proposed_fields": [],
+        "counts": counts,
+        "rows": preview_rows,
+        "warnings": [],
+        "blockers": [{"code": "blocked", "message": message} for message in blockers],
+        "preview_fingerprint": preview_fingerprint,
+    }
+    return payload
+
+
+def file_override_series_clear_apply_payload(
+    *,
+    resolved: Any,
+    source_path: str,
+    preview_fingerprint: str,
+) -> dict[str, Any]:
+    manifest_path = getattr(resolved, "file_overrides_path", None)
+    if manifest_path is None:
+        return _series_clear_apply_error("File overrides service unavailable: state_root is not configured.")
+
+    preview = file_override_series_clear_preview_payload(resolved=resolved, source_path=source_path)
+    if not preview.get("ok"):
+        return _series_clear_apply_error(
+            str(preview.get("message") or "Series clear preview is blocked."),
+            preview.get("blockers"),
+        )
+
+    actual_fingerprint = str(preview.get("preview_fingerprint") or "")
+    if not preview_fingerprint or preview_fingerprint != actual_fingerprint:
+        return _series_clear_apply_error("Series clear preview is stale; preview the series again before clearing.")
+
+    eligible_rows = [
+        row for row in preview.get("rows", [])
+        if isinstance(row, Mapping) and str(row.get("action") or "") in {"clear_batch", "clear_manual"}
+    ]
+    if not eligible_rows:
+        return _series_clear_apply_error("No exact current queue file overrides would be cleared.")
+
+    try:
+        manifest = set_file_override_entries(
+            Path(manifest_path),
+            [(str(row.get("source_path") or ""), {}) for row in eligible_rows],
+            replace_existing=True,
+        )
+    except Exception as exc:
+        return _series_clear_apply_error(f"Failed to clear series overrides: {exc}")
+
+    counts = _mapping(preview.get("counts"))
+    payload = file_overrides_to_api_payload(manifest, Path(manifest_path))
+    payload.update(
+        {
+            "ok": True,
+            "command": SERIES_CLEAR_APPLY_COMMAND,
+            "severity": "ok",
+            "message": (
+                f"Series overrides cleared from {len(eligible_rows)} current queue row"
+                f"{'' if len(eligible_rows) == 1 else 's'}; "
+                f"{counts.get('inherited', 0)} inherited row"
+                f"{'' if counts.get('inherited', 0) == 1 else 's'} left unchanged."
+            ),
+            "cleared_count": len(eligible_rows),
+            "series_preview": preview,
+        }
+    )
+    return payload
+
+
 def _read_queue_snapshot(snapshot_path: Any) -> tuple[dict[str, Any], str]:
     if snapshot_path is None:
         return {}, "Queue snapshot path is not configured; series preview is unavailable."
@@ -338,6 +477,35 @@ def _series_preview_rows(
     return result
 
 
+def _series_clear_preview_rows(
+    rows: list[Any],
+    selected_identity: Mapping[str, str],
+    manifest: Mapping[str, Any],
+) -> list[dict[str, Any]]:
+    result: list[dict[str, Any]] = []
+    selected_show_root = str(selected_identity.get("show_root_key") or "")
+    selected_show_name_key = str(selected_identity.get("show_name_key") or "")
+    for index, row_value in enumerate(rows):
+        if not isinstance(row_value, Mapping):
+            continue
+        row = dict(row_value)
+        if not _row_is_tv(row):
+            continue
+        identity = _series_identity(row)
+        source_path = str(row.get("source_path") or "").strip()
+        if not source_path:
+            result.append(_preview_row(row, index=index, action="issue", reason="Queue row has no source path."))
+            continue
+        same_show_root = str(identity.get("show_root_key") or "") == selected_show_root
+        same_show_name = bool(selected_show_name_key and str(identity.get("show_name_key") or "") == selected_show_name_key)
+        if not same_show_root:
+            if same_show_name:
+                result.append(_preview_row(row, index=index, action="skipped", reason="Same show name but different source/show root."))
+            continue
+        result.append(_matched_clear_preview_row(row, index=index, manifest=manifest))
+    return result
+
+
 def _matched_preview_row(row: Mapping[str, Any], *, index: int, manifest: Mapping[str, Any]) -> dict[str, Any]:
     source_path = str(row.get("source_path") or "").strip()
     match = resolve_file_override_match(dict(manifest), source_path)
@@ -354,6 +522,31 @@ def _matched_preview_row(row: Mapping[str, Any], *, index: int, manifest: Mappin
             )
         return _preview_row(row, index=index, action="protected_manual", reason="Exact manual file override is protected.")
     return _preview_row(row, index=index, action="will_update", reason="Current queue row matches the detected series root.")
+
+
+def _matched_clear_preview_row(row: Mapping[str, Any], *, index: int, manifest: Mapping[str, Any]) -> dict[str, Any]:
+    source_path = str(row.get("source_path") or "").strip()
+    match = resolve_file_override_match(dict(manifest), source_path)
+    entry = match.get("entry")
+    if isinstance(entry, dict) and match.get("is_exact"):
+        batch = _batch_metadata(entry)
+        if batch:
+            return _preview_row(
+                row,
+                index=index,
+                action="clear_batch",
+                reason=f"Existing series batch override will be cleared ({batch.get('batch_id') or 'unknown batch'}).",
+                batch=batch,
+            )
+        return _preview_row(row, index=index, action="clear_manual", reason="Exact manual file override will be cleared.")
+    if isinstance(entry, dict):
+        return _preview_row(
+            row,
+            index=index,
+            action="inherited",
+            reason="Inherited folder override will remain; no exact file override exists for this queue row.",
+        )
+    return _preview_row(row, index=index, action="no_override", reason="No exact file override exists for this queue row.")
 
 
 def _batch_metadata(entry: Mapping[str, Any]) -> dict[str, Any]:
@@ -411,6 +604,26 @@ def _series_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
             counts[action] += 1
         if action in {"will_update", "replace_prior_batch"}:
             counts["eligible_update_count"] += 1
+    return counts
+
+
+def _series_clear_counts(rows: list[dict[str, Any]]) -> dict[str, int]:
+    counts = {
+        "total_rows": len(rows),
+        "clear_batch": 0,
+        "clear_manual": 0,
+        "inherited": 0,
+        "no_override": 0,
+        "skipped": 0,
+        "issue": 0,
+        "eligible_clear_count": 0,
+    }
+    for row in rows:
+        action = str(row.get("action") or "")
+        if action in counts:
+            counts[action] += 1
+        if action in {"clear_batch", "clear_manual"}:
+            counts["eligible_clear_count"] += 1
     return counts
 
 
@@ -481,6 +694,29 @@ def _series_preview_fingerprint(
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
+def _series_clear_preview_fingerprint(
+    *,
+    source_key: str,
+    selected_identity: Mapping[str, str],
+    preview_rows: list[dict[str, Any]],
+) -> str:
+    data = {
+        "operation": "clear",
+        "source_key": source_key,
+        "show_root_key": selected_identity.get("show_root_key", ""),
+        "rows": [
+            {
+                "source_path": normalize_file_override_path(row.get("source_path") or ""),
+                "action": row.get("action"),
+                "batch_id": _mapping(row.get("batch")).get("batch_id", ""),
+            }
+            for row in preview_rows
+        ],
+    }
+    text = json.dumps(data, sort_keys=True, ensure_ascii=True, default=str)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
 def _series_preview_message(counts: Mapping[str, int], blockers: list[str]) -> str:
     if blockers:
         return "Series override preview is blocked."
@@ -489,12 +725,41 @@ def _series_preview_message(counts: Mapping[str, int], blockers: list[str]) -> s
     return f"Series override preview ready: {eligible} row{'' if eligible == 1 else 's'} will update; {protected} manual row{'' if protected == 1 else 's'} protected."
 
 
+def _series_clear_preview_message(counts: Mapping[str, int], blockers: list[str]) -> str:
+    if blockers:
+        return "Series clear preview is blocked."
+    eligible = int(counts.get("eligible_clear_count") or 0)
+    unchanged = int(counts.get("inherited") or 0) + int(counts.get("no_override") or 0)
+    return (
+        f"Series clear preview ready: {eligible} exact override row"
+        f"{'' if eligible == 1 else 's'} will clear; "
+        f"{unchanged} row{'' if unchanged == 1 else 's'} unchanged."
+    )
+
+
 def _series_preview_error(message: str) -> dict[str, Any]:
     return {
         "ok": False,
         "command": SERIES_PREVIEW_COMMAND,
         "severity": "error",
         "schema_version": SERIES_PREVIEW_SCHEMA_VERSION,
+        "preview_only": True,
+        "message": message,
+        "errors": [message],
+        "warnings": [],
+        "blockers": [{"code": "blocked", "message": message}],
+        "counts": {},
+        "rows": [],
+    }
+
+
+def _series_clear_preview_error(message: str) -> dict[str, Any]:
+    return {
+        "ok": False,
+        "command": SERIES_CLEAR_PREVIEW_COMMAND,
+        "operation": "clear",
+        "severity": "error",
+        "schema_version": SERIES_CLEAR_PREVIEW_SCHEMA_VERSION,
         "preview_only": True,
         "message": message,
         "errors": [message],
@@ -518,6 +783,27 @@ def _series_apply_error(message: str, blockers: Any = None) -> dict[str, Any]:
     return {
         "ok": False,
         "command": SERIES_APPLY_COMMAND,
+        "severity": "error",
+        "schema_version": "desktop_command_result.v1",
+        "message": message,
+        "errors": errors,
+        "refresh_hint": "queue",
+    }
+
+
+def _series_clear_apply_error(message: str, blockers: Any = None) -> dict[str, Any]:
+    errors = [message]
+    if isinstance(blockers, list):
+        for blocker in blockers:
+            if isinstance(blocker, Mapping):
+                text = str(blocker.get("message") or "").strip()
+                if text and text not in errors:
+                    errors.append(text)
+            elif str(blocker or "").strip() and str(blocker) not in errors:
+                errors.append(str(blocker))
+    return {
+        "ok": False,
+        "command": SERIES_CLEAR_APPLY_COMMAND,
         "severity": "error",
         "schema_version": "desktop_command_result.v1",
         "message": message,
