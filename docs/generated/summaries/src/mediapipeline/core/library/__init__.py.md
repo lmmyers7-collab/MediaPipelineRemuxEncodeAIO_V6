@@ -3,9 +3,9 @@ file: src/mediapipeline/core/library/__init__.py
 pipeline_stage: n/a
 token_priority: low
 owner_domain: unknown
-last_modified: 2026-06-07
+last_modified: 2026-06-28
 last_reviewed: 2026-06-07
-sha256: 422d04f867635ba48501bada46aca7ff8a99636807fd63c59add798ea1b5f846
+sha256: 9b5b564f92ba4588bdf3b274012c75f9bf8922fc6a867394b3d291147cf43022
 ---
 # `src/mediapipeline/core/library/__init__.py`
 

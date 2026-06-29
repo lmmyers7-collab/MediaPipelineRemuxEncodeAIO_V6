@@ -15,6 +15,7 @@
   const scheduleView = window.mediaPipelineScheduleView || {};
   const scheduleDisplayValue = typeof scheduleView.scheduleDisplayValue === "function" ? scheduleView.scheduleDisplayValue : null;
   let topbarPendingLaunch = null;
+  let uiQuickLinkEventsInitialized = false;
 
   function topbarPathLeaf(value) {
     const text = formatProgressValue(value || "").trim();
@@ -633,7 +634,7 @@
     const tooltips = [
       ["#pipeline-start-button", "Start is disabled while active work is reported. Backend start routes re-check queue, schedule, settings, and process locks at submission time."],
       ["#home-refresh-button", "Refreshes dashboard state from backend snapshots without starting or mutating media work."],
-      ["#rerun-plan-only-button", "Plans backend CSV rerun rows without writing manifests, staging files, parking outputs, or touching media."],
+      ["#rerun-plan-only-button", "Reads CSV rerun summary, scope, recent CSVs, and preview rows through the backend without launching work or writing scoped CSVs."],
       ["#rerun-dry-run-button", "Previews backend CSV rerun as a dry run. Review dry-run evidence before starting a live copy / keep / park rerun."],
       ["#rerun-start-button", "Starts backend CSV rerun with copy / keep / park policy. Review the CSV path and preflight before starting."],
       ["#rerun-open-audit-tool-button", "Opens Reports > Audit for audit rows, score policy, and backend-owned rerun CSV export controls."],
@@ -675,6 +676,7 @@
       ["#settings-library-save-button", "Saves the selected Library Profile state through backend validation and config backup. It does not scan, move, publish, promote, or delete media files."],
       ["#settings-library-reset-button", "Reloads library cards from current saved backend settings."],
       ['[data-settings-path-key]', "Opens a backend-owned Windows folder picker and stages this Settings field. It does not save the PSD1 or touch media files."],
+      ['[data-path-picker-target]', "Opens a backend-owned Windows picker and stages this path field only. It does not save settings, launch work, or touch media files."],
       ["#settings-save-patch-button", "Saves staged settings through backend validation. Raw WebView fields never write directly to the PSD1."],
     ];
     tooltips.forEach(([selector, title]) => {
@@ -717,6 +719,29 @@
     activateSection(stored);
   }
 
+  function activateDiagnosticsTab(tabId) {
+    const STORAGE_KEY = "mediapipeline-diag-tab";
+    const page = document.querySelector('[data-page-panel="diagnostics"]');
+    if (!page) return false;
+    const btns = Array.from(page.querySelectorAll(".settings-tab-btn[data-diag-tab]"));
+    const panes = Array.from(page.querySelectorAll(".settings-tab-pane[data-diag-tab]"));
+    if (!btns.length || !panes.length) return false;
+
+    let selected = String(tabId || "triage").trim();
+    if (!btns.some((b) => b.dataset.diagTab === selected)) selected = "triage";
+    btns.forEach((b) => {
+      const active = b.dataset.diagTab === selected;
+      b.setAttribute("aria-selected", String(active));
+    });
+    panes.forEach((p) => {
+      p.classList.toggle("is-active", p.dataset.diagTab === selected);
+    });
+    try { localStorage.setItem(STORAGE_KEY, selected); } catch (_) {}
+    syncTabAccessibility();
+    updatePagePanelEmptyStates();
+    return true;
+  }
+
   function initDiagnosticsTabNav() {
     const STORAGE_KEY = "mediapipeline-diag-tab";
     const page = document.querySelector('[data-page-panel="diagnostics"]');
@@ -725,28 +750,15 @@
     const panes = Array.from(page.querySelectorAll(".settings-tab-pane[data-diag-tab]"));
     if (!btns.length || !panes.length) return;
 
-    function activateTab(tabId) {
-      btns.forEach((b) => {
-        const active = b.dataset.diagTab === tabId;
-        b.setAttribute("aria-selected", String(active));
-      });
-      panes.forEach((p) => {
-        p.classList.toggle("is-active", p.dataset.diagTab === tabId);
-      });
-      try { localStorage.setItem(STORAGE_KEY, tabId); } catch (_) {}
-      syncTabAccessibility();
-      updatePagePanelEmptyStates();
-    }
-
     btns.forEach((btn) => {
-      btn.addEventListener("click", () => activateTab(btn.dataset.diagTab));
+      btn.addEventListener("click", () => activateDiagnosticsTab(btn.dataset.diagTab));
     });
 
     let stored = "triage";
     try { stored = localStorage.getItem(STORAGE_KEY) || "triage"; } catch (_) {}
     // Validate stored value is a real tab, fall back to Overview.
     if (!btns.some((b) => b.dataset.diagTab === stored)) stored = "triage";
-    activateTab(stored);
+    activateDiagnosticsTab(stored);
   }
 
   function activateCompletedTab(tabId) {
@@ -787,6 +799,74 @@
     }
   }
 
+  function focusUiQuickLinkTarget(selector) {
+    const target = selector ? document.querySelector(selector) : null;
+    if (!target) return false;
+    if (typeof target.scrollIntoView === "function") {
+      target.scrollIntoView({ block: "center", inline: "nearest" });
+    }
+    const focusable = typeof target.matches === "function"
+      && target.matches("a[href], button, input, select, textarea, summary, [tabindex]");
+    if (!focusable && typeof target.setAttribute === "function") target.setAttribute("tabindex", "-1");
+    if (typeof target.focus === "function") target.focus({ preventScroll: true });
+    return true;
+  }
+
+  function activateUiQuickLinkModule(moduleName, action, trigger) {
+    const modules = {
+      completed: window.mediaPipelineCompletedView,
+      pending: window.mediaPipelinePendingPublishView,
+      reports: window.mediaPipelineReportsView,
+      network: window.mediaPipelineNetworkView,
+      maintenance: window.mediaPipelineMaintenanceView,
+      schedule: window.mediaPipelineScheduleView,
+    };
+    const module = modules[String(moduleName || "").trim().toLowerCase()];
+    if (!module || typeof module.activateQuickLink !== "function") return false;
+    return module.activateQuickLink(action, trigger) !== false;
+  }
+
+  function activateUiQuickLink(trigger) {
+    const dataset = trigger?.dataset || {};
+    const page = String(dataset.quickLinkPage || "").trim();
+    if (page) showPage(page);
+    if (dataset.quickLinkReportsTab) {
+      window.mediaPipelineReportsView?.activateReportsTab?.(dataset.quickLinkReportsTab);
+    }
+    if (dataset.quickLinkDiagTab) activateDiagnosticsTab(dataset.quickLinkDiagTab);
+    if (dataset.quickLinkMetricsTab) {
+      window.mediaPipelineMetricsView?.activateMetricsTab?.(dataset.quickLinkMetricsTab);
+    }
+    if (dataset.quickLinkLaunchTab) {
+      window.mediaPipelineLaunchView?.activateLaunchTab?.(dataset.quickLinkLaunchTab);
+    }
+    if (dataset.quickLinkCompletedTab) activateCompletedTab(dataset.quickLinkCompletedTab);
+    if (dataset.quickLinkModule || dataset.quickLinkAction) {
+      activateUiQuickLinkModule(dataset.quickLinkModule, dataset.quickLinkAction, trigger);
+    }
+    if (dataset.quickLinkFocus) {
+      window.setTimeout(() => focusUiQuickLinkTarget(dataset.quickLinkFocus), 0);
+    }
+  }
+
+  function initUiQuickLinks() {
+    if (uiQuickLinkEventsInitialized) return;
+    uiQuickLinkEventsInitialized = true;
+    document.addEventListener("click", (event) => {
+      const trigger = event.target?.closest?.("[data-ui-quick-link]");
+      if (!trigger) return;
+      event.preventDefault();
+      activateUiQuickLink(trigger);
+    });
+    document.addEventListener("keydown", (event) => {
+      if (event.key !== "Enter" && event.key !== " ") return;
+      const trigger = event.target?.closest?.("[data-ui-quick-link]");
+      if (!trigger) return;
+      event.preventDefault();
+      activateUiQuickLink(trigger);
+    });
+  }
+
   function initCompletedTabNav() {
     const page = document.querySelector('[data-page-panel="completed"]');
     if (!page) return;
@@ -813,6 +893,7 @@
     document.querySelectorAll("[data-cross-page-target]").forEach((button) => {
       button.addEventListener("click", () => activateCrossPageTarget(button));
     });
+    initUiQuickLinks();
     syncTabAccessibility();
     // S15: topbar health/readiness buttons navigate to Diagnostics.
     const refreshHealthBadge = byId("refresh-health");
@@ -908,25 +989,14 @@
   }
 
   function initThemeToggle() {
-    const btn = byId("theme-toggle");
-    if (!btn) return;
-
-    // Determine initial theme: stored pref -> dark default.
-    let stored = null;
-    try { stored = localStorage.getItem(THEME_STORAGE_KEY); } catch (_) {}
-    const preferLight = stored === "light";
-    applyThemePreference(preferLight);
-
-    btn.addEventListener("click", () => {
-      applyThemePreference(!document.body.classList.contains("light-mode"));
-    });
+    applyThemePreference(false);
   }
 
-  function applyThemePreference(light) {
+  function applyThemePreference(_light) {
     const btn = byId("theme-toggle");
-    document.body.classList.toggle("light-mode", light);
-    if (btn) btn.textContent = light ? "Dark" : "Light";
-    try { localStorage.setItem(THEME_STORAGE_KEY, light ? "light" : "dark"); } catch (_) {}
+    if (btn && typeof btn.remove === "function") btn.remove();
+    document.body.classList.remove("light-mode");
+    try { localStorage.setItem(THEME_STORAGE_KEY, "dark"); } catch (_) {}
     window.mediaPipelineTelemetryView?.redrawTelemetryCharts?.();
   }
 
@@ -1387,7 +1457,6 @@
       { key: "k", label: "K", description: "Select previous visible row", run: () => moveActivePageSelection(-1) },
       { key: "d", label: "D", description: "Focus selected-row detail", run: focusActivePageDetail },
       { key: "a", label: "A", description: "Toggle Advanced mode", run: () => byId("advanced-toggle")?.click() },
-      { key: "t", label: "T", description: "Toggle light/dark theme", run: () => byId("theme-toggle")?.click() },
       ...pageShortcuts,
       { key: "?", label: "?", description: "Show or hide keyboard shortcuts", run: toggleHelp },
     ];
@@ -1473,8 +1542,11 @@
     showPage,
     applyDefaultActionTooltips,
     initSettingsTabNav,
+    activateDiagnosticsTab,
     initDiagnosticsTabNav,
     initCompletedTabNav,
+    activateUiQuickLink,
+    initUiQuickLinks,
     initNavigation,
     renderSparkline,
     initLaunchEvidenceToggle,

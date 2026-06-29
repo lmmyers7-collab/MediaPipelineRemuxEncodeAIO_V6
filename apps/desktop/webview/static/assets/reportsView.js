@@ -338,6 +338,9 @@
   const reportAuditCommandButtonIds = [
     "report-audit-start-button",
     "report-audit-stop-button",
+    "report-audit-add-source-button",
+    "report-audit-scan-selected-button",
+    "report-audit-scan-all-button",
     "report-audit-score-policy-save-button",
     "report-audit-score-policy-reset-button",
     "report-audit-ignore-selected-button",
@@ -516,20 +519,24 @@
     return reportAuditCommandApi().reportAuditJsonDetail(label, value, intro);
   }
 
-  function renderReportAuditSavedLocations(message = "") {
-    return reportAuditCommandApi().renderReportAuditSavedLocations(message);
+  function renderReportAuditSources(payload, message = "") {
+    return reportAuditCommandApi().renderReportAuditSources(payload, message);
   }
 
-  function saveReportAuditLocationFromForm() {
-    return reportAuditCommandApi().saveReportAuditLocationFromForm();
+  function addReportAuditSourceFromForm() {
+    return reportAuditCommandApi().addReportAuditSourceFromForm();
   }
 
-  function removeReportAuditLocationFromForm() {
-    return reportAuditCommandApi().removeReportAuditLocationFromForm();
+  function scanReportAuditSources(sourceIds = null) {
+    return reportAuditCommandApi().scanReportAuditSources(sourceIds);
   }
 
-  function selectReportAuditSavedLocation(value) {
-    return reportAuditCommandApi().selectReportAuditSavedLocation(value);
+  function selectAllReportAuditSources() {
+    return reportAuditCommandApi().selectAllReportAuditSources();
+  }
+
+  function clearReportAuditSourceSelection() {
+    return reportAuditCommandApi().clearReportAuditSourceSelection();
   }
 
   function renderReportAuditProgressPanel(snapshot = reportsState.lastReportSnapshot) {
@@ -606,7 +613,7 @@
     if (auditRootInput && !auditRootInput.value && workspacePaths.outsource) {
       auditRootInput.value = workspacePaths.outsource;
     }
-    renderReportAuditSavedLocations();
+    renderReportAuditSources(reportsState.lastReportAuditSources);
     renderReportAuditLaunchPreflight();
     setText("report-failure-json-state", latestPaths.latest_failure_json ? "Present" : "Missing");
     setText("report-audit-csv-state", latestPaths.latest_audit_csv ? "Present" : "Missing");
@@ -780,6 +787,64 @@
     return reportsTriageApi().renderReportInvestigation();
   }
 
+  function focusReportsQuickLinkTarget(selector) {
+    const target = selector ? document.querySelector(selector) : null;
+    if (!target) return false;
+    target.scrollIntoView?.({ block: "center", inline: "nearest" });
+    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
+      target.setAttribute("tabindex", "-1");
+    }
+    target.focus?.({ preventScroll: true });
+    return true;
+  }
+
+  function setFailureQuickFilter(chip) {
+    reportsState.activeFailureFilterChip = chip || "all";
+    reportsState.lastFailureClearPreview = null;
+    reportsState.lastFailureLifecyclePreview = null;
+    setReportChipPressed("[data-failure-filter-chip]", reportsState.activeFailureFilterChip);
+    renderFailureResolutionGroups();
+    renderFailureRows();
+    updateFailureClearConfirmState();
+    updateFailureLifecycleConfirmState();
+    return focusReportsQuickLinkTarget("#failure-rows");
+  }
+
+  function setAuditQuickFilter(chip) {
+    reportsState.activeAuditFilterChip = chip || "all";
+    setReportChipPressed("[data-audit-filter-chip]", reportsState.activeAuditFilterChip);
+    renderAuditRows();
+    return focusReportsQuickLinkTarget("#audit-preview-rows");
+  }
+
+  function activateQuickLink(action) {
+    const normalized = String(action || "").trim().toLowerCase();
+    const failureFilters = {
+      "failure-needs-action": "needs_action",
+      "failure-working": "working",
+      "failure-waiting-retry": "waiting_retry",
+      "failure-ready-clear": "ready_to_clear",
+      "failure-all": "all",
+    };
+    const auditFilters = {
+      "audit-review": "review",
+      "audit-high": "high",
+      "audit-all": "all",
+    };
+    if (Object.prototype.hasOwnProperty.call(failureFilters, normalized)) {
+      activateReportsTab("failures");
+      return setFailureQuickFilter(failureFilters[normalized]);
+    }
+    if (Object.prototype.hasOwnProperty.call(auditFilters, normalized)) {
+      activateReportsTab("audit");
+      return setAuditQuickFilter(auditFilters[normalized]);
+    }
+    if (normalized === "locations" || normalized === "files") {
+      activateReportsTab("files");
+      return focusReportsQuickLinkTarget('[data-reports-tab-panel="files"]');
+    }
+    return true;
+  }
 
   function initReportsViewEvents() {
     initReportsTabNav();
@@ -869,12 +934,16 @@
     if (saveAuditScorePolicyButton) saveAuditScorePolicyButton.addEventListener("click", () => saveReportAuditScorePolicy(false));
     const resetAuditScorePolicyButton = byId("report-audit-score-policy-reset-button");
     if (resetAuditScorePolicyButton) resetAuditScorePolicyButton.addEventListener("click", () => saveReportAuditScorePolicy(true));
-    const saveAuditLocationButton = byId("report-audit-save-location-button");
-    if (saveAuditLocationButton) saveAuditLocationButton.addEventListener("click", () => saveReportAuditLocationFromForm());
-    const removeAuditLocationButton = byId("report-audit-remove-location-button");
-    if (removeAuditLocationButton) removeAuditLocationButton.addEventListener("click", () => removeReportAuditLocationFromForm());
-    const savedAuditLocationSelect = byId("report-audit-saved-location-select");
-    if (savedAuditLocationSelect) savedAuditLocationSelect.addEventListener("change", () => selectReportAuditSavedLocation(savedAuditLocationSelect.value));
+    const addAuditSourceButton = byId("report-audit-add-source-button");
+    if (addAuditSourceButton) addAuditSourceButton.addEventListener("click", () => addReportAuditSourceFromForm());
+    const scanSelectedAuditSourcesButton = byId("report-audit-scan-selected-button");
+    if (scanSelectedAuditSourcesButton) scanSelectedAuditSourcesButton.addEventListener("click", () => scanReportAuditSources());
+    const scanAllAuditSourcesButton = byId("report-audit-scan-all-button");
+    if (scanAllAuditSourcesButton) scanAllAuditSourcesButton.addEventListener("click", () => scanReportAuditSources([]));
+    const selectAllAuditSourcesButton = byId("report-audit-select-all-sources-button");
+    if (selectAllAuditSourcesButton) selectAllAuditSourcesButton.addEventListener("click", () => selectAllReportAuditSources());
+    const clearAuditSourceSelectionButton = byId("report-audit-clear-source-selection-button");
+    if (clearAuditSourceSelectionButton) clearAuditSourceSelectionButton.addEventListener("click", () => clearReportAuditSourceSelection());
     const startAuditButton = byId("report-audit-start-button");
     if (startAuditButton) startAuditButton.addEventListener("click", () => startReportAuditFromForm());
     const stopAuditButton = byId("report-audit-stop-button");
@@ -887,11 +956,9 @@
       const element = byId(id);
       if (!element) return;
       element.addEventListener("input", () => {
-        renderReportAuditSavedLocations();
         renderReportAuditLaunchPreflight();
       });
       element.addEventListener("change", () => {
-        renderReportAuditSavedLocations();
         renderReportAuditLaunchPreflight();
       });
     });
@@ -909,6 +976,7 @@
     renderReports,
     renderReportTriage,
     renderReportInvestigation,
+    activateQuickLink,
     reportInvestigationStatus,
     reportInvestigationChecklistLines,
     initReportsViewEvents,
@@ -937,6 +1005,7 @@
     failureRowKey,
     renderAuditPreview,
     renderAuditControls,
+    renderReportAuditSources,
     renderAuditRows,
     selectVisibleAuditRows,
     selectAuditRowsAtOrAboveScore,

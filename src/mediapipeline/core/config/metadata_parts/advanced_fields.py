@@ -218,15 +218,6 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
     {
         "page": "Advanced",
         "section": "Safety",
-        "key": "MinFreeSpaceGB",
-        "label": "Scratch Free Space Reserve (GB)",
-        "kind": "int",
-        "default": 50,
-        "help": "Minimum free space reserved on the scratch drive.",
-    },
-    {
-        "page": "Advanced",
-        "section": "Safety",
         "key": "FileStabilityWait",
         "label": "File Stability Wait (s)",
         "kind": "int",
@@ -241,15 +232,6 @@ ADVANCED_CONFIG_FIELD_DEFINITIONS = (
         "kind": "bool",
         "default": False,
         "help": "Bypass source file-stability checks. Use only for deliberate diagnostics, never for normal unattended intake.",
-    },
-    {
-        "page": "Advanced",
-        "section": "Safety",
-        "key": "OutsourceMinFreeSpaceGB",
-        "label": "Output Free Space Reserve (GB)",
-        "kind": "int",
-        "default": 50,
-        "help": "Minimum free space reserved on the output destination.",
     },
     {
         "page": "Advanced",

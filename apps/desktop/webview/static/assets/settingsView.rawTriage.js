@@ -271,7 +271,7 @@
           : `${bdpgsStructuredKeys.join(", ")} are covered by the Subtitle builder; saved backend evidence reports ${bdpgsStatus}.`
         : "No BDPGS OCR path keys were present in the loaded config.",
       action: bdpgsKeys.length
-        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then Save Settings and re-check saved path evidence; do not add a frontend-owned path picker."
+        ? "Use the Subtitle builder, backend-owned picker, or raw JSON to stage OCR path changes, then Save Settings and re-check saved path evidence; do not add a frontend-owned path picker."
         : "If BDPGS OCR is enabled later, require backend path evidence before real-media validation.",
       detail: [
         ...settingsBdpgsOcrPathEvidenceLines().slice(0, 12),
@@ -294,7 +294,7 @@
           : `${vobSubStructuredKeys.join(", ")} are covered by the Subtitle builder; saved backend evidence reports ${vobSubStatus}.`
         : "No VobSub OCR path keys were present in the loaded config.",
       action: vobSubKeys.length
-        ? "Use the Subtitle builder or raw JSON to stage OCR path changes, then Save Settings and re-check saved path evidence; do not add a frontend-owned path picker."
+        ? "Use the Subtitle builder, backend-owned picker, or raw JSON to stage OCR path changes, then Save Settings and re-check saved path evidence; do not add a frontend-owned path picker."
         : "If VobSub OCR is enabled later, require backend path evidence before real-media validation.",
       detail: [
         ...settingsVobSubOcrPathEvidenceLines().slice(0, 12),

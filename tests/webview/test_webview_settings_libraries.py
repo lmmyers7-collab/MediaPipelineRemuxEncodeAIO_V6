@@ -497,6 +497,15 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("settings-library-editor-state", libraries_html)
         self.assertIn("settings-library-patch-state", libraries_html)
         self.assertIn("settings-library-route-map-scope", libraries_html)
+        self.assertIn("settings-library-summary-panel", libraries_html)
+        self.assertIn("settings-library-summary-status", libraries_html)
+        self.assertIn("settings-library-summary-strip", libraries_html)
+        self.assertIn("settings-library-scan-sources-button", libraries_html)
+        self.assertIn("settings-library-summary-detail", libraries_html)
+        self.assertIn("settings-library-summary-rows", libraries_html)
+        self.assertIn("settings-library-summary-warning", libraries_html)
+        for heading in ("Library", "Path", "Type", "Status", "Media Files", "Sidecars", "Last Scan", "Actions"):
+            self.assertIn(f"<th>{heading}</th>", libraries_html)
         self.assertNotIn("Movie and TV are always present.", libraries_html)
         self.assertNotIn("Movie and TV cannot be deleted.", libraries_html)
         self.assertIn("settings-library-editor-status", libraries_html)
@@ -506,6 +515,10 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
         self.assertIn("hidden", libraries_html)
         self.assertLess(
             libraries_html.index("settings-library-profile-nav"),
+            libraries_html.index("settings-library-summary-panel"),
+        )
+        self.assertLess(
+            libraries_html.index("settings-library-summary-panel"),
             libraries_html.index("settings-library-actions-panel"),
         )
         self.assertLess(
@@ -547,6 +560,39 @@ class WebViewSettingsLibrariesStaticTests(unittest.TestCase):
             libraries_html.index("settings-library-preview-button"),
             libraries_html.index("settings-library-save-button"),
         )
+
+    def test_libraries_scan_summary_table_is_backend_evidence_only(self) -> None:
+        libraries_js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")
+        app_js = (STATIC_ROOT / "assets" / "app.js").read_text(encoding="utf-8")
+        css = _read_pages_css()
+
+        for token in (
+            "lastLibrarySummary",
+            "function renderLibrarySummary(payload = lastLibrarySummary)",
+            "data-library-summary-row",
+            "data-library-summary-edit",
+            'activateLibraryProfile(libraryId, { source: "summary-table" })',
+            "function requestLibrarySummaryScan()",
+            "window.mediaPipelineQueueView?.requestQueueScan",
+            "renderLibrarySummary,",
+        ):
+            self.assertIn(token, libraries_js)
+
+        for token in (
+            "settings-library-summary-panel",
+            "settings-library-summary-toolbar",
+            "settings-library-summary-table",
+            "settings-library-summary-row.is-active",
+        ):
+            self.assertIn(token, css)
+
+        self.assertIn('["libraries summary", refreshGet("/api/libraries/summary", refreshOptions), false]', app_js)
+        self.assertIn('window.mediaPipelineSettingsLibraries?.renderLibrarySummary?.(values["libraries summary"]);', app_js)
+        self.assertNotIn("window.localStorage.getItem(\"mediapipeline-report-audit-locations", libraries_js)
+        self.assertNotIn("showDirectoryPicker", libraries_js)
+        self.assertNotIn("webkitdirectory", libraries_js)
+        self.assertNotIn("/api/settings/save-patch", libraries_js)
+        self.assertNotIn("/api/pipeline/start", libraries_js)
 
     def test_libraries_page_stages_existing_watch_folder_settings(self) -> None:
         js = (STATIC_ROOT / "assets" / "settingsLibraries.js").read_text(encoding="utf-8")

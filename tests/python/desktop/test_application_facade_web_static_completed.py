@@ -98,6 +98,7 @@ class ApplicationFacadeWebStaticCompletedTests(unittest.TestCase):
                 "completed-diagnostics-actions",
                 "completed-clear-filters-button",
                 "completed-open-history",
+                'id="completed-open-history" class="prose-block completed-open-history-block" hidden aria-hidden="true"',
                 "Media And Route Proof",
                 "Output Verification",
                 "Evidence Packet",
@@ -142,6 +143,14 @@ class ApplicationFacadeWebStaticCompletedTests(unittest.TestCase):
         self.assertLess(
             completed_page_html.index('id="completed-open-status"'),
             completed_page_html.index("<h2>Why This Output Looks Different</h2>"),
+        )
+        self.assertLess(
+            completed_page_html.index('<h2 id="completed-current-output-heading">Current Output Status</h2>'),
+            completed_page_html.index("<h2>Why This Output Looks Different</h2>"),
+        )
+        self.assertLess(
+            completed_page_html.index("<h2>Why This Output Looks Different</h2>"),
+            completed_page_html.index("<h2>Repair/Reconcile</h2>"),
         )
 
     def test_completed_view_namespace_and_module_wiring_is_static_pinned(self) -> None:

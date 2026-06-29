@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/watch/scanner.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: watch
-last_modified: 2026-06-11
+last_modified: 2026-06-28
 last_reviewed: 2026-06-11
-sha256: 6b5a21b986f41263470e81680ea07a33f8ffbfb4e10a8089adb5d236958b3aec
+sha256: 1b20b5444ab39ac9f7c5e0288a415ea9fd2de39ce0f7b093dd89f6afe53f3674
 ---
 # `src/mediapipeline/desktop/watch/scanner.py`
 

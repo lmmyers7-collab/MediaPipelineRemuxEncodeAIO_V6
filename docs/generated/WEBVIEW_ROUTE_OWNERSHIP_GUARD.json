@@ -25,6 +25,18 @@
       ]
     },
     {
+      "route": "/api/audit/sources",
+      "files": [
+        "apps/desktop/webview/static/assets/reports/auditCommands.js"
+      ]
+    },
+    {
+      "route": "/api/audit/sources/scan",
+      "files": [
+        "apps/desktop/webview/static/assets/reports/auditCommands.js"
+      ]
+    },
+    {
       "route": "/api/audit/start",
       "files": [
         "apps/desktop/webview/static/assets/reports/auditCommands.js"
@@ -199,6 +211,12 @@
       ]
     },
     {
+      "route": "/api/path-picker/browse",
+      "files": [
+        "apps/desktop/webview/static/assets/pathPicker.js"
+      ]
+    },
+    {
       "route": "/api/pending-publish/open",
       "files": [
         "apps/desktop/webview/static/assets/pendingPublishView.diagnostics.js"
@@ -352,6 +370,12 @@
       "route": "/api/rename/undo",
       "files": [
         "apps/desktop/webview/static/assets/renameView.js"
+      ]
+    },
+    {
+      "route": "/api/rerun/preview",
+      "files": [
+        "apps/desktop/webview/static/assets/launchView.js"
       ]
     },
     {

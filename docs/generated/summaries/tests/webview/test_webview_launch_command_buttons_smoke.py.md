@@ -3,9 +3,9 @@ file: tests/webview/test_webview_launch_command_buttons_smoke.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-06-29
 last_reviewed: 2026-06-11
-sha256: 7f3537e755f0156f60807206a64767aad132473347ec93af77256789e2f0b1f7
+sha256: 33a0456256f293532d686004766b0ccf5af6f620d9e464ad4f0d0c3942ad5da9
 ---
 # `tests/webview/test_webview_launch_command_buttons_smoke.py`
 

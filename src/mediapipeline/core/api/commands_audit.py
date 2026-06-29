@@ -6,6 +6,18 @@ from .command_results import resolved_paths_unavailable_payload
 
 
 class LocalApiAuditCommandPayloadMixin:
+    def _audit_sources_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("audit.sources", "audit-controls")
+        return self.facade.save_audit_sources(resolved, request).to_mapping()
+
+    def _audit_sources_scan_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("audit.sources.scan", "audit-controls")
+        return self.facade.scan_audit_sources(resolved, request).to_mapping()
+
     def _audit_score_policy_payload(self, request: dict[str, Any]) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

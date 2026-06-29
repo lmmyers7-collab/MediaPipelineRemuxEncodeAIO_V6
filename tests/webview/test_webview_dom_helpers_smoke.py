@@ -430,8 +430,8 @@ def _run_node_dom_helper_smoke() -> dict[str, object]:
         documentScroller.clientHeight = 300;
         context.window.mediaPipelineDom.restoreScrollablePositions(shrinkSnapshot);
         while (rafCallbacks.length) rafCallbacks.shift()();
-        if (documentScroller.scrollTop !== 0) {{
-          throw new Error("document restore should skip stale positions that clamp to the new bottom");
+        if (documentScroller.scrollTop !== 60) {{
+          throw new Error("document restore should clamp stale positions to the new bottom");
         }}
 
         const makeStatusChip = context.window.mediaPipelineDom.makeStatusChip;
@@ -500,7 +500,7 @@ class WebViewDomHelpersSmoke(unittest.TestCase):
         self.assertEqual(result["replacementDetailTop"], 70)
         self.assertEqual(result["restoredDocumentTop"], 120)
         self.assertEqual(result["restoredDocumentLeft"], 8)
-        self.assertEqual(result["documentTop"], 0)
+        self.assertEqual(result["documentTop"], 60)
         self.assertEqual(result["queuePendingStatus"], "queued")
         self.assertEqual(result["parkedStatus"], "parked")
         self.assertEqual(result["drainPendingStatus"], "queued")

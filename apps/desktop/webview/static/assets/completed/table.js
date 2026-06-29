@@ -11,6 +11,42 @@
   const COMPLETED_CURRENT_RENDER_LIMIT = 250;
   const COMPLETED_HISTORY_RENDER_LIMIT = 500;
 
+  function clampTableScrollOffset(value, maxValue) {
+    const numeric = Number(value);
+    const maximum = Math.max(0, Number(maxValue) || 0);
+    return Math.min(Math.max(0, Number.isFinite(numeric) ? numeric : 0), maximum);
+  }
+
+  function tableScrollSnapshot(tbody) {
+    const target = tbody?.closest?.(".table-wrap") || null;
+    if (!target) return null;
+    return {
+      target,
+      top: target.scrollTop,
+      left: target.scrollLeft,
+    };
+  }
+
+  function restoreTableScrollSnapshot(snapshot) {
+    const target = snapshot?.target;
+    if (!target || target.isConnected === false) return;
+    target.scrollTop = clampTableScrollOffset(snapshot.top, target.scrollHeight - target.clientHeight);
+    target.scrollLeft = clampTableScrollOffset(snapshot.left, target.scrollWidth - target.clientWidth);
+  }
+
+  function deferTableScrollRestore(snapshot) {
+    if (!snapshot) return;
+    const schedule = typeof window.requestAnimationFrame === "function"
+      ? window.requestAnimationFrame.bind(window)
+      : (fn) => window.setTimeout(fn, 0);
+    restoreTableScrollSnapshot(snapshot);
+    schedule(() => {
+      restoreTableScrollSnapshot(snapshot);
+      schedule(() => restoreTableScrollSnapshot(snapshot));
+      window.setTimeout(() => restoreTableScrollSnapshot(snapshot), 0);
+    });
+  }
+
   function normalizeDeps(deps = {}) {
     return {
       appendCells: typeof deps.appendCells === "function" ? deps.appendCells : noop,
@@ -392,9 +428,11 @@
     const tbody = ctx.byId(tbodyId);
     const rowList = Array.isArray(rows) ? rows : [];
     const sourceList = Array.isArray(sourceRows) ? sourceRows : [];
+    const scrollSnapshot = tableScrollSnapshot(tbody);
     if (!rowList.length) {
       ctx.clearRows(tbody, COMPLETED_TABLE_COLUMN_COUNT, sourceList.length ? "No completed rows match the filter." : emptyMessage);
       ctx.updateTableStatusLegend(legendId, tbody, legendLabel);
+      deferTableScrollRestore(scrollSnapshot);
       return;
     }
     tbody.replaceChildren();
@@ -403,6 +441,7 @@
       tbody.appendChild(renderCompletedRow(ctx, item, rowLabel, { allowPromotionAction }));
     });
     ctx.updateTableStatusLegend(legendId, tbody, legendLabel);
+    deferTableScrollRestore(scrollSnapshot);
   }
 
   function normalizedCompletedLibraryFilter(value) {
@@ -476,6 +515,18 @@
     const metric = document.createElement("span");
     metric.className = "completed-current-metric";
     metric.dataset.state = state || "empty";
+    const action = String(label || "").trim().toLowerCase();
+    if (["review", "present", "filters"].includes(action)) {
+      metric.setAttribute("role", "button");
+      metric.setAttribute("tabindex", "0");
+      metric.dataset.uiQuickLink = "";
+      metric.dataset.quickLinkPage = "completed";
+      metric.dataset.quickLinkCompletedTab = "overview";
+      metric.dataset.quickLinkModule = "completed";
+      metric.dataset.quickLinkAction = action;
+      metric.setAttribute("aria-label", `${label}: ${value}. Open matching Current Output Status filter.`);
+      metric.title = `${label}: ${value}. Open matching Current Output Status filter.`;
+    }
     const labelNode = document.createElement("span");
     labelNode.className = "completed-current-metric-label";
     labelNode.textContent = label;

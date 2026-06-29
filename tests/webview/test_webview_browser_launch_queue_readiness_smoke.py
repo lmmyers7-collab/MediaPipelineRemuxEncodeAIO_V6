@@ -790,6 +790,15 @@ def _browser_launch_queue_readiness_runner_source() -> str:
             });
             window.mediaPipelineLaunchView.renderLaunchBackendPreflight(originalBackendPreflightPayloads);
             window.mediaPipelineLaunchView.updateLaunchCommandButtonStates();
+            window.mediaPipelineLaunchView.renderLaunchCompactGate();
+            requireCompactGate("pipeline-gate-last", "ready", ["Last", "OK", "No issue"]);
+            byId("pipeline-gate-last").click();
+            requireText("pipeline-compact-gate-detail", [
+              "Last: OK",
+              "Recent launch history is visible",
+              "Backend start remains authoritative.",
+            ]);
+            clickLaunchTab("pipeline");
             requireText("launch-command-review-summary", [
               "Launch command review:",
               "Launch commands loaded: 1",
@@ -874,6 +883,10 @@ def _browser_launch_queue_readiness_runner_source() -> str:
               "Queue source scan requested.",
               "filters, launch scope, queue state commands, source files, and processing commands remain backend-owned",
             ]);
+            const queueFilterSummary = document.getElementById("queue-filter-summary");
+            if (!queueFilterSummary || window.getComputedStyle(queueFilterSummary).display !== "none" || queueFilterSummary.getClientRects().length !== 0) {
+              throw new Error("Queue filter summary should keep textContent but stay visually hidden.");
+            }
             if (queueRefreshButton.textContent.trim() !== "Scanning...") {
               throw new Error("Scan Sources button did not switch to scanning text; got " + queueRefreshButton.textContent.trim());
             }

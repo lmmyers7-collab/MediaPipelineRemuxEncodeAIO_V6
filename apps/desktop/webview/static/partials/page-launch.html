@@ -16,29 +16,29 @@
               <strong id="launch-live-run-status" data-state="unknown">Checking</strong>
             </div>
             <div id="launch-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Launch live run summary">
-              <span class="live-run-chip" data-status="unknown">
+              <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for live state" title="Open Telemetry">
                 <span class="live-run-chip-label">State</span>
                 <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
               </span>
             </div>
           </div>
           <div class="pipeline-controller-status-strip" aria-label="Pipeline controller status">
-            <div class="pipeline-controller-status-card">
+            <div class="pipeline-controller-status-card" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="diagnostics" data-quick-link-diag-tab="readiness" aria-label="Open Diagnostics readiness for backend status" title="Open Diagnostics readiness">
               <span class="pipeline-controller-status-label">Backend</span>
               <strong id="pipeline-controller-backend-status">Started</strong>
               <span id="pipeline-controller-backend-detail">Local API loaded.</span>
             </div>
-            <div class="pipeline-controller-status-card">
+            <div class="pipeline-controller-status-card" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="launch" data-quick-link-launch-tab="pipeline" data-quick-link-focus="#launch-live-run-strip" aria-label="Focus Launch live run status" title="Focus Launch live run">
               <span class="pipeline-controller-status-label">Pipeline</span>
               <strong id="pipeline-controller-pipeline-state">Idle</strong>
               <span id="pipeline-controller-stage-summary">No active backend work.</span>
             </div>
-            <div class="pipeline-controller-status-card">
+            <div class="pipeline-controller-status-card" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="launch" data-quick-link-launch-tab="pipeline" data-quick-link-focus="#pipeline-compact-gate-strip" aria-label="Focus Launch control readiness gates" title="Focus control readiness gates">
               <span class="pipeline-controller-status-label">Control readiness</span>
               <strong id="control-readiness-status">Not loaded</strong>
               <span id="pipeline-controller-control-summary">Waiting for backend snapshot.</span>
             </div>
-            <div class="pipeline-controller-status-card">
+            <div class="pipeline-controller-status-card" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="launch" data-quick-link-launch-tab="history" aria-label="Open Launch history" title="Open Launch history">
               <span class="pipeline-controller-status-label">Last start</span>
               <strong id="pipeline-controller-last-start-status">Idle</strong>
               <span id="pipeline-controller-last-start-summary">No launch command in recent history.</span>
@@ -120,7 +120,10 @@
               <div class="pipeline-single-file-group" data-pipeline-single-file-container hidden aria-hidden="true">
                 <div class="pipeline-single-file-row">
                   <label>
-                    Single File
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">Single File</span>
+                      <button type="button" id="pipeline-single-file-path-picker-badge" class="path-picker-badge" data-path-picker-target="launch.single_file" data-path-picker-input="pipeline-start-single-file" data-path-picker-mode="files" data-path-picker-status="pipeline-single-file-browse-status" title="Open a backend-owned Windows file picker for this single-file path.">Browse</button>
+                    </span>
                     <input id="pipeline-start-single-file" type="text" autocomplete="off" placeholder="Optional absolute path">
                   </label>
                   <div class="pipeline-single-file-actions">
@@ -214,22 +217,90 @@
           </div>
           <div class="form-grid launch-form-grid">
             <label>
-              CSV Path
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">CSV Path</span>
+                <button type="button" id="rerun-csv-path-picker-badge" class="path-picker-badge" data-path-picker-target="launch.rerun_csv" data-path-picker-input="rerun-start-csv-path" data-path-picker-mode="files" data-path-picker-status="rerun-launch-status" title="Open a backend-owned Windows file picker for this rerun CSV path.">Browse</button>
+              </span>
               <input id="rerun-start-csv-path" type="text" autocomplete="off">
             </label>
             <label>
               Stage
-              <input type="text" value="copy" readonly title="CSV rerun stages files by copying to scratch first; source rows are not edited by the WebView.">
+              <select id="rerun-start-stage-mode" title="CSV rerun stages files by copying to scratch first; source-mutating modes remain backend-blocked.">
+                <option value="copy" selected>copy - stage a scratch copy</option>
+                <option value="move">move - blocked source mutation</option>
+              </select>
             </label>
             <label>
               Original
-              <input type="text" value="keep" readonly title="CSV rerun keeps original source media by default. Source deletion requires backend-owned explicit policy.">
+              <select id="rerun-start-original-mode" title="CSV rerun keeps original source media by default; source deletion remains backend-blocked.">
+                <option value="keep" selected>keep - preserve original</option>
+                <option value="delete">delete - blocked source mutation</option>
+              </select>
             </label>
             <label>
               Return
-              <input type="text" value="park" readonly title="CSV rerun parks outputs for backend publish/drain review rather than treating WebView as publish authority.">
+              <select id="rerun-start-return-mode" title="CSV rerun parks outputs for backend publish/drain review; in-place replacement remains backend-blocked.">
+                <option value="park" selected>park - review output later</option>
+                <option value="replace_original">replace original - blocked in-place mutation</option>
+              </select>
             </label>
             <label class="check-row launch-check-row"><input id="rerun-start-show-console" type="checkbox"> Show Console</label>
+          </div>
+          <p id="rerun-mode-policy-note" class="note">Executable CSV rerun policy remains copy / keep / park. Other staged choices are shown for CSV review and backend preflight, but source-mutating or in-place policies are blocked before process launch.</p>
+          <div class="form-grid launch-form-grid" aria-label="CSV rerun scope controls">
+            <label class="check-row launch-check-row"><input id="rerun-scope-enabled-only" type="checkbox" checked> Enabled Rows</label>
+            <label class="check-row launch-check-row"><input id="rerun-scope-skip-blocked" type="checkbox"> Skip Blocked</label>
+            <label class="check-row launch-check-row"><input id="rerun-scope-skip-warning-rows" type="checkbox"> Skip Warnings</label>
+            <label>
+              First Rows
+              <input id="rerun-scope-first-n" type="number" min="0" step="1" value="0">
+            </label>
+            <label>
+              Issue Filter
+              <input id="rerun-scope-issue-filter" type="text" autocomplete="off" placeholder="Optional code text">
+            </label>
+            <label>
+              Bucket Filter
+              <input id="rerun-scope-bucket-filter" type="text" autocomplete="off" placeholder="Optional bucket text">
+            </label>
+            <label>
+              Preview Rows
+              <input id="rerun-preview-limit" type="number" min="1" max="200" step="1" value="50">
+            </label>
+          </div>
+          <div class="table-wrap detail-table-wrap" aria-label="Recent CSV rerun files">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Recent CSV</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Modified</th>
+                  <th scope="col">Use</th>
+                </tr>
+              </thead>
+              <tbody id="rerun-recent-csv-rows">
+                <tr><td colspan="4">No recent CSV evidence loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="rerun-preview-summary" class="prose-block">No CSV rerun preview loaded.</pre>
+          <div id="rerun-policy-panel" class="prose-block">Executable policy: copy / keep / park. Blocked policy: move / delete / replace_original.</div>
+          <div class="table-wrap detail-table-wrap" aria-label="CSV rerun row preview">
+            <table>
+              <thead>
+                <tr>
+                  <th scope="col">Row</th>
+                  <th scope="col">State</th>
+                  <th scope="col">Source</th>
+                  <th scope="col">Issue / Bucket</th>
+                  <th scope="col">Modes</th>
+                  <th scope="col">Reason</th>
+                </tr>
+              </thead>
+              <tbody id="rerun-preview-rows">
+                <tr><td colspan="6">No CSV rerun rows loaded.</td></tr>
+              </tbody>
+            </table>
           </div>
           <pre id="rerun-launch-preflight" class="prose-block">No CSV rerun preflight loaded.</pre>
           <div class="action-row action-row-left">
@@ -239,6 +310,7 @@
             <button type="button" id="rerun-start-button" class="primary-button">Start CSV Rerun</button>
           </div>
           <pre id="rerun-launch-detail" class="prose-block">No CSV rerun launch result.</pre>
+          <pre id="rerun-history-summary" class="prose-block">No CSV rerun history loaded.</pre>
         </section>
         <section class="panel settings-tab-pane launch-tab-panel" data-launch-tab-panel="history" data-panel-type="interactive">
           <div class="panel-heading">

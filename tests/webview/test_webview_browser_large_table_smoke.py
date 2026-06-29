@@ -205,6 +205,33 @@ def _browser_large_table_runner_source() -> str:
                 throw new Error("pending table scroll reset after row selection: before=" + before + " after=" + after);
               }
             }
+            function waitForDeferredScrollRestores() {
+              return new Promise((resolve) => {
+                const finish = () => setTimeout(resolve, 0);
+                if (typeof requestAnimationFrame === "function") {
+                  requestAnimationFrame(() => requestAnimationFrame(finish));
+                } else {
+                  finish();
+                }
+              });
+            }
+            async function requireTableScrollPreservedOnRender(selector, label, renderFn) {
+              const target = document.querySelector(selector);
+              const wrap = target?.classList?.contains("table-wrap") ? target : target?.closest?.(".table-wrap");
+              if (!wrap) throw new Error("missing " + label + " scroll wrapper");
+              wrap.style.height = "220px";
+              wrap.style.maxHeight = "220px";
+              wrap.style.overflow = "auto";
+              wrap.scrollTop = wrap.scrollHeight;
+              const before = wrap.scrollTop;
+              if (before <= 0) throw new Error(label + " did not become scrollable before refresh render");
+              renderFn();
+              await waitForDeferredScrollRestores();
+              const after = wrap.scrollTop;
+              if (after < Math.max(1, before - 3)) {
+                throw new Error(label + " scroll reset after refresh render: before=" + before + " after=" + after);
+              }
+            }
             function pad(index) { return String(index + 1).padStart(3, "0"); }
             [
               "renderQueue", "renderQueueRows", "selectQueueRow",
@@ -384,6 +411,7 @@ def _browser_large_table_runner_source() -> str:
             enhancedTableState("queue-rows");
             if (!pressShortcut("2")) throw new Error("Queue page shortcut should be handled before scroll preservation check");
             requireActivePage("queue");
+            await requireTableScrollPreservedOnRender("[data-page-panel=\\"queue\\"] .queue-table-wrap", "queue table", () => window.renderQueue(queuePayload));
             requireQueueScrollPreservedOnSelection("Large Queue 240");
             requireText("queue-detail", ["Queue selected-row detail:", "Large Queue 240", "Mutation guardrail"]);
             setValue("queue-filter", "Large Queue 001");
@@ -547,7 +575,7 @@ def _browser_large_table_runner_source() -> str:
                 proof_summary: ["large payload completed row", "render cap smoke"],
               };
             });
-            window.mediaPipelineCompletedView.renderCompleted({
+            const completedPayload = {
               ok: true,
               count: 260,
               encode_count: 130,
@@ -576,7 +604,8 @@ def _browser_large_table_runner_source() -> str:
                   stale: false,
                 }],
               },
-            });
+            };
+            window.mediaPipelineCompletedView.renderCompleted(completedPayload);
             requireText("completed-count", ["259"]);
             requireText("completed-encode-count", ["129"]);
             requireText("completed-remux-count", ["130"]);
@@ -607,6 +636,7 @@ def _browser_large_table_runner_source() -> str:
             setValue("completed-library-filter", "all");
             if (!pressShortcut("3")) throw new Error("Completed Output shortcut should be handled before scroll preservation check");
             requireActivePage("completed");
+            await requireTableScrollPreservedOnRender("[data-page-panel=\\"completed\\"] #completed-rows", "completed current table", () => window.mediaPipelineCompletedView.renderCompleted(completedPayload));
             requireCompletedScrollPreservedOnSelection("Large Completed 240");
             requireText("completed-detail", ["Completed selected-row detail:", "Large Completed 240", "Mutation guardrail"]);
             setValue("completed-history-filter", "Large Completed 260");
@@ -727,7 +757,7 @@ def _browser_large_table_runner_source() -> str:
                 proof_summary: ["large payload pending row", "render cap smoke"],
               };
             });
-            window.renderPendingPublish({
+            const pendingPayload = {
               ok: true,
               count: 260,
               rows: pendingRows,
@@ -753,7 +783,8 @@ def _browser_large_table_runner_source() -> str:
                   stale: false,
                 }],
               },
-            }, {});
+            };
+            window.renderPendingPublish(pendingPayload, {});
             requireText("pending-status", ["250 shown / 260 filtered / 260 rows"]);
             requireText("pending-inventory-progress-bars", ["Pending inventory", "100%", "Pending publish inventory scanned 260 row(s)"]);
             requireText("pending-filter-summary", ["Display cap: only the first 250 filtered rows are rendered", "filtering Pending Publish rows does not change drain scope"]);
@@ -762,6 +793,7 @@ def _browser_large_table_runner_source() -> str:
             enhancedTableState("pending-rows");
             if (!pressShortcut("4")) throw new Error("Pending Publish shortcut should be handled before scroll preservation check");
             requireActivePage("pending");
+            await requireTableScrollPreservedOnRender("[data-page-panel=\\"pending\\"] #pending-rows", "pending publish table", () => window.renderPendingPublish(pendingPayload, {}));
             requirePendingScrollPreservedOnSelection("Large Pending 240");
             requireText("pending-detail", ["Large Pending 240", "Mutation guardrail"]);
             setValue("pending-filter", "Large Pending 001");

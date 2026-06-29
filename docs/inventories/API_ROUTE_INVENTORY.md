@@ -4,13 +4,13 @@ Date: 2026-06-19
 
 Full inventory of all Local API routes: route, method, effect class, backend contract/handler, mutation risk, primary frontend caller, and test coverage. Source: `contract_read.py`, `contract_command.py`, `routes_read.py`, `routes_command.py`.
 
-Total: 148 routes — 49 GET (read) + 99 POST (command).
+Total: 154 routes — 51 GET (read) + 103 POST (command).
 
 All routes require the bootstrap token (`Authorization: Bearer` or `X-MediaPipeline-Token`) except `GET /api/health`.
 
 ---
 
-## GET Routes (Read — 49 routes)
+## GET Routes (Read — 51 routes)
 
 All GET routes return data only. None launch pipeline work, write config, drain pending outputs, rename files, or mutate queue or manifest state.
 
@@ -35,7 +35,7 @@ All GET routes return data only. None launch pipeline work, write config, drain 
 
 Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `max_bytes` (1 KB–256 KB); backend tail evidence includes `evidence_authority=backend`, and any WebView fallback over older/no-evidence payloads must be labelled frontend advisory only. `/api/launch/preflight` accepts target-specific read-only start-intent fields (`target`, pipeline `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override`, `extra_args`, `allow_extra_args`, audit `library_root`/`include_sidecars`, and rerun `csv_path`/`dry_run`/`stage_mode`/`original_mode`/`return_mode`) and returns nested backend `operator_readiness` (`desktop_launch_readiness.v1`) plus pipeline encoder capability report evidence; pipeline preflight may refresh the backend diagnostic artifact at `State\Progress\encoder_capabilities.json` when it is missing or stale, so Launch readiness rendering does not have to infer start posture from DOM state. `/api/commands` accepts `limit`. `/api/failures` accepts `source` and `limit`. `/api/queue/file-overrides`, `/api/queue/file-overrides/effective`, and `/api/queue/file-overrides/tracks` accept `path` and validate it under configured source roots (`SourceMovies`, `SourceTV`, or enabled `LibraryProfiles` source roots).
 
-### Inventory Group (19 routes)
+### Inventory Group (20 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -53,6 +53,7 @@ Query params: `/api/diagnostics/tail` accepts `target` (allowlisted key) and `ma
 | `GET /api/failures` | `none` | `desktop_failure_preview.v1` + backend-authored `resolution_summary` / `resolution_groups` / row `evidence_details` | Reports, Diagnostics | Yes | `test_facade_failures_policy.py`, `test_application_facade_local_api_workflow.py`, `test_service_failure_markers.py` |
 | `GET /api/audit-results` | `none` | `desktop_audit_preview.v1` | Reports | Yes | `test_facade_audit_policy.py`, `test_service_audit_rerun_records.py` |
 | `GET /api/audit-controls` | `none` | `desktop_audit_controls.v1` | Reports | Yes | `test_application_facade_local_api_http.py` |
+| `GET /api/audit-sources` | `none` | `desktop_audit_sources.v1` | Reports | Yes | `test_audit_sources.py`, `test_webview_browser_maintenance_reports_smoke.py` |
 | `GET /api/rename/cleaning-filters` | `none` | `desktop_rename_cleaning_filter_catalog.v1` | Rename, Settings | Yes | `test_api_contract_payload.py`, `test_application_facade_local_api_rename.py` |
 | `GET /api/rename/movie-cleaning-filters` | `none` | `desktop_rename_movie_filter_catalog.v1` | Rename | Yes | `test_api_contract_payload.py`, `test_application_facade_local_api_rename.py` |
 | `GET /api/rename/clean-filename-preview` | `none` | `desktop_rename_clean_filename_preview.v1` | Rename | Yes | `test_api_contract_payload.py`, `test_application_facade_local_api_rename.py` |
@@ -65,7 +66,7 @@ Repair/reconcile dry-run routes now publish a stable `dry_run_fingerprint`; conf
 
 Network lifecycle start/stop now has backend-owned dry-run and confirmed command routes. Dry-runs have `effect=none` and report preconditions plus `would_not_touch` evidence. Confirmed routes are confirmation-gated, command-journaled, and provider-guarded; if the real coordinator/worker lifecycle provider is unavailable, they fail closed without normal Launch, queue scan, media processing, or source/scratch/output/pending-publish mutation.
 
-### Workspace Group (16 routes)
+### Workspace Group (17 routes)
 
 | Route | Effect | Response Schema | Frontend Caller | Auth | Backend Test Coverage |
 |---|---|---|---|---|---|
@@ -77,6 +78,7 @@ Network lifecycle start/stop now has backend-owned dry-run and confirmed command
 | `GET /api/watch-folders/status` | `none` | `desktop_watch_folders.v1` | Schedule | Yes | `test_watch_folder_routes.py` |
 | `GET /api/settings/workspace` | `none` | `desktop_settings_workspace.v1` | Settings | Yes | `test_facade_settings_policy.py`, `test_application_facade_settings_workspace.py`, `test_application_facade_local_api_http.py` |
 | `GET /api/settings/preset-library` | `none` | `preset_library.v1` | Settings | Yes | `test_preset_library.py`, `test_api_command_contracts.py` |
+| `GET /api/libraries/summary` | `none` | `desktop_libraries_summary.v1` | Libraries | Yes | `test_library_route_map_api.py`, `test_service_queue_source_scan.py`, `test_api_contract_payload.py` |
 | `GET /api/libraries/route-map` | `none` | `library_route_map.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
 | `GET /api/libraries/route-map/trace` | `none` | `library_route_trace.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
 | `GET /api/libraries/route-map/compare` | `none` | `library_profile_compare.v1` | Libraries | Yes | `test_route_map.py`, `test_library_route_map_api.py`, `test_api_contract_payload.py` |
@@ -90,7 +92,7 @@ Network lifecycle start/stop now has backend-owned dry-run and confirmed command
 
 ---
 
-## POST Routes (Command — 99 routes)
+## POST Routes (Command — 103 routes)
 
 All POST routes require auth. File-open routes pass row keys or allowlisted target keys. Queue state routes accept only absolute paths under backend-configured `SourceMovies`/`SourceTV` roots and write non-destructive state manifests. Queue source scan is backend-owned and writes scan evidence plus an authoritative queue snapshot through the existing queue-plan dry run.
 
@@ -176,13 +178,14 @@ Allowlisted targets (20): `run_logs`, `cluster_log`, `config`, `config_folder`, 
 
 Full target catalog: `docs/operator/DIAGNOSTICS_READ_ONLY_TARGETS_RUNBOOK.md`.
 
-### UI Preference Commands (1 route)
+### UI Preference Commands (2 routes)
 
 | Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/ui-preferences` | `ui-state-write` | `storage`, `source_surface` | Chrome WebView, Tauri shell | Low — writes allowlisted UI preference JSON only | `test_application_facade_core_contracts.py`, `test_webview_frontend_mutation_boundary.py` |
+| `POST /api/path-picker/browse` | `shell-dialog` | `target_key`, `selection_mode`, `initial_path`, `file_filter` | WebView path picker badges | Low — opens a backend-owned native Windows picker for allowlisted path targets only; stages validation evidence only | `test_path_picker_command.py` |
 
-`ui-preferences` persists browser-local UI customization such as layout, theme, evidence visibility, and selected tabs under `LocalBase\State`. It does not save settings, mutate queue state, launch work, drain, rename, publish, or touch media files.
+`ui-preferences` persists browser-local UI customization such as layout, theme, evidence visibility, and selected tabs under `LocalBase\State`. `path-picker/browse` opens a backend-owned Windows picker for allowlisted real path fields and returns staged-only validation evidence. Neither route saves settings, mutates queue state, launches work, drains, renames, publishes, or touches media files.
 
 ### Maintenance Commands (8 routes)
 
@@ -207,6 +210,15 @@ The dry-run routes do not write a release folder, zip, manifest, or completed ma
 | `POST /api/metrics/backfill` | `metrics-backfill-state-write` | `scope`, `source_id`, `path`, `max_sidecars` | Metrics | Medium — recursively reads configured sidecar roots and writes Metrics cache/status under `State\Metrics`; no media or sidecar mutation | `test_metrics_feature.py`, `test_api_command_contracts.py` |
 
 Metrics source and backfill commands are backend-owned. Source registry updates write only Metrics state, and backfill recursively reads `*.pipeline.json` sidecars under configured source roots while skipping symlinked folders. It does not rewrite sidecars, launch work, drain, publish, rename, mutate queue state, or touch source/output media files.
+
+### Audit Source Commands (2 routes)
+
+| Route | Effect | Key Request Keys | Frontend Caller | Mutation Risk | Backend Test Coverage |
+|---|---|---|---|---|---|
+| `POST /api/audit/sources` | `audit-source-state-write` | `action`, `path`, `source_id`, `label`, `enabled` | Reports | Medium — writes the Reports audit source registry under `State\Audit` only | `test_audit_sources.py`, `test_api_command_contracts.py`, `test_webview_browser_maintenance_reports_smoke.py` |
+| `POST /api/audit/sources/scan` | `audit-source-scan-state-write` | `scope`, `source_id`, `source_ids`, `path`, `max_entries` | Reports | Medium — recursively counts media, sidecar, and folder totals for selected audit roots and writes aggregate scan evidence under `State\Audit`; no media or sidecar mutation | `test_audit_sources.py`, `test_api_command_contracts.py`, `test_webview_browser_maintenance_reports_smoke.py` |
+
+Audit source commands are backend-owned. Source updates write only the Reports audit source registry. Scans recursively read selected source folders, count aggregate media/sidecar/folder metrics, skip symlinked folders, and refresh audit-source scan status files without rewriting sidecars, launching audit work, changing queue state, or touching media files.
 
 ### Rename Commands (5 routes)
 
@@ -297,19 +309,20 @@ media files.
 
 Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mutation evidence/setup routes. Confirmed start/stop routes require confirmation fields and backend provider preconditions. They do not use normal Launch, do not scan the full queue, do not silently release claims, and do not mutate source media. If the provider hook is unavailable, the route returns a blocked command result rather than starting a fake local run.
 
-### Process Commands (7 routes)
+### Process Commands (8 routes)
 
 | Route | Effect | Key Request Keys / Allowed Values | Frontend Caller | Mutation Risk | Backend Test Coverage |
 |---|---|---|---|---|---|
 | `POST /api/pipeline/control` | `control-flag-write` | `action`: `pause`, `stop`, `rescan`, `kill` | Launch | Medium — writes control flags or runs backend-owned emergency process cleanup for `kill` | `test_facade_process_control_policy.py`, `test_application_facade_process_control.py`, `test_service_process_control_flags.py` |
 | `POST /api/pipeline/browse-file` | `shell-dialog` | `selection_mode`: `files`; `initial_path` | Launch | Low — opens backend-owned native Windows file browser for single-file staging only; does not save config or launch work | `test_application_facade_local_api_workflow.py`, `test_webview_frontend_mutation_boundary.py` |
 | `POST /api/pipeline/start` | `process-launch` | `mode`: `once`/`continuous`/`validate`/`drain_pending_pushes`; `schedule_override`: `""`/`run_once`/`ignore` | Launch | **High** — spawns pipeline process | `test_facade_process_pipeline_policy.py`, `test_application_facade_process_launch.py`, `test_facade_process_guard_policy.py` |
-| `POST /api/audit/start` | `process-launch` | `library_root`, `include_sidecars`, `show_console` | Launch, Reports | **High** — spawns audit process | `test_facade_process_audit_policy.py`, `test_application_facade_process_launch.py` |
+| `POST /api/audit/start` | `process-launch` | `library_root`, `library_roots`, `source_ids`, `include_sidecars`, `show_console` | Launch, Reports | **High** — spawns audit process for one or more selected audit source locations | `test_facade_process_audit_policy.py`, `test_application_facade_process_launch.py`, `test_webview_browser_maintenance_reports_smoke.py` |
 | `POST /api/audit/stop` | `process-control` | `confirm_stop`, `reason` | Reports | **High** — explicit backend-owned audit-only process cleanup and terminal audit progress write | `test_application_facade_process_launch.py`, `test_webview_browser_maintenance_reports_smoke.py` |
-| `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `stage_mode`, `original_mode`, `return_mode`, `show_console` | Reports | **High** — spawns rerun process | `test_facade_process_rerun_policy.py`, `test_application_facade_process_launch.py` |
+| `POST /api/rerun/preview` | `read-only-preview` | `csv_path`, `stage_mode`, `original_mode`, `return_mode`, `scope`, `preview_limit`, `enabled_only`, `skip_blocked`, `skip_warning_rows`, `first_n`, `issue_filter`, `bucket_filter` | Launch | None — parses and summarizes rerun CSV rows, recent CSV candidates, policy warnings, and scoped counts without launching or writing scoped CSV files | `test_rerun_csv_preview.py`, `test_api_contract_payload.py`, `test_api_command_contracts.py` |
+| `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `stage_mode`, `original_mode`, `return_mode`, `show_console`, `scope`, `preview_limit`, `enabled_only`, `skip_blocked`, `skip_warning_rows`, `first_n`, `issue_filter`, `bucket_filter` | Launch | **High** — spawns rerun process; mode fields are operator-selectable intent, only `copy` / `keep` / `park` is executable, and narrowing scope materializes a backend-owned scoped CSV under `State\Rerun\ScopedCsv` before launch | `test_facade_process_rerun_policy.py`, `test_application_facade_process_launch.py`, `test_rerun_csv_preview.py` |
 | `POST /api/backend/shutdown` | `backend-lifecycle` | `reason`, `force_active_work_shutdown` | Tauri shell (close flow) | **Critical** — initiates shutdown only when close-readiness is safe, unless literal boolean `true` force cleanup is requested | `test_tauri_shell_scaffold.py`, `test_local_api_lifecycle_contract_smoke.py` |
 
-`rerun/start` media-safe defaults: `stage_mode: copy`, `original_mode: keep`, `return_mode: park`. `backend/shutdown` must be preceded by `GET /api/backend/close-readiness`; unsafe close-readiness returns an error unless `force_active_work_shutdown` is literal JSON boolean `true`.
+`rerun/preview` is no-write and backs the Plan CSV Rerun button. `rerun/start` media-safe defaults: `stage_mode: copy`, `original_mode: keep`, `return_mode: park`, `enabled_only: true`. `move`, `delete`, and `replace_original` remain blocked before process launch because source mutation and in-place replacement are disabled. Scope filters may narrow dry-run/live starts by writing a backend-owned scoped CSV under `State\Rerun\ScopedCsv`; plan preview does not write it. `backend/shutdown` must be preceded by `GET /api/backend/close-readiness`; unsafe close-readiness returns an error unless `force_active_work_shutdown` is literal JSON boolean `true`.
 
 ---
 
@@ -317,11 +330,11 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 
 | Effect | Count | Routes |
 |---|---|---|
-| `none` (read-only) | 78 | All non-probing GET routes + preview/validate/reload POSTs + repair/reconcile dry-runs + startup reconcile dry-run + maintenance retention dry-run + preset library preview/export routes + Network lifecycle dry-runs + worker test-connection/discovery |
+| `none` (read-only) | 81 | All non-probing GET routes + preview/validate/reload POSTs + repair/reconcile dry-runs + startup reconcile dry-run + maintenance retention dry-run + preset library preview/export routes + Network lifecycle dry-runs + worker test-connection/discovery |
 | `bounded-health-check` | 1 | `GET /api/maintenance` |
-| `read-only-preview` | 5 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` |
+| `read-only-preview` | 6 | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview`, `POST /api/rerun/preview` |
 | `shell-open` | 6 | `POST /api/queue/open`, `completed/open`, `pending-publish/open`, `diagnostics/open`, `diagnostics/tdarr-matrix/evidence/open`, `maintenance/dependency-atlas/open-folder` |
-| `shell-dialog` | 3 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` |
+| `shell-dialog` | 4 | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/path-picker/browse`, `POST /api/pipeline/browse-file` |
 | `test-fixture-write` | 1 | `POST /api/rename/filter-cases` |
 | `diagnostic-process` | 2 | `POST /api/diagnostics/tdarr-matrix-audit`, `POST /api/diagnostics/tdarr-matrix/rerun` |
 | `diagnostics-artifact-write` | 1 | `POST /api/maintenance/support-export` |
@@ -329,6 +342,8 @@ Network lifecycle dry-runs, worker test-connection, and mDNS discovery are no-mu
 | `ui-state-write` | 1 | `POST /api/ui-preferences` |
 | `metrics-state-write` | 1 | `POST /api/metrics/sources` |
 | `metrics-backfill-state-write` | 1 | `POST /api/metrics/backfill` |
+| `audit-source-state-write` | 1 | `POST /api/audit/sources` |
+| `audit-source-scan-state-write` | 1 | `POST /api/audit/sources/scan` |
 | `queue-state-write` | 7 | `POST /api/queue/priority`, `queue/strategy`, `queue/file-overrides`, `queue/file-overrides/series-apply`, `queue/file-overrides/series-clear-apply`, `queue/file-overrides/remux-pilot-promote`, `queue/file-overrides/folder-rule` |
 | `failure-marker-write` | 1 | `POST /api/failures/clear` |
 | `failure-evidence-archive` | 1 | `POST /api/failures/archive-evidence` |

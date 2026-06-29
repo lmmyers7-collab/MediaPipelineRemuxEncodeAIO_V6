@@ -1,0 +1,36 @@
+{
+  "id": "MP-CHANGE-2026-0628-014",
+  "title": "Architecture boundary cleanup plan",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "docs",
+  "risk_level": "medium",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-28",
+  "summary": "Added an active implementation planning pack and Phase 0 edge ledger for GitHub #23 architecture-boundary cleanup, including dependency-boundary prework, domain counts, target ownership categories, no-new-debt ratchet rules, phased cleanup order, validation expectations, and stop conditions.",
+  "reason": "Core modules still import desktop compatibility modules across many domains. The cleanup needs a staged source plan so shared DTO/runtime moves happen before domain slices and future refactors avoid moving the same contracts repeatedly.",
+  "affected_areas": [
+    "docs"
+  ],
+  "behavior_before": "The open-work checklist identified #23 as domain-by-domain architecture debt, but there was no active implementation plan with a current dependency-boundary baseline, edge categories, phase order, or validation ladder.",
+  "behavior_after": "The active docs now point #23 to docs/implementation/architecture-boundary-cleanup/README.md as the planning source and docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md as the Phase 0 ledger source. Runtime behavior, Local API routes, WebView commands, media policy, and package behavior are unchanged.",
+  "files_touched": [
+    "docs/DOCS_INDEX.md",
+    "docs/OPEN_WORK_CHECKLIST.md",
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "docs/implementation/architecture-boundary-cleanup/README.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-014.json"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    "check_active_doc_references - passed after removing the full GitHub URL from the active plan header.",
+    "check_architecture_guardrails - passed; checked 34 creation candidates.",
+    "check_dependency_boundaries --report-only --max-internal-imports 0 - completed as prework evidence; baseline reports 332 core-to-desktop edges, 350 allowlisted hard findings, and 2 unallowlisted hard findings from the dirty-tree commands_path_picker module.",
+    "git diff --check for the packet-owned files passed with no whitespace errors; Git reported existing LF-to-CRLF warnings for docs/DOCS_INDEX.md and docs/OPEN_WORK_CHECKLIST.md.",
+    "validate_changes - passed; 797 packets valid.",
+    "validate_changes --require-worktree-coverage - failed because unrelated dirty-tree files were not listed in any unreleased packet: apps/desktop/webview/static/assets/pathPicker.js, src/mediapipeline/core/api/commands_path_picker.py, tests/python/desktop/test_path_picker_command.py."
+  ],
+  "rollback_plan": "Remove docs/implementation/architecture-boundary-cleanup/README.md and docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md, remove their DOCS_INDEX entries, and restore the #23 checklist row to the previous text.",
+  "related_changes": [],
+  "notes": "Add GitHub #23 architecture boundary cleanup planning pack and prework baseline.\nLink the architecture boundary cleanup plan from the active documentation index.\nPoint the #23 checklist row at the new planning/prework source.\nPython impact: documentation only; no Python source, contracts, imports, package layout, or runtime behavior changed.\nAdd Phase 0 edge ledger and no-new-debt ratchet source for #23."
+}

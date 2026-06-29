@@ -1,0 +1,43 @@
+{
+  "id": "MP-CHANGE-2026-0629-001",
+  "title": "Fix CSV rerun nested runtime paths",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "high",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Fix live CSV rerun so the nested pipeline uses operator-visible LocalBase state while staging inputs, library profile roots, and parked outputs in an isolated sibling rerun workspace.",
+  "reason": "Live CSV rerun launched and staged rows, but the generated temp config put SourceMovies, SourceTV, and parked Outsource under LocalBase. After that path-shape issue was fixed, live validation showed LibraryProfiles still pointed at non-rerun source roots, causing the nested pipeline to find zero queue rows. Both failures left the app without useful normal pipeline, queue, or progress state for CSV rerun work.",
+  "affected_areas": [
+    "generated",
+    "pipeline",
+    "tests"
+  ],
+  "behavior_before": "Live CSV rerun staged media under LocalBase\\RerunQueue and parked output under LocalBase\\RerunParked\\Output, then launched the nested pipeline with the original LocalBase. Config validation failed with LocalBase/SourceMovies, LocalBase/SourceTV, and LocalBase/Outsource nesting errors before queue/progress state was written; profile-enabled configs could also scan zero staged rows because LibraryProfiles still referenced the normal source/output roots.",
+  "behavior_after": "Live CSV rerun keeps nested pipeline LocalBase on the configured operator-visible state root, stages rerun inputs and parked outputs under a LocalBase sibling workspace, rewrites movie/tv LibraryProfiles to staged roots with promotion disabled, creates the parked Output directory before launch, and records both paths in the rerun manifest/log evidence.",
+  "files_touched": [
+    "docs/generated/summaries/ops/pipeline/entrypoints/Invoke-RerunCsv.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1.md",
+    "docs/generated/summaries/ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0629-001.json.md",
+    "ops/pipeline/entrypoints/Invoke-RerunCsv.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1",
+    "ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-001.json"
+  ],
+  "tests_added": [
+    "Added ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1 to run a synthetic CSV rerun through nested pipeline startup with LibraryProfiles present, assert no LocalBase nesting errors, verify temp config path/profile separation, and confirm queue_snapshot.json includes staged rerun rows under the operator-visible LocalBase."
+  ],
+  "manual_validation": [
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunPlanOnlyChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunSourceIdentityChecks.ps1",
+    "PASS: .\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\pipeline\\tests\\Unit\\Invoke-RerunNestedConfigChecks.ps1",
+    "PASS: Live parked CSV rerun subset E:\\Videos\\Scratch\\AuditReports\\audit_rerun_subset_20260629_084823_codex_park_only.csv completed batch rerun_20260629_085335_c051ac35 with pipeline_exit_code=0, rows complete=3, progress processed=3/remuxed=3/failed=0, output_root=E:\\Videos\\Scratch_RerunWorkspace\\RerunParked\\rerun_20260629_085335_c051ac35\\Output, and no pending server-push files written since launch.",
+    "PASS: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths ops/pipeline/entrypoints/Invoke-RerunCsv.ps1 ops/pipeline/tests/Unit/Invoke-RerunPlanOnlyChecks.ps1 ops/pipeline/tests/Unit/Invoke-RerunNestedConfigChecks.ps1 ops/release/changes/unreleased/MP-CHANGE-2026-0629-001.json",
+    "BLOCKED: .\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage failed on unrelated dirty work: MP-CHANGE-2026-0629-003.json needs high/critical rollback notes, and src/mediapipeline/core/processes/rerun_preview.py plus tests/python/desktop/test_rerun_csv_preview.py are not listed in any unreleased packet."
+  ],
+  "rollback_plan": "Restore CSV rerun staging and parked-output roots to LocalBase\\RerunQueue and LocalBase\\RerunParked, remove the isolated rerun workspace manifest/log fields, remove LibraryProfiles rewrite behavior, remove live output-root precreation, and delete the nested-config regression test.",
+  "related_changes": [],
+  "notes": "This is a high-risk CSV rerun/pipeline pathing fix, but it does not weaken the global path-shape validator and does not enable source-mutating rerun modes. The worktree contains many unrelated dirty files and unreleased packets; this packet only claims the rerun wrapper, the two rerun unit tests, and their generated summaries."
+}

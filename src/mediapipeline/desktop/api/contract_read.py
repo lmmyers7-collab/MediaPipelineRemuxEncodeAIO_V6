@@ -268,6 +268,14 @@ LOCAL_API_INVENTORY_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
     },
     {
         "method": "GET",
+        "path": "/api/audit-sources",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_audit_sources.v1",
+        "purpose": "Read backend-owned Audit source roots and last scan metrics without scanning folders, launching work, saving settings, mutating queue state, or touching media files.",
+    },
+    {
+        "method": "GET",
         "path": "/api/pending-publish",
         "auth_required": True,
         "effect": "none",
@@ -397,6 +405,14 @@ LOCAL_API_WORKSPACE_READ_ROUTE_CONTRACT: tuple[dict[str, Any], ...] = (
         "effect": "none",
         "response_schema": "preset_library.v1",
         "purpose": "Read the backend State JSON PresetV2 library without saving active settings, launching work, mutating queue state, or touching media files.",
+    },
+    {
+        "method": "GET",
+        "path": "/api/libraries/summary",
+        "auth_required": True,
+        "effect": "none",
+        "response_schema": "desktop_libraries_summary.v1",
+        "purpose": "Read backend-authored saved LibraryProfiles summary rows with queue source scan media/sidecar aggregate counts and scan freshness without saving settings, scanning sources, launching work, mutating queue state, or touching media files.",
     },
     {
         "method": "GET",

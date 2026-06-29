@@ -65,10 +65,12 @@ def start_audit_for_service(
     library_root: str,
     include_sidecars: bool,
     show_console: bool,
+    library_roots: list[str] | None = None,
 ) -> subprocess.Popen[Any]:
     plan = build_audit_launch_plan(
         resolved,
         library_root=library_root,
+        library_roots=library_roots,
         include_sidecars=include_sidecars,
         default_report_root=service.app_root / "AuditReports",
     )

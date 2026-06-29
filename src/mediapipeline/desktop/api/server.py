@@ -22,6 +22,7 @@ from .http_helpers import (
     origin_header_authorized,
     request_authorized,
 )
+from .path_dialogs import select_windows_paths_with_dialog
 from .read_payloads import LocalApiReadPayloadMixin
 from .static_files import default_static_root, local_api_bootstrap, read_static_asset, render_index
 
@@ -87,6 +88,7 @@ class LocalApiServer(LocalApiReadPayloadMixin, LocalApiCommandHandlerMixin):
         self.shell_surface = str(shell_surface or "webview")
         self.startup_progress = dict(startup_progress or {})
         self.logger = logger or logging.getLogger(__name__)
+        self._path_picker = select_windows_paths_with_dialog
         resolved = self._resolved()
         self.command_journal = CommandJournal(
             path=command_journal_path,

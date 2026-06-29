@@ -717,6 +717,39 @@
     return "Ready";
   }
 
+  function focusMaintenanceQuickLinkTarget(selector) {
+    const target = selector ? document.querySelector(selector) : null;
+    if (!target) return false;
+    target.scrollIntoView?.({ block: "center", inline: "nearest" });
+    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
+      target.setAttribute("tabindex", "-1");
+    }
+    target.focus?.({ preventScroll: true });
+    return true;
+  }
+
+  function activateQuickLink(action) {
+    const normalized = String(action || "").trim().toLowerCase();
+    const rows = Array.isArray(lastMaintenance?.rows) ? lastMaintenance.rows : [];
+    if (normalized === "missing") {
+      const item = maintenanceRequiredMissingRows(rows)[0];
+      if (item) {
+        selectMaintenanceRow(item);
+        return focusMaintenanceQuickLinkTarget("#maintenance-detail");
+      }
+      return focusMaintenanceQuickLinkTarget("#maintenance-rows");
+    }
+    if (normalized === "warnings") {
+      const item = maintenanceOptionalWarningRows(rows)[0];
+      if (item) {
+        selectMaintenanceRow(item);
+        return focusMaintenanceQuickLinkTarget("#maintenance-detail");
+      }
+      return focusMaintenanceQuickLinkTarget("#maintenance-warnings") || focusMaintenanceQuickLinkTarget("#maintenance-toolchain");
+    }
+    return true;
+  }
+
   function maintenanceRealMediaBoundaryLines() {
     return [
       "Real-media validation boundary:",
@@ -1690,6 +1723,7 @@
     getLastMaintenance,
     getLastChangeLedger,
     renderMaintenance,
+    activateQuickLink,
     renderChangeLedger,
     renderChangeLedgerRows,
     renderChangeLedgerDetail,

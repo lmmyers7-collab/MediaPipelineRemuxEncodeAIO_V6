@@ -102,6 +102,12 @@ class LocalApiInventoryReadPayloadMixin:
             return read_unavailable_payload("audit controls")
         return self.facade.get_audit_controls(resolved)
 
+    def _audit_sources_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("audit sources")
+        return self.facade.get_audit_sources(resolved)
+
     def _pending_publish_payload(self) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

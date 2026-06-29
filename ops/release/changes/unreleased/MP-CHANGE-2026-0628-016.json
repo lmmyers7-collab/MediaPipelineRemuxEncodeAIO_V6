@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0628-016",
+  "title": "Default CSV rerun picker to audit reports",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-28",
+  "summary": "Default the Launch CSV rerun path picker to the resolved audit report export folder when the CSV field is empty.",
+  "reason": "Audit rerun CSV exports are written under the backend-resolved audit_reports_path, so Browse should open there by default instead of relying on the operating system's last picker location.",
+  "affected_areas": [
+    "api",
+    "generated",
+    "tests"
+  ],
+  "behavior_before": "The Launch rerun CSV Browse action sent an empty initial_path when the CSV Path field was empty, leaving the native file dialog to choose a generic or previous location.",
+  "behavior_after": "The backend path-picker command uses resolved.audit_reports_path as the initial path for launch.rerun_csv when the field is empty, while preserving an explicit staged CSV path when present.",
+  "files_touched": [
+    "docs/generated/summaries/src/mediapipeline/core/api/commands_path_picker.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_path_picker_command.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-016.json",
+    "src/mediapipeline/core/api/commands_path_picker.py",
+    "tests/python/desktop/test_path_picker_command.py"
+  ],
+  "tests_added": [
+    "tests/python/desktop/test_path_picker_command.py::PathPickerCommandTests.test_rerun_csv_browse_defaults_to_audit_reports_when_empty",
+    "tests/python/desktop/test_path_picker_command.py::PathPickerCommandTests.test_rerun_csv_browse_keeps_explicit_initial_path"
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_api_command_contracts tests.webview.test_webview_path_picker_badges -q - passed",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_path_picker_command -q - passed",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/api/commands_path_picker.py tests/python/desktop/test_path_picker_command.py - passed",
+    "py_compile commands_path_picker.py and test_path_picker_command.py - passed",
+    "validate_changes - passed",
+    "validate_changes --require-worktree-coverage - failed: pre-existing uncovered files docs/generated/summaries/apps/desktop/webview/static/assets/pathPicker.js.md, docs/generated/summaries/tests/webview/test_webview_path_picker_badges.py.md, tests/webview/test_webview_path_picker_badges.py"
+  ],
+  "rollback_plan": "Revert the commands_path_picker.py initial-path helper changes and the two path-picker unit tests, then refresh the same generated summaries.",
+  "related_changes": [],
+  "notes": "Default rerun CSV Browse dialog to resolved audit report export folder when the field is empty.\nCover rerun CSV picker audit-report default and explicit initial path precedence.\nRefreshed generated summary for the path picker command module.\nRefreshed generated summary for the path picker command tests."
+}

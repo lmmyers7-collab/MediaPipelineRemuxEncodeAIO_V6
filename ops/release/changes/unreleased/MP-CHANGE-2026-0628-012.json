@@ -1,0 +1,55 @@
+{
+  "id": "MP-CHANGE-2026-0628-012",
+  "title": "Audio language dropdown",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "medium",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-28",
+  "summary": "Added a primary default audio language dropdown with top-spoken-language labels and three-letter codes while preserving the existing PreferredDefaultAudioLanguages settings payload.",
+  "reason": "Audio language selection was a free-text field, making common language choices easy to mistype and hiding the three-letter language tag that the media pipeline compares against track metadata.",
+  "affected_areas": [
+    "config",
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Audio settings builder exposed PreferredDefaultAudioLanguages as a free-text comma-separated input with examples like english and eng.",
+  "behavior_after": "The Audio settings builder exposes a primary default-language dropdown, displays full language names plus three-letter codes, normalizes legacy saved names such as english to eng, and still writes PreferredDefaultAudioLanguages as a list for backend Preview/Save.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/settingsMetadata.js",
+    "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
+    "apps/desktop/webview/static/partials/page-settings.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsMetadata.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/settingsView.builders.audio.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-settings.html.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_choices.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_parts/basic_media_policy.py.md",
+    "docs/generated/summaries/src/mediapipeline/core/config/metadata_parts/field_display.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_settings.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-012.json",
+    "src/mediapipeline/core/config/metadata_choices.py",
+    "src/mediapipeline/core/config/metadata_parts/basic_media_policy.py",
+    "src/mediapipeline/core/config/metadata_parts/field_display.py",
+    "tests/python/desktop/test_application_facade_web_static_settings.py"
+  ],
+  "tests_added": [
+    "Updated tests/python/desktop/test_application_facade_web_static_settings.py to pin the Audio language dropdown and list-select builder behavior."
+  ],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_settings -q (PASS; rerun after metadata label update)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_workspace -q (PASS; rerun after metadata label update)",
+    ".\\ops\\scripts\\smoke\\Test-WebViewSettingsPatchEvidenceSmoke.ps1 (PASS)",
+    ".\\ops\\scripts\\smoke\\Test-WebViewSettingsLaunchPolicySmoke.ps1 (PASS; rerun after metadata label update)",
+    ".\\ops\\scripts\\smoke\\Test-WebViewSettingsLaunchLiveConfigSmoke.ps1 (PASS)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/settingsMetadata.js apps/desktop/webview/static/assets/settingsView.builders.audio.js apps/desktop/webview/static/partials/page-settings.html src/mediapipeline/core/config/metadata_choices.py src/mediapipeline/core/config/metadata_parts/basic_media_policy.py tests/python/desktop/test_application_facade_web_static_settings.py (PASS; 5 written, 1 unchanged)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/core/config/metadata_parts/field_display.py src/mediapipeline/core/config/metadata_parts/basic_media_policy.py apps/desktop/webview/static/assets/settingsMetadata.js (PASS; 3 written)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes (PASS; 797 packets valid)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (FAIL; 4 unrelated uncovered dirty path-picker files outside this change)",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\scripts\\release\\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke (FAIL after broader repo gates; unrelated config-key ordering, path-picker behavior, generated-context drift, duplicate-test report drift, and dependency-boundary failures)"
+  ],
+  "rollback_plan": "Revert the Audio dropdown markup, settings metadata labels/field kind, audio builder list-select normalization, backend language-choice metadata, and the matching static test assertions.",
+  "related_changes": [],
+  "notes": "Replace preferred audio language free-text field with a primary-language dropdown.\nNormalize dropdown language selections into the existing PreferredDefaultAudioLanguages list patch.\nMark audio language as a list-select control and add language choice labels.\nUpdate preferred audio language choices to the top spoken-language dropdown labels.\nExpose preferred audio language choices through backend settings metadata.\nPin the Audio settings language dropdown and builder list-select behavior.\nRefresh generated summary for the Audio language dropdown change.\nAlign backend display label/help with the primary default audio language selector.\nRefresh generated summary for field display metadata."
+}

@@ -3,9 +3,9 @@ file: src/mediapipeline/desktop/api/contract_read.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-26
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: b99dd353b7307c146870cc1f6b5235d2890e2f90fd0a2092a757dc8a00955807
+sha256: 87fe9193dac773037953e775f98f549bf96d8bc2db804243bf8c10647d8af238
 ---
 # `src/mediapipeline/desktop/api/contract_read.py`
 

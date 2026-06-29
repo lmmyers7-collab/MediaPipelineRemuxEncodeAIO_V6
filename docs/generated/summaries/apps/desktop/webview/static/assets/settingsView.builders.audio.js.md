@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsView.builders.audio.js
 pipeline_stage: audio
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-19
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: 49f4521dcaa3c26b7cf60b8430cad4591a9007fa399551cf4ef82813a2539ca2
+sha256: 0c9f74263715eb721f354065eeddc2e5e09a54782f51cc99d1d344bebc5e37d3
 ---
 # `apps/desktop/webview/static/assets/settingsView.builders.audio.js`
 

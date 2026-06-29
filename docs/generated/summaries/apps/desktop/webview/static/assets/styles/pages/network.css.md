@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/pages/network.css
 pipeline_stage: network
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-06-28
 last_reviewed: 2026-06-25
-sha256: 55d330b7825535d3f661cc570e846d1ffac785bb4420df200a61b09fc147a0fe
+sha256: 3ae87dd212ebfb03201c8ae5d70b42fb6e5fb68e59e8f98119faa048ccbed9e3
 ---
 # `apps/desktop/webview/static/assets/styles/pages/network.css`
 

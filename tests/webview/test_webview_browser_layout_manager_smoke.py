@@ -179,6 +179,84 @@ def _browser_layout_manager_runner_source() -> str:
                 }
               });
             }
+            function layoutContainerOrderKeyForPanel(panel) {
+              const panelKey = panel?.dataset?.panelKey || "";
+              const parts = panelKey.split("::");
+              if (parts.length < 2) throw new Error("cannot infer layout container key from " + panelKey);
+              parts.pop();
+              return "__order__" + parts.join("::");
+            }
+            async function requireStaleRemoteRefreshDoesNotRevertFlushedLayoutMove() {
+              window.showPage("completed");
+              openDrawer();
+              const overviewPane = document.querySelector('[data-page-panel="completed"] .settings-tab-pane[data-completed-tab="overview"]');
+              if (!overviewPane) throw new Error("missing Completed Overview pane for layout move regression");
+              const panels = Array.from(overviewPane.querySelectorAll(":scope > section.panel[data-panel-key]"));
+              const byHeading = Object.fromEntries(panels.map((panel) => [headingText(panel), panel]));
+              const currentPanel = byHeading["Current Output Status"];
+              const whyPanel = byHeading["Why This Output Looks Different"];
+              const finalPanel = byHeading["Final Library Promotion"];
+              if (!currentPanel || !whyPanel || !finalPanel) {
+                throw new Error("missing Completed panels for layout move regression: " + panels.map(headingText).join(" | "));
+              }
+              const orderKey = layoutContainerOrderKeyForPanel(currentPanel);
+              const authoredOrder = panels.map((panel) => panel.dataset.panelKey || "");
+              const staleOrder = authoredOrder.filter((key) => key && key !== whyPanel.dataset.panelKey);
+              const finalIndex = staleOrder.indexOf(finalPanel.dataset.panelKey || "");
+              if (finalIndex < 0) throw new Error("cannot place stale Completed order after Final Library Promotion");
+              staleOrder.splice(finalIndex + 1, 0, whyPanel.dataset.panelKey || "");
+              const staleLayout = storedLayoutState();
+              staleLayout[orderKey] = staleOrder;
+              const stalePreferences = sharedPreferenceSnapshot();
+              stalePreferences["mediapipeline-layout-v1"] = JSON.stringify(staleLayout);
+              await withStaleUiPreferences(stalePreferences, async (postedPreferences) => {
+                localStorage.setItem("mediapipeline-layout-v1", JSON.stringify(staleLayout));
+                window.mediaPipelineAppLayoutManager.applyStoredLayoutPreferences();
+                openDrawer();
+                let staleHeadings = panelOrderIn(overviewPane);
+                if (staleHeadings.indexOf("Why This Output Looks Different") <= staleHeadings.indexOf("Final Library Promotion")) {
+                  throw new Error("stale Completed layout setup did not place Why after Final Library Promotion: " + staleHeadings.join(" | "));
+                }
+                let guard = 0;
+                while (
+                  panelOrderIn(overviewPane).indexOf("Why This Output Looks Different")
+                    > panelOrderIn(overviewPane).indexOf("Current Output Status") + 1
+                ) {
+                  requireDrawerPanel("completed", "Why This Output Looks Different").querySelectorAll(".layout-editor-move-button")[0].click();
+                  guard += 1;
+                  if (guard > 10) throw new Error("could not move Why This Output Looks Different below Current Output Status");
+                }
+                const movedHeadings = panelOrderIn(overviewPane);
+                if (movedHeadings[movedHeadings.indexOf("Current Output Status") + 1] !== "Why This Output Looks Different") {
+                  throw new Error("Completed layout move did not place Why after Current Output Status: " + movedHeadings.join(" | "));
+                }
+                const currentKey = currentPanel.dataset.panelKey || "";
+                const whyKey = whyPanel.dataset.panelKey || "";
+                let lastPostedOrder = "";
+                let flushed = false;
+                for (let attempt = 0; attempt < 25; attempt += 1) {
+                  const savedLayout = JSON.parse((postedPreferences() || {})["mediapipeline-layout-v1"] || "{}");
+                  const savedOrderEntry = Object.entries(savedLayout).find(([, value]) => (
+                    Array.isArray(value) && value.includes(currentKey) && value.includes(whyKey)
+                  ));
+                  const savedOrder = savedOrderEntry ? savedOrderEntry[1] : [];
+                  lastPostedOrder = savedOrder.join(" | ");
+                  if (savedOrder[savedOrder.indexOf(currentKey) + 1] === whyKey) {
+                    flushed = true;
+                    break;
+                  }
+                  await new Promise((resolve) => setTimeout(resolve, 100));
+                }
+                if (!flushed) {
+                  throw new Error("flushed Completed layout preference did not keep Why after Current Output Status: " + lastPostedOrder);
+                }
+                await restoreUiPreferencesLikeTauriRefresh();
+                const afterRefreshHeadings = panelOrderIn(overviewPane);
+                if (afterRefreshHeadings[afterRefreshHeadings.indexOf("Current Output Status") + 1] !== "Why This Output Looks Different") {
+                  throw new Error("stale remote UI preferences reverted a flushed layout move: " + afterRefreshHeadings.join(" | "));
+                }
+              });
+            }
             function drawerRowByHeading(heading) {
               return drawerRows().find((row) => drawerRowText(row) === heading);
             }
@@ -300,6 +378,7 @@ def _browser_layout_manager_runner_source() -> str:
             openDrawer();
             assertEmptyStateCustomizeOpenOnly();
             await requireStaleRemoteRefreshDoesNotRevertSharedPreference();
+            await requireStaleRemoteRefreshDoesNotRevertFlushedLayoutMove();
             const required = {
               queue: ["Queue Decision", "Attention Required", "Queue Rows", "Backend Launch Scope Boundary", "Queue-to-Launch Handoff", "Queue Readiness Checklist"],
               completed: ["Overview", "Output Trust Decision", "Current Output Status", "Completed History Summary", "File And Size Proof", "Publish And Pending Proof", "Integrity Check", "Diagnostics Links"],
@@ -443,9 +522,9 @@ def _browser_layout_manager_runner_source() -> str:
             openDrawer();
             const overviewPaneForReset = document.querySelector('[data-page-panel="completed"] .settings-tab-pane[data-completed-tab="overview"]');
             const beforeOverviewResetOrder = panelOrderIn(overviewPaneForReset);
-            const promotionRow = requireDrawerPanel("completed", "Final Library Promotion");
-            promotionRow.click();
-            promotionRow.querySelectorAll(".layout-editor-move-button")[1].click();
+            const completedDetailRow = requireDrawerPanel("completed", "Why This Output Looks Different");
+            completedDetailRow.click();
+            completedDetailRow.querySelectorAll(".layout-editor-move-button")[1].click();
             const movedOverviewOrder = panelOrderIn(overviewPaneForReset);
             if (beforeOverviewResetOrder.join("|") === movedOverviewOrder.join("|")) throw new Error("drawer move did not change Completed Overview order before reset");
             click("layout-editor-reset-subtab");

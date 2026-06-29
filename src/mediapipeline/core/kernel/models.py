@@ -52,6 +52,10 @@ class AuditRecord:
         return self.row.get("RelativePath", "").strip()
 
     @property
+    def source_root(self) -> str:
+        return self.row.get("SourceRoot", "").strip()
+
+    @property
     def lookup_title(self) -> str:
         raw = self.row.get("LookupTitle", "").strip()
         if self.media_type == "TV" and (_is_season_only_lookup(raw) or not raw):

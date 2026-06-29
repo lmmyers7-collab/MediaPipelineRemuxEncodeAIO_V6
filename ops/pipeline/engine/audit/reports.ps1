@@ -40,6 +40,7 @@ function Convert-ResultForSerialization {
 
     return [pscustomobject]@{
         Path                    = $Result.Path
+        SourceRoot              = $Result.SourceRoot
         RelativePath            = $Result.RelativePath
         FileName                = $Result.FileName
         MediaType               = $Result.MediaType
@@ -111,7 +112,10 @@ function Write-TextReport {
     $lines.Add("Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')")
     $lines.Add('')
     $lines.Add("Audit version       : $($script:AuditVersion)")
-    $lines.Add("Library root        : $($script:LibraryRootResolved)")
+    $lines.Add("Library root count  : $(@($script:LibraryRootsResolved).Count)")
+    foreach ($resolvedRoot in @($script:LibraryRootsResolved)) {
+        $lines.Add("Library root        : $resolvedRoot")
+    }
     $lines.Add("Report root         : $($script:ReportRootResolved)")
     $lines.Add("Config path         : $(if ($script:ConfigPathResolved) { $script:ConfigPathResolved } else { '(none)' })")
     $lines.Add("ffprobe             : $($script:FfprobePath)")
@@ -196,6 +200,7 @@ function New-AuditCsvRows {
             PrimarySuggestedAction  = $_.PrimarySuggestedAction
             MediaType               = $_.MediaType
             LookupTitle             = $_.LookupTitle
+            SourceRoot              = $_.SourceRoot
             RelativePath            = $_.RelativePath
             Path                    = $_.Path
             SizeGB                  = $_.SizeGB
@@ -290,6 +295,7 @@ function Get-AuditCsvColumnNames {
         'PrimarySuggestedAction',
         'MediaType',
         'LookupTitle',
+        'SourceRoot',
         'RelativePath',
         'Path',
         'SizeGB',
@@ -384,6 +390,7 @@ function Write-AuditReportBundle {
             audit_version        = $script:AuditVersion
             generated_at         = (Get-Date -Format 'o')
             library_root         = $script:LibraryRootResolved
+            library_roots        = @($script:LibraryRootsResolved)
             report_root          = $script:ReportRootResolved
             config_path          = $script:ConfigPathResolved
             ffprobe_path         = $script:FfprobePath
@@ -461,4 +468,3 @@ function Write-AuditReportBundle {
         WrotePriorityCsv     = [bool]$wrotePriorityCsv
     }
 }
-

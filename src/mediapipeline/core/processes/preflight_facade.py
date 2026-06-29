@@ -934,7 +934,7 @@ class ProcessFacadeMixin:
                 "CSV rerun safety modes",
                 "ready" if modes_supported else "blocked",
                 f"stage={stage_mode}; original={original_mode}; return={return_mode}; dry_run={dry_run}; plan_only={plan_only}",
-                "WebView rerun start is intentionally limited to copy / keep / park.",
+                "Choose copy / keep / park before execution; move, delete, and replace_original are blocked source-mutating or in-place policies.",
                 detail=[] if modes_supported else [CSV_RERUN_MODE_ERROR],
             ),
             self._process_launch_lock_preflight_check("CSV rerun preflight"),
@@ -951,8 +951,8 @@ class ProcessFacadeMixin:
                 "media_safety_policy",
                 "Media safety policy",
                 "ready",
-                "copy to scratch; keep originals; park returned outputs.",
-                "Rerun remains backend-owned and should not mutate source files.",
+                "execution-safe policy is copy to scratch; keep originals; park returned outputs.",
+                "Rerun remains backend-owned and blocks source mutation or in-place replacement before process launch.",
             ),
         ]
         return checks, normalized, "/api/rerun/start"

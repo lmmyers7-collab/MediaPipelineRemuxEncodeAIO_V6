@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/launch/startRequest.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-22
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: f44eb37e9c493994f14ccb308c746fcd66a25887077250b855747d9f306b1ccb
+sha256: 55cccb4e3da7a344c3eff305c72a19f7b6a93934fdda440612072bb1f1ec7329
 ---
 # `apps/desktop/webview/static/assets/launch/startRequest.js`
 

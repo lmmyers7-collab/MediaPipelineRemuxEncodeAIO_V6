@@ -81,6 +81,10 @@
   min-width: 22rem;
 }
 
+#queue-filter-summary {
+  display: none !important;
+}
+
 .queue-filter-summary {
   border-left: 3px solid var(--semantic-info-border);
   white-space: pre-wrap;

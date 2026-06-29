@@ -22,8 +22,33 @@ def _command_result(**kwargs: Any) -> "CommandResult":
     return CommandResult(**kwargs)
 
 
+def _clean_library_root(value: Any) -> str:
+    return str(value or "").strip()
+
+
+def resolve_audit_library_roots(request: dict[str, Any], config_data: dict[str, Any]) -> list[str]:
+    roots: list[str] = []
+    seen: set[str] = set()
+    raw_roots = request.get("library_roots")
+    values = raw_roots if isinstance(raw_roots, list) else []
+    if not values:
+        values = [request.get("library_root")]
+    for value in values:
+        root = _clean_library_root(value)
+        key = root.replace("/", "\\").rstrip("\\").casefold()
+        if not root or key in seen:
+            continue
+        seen.add(key)
+        roots.append(root)
+    if roots:
+        return roots
+    fallback = _clean_library_root(config_data.get(KEY_OUTSOURCE))
+    return [fallback] if fallback else []
+
+
 def resolve_audit_library_root(request: dict[str, Any], config_data: dict[str, Any]) -> str:
-    return str(request.get("library_root") or config_data.get(KEY_OUTSOURCE) or "").strip()
+    roots = resolve_audit_library_roots(request, config_data)
+    return roots[0] if roots else ""
 
 
 def audit_start_success_message(pid: int) -> str:
@@ -33,13 +58,17 @@ def audit_start_success_message(pid: int) -> str:
 def audit_start_success_data(
     *,
     library_root: str,
+    library_roots: list[str] | None = None,
     include_sidecars: bool,
     pid: int,
     launch_prep_messages: list[str],
     launch_logs: str,
 ) -> dict[str, Any]:
+    roots = list(library_roots or ([library_root] if library_root else []))
     return {
         "library_root": library_root,
+        "library_roots": roots,
+        "library_root_count": len(roots),
         "include_sidecars": include_sidecars,
         "pid": pid,
         "launch_prep": launch_prep_messages,
@@ -94,6 +123,7 @@ def audit_start_exception_result(exc: Exception) -> "CommandResult":
 def audit_start_success_result(
     *,
     library_root: str,
+    library_roots: list[str] | None = None,
     include_sidecars: bool,
     pid: int,
     launch_prep_messages: list[str],
@@ -107,6 +137,7 @@ def audit_start_success_result(
         refresh_hint="snapshot",
         data=audit_start_success_data(
             library_root=library_root,
+            library_roots=library_roots,
             include_sidecars=include_sidecars,
             pid=pid,
             launch_prep_messages=launch_prep_messages,
@@ -178,6 +209,7 @@ __all__ = [
     "AUDIT_STOP_COMMAND",
     "AUDIT_LIBRARY_ROOT_ERROR",
     "AUDIT_STOP_CONFIRM_ERROR",
+    "resolve_audit_library_roots",
     "resolve_audit_library_root",
     "audit_start_success_message",
     "audit_start_success_data",

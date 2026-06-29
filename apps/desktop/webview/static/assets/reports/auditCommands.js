@@ -1,5 +1,5 @@
 // reports/auditCommands.js
-// Audit command request, progress, saved-location, refresh, and result helpers for reportsView.js.
+// Audit command request, source table, progress, refresh, and result helpers for reportsView.js.
 
 (function () {
   "use strict";
@@ -22,8 +22,6 @@
     const selectedAuditRowKeysList = typeof deps.selectedAuditRowKeysList === "function" ? deps.selectedAuditRowKeysList : function () { return []; };
     const setButtonsBusy = typeof deps.setButtonsBusy === "function" ? deps.setButtonsBusy : noop;
     const setText = typeof deps.setText === "function" ? deps.setText : noop;
-    const REPORT_AUDIT_SAVED_LOCATIONS_STORAGE_KEY = "mediapipeline-report-audit-locations.v1";
-    const REPORT_AUDIT_SAVED_LOCATION_LIMIT = 10;
     const REPORT_AUDIT_POST_START_REFRESH_DELAYS_MS = [1000, 3000, 7000, 15000, 30000];
     const REPORT_AUDIT_BACKEND_ACTIVE_FRESH_MS = 10 * 60 * 1000;
 
@@ -35,130 +33,224 @@
     return reportAuditLocationText(value).replace(/[\\/]+$/g, "").replace(/\//g, "\\").toLowerCase();
   }
 
-  function normalizeReportAuditSavedLocations(values) {
-    const locations = [];
-    const seen = new Set();
-    (Array.isArray(values) ? values : []).forEach((value) => {
-      const location = reportAuditLocationText(value);
-      const key = reportAuditLocationKey(location);
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      locations.push(location);
+  function reportAuditPositiveInteger(value) {
+    const numeric = Number(value);
+    return Number.isFinite(numeric) ? Math.max(0, Math.round(numeric)) : 0;
+  }
+
+  function formatReportAuditSourceTimestamp(value) {
+    const raw = reportAuditLocationText(value);
+    if (!raw) return "-";
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return parsed.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
     });
-    return locations.slice(0, REPORT_AUDIT_SAVED_LOCATION_LIMIT);
   }
 
-  function readReportAuditSavedLocations() {
-    try {
-      const parsed = JSON.parse(localStorage.getItem(REPORT_AUDIT_SAVED_LOCATIONS_STORAGE_KEY) || "[]");
-      reportsState.lastReportAuditSavedLocations = normalizeReportAuditSavedLocations(parsed);
-    } catch (_) {
-      reportsState.lastReportAuditSavedLocations = normalizeReportAuditSavedLocations(reportsState.lastReportAuditSavedLocations);
+  function reportAuditSourceRows(payload = reportsState.lastReportAuditSources) {
+    const roots = Array.isArray(payload?.roots) ? payload.roots : [];
+    return roots.filter((row) => row && typeof row === "object");
+  }
+
+  function reportAuditSourceId(row) {
+    return reportAuditLocationText(row?.source_id) || reportAuditLocationKey(row?.path);
+  }
+
+  function reportAuditSelectedSourceIds() {
+    if (!(reportsState.selectedReportAuditSourceIds instanceof Set)) {
+      reportsState.selectedReportAuditSourceIds = new Set();
     }
-    return [...reportsState.lastReportAuditSavedLocations];
+    return reportsState.selectedReportAuditSourceIds;
   }
 
-  function writeReportAuditSavedLocations(locations) {
-    reportsState.lastReportAuditSavedLocations = normalizeReportAuditSavedLocations(locations);
-    try {
-      localStorage.setItem(REPORT_AUDIT_SAVED_LOCATIONS_STORAGE_KEY, JSON.stringify(reportsState.lastReportAuditSavedLocations));
-    } catch (_) {}
-    return [...reportsState.lastReportAuditSavedLocations];
+  function selectedReportAuditSourceRows() {
+    const selectedIds = reportAuditSelectedSourceIds();
+    return reportAuditSourceRows().filter((row) => selectedIds.has(reportAuditSourceId(row)));
   }
 
-  function renderReportAuditSavedLocations(message = "") {
-    const locations = readReportAuditSavedLocations();
-    const input = byId("report-audit-start-library-root");
-    const select = byId("report-audit-saved-location-select");
-    const currentLocation = reportAuditLocationText(input?.value);
-    const currentKey = reportAuditLocationKey(currentLocation);
-    const matchingLocation = locations.find((location) => reportAuditLocationKey(location) === currentKey) || "";
-    if (select) {
-      const previousValue = select.value;
-      select.replaceChildren();
-      const placeholder = document.createElement("option");
-      placeholder.value = "";
-      placeholder.textContent = locations.length ? "Select saved location" : "No saved locations";
-      select.appendChild(placeholder);
-      locations.forEach((location, index) => {
-        const option = document.createElement("option");
-        option.value = location;
-        option.textContent = `${index + 1}. ${location}`;
-        select.appendChild(option);
+  function appendReportAuditSourceCell(row, value, className = "") {
+    const cell = document.createElement("td");
+    cell.textContent = value;
+    if (className) cell.className = className;
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function formatReportAuditSourceCount(value, truncated) {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return "-";
+    return `${truncated ? "~" : ""}${reportAuditPositiveInteger(numeric).toLocaleString()}`;
+  }
+
+  function reportAuditSourceStatusLabel(row) {
+    const enabled = row?.enabled !== false;
+    if (!enabled) return "Disabled";
+    const status = String(row?.scan_status || row?.last_scan_status || "not_scanned").toLowerCase();
+    if (status === "complete" || status === "completed") return "Complete";
+    if (status === "partial") return "Partial";
+    if (status === "warning") return "Warning";
+    if (status === "unreachable") return "Unavailable";
+    if (status === "blocked" || status === "error" || status === "failed") return "Error";
+    return "Not scanned";
+  }
+
+  function syncReportAuditSelectionWithSources(rows) {
+    const selectedIds = reportAuditSelectedSourceIds();
+    const availableIds = new Set(rows.map(reportAuditSourceId).filter(Boolean));
+    Array.from(selectedIds).forEach((sourceId) => {
+      if (!availableIds.has(sourceId)) selectedIds.delete(sourceId);
+    });
+  }
+
+  function updateReportAuditSourceSelectionStatus(rows = reportAuditSourceRows(), message = "") {
+    const selectedRows = selectedReportAuditSourceRows();
+    const enabledRows = rows.filter((row) => row?.enabled !== false);
+    setText("report-audit-source-status", rows.length ? `${selectedRows.length}/${rows.length} selected` : "No sources");
+    setText(
+      "report-audit-source-selection-status",
+      message || (rows.length
+        ? `${selectedRows.length} selected; ${enabledRows.length}/${rows.length} enabled. Start Audit uses selected rows.`
+        : "Add a location to scan, then select one or more locations before starting an audit.")
+    );
+    const hasRows = rows.length > 0;
+    const hasSelection = selectedRows.length > 0;
+    const scanSelected = byId("report-audit-scan-selected-button");
+    if (scanSelected) scanSelected.disabled = reportsState.reportAuditCommandBusy || !hasSelection;
+    const scanAll = byId("report-audit-scan-all-button");
+    if (scanAll) scanAll.disabled = reportsState.reportAuditCommandBusy || !hasRows;
+    const clearSelection = byId("report-audit-clear-source-selection-button");
+    if (clearSelection) clearSelection.disabled = !hasSelection;
+    renderReportAuditLaunchPreflight();
+  }
+
+  function setReportAuditSourceSelection(sourceId, selected) {
+    const selectedIds = reportAuditSelectedSourceIds();
+    if (selected) selectedIds.add(sourceId);
+    else selectedIds.delete(sourceId);
+    renderReportAuditSources(reportsState.lastReportAuditSources);
+  }
+
+  function selectAllReportAuditSources() {
+    const selectedIds = reportAuditSelectedSourceIds();
+    reportAuditSourceRows().forEach((row) => {
+      if (row?.enabled === false) return;
+      const sourceId = reportAuditSourceId(row);
+      if (sourceId) selectedIds.add(sourceId);
+    });
+    renderReportAuditSources(reportsState.lastReportAuditSources);
+  }
+
+  function clearReportAuditSourceSelection() {
+    reportAuditSelectedSourceIds().clear();
+    renderReportAuditSources(reportsState.lastReportAuditSources);
+  }
+
+  function selectOnlyReportAuditSource(sourceId) {
+    const selectedIds = reportAuditSelectedSourceIds();
+    selectedIds.clear();
+    if (sourceId) selectedIds.add(sourceId);
+    renderReportAuditSources(reportsState.lastReportAuditSources);
+  }
+
+  function renderReportAuditSourceRows(rows) {
+    const tbody = byId("report-audit-source-rows");
+    if (!tbody) return;
+    tbody.replaceChildren();
+    if (!rows.length) {
+      const row = document.createElement("tr");
+      appendReportAuditSourceCell(row, "No audit source locations configured. Add a location to scan.", "");
+      row.children[0].colSpan = 8;
+      tbody.appendChild(row);
+      return;
+    }
+    const selectedIds = reportAuditSelectedSourceIds();
+    rows.forEach((source, index) => {
+      const row = document.createElement("tr");
+      const sourceId = reportAuditSourceId(source);
+      const selected = Boolean(sourceId && selectedIds.has(sourceId));
+      const enabled = source?.enabled !== false;
+      row.dataset.auditSourceRow = sourceId;
+      row.classList.toggle("is-selected", selected);
+      row.tabIndex = 0;
+      row.setAttribute("aria-selected", selected ? "true" : "false");
+      row.addEventListener("click", (event) => {
+        if (event.target?.closest?.("button,input")) return;
+        if (!enabled) return;
+        setReportAuditSourceSelection(sourceId, !selectedIds.has(sourceId));
       });
-      select.value = matchingLocation || (locations.includes(previousValue) ? previousValue : "");
-    }
-    const newLocationAtLimit = Boolean(currentKey)
-      && !locations.some((location) => reportAuditLocationKey(location) === currentKey)
-      && locations.length >= REPORT_AUDIT_SAVED_LOCATION_LIMIT;
-    const saveButton = byId("report-audit-save-location-button");
-    if (saveButton) saveButton.disabled = !currentKey || newLocationAtLimit;
-    const removeButton = byId("report-audit-remove-location-button");
-    const removableLocation = reportAuditLocationText(select?.value || matchingLocation);
-    if (removeButton) removeButton.disabled = !locations.length || !removableLocation;
-    const lines = [`Saved audit locations: ${locations.length}/${REPORT_AUDIT_SAVED_LOCATION_LIMIT}`];
-    if (message) lines.push(message);
-    if (locations.length) {
-      locations.forEach((location, index) => lines.push(`${index + 1}. ${location}`));
-    } else {
-      lines.push("No saved audit locations.");
-    }
-    if (newLocationAtLimit) {
-      lines.push("Saved location limit reached; remove one before saving a new location.");
-    }
-    lines.push("Start Audit submits one staged library root; saved locations only change the staged input.");
-    setText("report-audit-location-summary", lines.join("\n"));
+      row.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        event.preventDefault();
+        if (!enabled) return;
+        setReportAuditSourceSelection(sourceId, !selectedIds.has(sourceId));
+      });
+
+      const selectCell = document.createElement("td");
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.checked = selected;
+      checkbox.disabled = !enabled;
+      checkbox.dataset.auditSourceAction = "select";
+      checkbox.dataset.auditSourceId = sourceId;
+      checkbox.setAttribute("aria-label", `Select audit source ${source.path || index + 1}`);
+      checkbox.addEventListener("change", () => setReportAuditSourceSelection(sourceId, checkbox.checked));
+      selectCell.appendChild(checkbox);
+      row.appendChild(selectCell);
+
+      const pathCell = appendReportAuditSourceCell(row, source.path || "", "path-cell");
+      pathCell.title = source.path || "";
+      appendReportAuditSourceCell(row, reportAuditSourceStatusLabel(source), "");
+      appendReportAuditSourceCell(row, formatReportAuditSourceCount(source.media_file_count, source.counts_truncated), "numeric-cell");
+      appendReportAuditSourceCell(row, formatReportAuditSourceCount(source.sidecar_file_count, source.counts_truncated), "numeric-cell");
+      appendReportAuditSourceCell(row, formatReportAuditSourceCount(source.folder_count, source.counts_truncated), "numeric-cell");
+      appendReportAuditSourceCell(row, formatReportAuditSourceTimestamp(source.last_scan_utc), "");
+      const actionCell = document.createElement("td");
+      actionCell.className = "report-audit-source-actions";
+      const runButton = document.createElement("button");
+      runButton.type = "button";
+      runButton.className = "secondary-button";
+      runButton.dataset.auditSourceAction = "run";
+      runButton.dataset.auditSourceId = sourceId;
+      runButton.textContent = "Run";
+      runButton.disabled = !enabled || reportsState.reportAuditCommandBusy || reportsState.reportAuditStartBusy;
+      runButton.addEventListener("click", () => {
+        selectOnlyReportAuditSource(sourceId);
+        startReportAuditFromForm();
+      });
+      const scanButton = document.createElement("button");
+      scanButton.type = "button";
+      scanButton.className = "secondary-button";
+      scanButton.dataset.auditSourceAction = "scan";
+      scanButton.dataset.auditSourceId = sourceId;
+      scanButton.textContent = "Scan";
+      scanButton.disabled = !enabled || Boolean(reportsState.reportAuditCommandBusy);
+      scanButton.addEventListener("click", () => scanReportAuditSources([sourceId]));
+      const removeButton = document.createElement("button");
+      removeButton.type = "button";
+      removeButton.className = "secondary-button";
+      removeButton.dataset.auditSourceAction = "remove";
+      removeButton.dataset.auditSourceId = sourceId;
+      removeButton.textContent = "Remove";
+      removeButton.disabled = Boolean(reportsState.reportAuditCommandBusy);
+      removeButton.addEventListener("click", () => removeReportAuditSource(sourceId));
+      actionCell.append(runButton, scanButton, removeButton);
+      row.appendChild(actionCell);
+      tbody.appendChild(row);
+      row.style.setProperty("--audit-source-index", String(index + 1));
+    });
   }
 
-  function saveReportAuditLocationFromForm() {
-    const location = reportAuditLocationText(byId("report-audit-start-library-root")?.value);
-    const key = reportAuditLocationKey(location);
-    if (!key) {
-      renderReportAuditSavedLocations("Enter a library root before saving it.");
-      return;
-    }
-    const locations = readReportAuditSavedLocations();
-    const withoutLocation = locations.filter((item) => reportAuditLocationKey(item) !== key);
-    if (withoutLocation.length === locations.length && locations.length >= REPORT_AUDIT_SAVED_LOCATION_LIMIT) {
-      renderReportAuditSavedLocations("Saved location limit reached; remove one before saving a new location.");
-      return;
-    }
-    writeReportAuditSavedLocations([location, ...withoutLocation]);
-    renderReportAuditSavedLocations(withoutLocation.length === locations.length ? "Saved audit location." : "Updated saved audit location.");
-    renderReportAuditLaunchPreflight();
-  }
-
-  function removeReportAuditLocationFromForm() {
-    const select = byId("report-audit-saved-location-select");
-    const input = byId("report-audit-start-library-root");
-    const target = reportAuditLocationText(select?.value || input?.value);
-    const targetKey = reportAuditLocationKey(target);
-    if (!targetKey) {
-      renderReportAuditSavedLocations("Select a saved location before removing it.");
-      return;
-    }
-    const locations = readReportAuditSavedLocations();
-    const nextLocations = locations.filter((location) => reportAuditLocationKey(location) !== targetKey);
-    if (nextLocations.length === locations.length) {
-      renderReportAuditSavedLocations("That location is not saved.");
-      return;
-    }
-    writeReportAuditSavedLocations(nextLocations);
-    if (select) select.value = "";
-    renderReportAuditSavedLocations("Removed saved audit location.");
-    renderReportAuditLaunchPreflight();
-  }
-
-  function selectReportAuditSavedLocation(value) {
-    const location = reportAuditLocationText(value);
-    if (!location) {
-      renderReportAuditSavedLocations();
-      return;
-    }
-    const input = byId("report-audit-start-library-root");
-    if (input) input.value = location;
-    renderReportAuditLaunchPreflight();
-    renderReportAuditSavedLocations();
+  function renderReportAuditSources(payload = reportsState.lastReportAuditSources, message = "") {
+    reportsState.lastReportAuditSources = payload && typeof payload === "object" ? payload : {};
+    const rows = reportAuditSourceRows();
+    syncReportAuditSelectionWithSources(rows);
+    renderReportAuditSourceRows(rows);
+    updateReportAuditSourceSelectionStatus(rows, message);
   }
 
   function formatReportAuditElapsed(startedAtMs) {
@@ -220,6 +312,7 @@
       elapsed: formatReportAuditElapsed(startedAtMs),
       pid: data.pid || "",
       libraryRoot: data.library_root || request.library_root || "",
+      libraryRoots: Array.isArray(data.library_roots) ? data.library_roots : Array.isArray(request.library_roots) ? request.library_roots : [],
       includeSidecars: data.include_sidecars ?? request.include_sidecars,
       result,
       request,
@@ -265,6 +358,7 @@
       elapsed: formatReportAuditElapsed(startedAtMs),
       pid: "",
       libraryRoot: auditProgress.library_root || auditProgress.LibraryRoot || "",
+      libraryRoots: Array.isArray(auditProgress.library_roots) ? auditProgress.library_roots : [],
       includeSidecars: auditProgress.include_sidecars ?? auditProgress.IncludeSidecars,
       result: null,
       request: null,
@@ -302,6 +396,7 @@
           started_at: new Date(evidence.startedAtMs).toISOString(),
           current_operation: "Backend accepted audit start; waiting for audit_progress.json.",
           library_root: evidence.libraryRoot,
+          library_roots: evidence.libraryRoots || [],
           include_sidecars: Boolean(evidence.includeSidecars),
         };
     base.progress_bars = [
@@ -358,7 +453,7 @@
     if (button) {
       button.disabled = disabled;
       button.setAttribute("aria-busy", String(Boolean(reportsState.reportAuditStartBusy || evidence)));
-      button.textContent = evidence ? "Audit Running" : "Start Audit";
+      button.textContent = evidence ? "Audit Running" : "Start Audit Selected";
     }
     if (stopButton) {
       const stopBusy = reportsState.reportAuditCommandBusy === "audit.stop";
@@ -401,7 +496,8 @@
         `Running indicator: ${evidence.stale ? "stale active" : "active"}`,
         `Elapsed: ${evidence.elapsed}`,
         `PID: ${evidence.pid || "not reported"}`,
-        `Library root: ${evidence.libraryRoot || request.library_root || "(backend configured Outsource fallback)"}`,
+        `Locations: ${(evidence.libraryRoots || request.library_roots || []).length || 1}`,
+        `Primary location: ${evidence.libraryRoot || request.library_root || "(backend configured Outsource fallback)"}`,
         "ETA: unavailable until backend audit progress reports file count and elapsed evidence.",
         `Progress source: backend audit_progress.json when present; otherwise local accepted-start state.${evidence.stale ? " Snapshot is stale." : ""}`,
       ].join("\n"));
@@ -459,21 +555,30 @@
   }
 
   function collectReportAuditStartRequest() {
+    const selectedRows = selectedReportAuditSourceRows();
+    const selectedRoots = selectedRows.map((row) => reportAuditLocationText(row.path)).filter(Boolean);
+    const sourceIds = selectedRows.map(reportAuditSourceId).filter(Boolean);
+    const typedRoot = String(byId("report-audit-start-library-root")?.value || "").trim();
+    const libraryRoots = selectedRoots.length ? selectedRoots : (typedRoot ? [typedRoot] : []);
     return {
-      library_root: String(byId("report-audit-start-library-root")?.value || "").trim(),
+      library_root: libraryRoots[0] || "",
+      library_roots: libraryRoots,
+      source_ids: sourceIds,
       include_sidecars: Boolean(byId("report-audit-start-include-sidecars")?.checked),
       show_console: Boolean(byId("report-audit-start-show-console")?.checked),
     };
   }
 
   function reportAuditLaunchPreflightLines(request = collectReportAuditStartRequest()) {
-    const savedLocations = readReportAuditSavedLocations();
+    const roots = Array.isArray(request.library_roots) ? request.library_roots.filter(Boolean) : [];
     const lines = [
       "Reports audit start request:",
-      `Library root: ${request.library_root || "(backend configured Outsource fallback)"}`,
-      `Saved locations: ${savedLocations.length}/${REPORT_AUDIT_SAVED_LOCATION_LIMIT}`,
+      `Selected locations: ${roots.length || (request.library_root ? 1 : 0)}`,
+      `Primary location: ${request.library_root || "(backend configured Outsource fallback)"}`,
       `Include sidecars: ${request.include_sidecars ? "yes" : "no"}`,
       `Show console: ${request.show_console ? "yes" : "no"}`,
+      ...roots.slice(0, 5).map((root, index) => `Location ${index + 1}: ${root}`),
+      ...(roots.length > 5 ? [`Additional locations: ${roots.length - 5}`] : []),
       "Readiness preview: informational only; this is not a backend dry-run.",
       "Boundary: Reports submits /api/audit/start only after confirmation. Backend launch locking, config identity, duplicate-audit detection, and audit/pipeline concurrency policy remain authoritative.",
       "Concurrency: an active backend pipeline does not by itself block audit start; an active audit or CSV rerun still blocks this request.",
@@ -483,6 +588,123 @@
 
   function renderReportAuditLaunchPreflight(request = collectReportAuditStartRequest()) {
     setText("report-audit-launch-preflight", reportAuditLaunchPreflightLines(request).join("\n"));
+  }
+
+  function renderReportAuditSourceCommandResult(result, request) {
+    setText("report-audit-launch-status", result?.ok ? "Updated" : "Blocked");
+    setText("report-audit-launch-detail", formatReportAuditCommandDetail(result, request));
+    const auditSources = result?.data?.audit_sources;
+    if (auditSources && typeof auditSources === "object") {
+      renderReportAuditSources(auditSources, result?.message || "");
+    } else if (result?.ok === false) {
+      updateReportAuditSourceSelectionStatus(
+        reportAuditSourceRows(),
+        result?.message || "Audit source command failed."
+      );
+    }
+  }
+
+  async function addReportAuditSourceFromForm() {
+    if (reportsState.reportAuditCommandBusy) {
+      const result = reportAuditBusyResult("audit.sources");
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, null);
+      return;
+    }
+    const path = reportAuditLocationText(byId("report-audit-start-library-root")?.value);
+    if (!path) {
+      const result = {
+        command: "audit.sources",
+        ok: false,
+        severity: "warning",
+        message: "Enter a location before adding an audit source.",
+      };
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, { action: "add", path });
+      return;
+    }
+    const request = { action: "add", path, enabled: true };
+    setReportAuditCommandBusy("audit.sources", "report-audit-add-source-button");
+    setText("report-audit-launch-status", "Adding...");
+    setText("report-audit-launch-detail", "Adding backend-owned audit source...");
+    try {
+      const result = await apiPost("/api/audit/sources", request, { timeoutMs: 15000 });
+      appendReportAuditCommandResult(result);
+      const auditSources = result?.data?.audit_sources;
+      const added = reportAuditSourceRows(auditSources).find((row) => reportAuditLocationKey(row.path) === reportAuditLocationKey(path));
+      const addedId = reportAuditSourceId(added);
+      if (result.ok && addedId) reportAuditSelectedSourceIds().add(addedId);
+      renderReportAuditSourceCommandResult(result, request);
+      await refreshReportsAuditData();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.sources", ok: false, severity: "error", message: text };
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, request);
+    } finally {
+      setReportAuditCommandBusy("");
+    }
+  }
+
+  async function removeReportAuditSource(sourceId) {
+    if (reportsState.reportAuditCommandBusy) {
+      const result = reportAuditBusyResult("audit.sources");
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, null);
+      return;
+    }
+    const source = reportAuditSourceRows().find((row) => reportAuditSourceId(row) === sourceId);
+    if (!source) return;
+    if (!window.confirm(`Remove audit source?\n\n${source.path || source.label || sourceId}`)) return;
+    const request = { action: "remove", source_id: sourceId };
+    setReportAuditCommandBusy("audit.sources");
+    setText("report-audit-launch-status", "Removing...");
+    setText("report-audit-launch-detail", "Removing backend-owned audit source...");
+    try {
+      const result = await apiPost("/api/audit/sources", request, { timeoutMs: 15000 });
+      appendReportAuditCommandResult(result);
+      reportAuditSelectedSourceIds().delete(sourceId);
+      renderReportAuditSourceCommandResult(result, request);
+      await refreshReportsAuditData();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.sources", ok: false, severity: "error", message: text };
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, request);
+    } finally {
+      setReportAuditCommandBusy("");
+    }
+  }
+
+  async function scanReportAuditSources(sourceIds = null) {
+    if (reportsState.reportAuditCommandBusy) {
+      const result = reportAuditBusyResult("audit.sources.scan");
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, null);
+      return;
+    }
+    const selectedIds = Array.isArray(sourceIds)
+      ? sourceIds.filter(Boolean)
+      : Array.from(reportAuditSelectedSourceIds()).filter(Boolean);
+    const request = selectedIds.length ? { source_ids: selectedIds } : { scope: "all" };
+    const scopeText = selectedIds.length ? `${selectedIds.length} selected source(s)` : "all audit sources";
+    if (!window.confirm(`Scan ${scopeText} for media, sidecars, and folders?`)) return;
+    setReportAuditCommandBusy("audit.sources.scan", selectedIds.length ? "report-audit-scan-selected-button" : "report-audit-scan-all-button");
+    setText("report-audit-launch-status", "Scanning...");
+    setText("report-audit-launch-detail", `Scanning ${scopeText}...`);
+    try {
+      const result = await apiPost("/api/audit/sources/scan", request, { timeoutMs: 0 });
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, request);
+      await refreshReportsAuditData();
+    } catch (error) {
+      const text = error instanceof Error ? error.message : String(error);
+      const result = { command: "audit.sources.scan", ok: false, severity: "error", message: text };
+      appendReportAuditCommandResult(result);
+      renderReportAuditSourceCommandResult(result, request);
+    } finally {
+      setReportAuditCommandBusy("");
+    }
   }
 
   function reportAuditSelectionRequest() {
@@ -555,7 +777,8 @@
     }
     const request = collectReportAuditStartRequest();
     renderReportAuditLaunchPreflight(request);
-    if (!window.confirm("Start audit from Reports?")) {
+    const rootCount = Array.isArray(request.library_roots) && request.library_roots.length ? request.library_roots.length : 1;
+    if (!window.confirm(`Start audit for ${rootCount} location${rootCount === 1 ? "" : "s"} from Reports?`)) {
       const result = {
         command: "audit.start",
         ok: false,
@@ -803,20 +1026,21 @@
   }
 
     return {
+      addReportAuditSourceFromForm,
       collectReportAuditStartRequest,
       exportAuditRerunCsv,
       ignoreSelectedAuditRows,
+      renderReportAuditSources,
       renderReportAuditLaunchPreflight,
       renderReportAuditProgressPanel,
       renderReportAuditRunningState,
-      renderReportAuditSavedLocations,
       reportAuditBusyResult,
       reportAuditJsonDetail,
       reportAuditReviewCount,
-      removeReportAuditLocationFromForm,
-      saveReportAuditLocationFromForm,
+      scanReportAuditSources,
+      selectAllReportAuditSources,
+      clearReportAuditSourceSelection,
       saveReportAuditScorePolicy,
-      selectReportAuditSavedLocation,
       setReportAuditCommandBusy,
       startReportAuditFromForm,
       stopReportAuditFromForm,

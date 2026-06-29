@@ -1,20 +1,20 @@
 # WebView Global Export Inventory
 
-Date: 2026-06-24
+Date: 2026-06-29
 
-Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 76 JS files.
+Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.js`. Source: generated scan of `window.{name} =` assignments across all 78 JS files.
 
 ---
 
 ## Summary
 
-- **77 JS files** total in `assets/`
-- **37 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
+- **78 JS files** total in `assets/`
+- **38 files** export a primary namespace object (`window.mediaPipeline* = { ... }`)
 - **48 files** also export flat functions directly onto `window`
 - **40 files** have no primary namespace object: `app.js`, `completedView.diagnostics.js`, `completedView.evidence.js`, `completedView.proof.js`, `completedView.repair.js`, `completedView.review.js`, `crossPageContextView.conflict.js`, `crossPageContextView.sample.js`, `crossPageContextView.sampleValidation.js`, `crossPageContextView.sampleValidation.records.js`, `crossPageContextView.sampleValidation.runbook.js`, `crossPageContextView.sampleValidation.worksheet.js`, `crossPageContextView.settings.js`, `diagnosticsView.activejobs.js`, `diagnosticsView.investigation.js`, `diagnosticsView.log.js`, `launchView.preflight.js`, `launchView.realmedia.js`, `launchView.risk.js`, `launchView.scope.js`, `pendingPublishView.confidence.js`, `pendingPublishView.diagnostics.js`, `pendingPublishView.drain.js`, `pendingPublishView.recovery.js`, `pendingPublishView.repair.js`, `queueView.detail.js`, `queueView.launch.js`, `queueView.review.js`, `queueView.summary.js`, `settingsView.builders.audio.js`, `settingsView.builders.file_safety.js`, `settingsView.builders.network.js`, `settingsView.builders.pending.js`, `settingsView.builders.quality.js`, `settingsView.builders.queue.js`, `settingsView.builders.runtime.js`, `settingsView.builders.subtitle.js`, `settingsView.builders.video.js`, `settingsView.rawTriage.js`, `settingsView.safetyLocks.js`
 - **Flat export total:** 377
 - **1 backend-injected bootstrap global** (`window.MEDIA_PIPELINE_BOOTSTRAP`) is read by `apiClient.js`
-- **All 35 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
+- **All 36 object-literal namespace objects** have adjacent `Public namespace` JSDoc boundary comments. `test_webview_inventory_docs.py` fails if a future `window.mediaPipeline* = { ... }` namespace object is added without that boundary note. (`tauriLifecycleBridge.js` exports its `mediaPipelineTauriLifecycleBridge` namespace via `Object.freeze(...)`, which is outside that JSDoc check.)
 
 ---
 
@@ -60,6 +60,7 @@ Inventories all `window.*` assignments in `apps/desktop/webview/static/assets/*.
 | `maintenanceView.js` | mediaPipelineMaintenanceView | 0 | Generated from current `window.* =` assignments |
 | `metricsView.js` | mediaPipelineMetricsView | 0 | Generated from current `window.* =` assignments |
 | `networkView.js` | mediaPipelineNetworkView | 0 | Generated from current `window.* =` assignments |
+| `pathPicker.js` | mediaPipelinePathPicker | 0 | Generated from current `window.* =` assignments |
 | `pendingPublishView.confidence.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.diagnostics.js` | - | 1 | Generated from current `window.* =` assignments |
 | `pendingPublishView.drain.js` | - | 1 | Generated from current `window.* =` assignments |
@@ -129,7 +130,7 @@ Several modules call other modules' flat exports via `typeof window.X === "funct
 
 ## Namespace Object Naming Convention
 
-All 37 namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
+All 38 namespace objects follow the `window.mediaPipeline{ModuleRole}` pattern:
 - `window.mediaPipelineApi` — infrastructure
 - `window.mediaPipelineDom` — infrastructure
 - `window.mediaPipelineFormatters` — infrastructure
@@ -153,9 +154,9 @@ This is an object-boundary rule, not a mandate to add JSDoc to every internal he
 
 | Criterion | Status |
 |---|---|
-| All 76 JS files inventoried | Pass |
-| Namespace objects identified per file | Pass - 36 namespace-owning files; 40 no-namespace files listed in Summary |
-| Namespace object JSDoc boundary present | Pass - 34/34 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
+| All 78 JS files inventoried | Pass |
+| Namespace objects identified per file | Pass - 38 namespace-owning files; 40 no-namespace files listed in Summary |
+| Namespace object JSDoc boundary present | Pass - 36/36 namespace objects have adjacent `Public namespace` comments guarded by `test_webview_inventory_docs.py` |
 | Cross-module consumption documented | Pass |
 | Backend-injected globals identified | Pass — 1 (MEDIA_PIPELINE_BOOTSTRAP) |
 | No anonymous or generic window.* globals found | Pass |
@@ -234,7 +235,7 @@ Risk: Low — documentation only.
 
 ---
 
-## Machine-Generated Flat Export Manifest - 2026-06-23
+## Machine-Generated Flat Export Manifest - 2026-06-29
 
 Generated from `apps/desktop/webview/static/assets/*.js` by scanning `window.* =` assignments. Namespace objects are listed separately from flat exports.
 
@@ -743,6 +744,15 @@ Flat exports (0):
 ### networkView.js
 
 Namespace objects: mediaPipelineNetworkView
+
+Flat exports (0):
+```text
+
+```
+
+### pathPicker.js
+
+Namespace objects: mediaPipelinePathPicker
 
 Flat exports (0):
 ```text
@@ -1262,5 +1272,4 @@ Flat exports (0):
 ```text
 
 ```
-
 <!-- END GENERATED WEBVIEW GLOBAL EXPORT MANIFEST -->

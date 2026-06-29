@@ -2,6 +2,46 @@
         <h1 class="visually-hidden">Libraries</h1>
         <div id="settings-library-profile-nav" class="profile-nav settings-library-profile-nav" role="navigation" aria-label="Library profiles"></div>
 
+        <section class="panel settings-library-summary-panel" id="settings-library-summary-panel" data-panel-type="evidence">
+          <div class="panel-heading">
+            <h2>Saved Libraries</h2>
+            <strong id="settings-library-summary-status" class="settings-library-summary-status">No summary loaded</strong>
+          </div>
+          <div class="settings-library-summary-toolbar">
+            <div class="settings-library-summary-strip" id="settings-library-summary-strip" aria-label="Library scan totals">
+              <span data-state="empty">Libraries: -</span>
+              <span data-state="empty">Enabled: -</span>
+              <span data-state="empty">Media: -</span>
+              <span data-state="empty">Sidecars: -</span>
+              <span data-state="empty">Unknown scans: -</span>
+            </div>
+            <div class="action-row action-row-left wrap-actions">
+              <button type="button" class="secondary-button" id="settings-library-scan-sources-button">Scan Sources</button>
+            </div>
+          </div>
+          <p id="settings-library-summary-detail" class="note">Backend queue source scan evidence has not loaded.</p>
+          <div class="table-wrap detail-table-wrap settings-library-summary-table-wrap">
+            <table class="workflow-table settings-library-summary-table" aria-label="Saved libraries scan summary">
+              <thead>
+                <tr>
+                  <th>Library</th>
+                  <th>Path</th>
+                  <th>Type</th>
+                  <th>Status</th>
+                  <th>Media Files</th>
+                  <th>Sidecars</th>
+                  <th>Last Scan</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="settings-library-summary-rows">
+                <tr><td colspan="8">No library summary loaded.</td></tr>
+              </tbody>
+            </table>
+          </div>
+          <pre id="settings-library-summary-warning" class="prose-block settings-library-feedback" hidden></pre>
+        </section>
+
         <section class="panel settings-library-actions-panel" data-panel-type="interactive">
           <div class="panel-heading">
             <h2>Libraries</h2>

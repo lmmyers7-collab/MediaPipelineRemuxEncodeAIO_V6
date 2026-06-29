@@ -11,7 +11,6 @@
       pipelineModeLabel = function (mode) { return mode || "Pipeline"; },
       settingsLaunchImpactRows = null,
       settingsLaunchImpactStatus = null,
-      settingsOperatorTrustStatus = null,
       settingsPatchEffectiveChangedEntries = null,
       settingsPatchIsTouched = null,
       settingsPolicyDeltaRows = null,
@@ -56,23 +55,43 @@
     return rows.sort((left, right) => launchSettingsSeverityRank(left.impact) - launchSettingsSeverityRank(right.impact));
   }
 
+  const LAUNCH_ATTENTION_RISK_CODES = new Set([
+    "custom_video_flags_enabled",
+    "fallback_remux_size_guard",
+    "quality_block_review_enabled",
+    "short_copy_timeout",
+    "strict_size_guard",
+  ]);
+
+  function launchRawVideoFlagsActive(encodeTuning, extraVideoFlags = []) {
+    return String(encodeTuning || "").trim().toLowerCase() === "custom_legacy_flags" && extraVideoFlags.length > 0;
+  }
+
+  function launchRiskItemNeedsAttention(item, options = {}) {
+    const severity = String(item?.severity || "").toLowerCase();
+    const code = String(item?.code || "").toLowerCase();
+    if (severity === "critical" || severity === "high") return true;
+    if (code === "raw_video_flags_present" && options.rawVideoFlagsActive) return true;
+    return LAUNCH_ATTENTION_RISK_CODES.has(code);
+  }
+
+  function launchAttentionRiskItems(riskItems = [], options = {}) {
+    return riskItems.filter((item) => launchRiskItemNeedsAttention(item, options));
+  }
+
+  function launchAttentionImpact(attentionItems = [], errors = []) {
+    if (errors.length) return "blocked";
+    if (attentionItems.some((item) => String(item?.severity || "").toLowerCase() === "critical")) return "blocked";
+    if (attentionItems.some((item) => String(item?.severity || "").toLowerCase() === "high")) return "high review";
+    return attentionItems.length ? "review" : "ready";
+  }
+
   function launchSettingsTrustStatus(settings = launchSettingsWorkspace()) {
     if (!settings || typeof settings !== "object" || !settings.schema_version) return "Not loaded";
-    try {
-      if (typeof settingsOperatorTrustStatus === "function") return settingsOperatorTrustStatus(settings);
-    } catch {
-      // Keep Launch preflight usable even if the Settings summary helper is unavailable.
-    }
     const errors = Array.isArray(settings.errors) ? settings.errors : [];
     if (errors.length) return "Invalid";
-    const risk = settings.risk_summary || {};
-    const highest = String(risk.highest_severity || "none").toLowerCase();
-    if (highest === "critical") return "Critical risk";
-    if (highest === "high") return "High risk";
-    if (Number(risk.total_count || 0) > 0) return "Review";
-    const warnings = Array.isArray(settings.warnings) ? settings.warnings : [];
-    if (warnings.length) return "Review";
-    return "Ready";
+    const rows = launchSettingsRiskRows(settings, collectPipelineStartRequest());
+    return rows.length ? launchSettingsRiskStatus(rows) : "Ready";
   }
 
   function launchSettingsDecision(settings = launchSettingsWorkspace(), request = null) {
@@ -90,10 +109,10 @@
       reasons.push("saved settings contain invalid or critical-risk items");
     } else if (normalized.includes("high")) {
       decision = "review";
-      reasons.push("saved settings contain high-risk items");
+      reasons.push("saved settings contain high-impact launch rows");
     } else if (normalized.includes("review")) {
       decision = "review";
-      reasons.push("saved settings contain warnings or lower-risk items");
+      reasons.push("saved settings contain launch-affecting review rows");
     }
     if (decision === "review" && mode === "continuous") {
       reasons.push("continuous mode is unattended-sensitive");
@@ -102,9 +121,9 @@
     if (decision === "blocked") {
       guidance = "Do not start media work until Settings > Validate / Reload is clean.";
     } else if (decision === "review" && mode === "continuous") {
-      guidance = "Prefer Validate or Run Once until the saved settings risks are understood.";
+      guidance = "Prefer Validate or Run Once until highlighted launch-affecting settings are understood.";
     } else if (decision === "review") {
-      guidance = "Review saved settings risk items before launching unattended work.";
+      guidance = "Review highlighted launch-affecting settings before unattended work.";
     }
     return {
       decision,
@@ -126,7 +145,7 @@
     if (decision.reasons.length) {
       lines.push(`- Reason: ${decision.reasons.join("; ")}`);
     } else {
-      lines.push("- Reason: no saved-settings risks are currently reported.");
+      lines.push("- Reason: no launch-affecting saved-settings rows are currently highlighted.");
     }
     lines.push(`- Evidence guidance: ${decision.guidance}`);
     lines.push("- Evidence owner: Settings page edits/save; Launch page displays saved posture only.");
@@ -299,6 +318,9 @@
     const videoCodec = launchSettingsConfigValue(config, "VideoCodec") || "default";
     const extraVideoFlagsValue = launchSettingsConfigValue(config, "ExtraVideoFlags") || [];
     const extraVideoFlags = Array.isArray(extraVideoFlagsValue) ? extraVideoFlagsValue : String(extraVideoFlagsValue).split(/[,;]/).map((item) => item.trim()).filter(Boolean);
+    const rawVideoFlagsActive = launchRawVideoFlagsActive(encodeTuning, extraVideoFlags);
+    const extraFlagsState = rawVideoFlagsActive ? "active custom passthrough" : extraVideoFlags.length ? "inactive with structured preset" : "none";
+    const launchAttentionItems = launchAttentionRiskItems(riskItems, { rawVideoFlagsActive });
     const sourceMovies = launchSettingsConfigValue(config, "SourceMovies") || "";
     const sourceTv = launchSettingsConfigValue(config, "SourceTV") || "";
     const scratch = launchSettingsConfigValue(config, "LocalBase") || "";
@@ -318,12 +340,14 @@
     }
     add(
       "Backend settings risk",
-      errors.length || highest === "critical" ? "blocked" : highest === "high" ? "high review" : (total || warnings.length ? "review" : "ready"),
-      `highest=${risk.highest_severity || "none"}; risk items=${total}; warnings=${warnings.length}; errors=${errors.length}`,
-      errors.length || highest === "critical"
+      launchAttentionImpact(launchAttentionItems, errors),
+      `highest=${risk.highest_severity || "none"}; risk items=${total}; launch attention=${launchAttentionItems.length}; warnings=${warnings.length}; errors=${errors.length}`,
+      errors.length || launchAttentionItems.some((item) => String(item?.severity || "").toLowerCase() === "critical")
         ? "Use Settings > Validate / Reload and resolve critical settings before launch."
-        : total || warnings.length
-          ? "Review backend risk preview before unattended starts; backend launch validation still has final authority."
+        : launchAttentionItems.length
+          ? "Review launch-affecting settings before unattended starts; backend launch validation still has final authority."
+          : total || warnings.length
+            ? "Non-blocking settings notes are present; Launch highlights only settings that can block launch, fail work, or weaken safety gates."
           : "No saved-settings risk items currently reported.",
       [
         "Proof source: backend settings workspace and risk summary loaded into the WebView.",
@@ -333,12 +357,12 @@
     );
     add(
       "Backend media-policy readiness",
-      mediaReadinessStatus.includes("blocked") ? "blocked" : mediaReadinessStatus.includes("review") ? "review" : mediaReadinessRows.length ? "ready" : "review",
+      mediaReadinessStatus.includes("blocked") ? "blocked" : mediaReadinessRows.length ? "ready" : "review",
       `schema=${mediaReadiness.schema_version || "missing"}; rows=${mediaReadinessRows.length}; coherent=${mediaReadinessCounts.coherent || 0}; review=${mediaReadinessCounts.review || 0}; blocked=${mediaReadinessCounts.blocked || 0}`,
       mediaReadinessStatus.includes("blocked")
         ? "Resolve blocked saved media-policy rows before launching unattended work."
         : mediaReadinessStatus.includes("review")
-          ? "Review backend-authored media-policy readiness rows in Settings before long runs."
+          ? "Non-blocking media-policy notes remain available in Settings; Launch highlights only blocked media-policy contradictions."
           : "Saved media-policy readiness is clean in the backend workspace.",
       [
         "Proof source: backend media_policy_readiness payload from the Settings workspace.",
@@ -372,7 +396,7 @@
     );
     add(
       "Publish / pending-drain posture",
-      deferred ? "review" : "ready",
+      "ready",
       `deferred publish=${deferred ? "enabled" : "disabled"}; launch mode=${pipelineModeLabel(mode)}`,
       deferred
         ? "Expect completed outputs to park for Pending Publish; monitor Pending Publish and drain evidence after processing."
@@ -385,20 +409,22 @@
     );
     add(
       "Remux / encode size posture",
-      sizeGuard === "off" || sizeGuard === "disabled" || sizeGuard === "strict" || extraVideoFlags.length ? "review" : "ready",
-      `routing=${routingProfile}; if encoded output is too large=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; targets 1080p movie/TV=${movie1080pTarget}/${tv1080pTarget}GB, 1440p movie/TV=${movie1440pTarget}/${tv1440pTarget}GB, 4K movie/TV=${movie4kTarget}/${tv4kTarget}GB; unknown height uses the 1080p movie/TV targets and ${route1080pMaxBitrate}Mbps cap; bitrate caps 1080p<=${routeBoundaries.route1080pMaxHeight}p ${route1080pMaxBitrate}Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pMaxBitrate}Mbps, 4K>=${routeBoundaries.route4kMinHeight}p ${route4kMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; legacy flags=${extraVideoFlags.length}`,
-      sizeGuard === "off" || sizeGuard === "disabled"
-        ? "Size-growth guard is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
-        : "Use Settings Preview before long runs if route, growth limits, encoder, or output container differs from the intended Plex direct/stream profile.",
+      sizeGuard === "strict" || sizeGuard === "fallback_remux" || rawVideoFlagsActive ? "review" : "ready",
+      `routing=${routingProfile}; if encoded output is too large=${sizeGuard}; normal growth=${maxGrowth}%; compatibility growth=${compatGrowth}%; targets 1080p movie/TV=${movie1080pTarget}/${tv1080pTarget}GB, 1440p movie/TV=${movie1440pTarget}/${tv1440pTarget}GB, 4K movie/TV=${movie4kTarget}/${tv4kTarget}GB; unknown height uses the 1080p movie/TV targets and ${route1080pMaxBitrate}Mbps cap; bitrate caps 1080p<=${routeBoundaries.route1080pMaxHeight}p ${route1080pMaxBitrate}Mbps, 1440p ${routeBoundaries.route1440pMinHeight}-${routeBoundaries.route1440pMaxHeight}p ${route1440pMaxBitrate}Mbps, 4K>=${routeBoundaries.route4kMinHeight}p ${route4kMaxBitrate}Mbps; codec=${videoCodec}; tuning=${encodeTuning}; ladder=${encodeLadder}; extra flags=${extraVideoFlags.length} (${extraFlagsState})`,
+      rawVideoFlagsActive
+        ? "Raw ExtraVideoFlags are active through custom_legacy_flags; confirm the FFmpeg/NVENC flags before unattended encodes."
+        : sizeGuard === "strict" || sizeGuard === "fallback_remux"
+          ? "Output Size Check can fail or reroute oversized encodes; confirm this is intentional before unattended runs."
+          : "Saved route, growth-limit, encoder, and container settings are launch-normal; use Settings Preview only when changing policy.",
       [
-        "Proof source: saved routing profile, output-size guard, thresholds, encoder choice, ladder, and legacy flags.",
+        "Proof source: saved routing profile, output-size guard, thresholds, encoder choice, ladder, and extra video flags.",
         "Operator proof: compare Completed source/output size evidence after the first sample file.",
         "Boundary: this is not a media-policy change and does not force remux or encode.",
       ],
     );
     add(
       "H.264 copy / remux precision",
-      !allowH264Copy || !remuxSafeCodecs.length ? "review" : "ready",
+      "ready",
       `H.264 copy=${allowH264Copy ? "enabled" : "disabled"} <=${h264MaxBitrate}Mbps/${h264MaxHeight}p; remux-safe codecs=${remuxSafeCodecs.join(", ") || "(empty)"}`,
       allowH264Copy
         ? "Plex-compatible H.264 sources should remain copy/remux candidates when bitrate, height, and codec policy allow it."
@@ -424,7 +450,7 @@
     );
     add(
       "Subtitle SRT routing",
-      (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) || (dropVobSub && !convertVobSub) ? "blocked" : (!convertTx3g || !convertBdpgs || !convertVobSub || dropTx3g || dropBdpgs || dropVobSub ? "review" : "ready"),
+      (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) || (dropVobSub && !convertVobSub) ? "blocked" : "ready",
       `TX3G convert=${convertTx3g ? "on" : "off"} drop=${dropTx3g ? "on" : "off"}; BDPGS OCR=${convertBdpgs ? "on" : "off"} drop=${dropBdpgs ? "on" : "off"}; VobSub OCR=${convertVobSub ? "on" : "off"} drop=${dropVobSub ? "on" : "off"}`,
       (dropTx3g && !convertTx3g) || (dropBdpgs && !convertBdpgs) || (dropVobSub && !convertVobSub)
         ? "Do not launch media work with drop-without-convert subtitle contradictions."
@@ -450,7 +476,7 @@
     );
     add(
       "Tool resolution",
-      allowSystemTools ? "review" : "ready",
+      "ready",
       `PATH fallback=${allowSystemTools ? "enabled" : "disabled"}`,
       allowSystemTools
         ? "PATH fallback can use non-bundled tools; confirm this before unattended runs."
@@ -463,10 +489,10 @@
     );
     add(
       "Real-media validation boundary",
-      mode === "validate" ? "review" : "ready",
+      "ready",
       "Preview/build/release gates do not prove FFmpeg, subtitle, audio, sidecar, size, or publish behavior on a specific media file.",
       mode === "validate"
-        ? "Validate mode is useful for config posture only; follow with a small real Run Once before treating WebView as daily-driver ready."
+        ? "Validate mode checks config posture; follow with a small real Run Once before treating WebView as daily-driver ready."
         : "After start, confirm real output proof in Diagnostics, Completed, and Pending Publish before trusting unattended batches.",
       [
         "Proof source: selected launch mode and visible shell readiness only.",
@@ -478,16 +504,16 @@
       add(
         "Continuous-mode sensitivity",
         "high review",
-        "Launch mode is Continuous and at least one saved setting row needs review.",
-        "Prefer Validate or Run Once until saved settings risk is understood.",
+        "Launch mode is Continuous and at least one saved setting row can block, fail, or weaken safety gates.",
+        "Prefer Validate or Run Once until launch-affecting settings risk is understood.",
         [
           "Proof source: selected Continuous mode plus at least one non-ready launch risk row.",
-          "Operator proof: resolve or intentionally accept review rows before unattended continuous processing.",
+          "Operator proof: resolve or intentionally accept launch-affecting rows before unattended continuous processing.",
           "Boundary: backend launch validation still has final authority over whether Continuous can start.",
         ],
       );
     }
-    riskItems.slice(0, 3).forEach((item) => {
+    launchAttentionItems.slice(0, 3).forEach((item) => {
       const severity = String(item?.severity || "review").toLowerCase();
       add(
         `Risk item: ${item?.key || item?.code || "setting"}`,

@@ -206,13 +206,6 @@
         || Math.abs(left - last.left) > DOCUMENT_SCROLL_TOLERANCE;
     }
 
-    function documentScrollRestoreWouldClampToEdge(entry, maxTop, maxLeft) {
-      const requestedTop = Math.max(0, Number(entry.top) || 0);
-      const requestedLeft = Math.max(0, Number(entry.left) || 0);
-      return requestedTop > maxTop + DOCUMENT_SCROLL_TOLERANCE
-        || requestedLeft > maxLeft + DOCUMENT_SCROLL_TOLERANCE;
-    }
-
     function rememberDocumentScrollRestore(entry, top, left, restoreState) {
       const lastDocumentPositions = restoreState?.lastDocumentPositions;
       if (!lastDocumentPositions) return;
@@ -230,7 +223,8 @@
       const left = Math.min(requestedLeft, maxLeft);
       if (entry.isDocument || entry.key === "document") {
         if (documentScrollMovedAfterRestore(node, entry, restoreState)) return;
-        if (documentScrollRestoreWouldClampToEdge(entry, maxTop, maxLeft)) return;
+        // Clamp to the nearest valid offset while refreshed content is shorter;
+        // deferred passes can still restore the original position after it expands.
         if (typeof window.scrollTo === "function") {
           window.scrollTo(left, top);
         }

@@ -380,6 +380,73 @@ function ConvertTo-Psd1Literal {
     return "'$escaped'"
 }
 
+function Copy-RerunConfigValue {
+    param($Value)
+    if ($null -eq $Value) { return $null }
+    if ($Value -is [System.Collections.IDictionary]) {
+        $copy = [ordered]@{}
+        foreach ($key in $Value.Keys) {
+            $copy[[string]$key] = Copy-RerunConfigValue -Value $Value[$key]
+        }
+        return $copy
+    }
+    if ($Value -is [array]) {
+        return @($Value | ForEach-Object { Copy-RerunConfigValue -Value $_ })
+    }
+    return $Value
+}
+
+function Get-RerunProfileField {
+    param($Profile, [string]$Name, [string]$Default = '')
+    if ($Profile -is [System.Collections.IDictionary] -and $Profile.Contains($Name)) {
+        return [string]$Profile[$Name]
+    }
+    $prop = $Profile.PSObject.Properties[$Name]
+    if ($prop) { return [string]$prop.Value }
+    return $Default
+}
+
+function Set-RerunProfileField {
+    param($Profile, [string]$Name, $Value)
+    if ($Profile -is [System.Collections.IDictionary]) {
+        $Profile[$Name] = $Value
+    }
+}
+
+function New-RerunLibraryProfiles {
+    param(
+        $Profiles,
+        [string]$StageRoot,
+        [string]$OutputRoot
+    )
+
+    $stageMoviesRoot = Join-Path $StageRoot 'Movies'
+    $stageTvRoot = Join-Path $StageRoot 'TV'
+    $rewritten = [System.Collections.Generic.List[object]]::new()
+    foreach ($profile in @($Profiles)) {
+        $copy = Copy-RerunConfigValue -Value $profile
+        $id = (Get-RerunProfileField -Profile $copy -Name 'id').Trim().ToLowerInvariant()
+        $designation = (Get-RerunProfileField -Profile $copy -Name 'designation').Trim().ToLowerInvariant()
+        if ($designation -in @('mixed','custom','')) { $designation = 'auto' }
+
+        if ($designation -eq 'movie' -or $id -eq 'movies') {
+            Set-RerunProfileField -Profile $copy -Name 'source_path' -Value $stageMoviesRoot
+            Set-RerunProfileField -Profile $copy -Name 'output_path' -Value $OutputRoot
+            Set-RerunProfileField -Profile $copy -Name 'enabled' -Value $true
+        } elseif ($designation -eq 'tv' -or $id -eq 'tv') {
+            Set-RerunProfileField -Profile $copy -Name 'source_path' -Value $stageTvRoot
+            Set-RerunProfileField -Profile $copy -Name 'output_path' -Value $OutputRoot
+            Set-RerunProfileField -Profile $copy -Name 'enabled' -Value $true
+        } else {
+            Set-RerunProfileField -Profile $copy -Name 'enabled' -Value $false
+        }
+        Set-RerunProfileField -Profile $copy -Name 'promotion_enabled' -Value $false
+        Set-RerunProfileField -Profile $copy -Name 'promotion_destination' -Value ''
+        [void]$rewritten.Add($copy)
+    }
+    return @($rewritten)
+}
+
 function Write-RerunTempConfig {
     param(
         [hashtable]$Config,
@@ -711,8 +778,15 @@ if (-not $pwsh) { throw 'PowerShell 7 host not found for nested pipeline run.' }
 $localBase = Resolve-RerunPath ([string]$config['LocalBase'])
 $mainOutsource = Resolve-RerunPath ([string]$config['Outsource'])
 $batchId = 'rerun_' + (Get-Date -Format 'yyyyMMdd_HHmmss') + '_' + [guid]::NewGuid().ToString('N').Substring(0, 8)
-$stageRoot = Join-Path $localBase (Join-RerunPathParts @('RerunQueue', $batchId))
-$parkRoot = Join-Path $localBase (Join-RerunPathParts @('RerunParked', $batchId))
+$localBaseTrimmed = $localBase.TrimEnd([char[]]@([System.IO.Path]::DirectorySeparatorChar, [System.IO.Path]::AltDirectorySeparatorChar))
+$localBaseParent = Split-Path -Parent $localBaseTrimmed
+$localBaseLeaf = Split-Path -Leaf $localBaseTrimmed
+if ([string]::IsNullOrWhiteSpace($localBaseParent) -or [string]::IsNullOrWhiteSpace($localBaseLeaf)) {
+    throw "LocalBase must not be a filesystem root for CSV rerun workspace isolation: $localBase"
+}
+$rerunWorkspaceRoot = Join-Path $localBaseParent ($localBaseLeaf + '_RerunWorkspace')
+$stageRoot = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RerunQueue', $batchId))
+$parkRoot = Join-Path $rerunWorkspaceRoot (Join-RerunPathParts @('RerunParked', $batchId))
 $manifestRoot = Join-Path $localBase 'RerunManifests'
 $manifestPath = Join-Path $manifestRoot "$batchId.json"
 $outputRoot = if ($DefaultReturnMode -eq 'park') { Join-Path $parkRoot 'Output' } else { $mainOutsource }
@@ -734,6 +808,9 @@ $manifest = [ordered]@{
     default_stage_mode = $DefaultStageMode
     default_original_mode = $DefaultOriginalMode
     default_return_mode = $DefaultReturnMode
+    pipeline_local_base = $localBase
+    rerun_workspace_root = $rerunWorkspaceRoot
+    library_profiles_rewritten = [bool]$config.ContainsKey('LibraryProfiles')
     stage_root = $stageRoot
     park_root = $parkRoot
     output_root = $outputRoot
@@ -780,13 +857,18 @@ if ($runnable.Count -eq 0) {
     Write-RerunManifest -Path $manifestPath -Payload $manifest
     throw 'No CSV rows could be staged for rerun.'
 }
+New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
 
 $tempConfig = [hashtable]::new($config)
+$tempConfig['LocalBase'] = $localBase
 $tempConfig['SourceMovies'] = Join-Path $stageRoot 'Movies'
 $tempConfig['SourceTV'] = Join-Path $stageRoot 'TV'
 $tempConfig['Outsource'] = $outputRoot
 $tempConfig['ReprocessAll'] = $true
 $tempConfig['SkipStabilityCheck'] = $true
+if ($tempConfig.ContainsKey('LibraryProfiles')) {
+    $tempConfig['LibraryProfiles'] = New-RerunLibraryProfiles -Profiles $config['LibraryProfiles'] -StageRoot $stageRoot -OutputRoot $outputRoot
+}
 $tempConfigPath = Join-Path $manifestRoot "$batchId.config.psd1"
 Write-RerunTempConfig -Config $tempConfig -Path $tempConfigPath
 
@@ -801,6 +883,9 @@ $args = @(
 if ($ShowConfig) { $args += '-ShowConfig' }
 
 Write-RerunLog "Launching nested pipeline for CSV-authoritative batch: $batchId"
+Write-RerunLog "Nested pipeline LocalBase: $localBase"
+Write-RerunLog "CSV rerun workspace: $rerunWorkspaceRoot"
+if ($tempConfig.ContainsKey('LibraryProfiles')) { Write-RerunLog "CSV rerun library profiles rewritten to staged roots." }
 $pipelineRun = Invoke-RerunStreamingCommand -FilePath $pwsh -ArgumentList $args -TimeoutSeconds $script:RerunNestedPipelineTimeoutSeconds -Label 'nested pipeline'
 $pipelineExit = [int]$pipelineRun.ExitCode
 if ($pipelineRun.TimedOut) {

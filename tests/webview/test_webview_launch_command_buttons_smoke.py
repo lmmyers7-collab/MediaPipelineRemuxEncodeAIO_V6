@@ -178,6 +178,13 @@ def _run_launch_start_request_smoke() -> dict[str, object]:
           "pipeline-start-show-config": {{ checked: true }},
           "pipeline-start-show-console": {{ checked: false }},
           "rerun-start-csv-path": {{ value: "C:/rerun.csv" }},
+          "rerun-scope-enabled-only": {{ checked: true }},
+          "rerun-scope-skip-blocked": {{ checked: true }},
+          "rerun-scope-skip-warning-rows": {{ checked: false }},
+          "rerun-scope-first-n": {{ value: "5" }},
+          "rerun-scope-issue-filter": {{ value: "audio" }},
+          "rerun-scope-bucket-filter": {{ value: "movie" }},
+          "rerun-preview-limit": {{ value: "25" }},
           "rerun-start-show-console": {{ checked: true }},
           "queue-filter-text": {{ value: "visible-only" }},
           "queue-selected-row": {{ value: "C:/Other/Selected.mkv" }},
@@ -831,6 +838,18 @@ class WebViewLaunchCommandButtonsSmoke(unittest.TestCase):
         self.assertEqual(result["rerunDryRun"]["stage_mode"], "copy")
         self.assertEqual(result["rerunDryRun"]["original_mode"], "keep")
         self.assertEqual(result["rerunDryRun"]["return_mode"], "park")
+        self.assertEqual(
+            result["rerunDryRun"]["scope"],
+            {
+                "enabled_only": True,
+                "skip_blocked": True,
+                "skip_warning_rows": False,
+                "first_n": 5,
+                "issue_filter": "audio",
+                "bucket_filter": "movie",
+                "preview_limit": 25,
+            },
+        )
 
     def test_backend_preflight_refresh_is_explicit_and_splits_csv_preview_from_start(self) -> None:
         result = _run_launch_preflight_smoke()

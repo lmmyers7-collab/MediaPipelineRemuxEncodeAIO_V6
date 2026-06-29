@@ -20,6 +20,108 @@
       writeSettingsPatchJson,
     } = deps;
 
+    const preferredAudioLanguageAliases = {
+      "": "",
+      english: "eng",
+      en: "eng",
+      eng: "eng",
+      chinese: "zho",
+      mandarin: "zho",
+      "mandarin chinese": "zho",
+      zh: "zho",
+      zho: "zho",
+      chi: "zho",
+      hindi: "hin",
+      hi: "hin",
+      hin: "hin",
+      spanish: "spa",
+      es: "spa",
+      spa: "spa",
+      arabic: "ara",
+      ar: "ara",
+      ara: "ara",
+      french: "fra",
+      fr: "fra",
+      fre: "fra",
+      fra: "fra",
+      bengali: "ben",
+      bangla: "ben",
+      bn: "ben",
+      ben: "ben",
+      portuguese: "por",
+      pt: "por",
+      por: "por",
+      indonesian: "ind",
+      id: "ind",
+      ind: "ind",
+      urdu: "urd",
+      ur: "urd",
+      urd: "urd",
+      russian: "rus",
+      ru: "rus",
+      rus: "rus",
+      german: "deu",
+      de: "deu",
+      deu: "deu",
+      ger: "deu",
+      japanese: "jpn",
+      ja: "jpn",
+      jpn: "jpn",
+      "nigerian pidgin": "pcm",
+      pidgin: "pcm",
+      pcm: "pcm",
+      marathi: "mar",
+      mr: "mar",
+      mar: "mar",
+      vietnamese: "vie",
+      vi: "vie",
+      vie: "vie",
+      telugu: "tel",
+      te: "tel",
+      tel: "tel",
+      swahili: "swa",
+      sw: "swa",
+      swa: "swa",
+      hausa: "hau",
+      ha: "hau",
+      hau: "hau",
+      turkish: "tur",
+      tr: "tur",
+      tur: "tur",
+      unknown: "und",
+      undefined: "und",
+      und: "und",
+    };
+
+    function normalizePreferredAudioLanguageValue(value) {
+      const text = String(value || "").trim().toLowerCase();
+      return preferredAudioLanguageAliases[text] || text;
+    }
+
+    function preferredAudioLanguageListValue(value, fallback) {
+      const items = Array.isArray(value)
+        ? value
+        : parseSettingsListText(formatSettingsListValue(value));
+      const fallbackItems = Array.isArray(fallback)
+        ? fallback
+        : parseSettingsListText(formatSettingsListValue(fallback));
+      const selected = items.length ? items[0] : fallbackItems[0] || "eng";
+      return normalizePreferredAudioLanguageValue(selected);
+    }
+
+    function ensurePreferredAudioLanguageOption(element, value) {
+      if (!element || !value || Array.from(element.options || []).some((option) => option.value === value)) return;
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = `Current saved value (${value})`;
+      element.appendChild(option);
+    }
+
+    function readPreferredAudioLanguageList(id) {
+      const value = normalizePreferredAudioLanguageValue(settingsBuilderInputValue(id));
+      return value ? [value] : [];
+    }
+
     function refreshAudioSettingsBuilderChoices() {
       refreshSettingsSelectChoices(audioSettingsBuilderFields);
     }
@@ -36,6 +138,12 @@
         element.value = formatSettingsListValue(value);
         return;
       }
+      if (kind === "list_select") {
+        const selected = preferredAudioLanguageListValue(value, fallback);
+        ensurePreferredAudioLanguageOption(element, selected);
+        element.value = selected;
+        return;
+      }
       setSettingsBuilderControl(id, value);
     }
 
@@ -43,7 +151,7 @@
       refreshAudioSettingsBuilderChoices();
       setAudioBuilderControl("settings-audio-passthrough-profile", "AudioPassthroughProfile", "select", "plex_balanced");
       setAudioBuilderControl("settings-audio-compatible-codecs", "CompatibleAudioCodecs", "list", ["aac", "ac3", "eac3", "mp3", "opus", "vorbis"]);
-      setAudioBuilderControl("settings-audio-preferred-languages", "PreferredDefaultAudioLanguages", "list", ["english"]);
+      setAudioBuilderControl("settings-audio-preferred-languages", "PreferredDefaultAudioLanguages", "list_select", ["eng"]);
       setAudioBuilderControl("settings-audio-transcode-codec", "AudioTranscodeCodec", "select", "eac3");
       setAudioBuilderControl("settings-audio-transcode-bitrate", "AudioTranscodeBitrate", "select", "640k");
       setAudioBuilderControl("settings-audio-auto-bitrate", "AudioTranscodeAutoBitrateByChannels", "bool", false);
@@ -69,9 +177,10 @@
 
     function readAudioBuilderValue(id, kind, label) {
       const element = byId(id);
-      if (!element) return kind === "bool" ? false : kind === "list" ? [] : "";
+      if (!element) return kind === "bool" ? false : kind === "list" || kind === "list_select" ? [] : "";
       if (kind === "bool") return element.checked === true;
       if (kind === "list") return parseSettingsListText(element.value);
+      if (kind === "list_select") return readPreferredAudioLanguageList(id);
       if (kind === "number_select") return readSettingsBuilderNumber(id, label);
       return settingsBuilderInputValue(id);
     }
@@ -108,7 +217,7 @@
 
     function renderAudioSettingsBuilderGuidance() {
       const passthroughProfile = settingsBuilderInputValue("settings-audio-passthrough-profile") || "plex_balanced";
-      const defaultLanguages = parseSettingsListText(byId("settings-audio-preferred-languages")?.value || "");
+      const defaultLanguages = readPreferredAudioLanguageList("settings-audio-preferred-languages");
       const transcodeCodec = settingsBuilderInputValue("settings-audio-transcode-codec") || "eac3";
       const transcodeBitrate = settingsBuilderInputValue("settings-audio-transcode-bitrate") || "640k";
       const autoBitrate = byId("settings-audio-auto-bitrate")?.checked === true;
@@ -117,7 +226,7 @@
       const lines = [
         "Guardrail: audio settings only stage config keys; stream selection, transcode, passthrough, and default-track decisions remain backend-owned.",
         "Default policy: keep no-audio output disabled for normal Plex libraries unless manual review requires otherwise.",
-        `Audio routing summary: passthrough=${formatSettingsChoiceLabel(passthroughProfile)}; default languages=${defaultLanguages.join(", ") || "(empty)"}; transcode=${formatSettingsChoiceLabel(transcodeCodec)} ${autoBitrate ? "auto bitrate by channels" : transcodeBitrate}; downmix=${formatSettingsChoiceLabel(downmixMode)}; max channels=${maxChannels}.`,
+        `Audio routing summary: passthrough=${formatSettingsChoiceLabel(passthroughProfile)}; default language=${defaultLanguages.map(formatSettingsChoiceLabel).join(", ") || "(empty)"}; transcode=${formatSettingsChoiceLabel(transcodeCodec)} ${autoBitrate ? "auto bitrate by channels" : transcodeBitrate}; downmix=${formatSettingsChoiceLabel(downmixMode)}; max channels=${maxChannels}.`,
       ];
       audioSettingsBuilderFields.forEach(([key, id, kind]) => {
         const field = settingsFieldDefinition(key);
@@ -127,6 +236,8 @@
           valueText = byId(id)?.checked ? "enabled" : "disabled";
         } else if (kind === "list") {
           valueText = parseSettingsListText(byId(id)?.value || "").join(", ") || "(empty)";
+        } else if (kind === "list_select") {
+          valueText = readPreferredAudioLanguageList(id).map(formatSettingsChoiceLabel).join(", ") || "(empty)";
         } else {
           valueText = formatSettingsChoiceLabel(settingsBuilderInputValue(id) || "");
         }
@@ -145,7 +256,7 @@
         if (key === "CompatibleAudioCodecs" && !parseSettingsListText(byId(id)?.value || "").length) {
           lines.push("  Warning: empty passthrough codec list can force unexpected audio transcodes.");
         }
-        if (key === "PreferredDefaultAudioLanguages" && !parseSettingsListText(byId(id)?.value || "").length) {
+        if (key === "PreferredDefaultAudioLanguages" && !readPreferredAudioLanguageList(id).length) {
           lines.push("  Review: no preferred default language means default-track choice depends on source metadata.");
         }
         if (key === "AudioTranscodeAutoBitrateByChannels" && byId(id)?.checked) {

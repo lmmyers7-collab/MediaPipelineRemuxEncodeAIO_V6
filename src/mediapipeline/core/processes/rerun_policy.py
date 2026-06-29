@@ -10,7 +10,10 @@ if TYPE_CHECKING:
 
 CSV_RERUN_START_COMMAND = "rerun.start"
 CSV_RERUN_PATH_ERROR = "CSV path is required."
-CSV_RERUN_MODE_ERROR = "stage_mode must be copy, original_mode must be keep, and return_mode must be park."
+CSV_RERUN_MODE_ERROR = (
+    "Executable CSV rerun starts require stage_mode=copy, original_mode=keep, "
+    "and return_mode=park; move, delete, and replace_original remain blocked."
+)
 CSV_RERUN_PLAN_MODE_ERROR = "dry_run and plan_only cannot both be true."
 
 
@@ -83,8 +86,12 @@ def rerun_start_success_data(
     return_mode: str,
     pid: int,
     launch_logs: str,
+    source_csv_path: Path | None = None,
+    scoped_csv_path: Path | None = None,
+    scope: dict[str, Any] | None = None,
+    preview_counts: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    return {
+    data = {
         "csv_path": str(csv_path),
         "dry_run": dry_run,
         "plan_only": plan_only,
@@ -94,6 +101,15 @@ def rerun_start_success_data(
         "pid": pid,
         "logs": launch_logs,
     }
+    if source_csv_path is not None:
+        data["source_csv_path"] = str(source_csv_path)
+    if scoped_csv_path is not None:
+        data["scoped_csv_path"] = str(scoped_csv_path)
+    if scope is not None:
+        data["scope"] = dict(scope)
+    if preview_counts is not None:
+        data["preview_counts"] = dict(preview_counts)
+    return data
 
 
 def rerun_csv_path_missing_result() -> "CommandResult":
@@ -110,7 +126,7 @@ def rerun_mode_error_result() -> "CommandResult":
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
         ok=False,
-        message="CSV rerun API defaults are limited to copy/keep/park for this migration phase.",
+        message="CSV rerun execution is limited to copy/keep/park; source-mutating and in-place modes are blocked.",
         severity="error",
         errors=[CSV_RERUN_MODE_ERROR],
     )
@@ -170,6 +186,10 @@ def rerun_start_success_result(
     return_mode: str,
     pid: int,
     launch_logs: str,
+    source_csv_path: Path | None = None,
+    scoped_csv_path: Path | None = None,
+    scope: dict[str, Any] | None = None,
+    preview_counts: dict[str, Any] | None = None,
 ) -> "CommandResult":
     return _command_result(
         command=CSV_RERUN_START_COMMAND,
@@ -186,6 +206,10 @@ def rerun_start_success_result(
             return_mode=return_mode,
             pid=pid,
             launch_logs=launch_logs,
+            source_csv_path=source_csv_path,
+            scoped_csv_path=scoped_csv_path,
+            scope=scope,
+            preview_counts=preview_counts,
         ),
     )
 

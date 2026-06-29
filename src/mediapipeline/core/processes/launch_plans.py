@@ -92,6 +92,7 @@ def build_audit_launch_plan(
     library_root: str,
     include_sidecars: bool,
     default_report_root: Path,
+    library_roots: list[str] | None = None,
 ) -> ProcessLaunchPlan:
     if not resolved.powershell_host:
         raise RuntimeError("PowerShell host could not be resolved.")
@@ -99,6 +100,10 @@ def build_audit_launch_plan(
         raise FileNotFoundError(f"Audit script not found: {resolved.audit_script_path}")
 
     report_root = resolved.audit_reports_path or default_report_root
+    selected_roots = [str(item).strip() for item in (library_roots or []) if str(item).strip()]
+    if not selected_roots and library_root:
+        selected_roots = [library_root]
+
     args = [
         resolved.powershell_host,
         "-NoProfile",
@@ -106,11 +111,13 @@ def build_audit_launch_plan(
         "Bypass",
         "-File",
         str(resolved.audit_script_path),
-        "-LibraryRoot",
-        library_root,
         "-ReportRoot",
         str(report_root),
     ]
+    if len(selected_roots) > 1:
+        args.extend(["-LibraryRoots", *selected_roots])
+    else:
+        args.extend(["-LibraryRoot", selected_roots[0] if selected_roots else library_root])
     if resolved.config_path.exists():
         args.extend(["-ConfigPath", str(resolved.config_path)])
     if include_sidecars:
@@ -126,6 +133,8 @@ def build_audit_launch_plan(
         mode="audit",
         metadata={
             "library_root": library_root,
+            "library_roots": selected_roots,
+            "library_root_count": len(selected_roots),
             "report_root": str(report_root),
             "include_sidecars": bool(include_sidecars),
         },

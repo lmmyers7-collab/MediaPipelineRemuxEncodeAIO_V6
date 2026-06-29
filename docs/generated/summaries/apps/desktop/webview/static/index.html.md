@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/index.html
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: aa67d73e31f2b8384e0b0f180d7a29098ab8727f499734bd8f568df8f8139cd4
+sha256: 12921e2eb4f04967312bf6911401d6f1c0d19f12221b52823b8e135c9f1a13f3
 ---
 # `apps/desktop/webview/static/index.html`
 

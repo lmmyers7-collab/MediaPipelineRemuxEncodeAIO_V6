@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from contextlib import nullcontext
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,11 @@ from mediapipeline.core.audit.score_policy import (
     audit_score_policy_payload,
     reset_audit_score_policy,
     write_audit_score_policy,
+)
+from mediapipeline.core.audit.sources import (
+    audit_source_state_payload,
+    scan_audit_sources,
+    update_audit_sources,
 )
 
 from mediapipeline.desktop.application.dto_commands import CommandResult
@@ -110,6 +116,41 @@ class AuditFacadeMixin:
                 "Rerun CSV export uses backend-owned copy / keep / park defaults.",
             ],
         }
+
+    def get_audit_sources(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        return audit_source_state_payload(resolved)
+
+    def save_audit_sources(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        lock = getattr(self, "_audit_source_state_lock", None)
+        context = lock if lock is not None else nullcontext()
+        with context:
+            result = update_audit_sources(resolved, request)
+        return CommandResult(
+            command="audit.sources",
+            ok=bool(result.get("ok")),
+            message=str(result.get("message") or ""),
+            severity=str(result.get("severity") or "info"),
+            warnings=[str(item) for item in result.get("warnings") or []],
+            errors=[str(item) for item in result.get("errors") or []],
+            refresh_hint="audit-sources",
+            data=dict(result.get("data") or {}),
+        )
+
+    def scan_audit_sources(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
+        lock = getattr(self, "_audit_source_state_lock", None)
+        context = lock if lock is not None else nullcontext()
+        with context:
+            result = scan_audit_sources(resolved, request)
+        return CommandResult(
+            command="audit.sources.scan",
+            ok=bool(result.get("ok")),
+            message=str(result.get("message") or ""),
+            severity=str(result.get("severity") or "info"),
+            warnings=[str(item) for item in result.get("warnings") or []],
+            errors=[str(item) for item in result.get("errors") or []],
+            refresh_hint="audit-sources",
+            data=dict(result.get("data") or {}),
+        )
 
     def save_audit_score_policy(self, resolved: ResolvedPaths, request: dict[str, Any]) -> CommandResult:
         score_path = getattr(resolved, "audit_score_policy_path", None)

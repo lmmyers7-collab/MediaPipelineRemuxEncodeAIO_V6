@@ -474,12 +474,12 @@ _PHASE3_DISPLAY_METADATA_BY_KEY: dict[str, dict[str, object]] = {
         "help_text": "Manual audio codec allowlist used when the passthrough policy selects custom codec control.",
     },
     "PreferredDefaultAudioLanguages": {
-        "label": "Preferred Default Audio Languages",
-        "short_label": "Audio Languages",
+        "label": "Primary Default Audio Language",
+        "short_label": "Audio Language",
         "section": "Audio",
         "rule_taxonomy": ("playback",),
         "strictness": "soft",
-        "help_text": "Ordered language preference for selecting the default audio track when matching tracks are present.",
+        "help_text": "Primary language preference for selecting the default audio track when matching tracks are present.",
     },
     "AudioTranscodeCodec": {
         "label": "Audio Transcode Codec",

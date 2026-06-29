@@ -125,6 +125,7 @@ class MediaPipelineApplicationFacade(
         self._sample_validation_lock = threading.Lock()
         self._schedule_save_lock = threading.Lock()
         self._metrics_state_lock = threading.Lock()
+        self._audit_source_state_lock = threading.Lock()
         self._network_lifecycle_lock = threading.RLock()
         self._network_lifecycle_state = {}
         self._network_dispatcher_runtime = {}

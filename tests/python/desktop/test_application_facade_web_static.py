@@ -1353,6 +1353,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn('id="settings-subtitle-bdpgs-ocr-tool-path"', html)
         self.assertIn('id="settings-subtitle-bdpgs-ocr-tessdata-path"', html)
         self.assertIn('id="settings-subtitle-vobsub-ocr-tool-path"', html)
+        self.assertIn('id="settings-subtitle-bdpgs-ocr-tool-picker-badge"', html)
+        self.assertIn('data-path-picker-target="settings.subtitle.bdpgs_ocr_tool_path"', html)
+        self.assertIn('id="settings-subtitle-bdpgs-tessdata-picker-badge"', html)
+        self.assertIn('data-path-picker-target="settings.subtitle.bdpgs_ocr_tessdata_path"', html)
+        self.assertIn('id="settings-subtitle-vobsub-ocr-tool-picker-badge"', html)
+        self.assertIn('data-path-picker-target="settings.subtitle.vobsub_ocr_tool_path"', html)
         self.assertIn('id="settings-subtitle-sdh-keywords"', html)
         self.assertIn('id="settings-subtitle-supplemental-keywords"', html)
         self.assertNotIn("settings-subtitle-bdpgs-ocr-browse", html)
@@ -1395,6 +1401,12 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
             with self.subTest(key=key):
                 self.assertIn(f'data-settings-path-key="{key}"', html)
                 self.assertIn(f'data-settings-path-input="{input_id}"', html)
+                self.assertIn(f'data-path-picker-input="{input_id}"', html)
+                self.assertIn(f'id="{input_id}-picker-badge"', html)
+                self.assertIn(f'data-path-picker-target="settings.file_safety.{key}"', html)
+        self.assertIn('id="settings-file-safety-watch-roots-picker-badge"', html)
+        self.assertIn('data-path-picker-target="settings.file_safety.WatchFolderRoots"', html)
+        self.assertIn('data-path-picker-write="append-list"', html)
         self.assertIn('"/api/settings/browse-path"', settings_js)
         self.assertIn('selection_mode: "folder"', settings_js)
         self.assertIn("writes_config", settings_js)
@@ -1403,6 +1415,27 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn("It cannot save settings, launch work, rewrite queue state, publish, rename, delete, or touch media files.", settings_js)
         self.assertIn("[data-settings-path-key]", app_js)
         self.assertIn('command === "settings.browse_path"', settings_history_js)
+
+    def test_shared_path_picker_badge_helper_is_backend_owned_staging(self) -> None:
+        desktop_root = find_repo_root(Path(__file__))
+        static_root = desktop_root / "apps" / "desktop" / "webview" / "static"
+        html = _render_static_index_html(static_root)
+        path_picker_js = (static_root / "assets" / "pathPicker.js").read_text(encoding="utf-8")
+
+        self.assertIn('/assets/pathPicker.js', html)
+        _assert_namespace_export(self, path_picker_js, "mediaPipelinePathPicker", "browsePath")
+        _assert_namespace_export(self, path_picker_js, "mediaPipelinePathPicker", "inputForButton")
+        self.assertIn("[data-path-picker-target]", path_picker_js)
+        self.assertIn('apiPost("/api/path-picker/browse"', path_picker_js)
+        self.assertIn("pathPickerInput", path_picker_js)
+        self.assertIn("pathPickerMode", path_picker_js)
+        self.assertIn("pathPickerFilter", path_picker_js)
+        self.assertIn("pathPickerStatus", path_picker_js)
+        self.assertIn("pathPickerWrite", path_picker_js)
+        self.assertIn("path-picker:staged", path_picker_js)
+        self.assertIn("command: \"path_picker.browse\"", path_picker_js)
+        self.assertNotIn("window.browsePath =", path_picker_js)
+        self.assertNotIn("confirm_save", path_picker_js)
 
     def test_settings_tv_library_folder_panel_explains_backend_owned_keys(self) -> None:
         desktop_root = find_repo_root(Path(__file__))
@@ -1911,6 +1944,7 @@ class ApplicationFacadeWebStaticTests(unittest.TestCase):
         self.assertIn(".is-manual-drop-target", queue_css)
         self.assertIn('.priority-badge[data-level="high"]', queue_css)
         self.assertIn('background: var(--semantic-info-bg);', queue_css)
+        self.assertIn("#queue-filter-summary {\n  display: none !important;\n}", queue_css)
         self.assertIn('[data-page-panel="queue"] .queue-table tr.is-selected[data-status="warning"] td:first-child', queue_css)
         self.assertIn('[data-page-panel="queue"] .queue-table tr.is-selected[data-status="blocked"] td:first-child', queue_css)
 

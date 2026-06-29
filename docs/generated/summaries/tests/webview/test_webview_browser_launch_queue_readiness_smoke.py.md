@@ -3,9 +3,9 @@ file: tests/webview/test_webview_browser_launch_queue_readiness_smoke.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: d707e253029982effe8d646dff0fc96841523e60cddc083cdce9449e66aa4edb
+sha256: 89701c75917ef1136cbfdea6e2d3a3f62dfe09ee7361ca72aa1c5f9d3f2a70bd
 ---
 # `tests/webview/test_webview_browser_launch_queue_readiness_smoke.py`
 

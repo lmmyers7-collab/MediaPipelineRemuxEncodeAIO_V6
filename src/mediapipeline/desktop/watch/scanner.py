@@ -5,6 +5,7 @@ import time
 from collections import OrderedDict
 from collections.abc import Callable
 from dataclasses import dataclass
+from pathlib import Path
 from typing import TypeAlias
 
 
@@ -40,8 +41,15 @@ class _Observation:
     emitted: bool = False
 
 
+def _canonical_path(path: str) -> str:
+    try:
+        return str(Path(path).resolve(strict=False))
+    except (OSError, RuntimeError, ValueError):
+        return os.path.abspath(path)
+
+
 def _path_key(path: str) -> str:
-    return os.path.normcase(os.path.abspath(path)).casefold()
+    return os.path.normcase(_canonical_path(path)).casefold()
 
 
 def normalize_extensions(extensions: object) -> frozenset[str]:
@@ -66,7 +74,7 @@ def scan_root(root: str, extensions: frozenset[str]) -> ScanResult:
     snapshot: dict[str, FileStat] = {}
     errors: list[ScanError] = []
     normalized_extensions = normalize_extensions(extensions)
-    root_path = os.path.abspath(str(root or ""))
+    root_path = _canonical_path(str(root or ""))
 
     def scan_dir(path: str) -> None:
         try:
@@ -90,7 +98,7 @@ def scan_root(root: str, extensions: frozenset[str]) -> ScanResult:
             except OSError as exc:
                 errors.append(ScanError(path=entry.path, message=str(exc)))
                 continue
-            snapshot[os.path.abspath(entry.path)] = (int(stat.st_size), int(stat.st_mtime_ns))
+            snapshot[_canonical_path(entry.path)] = (int(stat.st_size), int(stat.st_mtime_ns))
 
     scan_dir(root_path)
     return ScanResult(root=root_path, snapshot=snapshot, errors=tuple(errors))
@@ -117,13 +125,13 @@ class StabilityTracker:
         normalized_stat = (int(stat[0]), int(stat[1]))
         if current is None or current.stat != normalized_stat:
             self._observations[key] = _Observation(
-                path=os.path.abspath(path),
+                path=_canonical_path(path),
                 stat=normalized_stat,
                 first_seen=timestamp,
                 last_seen=timestamp,
             )
             return
-        current.path = os.path.abspath(path)
+        current.path = _canonical_path(path)
         current.last_seen = timestamp
 
     def remove_missing(self, paths: set[str]) -> None:

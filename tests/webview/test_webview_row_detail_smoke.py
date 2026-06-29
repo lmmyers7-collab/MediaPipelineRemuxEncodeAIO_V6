@@ -342,7 +342,7 @@ def _node_runner_source() -> str:
 
         function requireHidden(id) {
           const element = context.document.getElementById(id);
-          if (!element.hidden || element.getAttribute("aria-hidden") !== "true") {
+          if (!element.hidden || element.getAttribute("aria-hidden") !== "true" || element.style.display !== "none") {
             throw new Error(`${id} should remain hidden from the Queue page`);
           }
         }

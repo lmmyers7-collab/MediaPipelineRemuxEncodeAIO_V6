@@ -3,9 +3,9 @@ file: src/mediapipeline/core/queue/source_inventory.py
 pipeline_stage: orchestration
 token_priority: medium
 owner_domain: queue
-last_modified: 2026-06-04
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: 861f5887b2a4b8102baeaff895a56775a7d33b3d84f05c0675d5ebecf4417d8c
+sha256: 1b50d3023d1b559ab47ee2f58a8e7d489bb7573a9d297c17e02c8155f9467f5d
 ---
 # `src/mediapipeline/core/queue/source_inventory.py`
 

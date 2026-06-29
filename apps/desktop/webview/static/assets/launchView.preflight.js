@@ -967,15 +967,22 @@
 
   function rerunLaunchPreflightLines(request) {
     const csv = String(request.csv_path || "").trim();
+    const safeModes = request.stage_mode === "copy" && request.original_mode === "keep" && request.return_mode === "park";
+    const scope = request.scope && typeof request.scope === "object" ? request.scope : {};
     const lines = [
       `CSV path: ${csv || "missing"}`,
       `Stage mode: ${request.stage_mode}`,
       `Original mode: ${request.original_mode}`,
       `Return mode: ${request.return_mode}`,
+      `Scope: enabled only ${scope.enabled_only !== false ? "yes" : "no"}; skip blocked ${scope.skip_blocked ? "yes" : "no"}; skip warnings ${scope.skip_warning_rows ? "yes" : "no"}; first rows ${scope.first_n || 0}; issue "${scope.issue_filter || ""}"; bucket "${scope.bucket_filter || ""}"`,
       `Plan only: ${request.plan_only ? "yes - no manifest or media writes" : "no"}`,
       `Dry run: ${request.dry_run ? "yes - evidence-writing preview" : request.plan_only ? "no - plan-only request" : "no - live rerun start"}`,
     ];
     if (!csv) lines.push("Input warning: CSV path is required before CSV rerun can start.");
+    lines.push("Mode options: stage copy is executable; move is blocked. Original keep is executable; delete is blocked. Return park is executable; replace_original is blocked.");
+    if (!safeModes) {
+      lines.push("Mode warning: backend preflight/start will block selected source-mutating or in-place CSV rerun policy before process launch.");
+    }
     lines.push(request.plan_only
       ? "Safety policy: plan-only stops before writing manifests, temp config, staging files, parked outputs, or source media."
       : request.dry_run

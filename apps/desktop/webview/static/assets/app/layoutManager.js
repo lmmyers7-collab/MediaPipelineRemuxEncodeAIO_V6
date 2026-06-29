@@ -1637,9 +1637,7 @@
   function applySharedUiPreferenceRuntimeState() {
     applyAdvancedModePreference(readBooleanUiPreference(ADVANCED_MODE_STORAGE_KEY));
     applyEvidenceHiddenPreference(readBooleanUiPreference(EVIDENCE_HIDDEN_STORAGE_KEY));
-    let storedTheme = null;
-    try { storedTheme = localStorage.getItem(THEME_STORAGE_KEY); } catch (_) {}
-    applyThemePreference(storedTheme === "light");
+    applyThemePreference(false);
     applyStoredLayoutPreferences();
   }
 

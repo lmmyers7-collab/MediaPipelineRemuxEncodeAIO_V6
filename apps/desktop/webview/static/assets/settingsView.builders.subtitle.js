@@ -18,6 +18,199 @@
       writeSettingsPatchJson,
     } = deps;
 
+    const subtitleLanguageFields = [
+      { id: "settings-subtitle-languages", key: "SubKeepLanguages", fallback: ["eng", "und"] },
+      { id: "settings-subtitle-tx3g-languages", key: "Tx3gExtractLanguages", fallback: ["eng", "und"] },
+      { id: "settings-subtitle-bdpgs-languages", key: "BdpgsExtractLanguages", fallback: ["eng", "und"] },
+      { id: "settings-subtitle-vobsub-languages", key: "VobSubExtractLanguages", fallback: ["eng", "en", "und"] },
+    ];
+
+    const subtitleFieldFallbacks = {
+      SubKeepLanguages: ["eng", "und"],
+      Tx3gExtractLanguages: ["eng", "und"],
+      BdpgsExtractLanguages: ["eng", "und"],
+      VobSubExtractLanguages: ["eng", "en", "und"],
+      MergeThresholdMs: 150,
+      SubtitleExtractTimeoutSeconds: 180,
+      SubtitleProbeTimeoutSeconds: 30,
+      BdpgsOcrTimeoutSeconds: 1800,
+      VobSubOcrTimeoutSeconds: 1800,
+      BdpgsOcrToolPath: "tools\\PgsToSrt\\PgsToSrt.exe",
+      BdpgsOcrTessdataPath: "tools\\PgsToSrt\\tessdata",
+      VobSubOcrToolPath: "tools\\SubtitleEditLegacy\\SubtitleEdit.exe",
+      SubSDHTitleKeywords: ["sdh", "hearing impaired", "hearing-impaired", "cc", "closed caption", "closedcaption", "captions", "subs for deaf", "deaf", "hoh", "hi", "descriptive"],
+      SubSupplementalKeywords: ["sign", "signs", "song", "songs", "karaoke", "chapter", "opening", "ending", "op", "ed", "credits", "lyrics"],
+      ExcludeSubtitleStyles: [],
+      IncludeSubtitleStyles: [],
+      ConvertTx3gToSrt: true,
+      DropTx3gAfterConversion: false,
+      CreateExternalTx3gSrtSidecars: false,
+      Tx3gPreserveExistingSrt: true,
+      Tx3gTreatForcedAsSeparate: true,
+      TreatTx3gSignsSongsAsForced: false,
+      ConvertBdpgsToSrt: false,
+      DropBdpgsAfterConversion: false,
+      TreatBdpgsSignsSongsAsForced: false,
+      ConvertVobSubToSrt: false,
+      DropVobSubAfterConversion: false,
+      TreatVobSubSignsSongsAsForced: false,
+      DropAssAfterConversion: false,
+      RemoveKaraoke: true,
+      StripFormatting: true,
+      MergeAdjacent: true,
+      KeepSignsAndSongs: true,
+      TreatAssSignsSongsAsForced: false,
+    };
+
+    const subtitlePolicyGroups = [
+      {
+        selector: '[data-subtitle-policy-row="tx3g"]',
+        keys: ["ConvertTx3gToSrt", "CreateExternalTx3gSrtSidecars", "Tx3gPreserveExistingSrt", "Tx3gTreatForcedAsSeparate", "TreatTx3gSignsSongsAsForced"],
+      },
+      {
+        selector: '[data-subtitle-policy-row="bdpgs"]',
+        keys: ["ConvertBdpgsToSrt", "TreatBdpgsSignsSongsAsForced"],
+      },
+      {
+        selector: '[data-subtitle-policy-row="vobsub"]',
+        keys: ["ConvertVobSubToSrt", "TreatVobSubSignsSongsAsForced"],
+      },
+      {
+        selector: '[data-subtitle-policy-row="ass"]',
+        keys: ["RemoveKaraoke", "StripFormatting", "MergeAdjacent", "KeepSignsAndSongs", "TreatAssSignsSongsAsForced"],
+      },
+      {
+        selector: ".subtitle-cleanup-disclosure",
+        keys: ["DropTx3gAfterConversion", "DropBdpgsAfterConversion", "DropVobSubAfterConversion", "DropAssAfterConversion"],
+      },
+      {
+        selector: ".subtitle-advanced-disclosure",
+        keys: ["MergeThresholdMs", "SubtitleExtractTimeoutSeconds", "SubtitleProbeTimeoutSeconds", "BdpgsOcrTimeoutSeconds", "VobSubOcrTimeoutSeconds", "BdpgsOcrToolPath", "BdpgsOcrTessdataPath", "VobSubOcrToolPath", "SubSDHTitleKeywords", "SubSupplementalKeywords", "ExcludeSubtitleStyles", "IncludeSubtitleStyles"],
+      },
+    ];
+
+    function setSubtitleBuilderStatus(text, state) {
+      setText("settings-subtitle-builder-status", text);
+      const statusNode = byId("settings-subtitle-builder-status");
+      if (statusNode) statusNode.dataset.state = state || "unknown";
+    }
+
+    function subtitleFallback(key) {
+      return Object.prototype.hasOwnProperty.call(subtitleFieldFallbacks, key) ? subtitleFieldFallbacks[key] : undefined;
+    }
+
+    function subtitleFieldEntry(key) {
+      return subtitleSettingsBuilderFields.find(([fieldKey]) => fieldKey === key) || null;
+    }
+
+    function normalizedListFromValue(value) {
+      return parseSettingsListText(formatSettingsListValue(value)).map((item) => String(item || "").trim().toLowerCase()).filter(Boolean);
+    }
+
+    function subtitleCurrentValue(key, id, kind) {
+      const element = byId(id);
+      if (!element) return undefined;
+      if (kind === "bool") return element.checked === true;
+      if (kind === "list") return parseSettingsListText(element.value).map((item) => String(item || "").trim().toLowerCase()).filter(Boolean);
+      if (kind === "text") return String(element.value || "").trim();
+      const numberValue = Number(element.value);
+      return Number.isFinite(numberValue) ? numberValue : element.value;
+    }
+
+    function subtitleSavedValue(key, kind) {
+      const saved = settingsBuilderConfigValue(key, subtitleFallback(key));
+      if (kind === "bool") return saved === true || String(saved).toLowerCase() === "true";
+      if (kind === "list") return normalizedListFromValue(saved);
+      if (kind === "text") return String(saved ?? "").trim();
+      const numberValue = Number(saved);
+      return Number.isFinite(numberValue) ? numberValue : saved;
+    }
+
+    function subtitleValuesEqual(current, saved, kind) {
+      if (kind === "list") {
+        if (!Array.isArray(current) || !Array.isArray(saved) || current.length !== saved.length) return false;
+        return current.every((value, index) => value === saved[index]);
+      }
+      return current === saved;
+    }
+
+    function subtitleKeyChanged(key) {
+      const entry = subtitleFieldEntry(key);
+      if (!entry) return false;
+      const [, id, kind] = entry;
+      return !subtitleValuesEqual(subtitleCurrentValue(key, id, kind), subtitleSavedValue(key, kind), kind);
+    }
+
+    function subtitleDocumentNode() {
+      return byId("settings-subtitle-builder-status")?.ownerDocument || (typeof document !== "undefined" ? document : null);
+    }
+
+    function renderSubtitleLanguagePreviews() {
+      const doc = subtitleDocumentNode();
+      subtitleLanguageFields.forEach(({ id }) => {
+        const input = byId(id);
+        const field = input?.closest?.("[data-subtitle-language-field]");
+        const preview = field?.querySelector?.("[data-subtitle-language-preview]");
+        const warning = field?.querySelector?.("[data-subtitle-language-warning]");
+        const tokens = parseSettingsListText(input?.value || "");
+        const unusual = tokens.filter((token) => !/^[a-z]{2,3}$/i.test(String(token || "").trim()));
+        if (field) field.dataset.state = subtitleKeyChanged(subtitleLanguageFields.find((item) => item.id === id)?.key || "") ? "changed" : "current";
+        if (preview) {
+          preview.textContent = "";
+          if (!tokens.length) {
+            const empty = doc?.createElement ? doc.createElement("span") : null;
+            if (empty) {
+              empty.className = "subtitle-language-chip is-empty";
+              empty.textContent = "No languages";
+              preview.appendChild(empty);
+            } else {
+              preview.textContent = "No languages";
+            }
+          } else {
+            tokens.forEach((token) => {
+              const chip = doc?.createElement ? doc.createElement("span") : null;
+              if (!chip) return;
+              chip.className = "subtitle-language-chip";
+              chip.textContent = String(token || "").trim();
+              preview.appendChild(chip);
+            });
+          }
+        }
+        if (warning) {
+          warning.textContent = !tokens.length
+            ? "Advisory: empty language lists can make subtitle routing unpredictable."
+            : unusual.length
+              ? `Advisory: unusual language token(s): ${unusual.join(", ")}. Backend Save remains authoritative.`
+              : "Preview only; backend Save validates the final settings.";
+          warning.dataset.state = !tokens.length || unusual.length ? "warning" : "current";
+        }
+      });
+    }
+
+    function renderSubtitleGroupedStates() {
+      const doc = subtitleDocumentNode();
+      subtitlePolicyGroups.forEach((group) => {
+        const node = doc?.querySelector?.(group.selector);
+        if (!node) return;
+        const changed = group.keys.some((key) => subtitleKeyChanged(key));
+        node.dataset.state = changed ? "changed" : "current";
+        const indicator = node.querySelector?.("[data-subtitle-change-indicator]");
+        if (indicator) indicator.textContent = changed ? "Changed" : "Current";
+      });
+      const cleanup = doc?.querySelector?.(".subtitle-cleanup-disclosure");
+      const dropEnabled = ["settings-subtitle-drop-tx3g", "settings-subtitle-drop-bdpgs", "settings-subtitle-drop-vobsub", "settings-subtitle-drop-ass"]
+        .some((id) => byId(id)?.checked === true);
+      if (cleanup) {
+        cleanup.dataset.cleanup = dropEnabled ? "enabled" : "preserved";
+        if (dropEnabled) cleanup.open = true;
+      }
+    }
+
+    function renderSubtitlePolicyEditorState() {
+      renderSubtitleLanguagePreviews();
+      renderSubtitleGroupedStates();
+    }
+
     function setSubtitleBuilderControl(id, key, kind, fallback) {
       const element = byId(id);
       if (!element) return;
@@ -70,8 +263,9 @@
       setSubtitleBuilderControl("settings-subtitle-ass-signs-forced", "TreatAssSignsSongsAsForced", "bool", false);
       subtitleSettingsBuilderState.initialized = true;
       subtitleSettingsBuilderState.dirty = false;
-      setText("settings-subtitle-builder-status", "Loaded current values");
+      setSubtitleBuilderStatus("Loaded current values", "loaded");
       renderSubtitleSettingsBuilderGuidance();
+      renderSubtitlePolicyEditorState();
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();
     }
@@ -79,8 +273,9 @@
     function markSubtitleSettingsBuilderDirty() {
       subtitleSettingsBuilderState.initialized = true;
       subtitleSettingsBuilderState.dirty = true;
-      setText("settings-subtitle-builder-status", "Editing subtitle values");
+      setSubtitleBuilderStatus("Editing subtitle values", "editing");
       renderSubtitleSettingsBuilderGuidance();
+      renderSubtitlePolicyEditorState();
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();
     }
@@ -109,7 +304,7 @@
         patch = collectSubtitleSettingsBuilderPatch();
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        setText("settings-subtitle-builder-status", "Invalid subtitle value");
+        setSubtitleBuilderStatus("Invalid subtitle value", "invalid");
         setText("settings-patch-status", "Builder invalid");
         setText("settings-patch-detail", message);
         return false;
@@ -117,8 +312,9 @@
       writeSettingsPatchJson(patch, "Subtitle builder prepared subtitle policy keys for Save Settings. Backend Save still validates before writing.");
       subtitleSettingsBuilderState.initialized = true;
       subtitleSettingsBuilderState.dirty = true;
-      setText("settings-subtitle-builder-status", `${Object.keys(patch).length} subtitle change keys ready`);
+      setSubtitleBuilderStatus(`${Object.keys(patch).length} subtitle change keys ready`, "ready");
       renderSubtitleSettingsBuilderGuidance();
+      renderSubtitlePolicyEditorState();
       renderSettingsMediaPolicyCrossCheck();
       renderSettingsActiveMediaPolicyHandoff();
       return true;
@@ -154,7 +350,8 @@
       });
       lines.push("");
       lines.push("Operator rule: fix missing OCR tool/tessdata paths in backend settings before trusting BDPGS-to-SRT runs.");
-      lines.push("Mutation guardrail: saved path evidence is read-only; path edits are staged by the Subtitle builder or raw JSON and still go through backend Save.");
+      lines.push("Mutation guardrail: saved path evidence is read-only; path edits are staged by the Subtitle builder or backend-owned picker and still go through backend Save.");
+      lines.push("WebView does not browse arbitrary paths, resolve paths, or run OCR.");
       return lines;
     }
 
@@ -300,6 +497,7 @@
       if (dropBdpgs && !convertBdpgs) lines.push("", "Conflict: Drop BDPGS is enabled while OCR BDPGS to SRT is disabled.");
       if (dropVobSub && !convertVobSub) lines.push("", "Conflict: Drop VobSub is enabled while OCR VobSub to SRT is disabled.");
       setText("settings-subtitle-guidance", lines.join("\n") || "No subtitle guidance loaded.");
+      renderSubtitlePolicyEditorState();
     }
 
     return {

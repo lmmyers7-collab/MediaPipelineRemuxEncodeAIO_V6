@@ -1,0 +1,51 @@
+{
+  "id": "MP-CHANGE-2026-0628-015",
+  "title": "Remove WebView light mode",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-28",
+  "summary": "Removed the operator-facing Light theme control from the WebView shell and clamped runtime theme handling to dark mode.",
+  "reason": "Light mode should no longer be selectable or restored from stale local UI preferences.",
+  "affected_areas": [
+    "docs",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The top bar exposed a Light button, keyboard shortcuts could invoke the theme toggle, and stored mediapipeline-theme=light preferences could reapply body.light-mode.",
+  "behavior_after": "The top bar no longer exposes a Light button, the theme shortcut is gone, stale theme-toggle DOM is removed defensively, and runtime theme application always removes body.light-mode and stores dark.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/app/layoutManager.js",
+    "apps/desktop/webview/static/assets/app/lifecycle.js",
+    "apps/desktop/webview/static/partials/app-shell-start.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/layoutManager.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app/lifecycle.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/app-shell-start.html.md",
+    "docs/generated/summaries/tests/webview/test_webview_css_design_tokens.py.md",
+    "docs/inventories/WEBVIEW_DOM_ID_INVENTORY.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-015.json",
+    "tests/webview/test_webview_css_design_tokens.py"
+  ],
+  "tests_added": [
+    "tests/webview/test_webview_css_design_tokens.py"
+  ],
+  "manual_validation": [
+    "change_control.validate_changes - passed",
+    "change_control.validate_changes --require-worktree-coverage - failed: unrelated uncovered path-picker files/summaries in dirty worktree",
+    "ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke - failed: unrelated config/path-picker/generated/dependency-boundary drift in dirty worktree",
+    "python -m unittest tests.python.desktop.test_application_facade_web_static_shell -q - passed",
+    "python -m unittest tests.webview.test_webview_css_design_tokens -q - passed",
+    "python -m unittest tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests.test_theme_runtime_is_dark_only -q - passed",
+    "python -m unittest tests.webview.test_webview_frontend_mutation_boundary -q - failed: unrelated API POST ownership drift from pre-existing dirty WebView command changes",
+    "python -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_ui_preferences_sync_stays_allowlisted_and_runs_before_layout_init -q - passed",
+    "python -m unittest tests.webview.test_webview_inventory_docs -q - failed after excluding unrelated path-picker inventory refresh; dirty rendered index has 1943 IDs vs inventory header 1920"
+  ],
+  "rollback_plan": "Restore the theme-toggle button in app-shell-start.html, restore light/dark toggle handling in app/lifecycle.js and app/layoutManager.js, allow mediapipeline-theme in shared UI preference sync, and restore the previous static test expectations.",
+  "related_changes": [],
+  "notes": "Removed the WebView light-mode control and forced runtime theme handling to dark.\nRefreshed generated summaries for changed WebView/test files.\nFull frontend mutation-boundary, inventory-doc, and release self-test failures were outside the light-mode removal surface.\nStrict worktree coverage failed on unrelated path-picker files not claimed by this packet."
+}

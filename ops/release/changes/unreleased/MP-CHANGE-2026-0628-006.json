@@ -1,0 +1,49 @@
+{
+  "id": "MP-CHANGE-2026-0628-006",
+  "title": "Reduce launch advisory highlights",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "behavior_change",
+  "risk_level": "low",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-29",
+  "summary": "Reduce Launch-page yellow advisory rows by treating non-blocking saved-settings notes and inactive ExtraVideoFlags as launch-neutral while preserving highlights for blocked policy contradictions, active raw FFmpeg passthrough, job-failure paths, and safety-gate risks.",
+  "reason": "Operators read yellow Launch rows as misconfiguration. Normal saved policy choices should not be highlighted unless they can block launch, fail work, or weaken a safety gate.",
+  "affected_areas": [
+    "backend",
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Launch settings risk table marked broad review-only settings as yellow, including backend warning counts, media-policy readiness review notes, deferred publish, inactive ExtraVideoFlags under structured presets, H.264 copy tradeoffs, disabled subtitle conversion preferences, PATH fallback, and Validate mode.",
+  "behavior_after": "The Launch settings risk table keeps normal saved-policy notes ready/neutral. Yellow or blocked rows are reserved for launch-affecting risks such as validation errors, blocked media-policy contradictions, active custom_legacy_flags raw ExtraVideoFlags, strict/fallback size checks, MP4/subtitle container conflicts, source/path readiness gaps, no-audio output, or weakened stability/integrity gates.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/launch/risk/riskRows.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/launch/risk/riskRows.js.md",
+    "docs/generated/summaries/src/mediapipeline/desktop/application/settings_risk_policy.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_settings_workspace.py.md",
+    "docs/generated/summaries/tests/python/desktop/test_settings_risk_policy_rules.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-006.json",
+    "src/mediapipeline/desktop/application/settings_risk_policy.py",
+    "tests/python/desktop/test_application_facade_settings_workspace.py",
+    "tests/python/desktop/test_settings_risk_policy_rules.py"
+  ],
+  "tests_added": [
+    "Added backend policy coverage proving inactive ExtraVideoFlags under balanced_nvenc stay launch-neutral.",
+    "Added backend policy coverage proving active custom_legacy_flags raw ExtraVideoFlags still produce Launch review rows."
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_settings_risk_policy_rules -q - passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_settings_workspace -q - passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_launch -q - passed",
+    "node --check apps\\desktop\\webview\\static\\assets\\launch\\risk\\riskRows.js - passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_settings_launch_smoke -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/desktop/application/settings_risk_policy.py apps/desktop/webview/static/assets/launch/risk/riskRows.js tests/python/desktop/test_settings_risk_policy_rules.py tests/python/desktop/test_application_facade_settings_workspace.py - passed, 4 written",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths src/mediapipeline/desktop/application/settings_risk_policy.py - passed, 1 written after final helper cleanup",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage - failed on unrelated untracked src/mediapipeline/core/api/commands_path_picker.py"
+  ],
+  "rollback_plan": "Revert the Launch risk handoff and WebView fallback classification changes, restore the prior legacy-flags review assertions, and regenerate the affected summaries.",
+  "related_changes": [],
+  "notes": "Keep fallback Launch risk row classification aligned with backend launch-attention semantics.\nCover neutral inactive ExtraVideoFlags and active custom raw flag highlighting in backend Launch handoff.\nUpdate workspace policy-impact assertion for inactive raw flags being launch-neutral.\nRefresh summary after Launch risk policy source change.\nRefresh summary after Launch risk fallback source change.\nRefresh summary after targeted Launch risk policy tests changed.\nRefresh summary after settings workspace policy-impact test changed.\nNarrow backend Launch risk handoff yellow states to launch-affecting conflicts."
+}

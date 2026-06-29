@@ -118,11 +118,13 @@ class ProcessLifecycleServiceMixin:
         library_root: str,
         include_sidecars: bool,
         show_console: bool,
+        library_roots: list[str] | None = None,
     ) -> subprocess.Popen[Any]:
         return start_audit_for_service(
             self,
             resolved,
             library_root=library_root,
+            library_roots=library_roots,
             include_sidecars=include_sidecars,
             show_console=show_console,
         )

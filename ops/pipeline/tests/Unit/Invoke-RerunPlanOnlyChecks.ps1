@@ -71,6 +71,7 @@ true,"$source",Movie,copy,keep,park
     Assert-False (Test-Path -LiteralPath (Join-Path $root 'Local\RerunManifests') -PathType Container) 'PlanOnly created RerunManifests.'
     Assert-False (Test-Path -LiteralPath (Join-Path $root 'Local\RerunQueue') -PathType Container) 'PlanOnly created RerunQueue.'
     Assert-False (Test-Path -LiteralPath (Join-Path $root 'Local\RerunParked') -PathType Container) 'PlanOnly created RerunParked.'
+    Assert-False (Test-Path -LiteralPath (Join-Path $root 'Local_RerunWorkspace') -PathType Container) 'PlanOnly created the isolated rerun workspace.'
     Assert-True (Test-Path -LiteralPath $source -PathType Leaf) 'PlanOnly removed or moved the source media.'
 } finally {
     Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue

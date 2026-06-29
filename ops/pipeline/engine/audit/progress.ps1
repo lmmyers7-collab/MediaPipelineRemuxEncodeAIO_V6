@@ -70,6 +70,7 @@ function Write-AuditProgress {
         current_file             = $CurrentFile
         current_operation        = $CurrentOperation
         library_root             = $script:LibraryRootResolved
+        library_roots            = @($script:LibraryRootsResolved)
         report_root              = $script:ReportRootResolved
         include_sidecars         = [bool]$IncludeSidecars
         progress_persistence_healthy = [bool]$script:AuditProgressPersistenceHealthy
@@ -141,4 +142,3 @@ function Write-AuditScanProgress {
 function Complete-AuditConsoleProgress {
     Write-Progress -Activity 'Audit Media Library' -Completed
 }
-

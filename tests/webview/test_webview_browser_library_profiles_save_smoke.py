@@ -76,7 +76,9 @@ def _browser_library_profiles_save_runner_source() -> str:
               stage("show libraries");
               window.showPage("libraries");
               await waitFor(() => document.querySelectorAll("#settings-library-profile-list .settings-library-card").length >= 2, "library profile cards");
+              await waitFor(() => Boolean(byId("settings-library-summary-rows") && byId("settings-library-scan-sources-button")), "library summary table");
               stage("cards loaded");
+              const summaryRowsBefore = document.querySelectorAll("#settings-library-summary-rows tr").length;
               const initialProfiles = window.getLastSettings?.()?.config?.LibraryProfiles || [];
               const posts = [];
               const originalApiPost = window.apiPost;
@@ -145,6 +147,7 @@ def _browser_library_profiles_save_runner_source() -> str:
                 profileId,
                 initialProfileCount: initialProfiles.length,
                 savedProfileCount: savedProfiles.length,
+                summaryRowsBefore,
                 previewPostCount: previewPosts.length,
                 savePostCount: savePosts.length,
                 patchDetail: text("settings-patch-detail"),
@@ -210,7 +213,7 @@ def _browser_library_profiles_save_runner_source() -> str:
             const deadline = Date.now() + 20000;
             while (Date.now() < deadline) {
               const ready = await client.send("Runtime.evaluate", {
-                expression: `Boolean(document.getElementById("settings-library-profile-list") && document.getElementById("settings-library-save-button") && typeof window.showPage === "function" && typeof window.mediaPipelineSettingsLibraries?.saveLibraryProfiles === "function" && window.mediaPipelineApi?.tokenPresent === true)`,
+                expression: `Boolean(document.getElementById("settings-library-profile-list") && document.getElementById("settings-library-summary-rows") && document.getElementById("settings-library-save-button") && typeof window.showPage === "function" && typeof window.mediaPipelineSettingsLibraries?.saveLibraryProfiles === "function" && typeof window.mediaPipelineSettingsLibraries?.renderLibrarySummary === "function" && window.mediaPipelineApi?.tokenPresent === true)`,
                 returnByValue: true,
               });
               if (ready.result?.value === true) break;

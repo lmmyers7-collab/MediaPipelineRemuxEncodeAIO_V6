@@ -3,9 +3,9 @@ file: tests/webview/test_webview_frontend_mutation_boundary.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 76a7a526ba0e34db990e3fe590a0be02c1d896d978f8d884a5820ce9e1f4b3db
+sha256: 632997dc6161a2edcfc50f0cf1c7591889c73399aa6a1416d44f18708174800f
 ---
 # `tests/webview/test_webview_frontend_mutation_boundary.py`
 

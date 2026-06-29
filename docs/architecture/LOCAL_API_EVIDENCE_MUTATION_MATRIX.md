@@ -2,7 +2,7 @@
 
 Companion to `docs/inventories/LOCAL_API_ROUTE_OWNERSHIP_MAP.md`. This document separates every route into its mutation class, states whether the frontend can own the behavior, and notes the key restriction on each command route.
 
-Total routes: 148 (49 read, 99 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
+Total routes: 154 (51 read, 103 command). Source of truth remains `LOCAL_API_ROUTE_CONTRACT`, assembled from `contract_read.py` and `contract_command.py`.
 
 ---
 
@@ -47,6 +47,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/failures` | `read` | No | Failure markers and reports; query-bounded |
 | `GET /api/audit-results` | `read` | No | Audit CSV preview; no rerun CSV written |
 | `GET /api/audit-controls` | `read` | No | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
+| `GET /api/audit-sources` | `read` | No | Reads backend-owned Audit source registry and scan status only; no scan, save, launch, or media mutation |
 | `GET /api/rename/cleaning-filters` | `read` | No | Reads backend-owned movie and TV cleaning filter catalogs only |
 | `GET /api/rename/movie-cleaning-filters` | `read` | No | Reads backend-owned movie filename cleaning filter catalog only |
 | `GET /api/rename/clean-filename-preview` | `read` | No | Read-only clean-filename preview plus optional workbench comparison/suggestions; marks suggestions as already covered or stage-recommended and writes nothing |
@@ -65,6 +66,7 @@ All GET routes are read-only. None touch media, launch pipeline work, write conf
 | `GET /api/watch-folders/status` | `read` | No | Reads watch-folder manager state only; does not scan on demand, launch, or mutate queue/process state |
 | `GET /api/settings/workspace` | `read` | No | Read-only, redacted settings snapshot |
 | `GET /api/settings/preset-library` | `read` | No | Reads backend PresetV2 library State JSON only; no active config save, queue mutation, launch, or media touch |
+| `GET /api/libraries/summary` | `read` | No | Backend-authored library profile summary evidence only; no staging, saving, queue mutation, launch, or media touch |
 | `GET /api/libraries/route-map` | `read` | No | Backend-authored Library Route Map and decision-matrix evidence only; no save, launch, plugin execution, queue mutation, or media touch |
 | `GET /api/libraries/route-map/trace` | `read` | No | Selected-file trace from existing Queue, Completed, and Sample Validation row evidence only; no probing, launch, save, repair, drain, rename, or media mutation |
 | `GET /api/libraries/route-map/compare` | `read` | No | Backend-authored Library Profile diff with explicit/inherited evidence and designation filtering; no staging or saving |
@@ -122,6 +124,7 @@ Returns backend-authored previews. No files, manifests, config, or queue state a
 | `POST /api/queue/file-overrides/series-clear-preview` | `read-only-preview` | Frontend cannot infer or approve TV series batch clear scope independently | Backend uses the current queue snapshot, selected TV path, same source/show root detection, exact-override evidence, and a preview fingerprint; no state write |
 | `POST /api/queue/file-overrides/folder-preview` | `read-only-preview` | Frontend cannot scan or approve folder rules independently | Backend uses bounded known-file/cached-track evidence only; no source folder scan or state write |
 | `POST /api/subtitle-qa/preview` | `read-only-preview` | Frontend cannot probe, convert, repair, or author subtitle QA evidence | Backend reads already-loaded Queue and Completed subtitle QA evidence only; no sidecar rewrite, publish, drain, or media touch |
+| `POST /api/rerun/preview` | `read-only-preview` | Frontend cannot parse CSV scope or approve executable rows independently | Backend parses the selected CSV, classifies blocked/warning rows, returns recent candidates and scoped counts, and writes no scoped CSV or media/process state |
 
 ### failure-marker-write (medium risk, retry-blocker state)
 
@@ -163,6 +166,7 @@ Opens a backend-owned native Windows dialog and returns operator-selected paths 
 |---|---|---|---|
 | `POST /api/rename/browse` | `shell-dialog` | Frontend cannot enumerate or mutate files directly | `selection_mode`: `files`, `folder`, or `folder_files`; selected paths are staged only and must still go through `rename/preview` and guarded `rename/apply` |
 | `POST /api/settings/browse-path` | `shell-dialog` | Frontend cannot browse or resolve settings paths directly | Folder-only browser for allowlisted source/output/scratch and final-library promotion root settings; result is staged evidence only and does not save config |
+| `POST /api/path-picker/browse` | `shell-dialog` | Frontend cannot browse arbitrary paths directly | Backend-owned native picker for allowlisted staged path fields only; result does not save config, launch, queue, or mutate media |
 | `POST /api/pipeline/browse-file` | `shell-dialog` | Frontend cannot browse or validate single-file paths directly | File-only browser for Launch single-file staging; result does not save config, launch work, mutate queue state, or touch media |
 
 ### test-fixture-write (low risk, regression corpus only)
@@ -263,6 +267,8 @@ Writes backend-owned audit control state or report artifacts. These routes canno
 |---|---|---|---|
 | `POST /api/audit/score-policy` | `audit-state-write` | Frontend cannot persist audit scoring policy directly | `policy` is backend-normalized; `reset` must be a JSON boolean when present |
 | `POST /api/audit/ignore` | `audit-state-write` | Frontend cannot write audit ignore state directly | `action`: `add` or `remove`; row keys/paths are reconciled by backend audit state only |
+| `POST /api/audit/sources` | `audit-source-state-write` | Frontend cannot write Audit source registry state directly | Adds/removes/enables/disables backend-owned Audit roots under `State\Audit`; does not scan, launch, or touch media |
+| `POST /api/audit/sources/scan` | `audit-source-scan-state-write` | Frontend cannot scan source roots independently | Backend recursively counts media, sidecars, and folder totals for selected Audit roots and writes aggregate scan status only; no media mutation |
 | `POST /api/audit/export-rerun-csv` | `report-file-write` | Frontend cannot write rerun CSV artifacts directly | Backend exports a rerun CSV artifact only; it does not launch rerun work |
 
 ### config-write (high risk)

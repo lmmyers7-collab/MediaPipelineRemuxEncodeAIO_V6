@@ -116,6 +116,7 @@
   });
 
   let lastSettings = null;
+  let lastLibrarySummary = null;
   let profiles = [];
   let activeLibraryTabId = "movies";
   let libraryEditorDirty = false;
@@ -427,6 +428,12 @@
     }
     if (state === "invalid_unresolved") return "required path is unresolved";
     return "";
+  }
+
+  function pathPickerTargetForLibraryField(field) {
+    if (field === "source_path") return "settings.library.source_path";
+    if (field === "output_path") return "settings.library.output_path";
+    return "settings.library.promotion_destination";
   }
 
   function pathStateClass(stateText) {
@@ -1472,10 +1479,14 @@
       const canReset = pathCanReset(profile, field, evidence);
       const isInherited = pathIsInherited(evidence);
       row.className = "settings-library-path-row";
+      row.dataset.pathPickerScope = "true";
       row.dataset.libraryPathStateKind = String(evidence?.state || "");
       row.dataset.libraryPathSourceKey = text(evidence?.source_key);
       row.innerHTML = `
-        <span>${escapeHtml(label)} <span class="settings-library-state ${pathStateClass(state)}" data-library-path-state="${field}">${escapeHtml(state)}</span><span class="note settings-library-path-source" data-library-path-source="${field}">${escapeHtml(sourceText)}</span></span>
+        <span class="path-picker-label-row">
+          <span class="path-picker-label-text">${escapeHtml(label)} <span class="settings-library-state ${pathStateClass(state)}" data-library-path-state="${field}">${escapeHtml(state)}</span><span class="note settings-library-path-source" data-library-path-source="${field}">${escapeHtml(sourceText)}</span></span>
+          <button type="button" class="path-picker-badge" data-path-picker-target="${pathPickerTargetForLibraryField(field)}" data-path-picker-input='[data-library-field="${field}"]' data-path-picker-mode="folder" data-path-picker-status="settings-library-editor-status" title="Open a backend-owned Windows folder picker for ${escapeHtml(label.toLowerCase())}.">Browse</button>
+        </span>
         <div class="settings-library-path-control">
           <input type="text" data-library-field="${field}" data-inherited="${isInherited ? "true" : "false"}" value="${escapeHtml(value || "")}">
           <button type="button" class="tertiary-button" data-library-use-default="${field}" data-library-can-reset="${canReset ? "true" : "false"}" title="${canReset ? "Reset to inherited removes explicit path state; it does not write the global path into this library." : "This field does not support inherited reset."}"${canReset && !isInherited ? "" : " hidden disabled"}>Use global default</button>
@@ -1568,6 +1579,7 @@
     if (activeId !== previousActiveId) closeOverrideSections(activeId);
     try { localStorage.setItem("mediapipeline-library-profile", activeId); } catch (_error) {}
     renderActiveLibraryCommandState();
+    updateLibrarySummarySelection();
     if (options.source !== "route-map") {
       window.mediaPipelineLibraryRouteMap?.selectProfile?.(activeId, { source: "library-editor" });
     }
@@ -1605,6 +1617,175 @@
   function activeLibraryCanDelete(card = activeLibraryCard()) {
     const id = activeLibraryProfileId(card);
     return Boolean(id && id !== "movies" && id !== "tv");
+  }
+
+  function librarySummaryRows(payload = lastLibrarySummary) {
+    return Array.isArray(payload?.rows) ? payload.rows : [];
+  }
+
+  function librarySummaryTotals(payload = lastLibrarySummary) {
+    const totals = payload?.totals;
+    return totals && typeof totals === "object" && !Array.isArray(totals) ? totals : {};
+  }
+
+  function librarySummaryCount(value) {
+    if (value === null || value === undefined || value === "") return "-";
+    const number = Number(value);
+    if (!Number.isFinite(number)) return "-";
+    return number.toLocaleString();
+  }
+
+  function librarySummaryStatusLabel(value) {
+    const status = text(value || "not_scanned").toLowerCase();
+    const labels = {
+      complete: "Complete",
+      partial: "Partial",
+      scanning: "Scanning",
+      not_scanned: "Not scanned",
+      error: "Error",
+      unavailable: "Unavailable",
+    };
+    return labels[status] || status.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  }
+
+  function librarySummaryTone(value) {
+    const status = text(value || "not_scanned").toLowerCase();
+    if (status === "complete") return "complete";
+    if (status === "error" || status === "unavailable") return "error";
+    if (status === "scanning") return "scanning";
+    if (status === "partial") return "partial";
+    return "not_scanned";
+  }
+
+  function librarySummaryStripItem(label, value, state = "ready") {
+    return `<span data-state="${escapeHtml(state)}">${escapeHtml(label)}: ${escapeHtml(librarySummaryCount(value))}</span>`;
+  }
+
+  function formatLibrarySummaryTimestamp(value) {
+    const raw = text(value);
+    if (!raw) return "-";
+    const parsed = new Date(raw);
+    if (Number.isNaN(parsed.getTime())) return raw;
+    return parsed.toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      timeZoneName: "short",
+    });
+  }
+
+  function setLibrarySummaryWarning(message) {
+    const warning = byId("settings-library-summary-warning");
+    if (!warning) return;
+    const value = text(message);
+    warning.textContent = value;
+    warning.hidden = !value;
+  }
+
+  function updateLibrarySummarySelection() {
+    const rows = Array.from(byId("settings-library-summary-rows")?.querySelectorAll("[data-library-summary-row]") || []);
+    rows.forEach((row) => {
+      const selected = row.getAttribute("data-library-summary-row") === activeLibraryTabId;
+      row.classList.toggle("is-active", selected);
+      row.setAttribute("aria-selected", selected ? "true" : "false");
+    });
+  }
+
+  function renderLibrarySummary(payload = lastLibrarySummary) {
+    if (payload && typeof payload === "object") lastLibrarySummary = payload;
+    const effectivePayload = lastLibrarySummary;
+    const tbody = byId("settings-library-summary-rows");
+    if (!tbody) return;
+    const rows = librarySummaryRows(effectivePayload);
+    const totals = librarySummaryTotals(effectivePayload);
+    const status = byId("settings-library-summary-status");
+    const strip = byId("settings-library-summary-strip");
+    const detail = byId("settings-library-summary-detail");
+    const payloadError = text(effectivePayload?.error);
+    const statusTone = payloadError ? "error" : rows.some((row) => librarySummaryTone(row.scan_status) === "scanning")
+      ? "scanning"
+      : totals.counts_truncated
+        ? "partial"
+        : rows.length
+          ? "complete"
+          : "not_scanned";
+
+    if (status) {
+      status.textContent = payloadError ? "Summary error" : rows.length ? `${rows.length} saved librar${rows.length === 1 ? "y" : "ies"}` : "No libraries loaded";
+      status.dataset.state = statusTone;
+    }
+    if (strip) {
+      strip.innerHTML = [
+        librarySummaryStripItem("Libraries", totals.library_count ?? rows.length, rows.length ? "ready" : "empty"),
+        librarySummaryStripItem("Enabled", totals.enabled_count ?? rows.filter((row) => row.enabled !== false).length, "ready"),
+        librarySummaryStripItem("Media", totals.media_file_count, totals.counts_truncated ? "warning" : "ready"),
+        librarySummaryStripItem("Sidecars", totals.sidecar_file_count, totals.counts_truncated ? "warning" : "ready"),
+        librarySummaryStripItem("Unknown scans", totals.stale_or_unknown_scan_count, totals.stale_or_unknown_scan_count ? "warning" : "ready"),
+      ].join("");
+    }
+    if (detail) {
+      const sourceStatus = text(effectivePayload?.source_inventory_status || "not_loaded").replace(/[_-]+/g, " ");
+      const scanStatus = text(effectivePayload?.queue_scan_status?.status || "idle").replace(/[_-]+/g, " ");
+      detail.textContent = payloadError
+        ? payloadError
+        : `Scan evidence: ${scanStatus}; source inventory: ${sourceStatus}. Counts are backend-authored queue source inventory aggregates.`;
+    }
+
+    if (payloadError) {
+      tbody.innerHTML = `<tr><td colspan="8">${escapeHtml(payloadError)}</td></tr>`;
+      setLibrarySummaryWarning(payloadError);
+      return;
+    }
+    if (!rows.length) {
+      tbody.innerHTML = '<tr><td colspan="8">No saved LibraryProfiles loaded. Add Library remains available in the editor controls.</td></tr>';
+      setLibrarySummaryWarning("");
+      return;
+    }
+
+    tbody.innerHTML = rows.map((row) => {
+      const libraryId = text(row.library_id);
+      const statusValue = librarySummaryTone(row.scan_status);
+      const warnings = Array.isArray(row.warnings) ? row.warnings.map((item) => text(item)).filter(Boolean) : [];
+      const countSuffix = row.counts_truncated ? " partial" : "";
+      return `
+        <tr class="settings-library-summary-row${libraryId === activeLibraryTabId ? " is-active" : ""}" data-library-summary-row="${escapeHtml(libraryId)}" tabindex="0" aria-selected="${libraryId === activeLibraryTabId ? "true" : "false"}">
+          <td data-label="Library"><strong>${escapeHtml(row.name || libraryId || "Library")}</strong><br><span class="muted">${row.enabled === false ? "Disabled" : "Enabled"}</span></td>
+          <td data-label="Path" class="path-cell">${escapeHtml(row.source_path || "-")}</td>
+          <td data-label="Type">${escapeHtml(text(row.designation || "auto"))}</td>
+          <td data-label="Status" data-state="${escapeHtml(statusValue)}">${escapeHtml(librarySummaryStatusLabel(row.scan_status))}${warnings.length ? `<br><span class="muted">${escapeHtml(warnings[0])}</span>` : ""}</td>
+          <td data-label="Media Files">${escapeHtml(librarySummaryCount(row.media_file_count))}${escapeHtml(countSuffix)}</td>
+          <td data-label="Sidecars">${escapeHtml(librarySummaryCount(row.sidecar_file_count))}${escapeHtml(countSuffix)}</td>
+          <td data-label="Last Scan">${escapeHtml(formatLibrarySummaryTimestamp(row.last_scan_utc))}</td>
+          <td data-label="Actions"><button type="button" class="secondary-button" data-library-summary-edit="${escapeHtml(libraryId)}">Edit</button></td>
+        </tr>`;
+    }).join("");
+    setLibrarySummaryWarning((Array.isArray(effectivePayload?.warnings) ? effectivePayload.warnings : []).join("\n"));
+    updateLibrarySummarySelection();
+  }
+
+  async function requestLibrarySummaryScan() {
+    const scan = window.mediaPipelineQueueView?.requestQueueScan;
+    if (typeof scan !== "function") {
+      setText("settings-library-summary-status", "Queue scan unavailable");
+      setLibrarySummaryWarning("Queue source scan controls are not loaded.");
+      return;
+    }
+    const button = byId("settings-library-scan-sources-button");
+    if (button) button.disabled = true;
+    setText("settings-library-summary-status", "Scanning...");
+    setLibrarySummaryWarning("");
+    try {
+      await scan();
+      setText("settings-library-summary-status", "Scan requested");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setText("settings-library-summary-status", "Scan request failed");
+      setLibrarySummaryWarning(`Queue source scan request failed: ${message}`);
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   function renderActiveLibraryCommandState() {
@@ -1665,6 +1846,7 @@
     const profileIds = profiles.map((profile) => profile.id);
     const preferredActiveId = text(options.activeProfileId);
     activateLibraryTab(profileIds.includes(preferredActiveId) ? preferredActiveId : storedLibraryTabId(profileIds));
+    renderLibrarySummary();
     renderLibraryWarningSummary();
   }
 
@@ -2339,6 +2521,26 @@
   }
 
   function initSettingsLibrariesEvents() {
+    const summaryRows = byId("settings-library-summary-rows");
+    if (summaryRows) {
+      summaryRows.addEventListener("click", (event) => {
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const row = target.closest?.("[data-library-summary-row]");
+        const libraryId = target.getAttribute?.("data-library-summary-edit") || row?.getAttribute("data-library-summary-row") || "";
+        if (libraryId) activateLibraryProfile(libraryId, { source: "summary-table" });
+      });
+      summaryRows.addEventListener("keydown", (event) => {
+        if (event.key !== "Enter" && event.key !== " ") return;
+        const target = event.target;
+        if (!(target instanceof Element)) return;
+        const row = target.closest?.("[data-library-summary-row]");
+        const libraryId = row?.getAttribute("data-library-summary-row") || "";
+        if (!libraryId) return;
+        event.preventDefault();
+        activateLibraryProfile(libraryId, { source: "summary-table" });
+      });
+    }
     const list = byId("settings-library-profile-list");
     if (list) {
       list.addEventListener("click", (event) => {
@@ -2501,6 +2703,7 @@
     byId("settings-library-reset-button")?.addEventListener("click", resetFromSaved);
     byId("settings-library-preview-button")?.addEventListener("click", previewLibraryProfiles);
     byId("settings-library-save-button")?.addEventListener("click", saveLibraryProfiles);
+    byId("settings-library-scan-sources-button")?.addEventListener("click", requestLibrarySummaryScan);
     byId("settings-library-watch-auto-run")?.addEventListener("change", () => {
       setText("settings-library-watch-status", "Auto-run toggle changed");
       renderLibraryWatchPatchHandoff("Stage the auto-run toggle to merge it into Changes JSON.");
@@ -2520,6 +2723,7 @@
    */
   window.mediaPipelineSettingsLibraries = {
     renderSettingsLibraries,
+    renderLibrarySummary,
     initSettingsLibrariesEvents,
     activateLibraryProfile,
     buildPatchFromLibraries,

@@ -177,6 +177,12 @@ class LocalApiProcessCommandPayloadMixin:
             return resolved_paths_unavailable_payload("rerun.start", "snapshot")
         return self.facade.start_rerun_csv_process(resolved, request).to_mapping()
 
+    def _rerun_preview_payload(self, request: dict[str, Any]) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return resolved_paths_unavailable_payload("rerun.preview", "snapshot")
+        return self.facade.preview_rerun_csv(resolved, request)
+
     def _force_active_work_shutdown_cleanup(self, resolved: Any) -> list[str]:
         messages: list[str] = []
         service = getattr(self.facade, "service", None)

@@ -209,10 +209,66 @@ class SettingsRiskPolicyRulesTests(unittest.TestCase):
             "unknown-height uses 1080p targets movie=8GB, TV=3GB, cap=20Mbps",
             rows["Remux / encode size posture"]["evidence"],
         )
-        self.assertIn("legacy flags=1", rows["Remux / encode size posture"]["evidence"])
+        self.assertIn("extra flags=1 (inactive with structured preset)", rows["Remux / encode size posture"]["evidence"])
+        self.assertEqual(rows["Remux / encode size posture"]["impact"], "ready")
         self.assertEqual(rows["Subtitle SRT routing"]["impact"], "blocked")
         self.assertEqual(rows["Audio predictability"]["impact"], "blocked")
         self.assertEqual(handoff["continuous_mode_row"]["area"], "Continuous-mode sensitivity")
+
+    def test_launch_handoff_keeps_inactive_extra_video_flags_neutral(self) -> None:
+        config = {
+            "RoutingProfile": "plex_direct_stream",
+            "SizeGuardMode": "advisory",
+            "VideoCodec": "hevc_nvenc",
+            "EncodeTuningPreset": "balanced_nvenc",
+            "EncodeLadder": "movie_balanced",
+            "ExtraVideoFlags": ["-rc", "vbr"],
+            "SourceMovies": r"D:\Movies",
+            "SourceTV": r"D:\TV",
+            "LocalBase": r"D:\Scratch",
+            "Outsource": r"D:\Output",
+        }
+
+        handoff = build_launch_settings_risk_handoff(
+            config,
+            risk_summary=build_current_settings_risk_summary(config),
+            warnings=["ExtraVideoFlags are ignored unless EncodeTuningPreset is custom_legacy_flags."],
+        )
+
+        rows = {row["area"]: row for row in handoff["rows"]}
+        self.assertEqual(handoff["status"], "Ready")
+        self.assertEqual(rows["Backend settings risk"]["impact"], "ready")
+        self.assertIn("launch attention=0", rows["Backend settings risk"]["evidence"])
+        self.assertEqual(rows["Backend media-policy readiness"]["impact"], "ready")
+        self.assertEqual(rows["Remux / encode size posture"]["impact"], "ready")
+        self.assertIn("extra flags=2 (inactive with structured preset)", rows["Remux / encode size posture"]["evidence"])
+        self.assertNotIn("Risk item: ExtraVideoFlags", rows)
+
+    def test_launch_handoff_highlights_active_custom_extra_video_flags(self) -> None:
+        config = {
+            "RoutingProfile": "plex_direct_stream",
+            "SizeGuardMode": "advisory",
+            "VideoCodec": "hevc_nvenc",
+            "EncodeTuningPreset": "custom_legacy_flags",
+            "EncodeLadder": "movie_balanced",
+            "ExtraVideoFlags": ["-x-test"],
+            "SourceMovies": r"D:\Movies",
+            "SourceTV": r"D:\TV",
+            "LocalBase": r"D:\Scratch",
+            "Outsource": r"D:\Output",
+        }
+
+        handoff = build_launch_settings_risk_handoff(
+            config,
+            risk_summary=build_current_settings_risk_summary(config),
+        )
+
+        rows = {row["area"]: row for row in handoff["rows"]}
+        self.assertEqual(handoff["status"], "Review")
+        self.assertEqual(rows["Backend settings risk"]["impact"], "review")
+        self.assertEqual(rows["Remux / encode size posture"]["impact"], "review")
+        self.assertIn("extra flags=1 (active custom passthrough)", rows["Remux / encode size posture"]["evidence"])
+        self.assertEqual(rows["Risk item: ExtraVideoFlags"]["impact"], "review")
 
     def test_build_settings_policy_impact_wraps_backend_readiness_and_launch_risk(self) -> None:
         impact = build_settings_policy_impact({"RoutingProfile": "plex_direct_stream"})

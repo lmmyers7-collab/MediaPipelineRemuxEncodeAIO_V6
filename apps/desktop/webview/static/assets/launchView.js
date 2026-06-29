@@ -52,6 +52,8 @@
   let selectedLaunchSampleExecutionKey = "";
   let lastLaunchRealMediaProofContext = {};
   let lastLaunchCommandState = { snapshot: null, closeReadiness: null };
+  let lastRerunPreviewPayload = null;
+  let rerunPreviewRefreshTimer = null;
 
   const launchCoordinatorState = {
     get launchCommandInFlight() { return launchCommandInFlight; },
@@ -100,7 +102,9 @@
   const {
     launchPreflightRequestMatches = function () { return false; },
     collectPipelineStartRequest = function () { return { mode: "validate", sleep_seconds: 30, show_config: false, show_console: false, schedule_override: "" }; },
-    collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), stage_mode: "copy", original_mode: "keep", return_mode: "park", show_console: false }; },
+    collectRerunPreviewRequest = function () { return { csv_path: "", stage_mode: "copy", original_mode: "keep", return_mode: "park", scope: { enabled_only: true, skip_blocked: false, skip_warning_rows: false, first_n: 0, issue_filter: "", bucket_filter: "", preview_limit: 50 } }; },
+    collectRerunScopeRequest = function () { return { enabled_only: true, skip_blocked: false, skip_warning_rows: false, first_n: 0, issue_filter: "", bucket_filter: "", preview_limit: 50 }; },
+    collectRerunStartRequest = function (options = {}) { return { csv_path: "", dry_run: Boolean(options.dry_run), plan_only: Boolean(options.plan_only), stage_mode: "copy", original_mode: "keep", return_mode: "park", scope: collectRerunScopeRequest(), show_console: false }; },
   } = launchStartRequest;
 
   const launchStatusRenderModule = window.__launchStatusRenderModule || {};
@@ -678,10 +682,14 @@
 
   function initLaunchViewEvents() {
     initLaunchTabNav();
-    const refreshLaunchControlsForInput = () => {
+    const refreshLaunchControlsForInput = (event = null) => {
       syncPipelineModeControls();
       renderAllLaunchPreflights();
       updateLaunchCommandButtonStates();
+      if (String(event?.target?.id || "").startsWith("rerun-")) {
+        scheduleRerunPreviewRefresh();
+      }
+      applyRerunPreviewButtonState();
     };
     document.querySelectorAll("[data-pipeline-mode-preset]").forEach((button) => {
       button.addEventListener("click", () => selectPipelineModePreset(button.dataset.pipelineModePreset || ""));
@@ -697,6 +705,16 @@
       "pipeline-start-show-config",
       "pipeline-start-show-console",
       "rerun-start-csv-path",
+      "rerun-start-stage-mode",
+      "rerun-start-original-mode",
+      "rerun-start-return-mode",
+      "rerun-scope-enabled-only",
+      "rerun-scope-skip-blocked",
+      "rerun-scope-skip-warning-rows",
+      "rerun-scope-first-n",
+      "rerun-scope-issue-filter",
+      "rerun-scope-bucket-filter",
+      "rerun-preview-limit",
       "rerun-start-show-console",
     ].forEach((id) => {
       const element = byId(id);
@@ -723,10 +741,12 @@
     }
     initLaunchRecoveryActionEvents();
     renderAllLaunchPreflights();
+    refreshRerunPreview({ quiet: true }).catch(() => {});
     refreshLaunchBackendPreflight()
       .then(() => {
         renderLaunchCompactGate();
         updateLaunchCommandButtonStates();
+        applyRerunPreviewButtonState();
       })
       .catch((error) => {
         const message = error instanceof Error ? error.message : String(error);
@@ -1134,13 +1154,236 @@
     }
   }
 
+  function rerunPreviewCounts(payload) {
+    return payload && typeof payload === "object" && payload.counts && typeof payload.counts === "object" ? payload.counts : {};
+  }
+
+  function rerunPreviewScope(payload) {
+    return payload && typeof payload === "object" && payload.scope && typeof payload.scope === "object" ? payload.scope : collectRerunScopeRequest();
+  }
+
+  function rerunSummaryLines(payload) {
+    if (!payload || typeof payload !== "object") return ["No CSV rerun preview loaded."];
+    const counts = rerunPreviewCounts(payload);
+    const scope = rerunPreviewScope(payload);
+    const lines = [
+      `Status: ${payload.status || "unknown"} - ${payload.message || ""}`.trim(),
+      `CSV: ${payload.csv_path || "not selected"}`,
+      `Rows: total ${counts.total_rows || 0}; enabled ${counts.enabled_rows || 0}; disabled ${counts.disabled_rows || 0}; effective scoped ${counts.effective_scoped_rows || 0}`,
+      `Blockers: blocked rows ${counts.blocked_rows || 0}; blocked modes ${counts.blocked_mode_rows || 0}; blocked scoped ${counts.blocked_scoped_rows || 0}; missing source ${counts.missing_source_rows || 0}; duplicate source ${counts.duplicate_source_rows || 0}`,
+      `Warnings: ${counts.warning_rows || 0}`,
+      `Scope: enabled only ${scope.enabled_only ? "yes" : "no"}; skip blocked ${scope.skip_blocked ? "yes" : "no"}; skip warnings ${scope.skip_warning_rows ? "yes" : "no"}; first rows ${scope.first_n || 0}; issue "${scope.issue_filter || ""}"; bucket "${scope.bucket_filter || ""}"`,
+    ];
+    const warnings = Array.isArray(payload.warnings) ? payload.warnings : [];
+    if (warnings.length) lines.push("", "Warnings:", ...warnings.map((item) => `- ${item}`));
+    return lines;
+  }
+
+  function clearElement(element) {
+    if (!element) return;
+    while (element.firstChild) element.removeChild(element.firstChild);
+  }
+
+  function appendCell(row, text) {
+    const cell = document.createElement("td");
+    cell.textContent = text;
+    row.appendChild(cell);
+    return cell;
+  }
+
+  function renderRerunRecentCsvs(payload) {
+    const tbody = byId("rerun-recent-csv-rows");
+    if (!tbody) return;
+    clearElement(tbody);
+    const rows = payload && Array.isArray(payload.recent_csvs) ? payload.recent_csvs : [];
+    if (!rows.length) {
+      const row = document.createElement("tr");
+      appendCell(row, "No recent CSV evidence loaded.").colSpan = 4;
+      tbody.appendChild(row);
+      return;
+    }
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      appendCell(row, item.label || item.path || "CSV");
+      appendCell(row, item.source || "");
+      appendCell(row, item.modified_at || "");
+      const action = document.createElement("td");
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "secondary-button";
+      button.textContent = "Use";
+      button.title = item.path || "";
+      button.addEventListener("click", () => {
+        const input = byId("rerun-start-csv-path");
+        if (input) input.value = item.path || "";
+        scheduleRerunPreviewRefresh(0);
+        renderAllLaunchPreflights();
+        updateLaunchCommandButtonStates();
+        applyRerunPreviewButtonState();
+      });
+      action.appendChild(button);
+      row.appendChild(action);
+      tbody.appendChild(row);
+    });
+  }
+
+  function renderRerunPreviewRows(payload) {
+    const tbody = byId("rerun-preview-rows");
+    if (!tbody) return;
+    clearElement(tbody);
+    const rows = payload && Array.isArray(payload.rows) ? payload.rows : [];
+    if (!rows.length) {
+      const row = document.createElement("tr");
+      appendCell(row, "No CSV rerun rows loaded.").colSpan = 6;
+      tbody.appendChild(row);
+      return;
+    }
+    rows.forEach((item) => {
+      const row = document.createElement("tr");
+      row.dataset.rowState = item.status || "unknown";
+      appendCell(row, String((item.row_index || 0) + 1));
+      appendCell(row, `${item.status || "unknown"}${item.in_scope ? "" : " / filtered"}`);
+      appendCell(row, item.source_path || "");
+      appendCell(row, [item.issue || "", item.bucket || ""].filter(Boolean).join(" / "));
+      appendCell(row, `${item.stage_mode || ""} / ${item.original_mode || ""} / ${item.return_mode || ""}`);
+      appendCell(row, item.reason || "");
+      tbody.appendChild(row);
+    });
+  }
+
+  function renderRerunHistorySummary() {
+    const history = typeof window.getCommandHistory === "function"
+      ? window.getCommandHistory()
+      : typeof window.mediaPipelineCommandHistory?.getCommandHistory === "function"
+      ? window.mediaPipelineCommandHistory.getCommandHistory()
+      : [];
+    const entries = Array.isArray(history)
+      ? history.filter((entry) => String(entry.command || "") === "rerun.start").slice(0, 6)
+      : [];
+    if (!entries.length) {
+      setText("rerun-history-summary", "No CSV rerun history loaded.");
+      return;
+    }
+    setText("rerun-history-summary", entries.map((entry) => {
+      const data = entry.data && typeof entry.data === "object" ? entry.data : {};
+      return `${entry.started_at || entry.completed_at || "recent"} | ${entry.ok ? "ok" : "failed"} | ${data.csv_path || data.source_csv_path || ""} | ${entry.message || ""}`;
+    }).join("\n"));
+  }
+
+  function renderRerunPolicyPanel(payload) {
+    const counts = rerunPreviewCounts(payload);
+    const lines = [
+      "Executable policy: copy / keep / park.",
+      "Blocked policy: move / delete / replace_original.",
+      `Current modes: ${(payload && payload.stage_mode) || collectRerunStartRequest().stage_mode} / ${(payload && payload.original_mode) || collectRerunStartRequest().original_mode} / ${(payload && payload.return_mode) || collectRerunStartRequest().return_mode}.`,
+      `Blocked rows in preview: ${counts.blocked_mode_rows || 0}.`,
+    ];
+    setText("rerun-policy-panel", lines.join("\n"));
+  }
+
+  function renderRerunPreview(payload) {
+    lastRerunPreviewPayload = payload && typeof payload === "object" ? payload : null;
+    setText("rerun-preview-summary", rerunSummaryLines(lastRerunPreviewPayload).join("\n"));
+    renderRerunRecentCsvs(lastRerunPreviewPayload);
+    renderRerunPreviewRows(lastRerunPreviewPayload);
+    renderRerunPolicyPanel(lastRerunPreviewPayload);
+    renderRerunHistorySummary();
+    applyRerunPreviewButtonState();
+  }
+
+  function rerunPreviewBlockedReason() {
+    const request = collectRerunStartRequest();
+    if (!String(request.csv_path || "").trim()) return "CSV path is required before dry-run or live start.";
+    if (!(request.stage_mode === "copy" && request.original_mode === "keep" && request.return_mode === "park")) {
+      return "Only copy / keep / park can execute.";
+    }
+    if (!lastRerunPreviewPayload) return "Run Plan CSV Rerun before live start.";
+    const counts = rerunPreviewCounts(lastRerunPreviewPayload);
+    if (lastRerunPreviewPayload.status === "blocked") return lastRerunPreviewPayload.message || "CSV preview is blocked.";
+    if (Number(counts.effective_scoped_rows || 0) <= 0) return "No effective scoped rows are available.";
+    return "";
+  }
+
+  function applyRerunPreviewButtonState() {
+    const busy = Boolean(launchCoordinatorState.launchCommandInFlight);
+    const planButton = byId("rerun-plan-only-button");
+    if (planButton) {
+      planButton.disabled = busy;
+      planButton.setAttribute("aria-disabled", busy ? "true" : "false");
+      if (!busy) planButton.title = "Read the CSV and update the safe rerun dashboard without launching work.";
+    }
+    const reason = rerunPreviewBlockedReason();
+    ["rerun-dry-run-button", "rerun-start-button"].forEach((id) => {
+      const button = byId(id);
+      if (!button) return;
+      const disabled = busy || Boolean(reason);
+      button.disabled = disabled;
+      button.setAttribute("aria-disabled", disabled ? "true" : "false");
+      if (disabled) button.title = reason || "Launch command is already in progress.";
+    });
+  }
+
+  async function refreshRerunPreview(options = {}) {
+    const request = collectRerunPreviewRequest();
+    renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(collectRerunStartRequest({ plan_only: true })));
+    if (!options.quiet) {
+      setText("rerun-launch-status", "Reading CSV");
+      setText("rerun-launch-detail", "Reading backend CSV rerun preview.");
+    }
+    try {
+      const result = await apiPost("/api/rerun/preview", request);
+      renderRerunPreview(result);
+      if (!options.quiet) {
+        setText("rerun-launch-status", result.status || (result.ok ? "Ready" : "Blocked"));
+        renderJsonDetail("rerun-launch-detail", {
+          label: "CSV rerun preview",
+          value: result,
+          intro: "Backend read-only CSV rerun preview.",
+        });
+      }
+      return result;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const result = {
+        command: "rerun.preview",
+        ok: false,
+        severity: "error",
+        status: "blocked",
+        message,
+        errors: [message],
+        counts: {},
+        rows: [],
+        recent_csvs: [],
+      };
+      renderRerunPreview(result);
+      if (!options.quiet) {
+        setText("rerun-launch-status", "Error");
+        setText("rerun-launch-detail", message);
+      }
+      return result;
+    }
+  }
+
+  function scheduleRerunPreviewRefresh(delayMs = 350) {
+    if (rerunPreviewRefreshTimer) window.clearTimeout(rerunPreviewRefreshTimer);
+    rerunPreviewRefreshTimer = window.setTimeout(() => {
+      rerunPreviewRefreshTimer = null;
+      refreshRerunPreview({ quiet: true }).catch(() => {});
+    }, Math.max(0, Number(delayMs) || 0));
+  }
+
   async function startRerunFromForm(options = {}) {
     if (rejectLaunchCommandWhileBusy("rerun.start", "rerun-launch-status", "rerun-launch-detail")) return;
     const planOnly = typeof options === "object" && Boolean(options.plan_only);
     const dryRun = planOnly ? false : typeof options === "boolean" ? options : Boolean(options.dry_run);
     const request = collectRerunStartRequest({ dry_run: dryRun, plan_only: planOnly });
     const actionLabel = request.plan_only ? "CSV rerun plan-only check" : request.dry_run ? "CSV rerun dry run" : "CSV rerun";
+    const modeSummary = `${request.stage_mode} / ${request.original_mode} / ${request.return_mode}`;
     renderLaunchPreflight("rerun-launch-preflight", rerunLaunchPreflightLines(request));
+    if (request.plan_only) {
+      await refreshRerunPreview();
+      return;
+    }
     if (!request.csv_path.trim()) {
       const missing = {
         command: "rerun.start",
@@ -1153,6 +1396,19 @@
       setText("rerun-launch-detail", missing.message);
       return;
     }
+    const preview = await refreshRerunPreview({ quiet: true });
+    if (!preview || preview.status === "blocked") {
+      const blocked = {
+        command: "rerun.start",
+        ok: false,
+        severity: "error",
+        message: preview?.message || "CSV rerun preview is blocked.",
+        data: preview || {},
+      };
+      appendCommandResult(blocked);
+      renderLaunchCommandResult("rerun-launch-status", "rerun-launch-detail", blocked, request);
+      return;
+    }
     const rerunButtonId = request.plan_only ? "rerun-plan-only-button" : request.dry_run ? "rerun-dry-run-button" : "rerun-start-button";
     const rerunBtn = byId(rerunButtonId);
     const rerunBtnText = rerunBtn ? rerunBtn.textContent : "";
@@ -1162,14 +1418,14 @@
       ? "Confirm CSV rerun plan-only check. Plan-only should not write manifests, temp config, staging files, parked outputs, or media."
       : request.dry_run
       ? "Confirm CSV rerun preview. Dry-run should produce backend evidence without staging, moving, publishing, or touching media."
-      : "Confirm live CSV rerun with copy / keep / park policy."
+      : `Confirm live CSV rerun with ${modeSummary} policy.`
     );
     await nextLaunchCommandFrame();
     if (!window.confirm(request.plan_only
       ? "Plan CSV rerun without writing manifests, temp config, staging files, parked outputs, or touching media?"
       : request.dry_run
       ? "Preview CSV rerun as a dry run? This should produce backend evidence without staging, moving, publishing, or touching media."
-      : "Start live CSV rerun with copy / keep / park policy?"
+      : `Start live CSV rerun with ${modeSummary} policy?`
     )) {
       const canceled = {
         command: "rerun.start",
@@ -1221,6 +1477,7 @@
     } finally {
       setLaunchCommandBusy(false);
       if (rerunBtn) rerunBtn.textContent = rerunBtnText || (request.plan_only ? "Plan CSV Rerun" : request.dry_run ? "Preview CSV Rerun" : "Start CSV Rerun");
+      applyRerunPreviewButtonState();
     }
   }
 
@@ -1250,7 +1507,12 @@
     startPipelineFromForm,
     startPendingPublishDrain,
     startStateJournalArchive,
+    collectRerunPreviewRequest,
+    collectRerunScopeRequest,
     collectRerunStartRequest,
+    refreshRerunPreview,
+    renderRerunPreview,
+    renderRerunHistorySummary,
     startRerunFromForm,
     pipelineModeLabel,
     launchCommandStatusLabel,

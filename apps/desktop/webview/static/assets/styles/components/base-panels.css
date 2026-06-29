@@ -110,6 +110,20 @@
   padding: var(--space-5);
 }
 
+[data-ui-quick-link] {
+  cursor: pointer;
+}
+
+[data-ui-quick-link]:hover {
+  border-color: var(--semantic-info-border);
+}
+
+[data-ui-quick-link]:focus-visible {
+  border-color: var(--semantic-focus-outline);
+  outline: 2px solid var(--semantic-focus-outline);
+  outline-offset: 2px;
+}
+
 .metric-label {
   display: block;
   margin-bottom: var(--space-4);

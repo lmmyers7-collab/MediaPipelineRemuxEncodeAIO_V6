@@ -3,9 +3,9 @@ file: tests/python/desktop/test_reports_view_static.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-26
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 05d4b763d14ef48b3470bb7f697872bb130fce18e5e287f40d2d5d209d205f03
+sha256: fbd30f02b45e50494cd876f8923b60c9e236b2aec62e72cb1b142f50253e0836
 ---
 # `tests/python/desktop/test_reports_view_static.py`
 

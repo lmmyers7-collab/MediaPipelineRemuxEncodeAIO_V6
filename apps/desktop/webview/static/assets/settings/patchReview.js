@@ -216,7 +216,8 @@
 
       const sourceCell = document.createElement("td");
       const sourceWrap = document.createElement("span");
-      sourceWrap.className = "settings-path-control";
+      sourceWrap.className = "settings-path-control settings-path-control-with-badge";
+      sourceWrap.dataset.pathPickerScope = "true";
       const source = document.createElement("input");
       source.type = "text";
       source.className = "settings-rule-path-input";
@@ -225,17 +226,27 @@
       source.autocomplete = "off";
       source.spellcheck = false;
       source.addEventListener("input", markFinalLibraryPromotionSettingsBuilderDirty);
+      const sourceBadge = document.createElement("button");
+      sourceBadge.type = "button";
+      sourceBadge.className = "path-picker-badge";
+      sourceBadge.textContent = "Browse";
+      sourceBadge.dataset.pathPickerTarget = "settings.final_library_promotion.source_root";
+      sourceBadge.dataset.pathPickerInput = '[data-final-library-rule-source="true"]';
+      sourceBadge.dataset.pathPickerMode = "folder";
+      sourceBadge.dataset.pathPickerStatus = "settings-final-library-status";
+      sourceBadge.title = "Open a backend-owned Windows folder picker for this promotion source root.";
       const sourceBrowse = document.createElement("button");
       sourceBrowse.type = "button";
       sourceBrowse.className = "tertiary-button settings-path-browse-button";
       sourceBrowse.textContent = "Browse";
       sourceBrowse.addEventListener("click", () => browseFinalLibraryPromotionRulePath(source, "FinalLibraryPromotionRuleSourceRoot", "promotion source root"));
-      sourceWrap.append(source, sourceBrowse);
+      sourceWrap.append(source, sourceBadge, sourceBrowse);
       sourceCell.appendChild(sourceWrap);
 
       const destinationCell = document.createElement("td");
       const destinationWrap = document.createElement("span");
-      destinationWrap.className = "settings-path-control";
+      destinationWrap.className = "settings-path-control settings-path-control-with-badge";
+      destinationWrap.dataset.pathPickerScope = "true";
       const destination = document.createElement("input");
       destination.type = "text";
       destination.className = "settings-rule-path-input";
@@ -244,12 +255,21 @@
       destination.autocomplete = "off";
       destination.spellcheck = false;
       destination.addEventListener("input", markFinalLibraryPromotionSettingsBuilderDirty);
+      const destinationBadge = document.createElement("button");
+      destinationBadge.type = "button";
+      destinationBadge.className = "path-picker-badge";
+      destinationBadge.textContent = "Browse";
+      destinationBadge.dataset.pathPickerTarget = "settings.final_library_promotion.destination_root";
+      destinationBadge.dataset.pathPickerInput = '[data-final-library-rule-destination="true"]';
+      destinationBadge.dataset.pathPickerMode = "folder";
+      destinationBadge.dataset.pathPickerStatus = "settings-final-library-status";
+      destinationBadge.title = "Open a backend-owned Windows folder picker for this promotion destination root.";
       const destinationBrowse = document.createElement("button");
       destinationBrowse.type = "button";
       destinationBrowse.className = "tertiary-button settings-path-browse-button";
       destinationBrowse.textContent = "Browse";
       destinationBrowse.addEventListener("click", () => browseFinalLibraryPromotionRulePath(destination, "FinalLibraryPromotionRuleDestinationRoot", "promotion destination root"));
-      destinationWrap.append(destination, destinationBrowse);
+      destinationWrap.append(destination, destinationBadge, destinationBrowse);
       destinationCell.appendChild(destinationWrap);
 
       const actionCell = document.createElement("td");

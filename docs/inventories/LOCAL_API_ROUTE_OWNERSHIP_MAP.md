@@ -2,7 +2,7 @@
 
 Documents all Local API routes, their mutation risk, auth requirements, backend owner confirmation, and primary frontend caller. Source of truth is `contract_read.py` and `contract_command.py`; handler dispatch is in `routes_read.py` and `routes_command.py`.
 
-Total routes: 148 (49 read, 99 command).
+Total routes: 154 (51 read, 103 command).
 
 All routes that mutate state are backend-owned. The WebView never resolves filesystem paths, selects output targets, chooses encode settings, or launches processes directly — it forwards requests with allowlisted parameters and the backend validates, plans, and executes.
 
@@ -49,6 +49,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/failures` | Yes | `desktop_failure_preview.v1` | Reports, Diagnostics | Query params: `source` (`latest_json` or `markers`), `limit`; includes backend-authored `resolution_summary`, `resolution_groups`, and row `evidence_details` |
 | `GET /api/audit-results` | Yes | `desktop_audit_preview.v1` | Reports | Query params: `priority_only`, `limit`; no rerun CSV written |
 | `GET /api/audit-controls` | Yes | `desktop_audit_controls.v1` | Reports | Reads audit score policy and audit-only ignore state; no save/export/media mutation |
+| `GET /api/audit-sources` | Yes | `desktop_audit_sources.v1` | Reports | Reads backend-owned audit source locations and last scan metrics; no scan, launch, save, queue mutation, or media touch |
 | `GET /api/rename/cleaning-filters` | Yes | `desktop_rename_cleaning_filter_catalog.v1` | Rename, Settings | Reads backend-owned movie and TV cleaning filter catalogs only |
 | `GET /api/rename/movie-cleaning-filters` | Yes | `desktop_rename_movie_filter_catalog.v1` | Rename | Reads backend-owned movie filename cleaning filter catalog only |
 | `GET /api/rename/clean-filename-preview` | Yes | `desktop_rename_clean_filename_preview.v1` | Rename | Read-only clean-filename preview and optional workbench comparison/suggestion payload; accepts query fields and writes nothing |
@@ -67,6 +68,7 @@ All GET routes have `"effect": "none"` unless noted. None touch media files, lau
 | `GET /api/watch-folders/status` | Yes | `none` | `desktop_watch_folders.v1` | Schedule | Reads watch-folder manager state, roots, pending-work status, and recent detections; does not scan on demand or mutate queue/process state |
 | `GET /api/settings/workspace` | Yes | `none` | `desktop_settings_workspace.v1` | Settings | Read-only, redacted settings snapshot plus JSON-authority, projection, migration, legacy-extra, and PSD1 drift evidence |
 | `GET /api/settings/preset-library` | Yes | `none` | `preset_library.v1` | Settings | Reads backend PresetV2 library State JSON only; no active config save, queue mutation, launch, or media touch |
+| `GET /api/libraries/summary` | Yes | `none` | `desktop_libraries_summary.v1` | Libraries | Backend-authored saved LibraryProfiles summary with queue source scan media and sidecar aggregate counts; no settings save, scan, launch, queue mutation, or media touch |
 | `GET /api/libraries/route-map` | Yes | `none` | `library_route_map.v1` | Libraries | Backend-authored Library Route Map and decision-matrix evidence from config, Library Profile inheritance state, and field metadata; no save, launch, plugin execution, queue mutation, or media touch |
 | `GET /api/libraries/route-map/trace` | Yes | `none` | `library_route_trace.v1` | Libraries | Selected-file dry-run trace from existing Queue, Completed, and Sample Validation row evidence only; no probing or media mutation |
 | `GET /api/libraries/route-map/compare` | Yes | `none` | `library_profile_compare.v1` | Libraries | Backend-authored Library Profile diff with explicit/inherited evidence and designation filtering; edits still use existing Library Profile Preview/Save |
@@ -160,8 +162,9 @@ Allowed targets for `/api/diagnostics/open`: `run_logs`, `cluster_log`, `config`
 | Route | Effect | Request Keys | Mutation Risk | Frontend Caller |
 |---|---|---|---|---|
 | `POST /api/ui-preferences` | `ui-state-write` | `storage`, `source_surface` | Low — writes allowlisted UI preference JSON only | Chrome WebView, Tauri shell |
+| `POST /api/path-picker/browse` | `shell-dialog` | `target_key`, `selection_mode`, `initial_path`, `file_filter` | Low — opens a backend-owned native Windows picker for allowlisted path targets only; stages validation evidence only | WebView path picker badges |
 
-UI preference sync is backend-owned state persistence for browser-local customization only. It can store layout, theme, evidence visibility, and tab choices under `LocalBase\State`, but it cannot save settings, mutate queue state, launch work, drain, rename, publish, or touch media files.
+UI preference sync is backend-owned state persistence for browser-local customization only. It can store layout, theme, evidence visibility, and tab choices under `LocalBase\State`. Path picker browse is backend-owned staged shell-dialog evidence for allowlisted path fields only. These routes cannot save settings, mutate queue state, launch work, drain, rename, publish, or touch media files.
 
 ### Maintenance Commands (deployment package, dry-run, and tooling)
 
@@ -186,6 +189,15 @@ The dry-run routes run existing backend scripts with `-DryRun` and write no rele
 | `POST /api/metrics/backfill` | `metrics-backfill-state-write` | `scope`, `source_id`, `path`, `max_sidecars` | Metrics |
 
 Metrics commands write only backend Metrics state under `State\Metrics`. Source updates maintain the configured root registry. Backfill recursively reads `*.pipeline.json` sidecars under configured Metrics roots, skips symlinked folders, and refreshes Metrics cache/status files without rewriting sidecars, launching work, changing queue state, or touching media files.
+
+### Audit Source Commands
+
+| Route | Effect | Key Request Keys | Frontend Caller |
+|---|---|---|---|
+| `POST /api/audit/sources` | `audit-source-state-write` | `action`, `path`, `source_id`, `label`, `enabled` | Reports |
+| `POST /api/audit/sources/scan` | `audit-source-scan-state-write` | `scope`, `source_id`, `source_ids`, `path`, `max_entries` | Reports |
+
+Audit source commands write only backend Reports audit state under `State\Audit`. Source updates maintain the selectable scan-location registry. Scans recursively read selected roots, count aggregate media files, sidecars, and folders, skip symlinked folders, and refresh scan status without rewriting sidecars, launching work, changing queue state, or touching media files.
 
 ### Rename Commands
 
@@ -283,12 +295,13 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `POST /api/pipeline/control` | `control-flag-write` | `action` (`pause`, `stop`, `rescan`, `kill`) | Medium — writes control flags or runs backend-owned emergency process cleanup for `kill` | Launch |
 | `POST /api/pipeline/browse-file` | `shell-dialog` | `selection_mode` (`files`), `initial_path` | Low — backend-owned native Windows file browser for Launch single-file staging only; no config save, launch, queue mutation, or media mutation | Launch |
 | `POST /api/pipeline/start` | `process-launch` | `mode`, `sleep_seconds`, `show_config`, `show_console`, `single_file`, `schedule_override` | **High** — spawns pipeline process | Launch |
-| `POST /api/audit/start` | `process-launch` | `library_root`, `include_sidecars`, `show_console` | **High** — spawns audit process | Launch, Reports |
+| `POST /api/audit/start` | `process-launch` | `library_root`, `library_roots`, `source_ids`, `include_sidecars`, `show_console` | **High** — spawns audit process for one or more selected audit source locations | Launch, Reports |
 | `POST /api/audit/stop` | `process-control` | `confirm_stop`, `reason` | **High** — after explicit confirmation, stops audit process trees only and marks audit progress stopped | Reports |
-| `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `stage_mode`, `original_mode`, `return_mode`, `show_console` | **High** — spawns rerun process | Reports |
+| `POST /api/rerun/preview` | `read-only-preview` | `csv_path`, `stage_mode`, `original_mode`, `return_mode`, `scope`, `preview_limit`, `enabled_only`, `skip_blocked`, `skip_warning_rows`, `first_n`, `issue_filter`, `bucket_filter` | None — backend parses and summarizes CSV rerun rows, recent candidates, warnings, and scoped counts without launch, scoped CSV writes, or media mutation | Launch |
+| `POST /api/rerun/start` | `process-launch` | `csv_path`, `dry_run`, `stage_mode`, `original_mode`, `return_mode`, `show_console`, `scope`, `preview_limit`, `enabled_only`, `skip_blocked`, `skip_warning_rows`, `first_n`, `issue_filter`, `bucket_filter` | **High** — spawns rerun process; only `copy` / `keep` / `park` is executable, and narrowed dry-run/live scope writes a backend-owned scoped CSV under `State\Rerun\ScopedCsv` | Launch |
 | `POST /api/backend/shutdown` | `backend-lifecycle` | `reason`, `force_active_work_shutdown` | **Critical** — requests graceful shutdown only after safe close-readiness unless literal boolean `true` force cleanup is requested | Tauri shell (close flow) |
 
-`pipeline/start` allowed modes: `once`, `continuous`, `validate`, `drain_pending_pushes`. `schedule_override` allowed values: `""`, `run_once`, `ignore`. `rerun/start` defaults are media-safe (`dry_run: false`, `stage_mode: copy`, `original_mode: keep`, `return_mode: park`).
+`pipeline/start` allowed modes: `once`, `continuous`, `validate`, `drain_pending_pushes`. `schedule_override` allowed values: `""`, `run_once`, `ignore`. `rerun/preview` backs Plan CSV Rerun and is no-write. `rerun/start` defaults are media-safe (`dry_run: false`, `stage_mode: copy`, `original_mode: keep`, `return_mode: park`, `enabled_only: true`); `move`, `delete`, and `replace_original` remain blocked before process launch.
 
 ---
 
@@ -296,11 +309,11 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 
 | Effect tag | Routes | Risk level |
 |---|---|---|
-| `none` | 79 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
+| `none` | 81 routes (read-only GET routes except maintenance, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, preset library preview/export routes, Settings Wizard validation/preview routes, settings/reload, recovery-plan, repair/reconcile dry-runs, startup reconcile dry-run, maintenance retention dry-run, sample-validation/preview, schedule/preview, Network lifecycle dry-runs, worker test-connection/discovery) | None |
 | `bounded-health-check` | `GET /api/maintenance` | Read-only probes |
-| `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview` | Advisory backend previews only |
+| `read-only-preview` | `POST /api/queue/file-overrides/route-preview`, `POST /api/queue/file-overrides/series-preview`, `POST /api/queue/file-overrides/series-clear-preview`, `POST /api/queue/file-overrides/folder-preview`, `POST /api/subtitle-qa/preview`, `POST /api/rerun/preview` | Advisory backend previews only |
 | `shell-open` | `POST /api/queue/open`, `POST /api/completed/open`, `POST /api/pending-publish/open`, `POST /api/diagnostics/open`, `POST /api/diagnostics/tdarr-matrix/evidence/open`, `POST /api/maintenance/dependency-atlas/open-folder` | OS open only; no file mutation |
-| `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/pipeline/browse-file` | Native Windows picker or already-known path resolution only; no file mutation |
+| `shell-dialog` | `POST /api/rename/browse`, `POST /api/settings/browse-path`, `POST /api/path-picker/browse`, `POST /api/pipeline/browse-file` | Native Windows picker or already-known path resolution only; no file mutation |
 | `test-fixture-write` | `POST /api/rename/filter-cases` | Appends backend-validated JSONL rows to `tests/fixtures/rename/bad_rename_cases.jsonl` only |
 | `diagnostic-process` | `POST /api/diagnostics/tdarr-matrix-audit`, `POST /api/diagnostics/tdarr-matrix/rerun` | Backend-owned Tdarr Matrix scratch audit presets and isolated reruns only |
 | `diagnostics-artifact-write` | `POST /api/maintenance/support-export` | Backend-owned redacted support export under per-user AppData DiagnosticsExports only |
@@ -308,6 +321,8 @@ Network lifecycle dry-runs return preconditions, active-work posture, state-file
 | `ui-state-write` | `POST /api/ui-preferences` | Allowlisted UI preference JSON only |
 | `metrics-state-write` | `POST /api/metrics/sources` | Metrics source registry JSON under `State\Metrics` only |
 | `metrics-backfill-state-write` | `POST /api/metrics/backfill` | Recursive sidecar read plus Metrics cache/status writes under `State\Metrics` only |
+| `audit-source-state-write` | `POST /api/audit/sources` | Reports audit source registry JSON under `State\Audit` only |
+| `audit-source-scan-state-write` | `POST /api/audit/sources/scan` | Recursive read-only metric counts plus audit source scan status writes under `State\Audit` only |
 | `queue-state-write` | `POST /api/queue/priority`, `POST /api/queue/strategy`, `POST /api/queue/file-overrides`, `POST /api/queue/file-overrides/series-apply`, `POST /api/queue/file-overrides/series-clear-apply`, `POST /api/queue/file-overrides/remux-pilot-promote`, `POST /api/queue/file-overrides/folder-rule` | Non-destructive queue state JSON only |
 | `failure-marker-write` | `POST /api/failures/clear` | Moves retry-blocker marker JSON out of the active marker folder only |
 | `failure-evidence-archive` | `POST /api/failures/archive-evidence` | Moves active failure markers and round failure reports into manifest-backed cleared evidence only |
@@ -348,6 +363,7 @@ Every mutation route enforces backend ownership:
 - **File open** (`queue/open`, `completed/open`, `pending-publish/open`): backend selects the path from its own manifest/snapshot by `row_key` and `target` key; the frontend cannot pass a raw path.
 - **Rename browse** (`rename/browse`): backend opens the native Windows file/folder browser or resolves already-known dropped paths and returns media paths for staging only; preview/apply still use separate backend routes.
 - **Settings path browse** (`settings/browse-path`): backend opens the native Windows folder browser for allowlisted source/output/scratch and final-library promotion root settings and returns validation evidence for staging only; Preview/Save remains the only settings persistence path.
+- **Path picker browse** (`path-picker/browse`): backend opens the native Windows file/folder browser for allowlisted real path fields and returns staged-only validation evidence; it does not save settings, launch work, or touch media files.
 - **Diagnostics open/tail**: frontend passes an allowlisted target key string; backend resolves the real path and rejects any key not in the allowlist.
 - **UI preferences**: frontend sends only allowlisted `mediapipeline-*`/`mediapipeline.*` local customization keys; backend stores them as UI state under `LocalBase\State` and never treats them as config or media policy.
 - **Queue source scan and state writes**: backend serializes source scans, writes scan evidence under `LocalBase\State\Progress`, curates queue rows through the existing queue-plan dry-run, rejects priority/file-override path writes unless the path is absolute and under configured `SourceMovies`/`SourceTV`, and constrains strategy writes to backend valid strategy names.

@@ -271,6 +271,27 @@
       return input;
     }
 
+    function createPathMapPickerBadge(field, targetKey, statusId) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "path-picker-badge network-path-map-picker-badge";
+      button.textContent = "Browse";
+      button.dataset.pathPickerTarget = targetKey;
+      button.dataset.pathPickerInput = `[data-path-map-field="${field}"]`;
+      button.dataset.pathPickerMode = "folder";
+      button.dataset.pathPickerStatus = statusId;
+      button.title = `Open a backend-owned Windows folder picker for the ${field} path prefix.`;
+      return button;
+    }
+
+    function createPathMapPrefixControl(input, pickerButton) {
+      const control = document.createElement("span");
+      control.className = "network-path-map-prefix-control";
+      control.dataset.pathPickerScope = "true";
+      control.append(input, pickerButton);
+      return control;
+    }
+
     function defaultPathMapSample(fromPrefix) {
       const from = String(fromPrefix || "").trim();
       if (!from) return "";
@@ -284,11 +305,17 @@
 
       const fromCell = document.createElement("td");
       fromCell.dataset.label = "From prefix";
-      fromCell.appendChild(createPathMapInput("from", entry.from, "C:\\Encode\\Movies", "From prefix"));
+      fromCell.appendChild(createPathMapPrefixControl(
+        createPathMapInput("from", entry.from, "C:\\Encode\\Movies", "From prefix"),
+        createPathMapPickerBadge("from", "network.path_map.from_prefix", config.statusId)
+      ));
 
       const toCell = document.createElement("td");
       toCell.dataset.label = "To prefix";
-      toCell.appendChild(createPathMapInput("to", entry.to, "\\\\SERVER\\Encode\\Movies", "To prefix"));
+      toCell.appendChild(createPathMapPrefixControl(
+        createPathMapInput("to", entry.to, "\\\\SERVER\\Encode\\Movies", "To prefix"),
+        createPathMapPickerBadge("to", "network.path_map.to_prefix", config.statusId)
+      ));
 
       const sampleCell = document.createElement("td");
       sampleCell.dataset.label = "Sample claimed path";

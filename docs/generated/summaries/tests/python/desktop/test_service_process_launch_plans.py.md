@@ -3,9 +3,9 @@ file: tests/python/desktop/test_service_process_launch_plans.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: tests
-last_modified: 2026-06-22
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: a937dcc2160ae85ef152886cca88c3ad63737baad122eebe4cce2956b3359065
+sha256: 0b828fe01d0197a3fc3a179be1d4cf69999232273a392d96a24ab1ccca000444
 ---
 # `tests/python/desktop/test_service_process_launch_plans.py`
 

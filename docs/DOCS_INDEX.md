@@ -56,6 +56,8 @@ This is the active documentation map for the current promoted tree. It reflects 
 - `implementation/css-split/STYLES_COMPONENTS_SPLIT.md`: one-at-a-time plan for splitting `styles.components.css` into shared component child CSS files.
 - `implementation/css-split/STYLES_PAGES_SPLIT.md`: one-at-a-time plan for splitting `styles.pages.css` into Home, Settings, Network, Reports, and responsive page CSS files.
 - `implementation/css-split/STYLES_QUEUE_SPLIT.md`: one-at-a-time plan for splitting `styles.queue.css` into Queue, priority/order, and File Override drawer CSS files.
+- `implementation/architecture-boundary-cleanup/README.md`: planning pack and prework baseline for GitHub #23 core-to-desktop dependency-boundary cleanup.
+- `implementation/architecture-boundary-cleanup/EDGE_LEDGER.md`: Phase 0 ledger source for #23 edge ownership, no-new-debt ratchet rules, and first-slice readiness.
 - `implementation/webview-large-file-refactor-prework/networkView.prework-prompt.md`: prework prompt for a troubleshooting-oriented `networkView.js` split, anchored to the existing Network planning pack and backend-owned lifecycle/setup boundaries.
 - `implementation/webview-large-file-refactor-prework/renameView.prework-prompt.md`: prework prompt for a troubleshooting-oriented `renameView.js` split, including preview/apply/undo safety, strict confirmations, path intake, workbench, and dialog ledgers.
 - `implementation/webview-large-file-refactor-prework/renameView.phase0-baseline.md`: Phase 0 prework baseline for a troubleshooting-oriented `renameView.js` split, recording the namespace export ledger, route/DOM ledgers, source-only guardrails, mutable state, seams, rollback rules, and validation gate.

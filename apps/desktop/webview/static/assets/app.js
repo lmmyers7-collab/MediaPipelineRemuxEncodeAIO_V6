@@ -450,12 +450,12 @@ function refreshTimeLabel(value) {
   return window.mediaPipelineAppRefresh?.refreshTimeLabel?.(value) || "never";
 }
 
-function renderRefreshInProgress() {
-  return window.mediaPipelineAppRefresh?.renderRefreshInProgress?.();
+function renderRefreshInProgress(options = {}) {
+  return window.mediaPipelineAppRefresh?.renderRefreshInProgress?.(options);
 }
 
-function renderRefreshHealth(failures) {
-  return window.mediaPipelineAppRefresh?.renderRefreshHealth?.(failures);
+function renderRefreshHealth(failures, options = {}) {
+  return window.mediaPipelineAppRefresh?.renderRefreshHealth?.(failures, options);
 }
 
 function attachRefreshMetadata(name, payload) {
@@ -704,7 +704,9 @@ async function refreshAllNow(options = {}) {
   const refreshOptions = normalizeRefreshOptions(options);
   lastRefreshStartedAt = new Date();
   const refreshStartedMs = Date.now();
+  const refreshStartScrollSnapshot = window.mediaPipelineDom?.captureScrollablePositions?.();
   renderRefreshInProgress(refreshOptions);
+  window.mediaPipelineDom?.restoreScrollablePositions?.(refreshStartScrollSnapshot);
   const failureSourceMarkers = Boolean(byId("failure-source-markers")?.checked);
   const failureQuery = `/api/failures?limit=100${failureSourceMarkers ? "&source=markers" : ""}`;
   const auditPriorityOnly = Boolean(byId("audit-preview-priority-only")?.checked);
@@ -723,10 +725,12 @@ async function refreshAllNow(options = {}) {
     ["failures", refreshGet(failureQuery, refreshOptions), false],
     ["audit results", refreshGet(auditQuery, refreshOptions), false],
     ["audit controls", refreshGet("/api/audit-controls", refreshOptions), false],
+    ["audit sources", refreshGet("/api/audit-sources", refreshOptions), false],
     ["pending publish", refreshGet("/api/pending-publish", refreshOptions), false],
     ["schedule", refreshGet("/api/schedule", refreshOptions), false],
     ["watch folders", refreshGet("/api/watch-folders/status", refreshOptions), false],
     ["settings", refreshGet("/api/settings/workspace", refreshOptions), false],
+    ["libraries summary", refreshGet("/api/libraries/summary", refreshOptions), false],
     ["libraries route map", refreshGet("/api/libraries/route-map", refreshOptions), false],
     ["network workers", refreshGet("/api/network/workers", refreshOptions), false],
     ["sample validation", refreshGet("/api/sample-validation?limit=10", refreshOptions), false],
@@ -822,6 +826,9 @@ async function refreshAllNow(options = {}) {
   if (values["audit controls"]) {
     window.mediaPipelineReportsView?.renderAuditControls?.(values["audit controls"]);
   }
+  if (values["audit sources"]) {
+    window.mediaPipelineReportsView?.renderReportAuditSources?.(values["audit sources"]);
+  }
   if (values["pending publish"] || pendingPublishFailure) renderPendingPublish(pendingPublishPayload, values.snapshot || lastSnapshot);
   renderHomePendingCount(pendingPublishPayload);
   if (values.schedule) {
@@ -842,6 +849,9 @@ async function refreshAllNow(options = {}) {
     window.mediaPipelineSettingsLibraries?.renderSettingsLibraries?.(values.settings, refreshOptions);
     window.mediaPipelineReportsView?.renderReports?.(lastSnapshot, getLastSettings());
     window.mediaPipelineLaunchView?.renderAllLaunchPreflights?.();
+  }
+  if (values["libraries summary"]) {
+    window.mediaPipelineSettingsLibraries?.renderLibrarySummary?.(values["libraries summary"]);
   }
   if (values["libraries route map"]) {
     window.mediaPipelineLibraryRouteMap?.renderRouteMap?.(values["libraries route map"], {
@@ -1025,7 +1035,7 @@ window.renderExternalDependencyDigest = renderExternalDependencyDigest;
 
 // Browser and Tauri WebView2 do not share localStorage, even when both load the
 // same localhost URL. Sync only app-owned UI keys through the local backend so
-// layout/theme/tab customization follows the operator between surfaces.
+// layout/tab customization follows the operator between surfaces.
 function initSettingsTabNav() {
   return window.mediaPipelineAppLifecycle?.initSettingsTabNav?.();
 }
@@ -1076,9 +1086,12 @@ let uiPreferenceSyncPending = false;
 let uiPreferenceApplyingRemote = false;
 let uiPreferenceLocalDirty = false;
 let uiPreferenceLastSerialized = "";
+let uiPreferenceAwaitingRemoteEchoSerialized = "";
 
 function isSharedUiPreferenceKey(key) {
-  return UI_PREFERENCE_KEY_RE.test(String(key || ""));
+  const text = String(key || "");
+  if (text === THEME_STORAGE_KEY) return false;
+  return UI_PREFERENCE_KEY_RE.test(text);
 }
 
 function collectSharedUiPreferences() {
@@ -1110,7 +1123,8 @@ function sharedUiPreferencePayload() {
   };
 }
 
-async function persistSharedUiPreferencesNow() {
+async function persistSharedUiPreferencesNow(options = {}) {
+  const force = options.force === true;
   if (uiPreferenceApplyingRemote) return;
   if (uiPreferenceSyncInFlight) {
     uiPreferenceSyncPending = true;
@@ -1123,7 +1137,7 @@ async function persistSharedUiPreferencesNow() {
   }
   const payload = sharedUiPreferencePayload();
   const serialized = JSON.stringify(payload.storage);
-  if (serialized === uiPreferenceLastSerialized) {
+  if (serialized === uiPreferenceLastSerialized && !force) {
     uiPreferenceLocalDirty = false;
     return;
   }
@@ -1134,6 +1148,7 @@ async function persistSharedUiPreferencesNow() {
       throw new Error(result.message || "UI preference sync failed.");
     }
     uiPreferenceLastSerialized = serialized;
+    uiPreferenceAwaitingRemoteEchoSerialized = serialized;
     uiPreferenceLocalDirty = false;
   } catch (_) {
     // UI preference sync must never block the operator surface.
@@ -1199,12 +1214,24 @@ async function restoreSharedUiPreferences(options = {}) {
   const surface = currentUiPreferenceSurface();
   const remoteEntries = Object.entries(remote).filter(([key]) => isSharedUiPreferenceKey(key));
   const remoteStorage = Object.fromEntries(remoteEntries);
-  if (surface !== "tauri" && seedWebview && Object.keys(local).length && JSON.stringify(remoteStorage) !== localSerialized) {
+  const remoteSerialized = JSON.stringify(remoteStorage);
+  if (uiPreferenceAwaitingRemoteEchoSerialized && remoteSerialized === localSerialized) {
+    uiPreferenceAwaitingRemoteEchoSerialized = "";
+  }
+  if (surface !== "tauri" && seedWebview && Object.keys(local).length && remoteSerialized !== localSerialized) {
     await persistSharedUiPreferencesNow();
     return;
   }
-  if (uiPreferenceSyncInstalled && hasPendingSharedUiPreferenceWrite() && JSON.stringify(remoteStorage) !== localSerialized) {
+  if (uiPreferenceSyncInstalled && hasPendingSharedUiPreferenceWrite() && remoteSerialized !== localSerialized) {
     await persistSharedUiPreferencesNow();
+    return;
+  }
+  if (
+    uiPreferenceSyncInstalled
+    && uiPreferenceAwaitingRemoteEchoSerialized === localSerialized
+    && remoteSerialized !== localSerialized
+  ) {
+    await persistSharedUiPreferencesNow({ force: true });
     return;
   }
   if (remoteEntries.length) {
@@ -1216,6 +1243,7 @@ async function restoreSharedUiPreferences(options = {}) {
       uiPreferenceApplyingRemote = false;
     }
     uiPreferenceLastSerialized = JSON.stringify(collectSharedUiPreferences());
+    uiPreferenceAwaitingRemoteEchoSerialized = "";
     uiPreferenceLocalDirty = false;
     return;
   }
@@ -1349,9 +1377,8 @@ function applyEvidenceHiddenPreference(hidden) {
 // can still read content via #id even when the summary is collapsed.
 
 
-// ── THEME TOGGLE — Stage 15 ───────────────────────────────────────────────────
-// Adds/removes body.light-mode class. Persists choice to localStorage.
-// On first load (no stored preference) defaults to dark mode.
+// ── THEME LOCK — Stage 15 ─────────────────────────────────────────────────────
+// Dark mode is the only runtime theme; stale light preferences are overwritten.
 
 // Keyboard shortcut implementation lives in app/lifecycle.js; these wrappers preserve
 // the tested app.js public contract and read-only safety language.

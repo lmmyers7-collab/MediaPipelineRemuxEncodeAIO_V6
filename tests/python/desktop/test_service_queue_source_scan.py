@@ -72,10 +72,12 @@ class QueueSourceScanTests(unittest.TestCase):
             root = Path(raw_root)
             resolved = _resolved(root)
             tv_file = root / "TV" / "Show" / "Season 01" / "Show - S01E01.mkv"
+            tv_sidecar = root / "TV" / "Show" / "Season 01" / "Show - S01E01.srt"
             movie_file = root / "Movies" / "Movie.mkv"
             anime_file = root / "Anime" / "New Show" / "New Show - S01E01.mp4"
+            anime_sidecar = root / "Anime" / "New Show" / "New Show - S01E01.ass"
             ignored_file = root / "TV" / "Show" / "notes.txt"
-            for path in (tv_file, movie_file, anime_file, ignored_file):
+            for path in (tv_file, tv_sidecar, movie_file, anime_file, anime_sidecar, ignored_file):
                 path.parent.mkdir(parents=True, exist_ok=True)
                 path.write_bytes(b"media")
 
@@ -87,9 +89,15 @@ class QueueSourceScanTests(unittest.TestCase):
         self.assertIn("SourceTV", inventory["source_key_counts"])
         self.assertIn("SourceMovies", inventory["source_key_counts"])
         self.assertIn("LibraryProfiles:anime", inventory["source_key_counts"])
+        self.assertEqual(inventory["sidecar_count"], 2)
+        self.assertEqual(inventory["sidecar_source_key_counts"], {"LibraryProfiles:anime": 1, "SourceTV": 1})
+        self.assertEqual(inventory["sidecar_media_kind_counts"], {"tv": 2})
+        self.assertEqual(inventory["sidecar_extension_counts"], {".ass": 1, ".srt": 1})
+        self.assertFalse(inventory["sidecar_counts_truncated"])
         self.assertTrue(all(row["launchable"] is False for row in inventory["rows"]))
         self.assertTrue(all(row["route"] == "pending_backend_curation" for row in inventory["rows"]))
         self.assertFalse(any("notes.txt" in row["source_path"] for row in inventory["rows"]))
+        self.assertFalse(any(row["source_path"].endswith((".ass", ".srt")) for row in inventory["rows"]))
 
     def test_start_queue_source_scan_writes_inventory_then_curation_status(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:

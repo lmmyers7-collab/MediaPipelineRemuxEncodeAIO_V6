@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0629-002",
+  "title": "Audit source table add visibility fix",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "medium",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Fixed Reports Audit source-table visibility after adding sources by rendering backend source command results with table-local status and adding the audit source routes to the Tauri backend contract list.",
+  "reason": "Operators could add a source while the Locations table still displayed no rows or no actionable error, making saved audit sources look like transient form input.",
+  "affected_areas": [
+    "docs",
+    "shell",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Add Source could leave the Locations table stale or empty, and source-command failures could be hidden outside the table panel during active audit refreshes. The Tauri required route list also omitted the audit source read/write routes.",
+  "behavior_after": "Add Source selects and renders the returned source rows immediately, source-command failures appear in the Locations panel, and the shell contract requires the audit source GET/POST routes exposed by the Python API.",
+  "files_touched": [
+    "apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs",
+    "apps/desktop/webview/static/assets/reports/auditCommands.js",
+    "docs/generated/summaries/apps/desktop/tauri/src-tauri/src/backend_contract/routes.rs.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/reports/auditCommands.js.md",
+    "docs/generated/summaries/tests/python/desktop/test_reports_view_static.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-002.json",
+    "tests/python/desktop/test_reports_view_static.py"
+  ],
+  "tests_added": [
+    "Extended tests/python/desktop/test_reports_view_static.py to assert audit source command results update the table-local render/status path."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_audit_sources -q",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_reports_view_static tests.python.desktop.test_tauri_shell_scaffold -q",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_maintenance_reports_smoke -q",
+    "node --check apps/desktop/webview/static/assets/reports/auditCommands.js"
+  ],
+  "rollback_plan": "Revert the auditCommands.js table-status handling, remove the audit source route entries from routes.rs, and remove the static assertion if the source table behavior must return to the previous implementation.",
+  "related_changes": [],
+  "notes": "Keep audit source add/remove/scan feedback visible in the Locations table and render added sources after selecting them.\nAdd audit source read/write routes to the Tauri backend contract allowlist.\nAssert audit source command results update the table-local status path.\nRefresh generated summaries after the source, shell contract, and static test updates."
+}

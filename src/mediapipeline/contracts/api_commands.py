@@ -336,6 +336,37 @@ class ProcessControlCommandPayload(ApiCommandPayload):
     force_active_work_shutdown: Any = None
 
 
+class RerunScopePayload(StrictApiCommandPayload):
+    enabled_only: StrictBool | None = None
+    skip_blocked: StrictBool | None = None
+    skip_warning_rows: StrictBool | None = None
+    first_n: Any = None
+    issue_filter: Any = None
+    bucket_filter: Any = None
+    preview_limit: Any = None
+
+
+class RerunPreviewCommandPayload(StrictApiCommandPayload):
+    csv_path: Any = None
+    stage_mode: Any = None
+    original_mode: Any = None
+    return_mode: Any = None
+    scope: RerunScopePayload | None = None
+    preview_limit: Any = None
+    enabled_only: StrictBool | None = None
+    skip_blocked: StrictBool | None = None
+    skip_warning_rows: StrictBool | None = None
+    first_n: Any = None
+    issue_filter: Any = None
+    bucket_filter: Any = None
+
+
+class RerunStartCommandPayload(RerunPreviewCommandPayload):
+    dry_run: StrictBool | None = None
+    plan_only: StrictBool | None = None
+    show_console: StrictBool | None = None
+
+
 class NetworkLifecycleDryRunCommandPayload(StrictApiCommandPayload):
     reason: Any = None
 
@@ -413,6 +444,13 @@ class NetworkWorkerJoinClusterCommandPayload(StrictApiCommandPayload):
     timeout_seconds: Any = None
 
 
+class PathPickerBrowseCommandPayload(StrictApiCommandPayload):
+    target_key: Any = None
+    selection_mode: Any = None
+    initial_path: Any = None
+    file_filter: Any = None
+
+
 class AuditScorePolicyCommandPayload(StrictApiCommandPayload):
     policy: Any = None
     reset: StrictBool | None = None
@@ -431,6 +469,14 @@ class AuditExportRerunCsvCommandPayload(StrictApiCommandPayload):
     row_keys: Any = None
     priority_only: StrictBool | None = None
     limit: Any = None
+
+
+class AuditStartCommandPayload(StrictApiCommandPayload):
+    library_root: Any = None
+    library_roots: Any = None
+    source_ids: Any = None
+    include_sidecars: StrictBool | None = None
+    show_console: StrictBool | None = None
 
 
 class PipelineControlCommandPayload(StrictApiCommandPayload):
@@ -460,6 +506,22 @@ class AuditStopCommandPayload(StrictApiCommandPayload):
         if self.confirm_stop is not True:
             raise ValueError("confirm_stop must be true")
         return self
+
+
+class AuditSourcesCommandPayload(StrictApiCommandPayload):
+    action: Any = None
+    source_id: Any = None
+    path: Any = None
+    label: Any = None
+    enabled: StrictBool | None = None
+
+
+class AuditSourcesScanCommandPayload(StrictApiCommandPayload):
+    scope: Any = None
+    source_id: Any = None
+    source_ids: Any = None
+    path: Any = None
+    max_entries: Any = None
 
 
 class BackendShutdownCommandPayload(StrictApiCommandPayload):
@@ -701,15 +763,19 @@ COMMAND_ROUTE_PAYLOAD_MODELS: dict[str, type[ApiCommandPayload]] = {
     "/api/network/worker/join-cluster": NetworkWorkerJoinClusterCommandPayload,
     "/api/network/worker/start": NetworkLifecycleStartCommandPayload,
     "/api/network/worker/stop": NetworkLifecycleStopCommandPayload,
+    "/api/path-picker/browse": PathPickerBrowseCommandPayload,
     "/api/pipeline/control": PipelineControlCommandPayload,
     "/api/pipeline/browse-file": PipelineBrowseFileCommandPayload,
     "/api/pipeline/start": PipelineStartCommandPayload,
-    "/api/audit/start": ProcessControlCommandPayload,
+    "/api/audit/start": AuditStartCommandPayload,
     "/api/audit/stop": AuditStopCommandPayload,
+    "/api/audit/sources": AuditSourcesCommandPayload,
+    "/api/audit/sources/scan": AuditSourcesScanCommandPayload,
     "/api/audit/score-policy": AuditScorePolicyCommandPayload,
     "/api/audit/ignore": AuditIgnoreCommandPayload,
     "/api/audit/export-rerun-csv": AuditExportRerunCsvCommandPayload,
-    "/api/rerun/start": ProcessControlCommandPayload,
+    "/api/rerun/preview": RerunPreviewCommandPayload,
+    "/api/rerun/start": RerunStartCommandPayload,
     "/api/backend/shutdown": BackendShutdownCommandPayload,
     "/api/ui-preferences": UiPreferencesCommandPayload,
     "/api/final-library-promotion/promote-queue": FinalLibraryPromoteQueueCommandPayload,

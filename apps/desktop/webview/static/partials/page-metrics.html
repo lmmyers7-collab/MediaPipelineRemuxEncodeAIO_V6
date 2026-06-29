@@ -1,27 +1,27 @@
       <section class="page" data-page-panel="metrics">
         <h1 class="visually-hidden">Metrics</h1>
         <div class="metric-grid">
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="metrics" data-quick-link-metrics-tab="production" aria-label="Open Metrics production for completed jobs" title="Open Metrics production">
             <span class="metric-label">Completed Jobs</span>
             <strong id="metrics-total-jobs">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="metrics" data-quick-link-metrics-tab="routes" aria-label="Open Metrics remux versus encode" title="Open Metrics remux versus encode">
             <span class="metric-label">Remux Jobs</span>
             <strong id="metrics-remux-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="metrics" data-quick-link-metrics-tab="routes" aria-label="Open Metrics remux versus encode" title="Open Metrics remux versus encode">
             <span class="metric-label">Encode Jobs</span>
             <strong id="metrics-encode-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="metrics" data-quick-link-metrics-tab="storage" aria-label="Open Metrics storage for net saved" title="Open Metrics storage">
             <span class="metric-label">Net Saved</span>
             <strong id="metrics-storage-saved">0 B</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="metrics" data-quick-link-metrics-tab="storage" aria-label="Open Metrics storage for output written" title="Open Metrics storage">
             <span class="metric-label">Output Written</span>
             <strong id="metrics-data-produced">0 B</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="metrics" data-quick-link-metrics-tab="production" aria-label="Open Metrics production for pending publish" title="Open Metrics production">
             <span class="metric-label">Pending Publish</span>
             <strong id="metrics-pending-bytes">0 B</strong>
           </section>
@@ -91,7 +91,10 @@
           </div>
           <div class="metrics-source-controls">
             <label class="settings-inline-field" for="metrics-source-path">
-              Source root
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">Source root</span>
+                <button type="button" id="metrics-source-path-picker-badge" class="path-picker-badge" data-path-picker-target="metrics.source_root" data-path-picker-input="metrics-source-path" data-path-picker-mode="folder" data-path-picker-status="metrics-sources-status" title="Open a backend-owned Windows folder picker for this Metrics source root.">Browse</button>
+              </span>
               <input id="metrics-source-path" type="text" autocomplete="off" placeholder="D:\Media" />
             </label>
             <label class="settings-inline-field" for="metrics-source-label">

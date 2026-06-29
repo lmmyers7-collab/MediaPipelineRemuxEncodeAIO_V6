@@ -22,7 +22,7 @@ This document does not change settings behavior. Changes to builder coverage req
 
 **Update (2026-05-15):** `WorkerSourcePathMap` and `WorkerConfigOverrides` were initially tracked for raw-key triage, then covered by the Network builder as JSON text fields during the WebView settings split work.
 
-**Update (2026-05-19):** `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` are now covered by structured Subtitle builder text fields. They still rely on backend Preview/Save and backend-authored saved path evidence; no WebView path picker or frontend path resolution was added.
+**Update (2026-05-19):** `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` are now covered by structured Subtitle builder text fields. They still rely on backend Preview/Save and backend-authored saved path evidence; no frontend-owned path picker or frontend path resolution was added.
 
 **Update (2026-05-19):** `SubSDHTitleKeywords` and `SubSupplementalKeywords` are now covered by structured Subtitle builder list fields. The WebView only stages list text; backend Preview/Save and backend subtitle classification remain authoritative.
 
@@ -63,7 +63,7 @@ These two keys are most likely to cause silent failures if misconfigured, and ar
 | `BdpgsOcrToolPath` | BDPGS OCR silently fails or uses the wrong tool | OCR output is absent or corrupt; no explicit error if path resolves to a different binary |
 | `BdpgsOcrTessdataPath` | OCR produces garbage or silently skips | Subtitles present but unreadable |
 
-**Implemented improvement**: WebView Settings now stages `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` through structured Subtitle builder text fields and shows backend-authored read-only path evidence alongside the BDPGS builder controls. It reports saved-config path resolution, existence, expected file/folder type, `.dll`/`dotnet` posture, and blocked/review/ready status. It does not add a path-picker or frontend-owned path resolution.
+**Implemented improvement**: WebView Settings now stages `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` through structured Subtitle builder text fields and shows backend-authored read-only path evidence alongside the BDPGS builder controls. It reports saved-config path resolution, existence, expected file/folder type, `.dll`/`dotnet` posture, and blocked/review/ready status. Compact picker badges may stage values only through the backend-owned allowlisted path-picker route; no frontend-owned path picker or frontend path resolution is allowed.
 
 ---
 
@@ -119,7 +119,7 @@ The 2 true gap keys from the original audit are now closed. The intentionally hi
 | Closed | `SubSDHTitleKeywords` | Now staged through the Subtitle builder as a list field; backend subtitle classification remains authoritative. |
 | Closed | `SubSupplementalKeywords` | Now staged through the Subtitle builder as a list field; backend subtitle classification remains authoritative. |
 
-**Implementation note for BdpgsOcr keys:** The read-only evidence is provided by `/api/settings/workspace` as `tool_path_evidence`. The builder fields only stage text into the existing Settings Preview/Save path. Do not add a frontend path-picker.
+**Implementation note for BdpgsOcr keys:** The read-only evidence is provided by `/api/settings/workspace` as `tool_path_evidence`. The builder fields and backend-owned path-picker badges only stage text into the existing Settings Preview/Save path. Do not add a frontend-owned path picker.
 
 **What is not worth building:** `CoordinatorAuthToken` and `WorkerAuthToken` must not receive WebView builder support without a design that prevents browser exposure (dev tools, JS heap snapshots, localStorage). This constraint is not lifted by the above ranking.
 
@@ -132,7 +132,7 @@ The Settings page now includes a read-only **Raw-Key Action Plan**. It does not 
 | Area | WebView action-plan behavior |
 |---|---|
 | Schema drift | Unknown keys are blocked/review and require backend Preview Patch before any save. |
-| BDPGS OCR paths | `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` are Subtitle builder fields, and their saved backend path evidence is shown directly in the action plan. No path picker was added. |
+| BDPGS OCR paths | `BdpgsOcrToolPath` and `BdpgsOcrTessdataPath` are Subtitle builder fields, and their saved backend path evidence is shown directly in the action plan. Backend-owned allowlisted path-picker badges may stage values only. |
 | Subtitle keyword lists | `SubSDHTitleKeywords` and `SubSupplementalKeywords` are covered by the Subtitle builder as staged list fields; backend subtitle classification remains authoritative. |
 | Network auth secrets | `CoordinatorAuthToken` and `WorkerAuthToken` remain intentionally excluded from builders; backend redaction and placeholder rejection remain mandatory. |
 | Remaining advanced raw | Valid but non-routine raw keys are grouped behind a backend-preview-before-save action. |
@@ -140,7 +140,7 @@ The Settings page now includes a read-only **Raw-Key Action Plan**. It does not 
 
 This closes the operator-visibility gap for the remaining raw-key categories without changing configuration persistence or WebView mutation authority.
 
-The same action-plan posture is also surfaced in Home's External Dependency Digest and Diagnostics First Response after the Settings workspace is loaded. This gives operators a path back to Settings when schema drift, high-review raw keys, OCR path evidence, or secret-boundary concerns matter during run-failure triage. Home and Diagnostics remain read-only and cannot save settings, edit secrets, add path pickers, run OCR/FFmpeg, launch, publish/drain, rename, rewrite manifests/sidecars, or touch media.
+The same action-plan posture is also surfaced in Home's External Dependency Digest and Diagnostics First Response after the Settings workspace is loaded. This gives operators a path back to Settings when schema drift, high-review raw keys, OCR path evidence, or secret-boundary concerns matter during run-failure triage. Home and Diagnostics remain read-only and cannot save settings, edit secrets, add frontend-owned path pickers, run OCR/FFmpeg, launch, publish/drain, rename, rewrite manifests/sidecars, or touch media.
 
 The Settings and Library Profiles pages now consume backend metadata for labels, help, value choices, defaults, advanced status, and library override eligibility where available. HandBrake-style section names are display metadata only. Patch preview and save still show persisted current persisted keys and persisted Library Profiles groups, and backend validation remains the save gate.
 

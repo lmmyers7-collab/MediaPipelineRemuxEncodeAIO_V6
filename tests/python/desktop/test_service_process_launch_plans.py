@@ -125,6 +125,28 @@ class ProcessLaunchPlanTests(unittest.TestCase):
         self.assertEqual(plan.metadata["report_root"], str(resolved.audit_reports_path))
         self.assertTrue(plan.metadata["include_sidecars"])
 
+    def test_audit_plan_uses_library_roots_argument_for_multi_root_audit(self) -> None:
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            resolved = self._resolved(root)
+            first = str(root / "DriveA")
+            second = str(root / "DriveB")
+
+            plan = build_audit_launch_plan(
+                resolved,
+                library_root=first,
+                library_roots=[first, second],
+                include_sidecars=False,
+                default_report_root=root / "DefaultReports",
+            )
+
+        self.assertIn("-LibraryRoots", plan.args)
+        self.assertNotIn("-LibraryRoot", plan.args)
+        roots_index = plan.args.index("-LibraryRoots")
+        self.assertEqual(plan.args[roots_index + 1:roots_index + 3], [first, second])
+        self.assertEqual(plan.metadata["library_roots"], [first, second])
+        self.assertEqual(plan.metadata["library_root_count"], 2)
+
     def test_rerun_plan_sets_dry_run_mode_and_csv_policy_metadata(self) -> None:
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)

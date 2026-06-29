@@ -1136,6 +1136,39 @@ class ApplicationFacadeProcessLaunchTests(unittest.TestCase):
         self.assertFalse(missing["ok"])
         self.assertIn("csv_path", missing["message"])
 
+    def test_rerun_plan_is_read_only_and_start_materializes_scoped_csv(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            csv_path = root / "rerun.csv"
+            csv_path.write_text(
+                "enabled,source_path,primary_issue_code,effective_bucket\n"
+                "true,C:\\Media\\Movie.mkv,audio-default-policy-mismatch,movie\n"
+                "false,C:\\Media\\Skip.mkv,subtitle-missing-text,movie\n",
+                encoding="utf-8",
+            )
+            service = DummyWorkflowFacadeService(root)
+            facade = MediaPipelineApplicationFacade(service, app_version="v5-test")
+            resolved = _resolved(root)
+            resolved.state_root = root / "State"
+
+            plan = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path), "plan_only": True}).to_mapping()
+            scoped_dir = root / "State" / "Rerun" / "ScopedCsv"
+            self.assertTrue(plan["ok"])
+            self.assertEqual(plan["data"]["schema_version"], "desktop_rerun_csv_preview.v1")
+            self.assertFalse(scoped_dir.exists())
+
+            result = facade.start_rerun_csv_process(resolved, {"csv_path": str(csv_path), "dry_run": True}).to_mapping()
+
+            self.assertTrue(result["ok"])
+            scoped_csv = Path(str(result["data"]["scoped_csv_path"]))
+            self.assertNotEqual(scoped_csv, csv_path)
+            self.assertEqual(scoped_csv.parent, scoped_dir)
+            self.assertEqual(Path(service.started_rerun["csv_path"]), scoped_csv)
+            self.assertEqual(result["data"]["source_csv_path"], str(csv_path))
+            scoped_text = scoped_csv.read_text(encoding="utf-8")
+            self.assertIn("Movie.mkv", scoped_text)
+            self.assertNotIn("Skip.mkv", scoped_text)
+
     def test_process_launch_commands_share_backend_launch_lock(self) -> None:
         with tempfile.TemporaryDirectory() as raw_root:
             root = Path(raw_root)

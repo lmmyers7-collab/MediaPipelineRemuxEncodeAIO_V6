@@ -1,10 +1,10 @@
 # WebView DOM ID Inventory
 
-Date: 2026-06-24
+Date: 2026-06-29
 
 Lists all `id=""` elements defined in the frontend and maps each ID prefix to its owning JavaScript module and WebView page. Source: `apps/desktop/webview/static/index.html` and `assets/*.js`.
 
-Total unique element IDs: 1920. IDs are grouped by prefix (owning module/page).
+Total unique element IDs: 1963. IDs are grouped by prefix (owning module/page).
 
 ---
 
@@ -296,6 +296,22 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `rerun-start-button` | `<button>` | Trigger `/api/rerun/start` |
 | `rerun-plan-only-button` | `<button>` | Trigger no-write `/api/rerun/start` plan-only request |
 | `rerun-open-audit-tool-button` | `<button>` | Navigate to Reports Audit controls |
+| `rerun-start-stage-mode` | `<select>` | Stage-mode intent for `/api/rerun/start`; backend blocks source-mutating values |
+| `rerun-start-original-mode` | `<select>` | Original-source intent for `/api/rerun/start`; backend blocks source deletion |
+| `rerun-start-return-mode` | `<select>` | Return-mode intent for `/api/rerun/start`; backend blocks in-place replacement |
+| `rerun-mode-policy-note` | `<p>` | CSV rerun executable policy boundary |
+| `rerun-scope-enabled-only` | `<input>` | CSV rerun preview/start scope: include enabled rows only |
+| `rerun-scope-skip-blocked` | `<input>` | CSV rerun preview/start scope: skip backend-classified blocked rows |
+| `rerun-scope-skip-warning-rows` | `<input>` | CSV rerun preview/start scope: skip warning rows |
+| `rerun-scope-first-n` | `<input>` | CSV rerun preview/start scope: first N rows |
+| `rerun-scope-issue-filter` | `<input>` | CSV rerun preview/start scope: issue-code text filter |
+| `rerun-scope-bucket-filter` | `<input>` | CSV rerun preview/start scope: bucket text filter |
+| `rerun-preview-limit` | `<input>` | CSV rerun bounded backend preview row limit |
+| `rerun-recent-csv-rows` | `<tbody>` | Recent audit and scoped CSV candidates |
+| `rerun-preview-summary` | `<pre>` | Backend CSV rerun summary and scoped row counts |
+| `rerun-policy-panel` | `<div>` | CSV rerun executable/blocked policy panel |
+| `rerun-preview-rows` | `<tbody>` | Backend CSV rerun row preview |
+| `rerun-history-summary` | `<pre>` | Recent CSV rerun command history summary |
 | `rerun-launch-detail` | `<div>` | Rerun launch detail |
 | `rerun-launch-status` (inferred) | `<span>` | Rerun launch status |
 | `pending-drain-detail` | `<div>` | Pending drain launch detail |
@@ -316,10 +332,14 @@ These IDs live in the persistent topbar and sidebar, visible on all pages.
 | `audit-preview-table-legend` | `<p>` | Audit table legend |
 | `audit-review-board` | `<div>` | Audit review board panel |
 | `audit-review-status` | `<strong>` | Audit review status |
-| `report-audit-location-summary` | `<pre>` | Reports audit saved-location list status |
-| `report-audit-remove-location-button` | `<button>` | Remove selected Reports audit saved location |
-| `report-audit-save-location-button` | `<button>` | Save staged Reports audit location |
-| `report-audit-saved-location-select` | `<select>` | Select a saved Reports audit location |
+| `report-audit-add-source-button` | `<button>` | Add the staged backend-owned Reports audit source location |
+| `report-audit-clear-source-selection-button` | `<button>` | Clear selected Reports audit source table rows |
+| `report-audit-scan-all-button` | `<button>` | Scan all configured Reports audit source locations for aggregate metrics |
+| `report-audit-scan-selected-button` | `<button>` | Scan selected Reports audit source locations for aggregate metrics |
+| `report-audit-select-all-sources-button` | `<button>` | Select all enabled Reports audit source table rows |
+| `report-audit-source-rows` | `<tbody>` | Reports audit source locations and scan metrics rows |
+| `report-audit-source-selection-status` | `<p>` | Reports audit source selection and launch-scope summary |
+| `report-audit-source-status` | `<strong>` | Reports audit source table selection count |
 | `failure-archive-confirm-button` | `<button>` | Confirm advanced failure evidence archive after preview fingerprint |
 | `failure-archive-disclosure` | `<details>` | Advanced failure evidence archive disclosure |
 | `failure-archive-include-markers` | `<input>` | Include active failure markers in advanced archive |
@@ -747,11 +767,35 @@ Risk: Low — additive only; new IDs for queue drawer UI
 
 ---
 
-## Machine-Generated Full DOM ID Manifest - 2026-06-24
+## Delta Review — 2026-06-29 (Path picker badges)
+
+Added compact backend-owned path picker badges beside real operator path labels.
+The shared badge class is `path-picker-badge`; each static badge carries
+`data-path-picker-target`, `data-path-picker-input`, `data-path-picker-mode`,
+and optional `data-path-picker-status` / `data-path-picker-write` attributes.
+Dynamic builder rows use the same class and data-attribute contract without
+stable row-specific IDs.
+
+| Area | Static badge IDs |
+|---|---|
+| Launch | `pipeline-single-file-path-picker-badge`, `rerun-csv-path-picker-badge` |
+| Reports / Metrics | `report-audit-library-root-picker-badge`, `metrics-source-path-picker-badge` |
+| Rename source staging | `rename-manual-path-picker-badge` |
+| Settings wizard roots/tools | `wizard-output-root-picker-badge`, `wizard-scratch-path-picker-badge`, `wizard-ffmpeg-path-picker-badge`, `wizard-ffprobe-path-picker-badge` |
+| Settings File Safety | `settings-file-safety-source-movies-picker-badge`, `settings-file-safety-source-tv-picker-badge`, `settings-file-safety-outsource-picker-badge`, `settings-file-safety-local-base-picker-badge`, `settings-file-safety-watch-roots-picker-badge` |
+| Subtitle OCR paths | `settings-subtitle-bdpgs-ocr-tool-picker-badge`, `settings-subtitle-bdpgs-tessdata-picker-badge`, `settings-subtitle-vobsub-ocr-tool-picker-badge` |
+
+Excluded fields remain picker-free: rename workbench source file/folder fields
+and rename bad-case corpus example fields. Current ID count is 1943 unique
+`id=""` values.
+
+---
+
+## Machine-Generated Full DOM ID Manifest - 2026-06-29
 
 This section is generated from `apps/desktop/webview/static/index.html` and is the exhaustive ID set used by `test_webview_inventory_docs.py`. Curated page tables above remain the human orientation layer.
 
-Count: 1920
+Count: 1963
 
 <!-- BEGIN GENERATED DOM ID MANIFEST -->
 ```text
@@ -1404,6 +1448,7 @@ metrics-source-add-button
 metrics-source-evidence
 metrics-source-label
 metrics-source-path
+metrics-source-path-picker-badge
 metrics-sources-rows
 metrics-sources-status
 metrics-storage-bars
@@ -1715,6 +1760,7 @@ pipeline-log-window-button
 pipeline-single-file-browse-button
 pipeline-single-file-browse-status
 pipeline-single-file-clear-button
+pipeline-single-file-path-picker-badge
 pipeline-sparkline
 pipeline-start-button
 pipeline-start-disabled-reason
@@ -1906,6 +1952,7 @@ rename-log-case-source-folder
 rename-log-case-status-select
 rename-log-case-submit-button
 rename-log-case-title
+rename-manual-path-picker-badge
 rename-mode
 rename-movie-year
 rename-paths
@@ -1949,6 +1996,8 @@ rename-table-legend
 rename-template-preset
 rename-undo-button
 rename-undo-status
+report-audit-add-source-button
+report-audit-clear-source-selection-button
 report-audit-csv-state
 report-audit-export-detail
 report-audit-export-rerun-csv-button
@@ -1957,10 +2006,9 @@ report-audit-ignore-selected-button
 report-audit-launch-detail
 report-audit-launch-preflight
 report-audit-launch-status
-report-audit-location-summary
-report-audit-remove-location-button
-report-audit-save-location-button
-report-audit-saved-location-select
+report-audit-library-root-picker-badge
+report-audit-scan-all-button
+report-audit-scan-selected-button
 report-audit-score-fallback-issue
 report-audit-score-high-issue
 report-audit-score-medium-issue
@@ -1974,6 +2022,10 @@ report-audit-score-redownload-bucket
 report-audit-score-rerun-bonus
 report-audit-score-rerun-bucket
 report-audit-score-review-bucket
+report-audit-select-all-sources-button
+report-audit-source-rows
+report-audit-source-selection-status
+report-audit-source-status
 report-audit-start-button
 report-audit-start-include-sidecars
 report-audit-start-library-root
@@ -2006,15 +2058,32 @@ report-triage-warning-count
 report-warning-count
 report-warning-rows
 report-warning-status
+rerun-csv-path-picker-badge
 rerun-dry-run-button
+rerun-history-summary
 rerun-launch-detail
 rerun-launch-preflight
 rerun-launch-status
+rerun-mode-policy-note
 rerun-open-audit-tool-button
 rerun-plan-only-button
+rerun-policy-panel
+rerun-preview-limit
+rerun-preview-rows
+rerun-preview-summary
+rerun-recent-csv-rows
+rerun-scope-bucket-filter
+rerun-scope-enabled-only
+rerun-scope-first-n
+rerun-scope-issue-filter
+rerun-scope-skip-blocked
+rerun-scope-skip-warning-rows
 rerun-start-button
 rerun-start-csv-path
+rerun-start-original-mode
+rerun-start-return-mode
 rerun-start-show-console
+rerun-start-stage-mode
 reset-layout-btn
 sample-validation-acceptance-gate-detail
 sample-validation-acceptance-gate-legend
@@ -2246,24 +2315,29 @@ settings-file-safety-enable-watch
 settings-file-safety-guidance
 settings-file-safety-local-base
 settings-file-safety-local-base-browse
+settings-file-safety-local-base-picker-badge
 settings-file-safety-min-free
 settings-file-safety-output-size-multiplier
 settings-file-safety-outsource
 settings-file-safety-outsource-browse
 settings-file-safety-outsource-min-free
+settings-file-safety-outsource-picker-badge
 settings-file-safety-reset-button
 settings-file-safety-robocopy-flags
 settings-file-safety-skip-stability
 settings-file-safety-source-movies
 settings-file-safety-source-movies-browse
+settings-file-safety-source-movies-picker-badge
 settings-file-safety-source-tv
 settings-file-safety-source-tv-browse
+settings-file-safety-source-tv-picker-badge
 settings-file-safety-stability-wait
 settings-file-safety-valid-extensions
 settings-file-safety-watch-action
 settings-file-safety-watch-debounce
 settings-file-safety-watch-respect-schedule
 settings-file-safety-watch-roots
+settings-file-safety-watch-roots-picker-badge
 settings-filter
 settings-handbrake-active-preset
 settings-handbrake-decision
@@ -2297,7 +2371,14 @@ settings-library-profile-nav
 settings-library-reset-button
 settings-library-route-map-scope
 settings-library-save-button
+settings-library-scan-sources-button
 settings-library-state-strip
+settings-library-summary-detail
+settings-library-summary-panel
+settings-library-summary-rows
+settings-library-summary-status
+settings-library-summary-strip
+settings-library-summary-warning
 settings-library-warning-summary
 settings-library-watch-auto-run
 settings-library-watch-panel
@@ -2492,9 +2573,11 @@ settings-subtitle-ass-signs-forced
 settings-subtitle-bdpgs-languages
 settings-subtitle-bdpgs-ocr-tessdata-path
 settings-subtitle-bdpgs-ocr-tool-path
+settings-subtitle-bdpgs-ocr-tool-picker-badge
 settings-subtitle-bdpgs-path-evidence
 settings-subtitle-bdpgs-path-status
 settings-subtitle-bdpgs-signs-forced
+settings-subtitle-bdpgs-tessdata-picker-badge
 settings-subtitle-bdpgs-timeout
 settings-subtitle-builder-status
 settings-subtitle-convert-bdpgs
@@ -2525,6 +2608,7 @@ settings-subtitle-tx3g-languages
 settings-subtitle-tx3g-signs-forced
 settings-subtitle-vobsub-languages
 settings-subtitle-vobsub-ocr-tool-path
+settings-subtitle-vobsub-ocr-tool-picker-badge
 settings-subtitle-vobsub-path-evidence
 settings-subtitle-vobsub-path-status
 settings-subtitle-vobsub-signs-forced
@@ -2636,7 +2720,6 @@ telemetry-readiness-summary
 telemetry-refresh-cadence
 telemetry-sample-age
 telemetry-source
-theme-toggle
 topbar-event-ticker
 wizard-ack-AllowNoAudio
 wizard-ack-AllowSystemTools
@@ -2650,7 +2733,9 @@ wizard-danger-cleanup-remote
 wizard-danger-reprocess-all
 wizard-existing-policy
 wizard-ffmpeg-path
+wizard-ffmpeg-path-picker-badge
 wizard-ffprobe-path
+wizard-ffprobe-path-picker-badge
 wizard-keep-all-audio
 wizard-keep-unknown-subtitles
 wizard-library-category-list
@@ -2659,6 +2744,7 @@ wizard-min-free-space-gb
 wizard-mode
 wizard-output-container
 wizard-output-root
+wizard-output-root-picker-badge
 wizard-outsource-min-free-space-gb
 wizard-parallel-encode-mode
 wizard-preferred-codec
@@ -2670,6 +2756,7 @@ wizard-safety-pending
 wizard-safety-skip-processed
 wizard-safety-stability
 wizard-scratch-path
+wizard-scratch-path-picker-badge
 wizard-subtitle-languages
 wizard-subtitle-policy
 wizard-video-preset

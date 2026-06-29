@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/styles/components/base-panels.css
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-26
+last_modified: 2026-06-28
 last_reviewed: 2026-06-25
-sha256: aa6c88944851a06cc823849afa4a540557a3c23d195bceef7082227b0418623b
+sha256: f613995ae35a4bdc99c6253dc25847602c4bd9674f35729d1edf3c7ea5431fd8
 ---
 # `apps/desktop/webview/static/assets/styles/components/base-panels.css`
 

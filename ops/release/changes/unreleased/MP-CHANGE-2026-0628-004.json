@@ -1,0 +1,37 @@
+{
+  "id": "MP-CHANGE-2026-0628-004",
+  "title": "Hide completed open history",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "feature",
+  "risk_level": "low",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-28",
+  "summary": "Hide the Completed page's recent completed-open command history block from the visible operator surface while preserving the existing DOM hook and backend command evidence wiring.",
+  "reason": "The page-local open history exposed noisy path and error details that are not useful in the selected-row action area.",
+  "affected_areas": [
+    "generated_docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "The Completed selected-row action area visibly rendered recent completed.open command history, including target, row key, opened path, and backend warning/error detail.",
+  "behavior_after": "The Completed selected-row action area keeps the completed-open-history element for existing wiring, but the block is hidden from the visible UI.",
+  "files_touched": [
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0628-004.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_completed.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-004.json",
+    "tests/python/desktop/test_application_facade_web_static_completed.py"
+  ],
+  "tests_added": [],
+  "manual_validation": [
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_completed -q (passed)",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_command_evidence_smoke -q (passed)",
+    ".\\ops\\scripts\\smoke\\Test-WebViewCommandEvidenceSmoke.ps1 (passed)",
+    ".\\ops\\pipeline\\runtime\\PowerShell-7.6.0-win-x64\\pwsh.exe -NoProfile -ExecutionPolicy Bypass -File .\\ops\\scripts\\release\\test.ps1 -SkipToolIntegration -SkipEndToEndSmoke (passed; source/dev warnings for missing release_manifest.json and skipped tool/end-to-end gates)"
+  ],
+  "rollback_plan": "Remove the hidden/aria-hidden attributes from completed-open-history and revert the static contract assertion.",
+  "related_changes": [],
+  "notes": "Hide the Completed open-command history block from the visible operator page while preserving the DOM hook.\nRefresh summary after hiding the Completed open history block.\nRefresh summary after updating the Completed static contract test.\nPin the hidden Completed open-command history DOM contract.\nAdd generated summary for the hide completed open history change packet."
+}

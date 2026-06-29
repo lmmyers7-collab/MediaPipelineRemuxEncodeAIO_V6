@@ -3,9 +3,9 @@ file: src/mediapipeline/core/processes/preflight_facade.py
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: process
-last_modified: 2026-06-26
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: 6ca87661d93e7a29850fa1d9707ea14af4d4db7ee76d3ca79641871230b6532a
+sha256: 78261cb4cc0b97eb30ac1c2e8f34a771d86039aff83e8ab6a3e80dc87fefdcd0
 ---
 # `src/mediapipeline/core/processes/preflight_facade.py`
 

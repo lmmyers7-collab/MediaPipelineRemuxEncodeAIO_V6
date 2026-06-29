@@ -22,7 +22,10 @@
               </div>
               <div class="action-row action-row-left wrap-actions">
                 <label class="rename-inline-path">
-                  Manual path
+                  <span class="path-picker-label-row">
+                    <span class="path-picker-label-text">Manual path</span>
+                    <button type="button" id="rename-manual-path-picker-badge" class="path-picker-badge" data-path-picker-target="rename.source.media_file" data-path-picker-input="rename-add-path-input" data-path-picker-mode="files" data-path-picker-status="rename-file-source-status" title="Open a backend-owned Windows file picker for this manual rename source path.">Browse</button>
+                  </span>
                   <input id="rename-add-path-input" type="text" autocomplete="off" placeholder="C:\Media\Source.mkv">
                 </label>
                 <button type="button" id="rename-add-path-button" class="secondary-button">Add manual path</button>

@@ -608,6 +608,17 @@
     if (!textValue("wizard-ffprobe-path")) setValue("wizard-ffprobe-path", firstExisting(candidates.ffprobe));
   }
 
+  function wizardLibraryPathField(label, field, targetKey) {
+    return `
+        <label data-path-picker-scope="true">
+          <span class="path-picker-label-row">
+            <span class="path-picker-label-text">${label}</span>
+            <button type="button" class="path-picker-badge" data-path-picker-target="${targetKey}" data-path-picker-input='[data-library-field="${field}"]' data-path-picker-mode="folder" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows folder picker for ${label.toLowerCase()}.">Browse</button>
+          </span>
+          <input type="text" data-library-field="${field}" autocomplete="off">
+        </label>`;
+  }
+
   function createLibraryRow(library, index) {
     const section = document.createElement("section");
     section.className = "settings-wizard-library-row";
@@ -626,9 +637,9 @@
         <label>Category<input type="text" data-library-field="category" list="wizard-library-category-list" autocomplete="off"></label>
         <label>Designation<select data-library-field="designation"></select></label>
         <label>Default root role<select data-library-field="default_source_role"></select></label>
-        <label>Source path *<input type="text" data-library-field="source_path" autocomplete="off"></label>
-        <label>Output destination<input type="text" data-library-field="output_path" autocomplete="off"></label>
-        <label>Promotion destination<input type="text" data-library-field="promotion_destination" autocomplete="off"></label>
+        ${wizardLibraryPathField("Source path *", "source_path", "settings.wizard.library_source_path")}
+        ${wizardLibraryPathField("Output destination", "output_path", "settings.wizard.library_output_path")}
+        ${wizardLibraryPathField("Promotion destination", "promotion_destination", "settings.wizard.library_promotion_destination")}
         <label>Processing profile<select data-library-field="profile"></select></label>
       </div>
       <label class="settings-wizard-library-promotion"><input type="checkbox" data-library-field="promotion_enabled"> Enable promotion for this library</label>

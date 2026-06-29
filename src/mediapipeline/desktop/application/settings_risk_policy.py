@@ -293,6 +293,48 @@ def _launch_risk_summary_lines(rows: list[dict[str, Any]]) -> list[str]:
     return lines
 
 
+_LAUNCH_ATTENTION_RISK_CODES = {
+    "custom_video_flags_enabled",
+    "fallback_remux_size_guard",
+    "quality_block_review_enabled",
+    "short_copy_timeout",
+    "strict_size_guard",
+}
+
+
+def _raw_video_flags_active(encode_tuning: str, extra_video_flags: list[str]) -> bool:
+    return bool(extra_video_flags) and str(encode_tuning or "").strip().casefold() == "custom_legacy_flags"
+
+
+def _launch_attention_risk_items(risk_items: list[Any], *, raw_video_flags_active: bool) -> list[dict[str, Any]]:
+    attention: list[dict[str, Any]] = []
+    for item in risk_items:
+        if not isinstance(item, dict):
+            continue
+        severity = str(item.get("severity") or "").casefold()
+        code = str(item.get("code") or "").casefold()
+        if severity in {"critical", "high"}:
+            attention.append(item)
+        elif code == "raw_video_flags_present" and raw_video_flags_active:
+            attention.append(item)
+        elif code in _LAUNCH_ATTENTION_RISK_CODES:
+            attention.append(item)
+    return attention
+
+
+def _launch_attention_impact(attention_items: list[dict[str, Any]], errors: list[str]) -> str:
+    if errors:
+        return "blocked"
+    severities = {str(item.get("severity") or "").casefold() for item in attention_items}
+    if "critical" in severities:
+        return "blocked"
+    if "high" in severities:
+        return "high review"
+    if attention_items:
+        return "review"
+    return "ready"
+
+
 def build_launch_settings_risk_handoff(
     config: dict[str, Any],
     *,
@@ -314,7 +356,6 @@ def build_launch_settings_risk_handoff(
     readiness_rows = readiness.get("rows") if isinstance(readiness.get("rows"), list) else []
     readiness_counts = readiness.get("counts") if isinstance(readiness.get("counts"), dict) else {}
     readiness_status = str(readiness.get("operator_status") or "not evaluated").casefold()
-    highest = str(risk.get("highest_severity") or "none").casefold()
     total = int(risk.get("total_count") or 0)
 
     deferred = _bool_value(config, KEY_DEFERRED_PUBLISH, False)
@@ -350,16 +391,22 @@ def build_launch_settings_risk_handoff(
     encode_tuning = _display_text(_config_value(config, KEY_ENCODE_TUNING_PRESET, "default")) or "default"
     encode_ladder = _display_text(_config_value(config, KEY_ENCODE_LADDER, "default")) or "default"
     video_codec = _display_text(_config_value(config, KEY_VIDEO_CODEC, "default")) or "default"
+    raw_flags_active = _raw_video_flags_active(encode_tuning, extra_video_flags)
+    extra_flags_state = "active custom passthrough" if raw_flags_active else "inactive with structured preset" if extra_video_flags else "none"
+    launch_attention_items = _launch_attention_risk_items(risk_items, raw_video_flags_active=raw_flags_active)
+    launch_attention_impact = _launch_attention_impact(launch_attention_items, errors)
 
     rows: list[dict[str, Any]] = []
     _launch_risk_row(
         rows,
         "Backend settings risk",
-        "blocked" if errors or highest == "critical" else "high review" if highest == "high" else "review" if total or warnings else "ready",
-        f"highest={risk.get('highest_severity') or 'none'}; risk items={total}; warnings={len(warnings)}; errors={len(errors)}",
+        launch_attention_impact,
+        f"highest={risk.get('highest_severity') or 'none'}; risk items={total}; launch attention={len(launch_attention_items)}; warnings={len(warnings)}; errors={len(errors)}",
         "Use Settings > Validate / Reload and resolve critical settings before launch."
-        if errors or highest == "critical"
-        else "Review backend risk preview before unattended starts; backend launch validation still has final authority."
+        if launch_attention_impact == "blocked"
+        else "Review launch-affecting settings before unattended starts; backend launch validation still has final authority."
+        if launch_attention_items
+        else "Non-blocking settings notes are present; Launch highlights only settings that can block launch, fail work, or weaken safety gates."
         if total or warnings
         else "No saved-settings risk items currently reported.",
         [
@@ -371,11 +418,11 @@ def build_launch_settings_risk_handoff(
     _launch_risk_row(
         rows,
         "Backend media-policy readiness",
-        "blocked" if "blocked" in readiness_status else "review" if "review" in readiness_status else "ready" if readiness_rows else "review",
+        "blocked" if "blocked" in readiness_status else "ready" if readiness_rows else "review",
         f"schema={readiness.get('schema_version') or 'missing'}; rows={len(readiness_rows)}; coherent={readiness_counts.get('coherent', 0)}; review={readiness_counts.get('review', 0)}; blocked={readiness_counts.get('blocked', 0)}",
         "Resolve blocked saved media-policy rows before launching unattended work."
         if "blocked" in readiness_status
-        else "Review backend-authored media-policy readiness rows in Settings before long runs."
+        else "Non-blocking media-policy notes remain available in Settings; Launch highlights only blocked media-policy contradictions."
         if "review" in readiness_status
         else "Saved media-policy readiness is clean in the backend workspace.",
         [
@@ -413,7 +460,7 @@ def build_launch_settings_risk_handoff(
     _launch_risk_row(
         rows,
         "Publish / pending-drain posture",
-        "review" if deferred else "ready",
+        "ready",
         f"deferred publish={'enabled' if deferred else 'disabled'}; launch mode={{launch_mode}}",
         "Expect completed outputs to park for Pending Publish; monitor Pending Publish and drain evidence after processing."
         if deferred
@@ -428,13 +475,15 @@ def build_launch_settings_risk_handoff(
     _launch_risk_row(
         rows,
         "Remux / encode size posture",
-        "review" if size_guard in {"off", "disabled", "strict"} or extra_video_flags else "ready",
-        f"routing={routing_profile}; output_size_check={size_guard}; normal growth={max_growth}%; compatibility growth={compat_growth}%; unknown-height uses 1080p targets movie={movie_1080p_target}GB, TV={tv_1080p_target}GB, cap={route_1080p_max_bitrate}Mbps; codec={video_codec}; tuning={encode_tuning}; ladder={encode_ladder}; legacy flags={len(extra_video_flags)}",
-        "Output Size Check is not enforcing or warning normally; confirm this before testing low-bitrate sources that can balloon."
-        if size_guard in {"off", "disabled"}
-        else "Use Settings Preview before long runs if route, growth limits, encoder, or output container differs from the intended Plex direct/stream profile.",
+        "review" if size_guard in {"strict", "fallback_remux"} or raw_flags_active else "ready",
+        f"routing={routing_profile}; output_size_check={size_guard}; normal growth={max_growth}%; compatibility growth={compat_growth}%; unknown-height uses 1080p targets movie={movie_1080p_target}GB, TV={tv_1080p_target}GB, cap={route_1080p_max_bitrate}Mbps; codec={video_codec}; tuning={encode_tuning}; ladder={encode_ladder}; extra flags={len(extra_video_flags)} ({extra_flags_state})",
+        "Raw ExtraVideoFlags are active through custom_legacy_flags; confirm the FFmpeg/NVENC flags before unattended encodes."
+        if raw_flags_active
+        else "Output Size Check can fail or reroute oversized encodes; confirm this is intentional before unattended runs."
+        if size_guard in {"strict", "fallback_remux"}
+        else "Saved route, growth-limit, encoder, and container settings are launch-normal; use Settings Preview only when changing policy.",
         [
-            "Proof source: saved routing profile, Output Size Check mode, thresholds, encoder choice, ladder, and legacy flags.",
+            "Proof source: saved routing profile, Output Size Check mode, thresholds, encoder choice, ladder, and extra video flags.",
             "Operator proof: compare Completed source/output size evidence after the first sample file.",
             "Boundary: this is not a media-policy change and does not force remux or encode.",
         ],
@@ -442,7 +491,7 @@ def build_launch_settings_risk_handoff(
     _launch_risk_row(
         rows,
         "H.264 copy / remux precision",
-        "review" if not allow_h264_copy or not remux_safe_codecs else "ready",
+        "ready",
         f"H.264 copy={'enabled' if allow_h264_copy else 'disabled'} <={h264_max_bitrate}Mbps/{h264_max_height}p; remux-safe codecs={', '.join(remux_safe_codecs) or '(empty)'}",
         "Plex-compatible H.264 sources should remain copy/remux candidates when bitrate, height, and codec policy allow it."
         if allow_h264_copy
@@ -475,7 +524,7 @@ def build_launch_settings_risk_handoff(
     _launch_risk_row(
         rows,
         "Subtitle SRT routing",
-        "blocked" if subtitle_blocked else "review" if (not convert_tx3g or not convert_bdpgs or not convert_vobsub or drop_tx3g or drop_bdpgs or drop_vobsub) else "ready",
+        "blocked" if subtitle_blocked else "ready",
         f"TX3G convert={'on' if convert_tx3g else 'off'} drop={'on' if drop_tx3g else 'off'}; BDPGS OCR={'on' if convert_bdpgs else 'off'} drop={'on' if drop_bdpgs else 'off'}; VobSub OCR={'on' if convert_vobsub else 'off'} drop={'on' if drop_vobsub else 'off'}",
         "Do not launch media work with drop-without-convert subtitle contradictions."
         if subtitle_blocked
@@ -503,7 +552,7 @@ def build_launch_settings_risk_handoff(
     _launch_risk_row(
         rows,
         "Tool resolution",
-        "review" if allow_system_tools else "ready",
+        "ready",
         f"PATH fallback={'enabled' if allow_system_tools else 'disabled'}",
         "PATH fallback can use non-bundled tools; confirm this before unattended runs."
         if allow_system_tools
@@ -527,8 +576,8 @@ def build_launch_settings_risk_handoff(
         ],
         launch_context={
             "validate": {
-                "impact": "review",
-                "action": "Validate mode is useful for config posture only; follow with a small real Run Once before treating WebView as daily-driver ready.",
+                "impact": "ready",
+                "action": "Validate mode checks config posture; follow with a small real Run Once before treating WebView as daily-driver ready.",
             },
             "default": {
                 "impact": "ready",
@@ -536,9 +585,7 @@ def build_launch_settings_risk_handoff(
             },
         },
     )
-    for item in risk_items[:3]:
-        if not isinstance(item, dict):
-            continue
+    for item in launch_attention_items[:3]:
         severity = str(item.get("severity") or "review").casefold()
         _launch_risk_row(
             rows,
@@ -558,11 +605,11 @@ def build_launch_settings_risk_handoff(
         "key": "continuous-mode-sensitivity",
         "area": "Continuous-mode sensitivity",
         "impact": "high review",
-        "evidence": "Launch mode is Continuous and at least one saved setting row needs review.",
-        "action": "Prefer Validate or Run Once until saved settings risk is understood.",
+        "evidence": "Launch mode is Continuous and at least one saved setting row can block, fail, or weaken safety gates.",
+        "action": "Prefer Validate or Run Once until launch-affecting settings risk is understood.",
         "detail": [
             "Proof source: selected Continuous mode plus at least one non-ready launch risk row.",
-            "Operator proof: resolve or intentionally accept review rows before unattended continuous processing.",
+            "Operator proof: resolve or intentionally accept launch-affecting rows before unattended continuous processing.",
             "Boundary: backend launch validation still has final authority over whether Continuous can start.",
         ],
         "source": "backend",

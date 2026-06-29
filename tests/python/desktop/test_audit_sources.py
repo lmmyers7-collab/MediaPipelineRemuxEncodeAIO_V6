@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+import sys
+import tempfile
+import unittest
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(REPO_ROOT / "src"))
+
+from mediapipeline.core.audit.sources import (
+    audit_source_state_payload,
+    scan_audit_sources,
+    update_audit_sources,
+)
+from mediapipeline.contracts.api_commands import validate_api_command_payload
+from mediapipeline.desktop.api.contract import LOCAL_API_ROUTE_CONTRACT
+from mediapipeline.desktop.api.routes import GET_ROUTE_HANDLERS, POST_ROUTE_HANDLERS
+from mediapipeline.desktop.models import ResolvedPaths
+
+
+def _resolved(root: Path, *, with_state: bool = True) -> ResolvedPaths:
+    return ResolvedPaths(
+        app_root=root,
+        workspace_root=root,
+        pipeline_path=root / "pipeline.ps1",
+        config_path=root / "config.psd1",
+        audit_script_path=root / "audit.ps1",
+        rerun_script_path=root / "rerun.ps1",
+        powershell_host=str(root / "pwsh.exe"),
+        state_root=(root / "State") if with_state else None,
+        local_base=None,
+        config_data={"NetworkRole": "standalone"},
+    )
+
+
+class AuditSourcesTests(unittest.TestCase):
+    def test_audit_source_payload_reports_missing_state_root(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            payload = audit_source_state_payload(_resolved(Path(raw_root), with_state=False))
+
+        self.assertFalse(payload["available"])
+        self.assertEqual(payload["schema_version"], "desktop_audit_sources.v1")
+        self.assertIn("state_root is not configured", payload["warnings"][0])
+
+    def test_audit_source_scan_counts_media_sidecars_and_folders(self) -> None:
+        with tempfile.TemporaryDirectory() as raw_root:
+            root = Path(raw_root)
+            source_a = root / "DriveA"
+            source_b = root / "DriveB"
+            (source_a / "Movies").mkdir(parents=True)
+            (source_b / "Shows" / "Season 01").mkdir(parents=True)
+            (source_a / "Movies" / "Movie.mkv").write_bytes(b"movie")
+            (source_a / "Movies" / "Movie.en.srt").write_text("subtitle", encoding="utf-8")
+            (source_a / "Movies" / "Movie.pipeline.json").write_text("{}", encoding="utf-8")
+            (source_b / "Shows" / "Season 01" / "Episode.mp4").write_bytes(b"episode")
+            (source_b / "Shows" / "Season 01" / "Episode.ass").write_text("ass", encoding="utf-8")
+            resolved = _resolved(root)
+
+            add_a = update_audit_sources(resolved, {"action": "add", "path": str(source_a)})
+            add_b = update_audit_sources(resolved, {"action": "add", "path": str(source_b)})
+            self.assertTrue(add_a["ok"])
+            self.assertTrue(add_b["ok"])
+
+            state = audit_source_state_payload(resolved)
+            source_ids = [row["source_id"] for row in state["roots"]]
+            scan = scan_audit_sources(resolved, {"source_ids": source_ids})
+
+            self.assertTrue(scan["ok"])
+            scanned = scan["data"]["audit_sources"]
+            self.assertEqual(scanned["source_count"], 2)
+            self.assertEqual(scanned["media_file_count"], 2)
+            self.assertEqual(scanned["sidecar_file_count"], 3)
+            self.assertEqual(scanned["folder_count"], 5)
+            self.assertFalse(scanned["counts_truncated"])
+            by_path = {row["path"]: row for row in scanned["roots"]}
+            self.assertEqual(by_path[str(source_a)]["media_file_count"], 1)
+            self.assertEqual(by_path[str(source_a)]["sidecar_file_count"], 2)
+            self.assertEqual(by_path[str(source_b)]["folder_count"], 3)
+
+    def test_audit_source_routes_are_registered_and_validated(self) -> None:
+        self.assertIn("/api/audit-sources", GET_ROUTE_HANDLERS)
+        self.assertEqual(GET_ROUTE_HANDLERS["/api/audit-sources"].method_name, "_audit_sources_payload")
+        self.assertIn("/api/audit/sources", POST_ROUTE_HANDLERS)
+        self.assertIn("/api/audit/sources/scan", POST_ROUTE_HANDLERS)
+        self.assertEqual(POST_ROUTE_HANDLERS["/api/audit/sources"].method_name, "_audit_sources_payload")
+        self.assertEqual(POST_ROUTE_HANDLERS["/api/audit/sources/scan"].method_name, "_audit_sources_scan_payload")
+
+        routes = {item["path"]: item for item in LOCAL_API_ROUTE_CONTRACT}
+        self.assertEqual(routes["/api/audit-sources"]["response_schema"], "desktop_audit_sources.v1")
+        self.assertEqual(routes["/api/audit/sources"]["effect"], "audit-source-state-write")
+        self.assertEqual(routes["/api/audit/sources/scan"]["effect"], "audit-source-scan-state-write")
+        self.assertIn("does not process", routes["/api/audit/sources/scan"]["purpose"])
+        self.assertTrue(validate_api_command_payload("/api/audit/sources", {"action": "add", "path": r"D:\Media"}))
+        self.assertTrue(validate_api_command_payload("/api/audit/sources/scan", {"source_ids": ["src_test"]}))
+
+
+if __name__ == "__main__":
+    unittest.main()

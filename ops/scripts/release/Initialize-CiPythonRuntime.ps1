@@ -2,6 +2,7 @@
 param(
     [string] $RepoRoot,
     [string] $PythonExe,
+    [switch] $InstallDependencies,
     [switch] $Force
 )
 
@@ -31,6 +32,19 @@ function Resolve-PythonExe {
 
     $command = Get-Command python -ErrorAction Stop
     return $command.Source
+}
+
+function Invoke-CheckedCommand {
+    param(
+        [string] $FilePath,
+        [string[]] $Arguments,
+        [string] $FailureMessage
+    )
+
+    & $FilePath @Arguments
+    if ($LASTEXITCODE -ne 0) {
+        throw $FailureMessage
+    }
 }
 
 function Copy-PythonRuntime {
@@ -68,6 +82,34 @@ function Copy-PythonRuntime {
     }
 }
 
+function Install-PythonRuntimeDependencies {
+    param(
+        [string] $TargetRoot,
+        [string] $RepoRootPath
+    )
+
+    $targetPython = Join-Path $TargetRoot 'python.exe'
+    if (-not (Test-Path -LiteralPath $targetPython)) {
+        throw "CI Python runtime is missing python.exe: $targetPython"
+    }
+
+    $requirementsPath = Join-Path $RepoRootPath 'requirements\dev.txt'
+    if (-not (Test-Path -LiteralPath $requirementsPath)) {
+        throw "CI dependency requirements file is missing: $requirementsPath"
+    }
+
+    Write-Host "Installing CI Python dependencies into $targetPython"
+    Invoke-CheckedCommand `
+        -FilePath $targetPython `
+        -Arguments @('-m', 'pip', 'install', '-r', $requirementsPath, '-e', $RepoRootPath) `
+        -FailureMessage "CI Python dependency install failed for $targetPython"
+
+    Invoke-CheckedCommand `
+        -FilePath $targetPython `
+        -Arguments @('-c', 'import pydantic, psutil, pysubs2, zeroconf; print("CI Python runtime dependencies validated")') `
+        -FailureMessage "CI Python dependency import validation failed for $targetPython"
+}
+
 $repoRootPath = Resolve-RepoRoot -Candidate $RepoRoot
 $pythonPath = Resolve-PythonExe -Candidate $PythonExe
 $sourceRoot = Split-Path -Parent $pythonPath
@@ -83,4 +125,10 @@ $runtimeRoots = @(
 
 foreach ($runtimeRoot in $runtimeRoots) {
     Copy-PythonRuntime -SourceRoot $sourceRoot -TargetRoot $runtimeRoot
+}
+
+if ($InstallDependencies) {
+    foreach ($runtimeRoot in $runtimeRoots) {
+        Install-PythonRuntimeDependencies -TargetRoot $runtimeRoot -RepoRootPath $repoRootPath
+    }
 }

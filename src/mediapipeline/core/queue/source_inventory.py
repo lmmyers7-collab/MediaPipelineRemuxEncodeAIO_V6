@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from mediapipeline.core.config.library_profiles import effective_library_profiles_from_config
-from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES
+from mediapipeline.core.files.constants import MEDIA_FILE_SUFFIXES, SIDECAR_FILE_SUFFIXES
 from mediapipeline.core.queue.file_io import atomic_write_text
 from mediapipeline.desktop.models import ResolvedPaths
 
@@ -153,6 +153,10 @@ def _source_inventory_row(path: Path, root: QueueInventoryRoot) -> dict[str, Any
     }
 
 
+def _increment_count(counts: dict[str, int], key: str) -> None:
+    counts[key] = counts.get(key, 0) + 1
+
+
 def build_queue_source_inventory(
     resolved: ResolvedPaths,
     *,
@@ -165,6 +169,10 @@ def build_queue_source_inventory(
     roots = queue_inventory_source_roots(resolved)
     visited_dirs = 0
     truncated = False
+    sidecar_count = 0
+    sidecar_media_kind_counts: dict[str, int] = {}
+    sidecar_source_key_counts: dict[str, int] = {}
+    sidecar_extension_counts: dict[str, int] = {}
 
     for root in roots:
         if not root.path.exists():
@@ -180,7 +188,16 @@ def build_queue_source_inventory(
                 filenames.sort(key=str.casefold)
                 visited_dirs += 1
                 for filename in filenames:
-                    if Path(filename).suffix.casefold() not in MEDIA_FILE_SUFFIXES:
+                    suffix = Path(filename).suffix.casefold()
+                    if suffix in SIDECAR_FILE_SUFFIXES:
+                        candidate = Path(dirpath) / filename
+                        if candidate.is_file():
+                            sidecar_count += 1
+                            _increment_count(sidecar_media_kind_counts, root.media_kind)
+                            _increment_count(sidecar_source_key_counts, root.source_key)
+                            _increment_count(sidecar_extension_counts, suffix)
+                        continue
+                    if suffix not in MEDIA_FILE_SUFFIXES:
                         continue
                     row = _source_inventory_row(Path(dirpath) / filename, root)
                     if row is None:
@@ -211,6 +228,7 @@ def build_queue_source_inventory(
 
     summary_lines = [
         f"Source inventory candidates: {len(rows)}.",
+        f"Sidecar files counted: {sidecar_count}.",
         f"Source roots checked: {len(roots)}; directories visited: {visited_dirs}.",
         "Inventory rows are not launchable. Backend queue curation must produce authoritative queue rows first.",
     ]
@@ -228,6 +246,11 @@ def build_queue_source_inventory(
         "row_count": len(rows),
         "row_limit": row_limit,
         "rows_truncated": truncated,
+        "sidecar_count": sidecar_count,
+        "sidecar_counts_truncated": truncated,
+        "sidecar_media_kind_counts": sidecar_media_kind_counts,
+        "sidecar_source_key_counts": sidecar_source_key_counts,
+        "sidecar_extension_counts": sidecar_extension_counts,
         "source_root_count": len(roots),
         "visited_dir_count": visited_dirs,
         "media_kind_counts": media_kind_counts,

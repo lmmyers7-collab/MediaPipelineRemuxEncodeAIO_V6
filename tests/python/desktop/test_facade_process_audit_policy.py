@@ -17,6 +17,7 @@ from mediapipeline.core.processes.audit_policy import (
     audit_start_success_message,
     audit_start_success_result,
     resolve_audit_library_root,
+    resolve_audit_library_roots,
 )
 
 
@@ -28,6 +29,10 @@ class AuditLaunchPolicyTests(unittest.TestCase):
         )
         self.assertEqual(resolve_audit_library_root({}, {"Outsource": "  D:/Outsource  "}), "D:/Outsource")
         self.assertEqual(resolve_audit_library_root({"library_root": ""}, {"Outsource": ""}), "")
+        self.assertEqual(
+            resolve_audit_library_roots({"library_roots": [" C:/One ", "C:/One/", "D:/Two"]}, {"Outsource": "E:/Fallback"}),
+            ["C:/One", "D:/Two"],
+        )
         self.assertEqual(AUDIT_LIBRARY_ROOT_ERROR, "Audit library root is unavailable.")
 
     def test_success_message_and_payload_are_stable(self) -> None:
@@ -41,6 +46,8 @@ class AuditLaunchPolicyTests(unittest.TestCase):
 
         self.assertEqual(audit_start_success_message(24681), "Started audit via PID 24681.")
         self.assertEqual(payload["library_root"], "//server/library")
+        self.assertEqual(payload["library_roots"], ["//server/library"])
+        self.assertEqual(payload["library_root_count"], 1)
         self.assertTrue(payload["include_sidecars"])
         self.assertEqual(payload["pid"], 24681)
         self.assertEqual(payload["launch_prep"], ["audit runtime ready"])

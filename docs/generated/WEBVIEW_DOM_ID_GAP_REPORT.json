@@ -24,12 +24,12 @@
   ],
   "report_note": "Pre-split report only. IDs are collected from index.html with mp-include partials expanded. Missing IDs can be legitimate when markup is generated at runtime, but every future split should keep this report stable or deliberately update it.",
   "counts": {
-    "html_ids": 1920,
-    "js_touched_ids": 607,
-    "ids_present_in_index": 568,
-    "ids_missing_from_index": 39,
+    "html_ids": 1963,
+    "js_touched_ids": 628,
+    "ids_present_in_index": 588,
+    "ids_missing_from_index": 40,
     "likely_dynamic_missing_ids": 0,
-    "review_missing_ids": 39
+    "review_missing_ids": 40
   },
   "ids_present_in_index": [
     "active-job-detail-rows",
@@ -450,14 +450,17 @@
     "rename-template-preset",
     "rename-undo-button",
     "rename-undo-status",
+    "report-audit-add-source-button",
+    "report-audit-clear-source-selection-button",
     "report-audit-export-rerun-csv-button",
     "report-audit-ignore-selected-button",
-    "report-audit-remove-location-button",
-    "report-audit-save-location-button",
-    "report-audit-saved-location-select",
+    "report-audit-scan-all-button",
+    "report-audit-scan-selected-button",
     "report-audit-score-policy-reset-button",
     "report-audit-score-policy-save-button",
     "report-audit-score-redownload-bucket",
+    "report-audit-select-all-sources-button",
+    "report-audit-source-rows",
     "report-audit-start-button",
     "report-audit-start-include-sidecars",
     "report-audit-start-library-root",
@@ -467,9 +470,21 @@
     "report-warning-rows",
     "rerun-dry-run-button",
     "rerun-plan-only-button",
+    "rerun-preview-limit",
+    "rerun-preview-rows",
+    "rerun-recent-csv-rows",
+    "rerun-scope-bucket-filter",
+    "rerun-scope-enabled-only",
+    "rerun-scope-first-n",
+    "rerun-scope-issue-filter",
+    "rerun-scope-skip-blocked",
+    "rerun-scope-skip-warning-rows",
     "rerun-start-button",
     "rerun-start-csv-path",
+    "rerun-start-original-mode",
+    "rerun-start-return-mode",
     "rerun-start-show-console",
+    "rerun-start-stage-mode",
     "reset-layout-btn",
     "sample-validation-acceptance-gate-rows",
     "sample-validation-append-button",
@@ -514,7 +529,6 @@
     "schedule-watch-folder-status",
     "settings-active-media-policy-rows",
     "settings-audio-auto-bitrate",
-    "settings-audio-preferred-languages",
     "settings-backend-media-policy-rows",
     "settings-backend-result-rows",
     "settings-builder-quality-enable",
@@ -534,6 +548,12 @@
     "settings-library-profile-nav",
     "settings-library-reset-button",
     "settings-library-save-button",
+    "settings-library-scan-sources-button",
+    "settings-library-summary-detail",
+    "settings-library-summary-rows",
+    "settings-library-summary-status",
+    "settings-library-summary-strip",
+    "settings-library-summary-warning",
     "settings-library-warning-summary",
     "settings-library-watch-auto-run",
     "settings-library-watch-panel",
@@ -572,6 +592,7 @@
     "settings-save-review-dialog-rows",
     "settings-save-review-rows",
     "settings-subtitle-bdpgs-path-status",
+    "settings-subtitle-builder-status",
     "settings-subtitle-convert-bdpgs",
     "settings-subtitle-convert-tx3g",
     "settings-subtitle-convert-vobsub",
@@ -598,7 +619,6 @@
     "tdarr-matrix-delete-confirm",
     "tdarr-matrix-proof-pack-rows",
     "tdarr-matrix-run-compare-rows",
-    "theme-toggle",
     "topbar-event-ticker"
   ],
   "ids_missing_from_index": [
@@ -640,7 +660,8 @@
     "settings-rename-preview-button",
     "settings-rename-preview-input",
     "settings-rename-preview-output",
-    "settings-rename-preview-status"
+    "settings-rename-preview-status",
+    "theme-toggle"
   ],
   "likely_dynamic_missing_ids": [],
   "review_missing_ids": [
@@ -682,7 +703,8 @@
     "settings-rename-preview-button",
     "settings-rename-preview-input",
     "settings-rename-preview-output",
-    "settings-rename-preview-status"
+    "settings-rename-preview-status",
+    "theme-toggle"
   ],
   "scripts": [
     {
@@ -732,6 +754,12 @@
     {
       "src": "/assets/formatters.js",
       "path": "apps/desktop/webview/static/assets/formatters.js",
+      "dom_ids_touched": [],
+      "missing_from_index": []
+    },
+    {
+      "src": "/assets/pathPicker.js",
+      "path": "apps/desktop/webview/static/assets/pathPicker.js",
       "dom_ids_touched": [],
       "missing_from_index": []
     },
@@ -961,8 +989,12 @@
         "completed-active-output-context",
         "completed-copy-evidence-button",
         "completed-copy-evidence-status",
+        "completed-filter",
+        "completed-investigation-filter",
+        "completed-library-filter",
         "completed-pilot-evidence-markdown",
         "completed-show-selected-button",
+        "completed-status-filter",
         "completed-trust-decision-chips",
         "completed-trust-decision-status"
       ],
@@ -1509,8 +1541,7 @@
       "src": "/assets/settingsView.builders.audio.js",
       "path": "apps/desktop/webview/static/assets/settingsView.builders.audio.js",
       "dom_ids_touched": [
-        "settings-audio-auto-bitrate",
-        "settings-audio-preferred-languages"
+        "settings-audio-auto-bitrate"
       ],
       "missing_from_index": []
     },
@@ -1536,6 +1567,7 @@
       "path": "apps/desktop/webview/static/assets/settingsView.builders.subtitle.js",
       "dom_ids_touched": [
         "settings-subtitle-bdpgs-path-status",
+        "settings-subtitle-builder-status",
         "settings-subtitle-convert-bdpgs",
         "settings-subtitle-convert-tx3g",
         "settings-subtitle-convert-vobsub",
@@ -1712,6 +1744,12 @@
         "settings-library-profile-nav",
         "settings-library-reset-button",
         "settings-library-save-button",
+        "settings-library-scan-sources-button",
+        "settings-library-summary-detail",
+        "settings-library-summary-rows",
+        "settings-library-summary-status",
+        "settings-library-summary-strip",
+        "settings-library-summary-warning",
         "settings-library-warning-summary",
         "settings-library-watch-auto-run",
         "settings-library-watch-panel",
@@ -1970,10 +2008,11 @@
       "src": "/assets/reports/auditCommands.js",
       "path": "apps/desktop/webview/static/assets/reports/auditCommands.js",
       "dom_ids_touched": [
-        "report-audit-remove-location-button",
-        "report-audit-save-location-button",
-        "report-audit-saved-location-select",
+        "report-audit-clear-source-selection-button",
+        "report-audit-scan-all-button",
+        "report-audit-scan-selected-button",
         "report-audit-score-redownload-bucket",
+        "report-audit-source-rows",
         "report-audit-start-button",
         "report-audit-start-include-sidecars",
         "report-audit-start-library-root",
@@ -2006,13 +2045,15 @@
         "failure-lifecycle-resolve-preview-button",
         "failure-lifecycle-start-button",
         "failure-source-markers",
+        "report-audit-add-source-button",
+        "report-audit-clear-source-selection-button",
         "report-audit-export-rerun-csv-button",
         "report-audit-ignore-selected-button",
-        "report-audit-remove-location-button",
-        "report-audit-save-location-button",
-        "report-audit-saved-location-select",
+        "report-audit-scan-all-button",
+        "report-audit-scan-selected-button",
         "report-audit-score-policy-reset-button",
         "report-audit-score-policy-save-button",
+        "report-audit-select-all-sources-button",
         "report-audit-start-button",
         "report-audit-start-library-root",
         "report-audit-stop-button"
@@ -2231,8 +2272,18 @@
         "pipeline-start-show-console",
         "pipeline-start-single-file",
         "pipeline-start-sleep",
+        "rerun-preview-limit",
+        "rerun-scope-bucket-filter",
+        "rerun-scope-enabled-only",
+        "rerun-scope-first-n",
+        "rerun-scope-issue-filter",
+        "rerun-scope-skip-blocked",
+        "rerun-scope-skip-warning-rows",
         "rerun-start-csv-path",
-        "rerun-start-show-console"
+        "rerun-start-original-mode",
+        "rerun-start-return-mode",
+        "rerun-start-show-console",
+        "rerun-start-stage-mode"
       ],
       "missing_from_index": []
     },
@@ -2266,7 +2317,11 @@
         "pipeline-single-file-browse-button",
         "pipeline-single-file-clear-button",
         "pipeline-start-button",
-        "pipeline-start-single-file"
+        "pipeline-start-single-file",
+        "rerun-plan-only-button",
+        "rerun-preview-rows",
+        "rerun-recent-csv-rows",
+        "rerun-start-csv-path"
       ],
       "missing_from_index": []
     },
@@ -2301,7 +2356,9 @@
         "theme-toggle",
         "topbar-event-ticker"
       ],
-      "missing_from_index": []
+      "missing_from_index": [
+        "theme-toggle"
+      ]
     },
     {
       "src": "/assets/app/topbar.js",

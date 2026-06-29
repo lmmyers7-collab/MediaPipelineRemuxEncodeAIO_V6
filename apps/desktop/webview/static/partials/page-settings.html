@@ -76,7 +76,11 @@
                 </datalist>
                 <div id="settings-wizard-library-list" class="settings-wizard-library-list"></div>
                 <div class="form-grid form-grid-dense">
-                  <label>Final output root *
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">Final output root *</span>
+                      <button type="button" id="wizard-output-root-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.output_root" data-path-picker-input="wizard-output-root" data-path-picker-mode="folder" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows folder picker for the final output root.">Browse</button>
+                    </span>
                     <input id="wizard-output-root" type="text" autocomplete="off">
                   </label>
                   <label>Publish behavior
@@ -95,7 +99,11 @@
                   </label>
                 </div>
                 <div class="form-grid form-grid-dense">
-                  <label>Scratch / LocalBase *
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">Scratch / LocalBase *</span>
+                      <button type="button" id="wizard-scratch-path-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.scratch_path" data-path-picker-input="wizard-scratch-path" data-path-picker-mode="folder" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows folder picker for the scratch / LocalBase path.">Browse</button>
+                    </span>
                     <input id="wizard-scratch-path" type="text" autocomplete="off">
                   </label>
                   <label>Scratch free-space reserve (GB)
@@ -119,10 +127,18 @@
               <section class="settings-wizard-step" data-wizard-step="2">
                 <h3>Toolchain</h3>
                 <div class="form-grid form-grid-dense">
-                  <label>FFmpeg path
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">FFmpeg path</span>
+                      <button type="button" id="wizard-ffmpeg-path-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.ffmpeg_path" data-path-picker-input="wizard-ffmpeg-path" data-path-picker-mode="files" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows file picker for ffmpeg.exe.">Browse</button>
+                    </span>
                     <input id="wizard-ffmpeg-path" type="text" autocomplete="off" placeholder="C:\ffmpeg\bin\ffmpeg.exe">
                   </label>
-                  <label>FFprobe path
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">FFprobe path</span>
+                      <button type="button" id="wizard-ffprobe-path-picker-badge" class="path-picker-badge" data-path-picker-target="settings.wizard.ffprobe_path" data-path-picker-input="wizard-ffprobe-path" data-path-picker-mode="files" data-path-picker-status="settings-wizard-status-detail" title="Open a backend-owned Windows file picker for ffprobe.exe.">Browse</button>
+                    </span>
                     <input id="wizard-ffprobe-path" type="text" autocomplete="off" placeholder="C:\ffmpeg\bin\ffprobe.exe">
                   </label>
                 </div>
@@ -1237,28 +1253,40 @@
           </div>
           <div class="form-grid launch-form-grid">
             <label>
-              Movies source
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">Movies source</span>
+                <button type="button" id="settings-file-safety-source-movies-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.SourceMovies" data-path-picker-input="settings-file-safety-source-movies" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for Movies source.">Browse</button>
+              </span>
               <span class="settings-path-control">
                 <input id="settings-file-safety-source-movies" type="text" autocomplete="off" spellcheck="false">
                 <button type="button" id="settings-file-safety-source-movies-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="SourceMovies" data-settings-path-input="settings-file-safety-source-movies">Browse</button>
               </span>
             </label>
             <label>
-              TV source
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">TV source</span>
+                <button type="button" id="settings-file-safety-source-tv-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.SourceTV" data-path-picker-input="settings-file-safety-source-tv" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for TV source.">Browse</button>
+              </span>
               <span class="settings-path-control">
                 <input id="settings-file-safety-source-tv" type="text" autocomplete="off" spellcheck="false">
                 <button type="button" id="settings-file-safety-source-tv-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="SourceTV" data-settings-path-input="settings-file-safety-source-tv">Browse</button>
               </span>
             </label>
             <label>
-              Final output
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">Final output</span>
+                <button type="button" id="settings-file-safety-outsource-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.Outsource" data-path-picker-input="settings-file-safety-outsource" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for final output.">Browse</button>
+              </span>
               <span class="settings-path-control">
                 <input id="settings-file-safety-outsource" type="text" autocomplete="off" spellcheck="false">
                 <button type="button" id="settings-file-safety-outsource-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="Outsource" data-settings-path-input="settings-file-safety-outsource">Browse</button>
               </span>
             </label>
             <label>
-              Scratch / LocalBase
+              <span class="path-picker-label-row">
+                <span class="path-picker-label-text">Scratch / LocalBase</span>
+                <button type="button" id="settings-file-safety-local-base-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.LocalBase" data-path-picker-input="settings-file-safety-local-base" data-path-picker-mode="folder" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker for Scratch / LocalBase.">Browse</button>
+              </span>
               <span class="settings-path-control">
                 <input id="settings-file-safety-local-base" type="text" autocomplete="off" spellcheck="false">
                 <button type="button" id="settings-file-safety-local-base-browse" class="tertiary-button settings-path-browse-button" data-settings-path-key="LocalBase" data-settings-path-input="settings-file-safety-local-base">Browse</button>
@@ -1294,7 +1322,10 @@
             <input id="settings-file-safety-valid-extensions" type="text" autocomplete="off" spellcheck="false" placeholder=".mkv, .mp4, .m2ts">
           </label>
           <label class="full-field">
-            Watch folder roots
+            <span class="path-picker-label-row">
+              <span class="path-picker-label-text">Watch folder roots</span>
+              <button type="button" id="settings-file-safety-watch-roots-picker-badge" class="path-picker-badge" data-path-picker-target="settings.file_safety.WatchFolderRoots" data-path-picker-input="settings-file-safety-watch-roots" data-path-picker-mode="folder" data-path-picker-write="append-list" data-path-picker-status="settings-file-safety-builder-status" title="Open a backend-owned Windows folder picker and append the folder to the watch roots list.">Browse</button>
+            </span>
             <input id="settings-file-safety-watch-roots" type="text" autocomplete="off" spellcheck="false" placeholder="Leave empty to derive from Library Profiles">
           </label>
           <label class="full-field">
@@ -1398,130 +1429,216 @@
             <h2>Subtitles <span class="impact-chip" data-impact="medium" title="Subtitles — language tracks, TX3G, BDPGS, merge windows, and extract timeouts">Medium Impact</span></h2>
             <strong id="settings-subtitle-builder-status">No subtitle changes built</strong>
           </div>
-          <div class="form-grid launch-form-grid">
-            <label>
-              Subtitle languages
-              <input id="settings-subtitle-languages" type="text" autocomplete="off" placeholder="eng, und">
-            </label>
-            <label>
-              TX3G languages
-              <input id="settings-subtitle-tx3g-languages" type="text" autocomplete="off" placeholder="eng, und">
-            </label>
-            <label>
-              BDPGS languages
-              <input id="settings-subtitle-bdpgs-languages" type="text" autocomplete="off" placeholder="eng, und">
-            </label>
-            <label>
-              VobSub languages
-              <input id="settings-subtitle-vobsub-languages" type="text" autocomplete="off" placeholder="eng, en, und">
-            </label>
-            <label>
-              SDH title keywords
-              <input id="settings-subtitle-sdh-keywords" type="text" autocomplete="off" placeholder="sdh, hearing impaired">
-            </label>
-            <label>
-              Supplemental title keywords
-              <input id="settings-subtitle-supplemental-keywords" type="text" autocomplete="off" placeholder="signs, songs">
-            </label>
-            <label>
-              Merge window ms
-              <input id="settings-subtitle-merge-threshold" type="number" min="0" step="1">
-            </label>
-            <label>
-              Extract timeout s
-              <input id="settings-subtitle-extract-timeout" type="number" min="0" step="1">
-            </label>
-            <label>
-              Probe timeout s
-              <input id="settings-subtitle-probe-timeout" type="number" min="0" step="1">
-            </label>
-            <label>
-              BDPGS OCR timeout s
-              <input id="settings-subtitle-bdpgs-timeout" type="number" min="0" step="1">
-            </label>
-            <label>
-              VobSub OCR timeout s
-              <input id="settings-subtitle-vobsub-timeout" type="number" min="0" step="1">
-            </label>
-            <label>
-              Excluded ASS styles
-              <input id="settings-subtitle-exclude-styles" type="text" autocomplete="off" placeholder="Default, Signs">
-            </label>
-            <label>
-              Included ASS styles
-              <input id="settings-subtitle-include-styles" type="text" autocomplete="off" placeholder="Optional allowlist">
-            </label>
-          </div>
-          <section class="option-panel">
-            <div class="option-panel-heading">
-              <strong>TX3G</strong>
-              <span>MP4 timed text / mov_text policy</span>
+          <section class="subtitle-policy-block" aria-label="Subtitle language policy">
+            <div class="option-panel-heading subtitle-section-heading">
+              <strong>Language Policy</strong>
+              <span>Comma-separated values are staged as the existing list config keys.</span>
             </div>
+            <div class="subtitle-language-grid">
+              <label class="subtitle-language-field" data-subtitle-language-field>
+                <span class="subtitle-field-heading">Subtitle language priority</span>
+                <input id="settings-subtitle-languages" type="text" autocomplete="off" placeholder="eng, und">
+                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
+                <span class="subtitle-language-note" data-subtitle-language-warning></span>
+              </label>
+              <label class="subtitle-language-field" data-subtitle-language-field>
+                <span class="subtitle-field-heading">TX3G extraction languages</span>
+                <input id="settings-subtitle-tx3g-languages" type="text" autocomplete="off" placeholder="eng, und">
+                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
+                <span class="subtitle-language-note" data-subtitle-language-warning></span>
+              </label>
+              <label class="subtitle-language-field" data-subtitle-language-field>
+                <span class="subtitle-field-heading">BDPGS OCR languages</span>
+                <input id="settings-subtitle-bdpgs-languages" type="text" autocomplete="off" placeholder="eng, und">
+                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
+                <span class="subtitle-language-note" data-subtitle-language-warning></span>
+              </label>
+              <label class="subtitle-language-field" data-subtitle-language-field>
+                <span class="subtitle-field-heading">VobSub OCR languages</span>
+                <input id="settings-subtitle-vobsub-languages" type="text" autocomplete="off" placeholder="eng, en, und">
+                <span class="subtitle-language-chips" data-subtitle-language-preview aria-live="polite"></span>
+                <span class="subtitle-language-note" data-subtitle-language-warning></span>
+              </label>
+            </div>
+          </section>
+
+          <section class="subtitle-policy-block" aria-label="Subtitle format policy">
+            <div class="option-panel-heading subtitle-section-heading">
+              <strong>Format Policy Matrix</strong>
+              <span>Conversion choices are staged only; backend Save and pipeline execution remain authoritative.</span>
+            </div>
+            <div class="table-wrap detail-table-wrap subtitle-policy-matrix-wrap">
+              <table class="subtitle-policy-matrix">
+                <thead>
+                  <tr>
+                    <th scope="col">Format</th>
+                    <th scope="col">Create SRT</th>
+                    <th scope="col">Originals</th>
+                    <th scope="col">Forced Handling</th>
+                    <th scope="col">Sidecars / Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr data-subtitle-policy-row="tx3g">
+                    <th scope="row">
+                      <strong>TX3G</strong>
+                      <span>MP4 timed text / mov_text</span>
+                      <span class="subtitle-row-state" data-subtitle-change-indicator>Current</span>
+                    </th>
+                    <td><label class="check-row"><input id="settings-subtitle-convert-tx3g" type="checkbox"> Convert TX3G to SRT</label></td>
+                    <td><label class="check-row"><input id="settings-subtitle-preserve-tx3g-srt" type="checkbox"> Preserve existing TX3G SRTs</label></td>
+                    <td>
+                      <label class="check-row"><input id="settings-subtitle-forced-tx3g" type="checkbox"> Separate forced TX3G</label>
+                      <label class="check-row"><input id="settings-subtitle-tx3g-signs-forced" type="checkbox"> TX3G signs/songs forced</label>
+                    </td>
+                    <td><label class="check-row"><input id="settings-subtitle-sidecar-tx3g" type="checkbox"> Write TX3G SRT sidecars</label></td>
+                  </tr>
+                  <tr data-subtitle-policy-row="bdpgs">
+                    <th scope="row">
+                      <strong>BDPGS</strong>
+                      <span>Blu-ray image OCR policy</span>
+                      <span class="subtitle-row-state" data-subtitle-change-indicator>Current</span>
+                    </th>
+                    <td><label class="check-row"><input id="settings-subtitle-convert-bdpgs" type="checkbox"> OCR BDPGS to SRT</label></td>
+                    <td><span class="subtitle-matrix-note">Original image tracks are kept unless cleanup is enabled.</span></td>
+                    <td><label class="check-row"><input id="settings-subtitle-bdpgs-signs-forced" type="checkbox"> BDPGS signs/songs forced</label></td>
+                    <td><strong id="settings-subtitle-bdpgs-path-status">Not loaded</strong></td>
+                  </tr>
+                  <tr data-subtitle-policy-row="vobsub">
+                    <th scope="row">
+                      <strong>VobSub</strong>
+                      <span>DVD bitmap OCR policy</span>
+                      <span class="subtitle-row-state" data-subtitle-change-indicator>Current</span>
+                    </th>
+                    <td><label class="check-row"><input id="settings-subtitle-convert-vobsub" type="checkbox"> OCR VobSub to SRT</label></td>
+                    <td><span class="subtitle-matrix-note">Embedded bitmap tracks are kept unless cleanup is enabled.</span></td>
+                    <td><label class="check-row"><input id="settings-subtitle-vobsub-signs-forced" type="checkbox"> VobSub signs/songs forced</label></td>
+                    <td><strong id="settings-subtitle-vobsub-path-status">Not loaded</strong></td>
+                  </tr>
+                  <tr data-subtitle-policy-row="ass">
+                    <th scope="row">
+                      <strong>ASS / SSA</strong>
+                      <span>Styled subtitle conversion policy</span>
+                      <span class="subtitle-row-state" data-subtitle-change-indicator>Current</span>
+                    </th>
+                    <td>
+                      <label class="check-row"><input id="settings-subtitle-strip-formatting" type="checkbox"> Strip ASS formatting</label>
+                      <label class="check-row"><input id="settings-subtitle-remove-karaoke" type="checkbox"> Filter karaoke styling</label>
+                    </td>
+                    <td><span class="subtitle-matrix-note">Styled originals are kept unless cleanup is enabled.</span></td>
+                    <td>
+                      <label class="check-row"><input id="settings-subtitle-keep-signs" type="checkbox"> Keep signs & songs</label>
+                      <label class="check-row"><input id="settings-subtitle-ass-signs-forced" type="checkbox"> ASS signs/songs forced</label>
+                    </td>
+                    <td><label class="check-row"><input id="settings-subtitle-merge-adjacent" type="checkbox"> Merge adjacent cues</label></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </section>
+
+          <details class="option-panel subtitle-cleanup-disclosure">
+            <summary>
+              <span>
+                <strong>Cleanup after successful conversion</strong>
+                <small>Original subtitle tracks are preserved unless these options are enabled.</small>
+              </span>
+              <span class="subtitle-row-state" data-subtitle-change-indicator>Current</span>
+            </summary>
+            <div class="subtitle-cleanup-warning">These settings can remove embedded subtitle originals after successful conversion/OCR. Keep them disabled unless the reviewed policy explicitly allows cleanup.</div>
             <div class="option-grid option-grid-compact">
-              <label class="check-row"><input id="settings-subtitle-convert-tx3g" type="checkbox"> Convert TX3G to SRT</label>
               <label class="check-row"><input id="settings-subtitle-drop-tx3g" type="checkbox"> Drop TX3G after conversion</label>
-              <label class="check-row"><input id="settings-subtitle-sidecar-tx3g" type="checkbox"> Write TX3G SRT sidecars</label>
-              <label class="check-row"><input id="settings-subtitle-preserve-tx3g-srt" type="checkbox"> Preserve existing TX3G SRTs</label>
-              <label class="check-row"><input id="settings-subtitle-forced-tx3g" type="checkbox"> Separate forced TX3G</label>
-              <label class="check-row"><input id="settings-subtitle-tx3g-signs-forced" type="checkbox"> TX3G signs/songs forced</label>
-            </div>
-          </section>
-          <section class="option-panel">
-            <div class="option-panel-heading">
-              <strong>BDPGS</strong>
-              <span>Blu-ray image subtitle OCR policy</span>
-              <strong id="settings-subtitle-bdpgs-path-status">Not loaded</strong>
-            </div>
-            <div class="option-grid option-grid-compact">
-              <label class="check-row"><input id="settings-subtitle-convert-bdpgs" type="checkbox"> OCR BDPGS to SRT</label>
               <label class="check-row"><input id="settings-subtitle-drop-bdpgs" type="checkbox"> Drop BDPGS after OCR</label>
-              <label class="check-row"><input id="settings-subtitle-bdpgs-signs-forced" type="checkbox"> BDPGS signs/songs forced</label>
-            </div>
-            <div class="form-grid launch-form-grid">
-              <label>
-                OCR tool path
-                <input id="settings-subtitle-bdpgs-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\PgsToSrt\PgsToSrt.exe">
-              </label>
-              <label>
-                Tessdata path
-                <input id="settings-subtitle-bdpgs-ocr-tessdata-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\PgsToSrt\tessdata">
-              </label>
-            </div>
-            <pre id="settings-subtitle-bdpgs-path-evidence" class="prose-block">No BDPGS OCR path evidence loaded.</pre>
-          </section>
-          <section class="option-panel">
-            <div class="option-panel-heading">
-              <strong>VobSub</strong>
-              <span>DVD bitmap subtitle OCR policy</span>
-              <strong id="settings-subtitle-vobsub-path-status">Not loaded</strong>
-            </div>
-            <div class="option-grid option-grid-compact">
-              <label class="check-row"><input id="settings-subtitle-convert-vobsub" type="checkbox"> OCR VobSub to SRT</label>
               <label class="check-row"><input id="settings-subtitle-drop-vobsub" type="checkbox"> Drop VobSub after OCR</label>
-              <label class="check-row"><input id="settings-subtitle-vobsub-signs-forced" type="checkbox"> VobSub signs/songs forced</label>
-            </div>
-            <div class="form-grid launch-form-grid">
-              <label>
-                OCR tool path
-                <input id="settings-subtitle-vobsub-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\SubtitleEditLegacy\SubtitleEdit.exe">
-              </label>
-            </div>
-            <pre id="settings-subtitle-vobsub-path-evidence" class="prose-block">No VobSub OCR path evidence loaded.</pre>
-          </section>
-          <section class="option-panel">
-            <div class="option-panel-heading">
-              <strong>ASS / SSA</strong>
-              <span>Styled subtitle conversion policy</span>
-            </div>
-            <div class="option-grid option-grid-compact">
               <label class="check-row"><input id="settings-subtitle-drop-ass" type="checkbox"> Drop ASS after conversion</label>
-              <label class="check-row"><input id="settings-subtitle-remove-karaoke" type="checkbox"> Filter karaoke styling</label>
-              <label class="check-row"><input id="settings-subtitle-strip-formatting" type="checkbox"> Strip ASS formatting</label>
-              <label class="check-row"><input id="settings-subtitle-merge-adjacent" type="checkbox"> Merge adjacent cues</label>
-              <label class="check-row"><input id="settings-subtitle-keep-signs" type="checkbox"> Keep signs & songs</label>
-              <label class="check-row"><input id="settings-subtitle-ass-signs-forced" type="checkbox"> ASS signs/songs forced</label>
             </div>
-          </section>
+          </details>
+
+          <details class="option-panel subtitle-advanced-disclosure">
+            <summary>
+              <span>
+                <strong>Advanced subtitle details</strong>
+                <small>Timeouts, OCR paths, SDH keywords, and ASS style filters.</small>
+              </span>
+              <span class="subtitle-row-state" data-subtitle-change-indicator>Current</span>
+            </summary>
+            <div class="subtitle-advanced-grid">
+              <section class="subtitle-advanced-section">
+                <h3>Timing</h3>
+                <div class="form-grid launch-form-grid">
+                  <label>
+                    Merge window ms
+                    <input id="settings-subtitle-merge-threshold" type="number" min="0" step="1">
+                  </label>
+                  <label>
+                    Extract timeout s
+                    <input id="settings-subtitle-extract-timeout" type="number" min="0" step="1">
+                  </label>
+                  <label>
+                    Probe timeout s
+                    <input id="settings-subtitle-probe-timeout" type="number" min="0" step="1">
+                  </label>
+                  <label>
+                    BDPGS OCR timeout s
+                    <input id="settings-subtitle-bdpgs-timeout" type="number" min="0" step="1">
+                  </label>
+                  <label>
+                    VobSub OCR timeout s
+                    <input id="settings-subtitle-vobsub-timeout" type="number" min="0" step="1">
+                  </label>
+                </div>
+              </section>
+              <section class="subtitle-advanced-section">
+                <h3>OCR Paths</h3>
+                <div class="form-grid launch-form-grid">
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">BDPGS OCR tool path</span>
+                      <button type="button" id="settings-subtitle-bdpgs-ocr-tool-picker-badge" class="path-picker-badge" data-path-picker-target="settings.subtitle.bdpgs_ocr_tool_path" data-path-picker-input="settings-subtitle-bdpgs-ocr-tool-path" data-path-picker-mode="files" data-path-picker-status="settings-subtitle-bdpgs-path-status" title="Open a backend-owned Windows file picker for the BDPGS OCR executable.">Browse</button>
+                    </span>
+                    <input id="settings-subtitle-bdpgs-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\PgsToSrt\PgsToSrt.exe">
+                  </label>
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">BDPGS tessdata path</span>
+                      <button type="button" id="settings-subtitle-bdpgs-tessdata-picker-badge" class="path-picker-badge" data-path-picker-target="settings.subtitle.bdpgs_ocr_tessdata_path" data-path-picker-input="settings-subtitle-bdpgs-ocr-tessdata-path" data-path-picker-mode="folder" data-path-picker-status="settings-subtitle-bdpgs-path-status" title="Open a backend-owned Windows folder picker for BDPGS tessdata.">Browse</button>
+                    </span>
+                    <input id="settings-subtitle-bdpgs-ocr-tessdata-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\PgsToSrt\tessdata">
+                  </label>
+                  <label>
+                    <span class="path-picker-label-row">
+                      <span class="path-picker-label-text">VobSub OCR tool path</span>
+                      <button type="button" id="settings-subtitle-vobsub-ocr-tool-picker-badge" class="path-picker-badge" data-path-picker-target="settings.subtitle.vobsub_ocr_tool_path" data-path-picker-input="settings-subtitle-vobsub-ocr-tool-path" data-path-picker-mode="files" data-path-picker-status="settings-subtitle-vobsub-path-status" title="Open a backend-owned Windows file picker for the VobSub OCR executable.">Browse</button>
+                    </span>
+                    <input id="settings-subtitle-vobsub-ocr-tool-path" type="text" autocomplete="off" spellcheck="false" placeholder="tools\SubtitleEditLegacy\SubtitleEdit.exe">
+                  </label>
+                </div>
+                <pre id="settings-subtitle-bdpgs-path-evidence" class="prose-block">No BDPGS OCR path evidence loaded.</pre>
+                <pre id="settings-subtitle-vobsub-path-evidence" class="prose-block">No VobSub OCR path evidence loaded.</pre>
+              </section>
+              <section class="subtitle-advanced-section">
+                <h3>Classification & ASS Styles</h3>
+                <div class="form-grid launch-form-grid">
+                  <label>
+                    SDH title keywords
+                    <input id="settings-subtitle-sdh-keywords" type="text" autocomplete="off" placeholder="sdh, hearing impaired">
+                  </label>
+                  <label>
+                    Supplemental title keywords
+                    <input id="settings-subtitle-supplemental-keywords" type="text" autocomplete="off" placeholder="signs, songs">
+                  </label>
+                  <label>
+                    Excluded ASS styles
+                    <input id="settings-subtitle-exclude-styles" type="text" autocomplete="off" placeholder="Default, Signs">
+                  </label>
+                  <label>
+                    Included ASS styles
+                    <input id="settings-subtitle-include-styles" type="text" autocomplete="off" placeholder="Optional allowlist">
+                  </label>
+                </div>
+              </section>
+            </div>
+          </details>
           <div class="action-row action-row-left">
             <button type="button" id="settings-subtitle-apply-button" class="secondary-button">Update Subtitle Changes</button>
             <button type="button" id="settings-subtitle-reset-button" class="secondary-button">Reset From Current</button>
@@ -1553,8 +1670,29 @@
               <input id="settings-audio-compatible-codecs" type="text" autocomplete="off" placeholder="aac, ac3, eac3">
             </label>
             <label>
-              Preferred default languages
-              <input id="settings-audio-preferred-languages" type="text" autocomplete="off" placeholder="english, eng">
+              Primary default language
+              <select id="settings-audio-preferred-languages">
+                <option value="eng">English (eng)</option>
+                <option value="zho">Chinese / Mandarin (zho)</option>
+                <option value="hin">Hindi (hin)</option>
+                <option value="spa">Spanish (spa)</option>
+                <option value="ara">Arabic (ara)</option>
+                <option value="fra">French (fra)</option>
+                <option value="ben">Bengali (ben)</option>
+                <option value="por">Portuguese (por)</option>
+                <option value="ind">Indonesian (ind)</option>
+                <option value="urd">Urdu (urd)</option>
+                <option value="rus">Russian (rus)</option>
+                <option value="deu">German (deu)</option>
+                <option value="jpn">Japanese (jpn)</option>
+                <option value="pcm">Nigerian Pidgin (pcm)</option>
+                <option value="mar">Marathi (mar)</option>
+                <option value="vie">Vietnamese (vie)</option>
+                <option value="tel">Telugu (tel)</option>
+                <option value="swa">Swahili (swa)</option>
+                <option value="hau">Hausa (hau)</option>
+                <option value="tur">Turkish (tur)</option>
+              </select>
             </label>
             <label>
               Transcode codec

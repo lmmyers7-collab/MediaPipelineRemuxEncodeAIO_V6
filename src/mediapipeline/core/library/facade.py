@@ -8,11 +8,22 @@ from mediapipeline.core.library.route_map import (
     build_library_route_trace,
     build_library_route_validation,
 )
+from mediapipeline.core.library.summary import build_library_summary
+from mediapipeline.core.queue.source_inventory import (
+    preview_queue_source_inventory,
+    queue_source_inventory_path,
+    read_json_artifact,
+    read_queue_scan_status,
+)
 from mediapipeline.desktop.models import ResolvedPaths
 
 
 class LibraryRouteMapFacadeMixin:
     """Read-only Library Route Map evidence adapter."""
+
+    def get_library_summary(self, resolved: ResolvedPaths) -> dict[str, Any]:
+        queue_scan_status, source_inventory = _safe_queue_scan_artifacts(self, resolved)
+        return build_library_summary(_resolved_config(resolved), queue_scan_status, source_inventory)
 
     def get_library_route_map(self, resolved: ResolvedPaths) -> dict[str, Any]:
         return build_library_route_map(_resolved_config(resolved))
@@ -61,6 +72,27 @@ class LibraryRouteMapFacadeMixin:
 def _resolved_config(resolved: ResolvedPaths) -> dict[str, Any]:
     config = getattr(resolved, "config_data", None)
     return dict(config) if isinstance(config, dict) else {}
+
+
+def _safe_queue_scan_artifacts(instance: Any, resolved: ResolvedPaths) -> tuple[dict[str, Any], dict[str, Any]]:
+    queue_scan_status: dict[str, Any] = {}
+    source_inventory: dict[str, Any] = {}
+    artifact_reader = getattr(instance, "_queue_scan_artifacts", None)
+    if callable(artifact_reader):
+        try:
+            status, inventory = artifact_reader(resolved)
+            if isinstance(status, dict):
+                queue_scan_status = dict(status)
+            if isinstance(inventory, dict):
+                source_inventory = dict(inventory)
+        except Exception:
+            queue_scan_status = {}
+            source_inventory = {}
+    if not queue_scan_status:
+        queue_scan_status = read_queue_scan_status(resolved)
+    if not source_inventory:
+        source_inventory = preview_queue_source_inventory(read_json_artifact(queue_source_inventory_path(resolved)))
+    return queue_scan_status, source_inventory
 
 
 def _safe_mapping(factory: Any) -> dict[str, Any]:

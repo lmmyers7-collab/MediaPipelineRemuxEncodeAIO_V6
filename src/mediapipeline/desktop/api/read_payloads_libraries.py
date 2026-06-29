@@ -7,6 +7,12 @@ from .read_payloads_policy import read_unavailable_payload
 
 
 class LocalApiLibrariesReadPayloadMixin:
+    def _libraries_summary_payload(self) -> dict[str, Any]:
+        resolved = self._resolved()
+        if resolved is None:
+            return read_unavailable_payload("libraries summary")
+        return self.facade.get_library_summary(resolved)
+
     def _libraries_route_map_payload(self) -> dict[str, Any]:
         resolved = self._resolved()
         if resolved is None:

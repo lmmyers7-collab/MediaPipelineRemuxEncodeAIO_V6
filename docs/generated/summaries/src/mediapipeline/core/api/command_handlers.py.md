@@ -3,9 +3,9 @@ file: src/mediapipeline/core/api/command_handlers.py
 pipeline_stage: api
 token_priority: medium
 owner_domain: api
-last_modified: 2026-06-17
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: dd77f4fce306e69a37db20876d2ac07b148599af287cd1780d1c598897f1f52c
+sha256: fe0146cba35231b320b3a3e8cd9b78aa3e17d25275934e765f46201f3f166441
 ---
 # `src/mediapipeline/core/api/command_handlers.py`
 

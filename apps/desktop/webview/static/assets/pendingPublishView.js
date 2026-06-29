@@ -15,6 +15,42 @@
   let pendingActionCenterEventsInitialized = false;
   const PENDING_FILTER_FIELDS = ["state", "local_file", "server_out", "source_path", "error", "issue_summary", "route", "publish_mode", "diagnostic_status", "diagnostic_severity", "drain_recommendation", "operator_guidance"];
 
+  function clampTableScrollOffset(value, maxValue) {
+    const numeric = Number(value);
+    const maximum = Math.max(0, Number(maxValue) || 0);
+    return Math.min(Math.max(0, Number.isFinite(numeric) ? numeric : 0), maximum);
+  }
+
+  function tableScrollSnapshot(tbody) {
+    const target = tbody?.closest?.(".table-wrap") || null;
+    if (!target) return null;
+    return {
+      target,
+      top: target.scrollTop,
+      left: target.scrollLeft,
+    };
+  }
+
+  function restoreTableScrollSnapshot(snapshot) {
+    const target = snapshot?.target;
+    if (!target || target.isConnected === false) return;
+    target.scrollTop = clampTableScrollOffset(snapshot.top, target.scrollHeight - target.clientHeight);
+    target.scrollLeft = clampTableScrollOffset(snapshot.left, target.scrollWidth - target.clientWidth);
+  }
+
+  function deferTableScrollRestore(snapshot) {
+    if (!snapshot) return;
+    const schedule = typeof window.requestAnimationFrame === "function"
+      ? window.requestAnimationFrame.bind(window)
+      : (fn) => window.setTimeout(fn, 0);
+    restoreTableScrollSnapshot(snapshot);
+    schedule(() => {
+      restoreTableScrollSnapshot(snapshot);
+      schedule(() => restoreTableScrollSnapshot(snapshot));
+      window.setTimeout(() => restoreTableScrollSnapshot(snapshot), 0);
+    });
+  }
+
   function diagnosticsBridgeApi() {
     return window.mediaPipelineDiagnosticsBridge || {};
   }
@@ -367,9 +403,11 @@
     const tbody = byId("pending-file-inventory-rows");
     if (!tbody) return;
     const rows = pendingFileInventoryRows(pending || {});
+    const scrollSnapshot = tableScrollSnapshot(tbody);
     if (!rows.length) {
       clearRows(tbody, 6, "No parked files were reported by the backend pending directory scan.");
       updateTableStatusLegend("pending-file-inventory-legend", tbody, "Parked file inventory rows");
+      deferTableScrollRestore(scrollSnapshot);
       return;
     }
     tbody.replaceChildren();
@@ -392,6 +430,7 @@
       tbody.appendChild(row);
     });
     updateTableStatusLegend("pending-file-inventory-legend", tbody, "Parked file inventory rows");
+    deferTableScrollRestore(scrollSnapshot);
   }
 
   let pendingInventoryProgressBars = function () { return []; };
@@ -762,6 +801,51 @@
     drainButton.click();
   }
 
+  function focusPendingQuickLinkTarget(selector) {
+    const target = selector ? document.querySelector(selector) : null;
+    if (!target) return false;
+    target.scrollIntoView?.({ block: "center", inline: "nearest" });
+    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
+      target.setAttribute("tabindex", "-1");
+    }
+    target.focus?.({ preventScroll: true });
+    return true;
+  }
+
+  function setPendingTextFilter(text) {
+    const filter = byId("pending-filter");
+    const status = byId("pending-status-filter");
+    const investigation = byId("pending-investigation-filter");
+    if (filter) filter.value = text || "";
+    if (status) status.value = "all";
+    if (investigation) investigation.value = "all";
+    renderPendingRows();
+    setText("pending-action-feedback", `Showing Pending Publish rows matching "${text}". Backend drain scope is unchanged.`);
+  }
+
+  function activateQuickLink(action) {
+    const normalized = String(action || "").trim().toLowerCase();
+    if (normalized === "manifests") {
+      setPendingTextFilter("manifest");
+      return focusPendingQuickLinkTarget("#pending-rows");
+    }
+    if (normalized === "payloads") {
+      setPendingTextFilter("payload");
+      return focusPendingQuickLinkTarget("#pending-rows");
+    }
+    if (normalized === "review" || normalized === "health") {
+      applyPendingActionFilter("review");
+      return focusPendingQuickLinkTarget("#pending-rows");
+    }
+    if (normalized === "summary" || normalized === "size") {
+      return focusPendingQuickLinkTarget("#pending-summary");
+    }
+    if (normalized === "action") {
+      return focusPendingQuickLinkTarget(".pending-action-center");
+    }
+    return true;
+  }
+
   function triggerPendingActionRefresh() {
     const refreshButton = document.querySelector('[data-page-refresh-button="pending"]');
     if (refreshButton && typeof refreshButton.click === "function") {
@@ -869,6 +953,7 @@
       }).join("\n"));
     }
     const tbody = byId("pending-rows");
+    const scrollSnapshot = tableScrollSnapshot(tbody);
     if (!rows.length) {
       clearRows(tbody, 6, lastPendingRows.length ? "No pending publish rows match the filter." : lastPendingEmptyMessage);
       updateTableStatusLegend("pending-table-legend", tbody, "Pending publish rows");
@@ -880,6 +965,7 @@
       renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
       renderPendingRepairManifestControls();
       renderPendingRepairOrphanControls();
+      deferTableScrollRestore(scrollSnapshot);
       return;
     }
     tbody.replaceChildren();
@@ -920,6 +1006,7 @@
     renderPendingDrainGuard(lastPendingPayload, lastPendingRows, lastPendingSnapshot, typeof getCommandHistory === "function" ? getCommandHistory() : []);
     renderPendingRepairManifestControls();
     renderPendingRepairOrphanControls();
+    deferTableScrollRestore(scrollSnapshot);
   }
 
   function resetPendingFilters() {
@@ -1358,6 +1445,7 @@
     pendingActionCenterOutcome,
     renderPendingActionCenter,
     applyPendingActionFilter,
+    activateQuickLink,
     initPendingActionCenterEvents,
     pendingDrainOverviewState,
     renderPendingDrainOverview,

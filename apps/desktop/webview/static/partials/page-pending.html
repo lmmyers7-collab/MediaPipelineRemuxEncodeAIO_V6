@@ -1,19 +1,19 @@
       <section class="page" data-page-panel="pending">
         <h1 class="visually-hidden">Pending Publish</h1>
         <div class="metric-grid">
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-module="pending" data-quick-link-action="manifests" aria-label="Filter Pending Publish rows by manifest evidence" title="Filter by manifest evidence">
             <span class="metric-label">Manifests</span>
             <strong id="pending-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-module="pending" data-quick-link-action="payloads" aria-label="Filter Pending Publish rows by payload evidence" title="Filter by payload evidence">
             <span class="metric-label">Payloads</span>
             <strong id="pending-payload-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-focus="#pending-summary" aria-label="Focus Pending Publish size summary" title="Focus Pending Publish summary">
             <span class="metric-label">Size</span>
             <strong id="pending-size">0 B</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-module="pending" data-quick-link-action="review" aria-label="Show Pending Publish rows needing review" title="Show rows needing review">
             <span class="metric-label">Health</span>
             <strong id="pending-health-count">0</strong>
           </section>
@@ -24,7 +24,7 @@
             <strong id="pending-live-run-status" data-state="unknown">Checking</strong>
           </div>
           <div id="pending-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Pending publish live run summary">
-            <span class="live-run-chip" data-status="unknown">
+            <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for live state" title="Open Telemetry">
               <span class="live-run-chip-label">State</span>
               <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
             </span>
@@ -39,7 +39,7 @@
             <strong id="pending-action-status" data-state="unknown">Not loaded</strong>
           </div>
           <div class="pending-action-layout" aria-live="polite">
-            <div class="pending-action-primary">
+            <div class="pending-action-primary" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" data-quick-link-focus=".pending-action-center" aria-label="Focus Pending Publish Action Center" title="Focus Pending Publish Action Center">
               <span class="metric-label">Next action</span>
               <strong id="pending-action-primary">Refresh evidence</strong>
               <p id="pending-action-reason" class="note">Backend evidence has not been loaded yet.</p>

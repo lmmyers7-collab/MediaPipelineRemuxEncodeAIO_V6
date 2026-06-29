@@ -185,6 +185,7 @@ const routeHintRules = [
   { pattern: /pending-drain-button|publish parked|drain/i, route: "/api/pipeline/start" },
   { pattern: /audit-start-button|start audit/i, route: "/api/audit/start" },
   { pattern: /audit-stop-button|stop audit/i, route: "/api/audit/stop" },
+  { pattern: /report-audit-scan-(selected|all)-button|scan selected|scan all/i, route: "/api/audit/sources/scan" },
   { pattern: /rerun-(start|dry-run|plan-only)-button|rerun start|start rerun|preview csv rerun|plan csv rerun/i, route: "/api/rerun/start" },
   { pattern: /queue-scan|scan sources/i, route: "/api/queue/scan" },
   { pattern: /queue-priority|priority/i, route: "/api/queue/priority" },

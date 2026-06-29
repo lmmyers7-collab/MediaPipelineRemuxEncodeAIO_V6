@@ -3,22 +3,22 @@
 
         <!-- ═══ DAILY DRIVER: STATUS STRIP ═══ -->
         <div class="metric-grid">
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for pipeline status" title="Open Telemetry">
             <span class="metric-label">Pipeline</span>
             <strong id="pipeline-state" class="pipeline-state-value" aria-label="Pipeline status loading">
               <span class="pipeline-state-main">...</span>
               <span class="pipeline-state-detail" hidden></span>
             </strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for the current item position" title="Open Telemetry">
             <span class="metric-label">Current Item</span>
             <strong id="queue-count">0 / 0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="pending" aria-label="Open Pending Publish" title="Open Pending Publish">
             <span class="metric-label">Pending</span>
             <strong id="home-pending-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open Reports failures needing action" title="Open Reports failures">
             <span id="home-failed-label" class="metric-label">Failed</span>
             <strong id="home-failed-count">0</strong>
           </section>
@@ -47,7 +47,7 @@
             <strong id="home-live-run-status" data-state="unknown">Checking</strong>
           </div>
           <div id="home-live-run-strip" class="live-run-strip" aria-live="polite" aria-label="Current backend live run summary">
-            <span class="live-run-chip" data-status="unknown">
+            <span class="live-run-chip" data-status="unknown" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="live" aria-label="Open Telemetry for live state" title="Open Telemetry">
               <span class="live-run-chip-label">State</span>
               <strong class="live-run-chip-value">Waiting for backend snapshot</strong>
             </span>
@@ -120,20 +120,20 @@
 
           <!-- Metric detail (kept for test references) -->
           <div class="metric-grid">
-            <section class="metric">
+            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="completed" data-quick-link-completed-tab="overview" aria-label="Open Completed output overview" title="Open Completed output overview">
               <span class="metric-label">Processed</span>
               <strong id="processed-count">0</strong>
             </section>
-            <section class="metric">
+            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="reports" data-quick-link-reports-tab="failures" data-quick-link-module="reports" data-quick-link-action="failure-needs-action" aria-label="Open Reports failures needing action" title="Open Reports failures">
               <span id="failed-label" class="metric-label">Failed</span>
               <strong id="failed-count">0</strong>
             </section>
-            <section class="metric">
+            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="diagnostics" data-quick-link-diag-tab="readiness" aria-label="Open Diagnostics readiness for scratch disk storage" title="Open Diagnostics readiness">
               <span class="metric-label">Scratch Disk</span>
               <strong id="home-scratch-storage-status">...</strong>
               <span id="home-scratch-storage-detail" class="metric-detail">No storage evidence loaded.</span>
             </section>
-            <section class="metric">
+            <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="diagnostics" data-quick-link-diag-tab="readiness" aria-label="Open Diagnostics readiness for library output storage" title="Open Diagnostics readiness">
               <span class="metric-label">Library Output</span>
               <strong id="home-output-storage-status">...</strong>
               <span id="home-output-storage-detail" class="metric-detail">No storage evidence loaded.</span>

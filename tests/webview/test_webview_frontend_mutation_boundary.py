@@ -57,11 +57,15 @@ EXPECTED_API_POST_OWNERS: dict[str, set[str]] = {
     "/api/pipeline/control": {"launchView.js"},
     "/api/pipeline/browse-file": {"launchView.js"},
     "/api/pipeline/start": {"launchView.js"},
+    "/api/path-picker/browse": {"pathPicker.js"},
     "/api/audit/start": {"reports/auditCommands.js"},
     "/api/audit/stop": {"reports/auditCommands.js"},
+    "/api/rerun/preview": {"launchView.js"},
     "/api/rerun/start": {"launchView.js"},
     "/api/audit/score-policy": {"reports/auditCommands.js"},
     "/api/audit/ignore": {"reports/auditCommands.js"},
+    "/api/audit/sources": {"reports/auditCommands.js"},
+    "/api/audit/sources/scan": {"reports/auditCommands.js"},
     "/api/audit/export-rerun-csv": {"reports/auditCommands.js"},
     "/api/completed/open": {"completed/openActions.js"},
     "/api/final-library-promotion/promote-queue": {"completed/promotionCommands.js"},
@@ -365,13 +369,16 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("const UI_PREFERENCE_KEY_RE = /^mediapipeline[-.]", app_js)
         self.assertIn("let uiPreferenceSyncPending = false;", app_js)
         self.assertIn("let uiPreferenceLocalDirty = false;", app_js)
+        self.assertIn("let uiPreferenceAwaitingRemoteEchoSerialized = \"\";", app_js)
         self.assertIn('bootstrap.shellSurface || bootstrap.shell_surface || "webview"', app_js)
         self.assertIn('if (surface !== "tauri" && Object.keys(local).length)', app_js)
         self.assertIn("localStorage.removeItem(key)", app_js)
         self.assertIn("uiPreferenceSyncPending = true;", app_js)
         self.assertIn("uiPreferenceLocalDirty = true;", app_js)
         self.assertIn("function hasPendingSharedUiPreferenceWrite()", app_js)
-        self.assertIn("hasPendingSharedUiPreferenceWrite() && JSON.stringify(remoteStorage) !== localSerialized", app_js)
+        self.assertIn("hasPendingSharedUiPreferenceWrite() && remoteSerialized !== localSerialized", app_js)
+        self.assertIn("uiPreferenceAwaitingRemoteEchoSerialized === localSerialized", app_js)
+        self.assertIn("await persistSharedUiPreferencesNow({ force: true });", app_js)
         self.assertLess(
             app_js.index("function hasPendingSharedUiPreferenceWrite()"),
             app_js.index("async function restoreSharedUiPreferences"),
@@ -574,6 +581,30 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
         self.assertIn("staging only", browse_contract["purpose"])
         self.assertIn("touch media files", browse_contract["purpose"])
 
+    def test_shared_path_picker_browse_is_allowlisted_staging_only(self) -> None:
+        source = _asset_sources()["pathPicker.js"]
+
+        self.assertIn('apiPost("/api/path-picker/browse"', source)
+        self.assertIn("target_key: targetKey", source)
+        self.assertIn("selection_mode", source)
+        self.assertIn("initial_path", source)
+        self.assertIn("file_filter", source)
+        self.assertIn("path-picker:staged", source)
+        self.assertNotIn("confirm_save", source)
+        self.assertNotIn("confirm_apply", source)
+        self.assertNotIn("confirm_promote", source)
+        browse_contract = next(route for route in LOCAL_API_ROUTE_CONTRACT if route["path"] == "/api/path-picker/browse")
+        self.assertEqual(browse_contract["effect"], "shell-dialog")
+        self.assertEqual(browse_contract["allowed_selection_modes"], ["files", "folder", "folder_files"])
+        self.assertEqual(
+            browse_contract["request_keys"],
+            ["target_key", "selection_mode", "initial_path", "file_filter"],
+        )
+        self.assertEqual(browse_contract["data_schema"], "desktop_path_picker_browse.v1")
+        self.assertIn("staged-only", browse_contract["purpose"])
+        self.assertIn("allowlisted", browse_contract["purpose"])
+        self.assertIn("touch media files", browse_contract["purpose"])
+
     def test_settings_pipeline_plan_preview_route_is_non_mutating_but_not_webview_callable(self) -> None:
         preview_contract = next(route for route in LOCAL_API_ROUTE_CONTRACT if route["path"] == "/api/settings/pipeline-plan-preview")
         self.assertEqual(preview_contract["effect"], "none")
@@ -599,6 +630,7 @@ class WebViewFrontendMutationBoundaryTests(unittest.TestCase):
             "/api/settings/save-patch",
             "/api/settings/preview-patch",
             "/api/settings/browse-path",
+            "/api/path-picker/browse",
             "/api/queue/scan",
             "/api/queue/priority",
             "/api/queue/file-overrides",

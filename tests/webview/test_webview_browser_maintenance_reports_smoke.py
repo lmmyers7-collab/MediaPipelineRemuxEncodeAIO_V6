@@ -49,10 +49,39 @@ def _browser_maintenance_reports_runner_source() -> str:
             const gets = [];
             const originalApiGet = window.apiGet;
             const originalApiPost = window.apiPost;
+            const auditSourcesState = {
+              schema_version: "desktop_audit_sources.v1",
+              roots: [],
+              totals: {},
+            };
+            const auditSourceIdForPath = (path) => {
+              const normalized = String(path || "").replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
+              return "src_" + (normalized || "root");
+            };
+            const refreshAuditSourceTotals = () => {
+              const roots = auditSourcesState.roots;
+              auditSourcesState.totals = {
+                source_count: roots.length,
+                enabled_count: roots.filter((row) => row.enabled !== false).length,
+                scanned_count: roots.filter((row) => row.scan_status && row.scan_status !== "not_scanned").length,
+                media_file_count: roots.reduce((total, row) => total + Number(row.media_file_count || 0), 0),
+                sidecar_file_count: roots.reduce((total, row) => total + Number(row.sidecar_file_count || 0), 0),
+                folder_count: roots.reduce((total, row) => total + Number(row.folder_count || 0), 0),
+                partial_count: roots.filter((row) => row.counts_truncated).length,
+                error_count: roots.filter((row) => ["error", "failed", "unavailable"].includes(String(row.scan_status || "").toLowerCase())).length,
+              };
+            };
+            const auditSourcesPayload = () => {
+              refreshAuditSourceTotals();
+              return JSON.parse(JSON.stringify(auditSourcesState));
+            };
             if (typeof originalApiGet !== "function") throw new Error("missing apiGet");
             window.apiGet = async (path, options) => {
               const normalizedPath = String(path || "");
               gets.push({ path: normalizedPath, options: options || {} });
+              if (normalizedPath.includes("/api/audit-sources")) {
+                return auditSourcesPayload();
+              }
               return originalApiGet(path, options);
             };
             window.apiPost = async (path, body, options) => {
@@ -292,7 +321,67 @@ def _browser_maintenance_reports_runner_source() -> str:
                   },
                 };
               }
+              if (normalizedPath.includes("/api/audit/sources/scan")) {
+                const requestedIds = Array.isArray(body?.source_ids) ? body.source_ids : [];
+                const targets = requestedIds.length
+                  ? auditSourcesState.roots.filter((row) => requestedIds.includes(row.source_id))
+                  : auditSourcesState.roots;
+                targets.forEach((row, index) => {
+                  const first = index === 0;
+                  row.scan_status = "complete";
+                  row.media_file_count = first ? 42 : 18;
+                  row.sidecar_file_count = first ? 13 : 6;
+                  row.folder_count = first ? 7 : 3;
+                  row.last_scan_utc = first ? "2026-06-28T18:30:00Z" : "2026-06-28T18:31:00Z";
+                  row.counts_truncated = false;
+                });
+                return {
+                  command: "audit.sources.scan",
+                  ok: true,
+                  severity: "info",
+                  message: "Audit source scan refreshed " + targets.length + " location(s).",
+                  data: {
+                    audit_sources: auditSourcesPayload(),
+                    scanned_source_ids: targets.map((row) => row.source_id),
+                  },
+                };
+              }
+              if (normalizedPath.includes("/api/audit/sources")) {
+                const action = String(body?.action || "");
+                if (action === "add") {
+                  const path = String(body?.path || "").trim();
+                  const source_id = auditSourceIdForPath(path);
+                  const existing = auditSourcesState.roots.find((row) => row.source_id === source_id);
+                  const row = {
+                    source_id,
+                    path,
+                    label: path,
+                    enabled: body?.enabled !== false,
+                    scan_status: "not_scanned",
+                    media_file_count: null,
+                    sidecar_file_count: null,
+                    folder_count: null,
+                    last_scan_utc: "",
+                    counts_truncated: false,
+                  };
+                  if (existing) Object.assign(existing, row);
+                  else auditSourcesState.roots.push(row);
+                } else if (action === "remove" || action === "delete") {
+                  const sourceId = String(body?.source_id || "");
+                  auditSourcesState.roots = auditSourcesState.roots.filter((row) => row.source_id !== sourceId);
+                }
+                return {
+                  command: "audit.sources",
+                  ok: true,
+                  severity: "info",
+                  message: "Audit source state updated.",
+                  data: {
+                    audit_sources: auditSourcesPayload(),
+                  },
+                };
+              }
               if (normalizedPath.includes("/api/audit/start")) {
+                const libraryRoots = Array.isArray(body?.library_roots) ? body.library_roots : (body?.library_root ? [body.library_root] : []);
                 return {
                   command: "audit.start",
                   ok: true,
@@ -300,6 +389,9 @@ def _browser_maintenance_reports_runner_source() -> str:
                   message: "Started audit via PID 24681.",
                   data: {
                     library_root: body?.library_root || "",
+                    library_roots: libraryRoots,
+                    library_root_count: libraryRoots.length,
+                    source_ids: Array.isArray(body?.source_ids) ? body.source_ids : [],
                     include_sidecars: Boolean(body?.include_sidecars),
                     pid: 24681,
                     launch_prep: ["audit runtime ready"],
@@ -1768,10 +1860,14 @@ def _browser_maintenance_reports_runner_source() -> str:
               "report-audit-start-button",
               "report-audit-stop-button",
               "report-audit-start-library-root",
-              "report-audit-saved-location-select",
-              "report-audit-save-location-button",
-              "report-audit-remove-location-button",
-              "report-audit-location-summary",
+              "report-audit-add-source-button",
+              "report-audit-scan-selected-button",
+              "report-audit-scan-all-button",
+              "report-audit-select-all-sources-button",
+              "report-audit-clear-source-selection-button",
+              "report-audit-source-status",
+              "report-audit-source-rows",
+              "report-audit-source-selection-status",
               "report-audit-start-include-sidecars",
               "report-audit-start-show-console",
               "report-audit-score-policy-save-button",
@@ -1793,46 +1889,59 @@ def _browser_maintenance_reports_runner_source() -> str:
             if (!document.querySelector('[data-audit-selection-action="clear"]')) {
               throw new Error("missing Reports audit clear selection control");
             }
-            try { localStorage.removeItem("mediapipeline-report-audit-locations.v1"); } catch (_) {}
             const dispatchAuditLocationInput = () => byId("report-audit-start-library-root").dispatchEvent(new Event("input", { bubbles: true }));
             byId("report-audit-start-library-root").value = "C:/Reports/Library";
             dispatchAuditLocationInput();
-            byId("report-audit-save-location-button").click();
-            requireText("report-audit-location-summary", [
-              "Saved audit locations: 1/10",
+            byId("report-audit-add-source-button").click();
+            await waitFor(() => text("report-audit-source-rows").includes("C:/Reports/Library"), "reports audit source add");
+            await waitFor(() => !byId("report-audit-add-source-button").disabled, "reports audit source add idle");
+            requireText("report-audit-source-status", ["1/1 selected"]);
+            requireText("report-audit-source-rows", [
               "C:/Reports/Library",
-              "Start Audit submits one staged library root",
+              "Not scanned",
+              "Run",
+              "Scan",
+              "Remove",
             ]);
-            for (let index = 2; index <= 10; index += 1) {
-              byId("report-audit-start-library-root").value = "C:/Reports/Library " + index;
-              dispatchAuditLocationInput();
-              byId("report-audit-save-location-button").click();
-            }
-            requireText("report-audit-location-summary", ["Saved audit locations: 10/10"]);
-            byId("report-audit-start-library-root").value = "C:/Reports/Library 11";
+            byId("report-audit-start-library-root").value = "C:/Reports/Movies";
             dispatchAuditLocationInput();
-            if (!byId("report-audit-save-location-button").disabled) {
-              throw new Error("Reports audit saved-location control allowed more than 10 saved roots.");
+            byId("report-audit-add-source-button").click();
+            await waitFor(() => text("report-audit-source-rows").includes("C:/Reports/Movies"), "reports second audit source add");
+            await waitFor(() => !byId("report-audit-add-source-button").disabled, "reports second audit source add idle");
+            requireText("report-audit-source-status", ["2/2 selected"]);
+            requireText("report-audit-source-selection-status", ["2 selected", "2/2 enabled"]);
+            if (!document.querySelector('[data-audit-source-action="run"]')) {
+              throw new Error("Reports audit source table did not expose row run actions.");
             }
-            requireText("report-audit-location-summary", ["Saved location limit reached"]);
-            byId("report-audit-saved-location-select").value = "C:/Reports/Library";
-            byId("report-audit-saved-location-select").dispatchEvent(new Event("change", { bubbles: true }));
-            if (byId("report-audit-start-library-root").value !== "C:/Reports/Library") {
-              throw new Error("Reports audit saved-location select did not stage the selected root.");
+            if (!document.querySelector('[data-audit-source-action="scan"]')) {
+              throw new Error("Reports audit source table did not expose row scan actions.");
             }
-            byId("report-audit-remove-location-button").click();
-            requireText("report-audit-location-summary", [
-              "Saved audit locations: 9/10",
-              "Removed saved audit location.",
-            ]);
             if (posts.some((entry) => entry.path.includes("/api/audit/start"))) {
               throw new Error("Reports posted audit start before the explicit Start Audit click.");
             }
             const originalConfirm = window.confirm;
-            byId("report-audit-start-library-root").value = "C:/Reports/Library";
             byId("report-audit-start-include-sidecars").checked = true;
             byId("report-audit-start-show-console").checked = false;
             window.confirm = () => true;
+            const beforeAuditSourceScanPosts = posts.filter((entry) => entry.path.includes("/api/audit/sources/scan")).length;
+            byId("report-audit-scan-selected-button").click();
+            await waitFor(() => posts.filter((entry) => entry.path.includes("/api/audit/sources/scan")).length === beforeAuditSourceScanPosts + 1, "reports audit source scan");
+            const auditSourceScanPost = posts.find((entry) => entry.path.includes("/api/audit/sources/scan"));
+            if (!Array.isArray(auditSourceScanPost.body?.source_ids) || auditSourceScanPost.body.source_ids.length !== 2) {
+              throw new Error("Reports audit source scan did not submit the selected source ids.");
+            }
+            requireText("report-audit-source-rows", [
+              "C:/Reports/Library",
+              "C:/Reports/Movies",
+              "Complete",
+              "42",
+              "13",
+              "7",
+              "18",
+              "6",
+              "3",
+            ]);
+            await waitFor(() => !byId("report-audit-start-button").disabled, "reports audit start enabled after source scan");
             const beforeAuditStartPosts = posts.filter((entry) => entry.path.includes("/api/audit/start")).length;
             byId("report-audit-start-button").click();
             byId("report-audit-start-button").click();
@@ -1842,7 +1951,16 @@ def _browser_maintenance_reports_runner_source() -> str:
             }
             const auditStartPost = posts.find((entry) => entry.path.includes("/api/audit/start"));
             if (auditStartPost.body?.library_root !== "C:/Reports/Library") {
-              throw new Error("Reports audit start did not submit the staged library root.");
+              throw new Error("Reports audit start did not submit the primary selected library root.");
+            }
+            if (!Array.isArray(auditStartPost.body?.library_roots) || auditStartPost.body.library_roots.length !== 2) {
+              throw new Error("Reports audit start did not submit both selected library roots.");
+            }
+            if (!auditStartPost.body.library_roots.includes("C:/Reports/Movies")) {
+              throw new Error("Reports audit start omitted the second selected library root.");
+            }
+            if (!Array.isArray(auditStartPost.body?.source_ids) || auditStartPost.body.source_ids.length !== 2) {
+              throw new Error("Reports audit start did not submit selected audit source ids.");
             }
             if (auditStartPost.body?.include_sidecars !== true) {
               throw new Error("Reports audit start did not submit include_sidecars.");
@@ -1860,6 +1978,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             requireText("report-audit-launch-detail", [
               "Running indicator:",
               "Elapsed:",
+              "Locations: 2",
               "ETA: unavailable",
               "Progress source:",
             ]);
@@ -1884,6 +2003,14 @@ def _browser_maintenance_reports_runner_source() -> str:
               "confirm_stop",
             ]);
             window.confirm = () => true;
+            await waitFor(() => !byId("report-audit-score-policy-save-button").disabled, "reports audit score policy save enabled after stop");
+            const refreshedScoreDisclosure = byId("report-audit-score-redownload-bucket")?.closest("details");
+            const refreshedHighScoreInput = refreshedScoreDisclosure?.querySelector('[data-audit-score-issue-code="audio-default-policy-mismatch"]');
+            if (!refreshedHighScoreInput) {
+              throw new Error("Reports audit score policy high issue-code input was not available before save.");
+            }
+            refreshedHighScoreInput.value = "222";
+            refreshedHighScoreInput.dispatchEvent(new Event("input", { bubbles: true }));
             const beforeScorePolicyPosts = posts.filter((entry) => entry.path.includes("/api/audit/score-policy")).length;
             byId("report-audit-score-policy-save-button").click();
             byId("report-audit-score-policy-save-button").click();
@@ -1894,7 +2021,7 @@ def _browser_maintenance_reports_runner_source() -> str:
             window.confirm = originalConfirm;
             const scorePolicyPost = posts.find((entry) => entry.path.includes("/api/audit/score-policy"));
             if (scorePolicyPost.body?.policy?.issue_code_weights?.["audio-default-policy-mismatch"] !== 222) {
-              throw new Error("Reports audit score policy save did not include edited issue_code_weights.");
+              throw new Error("Reports audit score policy save did not include edited issue_code_weights: " + JSON.stringify(scorePolicyPost.body));
             }
             if (scorePolicyPost.body?.policy?.issue_code_weights?.["bdpgs-subtitles-ocr-candidate"] !== 40) {
               throw new Error("Reports audit score policy save did not include medium issue_code_weights.");
@@ -2136,10 +2263,12 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
         browser_result = result["result"]
         posts = browser_result["posts"]
         gets = browser_result["gets"]
-        self.assertEqual(len(posts), 16)
+        self.assertEqual(len(posts), 19)
         failure_get_paths = [get["path"] for get in gets if get["path"].startswith("/api/failures")]
         self.assertIn("/api/failures?limit=100&source=markers", failure_get_paths)
         self.assertIn("/api/failures?limit=100", failure_get_paths)
+        audit_source_posts = [post for post in posts if post["path"] == "/api/audit/sources"]
+        audit_source_scan_post = next(post for post in posts if post["path"] == "/api/audit/sources/scan")
         audit_start_post = next(post for post in posts if post["path"] == "/api/audit/start")
         audit_stop_post = next(post for post in posts if post["path"] == "/api/audit/stop")
         score_policy_post = next(post for post in posts if post["path"] == "/api/audit/score-policy")
@@ -2197,7 +2326,12 @@ class WebViewBrowserMaintenanceReportsSmoke(unittest.TestCase):
             for post in posts
             if post["path"] == "/api/failures/archive-evidence" and post["body"].get("confirm_archive") is True
         )
+        self.assertEqual(len(audit_source_posts), 2)
+        self.assertEqual([post["body"]["path"] for post in audit_source_posts], ["C:/Reports/Library", "C:/Reports/Movies"])
+        self.assertEqual(audit_source_scan_post["body"]["source_ids"], ["src_c_reports_library", "src_c_reports_movies"])
         self.assertEqual(audit_start_post["body"]["library_root"], "C:/Reports/Library")
+        self.assertEqual(audit_start_post["body"]["library_roots"], ["C:/Reports/Library", "C:/Reports/Movies"])
+        self.assertEqual(audit_start_post["body"]["source_ids"], ["src_c_reports_library", "src_c_reports_movies"])
         self.assertTrue(audit_start_post["body"]["include_sidecars"])
         self.assertFalse(audit_start_post["body"]["show_console"])
         self.assertTrue(audit_stop_post["body"]["confirm_stop"])

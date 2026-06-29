@@ -1,0 +1,47 @@
+{
+  "id": "MP-CHANGE-2026-0628-005",
+  "title": "Completed layout editor order persistence",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-28",
+  "summary": "Prevent stale shared UI preference refreshes from reverting locally posted Layout Editor moves, and author the Completed overview so Current Output Status is followed by Why This Output Looks Different.",
+  "reason": "The Layout Editor could snap a recently moved panel back to an older saved order after the local preference post completed but before the backend echoed that preference through the remote refresh route.",
+  "affected_areas": [
+    "docs",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "A stale /api/ui-preferences response could overwrite a completed local layout move after the pending-write guard cleared. The Completed overview source order placed Repair/Reconcile and Final Library Promotion between Current Output Status and Why This Output Looks Different.",
+  "behavior_after": "A locally posted UI preference remains authoritative until a remote refresh echoes the same serialized preference payload, so stale remote reads are reposted instead of applied. The Completed overview source order places Why This Output Looks Different immediately after Current Output Status.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/partials/page-completed.html",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/partials/page-completed.html.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static_completed.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_layout_manager_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_frontend_mutation_boundary.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-005.json",
+    "tests/python/desktop/test_application_facade_web_static_completed.py",
+    "tests/webview/test_webview_browser_layout_manager_smoke.py",
+    "tests/webview/test_webview_frontend_mutation_boundary.py"
+  ],
+  "tests_added": [
+    "Extended static WebView assertions for Completed overview ordering and shared UI preference echo protection.",
+    "Extended tests/webview/test_webview_browser_layout_manager_smoke.py with a stale-remote regression for flushed Completed overview layout moves."
+  ],
+  "manual_validation": [
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.python.desktop.test_application_facade_web_static_completed.ApplicationFacadeWebStaticCompletedTests.test_completed_page_dom_contract_is_static_pinned -q - passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_browser_layout_manager_smoke.WebViewBrowserLayoutManagerSmoke.test_layout_editor_drawer_manages_tab_and_subsection_boxes -q - passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_css_design_tokens.WebViewCssDesignTokenTests.test_panel_and_tab_consistency_contract_is_wired -q - passed",
+    "$env:PYTHONDONTWRITEBYTECODE='1'; .\\apps\\desktop\\runtime\\Python\\python.exe -m unittest tests.webview.test_webview_frontend_mutation_boundary.WebViewFrontendMutationBoundaryTests.test_ui_preferences_sync_stays_allowlisted_and_runs_before_layout_init -q - passed",
+    ".\\apps\\desktop\\runtime\\Python\\python.exe .\\ops\\scripts\\dev\\run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/app.js apps/desktop/webview/static/partials/page-completed.html tests/webview/test_webview_browser_layout_manager_smoke.py tests/python/desktop/test_application_facade_web_static_completed.py tests/webview/test_webview_frontend_mutation_boundary.py - passed, 0 written, 5 unchanged",
+    "validate_changes and validate_changes --require-worktree-coverage passed after targeted WebView static checks and browser layout-manager smoke."
+  ],
+  "rollback_plan": "Revert the app.js shared preference echo guard, restore the prior Completed overview panel order, and remove the added static/browser regression assertions.",
+  "related_changes": [],
+  "notes": "Keep locally posted shared UI layout preferences authoritative until the backend echoes them, preventing stale remote refresh snap-back.\nPlace Why This Output Looks Different directly after Current Output Status in the authored Completed overview order.\nAdd stale remote refresh regression coverage for flushed layout moves.\nPin Completed overview source order with Current Output Status followed by the explanation panel.\nGuard the shared UI preference echo protection in static frontend boundary tests.\nRegenerated summary metadata for app.js after the shared UI preference fix.\nRegenerated summary metadata for the Completed page partial order change.\nRegenerated summary metadata for the Completed static test update.\nRegenerated summary metadata for the layout manager browser smoke regression.\nRegenerated summary metadata for the frontend mutation boundary test update."
+}

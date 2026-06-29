@@ -1216,24 +1216,22 @@
     ));
 
     const commandRows = typeof launchCommandReviewRows === "function" ? launchCommandReviewRows(history) : [];
-    const commandStatus = typeof launchCommandReviewStatus === "function" ? launchCommandReviewStatus(history) : "No command history";
     const latestLaunch = commandRows[0] || history.find((entry) => isLaunchCommand(entry)) || null;
-    const commandPosture = launchStartDecisionAdvisoryPosture(launchStartDecisionPostureFromStatus(commandStatus));
     rows.push(launchCompactGateRow(
       "last",
       "Last",
-      latestLaunch ? commandPosture : "unknown",
-      latestLaunch ? (commandPosture === "ready" ? "Last OK" : "Last issue") : "No history",
+      latestLaunch ? "ready" : "unknown",
+      latestLaunch ? "No issue" : "No history",
       latestLaunch
-        ? "Recent launch history is visible; compare it with the current backend preflight before retrying."
+        ? "Recent launch history is visible; current backend preflight remains authoritative for start safety."
         : "No recent launch result is loaded; the next backend response will create command evidence.",
       typeof launchCommandReviewSummaryLines === "function" ? launchCommandReviewSummaryLines(history) : [],
       {
         page: "launch",
         tab: "history",
-        rowSelector: "#launch-command-review-rows tr[data-selectable-row='true']:not([data-status='match'])",
+        rowSelector: "#launch-command-review-rows tr[data-selectable-row='true']",
         fallbackSelector: latestLaunch ? "#launch-history" : "#launch-latest-command-evidence",
-        label: latestLaunch ? "Opened Launch > History and selected the first command-review issue." : "Opened Launch command history; no prior launch command issue is available.",
+        label: latestLaunch ? "Opened Launch > History for recent launch evidence." : "Opened Launch command history; no prior launch command evidence is available.",
         required: false,
       },
     ));

@@ -124,6 +124,27 @@ def _browser_settings_launch_runner_source() -> str:
               }
               clickSettingsTab("status");
             }
+            function requireDefaultVisibleFreeSpaceReserves() {
+              clickSettingsTab("paths-safety");
+              for (const id of [
+                "settings-file-safety-min-free",
+                "settings-file-safety-outsource-min-free",
+              ]) {
+                const node = byId(id);
+                if (!node) throw new Error("missing free-space reserve input " + id);
+                const row = node.closest("label") || node;
+                if (row.hidden || node.hidden) throw new Error(id + " is hidden in the default File Safety view");
+                if (row.classList.contains("settings-advanced-field")) throw new Error(id + " is still classified as an advanced field");
+                if (row.dataset.settingsAdvancedControl === "true" || node.dataset.settingsAdvancedControl === "true") {
+                  throw new Error(id + " is still behind the advanced controls toggle");
+                }
+                const style = window.getComputedStyle(row);
+                if (style.display === "none" || style.visibility === "hidden") {
+                  throw new Error(id + " is not visible in the default File Safety view");
+                }
+              }
+              clickSettingsTab("status");
+            }
             async function requireLibraryProfileDesignationFiltering() {
               function libraryCard(id) {
                 const card = document.querySelector('[data-library-id="' + id + '"]');
@@ -463,6 +484,7 @@ def _browser_settings_launch_runner_source() -> str:
 
             window.renderSettings(payload.settings);
             window.showPage("settings");
+            requireDefaultVisibleFreeSpaceReserves();
             requireDefaultVisibleAssSsaCheckboxes();
             await requireLibraryProfileDesignationFiltering();
             await requireLibraryRouteMapEvidence();

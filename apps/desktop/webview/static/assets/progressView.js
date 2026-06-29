@@ -877,6 +877,38 @@
     return items.filter(Boolean);
   }
 
+  const progressDetailQuickLinks = {
+    library: { page: "libraries", label: "Open Libraries" },
+    queue: { page: "queue", label: "Open Queue" },
+    route: { page: "queue", label: "Open Queue route evidence" },
+    done: { page: "completed", label: "Open Completed Output" },
+    issues: { page: "reports", reportsTab: "failures", label: "Open Reports failures" },
+  };
+
+  function progressDetailQuickLinkKey(item) {
+    return String(item?.label || "").trim().toLowerCase();
+  }
+
+  function progressDetailQuickLink(item) {
+    return progressDetailQuickLinks[progressDetailQuickLinkKey(item)] || null;
+  }
+
+  function progressDetailQuickLinkLabel(item, link) {
+    const label = String(item?.label || "").trim();
+    const value = String(item?.value || "").trim();
+    const action = String(link?.label || "Open quick link").trim();
+    return [action, [label, value].filter(Boolean).join(": ")].filter(Boolean).join(" - ");
+  }
+
+  function activateProgressDetailQuickLink(link) {
+    if (!link?.page) return;
+    if (typeof window.showPage === "function") window.showPage(link.page);
+    if (link.page === "reports" && link.reportsTab) {
+      const reportsView = window.mediaPipelineReportsView || {};
+      reportsView.activateReportsTab?.(link.reportsTab);
+    }
+  }
+
   function renderProgressDetails(progress) {
     const payload = progress && typeof progress === "object" ? progress : {};
     const items = progressDetailItems(payload);
@@ -894,10 +926,17 @@
     }
     container.replaceChildren();
     items.forEach((item) => {
+      const link = progressDetailQuickLink(item);
       const card = document.createElement("div");
       card.className = "progress-fact";
-      card.dataset.status = item.status;
+      card.dataset.status = item.status || "unknown";
       card.setAttribute("role", "listitem");
+      if (link) {
+        card.dataset.hasLink = "true";
+        card.dataset.progressQuickLink = progressDetailQuickLinkKey(item);
+        card.dataset.crossPageTarget = link.page;
+        if (link.reportsTab) card.dataset.crossPageReportsTab = link.reportsTab;
+      }
       const icon = document.createElement("span");
       icon.className = "progress-fact-icon";
       icon.setAttribute("aria-hidden", "true");
@@ -913,7 +952,20 @@
       hint.className = "progress-fact-hint";
       hint.textContent = item.hint;
       body.append(label, value, hint);
-      card.append(icon, body);
+      if (link) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "progress-fact-link";
+        button.dataset.crossPageTarget = link.page;
+        if (link.reportsTab) button.dataset.crossPageReportsTab = link.reportsTab;
+        button.setAttribute("aria-label", progressDetailQuickLinkLabel(item, link));
+        button.title = [link.label, item.hint].filter(Boolean).join(". ");
+        button.addEventListener("click", () => activateProgressDetailQuickLink(link));
+        button.append(icon, body);
+        card.appendChild(button);
+      } else {
+        card.append(icon, body);
+      }
       container.appendChild(card);
     });
   }
@@ -1700,6 +1752,23 @@
     { statusId: "diagnostics-live-run-status", bodyId: "diagnostics-live-run-strip" },
   ];
 
+  const liveRunQuickLinks = {
+    stage: { page: "live", label: "Open Telemetry for live run stage" },
+    file: { page: "live", label: "Open Telemetry for live run file" },
+    eta: { page: "live", label: "Open Telemetry for live run ETA" },
+    "last update": { page: "live", label: "Open Telemetry for last update" },
+    state: { page: "live", label: "Open Telemetry for live state" },
+    route: { page: "queue", label: "Open Queue route evidence" },
+    queue: { page: "queue", label: "Open Queue" },
+    ffmpeg: { page: "diagnostics", diagTab: "logs", label: "Open Diagnostics logs" },
+    worker: { page: "network", label: "Open Network workers" },
+    close: { page: "diagnostics", diagTab: "readiness", label: "Open Diagnostics readiness" },
+  };
+
+  function liveRunQuickLink(item) {
+    return liveRunQuickLinks[String(item?.label || "").trim().toLowerCase()] || null;
+  }
+
   function liveRunHandoffLines(context = {}, status = liveRunStatus(context), items = liveRunStripItems(context)) {
     const active = status.state === "running";
     const review = status.state === "warning";
@@ -1731,9 +1800,20 @@
       if (!body) return;
       body.replaceChildren();
       items.forEach((item) => {
+        const quickLink = liveRunQuickLink(item);
         const node = document.createElement("span");
         node.className = "live-run-chip";
         node.dataset.status = item.status;
+        if (quickLink) {
+          node.setAttribute("role", "button");
+          node.setAttribute("tabindex", "0");
+          node.dataset.uiQuickLink = "";
+          node.dataset.quickLinkPage = quickLink.page;
+          if (quickLink.diagTab) node.dataset.quickLinkDiagTab = quickLink.diagTab;
+          const ariaLabel = `${quickLink.label}: ${item.label} ${item.value}`.trim();
+          node.setAttribute("aria-label", ariaLabel);
+          node.title = ariaLabel;
+        }
         const label = document.createElement("span");
         label.className = "live-run-chip-label";
         label.textContent = item.label;
@@ -1745,7 +1825,7 @@
           const hint = document.createElement("span");
           hint.className = "live-run-chip-hint";
           hint.textContent = item.hint;
-          node.title = item.hint;
+          if (!quickLink) node.title = item.hint;
           node.appendChild(hint);
         }
         body.appendChild(node);

@@ -8,7 +8,7 @@ Source: `src/mediapipeline/desktop/api/contract_command.py`,
 `src/mediapipeline/core/api/commands.py`, and the WebView `apiPost` call
 inventory.
 
-Total command routes: 99 POST routes across 11 contract groups.
+Total command routes: 103 POST routes across 11 contract groups.
 
 Network lifecycle start/stop now has backend-owned dry-run and confirmed POST
 routes. Confirmed coordinator/worker lifecycle routes are confirmation-gated,
@@ -30,8 +30,8 @@ dry-run fingerprints and backend backups.
 | `LOCAL_API_SETTINGS_COMMAND_ROUTE_CONTRACT` | settings/validate, settings/preset-library/validate, settings/preset-library/compare, settings/preset-library/import-preview, settings/preset-library/save, settings/preset-library/export, settings/preset-library/apply-preview, settings/preset-library/apply, settings/browse-path, settings/preview-patch, settings/pipeline-plan-preview, settings/save-patch, settings/import-psd1-preview, settings/import-psd1, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/wizard/save, settings/reload |
 | `LOCAL_API_SCHEDULE_COMMAND_ROUTE_CONTRACT` | schedule/preview, schedule/save |
 | `LOCAL_API_SAMPLE_VALIDATION_COMMAND_ROUTE_CONTRACT` | sample-validation/preview, sample-validation/append |
-| `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences |
-| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/stop, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/start, backend/shutdown |
+| `LOCAL_API_UI_COMMAND_ROUTE_CONTRACT` | ui-preferences, path-picker/browse |
+| `LOCAL_API_PROCESS_COMMAND_ROUTE_CONTRACT` | pipeline/control, pipeline/browse-file, pipeline/start, audit/start, audit/stop, audit/sources, audit/sources/scan, audit/score-policy, audit/ignore, audit/export-rerun-csv, rerun/preview, rerun/start, backend/shutdown |
 | `LOCAL_API_NETWORK_COMMAND_ROUTE_CONTRACT` | network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/coordinator/join-blob, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators, network/worker/join-cluster, network/coordinator/start, network/coordinator/stop, network/worker/start, network/worker/stop |
 
 ---
@@ -214,6 +214,7 @@ Allowed targets: `run_logs`, `cluster_log`, `config`, `config_folder`,
 | Route | Owner page | Owner JS | Mutation class | Key restriction |
 |---|---|---|---|---|
 | `POST /api/ui-preferences` | Chrome WebView, Tauri shell | `layoutManager.js`, `app.js` | `ui-state-write` | Writes allowlisted UI preference JSON only |
+| `POST /api/path-picker/browse` | Shared WebView path fields | `pathPicker.js` | `shell-dialog` | Opens backend-owned Windows picker only for allowlisted target keys; returns staged validation evidence |
 
 ### Audit Controls
 
@@ -261,9 +262,12 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `POST /api/pipeline/control` | Launch | `launchView.js` | `control-flag-write` | `action`: `pause`, `stop`, `rescan`, `kill`; backend owns flag writes and emergency process cleanup |
 | `POST /api/pipeline/browse-file` | Launch | `launchView.js` | `shell-dialog` | `selection_mode`: `files`; backend owns native file browser and validates single-file staging only |
 | `POST /api/pipeline/start` | Launch | `launchView.js` | `process-launch` | `mode`: `once`, `continuous`, `validate`, `drain_pending_pushes`; backend owns launch lock and process args |
-| `POST /api/audit/start` | Launch | `launchView.js` | `process-launch` | Backend owns audit script invocation |
+| `POST /api/audit/start` | Launch, Reports | `reportsView.js` | `process-launch` | Backend owns audit script invocation for one or more selected audit source locations |
 | `POST /api/audit/stop` | Reports | `reportsView.js` | `process-control` | Requires `confirm_stop: true`; backend stops audit process trees only and marks audit progress stopped |
-| `POST /api/rerun/start` | Launch | `launchView.js` | `process-launch` | Default safe: `stage_mode: copy`, `original_mode: keep`, `return_mode: park` |
+| `POST /api/audit/sources` | Reports | `reportsView.js` | `audit-source-state-write` | Adds/removes/enables/disables backend-owned Audit source roots in `State\Audit`; does not scan, launch, or touch media |
+| `POST /api/audit/sources/scan` | Reports | `reportsView.js` | `audit-source-scan-state-write` | Recursively counts media, sidecar, and folder totals for selected Audit roots; writes aggregate scan status only and does not mutate media |
+| `POST /api/rerun/preview` | Launch | `launchView.js` | `read-only-preview` | Backend parses the selected CSV, recent candidates, policy warnings, and scoped counts without launch, scoped CSV writes, or media mutation |
+| `POST /api/rerun/start` | Launch | `launchView.js` | `process-launch` | Mode fields are operator-selectable; executable policy remains `stage_mode: copy`, `original_mode: keep`, `return_mode: park`; narrowed dry-run/live scope writes a backend-owned scoped CSV under `State\Rerun\ScopedCsv` |
 | `POST /api/backend/shutdown` | App shell | `app.js`, Tauri shell | `backend-lifecycle` | Shell must check `GET /api/backend/close-readiness`; unsafe close is rejected unless `force_active_work_shutdown` is literal boolean `true` |
 
 ---
@@ -273,9 +277,9 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | Class | Count | Routes |
 |---|---:|---|
 | `none` | 26 | pending-publish/recovery-plan, completed/reconcile-manifest-dry-run, completed/repair-sidecar-metadata-dry-run, pending-publish/repair-manifest-dry-run, pending-publish/reconcile-orphan-payloads-dry-run, startup/reconcile-dry-run, maintenance/retention-dry-run, rename/preview, settings/validate, settings/preview-patch, settings/pipeline-plan-preview, settings/import-psd1-preview, settings/wizard/validate-paths, settings/wizard/validate-tools, settings/wizard/probe-hardware, settings/wizard/validate-workers, settings/wizard/preview, settings/reload, schedule/preview, sample-validation/preview, network/coordinator/start-dry-run, network/coordinator/stop-dry-run, network/worker/start-dry-run, network/worker/stop-dry-run, network/worker/test-connection, network/worker/discover-coordinators |
-| `read-only-preview` | 5 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-clear-preview, queue/file-overrides/folder-preview, subtitle-qa/preview |
+| `read-only-preview` | 6 | queue/file-overrides/route-preview, queue/file-overrides/series-preview, queue/file-overrides/series-clear-preview, queue/file-overrides/folder-preview, subtitle-qa/preview, rerun/preview |
 | `shell-open` | 6 | queue/open, completed/open, pending-publish/open, diagnostics/open, diagnostics/tdarr-matrix/evidence/open, maintenance/dependency-atlas/open-folder |
-| `shell-dialog` | 3 | rename/browse, settings/browse-path, pipeline/browse-file |
+| `shell-dialog` | 4 | rename/browse, settings/browse-path, path-picker/browse, pipeline/browse-file |
 | `test-fixture-write` | 1 | rename/filter-cases |
 | `queue-state-write` | 7 | queue/priority, queue/strategy, queue/file-overrides, queue/file-overrides/series-apply, queue/file-overrides/series-clear-apply, queue/file-overrides/remux-pilot-promote, queue/file-overrides/folder-rule |
 | `failure-marker-write` | 1 | failures/clear |
@@ -287,6 +291,8 @@ claims silently, or mutate source/scratch/output/pending-publish files.
 | `ui-state-write` | 1 | ui-preferences |
 | `metrics-state-write` | 1 | metrics/sources |
 | `metrics-backfill-state-write` | 1 | metrics/backfill |
+| `audit-source-state-write` | 1 | audit/sources |
+| `audit-source-scan-state-write` | 1 | audit/sources/scan |
 | `app-state-write` | 1 | schedule/save |
 | `config-write` | 4 | settings/save-patch, settings/import-psd1, settings/wizard/save, network/worker/join-cluster |
 | `secret-transfer` | 1 | network/coordinator/join-blob |
@@ -344,6 +350,7 @@ deployment artifacts:
 - `maintenance/archive-state-journals`
 - `maintenance/dependency-atlas`
 - `metrics/sources`, `metrics/backfill`
+- `audit/sources`, `audit/sources/scan`
 
 **Low** - opens shell dialogs/locations, writes UI preferences, or appends
 operator evidence only:
@@ -352,6 +359,7 @@ operator evidence only:
 - `maintenance/dependency-atlas/open-folder`
 - `rename/browse`
 - `settings/browse-path`
+- `path-picker/browse`
 - `pipeline/browse-file`
 - `ui-preferences`
 - `sample-validation/append`

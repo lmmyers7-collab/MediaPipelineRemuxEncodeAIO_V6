@@ -6,6 +6,7 @@ import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 from mediapipeline.core.processes.pipeline_policy import (
@@ -55,7 +56,14 @@ def _string_list(value: Any) -> list[str]:
         return [str(item).strip() for item in value if str(item).strip()]
     except TypeError:
         text = str(value).strip()
-        return [text] if text else []
+    return [text] if text else []
+
+
+def _canonical_path(path: str) -> str:
+    try:
+        return str(Path(path).expanduser().resolve(strict=False))
+    except (OSError, RuntimeError, ValueError):
+        return os.path.abspath(os.path.expanduser(path))
 
 
 def _normalize_roots(roots: list[str]) -> list[str]:
@@ -65,8 +73,8 @@ def _normalize_roots(roots: list[str]) -> list[str]:
         text = str(root or "").strip()
         if not text:
             continue
-        absolute = os.path.abspath(os.path.expanduser(text))
-        key = os.path.normcase(absolute).casefold()
+        absolute = _canonical_path(text)
+        key = _path_key(absolute)
         if key in seen:
             continue
         seen.add(key)
@@ -75,12 +83,12 @@ def _normalize_roots(roots: list[str]) -> list[str]:
 
 
 def _snapshot_signature(roots: list[str], extensions: frozenset[str]) -> tuple[tuple[str, ...], tuple[str, ...]]:
-    root_keys = tuple(os.path.normcase(root).casefold() for root in roots)
+    root_keys = tuple(_path_key(root) for root in roots)
     return root_keys, tuple(sorted(extensions))
 
 
 def _path_key(path: str) -> str:
-    return os.path.normcase(os.path.abspath(path)).casefold()
+    return os.path.normcase(_canonical_path(path)).casefold()
 
 
 def _result_message(result: Any) -> str:

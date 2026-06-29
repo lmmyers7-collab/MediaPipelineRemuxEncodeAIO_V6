@@ -20,7 +20,7 @@ from mediapipeline.core.processes.audit_policy import (
     audit_stop_confirm_required_result,
     audit_stop_exception_result,
     audit_stop_success_result,
-    resolve_audit_library_root,
+    resolve_audit_library_roots,
 )
 from mediapipeline.core.config.identity import config_operation_block_data, config_operation_block_message
 from mediapipeline.core.processes.file_io import atomic_write_text, read_json_file
@@ -102,8 +102,9 @@ class AuditLaunchFacadeMixin:
                 config_operation_block_message(config_identity, "Audit start"),
                 config_operation_block_data(config_identity),
             )
-        library_root = resolve_audit_library_root(request, resolved.config_data)
-        if not library_root:
+        library_roots = resolve_audit_library_roots(request, resolved.config_data)
+        library_root = library_roots[0] if library_roots else ""
+        if not library_roots:
             return audit_missing_library_root_result()
         launch_lock, lock_message = self._acquire_process_launch_lock("Audit start")
         if lock_message:
@@ -119,12 +120,15 @@ class AuditLaunchFacadeMixin:
             starter = getattr(self.service, "start_audit", None)
             if not callable(starter):
                 raise RuntimeError("Audit start service is not available.")
-            proc = starter(
-                resolved=resolved,
-                library_root=library_root,
-                include_sidecars=bool(request.get("include_sidecars", False)),
-                show_console=bool(request.get("show_console", False)),
-            )
+            start_kwargs = {
+                "resolved": resolved,
+                "library_root": library_root,
+                "include_sidecars": bool(request.get("include_sidecars", False)),
+                "show_console": bool(request.get("show_console", False)),
+            }
+            if len(library_roots) > 1:
+                start_kwargs["library_roots"] = library_roots
+            proc = starter(**start_kwargs)
             pid = int(getattr(proc, "pid", 0) or 0)
             launch_logs = ""
             log_method = getattr(self.service, "launch_log_summary", None)
@@ -136,6 +140,7 @@ class AuditLaunchFacadeMixin:
             self._release_process_launch_lock(launch_lock)
         return audit_start_success_result(
             library_root=library_root,
+            library_roots=library_roots,
             include_sidecars=bool(request.get("include_sidecars", False)),
             pid=pid,
             launch_prep_messages=launch_prep_messages,

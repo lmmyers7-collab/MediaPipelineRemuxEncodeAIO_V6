@@ -1071,6 +1071,61 @@
     renderCompletedReconciliationHint(lastCompletedPayload, lastCompletedRows);
   }
 
+  function focusCompletedQuickLinkTarget(selector) {
+    const target = selector ? document.querySelector(selector) : null;
+    if (!target) return false;
+    target.scrollIntoView?.({ block: "center", inline: "nearest" });
+    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
+      target.setAttribute("tabindex", "-1");
+    }
+    target.focus?.({ preventScroll: true });
+    return true;
+  }
+
+  function setCompletedCurrentFilters({ text = "", status = "all", library = "all", investigation = "all" } = {}) {
+    const filter = byId("completed-filter");
+    const statusFilter = byId("completed-status-filter");
+    const libraryFilter = byId("completed-library-filter");
+    const investigationFilter = byId("completed-investigation-filter");
+    if (filter) filter.value = text;
+    if (statusFilter) statusFilter.value = status;
+    if (libraryFilter) libraryFilter.value = library;
+    if (investigationFilter) investigationFilter.value = investigation;
+    renderCompletedRows();
+  }
+
+  function activateQuickLink(action) {
+    const normalized = String(action || "").trim().toLowerCase();
+    if (normalized === "clear") {
+      resetCompletedFilters();
+      return focusCompletedQuickLinkTarget("#completed-rows");
+    }
+    if (normalized === "encode") {
+      setCompletedCurrentFilters({ investigation: "encode" });
+      return focusCompletedQuickLinkTarget("#completed-rows");
+    }
+    if (normalized === "remux") {
+      setCompletedCurrentFilters({ investigation: "remux" });
+      return focusCompletedQuickLinkTarget("#completed-rows");
+    }
+    if (normalized === "missing") {
+      setCompletedCurrentFilters({ text: "missing", status: "review" });
+      return focusCompletedQuickLinkTarget("#completed-rows");
+    }
+    if (normalized === "review") {
+      setCompletedCurrentFilters({ status: "review" });
+      return focusCompletedQuickLinkTarget("#completed-rows");
+    }
+    if (normalized === "present") {
+      setCompletedCurrentFilters({ status: "ready" });
+      return focusCompletedQuickLinkTarget("#completed-rows");
+    }
+    if (normalized === "filters") {
+      return focusCompletedQuickLinkTarget("#completed-filter");
+    }
+    return true;
+  }
+
   function renderCompleted(completed = {}) {
     const payload = completed && typeof completed === "object" ? completed : {};
     let rows = Array.isArray(payload.rows) ? payload.rows : [];
@@ -1388,6 +1443,7 @@
     requestCompletedRepairApply,
     requestCompletedRepairDryRun,
     setCompletedRepairBusy,
+    activateQuickLink,
   };
   initCompletedRepairEvents();
 })();

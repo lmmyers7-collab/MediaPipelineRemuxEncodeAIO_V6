@@ -1,0 +1,45 @@
+{
+  "id": "MP-CHANGE-2026-0629-005",
+  "title": "Preserve WebView table scroll on refresh",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Preserve WebView scroll position around refresh-start UI updates, document-layout shrink/expand cycles, and Completed/Pending table row replacement.",
+  "reason": "Automatic and manual refreshes could occasionally leave operators at the top or a higher table position while browsing large Queue, Completed, or Pending tables.",
+  "affected_areas": [
+    "generated-context",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Refresh captured scroll after the refresh-start UI changed, document restore skipped when refreshed content temporarily shortened the page, and Completed/Pending table renders did not have local wrapper-scroll preservation.",
+  "behavior_after": "Refresh-start UI updates are scroll-preserved, document restore clamps to the nearest valid offset while content is shorter, and Completed/Pending table wrappers restore scroll through row replacement and deferred table enhancement passes.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/app.js",
+    "apps/desktop/webview/static/assets/completed/table.js",
+    "apps/desktop/webview/static/assets/dom/table.js",
+    "apps/desktop/webview/static/assets/pendingPublishView.js",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/app.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/completed/table.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/dom/table.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/pendingPublishView.js.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_large_table_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_dom_helpers_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-005.json",
+    "tests/webview/test_webview_browser_large_table_smoke.py",
+    "tests/webview/test_webview_dom_helpers_smoke.py"
+  ],
+  "tests_added": [
+    "Extended tests/webview/test_webview_browser_large_table_smoke.py with refresh-style table scroll preservation assertions."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_dom_helpers_smoke -q",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_browser_large_table_smoke -q",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.dev.refresh_summaries --paths apps/desktop/webview/static/assets/app.js apps/desktop/webview/static/assets/dom/table.js apps/desktop/webview/static/assets/completed/table.js apps/desktop/webview/static/assets/pendingPublishView.js tests/webview/test_webview_dom_helpers_smoke.py tests/webview/test_webview_browser_large_table_smoke.py"
+  ],
+  "rollback_plan": "Revert the scroll preservation changes in app.js, dom/table.js, completed/table.js, pendingPublishView.js, the two WebView smoke updates, and their regenerated summaries.",
+  "related_changes": [],
+  "notes": "Clamp document scroll restores to the nearest valid offset after refresh layout changes.\nPreserve scroll around refresh-start UI updates.\nUpdate DOM scroll restore expectation for clamped document restoration.\nPreserve Pending table wrapper scroll during row replacement.\nAdd refresh-style table scroll preservation coverage.\nPreserve Completed table wrapper scroll during row replacement.\nGenerated summary for app refresh scroll preservation.\nGenerated summary for DOM scroll restore behavior.\nGenerated summary for Completed table scroll preservation.\nGenerated summary for Pending table scroll preservation.\nGenerated summary for DOM helper smoke update.\nGenerated summary for large-table scroll regression coverage.\nvalidate_changes is currently blocked by pre-existing MP-CHANGE-2026-0629-003 metadata and unrelated uncovered rerun-preview files."
+}

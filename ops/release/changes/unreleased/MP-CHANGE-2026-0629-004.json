@@ -1,0 +1,41 @@
+{
+  "id": "MP-CHANGE-2026-0629-004",
+  "title": "Architecture boundary phase 0 ratchet",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "tooling",
+  "risk_level": "medium",
+  "date_started": "2026-06-29",
+  "date_completed": "2026-06-29",
+  "summary": "Completed Phase 0 architecture-boundary prework for GitHub #23 by refreshing the NO_CORE_TO_DESKTOP baseline, expanding the edge ledger into per-import ownership rows, and adding a no-new-debt ratchet over the frozen baseline.",
+  "reason": "The core-to-desktop cleanup needs stable ownership decisions and a ratchet before implementation slices begin, otherwise later DTO/model moves could add new desktop coupling or reclassify allowlist debt without ledger coverage.",
+  "affected_areas": [
+    "docs",
+    "tests"
+  ],
+  "behavior_before": "The architecture-boundary cleanup pack had a planning skeleton and historical counts, but no complete Phase 0 ledger rows and no automated ratchet preventing new core-to-desktop debt outside the baseline.",
+  "behavior_after": "The Phase 0 ledger records the fresh report-only baseline, all current import-statement groups, final owners, phases, compatibility exports, targeted tests, allowlist actions, and external dirty-tree blockers. Tooling tests now fail new core-to-desktop import groups outside the frozen baseline and fail NO_CORE_TO_DESKTOP allowlist entries without ledger coverage. Runtime/operator behavior is unchanged.",
+  "files_touched": [
+    "docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0629-004.json",
+    "tests/fixtures/dependency_boundaries/no_core_to_desktop_phase0_baseline.json",
+    "tests/python/tooling/test_dependency_boundaries.py"
+  ],
+  "tests_added": [
+    "tests/python/tooling/test_dependency_boundaries.py::DependencyBoundaryTests.test_phase0_frozen_baseline_groups_have_ledger_rows",
+    "tests/python/tooling/test_dependency_boundaries.py::DependencyBoundaryTests.test_phase0_no_core_to_desktop_allowlist_entries_have_ledger_rows",
+    "tests/python/tooling/test_dependency_boundaries.py::DependencyBoundaryTests.test_phase0_no_new_core_to_desktop_imports_outside_frozen_baseline"
+  ],
+  "manual_validation": [
+    "check_active_doc_references - passed",
+    "check_architecture_guardrails - passed; checked 55 creation candidates",
+    "check_dependency_boundaries --report-only --max-internal-imports 0 - passed/exit 0; 334 core-to-desktop edges, 350 allowlisted hard findings, 4 external unallowlisted dirty-tree findings documented in EDGE_LEDGER.md",
+    "packet-owned Phase 0 work complete; remaining change-control validation blockers are external dirty-tree items documented in final response",
+    "targeted Phase 0 ratchet unittest tests - passed; 3 tests",
+    "validate_changes - failed due unrelated MP-CHANGE-2026-0629-003 missing high/critical notes or rollback detail",
+    "validate_changes --require-worktree-coverage - failed due unrelated MP-CHANGE-2026-0629-003 metadata issue and uncovered dirty files src/mediapipeline/core/processes/rerun_preview.py, tests/python/desktop/test_rerun_csv_preview.py"
+  ],
+  "rollback_plan": "Remove the Phase 0 baseline fixture, revert the new ratchet tests from tests/python/tooling/test_dependency_boundaries.py, and restore docs/implementation/architecture-boundary-cleanup/EDGE_LEDGER.md to the prior planning skeleton.",
+  "related_changes": [],
+  "notes": "Expanded the Phase 0 edge ledger with the fresh NO_CORE_TO_DESKTOP baseline, ownership rows, dirty-tree exceptions, and ratchet behavior.\nAdded the frozen Phase 0 NO_CORE_TO_DESKTOP import-statement baseline used by the ratchet tests.\nAdded no-new-debt ratchet tests for new core-to-desktop imports, baseline ledger coverage, and allowlist ledger coverage.\nPython impact: test/tooling coverage only; no runtime package, Local API route, WebView command, DTO/model migration, media policy, publish/drain, rename, or source/scratch/output behavior changed."
+}

@@ -189,6 +189,21 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         )
         self.assertEqual(routes["/api/maintenance/dependency-atlas/open-folder"]["allowed_targets"], ["dependency_atlas_folder"])
 
+    def test_path_picker_route_contract_is_backend_owned_and_staged_only(self) -> None:
+        routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
+        picker = routes["/api/path-picker/browse"]
+
+        self.assertEqual(picker["method"], "POST")
+        self.assertTrue(picker["auth_required"])
+        self.assertEqual(picker["effect"], "shell-dialog")
+        self.assertEqual(picker["request_keys"], ["target_key", "selection_mode", "initial_path", "file_filter"])
+        self.assertEqual(picker["allowed_selection_modes"], ["files", "folder", "folder_files"])
+        self.assertEqual(picker["response_schema"], "desktop_command_result.v1")
+        self.assertEqual(picker["data_schema"], "desktop_path_picker_browse.v1")
+        self.assertIn("allowlisted operator path fields", picker["purpose"])
+        self.assertIn("staged-only", picker["purpose"])
+        self.assertIn("touch media files", picker["purpose"])
+
     def test_state_journal_archive_contract_is_backend_confirmed_and_media_safe(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
         archive = routes["/api/maintenance/archive-state-journals"]
@@ -215,6 +230,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
     def test_library_route_map_read_contracts_are_evidence_only(self) -> None:
         routes = {route["path"]: route for route in LOCAL_API_ROUTE_CONTRACT}
         expected = {
+            "/api/libraries/summary": ("desktop_libraries_summary.v1", []),
             "/api/libraries/route-map": ("library_route_map.v1", []),
             "/api/libraries/route-map/trace": (
                 "library_route_trace.v1",
@@ -246,6 +262,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                     contract["purpose"],
                 )
 
+        self.assertFalse(GET_ROUTE_HANDLERS["/api/libraries/summary"].needs_query)
         self.assertFalse(GET_ROUTE_HANDLERS["/api/libraries/route-map"].needs_query)
         self.assertTrue(GET_ROUTE_HANDLERS["/api/libraries/route-map/trace"].needs_query)
         self.assertTrue(GET_ROUTE_HANDLERS["/api/libraries/route-map/compare"].needs_query)
@@ -546,9 +563,20 @@ class LocalApiContractPayloadTests(unittest.TestCase):
         self.assertEqual(rerun_route["effect"], "process-launch")
         self.assertEqual(
             rerun_route["safe_defaults"],
-            {"dry_run": False, "plan_only": False, "stage_mode": "copy", "original_mode": "keep", "return_mode": "park"},
+            {
+                "dry_run": False,
+                "plan_only": False,
+                "stage_mode": "copy",
+                "original_mode": "keep",
+                "return_mode": "park",
+                "enabled_only": True,
+                "skip_blocked": False,
+                "skip_warning_rows": False,
+            },
         )
         self.assertIn("conservative media-safe defaults", rerun_route["purpose"])
+        self.assertEqual(routes["/api/rerun/preview"]["effect"], "read-only-preview")
+        self.assertEqual(routes["/api/rerun/preview"]["response_schema"], "desktop_rerun_csv_preview.v1")
 
     def test_effectful_post_routes_return_command_results_for_operator_history(self) -> None:
         payload = local_api_contract_payload(app_version="v5-test", host="127.0.0.1")
@@ -565,6 +593,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                     "/api/queue/file-overrides/route-preview": "read-only-preview",
                     "/api/queue/file-overrides/series-clear-preview": "read-only-preview",
                     "/api/queue/file-overrides/series-preview": "read-only-preview",
+                    "/api/rerun/preview": "read-only-preview",
                     "/api/subtitle-qa/preview": "read-only-preview",
                     "/api/ui-preferences": "ui-state-write",
                 }.get(str(route["path"]), "none")
@@ -578,6 +607,7 @@ class LocalApiContractPayloadTests(unittest.TestCase):
                 "/api/queue/file-overrides/series-clear-preview",
                 "/api/queue/file-overrides/series-preview",
                 "/api/rename/preview",
+                "/api/rerun/preview",
                 "/api/sample-validation/preview",
                 "/api/subtitle-qa/preview",
                 "/api/ui-preferences",
@@ -628,6 +658,8 @@ class LocalApiContractPayloadTests(unittest.TestCase):
             "none",
             "app-state-write",
             "audit-state-write",
+            "audit-source-scan-state-write",
+            "audit-source-state-write",
             "backend-lifecycle",
             "bounded-health-check",
             "completed-manifest-write",

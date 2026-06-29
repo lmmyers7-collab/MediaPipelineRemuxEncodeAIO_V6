@@ -1,0 +1,48 @@
+{
+  "id": "MP-CHANGE-2026-0628-003",
+  "title": "Hide Queue filter summary",
+  "version_target": "2026.06.04.001",
+  "status": "complete",
+  "type": "bugfix",
+  "risk_level": "low",
+  "date_started": "2026-06-28",
+  "date_completed": "2026-06-28",
+  "summary": "Hide the Queue display filter summary block from the operator UI while keeping its textContent available for existing diagnostics and smoke assertions.",
+  "reason": "The Queue filter summary rendered a low-value guidance block above the Queue source inventory. It is redundant with nearby Queue controls and took visual space without changing backend launch scope.",
+  "affected_areas": [
+    "generated",
+    "tests",
+    "webview"
+  ],
+  "behavior_before": "Queue filter and scan summary prose could become visible after shared diagnostic-callout rendering rewrote the summary element.",
+  "behavior_after": "Queue filter and scan summary prose stays hidden and display-suppressed, including after diagnostic-callout rendering, while the underlying DOM text remains available to tests.",
+  "files_touched": [
+    "apps/desktop/webview/static/assets/queueView.js",
+    "apps/desktop/webview/static/assets/styles/queue/ordering.css",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/queueView.js.md",
+    "docs/generated/summaries/apps/desktop/webview/static/assets/styles/queue/ordering.css.md",
+    "docs/generated/summaries/ops/release/changes/unreleased/MP-CHANGE-2026-0628-003.json.md",
+    "docs/generated/summaries/tests/python/desktop/test_application_facade_web_static.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_browser_launch_queue_readiness_smoke.py.md",
+    "docs/generated/summaries/tests/webview/test_webview_row_detail_smoke.py.md",
+    "ops/release/changes/unreleased/MP-CHANGE-2026-0628-003.json",
+    "tests/python/desktop/test_application_facade_web_static.py",
+    "tests/webview/test_webview_browser_launch_queue_readiness_smoke.py",
+    "tests/webview/test_webview_row_detail_smoke.py"
+  ],
+  "tests_added": [
+    "Updated Queue row-detail smoke assertion for display suppression.",
+    "Updated browser Launch/Queue readiness smoke assertion for computed display and client rects.",
+    "Updated static WebView assertion for the Queue CSS hide rule."
+  ],
+  "manual_validation": [
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.webview.test_webview_row_detail_smoke -q (passed)",
+    "apps/desktop/runtime/Python/python.exe -m unittest tests.python.desktop.test_application_facade_web_static.ApplicationFacadeWebStaticTests.test_queue_manual_order_controls_write_manifest_positions -q (passed)",
+    "ops/scripts/smoke/Test-WebViewBrowserLaunchQueueReadinessSmoke.ps1 (passed)",
+    "ops/pipeline/runtime/PowerShell-7.6.0-win-x64/pwsh.exe -NoProfile -ExecutionPolicy Bypass -File ops/scripts/release/test.ps1 -SkipToolIntegration -SkipEndToEndSmoke (passed on rerun with longer timeout; first 180s attempt timed out before output)",
+    "apps/desktop/runtime/Python/python.exe ops/scripts/dev/run-python-tool.py mediapipeline.tools.change_control.validate_changes --require-worktree-coverage (passed)"
+  ],
+  "rollback_plan": "Remove the #queue-filter-summary CSS hide rule, remove the style.display assignment in setQueueFilterSummary, and revert the focused smoke/static assertion updates.",
+  "related_changes": [],
+  "notes": "Hide the Queue filter summary after diagnostic-callout rendering so the operator does not see the non-actionable filter evidence block.\nForce the Queue filter summary out of visual layout even after shared prose rendering rewrites the element.\nAssert the Queue filter summary remains hidden and display-suppressed in the Node-backed row-detail smoke.\nAssert Queue CSS forces the filter summary out of visual layout.\nBrowser smoke now verifies the Queue filter summary retains textContent but has no visual box.\nRefresh generated summary metadata for the Queue view JS change.\nRefresh generated summary metadata for the Queue ordering CSS change.\nRefresh generated summary metadata for the static WebView test change.\nRefresh generated summary metadata for the row-detail smoke change.\nRefresh generated summary metadata for the browser Queue readiness smoke change.\nAdd generated summary for this change packet."
+}

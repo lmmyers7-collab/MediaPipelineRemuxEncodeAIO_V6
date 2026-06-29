@@ -3,9 +3,9 @@ file: apps/desktop/webview/static/assets/settingsWizard.js
 pipeline_stage: n/a
 token_priority: medium
 owner_domain: webview
-last_modified: 2026-06-21
+last_modified: 2026-06-28
 last_reviewed: 2026-06-04
-sha256: 40053ae8ce2f2fef953b99c83adfbe8d8f27a1c3fa9c17cf48ea54ac457e222e
+sha256: 371be2dfc178960886b0d5e69ce3a1c65364bb74d5b19bfce41a90619e1a04a1
 ---
 # `apps/desktop/webview/static/assets/settingsWizard.js`
 

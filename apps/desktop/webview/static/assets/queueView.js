@@ -918,10 +918,18 @@
     const card = document.createElement("section");
     card.className = "queue-source-tile";
     card.dataset.tone = tile.tone || "muted";
+    if (String(tile.label || "").trim().toLowerCase() === "scan freshness") {
+      card.setAttribute("role", "button");
+      card.setAttribute("tabindex", "0");
+      card.dataset.uiQuickLink = "";
+      card.dataset.quickLinkPage = "queue";
+      card.dataset.quickLinkFocus = "[data-queue-refresh-button]";
+      card.setAttribute("aria-label", "Focus Scan Sources button");
+    }
     const title = tile.title || queueSourceTileTitle(tile);
     if (title) {
       card.title = title;
-      card.setAttribute("aria-label", title);
+      if (!card.hasAttribute("aria-label")) card.setAttribute("aria-label", title);
     }
     const header = document.createElement("div");
     header.className = "queue-source-tile-header";
@@ -956,6 +964,13 @@
     const card = document.createElement("section");
     card.className = "queue-source-tile queue-source-message-tile";
     card.dataset.tone = tone;
+    card.setAttribute("role", "button");
+    card.setAttribute("tabindex", "0");
+    card.dataset.uiQuickLink = "";
+    card.dataset.quickLinkPage = "queue";
+    card.dataset.quickLinkFocus = "[data-queue-refresh-button]";
+    card.setAttribute("aria-label", "Focus Scan Sources button");
+    card.title = "Focus Scan Sources button";
     const value = document.createElement("strong");
     value.className = "queue-source-tile-value";
     value.textContent = lines[0] || "Queue source inventory";
@@ -1543,11 +1558,12 @@
   }
 
   function setQueueFilterSummary(lines) {
-    const summary = byId("queue-filter-summary");
     const text = Array.isArray(lines) ? lines.join("\n") : String(lines || "");
     setText("queue-filter-summary", text || "Queue filter inactive. No rows loaded.");
+    const summary = byId("queue-filter-summary");
     if (!summary) return;
     summary.hidden = true;
+    summary.style.display = "none";
     summary.setAttribute("aria-hidden", "true");
     const normalized = text.toLowerCase();
     summary.dataset.tone = normalized.includes("hidden review rows")

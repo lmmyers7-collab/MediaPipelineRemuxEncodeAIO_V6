@@ -57,6 +57,7 @@ def audit_record_to_row(
         "row_key": audit_record_key(record, row_index),
         "row_index": row_index,
         "path": str(path or ""),
+        "source_root": record.source_root,
         "relative_path": record.relative_path,
         "lookup_title": record.lookup_title,
         "media_type": record.media_type,

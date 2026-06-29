@@ -3,9 +3,9 @@ file: src/mediapipeline/core/config/metadata_choices.py
 pipeline_stage: config
 token_priority: medium
 owner_domain: config
-last_modified: 2026-05-31
+last_modified: 2026-06-29
 last_reviewed: 2026-06-04
-sha256: 74f7ba0f95f52808c7185c93c1660fd51f05187854dc09f30a8c00d568b7bd99
+sha256: 55ca75aa46d29ae3b46b9c79fc12fd0fab6a02ca4b0861bd1b84d11310d06554
 ---
 # `src/mediapipeline/core/config/metadata_choices.py`
 

@@ -98,6 +98,9 @@ def _browser_home_live_state_runner_source() -> str:
             function requireFunction(name) {
               if (typeof window[name] !== "function") throw new Error("missing global function " + name);
             }
+            function activePage() {
+              return document.querySelector("[data-page-panel].is-visible")?.dataset.pagePanel || "";
+            }
             function requireNamespaceFunction(namespaceName, name) {
               const namespace = window[namespaceName] || {};
               if (typeof namespace[name] !== "function") {
@@ -156,6 +159,7 @@ def _browser_home_live_state_runner_source() -> str:
                 await new Promise((resolve) => setTimeout(resolve, 100));
               }
               throw new Error("Timed out waiting for " + label + (lastError ? ": " + lastError.message : "") + "\\nState:\\n" + [
+                "activePage=" + activePage(),
                 "homeReadiness=" + text("home-readiness-summary"),
                 "nextQueue=" + text("home-next-queue-list"),
                 "queueCount=" + text("queue-count"),
@@ -170,6 +174,30 @@ def _browser_home_live_state_runner_source() -> str:
                 "worksheet=" + text("cross-page-real-media-summary"),
                 "posts=" + JSON.stringify(posts),
               ].join("\\n"));
+            }
+            async function clickProgressQuickLink(key, expectedPage, expectedReportsTab) {
+              window.showPage("home");
+              const selector = '#progress-detail-rows [data-progress-quick-link="' + key + '"] .progress-fact-link';
+              await waitFor(() => document.querySelector(selector), "progress quick link " + key + " rendered");
+              document.querySelector(selector).click();
+              await waitFor(() => activePage() === expectedPage, "progress quick link " + key + " navigates to " + expectedPage);
+              if (expectedReportsTab) {
+                await waitFor(
+                  () => document.querySelector('[data-reports-tab="' + expectedReportsTab + '"]')?.getAttribute("aria-selected") === "true",
+                  "progress quick link " + key + " activates reports tab " + expectedReportsTab,
+                );
+              }
+            }
+            async function clickUiQuickLink(selector, expectedPage, label) {
+              await waitFor(() => document.querySelector(selector), label + " rendered");
+              document.querySelector(selector).click();
+              await waitFor(() => activePage() === expectedPage, label + " opens " + expectedPage);
+            }
+            async function requireTabSelected(selector, label) {
+              await waitFor(
+                () => document.querySelector(selector)?.getAttribute("aria-selected") === "true",
+                label + " selected",
+              );
             }
             [
               "showPage",
@@ -482,6 +510,58 @@ def _browser_home_live_state_runner_source() -> str:
               "Issues",
               "No failures reported",
             ]);
+            await clickProgressQuickLink("library", "libraries");
+            await clickProgressQuickLink("queue", "queue");
+            await clickProgressQuickLink("route", "queue");
+            await clickProgressQuickLink("done", "completed");
+            await clickProgressQuickLink("issues", "reports", "failures");
+            await clickUiQuickLink("#pipeline-state", "live", "Home Pipeline tile");
+            await clickUiQuickLink("#home-pending-count", "pending", "Home Pending tile");
+            await clickUiQuickLink("#home-failed-count", "reports", "Home Failed tile");
+            await requireTabSelected('[data-reports-tab="failures"]', "Reports failures tab");
+            const failureNeedsAction = document.querySelector('[data-failure-filter-chip="needs_action"]');
+            if (!failureNeedsAction || failureNeedsAction.getAttribute("aria-pressed") !== "true") {
+              throw new Error("Home Failed tile did not activate Reports needs-action filter.");
+            }
+            window.showPage("metrics");
+            await clickUiQuickLink("#metrics-remux-count", "metrics", "Metrics remux tile");
+            await requireTabSelected('[data-metrics-tab="routes"]', "Metrics routes tab");
+            await clickUiQuickLink("#metrics-storage-saved", "metrics", "Metrics storage tile");
+            await requireTabSelected('[data-metrics-tab="storage"]', "Metrics storage tab");
+            window.showPage("completed");
+            await clickUiQuickLink("#completed-encode-count", "completed", "Completed Encoded tile");
+            if (byId("completed-investigation-filter").value !== "encode") {
+              throw new Error("Completed Encoded tile did not apply encode investigation filter.");
+            }
+            await clickUiQuickLink("#completed-remux-count", "completed", "Completed Remuxed tile");
+            if (byId("completed-investigation-filter").value !== "remux") {
+              throw new Error("Completed Remuxed tile did not apply remux investigation filter.");
+            }
+            await clickUiQuickLink("#completed-current-at-a-glance [data-quick-link-action='filters']", "completed", "Completed Filters tile");
+            if (document.activeElement !== byId("completed-filter")) {
+              throw new Error("Completed Filters tile did not focus the current-output filter.");
+            }
+            await clickUiQuickLink("#pending-health-count", "pending", "Pending Health tile");
+            if (byId("pending-status-filter").value !== "review") {
+              throw new Error("Pending Health tile did not apply review status filter.");
+            }
+            await clickUiQuickLink("#pending-payload-count", "pending", "Pending Payloads tile");
+            if (byId("pending-filter").value !== "payload") {
+              throw new Error("Pending Payloads tile did not apply payload text filter.");
+            }
+            window.showPage("queue");
+            await waitFor(() => document.querySelector("#queue-source-inventory [data-ui-quick-link]"), "Queue source quick link rendered");
+            const postCountBeforeQueueTile = posts.length;
+            document.querySelector("#queue-source-inventory [data-ui-quick-link]").click();
+            await waitFor(() => document.activeElement === document.querySelector("[data-queue-refresh-button]"), "Queue scan tile focuses Scan Sources");
+            if (posts.length !== postCountBeforeQueueTile) {
+              throw new Error("Queue scan tile must focus Scan Sources without posting: " + JSON.stringify(posts));
+            }
+            window.showPage("launch");
+            await clickUiQuickLink("#pipeline-controller-last-start-status", "launch", "Launch Last start tile");
+            await requireTabSelected('[data-launch-tab="history"]', "Launch history tab");
+            window.showPage("home");
+            window.showPage("live");
             requireText("progress-evidence-summary", [
               "Progress evidence board:",
               "Status: Active/review",

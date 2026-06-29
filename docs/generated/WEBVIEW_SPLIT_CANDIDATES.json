@@ -234,8 +234,8 @@
           "topic": "app-core",
           "line_range": {
             "start": 1029,
-            "end": 1318,
-            "line_count": 290
+            "end": 1334,
+            "line_count": 306
           },
           "functions_to_move": [
             "initSettingsTabNav",
@@ -260,6 +260,7 @@
             "uiPreferenceApplyingRemote",
             "uiPreferenceLocalDirty",
             "uiPreferenceLastSerialized",
+            "uiPreferenceAwaitingRemoteEchoSerialized",
             "isSharedUiPreferenceKey",
             "collectSharedUiPreferences",
             "currentUiPreferenceSurface",

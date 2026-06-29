@@ -1108,6 +1108,20 @@
       const item = document.createElement("div");
       item.className = "review-tile";
       if (tile.tone) item.dataset.tone = networkTileTone(tile.tone);
+      const labelText = String(tile.label || "").trim().toLowerCase();
+      const isCoordinator = elementId === "network-coordinator-overview-tiles";
+      const focusSelector = isCoordinator
+        ? (labelText.includes("queue") || labelText.includes("priority")
+          ? "#network-coordinator-queue-rows"
+          : "#network-coordinator-active-rows")
+        : "#network-worker-claim-rows";
+      item.setAttribute("role", "button");
+      item.setAttribute("tabindex", "0");
+      item.dataset.uiQuickLink = "";
+      item.dataset.quickLinkPage = "network";
+      item.dataset.quickLinkFocus = focusSelector;
+      item.setAttribute("aria-label", `Focus ${tile.label || "network"} evidence`);
+      item.title = `Focus ${tile.label || "network"} evidence`;
       const label = document.createElement("span");
       label.className = "review-tile-label";
       label.textContent = tile.label || "";
@@ -1120,6 +1134,36 @@
       item.append(label, value, detail);
       target.appendChild(item);
     });
+  }
+
+  function focusNetworkQuickLink(selector) {
+    const target = selector ? document.querySelector(selector) : null;
+    if (!target) return false;
+    target.scrollIntoView?.({ block: "center", inline: "nearest" });
+    if (!target.matches?.("a[href], button, input, select, textarea, summary, [tabindex]")) {
+      target.setAttribute("tabindex", "-1");
+    }
+    target.focus?.({ preventScroll: true });
+    return true;
+  }
+
+  function activateQuickLink(action) {
+    const normalized = String(action || "").trim().toLowerCase();
+    const presetMap = {
+      "worker-attention": "attention",
+      "worker-active": "active",
+      "worker-idle": "idle",
+      "worker-stale": "stale",
+      "worker-path-auth": "path-auth",
+      "worker-problem": "attention",
+    };
+    if (Object.prototype.hasOwnProperty.call(presetMap, normalized)) {
+      networkWorkerViewPreset = presetMap[normalized];
+      syncNetworkWorkerViewPresetButtons();
+      renderNetworkWorkerRows(lastNetworkWorkersPayload);
+      return focusNetworkQuickLink("#network-worker-rows");
+    }
+    return true;
   }
 
   function networkTileTone(tone) {
@@ -4073,6 +4117,7 @@
     networkOpenHistoryLine,
     renderNetworkOpenHistory,
     renderNetworkSettingsPatchHandoff,
+    activateQuickLink,
     renderNetworkLifecycleControls,
     runGuidedNetworkLifecycleCommand,
     runNetworkLifecycleCommand,

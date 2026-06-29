@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$LibraryRoot = '',
+    [string[]]$LibraryRoots = @(),
     [string]$ConfigPath = '',
     [string]$ReportRoot,
     [switch]$IncludeSidecars,
@@ -754,6 +755,7 @@ function New-AuditResult {
 
     return [pscustomobject]@{
         Path                    = $FileInfo.FullName
+        SourceRoot              = $script:LibraryRootResolved
         RelativePath            = $RelativePath
         FileName                = $FileInfo.Name
         MediaType               = ''
@@ -1356,17 +1358,44 @@ try {
         $config = Import-PowerShellDataFile -LiteralPath $script:ConfigPathResolved
     }
 
-    if ([string]::IsNullOrWhiteSpace($LibraryRoot)) {
-        $LibraryRoot = Get-AuditDefaultLibraryRootFromConfig -Config $config
+    $libraryRootInputs = [System.Collections.Generic.List[string]]::new()
+    foreach ($candidateRoot in @($LibraryRoots)) {
+        if (-not [string]::IsNullOrWhiteSpace($candidateRoot)) {
+            $libraryRootInputs.Add([string]$candidateRoot) | Out-Null
+        }
     }
-    if ([string]::IsNullOrWhiteSpace($LibraryRoot)) {
+    if (-not [string]::IsNullOrWhiteSpace($LibraryRoot)) {
+        $libraryRootInputs.Add([string]$LibraryRoot) | Out-Null
+    }
+    if ($libraryRootInputs.Count -eq 0) {
+        $defaultLibraryRoot = Get-AuditDefaultLibraryRootFromConfig -Config $config
+        if (-not [string]::IsNullOrWhiteSpace($defaultLibraryRoot)) {
+            $libraryRootInputs.Add([string]$defaultLibraryRoot) | Out-Null
+        }
+    }
+    if ($libraryRootInputs.Count -eq 0) {
         throw "LibraryRoot was not provided. Pass -LibraryRoot explicitly or set SourceMovies/SourceTV in the config with a shared parent root."
     }
 
-    $script:LibraryRootResolved = Resolve-ExistingPath $LibraryRoot
-    if (-not (Test-IsUncPath $script:LibraryRootResolved) -and -not (Test-Path -LiteralPath $script:LibraryRootResolved)) {
-        throw "Library root was not found: $LibraryRoot"
+    $resolvedLibraryRoots = [System.Collections.Generic.List[string]]::new()
+    $seenLibraryRoots = @{}
+    foreach ($candidateRoot in @($libraryRootInputs)) {
+        $resolvedRoot = Resolve-ExistingPath $candidateRoot
+        if (-not (Test-IsUncPath $resolvedRoot) -and -not (Test-Path -LiteralPath $resolvedRoot)) {
+            throw "Library root was not found: $candidateRoot"
+        }
+        $rootKey = ([string]$resolvedRoot -replace '[\\/]+$','').ToLowerInvariant()
+        if ($seenLibraryRoots.ContainsKey($rootKey)) {
+            continue
+        }
+        $seenLibraryRoots[$rootKey] = $true
+        $resolvedLibraryRoots.Add([string]$resolvedRoot) | Out-Null
     }
+    if ($resolvedLibraryRoots.Count -eq 0) {
+        throw "No unique audit library roots were available."
+    }
+    $script:LibraryRootsResolved = @($resolvedLibraryRoots)
+    $script:LibraryRootResolved = $script:LibraryRootsResolved[0]
 
     if ($config -and $config.ContainsKey('AllowSystemTools')) {
         try {
@@ -1435,7 +1464,10 @@ try {
     $script:FfprobePath = Resolve-ExecutablePath -Name 'ffprobe' -RelativeCandidates @('..\tools\ffmpeg\bin\ffprobe.exe', 'Tools\ffmpeg\bin\ffprobe.exe')
 
     Write-AuditLog "===== LIBRARY AUDIT START $($script:ProductVersion) (audit $($script:AuditVersion)) ====="
-    Write-AuditLog "Library root       : $($script:LibraryRootResolved)"
+    Write-AuditLog "Library root count : $(@($script:LibraryRootsResolved).Count)"
+    foreach ($resolvedRoot in @($script:LibraryRootsResolved)) {
+        Write-AuditLog "Library root       : $resolvedRoot"
+    }
     Write-AuditLog "Report root        : $($script:ReportRootResolved)"
     Write-AuditLog "Product ver        : $($script:ProductVersion)"
     Write-AuditLog "Probe cache root   : $($script:ProbeCacheRoot)"
@@ -1449,13 +1481,35 @@ try {
     Write-AuditProgress -Status 'starting' -ProcessedFiles 0 -TotalFiles 0 -CurrentOperation 'Initializing audit run.'
 
     Write-AuditProgress -Status 'starting' -ProcessedFiles 0 -TotalFiles 0 -CurrentOperation 'Enumerating media files.'
-    $mediaFiles = @(Get-AuditMediaFilesBounded -RootPath $script:LibraryRootResolved -TimeoutSeconds $AuditEnumerationTimeoutSeconds)
+    $rootMediaBatches = [System.Collections.Generic.List[object]]::new()
+    $totalMediaFiles = 0
+    foreach ($resolvedRoot in @($script:LibraryRootsResolved)) {
+        $script:LibraryRootResolved = $resolvedRoot
+        Write-AuditProgress -Status 'starting' -ProcessedFiles 0 -TotalFiles $totalMediaFiles -CurrentOperation "Enumerating media files under $resolvedRoot."
+        $mediaFiles = @(Get-AuditMediaFilesBounded -RootPath $resolvedRoot -TimeoutSeconds $AuditEnumerationTimeoutSeconds)
+        $rootMediaBatches.Add([pscustomobject]@{
+            RootPath   = $resolvedRoot
+            MediaFiles = @($mediaFiles)
+        }) | Out-Null
+        $totalMediaFiles += $mediaFiles.Count
+        Write-AuditLog "Media files found  : $($mediaFiles.Count) under $resolvedRoot"
+    }
 
-    Write-AuditLog "Media files found  : $($mediaFiles.Count)"
-    Write-AuditProgress -Status 'scanning' -ProcessedFiles 0 -TotalFiles $mediaFiles.Count -CurrentOperation 'Enumerated media files.'
+    Write-AuditLog "Media files total  : $totalMediaFiles"
+    Write-AuditProgress -Status 'scanning' -ProcessedFiles 0 -TotalFiles $totalMediaFiles -CurrentOperation 'Enumerated media files.'
 
-    $total = $mediaFiles.Count
-    $results = Invoke-AuditFileScan -MediaFiles $mediaFiles -LibraryRoot $script:LibraryRootResolved
+    $allResults = [System.Collections.Generic.List[object]]::new()
+    foreach ($batch in @($rootMediaBatches)) {
+        $script:LibraryRootResolved = [string]$batch.RootPath
+        Write-AuditLog "Scanning root      : $($script:LibraryRootResolved)"
+        $batchResults = @(Invoke-AuditFileScan -MediaFiles @($batch.MediaFiles) -LibraryRoot $script:LibraryRootResolved)
+        foreach ($item in @($batchResults)) {
+            $allResults.Add($item) | Out-Null
+        }
+    }
+    $script:LibraryRootResolved = if (@($script:LibraryRootsResolved).Count -eq 1) { $script:LibraryRootsResolved[0] } else { @($script:LibraryRootsResolved) -join '; ' }
+    $total = $allResults.Count
+    $results = @($allResults)
     Write-AuditProgress -Status 'writing-reports' -ProcessedFiles $total -TotalFiles $total -CurrentOperation 'Writing report files.'
 
     $reportBundle = Write-AuditReportBundle -Results @($results) -EmitText ([bool]$EmitText) -EmitJson ([bool]$EmitJson) -EmitCsv ([bool]$EmitCsv)

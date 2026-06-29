@@ -24,6 +24,7 @@ DOM_HELPERS_PATH = ASSETS_ROOT / "domHelpers.js"
 COMPLETED_VIEW_PATH = ASSETS_ROOT / "completedView.js"
 PENDING_VIEW_PATH = ASSETS_ROOT / "pendingPublishView.js"
 COMPLETED_TABLE_PATH = ASSETS_ROOT / "completed" / "table.js"
+APP_PATH = ASSETS_ROOT / "app.js"
 APP_LIFECYCLE_PATH = ASSETS_ROOT / "app" / "lifecycle.js"
 APP_LAYOUT_MANAGER_PATH = ASSETS_ROOT / "app" / "layoutManager.js"
 LAUNCH_VIEW_PATH = ASSETS_ROOT / "launchView.js"
@@ -417,11 +418,20 @@ class WebViewCssDesignTokenTests(unittest.TestCase):
         self.assertIn("This does not start a new run or touch media", launch_command_buttons_js)
         self.assertIn("source media should not be touched", launch_command_buttons_js)
 
-    def test_theme_toggle_uses_dark_as_unstored_default(self) -> None:
+    def test_theme_runtime_is_dark_only(self) -> None:
+        html = _rendered_index_html()
         app_js = APP_LIFECYCLE_PATH.read_text(encoding="utf-8")
+        app_root_js = APP_PATH.read_text(encoding="utf-8")
 
-        self.assertIn("localStorage.getItem(THEME_STORAGE_KEY)", app_js)
-        self.assertIn("const preferLight = stored === \"light\";", app_js)
+        self.assertNotIn('id="theme-toggle"', html)
+        self.assertIn("function initThemeToggle()", app_js)
+        self.assertIn("applyThemePreference(false);", app_js)
+        self.assertIn('document.body.classList.remove("light-mode");', app_js)
+        self.assertIn('localStorage.setItem(THEME_STORAGE_KEY, "dark")', app_js)
+        self.assertIn("if (text === THEME_STORAGE_KEY) return false;", app_root_js)
+        self.assertNotIn("const preferLight = stored === \"light\";", app_js)
+        self.assertNotIn("Toggle light/dark theme", app_js)
+        self.assertNotIn('byId("theme-toggle")?.click()', app_js)
         self.assertNotIn("prefers-color-scheme: light", app_js)
 
     def test_panel_and_tab_consistency_contract_is_wired(self) -> None:

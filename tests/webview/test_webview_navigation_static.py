@@ -89,12 +89,15 @@ class _NavParser(HTMLParser):
         self.nav_buttons: list[dict] = []
         self.page_panels: list[dict] = []
         self.cross_page_targets: list[str] = []
+        self.quick_links: list[dict[str, str]] = []
         self._in_nav = False
         self._current_button: dict | None = None
         self._current_text: list[str] = []
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attr_dict = dict(attrs)
+        if "data-ui-quick-link" in attr_dict:
+            self.quick_links.append({key: value or "" for key, value in attr_dict.items()})
         if tag == "nav" and "nav" in (attr_dict.get("class") or "").split():
             self._in_nav = True
         if tag == "button":
@@ -303,6 +306,100 @@ class WebViewNavigationStaticTests(unittest.TestCase):
                 valid_pages,
                 f"data-cross-page-target='{target}' is not a known nav page",
             )
+
+    def test_progress_detail_cards_are_quick_links(self) -> None:
+        progress_js = (_STATIC_ROOT / "assets" / "progressView.js").read_text(encoding="utf-8")
+        progress_css = (
+            _STATIC_ROOT / "assets" / "styles" / "components" / "progress-live.css"
+        ).read_text(encoding="utf-8")
+        for fragment in [
+            "const progressDetailQuickLinks = {",
+            'library: { page: "libraries", label: "Open Libraries" }',
+            'queue: { page: "queue", label: "Open Queue" }',
+            'route: { page: "queue", label: "Open Queue route evidence" }',
+            'done: { page: "completed", label: "Open Completed Output" }',
+            'issues: { page: "reports", reportsTab: "failures", label: "Open Reports failures" }',
+            "function activateProgressDetailQuickLink",
+            "card.dataset.crossPageTarget = link.page;",
+            'button.addEventListener("click", () => activateProgressDetailQuickLink(link));',
+        ]:
+            self.assertIn(fragment, progress_js)
+        for fragment in [
+            '.progress-fact[data-has-link="true"]',
+            ".progress-fact-link",
+            ".progress-fact-link:focus-visible",
+            "box-shadow: var(--focus-ring);",
+        ]:
+            self.assertIn(fragment, progress_css)
+
+    def test_ui_status_tile_quick_links_have_safe_targets(self) -> None:
+        valid_pages = set(_EXPECTED_PAGE_PANELS)
+        valid_modules = {"completed", "pending", "reports", "network", "maintenance", "schedule"}
+        forbidden_actions = {"scan", "start", "launch", "drain", "save", "publish", "rename", "repair", "delete"}
+        self.assertGreaterEqual(len(self.parsed.quick_links), 30)
+        for item in self.parsed.quick_links:
+            label = item.get("aria-label") or item.get("title") or ""
+            self.assertTrue(label.strip(), f"quick link missing aria-label/title: {item}")
+            page = item.get("data-quick-link-page")
+            if page:
+                self.assertIn(page, valid_pages, f"quick link targets unknown page {page!r}: {item}")
+            module = item.get("data-quick-link-module")
+            if module:
+                self.assertIn(module, valid_modules, f"quick link targets unknown module {module!r}: {item}")
+            action = item.get("data-quick-link-action", "")
+            self.assertFalse(
+                action in forbidden_actions,
+                f"quick link must not invoke command-like action {action!r}: {item}",
+            )
+        html = render_index(
+            _STATIC_ROOT,
+            {"token": "quick-link-contract-test-token", "appVersion": "v5-test", "shellSurface": "webview"},
+        ).body.decode("utf-8")
+        for fragment in [
+            'data-quick-link-page="live"',
+            'data-quick-link-page="pending"',
+            'data-quick-link-reports-tab="failures"',
+            'data-quick-link-metrics-tab="routes"',
+            'data-quick-link-module="completed" data-quick-link-action="encode"',
+            'data-quick-link-module="pending" data-quick-link-action="manifests"',
+            'data-quick-link-module="reports" data-quick-link-action="failure-needs-action"',
+            'data-quick-link-module="maintenance" data-quick-link-action="missing"',
+            'data-quick-link-focus="[data-queue-refresh-button]"',
+        ]:
+            self.assertIn(fragment, html)
+
+    def test_dynamic_quick_link_renderers_are_present(self) -> None:
+        progress_js = (_STATIC_ROOT / "assets" / "progressView.js").read_text(encoding="utf-8")
+        queue_js = (_STATIC_ROOT / "assets" / "queueView.js").read_text(encoding="utf-8")
+        network_js = (_STATIC_ROOT / "assets" / "networkView.js").read_text(encoding="utf-8")
+        completed_table_js = (_STATIC_ROOT / "assets" / "completed" / "table.js").read_text(encoding="utf-8")
+        for source, fragments in {
+            "progressView.js": [
+                "const liveRunQuickLinks = {",
+                'ffmpeg: { page: "diagnostics", diagTab: "logs"',
+                'node.dataset.uiQuickLink = "";',
+            ],
+            "queueView.js": [
+                'String(tile.label || "").trim().toLowerCase() === "scan freshness"',
+                'card.dataset.quickLinkFocus = "[data-queue-refresh-button]";',
+            ],
+            "networkView.js": [
+                'item.dataset.quickLinkPage = "network";',
+                'item.dataset.quickLinkFocus = focusSelector;',
+            ],
+            "completed/table.js": [
+                'metric.dataset.quickLinkModule = "completed";',
+                'metric.dataset.quickLinkAction = action;',
+            ],
+        }.items():
+            text = {
+                "progressView.js": progress_js,
+                "queueView.js": queue_js,
+                "networkView.js": network_js,
+                "completed/table.js": completed_table_js,
+            }[source]
+            for fragment in fragments:
+                self.assertIn(fragment, text)
 
     def test_nav_element_is_present(self) -> None:
         self.assertGreater(

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from ..metadata_choices import CONFIG_LIST_CHOICES
 from ..metadata_support import (
     AUDIO_DOWNMIX_MODE_DESCRIPTIONS,
     AUDIO_MAX_CHANNEL_DESCRIPTIONS,
@@ -11,6 +12,13 @@ from .policy import (
     AUDIO_PASSTHROUGH_PROFILE_DEFAULT,
     AUDIO_PASSTHROUGH_PROFILE_DESCRIPTIONS,
     AUDIO_PASSTHROUGH_PROFILE_NAMES,
+)
+
+PREFERRED_DEFAULT_AUDIO_LANGUAGE_CHOICES = tuple(
+    value for value, _label in CONFIG_LIST_CHOICES["PreferredDefaultAudioLanguages"]
+)
+PREFERRED_DEFAULT_AUDIO_LANGUAGE_CHOICE_HELP = dict(
+    CONFIG_LIST_CHOICES["PreferredDefaultAudioLanguages"]
 )
 
 BASIC_FINAL_LIBRARY_PROMOTION_FIELDS = (
@@ -86,9 +94,11 @@ BASIC_AUDIO_FIELDS = (
         "page": "Basic",
         "section": "Audio",
         "key": "PreferredDefaultAudioLanguages",
-        "label": "Preferred Default Audio Languages",
+        "label": "Primary Default Audio Language",
         "kind": "list",
-        "help": "Ordered language preference for the default audio track. If none of these are present, the highest-fidelity non-commentary track is chosen. The text field controls the exact order.",
+        "choices": PREFERRED_DEFAULT_AUDIO_LANGUAGE_CHOICES,
+        "choice_help": PREFERRED_DEFAULT_AUDIO_LANGUAGE_CHOICE_HELP,
+        "help": "Primary default-audio language preference. If the selected language is not present, the highest-fidelity non-commentary track is chosen.",
     },
 {
         "page": "Basic",

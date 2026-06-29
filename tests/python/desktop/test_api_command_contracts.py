@@ -58,6 +58,20 @@ class ApiCommandContractsTests(unittest.TestCase):
         self.assertEqual(validate_api_payload("/api/queue/scan", {}), {})
         self.assertEqual(validate_api_payload("/api/queue/priority", {"clear_all": True}), {"clear_all": True})
 
+    def test_path_picker_payload_contract_accepts_staged_fields_only(self) -> None:
+        payload = {
+            "target_key": "launch.rerun_csv",
+            "selection_mode": "files",
+            "initial_path": r"C:\Media\runs.csv",
+            "file_filter": "CSV files (*.csv)|*.csv",
+        }
+
+        self.assertEqual(validate_api_payload("/api/path-picker/browse", payload), payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/path-picker/browse", {**payload, "confirm_save": True})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/path-picker/browse", {**payload, "writes_config": True})
+
     def test_schedule_day_window_payload_contract_preserves_active_wire_shape(self) -> None:
         payload = {
             "enabled": True,
@@ -162,7 +176,10 @@ class ApiCommandContractsTests(unittest.TestCase):
         high_risk_payloads = {
             "/api/pipeline/start": {"mode": "once", "extra_args": "-NoDeleteSource"},
             "/api/pipeline/control": {"action": "pause", "extra": True},
+            "/api/audit/start": {"library_root": r"D:\Media", "library_roots": [r"D:\Media"], "extra_args": "-NoDeleteSource"},
             "/api/audit/stop": {"confirm_stop": True, "path": r"C:\Media\Movie.mkv"},
+            "/api/audit/sources": {"action": "add", "path": r"D:\Media", "root": r"E:\Other"},
+            "/api/audit/sources/scan": {"source_ids": ["src_test"], "recursive": True},
             "/api/queue/scan": {"mode": "inventory_then_curate", "path": r"C:\Media\Movie.mkv"},
             "/api/queue/file-overrides/series-apply": {
                 "path": r"C:\Media\TV\Show\S01E01.mkv",
@@ -247,6 +264,8 @@ class ApiCommandContractsTests(unittest.TestCase):
             "/api/network/coordinator/stop": {"confirm_stop": True, "path": r"C:\Media\Movie.mkv"},
             "/api/network/worker/start": {"confirm_start": True, "path": r"C:\Media\Movie.mkv"},
             "/api/network/worker/stop": {"confirm_stop": True, "path": r"C:\Media\Movie.mkv"},
+            "/api/rerun/preview": {"csv_path": r"C:\Media\runs.csv", "path": r"C:\Other.csv"},
+            "/api/rerun/start": {"csv_path": r"C:\Media\runs.csv", "dry_run": True, "path": r"C:\Other.csv"},
             "/api/final-library-promotion/promote-queue": {"confirm_promote": True, "row_key": "client-owned"},
             "/api/final-library-promotion/pause": {"run_id": "run-1", "row_key": "client-owned"},
             "/api/final-library-promotion/resume": {"run_id": "run-1", "row_key": "client-owned"},
@@ -451,12 +470,48 @@ class ApiCommandContractsTests(unittest.TestCase):
             ),
             {"source_run_id": "run-1", "selection": "selected", "finding_keys": ["finding-1"]},
         )
+        rerun_preview_payload = {
+            "csv_path": r"C:\Media\runs.csv",
+            "stage_mode": "copy",
+            "original_mode": "keep",
+            "return_mode": "park",
+            "scope": {
+                "enabled_only": True,
+                "skip_blocked": True,
+                "skip_warning_rows": False,
+                "first_n": 25,
+                "issue_filter": "audio",
+                "bucket_filter": "movie",
+                "preview_limit": 20,
+            },
+        }
+        self.assertEqual(validate_api_payload("/api/rerun/preview", rerun_preview_payload), rerun_preview_payload)
+        rerun_start_payload = {**rerun_preview_payload, "dry_run": True, "plan_only": False, "show_console": False}
+        self.assertEqual(validate_api_payload("/api/rerun/start", rerun_start_payload), rerun_start_payload)
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/start", {**rerun_start_payload, "dry_run": "true"})
+        with self.assertRaises(ValidationFailure):
+            validate_api_payload("/api/rerun/start", {**rerun_start_payload, "scope": {**rerun_preview_payload["scope"], "enabled_only": "true"}})
         self.assertEqual(
             validate_api_payload(
                 "/api/metrics/sources",
                 {"action": "add", "path": r"D:\Media", "label": "Drive D", "enabled": True},
             ),
             {"action": "add", "path": r"D:\Media", "label": "Drive D", "enabled": True},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/audit/sources",
+                {"action": "add", "path": r"D:\Media", "label": "Drive D", "enabled": True},
+            ),
+            {"action": "add", "path": r"D:\Media", "label": "Drive D", "enabled": True},
+        )
+        self.assertEqual(
+            validate_api_payload(
+                "/api/audit/sources/scan",
+                {"source_ids": ["src_a", "src_b"], "max_entries": 100},
+            ),
+            {"source_ids": ["src_a", "src_b"], "max_entries": 100},
         )
         self.assertEqual(
             validate_api_payload("/api/metrics/backfill", {"scope": "enabled", "max_sidecars": 100}),
@@ -778,6 +833,7 @@ class ApiCommandContractsTests(unittest.TestCase):
             ("/api/maintenance/release-build", "force", {"destination_root": "C:/Deploy", "confirm_create": True}),
             ("/api/maintenance/release-build", "confirm_create", {"destination_root": "C:/Deploy"}),
             ("/api/metrics/sources", "enabled", {"action": "add", "path": r"D:\Media"}),
+            ("/api/audit/sources", "enabled", {"action": "add", "path": r"D:\Media"}),
         ]
 
         for route, field, base_payload in cases:

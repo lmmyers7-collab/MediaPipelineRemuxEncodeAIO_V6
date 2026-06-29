@@ -1,19 +1,19 @@
       <section class="page" data-page-panel="completed">
         <h1 class="visually-hidden">Completed Output</h1>
         <div class="metric-grid">
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="completed" data-quick-link-completed-tab="overview" data-quick-link-module="completed" data-quick-link-action="clear" aria-label="Show all current completed outputs" title="Show all current completed outputs">
             <span class="metric-label">Completed</span>
             <strong id="completed-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="completed" data-quick-link-completed-tab="overview" data-quick-link-module="completed" data-quick-link-action="encode" aria-label="Filter completed outputs to encode routes" title="Filter encode routes">
             <span class="metric-label">Encoded</span>
             <strong id="completed-encode-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="completed" data-quick-link-completed-tab="overview" data-quick-link-module="completed" data-quick-link-action="remux" aria-label="Filter completed outputs to remux routes" title="Filter remux routes">
             <span class="metric-label">Remuxed</span>
             <strong id="completed-remux-count">0</strong>
           </section>
-          <section class="metric">
+          <section class="metric" role="button" tabindex="0" data-ui-quick-link data-quick-link-page="completed" data-quick-link-completed-tab="overview" data-quick-link-module="completed" data-quick-link-action="missing" aria-label="Filter completed outputs to missing or review rows" title="Filter missing or review rows">
             <span class="metric-label">Missing</span>
             <strong id="completed-missing-count">0</strong>
           </section>
@@ -156,8 +156,22 @@
               <span id="completed-selected-promotion-status" class="inline-action-status" data-state="unknown" role="status" aria-live="polite">Select a completed row to see promotion readiness.</span>
             </div>
             <p id="completed-open-status" class="note completed-open-status-note">Select a completed row to open a backend-selected location.</p>
-            <pre id="completed-open-history" class="prose-block completed-open-history-block">No completed open command history loaded.</pre>
+            <pre id="completed-open-history" class="prose-block completed-open-history-block" hidden aria-hidden="true">No completed open command history loaded.</pre>
           </div>
+        </section>
+
+        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
+          <div class="panel-heading">
+            <h2>Why This Output Looks Different</h2>
+            <strong id="completed-selected-status">No selection</strong>
+          </div>
+          <div id="completed-selected-summary" class="completed-selected-summary" role="region" aria-label="Selected completed output summary">
+            <p class="completed-selected-empty">Select a completed row to see the key route, size, runtime, and output-health signals before opening raw detail.</p>
+          </div>
+          <details id="completed-raw-detail" class="completed-raw-detail">
+            <summary>Raw selected-row detail</summary>
+            <pre id="completed-detail" class="prose-block" data-visual-keep="copy-output">No completed row selected.</pre>
+          </details>
         </section>
 
         <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
@@ -211,20 +225,6 @@
               </tbody>
             </table>
           </div>
-        </section>
-
-        <section class="panel settings-tab-pane is-active" data-completed-tab="overview" data-panel-type="interactive">
-          <div class="panel-heading">
-            <h2>Why This Output Looks Different</h2>
-            <strong id="completed-selected-status">No selection</strong>
-          </div>
-          <div id="completed-selected-summary" class="completed-selected-summary" role="region" aria-label="Selected completed output summary">
-            <p class="completed-selected-empty">Select a completed row to see the key route, size, runtime, and output-health signals before opening raw detail.</p>
-          </div>
-          <details id="completed-raw-detail" class="completed-raw-detail">
-            <summary>Raw selected-row detail</summary>
-            <pre id="completed-detail" class="prose-block" data-visual-keep="copy-output">No completed row selected.</pre>
-          </details>
         </section>
 
         <section class="panel settings-tab-pane output-overview-section output-overview-section-history" data-completed-tab="history" data-panel-type="interactive" aria-labelledby="completed-history-summary-heading">
